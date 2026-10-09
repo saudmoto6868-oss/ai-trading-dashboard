@@ -4,9 +4,9 @@ Orchestrates every employee module and renders the final dashboard.
 
 Layout (top to bottom):
   title row -> scrolling news ticker -> quick-link buttons ->
-  asset tabs. Each tab: [compact watchlist + trade-type filter | TradingView
-  chart | (Crypto only) Depth-of-Market ladder]. Crypto also gets a smart
-  time & sales feed and a limit-order tracker underneath.
+  asset tabs. Crypto tab: [scanner watchlist | two stacked TradingView charts |
+  Depth-of-Market ladder | Smart time & sales], limit-order tracker underneath.
+  Other tabs: [compact watchlist | chart].
 The whole page re-runs every few seconds (auto-refresh) so data stays live.
 """
 
@@ -21,8 +21,13 @@ from config import (
     EXTERNAL_LINKS, QUICK_LINK_ICONS, FINVIZ_PATTERNS, FINVIZ_PATTERN_URL,
     TRADE_TYPES, AUTO_REFRESH_SECONDS,
 )
-from modules.data_fetcher import get_mt5_data, get_binance_klines
-from modules.scorer import score_symbol
+from modules.data_fetcher import get_mt5_data
+from modules.scorer import (
+    score_symbol, scan_symbol, SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
+)
+from modules.market_cache import fetch_frames
+from modules.risk_engine import build_trade_plan
+from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
 from modules.news_feed import get_latest_news, ticker_html
@@ -102,11 +107,6 @@ render_quick_links()
 
 
 # ---- Data helpers -------------------------------------------------------------
-@st.cache_data(ttl=10, show_spinner=False)
-def cached_klines(sym: str):
-    return get_binance_klines(sym, interval="1h", limit=300)
-
-
 @st.cache_data(ttl=5, show_spinner=False)
 def cached_book(sym: str):
     return render_order_book(sym, limit=50)
@@ -139,17 +139,17 @@ def score_mt5_group(symbols):
     return results, ("; ".join(errors) if errors else "")
 
 
-def score_crypto_group(symbols):
+def scan_crypto_group(symbols, tf):
+    """Multi-timeframe scan: candles for the chosen timeframe PLUS its higher
+    context timeframes are fetched in parallel (cached), then scored."""
+    frames, fetch_errors = fetch_frames(symbols, [tf] + CONTEXT_TFS[tf])
     results, errors = [], []
     for sym in symbols:
         try:
-            df = cached_klines(sym)
-            res = score_symbol(df, timeframe_label="H1")
-            res["symbol"] = sym
-            results.append(res)
+            results.append(scan_symbol(sym, frames[sym], tf))
         except Exception as e:
-            errors.append(f"{sym}: {e}")
-    return results, ("; ".join(errors) if errors else "")
+            errors.append(f"{sym}: {fetch_errors.get(sym) or e}")
+    return results, "; ".join(errors)
 
 
 # ---- Compact watchlist ----------------------------------------------------------
@@ -208,6 +208,57 @@ def render_watchlist(results, notice, key):
     return filtered
 
 
+def _stars(n, mx):
+    return "\u2605" * n + "\u2606" * (mx - n)
+
+
+def render_scanner(results, notice, key):
+    """Scanner watchlist: one expander per coin. The label shows stars, bias,
+    signal icons and trade type at a glance; open it to see WHY it was flagged."""
+    selected = st.multiselect("Trade type", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
+    filtered = [r for r in results if r["trade_type"] in selected]
+    if notice:
+        st.caption(notice)
+    if not filtered and not notice:
+        st.info("No symbols match the current filter.")
+    for r in sorted(filtered, key=lambda r: (-r["score"], r["symbol"])):
+        arrow = {"bullish": "\u25B2", "bearish": "\u25BC"}.get(r["direction"], "\u25C6")
+        label = f"{_stars(r['score'], r['max_score'])} {r['symbol']} {arrow} {r['icons']} \u00B7 {r['trade_type']}"
+        with st.expander(label.strip()):
+            explain_symbol(r)
+    st.caption("Icons: " + "  ".join(f"{ic} {fam}" for fam, ic in FAMILY_ICONS.items())
+               + ".  Stars = how many of the 7 signal families agree.")
+    return filtered
+
+
+def explain_symbol(r):
+    """The 'why was this flagged' panel."""
+    st.markdown(f"**{html.escape(r['symbol'])}** &middot; price {fmt_price(r['price'])} &middot; "
+                f"{TF_LABEL.get(r['timeframe'], r['timeframe'])} scan &middot; "
+                f"{r['direction'].upper()} &middot; {r['score']}/{r['max_score']} stars &middot; {r['trade_type']}",
+                unsafe_allow_html=True)
+    if not r["signals"]:
+        st.caption("Mixed or no signals right now - nothing to act on." if not r.get("mixed")
+                   else "Bullish and bearish evidence cancel out - no dominant direction.")
+    for s_ in r["signals"]:
+        st.markdown(f"- {s_['icon']} **{s_['name']}** ({s_['family']}) - {s_['detail']}")
+    if r.get("against"):
+        st.caption("Against: " + ", ".join(f"{a['icon']} {a['name']}" for a in r["against"]))
+    if r["htf"]:
+        st.markdown("**Higher timeframes**")
+        for line in htf_lines(r):
+            st.markdown(f"- {line}")
+    if r["direction"] in ("bullish", "bearish"):
+        plan = build_trade_plan(r)
+        st.markdown(f"**Plan ({plan['direction']})** - entry {plan['entry']} - stop {plan['stop_loss']} - "
+                    f"TP1 {plan['take_profits'][0]} / TP2 {plan['take_profits'][1]} / TP3 {plan['take_profits'][2]}")
+        st.markdown("**Scenarios**")
+        for line in scenarios(r):
+            st.markdown(f"- {line}")
+    if r.get("errors"):
+        st.caption("Detector notes: " + "; ".join(r["errors"]))
+
+
 def fire_alerts(filtered):
     """Banners show on every refresh; the beep only for signals not alerted before."""
     seen = st.session_state.setdefault("alerted", set())
@@ -231,27 +282,29 @@ def render_dom(sym):
     return bids, asks
 
 
-def render_order_flow(sym, book):
-    ts_col, lt_col = st.columns(2)
-    trades = None
-    with ts_col:
-        st.markdown("**Time & Sales** &middot; Smart / Whale prints flagged")
-        try:
-            trades = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
-            st.markdown(trades_html(trades, max_rows=20), unsafe_allow_html=True)
-        except Exception as e:
-            st.warning(f"Time & sales unavailable: {e}")
-    with lt_col:
-        st.markdown("**Limit Tracking** &middot; big limit orders placed / pulled / filled")
-        if book is not None:
-            trackers = st.session_state.setdefault("limit_trackers", {})
-            tracker = trackers.get(sym)
-            if tracker is None or tracker.big_mult != big_order_mult:
-                tracker = trackers[sym] = LimitTracker(big_mult=big_order_mult)
-            tracker.update(book[0], book[1], trades)
-            st.markdown(limit_events_html(tracker.events_df()), unsafe_allow_html=True)
-            st.caption("Snapshot based (compares each refresh), so quick spoof-and-cancel "
-                       "inside one refresh is not seen. PULLED = vanished without trading.")
+def render_trades(sym):
+    st.markdown("**Time & Sales** &middot; Smart / Whale flagged", unsafe_allow_html=True)
+    try:
+        trades = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
+        st.markdown(trades_html(trades, max_rows=20), unsafe_allow_html=True)
+        return trades
+    except Exception as e:
+        st.warning(f"Time & sales unavailable: {e}")
+        return None
+
+
+def render_limit_tracking(sym, book, trades):
+    st.markdown("**Limit Tracking** &middot; big limit orders placed / pulled / filled", unsafe_allow_html=True)
+    if book is None:
+        return
+    trackers = st.session_state.setdefault("limit_trackers", {})
+    tracker = trackers.get(sym)
+    if tracker is None or tracker.big_mult != big_order_mult:
+        tracker = trackers[sym] = LimitTracker(big_mult=big_order_mult)
+    tracker.update(book[0], book[1], trades)
+    st.markdown(limit_events_html(tracker.events_df()), unsafe_allow_html=True)
+    st.caption("Snapshot based (compares each refresh), so quick spoof-and-cancel "
+               "inside one refresh is not seen. PULLED = vanished without trading.")
 
 
 # ---- Tabs -------------------------------------------------------------------------
@@ -259,19 +312,32 @@ tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
     ["\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
 )
 
+TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
+CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
+
 with tab_crypto:
-    col_watch, col_chart, col_dom = st.columns([1.1, 2.4, 1.5])
-    results, notice = score_crypto_group(CRYPTO_SYMBOLS)
+    col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])
     with col_watch:
-        st.markdown("**Watchlist**")
-        filtered = render_watchlist(results, notice, "crypto")
+        st.markdown("**Scanner**")
+        scan_tf = st.radio("Scan timeframe", SCAN_TFS, index=1, horizontal=True, key="scan_tf",
+                           format_func=lambda t: {"1m": "1 min", "1h": "1 hour", "1d": "1 day", "1w": "1 week"}[t])
+        results, notice = scan_crypto_group(CRYPTO_SYMBOLS, scan_tf)
+        filtered = render_scanner(results, notice, "crypto")
     with col_chart:
-        pick = st.selectbox("Chart symbol", CRYPTO_SYMBOLS, key="crypto_chart_pick")
-        render_tv_chart(pick)
+        c_sym, c_top, c_bot = st.columns([1.3, 1, 1])
+        pick = c_sym.selectbox("Symbol", CRYPTO_SYMBOLS, key="crypto_chart_pick")
+        tf_top = c_top.selectbox("Top chart", list(TV_INTERVALS), index=3, key="tv_top",
+                                 format_func=lambda k: TV_INTERVALS[k])
+        tf_bot = c_bot.selectbox("Bottom chart", list(TV_INTERVALS), index=2, key="tv_bot",
+                                 format_func=lambda k: TV_INTERVALS[k])
+        render_tv_chart(pick, height=CHART_H, interval=tf_top, key="top")
+        render_tv_chart(pick, height=CHART_H, interval=tf_bot, key="bottom")
     with col_dom:
         book = render_dom(pick)
+    with col_ts:
+        trades = render_trades(pick)
     st.markdown("---")
-    render_order_flow(pick, book)
+    render_limit_tracking(pick, book, trades)
     fire_alerts(filtered)
 
 

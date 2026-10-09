@@ -5,7 +5,7 @@ sound, colored banner, and full trade plan (entry, stop loss, 3 staged
 take profits). This is also the hook point for a future Telegram bot.
 """
 
-import streamlit as st
+import streamlit.components.v1 as components
 from modules.risk_engine import build_trade_plan
 
 ALERT_SCORE_THRESHOLD = 4

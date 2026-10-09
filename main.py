@@ -109,4 +109,77 @@ with tab_crypto:
         render_tv_chart(pick)
     with col_watch:
         st.subheader("Watchlist")
-        results = score_crypto_group(CRYPTO
+        results = score_crypto_group(CRYPTO_SYMBOLS)
+        render_watchlist(results, selected_trade_types)
+
+    st.markdown("---")
+    ob_col, ts_col = st.columns(2)
+    ob_symbol = st.selectbox("Order book / Time & Sales symbol", CRYPTO_SYMBOLS, key="crypto_ob_pick")
+    with ob_col:
+        st.subheader("Order Book (live)")
+        try:
+            bids, asks = render_order_book(ob_symbol)
+            st.markdown("**Asks**")
+            st.dataframe(asks.sort_values("price").head(10), hide_index=True)
+            st.markdown("**Bids**")
+            st.dataframe(bids.sort_values("price", ascending=False).head(10), hide_index=True)
+        except Exception as e:
+            st.warning(f"Order book unavailable: {e}")
+    with ts_col:
+        st.subheader("Time & Sales (live)")
+        try:
+            trades = render_time_and_sales(ob_symbol)
+            st.dataframe(trades.sort_values("time", ascending=False), hide_index=True)
+        except Exception as e:
+            st.warning(f"Time & sales unavailable: {e}")
+
+with tab_forex:
+    col_chart, col_watch = st.columns([2, 1])
+    with col_chart:
+        pick = st.selectbox("Chart symbol", FOREX_SYMBOLS, key="forex_chart_pick")
+        render_tv_chart(pick)
+    with col_watch:
+        st.subheader("Watchlist")
+        results = score_mt5_group(FOREX_SYMBOLS)
+        render_watchlist(results, selected_trade_types)
+
+with tab_metals:
+    col_chart, col_watch = st.columns([2, 1])
+    with col_chart:
+        pick = st.selectbox("Chart symbol", METALS_SYMBOLS, key="metals_chart_pick")
+        render_tv_chart(pick)
+    with col_watch:
+        st.subheader("Watchlist")
+        results = score_mt5_group(METALS_SYMBOLS)
+        render_watchlist(results, selected_trade_types)
+
+with tab_stocks:
+    col_chart, col_watch = st.columns([2, 1])
+    with col_chart:
+        pick = st.selectbox("Chart symbol", STOCK_SYMBOLS, key="stocks_chart_pick")
+        render_tv_chart(pick)
+    with col_watch:
+        st.subheader("Watchlist")
+        results = score_mt5_group(STOCK_SYMBOLS)
+        render_watchlist(results, selected_trade_types)
+
+with tab_meme:
+    st.subheader("Meme coin / whale tracking (DEXScreener)")
+    query = st.text_input("Search token (name or contract address)", value="")
+    if query:
+        pairs = search_dexscreener_pairs(query)
+        if not pairs:
+            st.info("No pairs found, or DEXScreener rate limit hit \u2014 try again shortly.")
+        for p in pairs[:10]:
+            with st.container(border=True):
+                st.markdown(
+                    f"**{p.get('baseToken', {}).get('symbol', '?')}/"
+                    f"{p.get('quoteToken', {}).get('symbol', '?')}** "
+                    f"on {p.get('chainId', '?')} \u2014 "
+                    f"Price: ${p.get('priceUsd', '?')} \u2014 "
+                    f"24h volume: ${p.get('volume', {}).get('h24', '?')}"
+                )
+                st.markdown(f"[View on DEXScreener]({p.get('url', '#')})")
+    else:
+        st.info("Enter a token name or contract address above to search live DEXScreener pairs.")
+    st.markdown(f"Or browse trending pairs directly: [{EXTERNAL_LINKS['DEXScreener Trending']}]({EXTERNAL_LINKS['DEXScreener Trending']})")

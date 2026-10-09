@@ -1,0 +1,6 @@
+streamlit
+pandas
+numpy
+requests
+MetaTrader5
+streamlit-autorefresh

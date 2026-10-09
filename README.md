@@ -4,7 +4,9 @@
 A Streamlit dashboard with 5 tabs (Crypto, Forex, Metals, Stocks, Meme Coins).
 Each tab has a live TradingView chart plus a scored watchlist built from the
 Price Action and Liquidity/OHL departments, plus breakout detection.
-Crypto tab adds a live Binance order book and time and sales. Alerts fire
+Crypto tab adds a Depth-of-Market ladder (bids and asks in one view), a time and
+sales feed that flags Smart/Whale prints, and Limit Tracking of big resting orders
+(data from OKX public API, no key needed). The page auto-refreshes every ~20s. Alerts fire
 with sound plus a full trade plan (entry, stop loss, 3 staged take profits)
 when a signal is strong.
 
@@ -14,7 +16,7 @@ requirements.txt lists the Python packages needed.
 ARCHITECTURE.py explains the "virtual employees" module design.
 The modules folder contains: data_fetcher.py, price_action.py,
 liquidity_ohl.py, scorer.py, risk_engine.py, news_feed.py,
-crypto_extras.py, alerts.py, tv_widget.py.
+crypto_extras.py, dom_panel.py, alerts.py, tv_widget.py.
 
 ## Setup (local test first)
 1. Make sure MetaTrader 5 is open and logged into your account.

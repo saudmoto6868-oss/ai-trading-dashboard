@@ -68,11 +68,42 @@ DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search"
 FINNHUB_API_KEY = ""  # <-- paste your free Finnhub API key here
 FINNHUB_NEWS_URL = "https://finnhub.io/api/v1/news"
 
-# External quick-link dashboards with no free embeddable API (open in new tab)
+# Auto-refresh: how often (seconds) the whole dashboard re-pulls prices,
+# watchlist, order book and time & sales. Adjustable from the sidebar.
+AUTO_REFRESH_SECONDS = 20
+
+# External quick-link dashboards with no free embeddable API (open in new tab).
+# Shown as icon buttons near the top of the page (see QUICK_LINK_ICONS).
 EXTERNAL_LINKS = {
     "ForexFactory Calendar": "https://www.forexfactory.com/calendar",
-    "Finviz Screener": "https://finviz.com/screener.ashx",
+    "Finviz Patterns": "https://finviz.com/screener.ashx?v=211",  # charts view; per-pattern links below
     "TrendVision": "https://trendvision.bot/",
     "CoinGlass Heatmap": "https://www.coinglass.com/pro/futures/LiquidationHeatMap",
     "DEXScreener Trending": "https://dexscreener.com/solana",
 }
+
+QUICK_LINK_ICONS = {
+    "ForexFactory Calendar": "\U0001F4C5",
+    "Finviz Patterns": "\U0001F50E",
+    "TrendVision": "\U0001F4C8",
+    "CoinGlass Heatmap": "\U0001F525",
+    "DEXScreener Trending": "\U0001F9ED",
+}
+
+# Finviz chart-pattern screener: v=211 is the "Charts" view, s=ta_p_<pattern>
+# is its Chart Pattern signal filter. Edit/extend freely.
+FINVIZ_PATTERNS = {
+    "Channel Up": "ta_p_channelup",
+    "Channel Down": "ta_p_channeldown",
+    "Wedge Up": "ta_p_wedgeup",
+    "Wedge Down": "ta_p_wedgedown",
+    "Triangle Ascending": "ta_p_triangleascending",
+    "Triangle Descending": "ta_p_triangledescending",
+    "Double Top": "ta_p_doubletop",
+    "Double Bottom": "ta_p_doublebottom",
+    "Head & Shoulders": "ta_p_headandshoulders",
+    "Inverse Head & Shoulders": "ta_p_headandshouldersinv",
+    "Support (trendline)": "ta_p_tlsupport",
+    "Resistance (trendline)": "ta_p_tlresistance",
+}
+FINVIZ_PATTERN_URL = "https://finviz.com/screener.ashx?v=211&s={signal}"

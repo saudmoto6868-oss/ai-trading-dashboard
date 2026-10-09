@@ -1,4 +1,4 @@
-
+"""
 THE DATA CLERK
 Only job: fetch raw OHLCV candles from MT5 (forex/metals/indices/stocks)
 and Binance (crypto). Returns clean pandas DataFrames. No analysis here.

@@ -73,6 +73,6 @@ EXTERNAL_LINKS = {
     "ForexFactory Calendar": "https://www.forexfactory.com/calendar",
     "Finviz Screener": "https://finviz.com/screener.ashx",
     "TrendVision": "https://trendvision.bot/",
-    "CoinGlass Heatmap": "https://www.coinglass.com/pro/i/LiquidationHeatMap",
+    "CoinGlass Heatmap": "https://www.coinglass.com/pro/futures/LiquidationHeatMap",
     "DEXScreener Trending": "https://dexscreener.com/solana",
 }

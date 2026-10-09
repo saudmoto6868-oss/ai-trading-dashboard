@@ -1,0 +1,34 @@
+# AI Trading Desk Dashboard
+
+## What this is
+A Streamlit dashboard with 5 tabs (Crypto, Forex, Metals, Stocks, Meme Coins).
+Each tab has a live TradingView chart plus a scored watchlist built from the
+Price Action and Liquidity/OHL departments, plus breakout detection.
+Crypto tab adds a live Binance order book and time and sales. Alerts fire
+with sound plus a full trade plan (entry, stop loss, 3 staged take profits)
+when a signal is strong.
+
+## Folder structure
+main.py runs the app. config.py holds symbol lists, API keys, risk settings.
+requirements.txt lists the Python packages needed.
+ARCHITECTURE.py explains the "virtual employees" module design.
+The modules folder contains: data_fetcher.py, price_action.py,
+liquidity_ohl.py, scorer.py, risk_engine.py, news_feed.py,
+crypto_extras.py, alerts.py, tv_widget.py.
+
+## Setup (local test first)
+1. Make sure MetaTrader 5 is open and logged into your account.
+2. Open Command Prompt in this folder and run: pip install -r requirements.txt
+3. Get a free Finnhub API key at finnhub.io and paste it into config.py.
+4. Run the dashboard with: streamlit run main.py
+
+## Known things to check
+INDEX_SYMBOLS in config.py are placeholders, check your broker's MT5
+symbol names for Nasdaq and S&P 500 CFDs. STOCK_SYMBOLS is a short
+starter list, edit freely. TV_SYMBOL_MAP controls TradingView chart
+symbols. CoinGlass heatmap is a quick link only, no free embed available.
+
+## Next steps
+Deploy on Streamlit Community Cloud for a permanent online link. Add a
+Telegram bot hook in modules/alerts.py. Split modules into independent
+scheduled jobs once the single script version is proven stable.

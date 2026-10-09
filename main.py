@@ -1,9 +1,6 @@
 """
 THE FLOOR MANAGER
-Orchestrates every employee module above and renders the final dashboard:
-tabs per asset class, TradingView chart and watchlist per tab, crypto-only
-order book, time and sales, heatmap links, a live news strip, trade-type
-filters, and fired alerts with sound and trade plans.
+Orchestrates every employee module above and renders the final dashboard.
 """
 
 import streamlit as st
@@ -21,7 +18,7 @@ from modules.tv_widget import render_tv_chart
 from modules.news_feed import get_latest_news
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 
-st.set_page_config(page_title="AI Trading Desk", layout="wide", page_icon="📊")
+st.set_page_config(page_title="AI Trading Desk", layout="wide", page_icon="\U0001F4CA")
 
 st.markdown("""
 <style>
@@ -44,13 +41,13 @@ play_sound = st.sidebar.checkbox("Play sound on strong signals", value=True)
 st.sidebar.markdown("---")
 st.sidebar.subheader("Quick links")
 for label, url in EXTERNAL_LINKS.items():
-    st.sidebar.markdown(f"- {label}")
+    st.sidebar.markdown(f"- [{label}]({url})")
 
-with st.expander("📰 Live news (Finnhub)", expanded=False):
+with st.expander("\U0001F4F0 Live news (Finnhub)", expanded=False):
     news_items = get_latest_news(category="general", limit=8)
     for item in news_items:
         if item["url"]:
-            st.markdown(f"{item['icon']} [{item['headline']}]({item['url']}) — *{item['source']}*")
+            st.markdown(f"{item['icon']} [{item['headline']}]({item['url']}) \u2014 *{item['source']}*")
         else:
             st.markdown(f"{item['icon']} {item['headline']}")
 
@@ -59,8 +56,7 @@ def score_mt5_group(symbols):
     results = []
     for sym in symbols:
         try:
-            import MetaTrader5 as mt5
-            df = get_mt5_data(sym, mt5.TIMEFRAME_H1)
+            df = get_mt5_data(sym, "H1")
             if df is not None and len(df) > 60:
                 res = score_symbol(df, timeframe_label="H1")
                 res["symbol"] = sym
@@ -92,7 +88,7 @@ def render_watchlist(results, trade_type_filter):
     for _, row in df.iterrows():
         filled = int(row["score"])
         empty = int(row["max_score"] - row["score"])
-        stars = ("⭐️" * filled) + ("▫️" * empty)
+        stars = ("\u2B50" * filled) + ("\u25AB\uFE0F" * empty)
         with st.container(border=True):
             c1, c2, c3 = st.columns([2, 2, 3])
             c1.markdown(f"**{row['symbol']}**  \n{row['trade_type']}")
@@ -100,8 +96,10 @@ def render_watchlist(results, trade_type_filter):
             reasons_txt = ", ".join(row["reasons"]) if row["reasons"] else "None"
             c3.markdown(f"Price: {row['price']:.5f}  \nReasons: {reasons_txt}")
     check_and_fire_alerts(filtered, play_sound=play_sound)
+
+
 tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
-    ["🪙 Crypto", "💱 Forex", "🥇 Metals", "📈 Stocks", "🐸 Meme Coins"]
+    ["\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
 )
 
 with tab_crypto:
@@ -111,77 +109,4 @@ with tab_crypto:
         render_tv_chart(pick)
     with col_watch:
         st.subheader("Watchlist")
-        results = score_crypto_group(CRYPTO_SYMBOLS)
-        render_watchlist(results, selected_trade_types)
-
-    st.markdown("---")
-    ob_col, ts_col = st.columns(2)
-    ob_symbol = st.selectbox("Order book / Time & Sales symbol", CRYPTO_SYMBOLS, key="crypto_ob_pick")
-    with ob_col:
-        st.subheader("Order Book (live)")
-        try:
-            bids, asks = render_order_book(ob_symbol)
-            st.markdown("**Asks**")
-            st.dataframe(asks.sort_values("price").head(10), hide_index=True)
-            st.markdown("**Bids**")
-            st.dataframe(bids.sort_values("price", ascending=False).head(10), hide_index=True)
-        except Exception as e:
-            st.warning(f"Order book unavailable: {e}")
-    with ts_col:
-        st.subheader("Time & Sales (live)")
-        try:
-            trades = render_time_and_sales(ob_symbol)
-            st.dataframe(trades.sort_values("time", ascending=False), hide_index=True)
-        except Exception as e:
-            st.warning(f"Time & sales unavailable: {e}")
-
-with tab_forex:
-    col_chart, col_watch = st.columns([2, 1])
-    with col_chart:
-        pick = st.selectbox("Chart symbol", FOREX_SYMBOLS, key="forex_chart_pick")
-        render_tv_chart(pick)
-    with col_watch:
-        st.subheader("Watchlist")
-        results = score_mt5_group(FOREX_SYMBOLS)
-        render_watchlist(results, selected_trade_types)
-
-with tab_metals:
-    col_chart, col_watch = st.columns([2, 1])
-    with col_chart:
-        pick = st.selectbox("Chart symbol", METALS_SYMBOLS, key="metals_chart_pick")
-        render_tv_chart(pick)
-    with col_watch:
-        st.subheader("Watchlist")
-        results = score_mt5_group(METALS_SYMBOLS)
-        render_watchlist(results, selected_trade_types)
-
-with tab_stocks:
-    col_chart, col_watch = st.columns([2, 1])
-    with col_chart:
-        pick = st.selectbox("Chart symbol", STOCK_SYMBOLS, key="stocks_chart_pick")
-        render_tv_chart(pick)
-    with col_watch:
-        st.subheader("Watchlist")
-        results = score_mt5_group(STOCK_SYMBOLS)
-        render_watchlist(results, selected_trade_types)
-
-with tab_meme:
-    st.subheader("Meme coin / whale tracking (DEXScreener)")
-    query = st.text_input("Search token (name or contract address)", value="")
-    if query:
-        pairs = search_dexscreener_pairs(query)
-        if not pairs:
-            st.info("No pairs found, or DEXScreener rate limit hit — try again shortly.")
-        for p in pairs[:10]:
-            with st.container(border=True):
-                st.markdown(
-                    f"**{p.get('baseToken', {}).get('symbol', '?')}/"
-                    f"{p.get('quoteToken', {}).get('symbol', '?')}** "
-                    f"on {p.get('chainId', '?')} — "
-                    f"Price: ${p.get('priceUsd', '?')} — "
-                    f"24h volume: ${p.get('volume', {}).get('h24', '?')}"
-                )
-                st.markdown(f"[View on DEXScreener]({p.get('url', '#')})")
-    else:
-        st.info("Enter a token name or contract address above to search live DEXScreener pairs.")
-    st.markdown(f"Or browse trending pairs directly: [{EXTERNAL_LINKS['DEXScreener Trending']}]({EXTERNAL_LINKS['DEXScreener Trending']})")
+        results = score_crypto_group(CRYPTO

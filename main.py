@@ -11,6 +11,7 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 """
 
 import html
+import time
 from datetime import datetime
 
 import pandas as pd
@@ -35,6 +36,8 @@ from modules.crypto_extras import render_order_book, render_time_and_sales, sear
 from modules.dom_panel import (
     build_ladder, ladder_html, classify_trades, trades_html,
     LimitTracker, limit_events_html, fmt_price,
+    ORDERFLOW_CSS, LEGEND_HTML, TapeMemory, DomMemory, hits_from, mark_absorption,
+    tape_stats, stats_html,
 )
 
 try:
@@ -70,6 +73,14 @@ big_order_mult = st.sidebar.slider(
     "Big limit order = N x median level", 3.0, 15.0, 5.0, step=0.5,
     help="Used by the DOM highlight and by Limit Tracking.",
 )
+st.sidebar.markdown("**Order-flow effects**")
+fast_secs = st.sidebar.slider("DOM / Time&Sales refresh (seconds)", 1, 10, 3,
+                              help="How often the two order-flow panels update by themselves (flashes appear on each update).")
+absorb_mult = st.sidebar.slider(
+    "Absorption = level volume >= N x median level", 2.0, 8.0, 3.0, step=0.5,
+    help="Heavy volume trading at one price while the price barely moves.",
+)
+st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
     st_autorefresh(interval=refresh_secs * 1000, key="auto_refresh")
 elif auto_on:
@@ -107,12 +118,12 @@ render_quick_links()
 
 
 # ---- Data helpers -------------------------------------------------------------
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=2, show_spinner=False)
 def cached_book(sym: str):
     return render_order_book(sym, limit=50)
 
 
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=2, show_spinner=False)
 def cached_trades(sym: str):
     return render_time_and_sales(sym, limit=100)
 
@@ -269,6 +280,35 @@ def fire_alerts(filtered):
 
 
 # ---- Crypto order-flow panels ----------------------------------------------------
+# st.fragment lets just these panels refresh every few seconds without
+# re-running the heavy scanner. Older Streamlit versions fall back to the
+# normal page auto-refresh.
+_fragment = getattr(st, "fragment", None)
+
+
+def live_fragment(fn):
+    if _fragment is None:
+        return fn
+    return _fragment(run_every=f"{fast_secs}s")(fn)
+
+
+def get_tape(sym):
+    """Classified trades + 'is_new' flash flags + absorption marks. The DOM and
+    Time&Sales panels both call this; calls within 1.5 s share one result so
+    the 'new print' flags are consumed only once."""
+    cache = st.session_state.setdefault("tape_cache", {})
+    hit = cache.get(sym)
+    if hit and time.time() - hit[0] < 1.5:
+        return hit[1]
+    mem = st.session_state.setdefault("tape_mem", {}).setdefault(sym, TapeMemory())
+    t = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
+    t = mem.mark(t)
+    t = mark_absorption(t, vol_mult=absorb_mult)
+    cache[sym] = (time.time(), t)
+    return t
+
+
+@live_fragment
 def render_dom(sym):
     st.markdown(f"**Depth of Market** &middot; {html.escape(sym)}", unsafe_allow_html=True)
     try:
@@ -276,17 +316,37 @@ def render_dom(sym):
     except Exception as e:
         st.warning(f"Order book unavailable: {e}")
         return None
-    st.markdown(ladder_html(build_ladder(bids, asks, depth=12), big_mult=big_order_mult),
-                unsafe_allow_html=True)
-    st.caption("★ = big resting order. Bids left, asks right, one ladder.")
+    try:
+        tape = get_tape(sym)
+    except Exception:
+        tape = None
+    ladder = build_ladder(bids, asks, depth=12)
+    mem = st.session_state.setdefault("dom_mem", {}).setdefault(sym, DomMemory())
+    absorb_prices = set()
+    if tape is not None and not tape.empty and "absorb" in tape.columns:
+        absorb_prices = {round(float(p), 8) for p in tape.loc[tape["absorb"], "price"]}
+    st.markdown(
+        ladder_html(ladder, big_mult=big_order_mult, hits=hits_from(tape),
+                    changes=mem.changes(ladder), absorb_prices=absorb_prices),
+        unsafe_allow_html=True,
+    )
+    st.caption("★ glowing = big resting order (blinks white when trades hit it). "
+               "Level flash = just traded. Blue outline = size grew.")
     return bids, asks
 
 
+@live_fragment
 def render_trades(sym):
-    st.markdown("**Time & Sales** &middot; Smart / Whale flagged", unsafe_allow_html=True)
+    st.markdown("**Time & Sales** &middot; Smart / Whale / Absorb", unsafe_allow_html=True)
     try:
-        trades = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
+        trades = get_tape(sym)
+        ab = ""
+        if not trades.empty and "absorb" in trades.columns and trades["absorb"].any():
+            dirs = trades.loc[trades["absorb"], "absorb_dir"]
+            ab = "by " + dirs.mode().iat[0]
+        st.markdown(stats_html(tape_stats(trades), ab), unsafe_allow_html=True)
         st.markdown(trades_html(trades, max_rows=20), unsafe_allow_html=True)
+        st.markdown(LEGEND_HTML, unsafe_allow_html=True)
         return trades
     except Exception as e:
         st.warning(f"Time & sales unavailable: {e}")

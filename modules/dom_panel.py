@@ -31,6 +31,179 @@ GOLD = "#f0b90b"
 MUTED = "#848e9c"
 
 
+
+# --------------------------------------------------------------------------
+# Live visual feedback (colors + flash / pulse animations)
+# --------------------------------------------------------------------------
+# Animations replay whenever the panel is re-rendered, so only rows/levels
+# that carry an animated class (new print, level just hit, big order...) move;
+# everything else stays still. That is what makes the pace "feelable".
+
+ORDERFLOW_CSS = """
+@keyframes of-flash-buy{0%{background:rgba(14,203,129,.65)}100%{background:transparent}}
+@keyframes of-flash-sell{0%{background:rgba(246,70,93,.65)}100%{background:transparent}}
+@keyframes of-glow{0%{box-shadow:0 0 0 0 rgba(240,185,11,.0)}50%{box-shadow:0 0 9px 2px rgba(240,185,11,.85)}100%{box-shadow:0 0 0 0 rgba(240,185,11,.0)}}
+@keyframes of-hot{0%,100%{box-shadow:0 0 2px 0 rgba(255,255,255,.2);filter:brightness(1)}50%{box-shadow:0 0 12px 3px rgba(255,255,255,.9);filter:brightness(1.6)}}
+@keyframes of-absorb{0%,100%{background:rgba(181,124,255,.15)}50%{background:rgba(181,124,255,.55)}}
+@keyframes of-grow{0%{outline:2px solid rgba(74,163,255,.95)}100%{outline:2px solid rgba(74,163,255,0)}}
+@keyframes of-blink{0%,100%{opacity:1}50%{opacity:.25}}
+.of-new-buy{animation:of-flash-buy 1.4s ease-out 1}
+.of-new-sell{animation:of-flash-sell 1.4s ease-out 1}
+.of-whale-new{animation:of-flash-buy 1.4s ease-out 1,of-blink .5s linear 4}
+.of-smart-new{animation:of-blink .6s linear 2}
+.of-absorb{animation:of-absorb 1.1s ease-in-out infinite}
+.of-big{animation:of-glow 1.8s ease-in-out infinite}
+.of-hot{animation:of-hot .55s ease-in-out infinite}
+.of-hit-buy{animation:of-flash-buy 1.2s ease-out 1}
+.of-hit-sell{animation:of-flash-sell 1.2s ease-out 1}
+.of-grow{animation:of-grow 1.3s ease-out 1}
+.of-ev-new{animation:of-blink .5s linear 4}
+.of-abs-tag{color:#b57cff;font-weight:700}
+@media (prefers-reduced-motion:reduce){[class*="of-"]{animation:none!important}}
+"""
+
+LEGEND_HTML = (
+    "<div style='font-size:11px;color:#848e9c;line-height:1.6'>"
+    "<span style='color:#0ecb81'>&#9632;</span> buy &nbsp;"
+    "<span style='color:#f6465d'>&#9632;</span> sell &nbsp;"
+    "<span style='color:#f0b90b'>&#9632;</span> big/SMART/WHALE (blinks) &nbsp;"
+    "<span style='color:#b57cff'>&#9632;</span> absorption &nbsp;"
+    "<span style='color:#4aa3ff'>&#9632;</span> level grew &nbsp;"
+    "flash = new print / level just traded</div>"
+)
+
+
+def _k(p) -> float:
+    return round(float(p), 8)
+
+
+class TapeMemory:
+    """Remembers which prints were already shown so only NEW ones flash.
+    The first call after creation (or after a long gap) flashes nothing."""
+
+    def __init__(self, keep: int = 600, stale_after: float = 120.0):
+        self.seen: set = set()
+        self.order: deque = deque(maxlen=keep)
+        self.last_ts = None
+        self.stale_after = stale_after
+
+    def mark(self, trades: pd.DataFrame) -> pd.DataFrame:
+        if trades is None or trades.empty:
+            return trades
+        t = trades.copy()
+        now = datetime.now(timezone.utc)
+        if self.last_ts is not None and (now - self.last_ts).total_seconds() > self.stale_after:
+            self.seen.clear()
+            self.order.clear()
+        first = not self.seen
+        self.last_ts = now
+        keys = [(r.time, _k(r.price), float(r.qty), r.side) for r in t.itertuples()]
+        t["is_new"] = [(not first) and (k not in self.seen) for k in keys]
+        for k in keys:
+            if k not in self.seen:
+                if len(self.order) == self.order.maxlen:
+                    self.seen.discard(self.order[0])
+                self.order.append(k)
+                self.seen.add(k)
+        return t
+
+
+class DomMemory:
+    """Remembers the previous ladder so levels that GREW / SHRANK can flash."""
+
+    def __init__(self, grow_pct: float = 0.25, stale_after: float = 120.0):
+        self.prev: dict | None = None
+        self.grow_pct = grow_pct
+        self.last_ts = None
+        self.stale_after = stale_after
+
+    def changes(self, ladder: pd.DataFrame) -> dict:
+        """price -> 'grow' for levels whose size rose by >= grow_pct (or are new)."""
+        now = datetime.now(timezone.utc)
+        if self.last_ts is not None and (now - self.last_ts).total_seconds() > self.stale_after:
+            self.prev = None
+        self.last_ts = now
+        cur = {_k(r.price): float(r.bid_qty + r.ask_qty) for r in ladder.itertuples()}
+        out = {}
+        if self.prev is not None:
+            for p, q in cur.items():
+                old = self.prev.get(p)
+                if old is None or q >= old * (1 + self.grow_pct):
+                    out[p] = "grow"
+        self.prev = cur
+        return out
+
+
+def hits_from(trades: pd.DataFrame) -> dict:
+    """price -> 'Buy'/'Sell' for the NEW prints (needs the is_new column)."""
+    if trades is None or trades.empty or "is_new" not in trades.columns:
+        return {}
+    out = {}
+    for r in trades[trades["is_new"]].sort_values("time").itertuples():
+        out[_k(r.price)] = r.side
+    return out
+
+
+def mark_absorption(trades: pd.DataFrame, vol_mult: float = 3.0, range_pct: float = 0.05,
+                    min_prints: int = 4) -> pd.DataFrame:
+    """Adds 'absorb' (bool) and 'absorb_dir'.
+    Absorption = lots of volume trading at ONE price level while the whole
+    window barely moved (range <= range_pct percent of price). Aggressive
+    BUYING absorbed by a passive seller -> 'sellers' (bearish hint); aggressive
+    SELLING absorbed by a passive buyer -> 'buyers' (bullish hint)."""
+    if trades is None or trades.empty:
+        return trades
+    t = trades.copy()
+    t["absorb"] = False
+    t["absorb_dir"] = ""
+    if len(t) < 10:
+        return t
+    mid = float(t["price"].median())
+    if mid <= 0 or (float(t["price"].max()) - float(t["price"].min())) / mid * 100 > range_pct:
+        return t
+    lvl = t.groupby("price")["qty"].agg(["sum", "count"])
+    med = float(lvl["sum"].median()) or 1e-12
+    hot = lvl[(lvl["sum"] >= vol_mult * med) & (lvl["count"] >= min_prints)]
+    for price in hot.index:
+        m = t["price"] == price
+        buy = float(t.loc[m & (t["side"] == "Buy"), "qty"].sum())
+        sell = float(t.loc[m & (t["side"] == "Sell"), "qty"].sum())
+        t.loc[m, "absorb"] = True
+        t.loc[m, "absorb_dir"] = "sellers" if buy >= sell else "buyers"
+    return t
+
+
+def tape_stats(trades: pd.DataFrame) -> dict:
+    """Pace (prints/sec), buy/sell volume split and delta over the fetched window."""
+    if trades is None or trades.empty:
+        return {"pace": 0.0, "buy_pct": 50.0, "delta": 0.0, "n": 0}
+    span = (trades["time"].max() - trades["time"].min()).total_seconds()
+    buy = float(trades.loc[trades["side"] == "Buy", "qty"].sum())
+    sell = float(trades.loc[trades["side"] == "Sell", "qty"].sum())
+    tot = buy + sell
+    return {
+        "pace": len(trades) / span if span > 0 else float(len(trades)),
+        "buy_pct": 100 * buy / tot if tot else 50.0,
+        "delta": buy - sell,
+        "n": len(trades),
+    }
+
+
+def stats_html(stats: dict, absorbed: str = "") -> str:
+    bp = max(0.0, min(100.0, stats["buy_pct"]))
+    d = stats["delta"]
+    dc = GREEN if d >= 0 else RED
+    ab = f" &nbsp;<span class='of-abs-tag of-absorb'>ABSORB {html.escape(absorbed)}</span>" if absorbed else ""
+    return (
+        "<div style='font-size:11px;color:#848e9c;margin-bottom:4px'>"
+        f"pace <b style='color:#eaecef'>{stats['pace']:.1f}</b>/s &nbsp;"
+        f"delta <b style='color:{dc}'>{fmt_qty(abs(d))}{'+' if d >= 0 else '-'}</b>{ab}"
+        f"<div style='display:flex;height:5px;margin-top:3px;border-radius:2px;overflow:hidden'>"
+        f"<div style='width:{bp:.0f}%;background:{GREEN}'></div>"
+        f"<div style='width:{100 - bp:.0f}%;background:{RED}'></div></div></div>"
+    )
+
+
 # --------------------------------------------------------------------------
 # Depth-of-market ladder
 # --------------------------------------------------------------------------
@@ -63,7 +236,8 @@ def fmt_qty(q: float) -> str:
     return f"{q:.4f}"
 
 
-def ladder_html(ladder: pd.DataFrame, big_mult: float = 3.0) -> str:
+def ladder_html(ladder: pd.DataFrame, big_mult: float = 3.0, hits: dict | None = None,
+                changes: dict | None = None, absorb_prices: set | None = None) -> str:
     """Heat-bar ladder: bid size | price | ask size. Levels whose size is
     >= big_mult x the median level size are highlighted as 'big' orders."""
     if ladder.empty:
@@ -77,9 +251,15 @@ def ladder_html(ladder: pd.DataFrame, big_mult: float = 3.0) -> str:
     best_ask = ladder.loc[ladder["side"] == "ask", "price"].min()
     best_bid = ladder.loc[ladder["side"] == "bid", "price"].max()
 
+    hits = hits or {}
+    changes = changes or {}
+    absorb_prices = absorb_prices or set()
     rows = []
     spread_done = False
     for _, r in ladder.iterrows():
+        pk = _k(r["price"])
+        hit = hits.get(pk)
+        grew = changes.get(pk) == "grow"
         # spread marker between the last ask row and the first bid row
         if r["side"] == "bid" and not spread_done:
             if pd.notna(best_ask) and pd.notna(best_bid):
@@ -95,18 +275,24 @@ def ladder_html(ladder: pd.DataFrame, big_mult: float = 3.0) -> str:
         if r["bid_qty"] > 0:
             w = max(4, int(100 * r["bid_qty"] / max_q))
             big = med_q and r["bid_qty"] >= big_mult * med_q
-            bid_cell = _bar_cell(fmt_qty(r["bid_qty"]), w, GREEN, "right", big)
+            bid_cell = _bar_cell(fmt_qty(r["bid_qty"]), w, GREEN, "right", big, bool(big and hit), grew)
         if r["ask_qty"] > 0:
             w = max(4, int(100 * r["ask_qty"] / max_q))
             big = med_q and r["ask_qty"] >= big_mult * med_q
-            ask_cell = _bar_cell(fmt_qty(r["ask_qty"]), w, RED, "left", big)
+            ask_cell = _bar_cell(fmt_qty(r["ask_qty"]), w, RED, "left", big, bool(big and hit), grew)
 
         color = RED if r["side"] == "ask" else GREEN
+        pcls = ""
+        if pk in absorb_prices:
+            pcls = "of-absorb"
+        elif hit:
+            pcls = "of-hit-buy" if hit == "Buy" else "of-hit-sell"
+        mark = " <span class='of-abs-tag'>ABS</span>" if pk in absorb_prices else ""
         rows.append(
             "<tr>"
             f"<td style='width:38%'>{bid_cell}</td>"
-            f"<td style='width:24%;text-align:center;color:{color};font-weight:600;"
-            f"font-size:12px'>{fmt_price(r['price'])}</td>"
+            f"<td class='{pcls}' style='width:24%;text-align:center;color:{color};font-weight:600;"
+            f"font-size:12px'>{fmt_price(r['price'])}{mark}</td>"
             f"<td style='width:38%'>{ask_cell}</td>"
             "</tr>"
         )
@@ -121,13 +307,15 @@ def ladder_html(ladder: pd.DataFrame, big_mult: float = 3.0) -> str:
     )
 
 
-def _bar_cell(text: str, width_pct: int, color: str, align: str, big: bool) -> str:
+def _bar_cell(text: str, width_pct: int, color: str, align: str, big: bool,
+              hot: bool = False, grew: bool = False) -> str:
     # bars grow towards the price column: bids from the right, asks from the left
     anchor = "right" if align == "right" else "left"
     border = f"border:1px solid {GOLD};" if big else ""
     flag = "&#9733; " if big else ""
+    cls = "of-hot" if hot else ("of-big" if big else ("of-grow" if grew else ""))
     return (
-        f"<div style='position:relative;height:18px;{border}'>"
+        f"<div class='{cls}' style='position:relative;height:18px;{border}'>"
         f"<div style='position:absolute;top:0;{anchor}:0;height:100%;width:{width_pct}%;"
         f"background:{color};opacity:.28'></div>"
         f"<div style='position:relative;text-align:{align};padding:0 4px;font-size:11px;"
@@ -158,20 +346,36 @@ def trades_html(trades: pd.DataFrame, max_rows: int = 25) -> str:
     if trades.empty:
         return "<div style='color:#848e9c'>No trades.</div>"
     t = trades.sort_values("time", ascending=False).head(max_rows)
+    has_new = "is_new" in t.columns
+    has_abs = "absorb" in t.columns
     rows = []
     for _, r in t.iterrows():
-        col = GREEN if r["side"] == "Buy" else RED
+        buy = r["side"] == "Buy"
+        col = GREEN if buy else RED
         tier = r["tier"]
+        new = bool(r["is_new"]) if has_new else False
+        absorb = bool(r["absorb"]) if has_abs else False
         tag = {"whale": "WHALE", "smart": "SMART"}.get(tier, "")
+        if absorb:
+            tag = (tag + " " if tag else "") + "ABSORB"
         weight = "700" if tier != "normal" else "400"
         bg = {"whale": "rgba(240,185,11,.22)", "smart": "rgba(240,185,11,.10)"}.get(tier, "transparent")
+        cls = ""
+        if absorb:
+            cls = "of-absorb"
+        elif new and tier == "whale":
+            cls = "of-whale-new"
+        elif new and tier == "smart":
+            cls = "of-smart-new " + ("of-new-buy" if buy else "of-new-sell")
+        elif new:
+            cls = "of-new-buy" if buy else "of-new-sell"
         rows.append(
-            f"<tr style='background:{bg};color:{col};font-weight:{weight};font-size:12px'>"
+            f"<tr class='{cls}' style='background:{bg};color:{col};font-weight:{weight};font-size:12px'>"
             f"<td style='color:{MUTED};font-weight:400'>{r['time'].strftime('%H:%M:%S')}</td>"
             f"<td>{fmt_price(r['price'])}</td>"
             f"<td style='text-align:right'>{fmt_qty(r['qty'])}</td>"
             f"<td style='text-align:right;color:#eaecef;font-weight:400'>&#36;{r['notional']:,.0f}</td>"
-            f"<td style='color:{GOLD};font-size:10px'>{tag}</td></tr>"
+            f"<td style='color:{'#b57cff' if absorb else GOLD};font-size:10px'>{tag}</td></tr>"
         )
     head = (
         f"<tr style='color:{MUTED};font-size:11px;text-align:left'><th>Time</th><th>Price</th>"
@@ -256,7 +460,7 @@ class LimitTracker:
         )
 
 
-def limit_events_html(events: pd.DataFrame, max_rows: int = 15) -> str:
+def limit_events_html(events: pd.DataFrame, max_rows: int = 15, fresh_secs: float = 30.0) -> str:
     if events.empty:
         return (
             "<div style='color:#848e9c;font-size:12px'>Watching for big limit orders... "
@@ -266,11 +470,13 @@ def limit_events_html(events: pd.DataFrame, max_rows: int = 15) -> str:
     notes = {"PLACED": "new big order", "PULLED": "removed w/o trading - possible fake wall",
              "FILLED": "traded through"}
     rows = []
+    now = datetime.now(timezone.utc)
     for _, r in events.head(max_rows).iterrows():
         side_col = GREEN if r["side"] == "bid" else RED
         c = colors.get(r["event"], "#eaecef")
+        fresh = (now - r["time"]).total_seconds() <= fresh_secs
         rows.append(
-            "<tr style='font-size:12px'>"
+            f"<tr class='{'of-ev-new' if fresh else ''}' style='font-size:12px'>"
             f"<td style='color:{MUTED}'>{r['time'].strftime('%H:%M:%S')}</td>"
             f"<td style='color:{c};font-weight:700'>{html.escape(r['event'])}</td>"
             f"<td style='color:{side_col}'>{'BID' if r['side'] == 'bid' else 'ASK'}</td>"

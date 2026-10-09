@@ -1,78 +1,102 @@
 """
-Central configuration: symbol lists, timeframe definitions, trade-type
-mapping, and asset tab structure for the AI Trading Desk Dashboard.
+THE DATA CLERK
+Only job: fetch raw OHLCV candles from MT5 (forex/metals/indices/stocks)
+and Binance (crypto). Returns clean pandas DataFrames. No analysis here.
+
+MetaTrader5 is Windows-only, so it is imported lazily inside the function
+that needs it, not at the top of the file. This way the whole dashboard
+still runs fine on Streamlit Cloud (Linux) for the Binance/crypto side.
+Timeframe is passed as a simple string ("H1", "M15", etc.) so main.py
+never needs to import MetaTrader5 itself.
 """
 
-# ---- Symbol universe, grouped by tab -------------------------------------
+import pandas as pd
+import requests
+from config import OKX_CANDLES_URL, OKX_BOOK_URL, OKX_TRADES_URL
 
-FOREX_SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "EURJPY"]
-METALS_SYMBOLS = ["XAUUSD", "XAGUSD"]
-INDEX_SYMBOLS = ["US100", "US500"]  # broker-dependent CFD naming — verify against your MT5 Market Watch
-STOCK_SYMBOLS = ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN"]  # placeholder starter list — edit freely
-
-# OKX symbol style: "BASE-QUOTE" (e.g. "BTC-USDT"), different from Binance's "BTCUSDT"
-CRYPTO_SYMBOLS = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT"]
-
-MEMECOIN_CHAIN = "solana"  # default chain for DEXScreener trending/whale lookups
-
-ALL_MT5_SYMBOLS = FOREX_SYMBOLS + METALS_SYMBOLS + INDEX_SYMBOLS + STOCK_SYMBOLS
-
-# ---- TradingView widget symbol mapping ------------------------------------
-# TradingView uses its own symbol prefixes (exchange:ticker). Edit the right-hand
-# side if your broker/exchange naming differs.
-
-TV_SYMBOL_MAP = {
-    "EURUSD": "FX:EURUSD", "GBPUSD": "FX:GBPUSD", "USDJPY": "FX:USDJPY",
-    "USDCHF": "FX:USDCHF", "AUDUSD": "FX:AUDUSD", "USDCAD": "FX:USDCAD",
-    "NZDUSD": "FX:NZDUSD", "EURJPY": "FX:EURJPY",
-    "XAUUSD": "OANDA:XAUUSD", "XAGUSD": "OANDA:XAGUSD",
-    "US100": "NASDAQ:NDX", "US500": "SP:SPX",
-    "AAPL": "NASDAQ:AAPL", "TSLA": "NASDAQ:TSLA", "NVDA": "NASDAQ:NVDA",
-    "MSFT": "NASDAQ:MSFT", "AMZN": "NASDAQ:AMZN",
-    "BTC-USDT": "BINANCE:BTCUSDT", "ETH-USDT": "BINANCE:ETHUSDT",
-    "SOL-USDT": "BINANCE:SOLUSDT", "XRP-USDT": "BINANCE:XRPUSDT",
-    "BNB-USDT": "BINANCE:BNBUSDT",
+_TIMEFRAME_MAP_NAMES = {
+    "M5": "TIMEFRAME_M5", "M15": "TIMEFRAME_M15",
+    "H1": "TIMEFRAME_H1", "H4": "TIMEFRAME_H4",
+    "D1": "TIMEFRAME_D1", "W1": "TIMEFRAME_W1", "MN1": "TIMEFRAME_MN1",
 }
 
-# ---- Timeframe -> trade-type classification --------------------------------
-# Mirrors the framework doc's top-down multi-timeframe process: a signal
-# firing on a higher timeframe is classified as a longer-horizon trade type.
 
-TRADE_TYPE_BY_TIMEFRAME = {
-    "M5": "Scalp", "M15": "Scalp",
-    "H1": "Day Trade", "H4": "Day Trade",
-    "D1": "Swing", "W1": "Position", "MN1": "Position",
+def get_mt5_data(symbol: str, timeframe_label: str = "H1", bars: int = 300):
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        raise RuntimeError(
+            "MetaTrader5 is not available on this server (Windows-only library). "
+            "Run this dashboard locally on Windows with MT5 open to see forex/metals/stocks data."
+        )
+
+    if not mt5.initialize():
+        raise RuntimeError(f"MT5 initialize() failed: {mt5.last_error()}")
+
+    tf_attr = _TIMEFRAME_MAP_NAMES.get(timeframe_label, "TIMEFRAME_H1")
+    timeframe = getattr(mt5, tf_attr)
+
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
+    mt5.shutdown()
+
+    if rates is None or len(rates) == 0:
+        return None
+
+    df = pd.DataFrame(rates)
+    df["time"] = pd.to_datetime(df["time"], unit="s")
+    df.rename(columns={"tick_volume": "volume"}, inplace=True)
+    return df[["time", "open", "high", "low", "close", "volume"]]
+
+
+# OKX interval codes differ from Binance's ("1h" -> "1H", "15m" -> "15m", etc.)
+_OKX_INTERVAL_MAP = {
+    "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
+    "1h": "1H", "4h": "4H", "1d": "1D", "1w": "1W",
 }
 
-TRADE_TYPES = ["Scalp", "Day Trade", "Swing", "Position"]
 
-# ---- Risk/target defaults (from the Risk Management section of the doc) ----
+def get_binance_klines(symbol: str, interval: str = "1h", limit: int = 300):
+    """Fetches OHLCV candles from OKX's public candles endpoint.
+    Name kept as get_binance_klines so main.py doesn't need any changes -
+    this now talks to OKX, which isn't geo-blocked on Streamlit Cloud."""
+    okx_bar = _OKX_INTERVAL_MAP.get(interval, "1H")
+    params = {"instId": symbol, "bar": okx_bar, "limit": limit}
+    r = requests.get(OKX_CANDLES_URL, params=params, timeout=10)
+    r.raise_for_status()
+    raw = r.json().get("data", [])
 
-DEFAULT_RISK_PERCENT = 0.5    # % of equity per trade, standing default
-HARD_RISK_CEILING_PERCENT = 1.0
-RR_TARGETS = [1.5, 2.5, 3.5]  # TP1/TP2/TP3 as multiples of risk (partial-profit-then-runner style)
+    if not raw:
+        return pd.DataFrame(columns=["time", "open", "high", "low", "close", "volume"])
 
-# ---- External free API endpoints -------------------------------------------
-# OKX public market-data endpoints - no API key needed, not geo-blocked for
-# US-hosted servers (unlike Binance, which returns HTTP 451 from Streamlit
-# Community Cloud). OKX uses "BASE-QUOTE" symbol style, e.g. "BTC-USDT".
+    # OKX candles come newest-first with columns:
+    # [ts, open, high, low, close, vol, volCcy, volCcyQuote, confirm]
+    df = pd.DataFrame(raw, columns=[
+        "open_time", "open", "high", "low", "close", "volume",
+        "volCcy", "volCcyQuote", "confirm"
+    ])
+    df["time"] = pd.to_datetime(df["open_time"].astype("int64"), unit="ms")
+    for col in ["open", "high", "low", "close", "volume"]:
+        df[col] = df[col].astype(float)
+    df = df.sort_values("time").reset_index(drop=True)
+    return df[["time", "open", "high", "low", "close", "volume"]]
 
-OKX_TICKER_URL = "https://www.okx.com/api/v5/market/ticker"
-OKX_CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
-OKX_BOOK_URL = "https://www.okx.com/api/v5/market/books"
-OKX_TRADES_URL = "https://www.okx.com/api/v5/market/trades"
-DEXSCREENER_TOKEN_URL = "https://api.dexscreener.com/latest/dex/tokens"
-DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search"
 
-# Finnhub free tier — user must add their own free API key (finnhub.io) for news.
-FINNHUB_API_KEY = ""  # <-- paste your free Finnhub API key here
-FINNHUB_NEWS_URL = "https://finnhub.io/api/v1/news"
+def get_binance_order_book(symbol: str, limit: int = 20):
+    """Fetches live order book depth from OKX's public books endpoint.
+    Name kept as get_binance_order_book so main.py/crypto_extras.py don't
+    need any changes - this now talks to OKX instead of Binance."""
+    params = {"instId": symbol, "sz": limit}
+    r = requests.get(OKX_BOOK_URL, params=params, timeout=10)
+    r.raise_for_status()
+    data = r.json().get("data", [])
+    if not data:
+        empty = pd.DataFrame(columns=["price", "qty"])
+        return empty, empty
+    book = data[0]
+    # OKX format per level: [price, size, liquidated_orders, num_orders]
+    bids = pd.DataFrame(book["bids"], columns=["price", "qty", "_liq", "_n"])[["price", "qty"]].astype(float)
+    asks = pd.DataFrame(book["asks"], columns=["price", "qty", "_liq", "_n"])[["price", "qty"]].astype(float)
+    return bids, asks
 
-# External quick-link dashboards with no free embeddable API (open in new tab)
-EXTERNAL_LINKS = {
-    "ForexFactory Calendar": "https://www.forexfactory.com/calendar",
-    "Finviz Screener": "https://finviz.com/screener.ashx",
-    "TrendVision": "https://trendvision.bot/",
-    "CoinGlass Heatmap": "https://www.coinglass.com/pro/i/LiquidationHeatMap",
-    "DEXScreener Trending": "https://dexscreener.com/solana",
-}
+
+def get_binance_time_and_sales(symbol: str, limit: int = 30

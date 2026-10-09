@@ -1,68 +1,78 @@
+THE DATA CLERK
+Only job: fetch raw OHLCV candles from MT5 (forex/metals/indices/stocks)
+and Binance (crypto). Returns clean pandas DataFrames. No analysis here.
+
+MetaTrader5 is Windows-only, so it is imported lazily inside the function
+that needs it, not at the top of the file. This way the whole dashboard
+still runs fine on Streamlit Cloud (Linux) for the Binance/crypto side.
 """
-AI Trading Desk Dashboard - Architecture Overview
-===================================================
 
-Built as a "virtual desk of employees" from day one, even though v1 runs as
-a single Streamlit script. Each employee is its own module with ONE job and
-a clean input/output, so later this can be split into real independent
-agents/processes without rewriting logic - only the orchestration layer
-(main.py) would change.
+import pandas as pd
+import requests
+from config import BINANCE_KLINES_URL, BINANCE_DEPTH_URL, BINANCE_TRADES_URL
 
-THE EMPLOYEES (modules/):
 
-  data_fetcher.py     - "The Data Clerk"
-                         Pulls raw price candles from MT5 (forex/metals/
-                         indices/stocks) and Binance (crypto). Only job:
-                         return clean OHLCV dataframes. Knows nothing about
-                         analysis.
+def get_mt5_data(symbol: str, timeframe, bars: int = 300):
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        raise RuntimeError(
+            "MetaTrader5 is not available on this server (Windows-only library). "
+            "Run this dashboard locally on Windows with MT5 open to see forex/metals/stocks data."
+        )
 
-  price_action.py      - "The Chart Analyst"
-                         Department 1 signals: support/resistance, VWAP,
-                         EMA trend bias, breakout detection.
+    if not mt5.initialize():
+        raise RuntimeError(f"MT5 initialize() failed: {mt5.last_error()}")
 
-  liquidity_ohl.py      - "The Liquidity Reader"
-                         Department 2 signals: own liquidity-line
-                         approximation plus OHL bias (independent logic,
-                         not copying any paid indicator).
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
+    mt5.shutdown()
 
-  scorer.py             - "The Head Analyst"
-                         Combines every department's signals into one
-                         strength score, reasons list, and trade-type
-                         classification (scalp/day/swing/position) based on
-                         which timeframe fired.
+    if rates is None or len(rates) == 0:
+        return None
 
-  risk_engine.py         - "The Risk Manager"
-                         Turns a scored signal into a full trade plan:
-                         entry, stop loss, and 3 staged take-profits, using
-                         the Fibonacci/liquidity levels and RR rules from
-                         the framework doc.
+    df = pd.DataFrame(rates)
+    df["time"] = pd.to_datetime(df["time"], unit="s")
+    df.rename(columns={"tick_volume": "volume"}, inplace=True)
+    return df[["time", "open", "high", "low", "close", "volume"]]
 
-  news_feed.py           - "The News Desk"
-                         Pulls headlines from Finnhub (free tier), tags each
-                         with the relevant asset icon.
 
-  crypto_extras.py       - "The Crypto Desk"
-                         Binance order book and time and sales, CoinGlass
-                         heatmap links, DEXScreener whale/meme-coin tracking.
+def get_binance_klines(symbol: str, interval: str = "1h", limit: int = 300):
+    params = {"symbol": symbol, "interval": interval, "limit": limit}
+    r = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
+    r.raise_for_status()
+    raw = r.json()
 
-  alerts.py               - "The Alert Officer"
-                         Watches scored signals; when one crosses the alert
-                         threshold, fires a sound plus colored banner plus
-                         full trade plan. Also the hook point for the future
-                         Telegram bot.
+    df = pd.DataFrame(raw, columns=[
+        "open_time", "open", "high", "low", "close", "volume",
+        "close_time", "quote_volume", "trades", "taker_buy_base",
+        "taker_buy_quote", "ignore"
+    ])
+    df["time"] = pd.to_datetime(df["open_time"], unit="ms")
+    for col in ["open", "high", "low", "close", "volume"]:
+        df[col] = df[col].astype(float)
+    return df[["time", "open", "high", "low", "close", "volume"]]
 
-  tv_widget.py             - "The Chart Vendor"
-                         Builds the embedded TradingView widget HTML per
-                         symbol/tab.
 
-  main.py                  - "The Floor Manager"
-                         Orchestrates all employees above, lays out the
-                         tabs, and renders the final dashboard. Contains NO
-                         analysis logic of its own.
+def get_binance_order_book(symbol: str, limit: int = 20):
+    params = {"symbol": symbol, "limit": limit}
+    r = requests.get(BINANCE_DEPTH_URL, params=params, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    bids = pd.DataFrame(data["bids"], columns=["price", "qty"]).astype(float)
+    asks = pd.DataFrame(data["asks"], columns=["price", "qty"]).astype(float)
+    return bids, asks
 
-FUTURE UPGRADE PATH: each module above can later run as its own scheduled
-job/process writing to a shared store (file or small database), with
-main.py (or a future Telegram bot) just reading the latest results instead
-of calling functions directly. The module boundaries were chosen so that
-split is a refactor, not a rewrite.
-"""
+
+def get_binance_time_and_sales(symbol: str, limit: int = 30):
+    params = {"symbol": symbol, "limit": limit}
+    r = requests.get(BINANCE_TRADES_URL, params=params, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    df = pd.DataFrame(data)
+    if df.empty:
+        return df
+    df["time"] = pd.to_datetime(df["time"], unit="ms")
+    df["price"] = df["price"].astype(float)
+    df["qty"] = df["qty"].astype(float)
+    df["side"] = df["isBuyerMaker"].apply(lambda x: "Sell" if x else "Buy")
+    return df[["time", "price", "qty", "side"]]

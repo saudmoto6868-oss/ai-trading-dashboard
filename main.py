@@ -1,14 +1,9 @@
-
 """
 THE FLOOR MANAGER
 Orchestrates every employee module above and renders the final dashboard:
 tabs per asset class, TradingView chart and watchlist per tab, crypto-only
 order book, time and sales, heatmap links, a live news strip, trade-type
 filters, and fired alerts with sound and trade plans.
-
-Run locally:   streamlit run main.py
-Deploy free:   push this folder to GitHub, then deploy on
-               https://share.streamlit.io (Streamlit Community Cloud).
 """
 
 import streamlit as st
@@ -97,16 +92,14 @@ def render_watchlist(results, trade_type_filter):
     for _, row in df.iterrows():
         filled = int(row["score"])
         empty = int(row["max_score"] - row["score"])
-        stars = ("⭐" * filled) + ("▫️" * empty)
+        stars = ("⭐️" * filled) + ("▫️" * empty)
         with st.container(border=True):
             c1, c2, c3 = st.columns([2, 2, 3])
-            c1.markdown(f"{row['symbol']}  \n{row['trade_type']}")
-[10/9/2026 3:40 PM] Saud 6868: c2.markdown(f"{stars}  \nBias: {row['trend_bias']}")
+            c1.markdown(f"**{row['symbol']}**  \n{row['trade_type']}")
+            c2.markdown(f"{stars}  \nBias: {row['trend_bias']}")
             reasons_txt = ", ".join(row["reasons"]) if row["reasons"] else "None"
             c3.markdown(f"Price: {row['price']:.5f}  \nReasons: {reasons_txt}")
     check_and_fire_alerts(filtered, play_sound=play_sound)
-
-
 tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
     ["🪙 Crypto", "💱 Forex", "🥇 Metals", "📈 Stocks", "🐸 Meme Coins"]
 )
@@ -128,9 +121,9 @@ with tab_crypto:
         st.subheader("Order Book (live)")
         try:
             bids, asks = render_order_book(ob_symbol)
-            st.markdown("Asks")
+            st.markdown("**Asks**")
             st.dataframe(asks.sort_values("price").head(10), hide_index=True)
-            st.markdown("Bids")
+            st.markdown("**Bids**")
             st.dataframe(bids.sort_values("price", ascending=False).head(10), hide_index=True)
         except Exception as e:
             st.warning(f"Order book unavailable: {e}")
@@ -192,6 +185,3 @@ with tab_meme:
     else:
         st.info("Enter a token name or contract address above to search live DEXScreener pairs.")
     st.markdown(f"Or browse trending pairs directly: [{EXTERNAL_LINKS['DEXScreener Trending']}]({EXTERNAL_LINKS['DEXScreener Trending']})")
-`
-
-خد وقتك في نسخ ده، هو كبير. خد كله من أول سطر لحد آخر سطر، والصقه، واختار Commit directly to the main branch، وبعدين Commit changes. ده آخر ملف في المشروع كله!

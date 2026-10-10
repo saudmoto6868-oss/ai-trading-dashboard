@@ -31,6 +31,7 @@ from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
+from modules.workspace import render_workspace
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -368,12 +369,22 @@ def render_limit_tracking(sym, book, trades):
 
 
 # ---- Tabs -------------------------------------------------------------------------
-tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
-    ["\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
+tab_workspace, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
+    ["\U0001F9E9 Workspace", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
 )
 
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
+
+with tab_workspace:
+    ws_lang = st.radio("Language / اللغة", ["en", "ar"], horizontal=True, key="ws_lang",
+                       format_func=lambda k: {"en": "English", "ar": "العربية"}[k],
+                       help="Starting language of the workspace. You can also switch inside it with the EN/ع button.")
+    ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
+    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height)
+    st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
+               "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
+               "Data comes straight from OKX in your browser, no refresh needed.")
 
 with tab_crypto:
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])

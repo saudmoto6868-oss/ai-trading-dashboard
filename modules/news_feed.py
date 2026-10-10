@@ -6,6 +6,7 @@ from finnhub.io pasted into config.py (FINNHUB_API_KEY).
 """
 
 import html
+from datetime import datetime, timezone
 
 import requests
 import streamlit as st
@@ -36,7 +37,9 @@ def get_latest_news(category: str = "general", limit: int = 10):
     icon = ASSET_ICONS.get(category, ASSET_ICONS["general"])
     return [
         {"headline": item.get("headline", ""), "source": item.get("source", ""),
-         "url": item.get("url", ""), "icon": icon}
+         "url": item.get("url", ""), "icon": icon, "summary": item.get("summary", ""),
+         "datetime": (datetime.fromtimestamp(item["datetime"], timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                      if isinstance(item.get("datetime"), (int, float)) and item["datetime"] else "")}
         for item in data
     ]
 

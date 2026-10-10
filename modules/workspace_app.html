@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workspace</title>
+<style>
+:root{--bg:#0b0e11;--panel:#161a1e;--panel2:#1e2329;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--grn:#0ecb81;--red:#f6465d;--gold:#f0b90b;--blue:#4aa3ff;--vio:#b57cff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:12px/1.35 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+button,select,input,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+button{cursor:pointer}button:hover{border-color:var(--gold)}
+button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+#bar{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+#bar .sp{flex:1}
+#bar label{color:var(--mut);display:flex;align-items:center;gap:3px}
+#bar input[type=number]{width:46px}
+#dot{width:9px;height:9px;border-radius:50%;background:var(--mut);display:inline-block}
+#dot.ok{background:var(--grn)}#dot.bad{background:var(--red)}
+#ws{position:absolute;top:34px;left:0;right:0;bottom:0;overflow:hidden;
+ background:radial-gradient(circle,#1b2027 1px,transparent 1px) 0 0/20px 20px,var(--bg)}
+#empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mut);font-size:14px;pointer-events:none}
+.panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.panel.focus{border-color:#4a525c}
+.ph{height:26px;flex:none;display:flex;align-items:center;gap:5px;padding:0 6px;background:var(--panel2);cursor:move;user-select:none;touch-action:none}
+.ph .ttl{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph button{padding:0 6px;line-height:18px;border-color:transparent;background:transparent;color:var(--mut)}
+.ph button:hover{color:var(--txt);border-color:var(--line)}
+.ph select{padding:0 2px;font-size:11px}
+.pb{flex:1;min-height:0;position:relative;overflow:auto}
+.panel.min{height:27px!important}.panel.min .pb,.panel.min .rz{display:none}
+.rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;
+ background:linear-gradient(135deg,transparent 55%,var(--mut) 55%,var(--mut) 62%,transparent 62%,transparent 75%,var(--mut) 75%,var(--mut) 82%,transparent 82%)}
+.tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tb button{padding:1px 6px}
+.fill{position:absolute;inset:0}
+.chartwrap{position:absolute;top:29px;left:0;right:0;bottom:0}
+.chartwrap canvas{display:block}
+table{width:100%;border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace}
+th{color:var(--mut);font-weight:400;font-size:11px;text-align:left;position:sticky;top:0;background:var(--panel)}
+td{padding:1px 4px;white-space:nowrap}
+.r{text-align:right}.m{color:var(--mut)}.g{color:var(--grn)}.rd{color:var(--red)}
+.err{color:var(--gold);padding:8px}
+.news-item{padding:6px 8px;border-bottom:1px solid var(--line);cursor:pointer}
+.news-item:hover{background:var(--panel2)}
+.news-detail{padding:10px}
+.news-detail h3{margin:6px 0}
+.link{color:var(--blue)}
+.legend{font-size:11px;color:var(--mut);padding:3px 6px}
+.stat{padding:3px 6px;color:var(--mut)}
+.bar2{display:flex;height:5px;margin:3px 6px;border-radius:2px;overflow:hidden}
+.cell{position:relative;height:17px}.cell .f{position:absolute;top:0;bottom:0;opacity:.3}.cell .t{position:relative;padding:0 4px;line-height:17px}
+.big{border:1px solid var(--gold)}
+@keyframes flb{0%{background:rgba(14,203,129,.65)}100%{background:transparent}}
+@keyframes fls{0%{background:rgba(246,70,93,.65)}100%{background:transparent}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(240,185,11,0)}50%{box-shadow:0 0 9px 2px rgba(240,185,11,.85)}}
+@keyframes hot{0%,100%{box-shadow:0 0 2px rgba(255,255,255,.2);filter:brightness(1)}50%{box-shadow:0 0 12px 3px rgba(255,255,255,.9);filter:brightness(1.6)}}
+@keyframes absb{0%,100%{background:rgba(181,124,255,.15)}50%{background:rgba(181,124,255,.55)}}
+@keyframes grow{0%{outline:2px solid rgba(74,163,255,.95)}100%{outline:2px solid rgba(74,163,255,0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
+.wn{animation:flb 1.4s ease-out 1,blink .5s linear 4}.sn{animation:blink .6s linear 2}
+.ab{animation:absb 1.1s ease-in-out infinite}.glow{animation:glow 1.8s ease-in-out infinite}.hot{animation:hot .55s ease-in-out infinite}
+.hb{animation:flb 1.2s ease-out 1}.hs{animation:fls 1.2s ease-out 1}.gr{animation:grow 1.3s ease-out 1}.evn{animation:blink .5s linear 4}
+.rtl #bar,.rtl .ph,.rtl .news-detail,.rtl .news-item,.rtl textarea{direction:rtl}
+.vid{width:100%;height:100%;border:0;background:#000}
+.vbox{display:flex;flex-direction:column;height:100%}
+.vbox .vf{flex:1;min-height:120px}
+.ins{padding:6px;max-height:45%;overflow:auto;border-top:1px solid var(--line)}
+.chip{display:inline-block;padding:0 6px;margin:1px;border-radius:9px;background:var(--panel2);border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="ws"><div id="empty"></div></div>
+<script>
+"use strict";
+const CFG = __CONFIG__;
+const API = CFG.apiBase || "https://www.okx.com";
+const SYMS = CFG.symbols;
+const LS = "ai_ws_v2";
+const TFS = [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["1H","1h"],["4H","4h"],["1D","1d"],["1W","1w"]];
+
+/* ---------------- i18n ---------------- */
+const I18N = {
+ en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
+  chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
+  live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
+  legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
+  read:"Read full article",back:"Back",nonews:"No news yet. Add a free Finnhub key in config.py to enable live headlines.",
+  videoUrl:"Paste a YouTube or TikTok link",load:"Load",transcript:"Paste transcript / captions here, then Extract",extract:"Extract insights",
+  coins:"Coins mentioned",levels:"Price levels",tone:"Tone",bull:"bullish",bear:"bearish",claims:"Key sentences",none:"nothing found",
+  hint:"Keyword extraction only (no AI). Paste captions from the video for best results.",
+  placed:"new big order",pulled:"removed w/o trading - possible fake wall",filled:"traded through",watching:"Watching for big limit orders...",
+  group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
+  symbol:"Symbol",last:"Last",chg:"24h"},
+ ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
+  chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
+  live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
+  legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
+  read:"اقرأ الخبر كامل",back:"رجوع",nonews:"مفيش أخبار لسه. ضيف مفتاح Finnhub المجاني في config.py.",
+  videoUrl:"الصق رابط يوتيوب أو تيك توك",load:"تحميل",transcript:"الصق نص الفيديو / الترجمة هنا ثم استخرج",extract:"استخرج المعلومات",
+  coins:"العملات المذكورة",levels:"مستويات الأسعار",tone:"النبرة",bull:"صعودي",bear:"هبوطي",claims:"جمل مهمة",none:"مفيش",
+  hint:"استخراج بالكلمات المفتاحية فقط (بدون ذكاء اصطناعي). الصق ترجمة الفيديو لأفضل نتيجة.",
+  placed:"أمر كبير جديد",pulled:"اتشال من غير تنفيذ - ممكن حائط وهمي",filled:"اتنفّذ",watching:"بنراقب الأوامر الكبيرة...",
+  group:"مجموعة الربط",time:"الوقت",price:"السعر",size:"الحجم",value:"القيمة",bid:"حجم الشراء",ask:"حجم البيع",loading:"جاري التحميل…",fit:"ملاءمة",
+  symbol:"الرمز",last:"آخر",chg:"24س"}
+};
+let lang = "en";
+const T = k => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
+
+/* ---------------- helpers ---------------- */
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const fmtP = p => p >= 1000 ? p.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) : p >= 1 ? p.toFixed(4) : p.toFixed(6);
+const fmtQ = q => q >= 1000 ? Math.round(q).toLocaleString("en-US") : q >= 1 ? q.toFixed(2) : q.toFixed(4);
+const median = a => { if (!a.length) return 0; const s = [...a].sort((x,y)=>x-y), m = s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
+const pad2 = n => String(n).padStart(2,"0");
+const hms = ms => { const d = new Date(ms); return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds()); };
+const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+                set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+const settings = Object.assign({smart:4, big:5, absorb:3}, store.get(LS+"_set", {}));
+const saveSettings = () => store.set(LS+"_set", settings);
+
+async function okx(path){
+  const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
+  if (!r.ok) throw new Error("HTTP "+r.status);
+  const j = await r.json();
+  if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
+  return j.data;
+}
+function setStatus(ok){ const d = document.getElementById("dot"); if (!d) return; d.className = ok ? "ok" : "bad"; d.title = ok ? T("live") : T("offline"); }
+
+/* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
+const Hub = {
+  subs:{}, last:{}, timers:{}, an:{},
+  sub(kind, sym, cb){
+    const key = kind+"|"+sym;
+    (this.subs[key] = this.subs[key] || new Set()).add(cb);
+    if (this.last[key]) cb(this.last[key]);
+    if (!this.timers[key]) this.start(key, kind, sym);
+    return () => { const s = this.subs[key]; s.delete(cb); if (!s.size){ clearTimeout(this.timers[key]); delete this.timers[key]; delete this.last[key]; if (kind === "trades") delete this.an[sym]; } };
+  },
+  start(key, kind, sym){
+    const every = kind === "tickers" ? 3000 : 1500;
+    const tick = async () => {
+      if (!this.subs[key] || !this.subs[key].size) return;
+      try {
+        let payload;
+        if (kind === "book"){
+          const d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=50"))[0];
+          payload = { bids:d.bids.map(x=>({p:+x[0],q:+x[1]})), asks:d.asks.map(x=>({p:+x[0],q:+x[1]})) };
+        } else if (kind === "trades"){
+          const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
+          payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
+        } else if (kind === "tickers"){
+          const d = await okx("/market/tickers?instType=SPOT");
+          const m = {}; d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h}); payload = m;
+        }
+        this.last[key] = payload; setStatus(true);
+        this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
+      } catch(e){ setStatus(false); this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e)}); }catch(_){} }); }
+      if (this.subs[key] && this.subs[key].size) this.timers[key] = setTimeout(tick, every);
+    };
+    this.timers[key] = setTimeout(tick, 0);
+  },
+  /* tape analysis: new-print flags, SMART/WHALE tiers, absorption, stats */
+  analyze(sym, rows){
+    const st = this.an[sym] = this.an[sym] || {seen:new Set(), first:true};
+    const med = median(rows.map(r=>r.q)) || 1e-12;
+    rows.forEach(r => {
+      r.isNew = !st.first && !st.seen.has(r.id);
+      r.tier = r.q >= settings.smart*2.5*med ? "whale" : r.q >= settings.smart*med ? "smart" : "normal";
+      r.absorb = false; r.adir = "";
+      r.notional = r.p*r.q;
+    });
+    rows.forEach(r => st.seen.add(r.id));
+    if (st.seen.size > 800) st.seen = new Set(rows.map(r=>r.id));
+    st.first = false;
+    // absorption: heavy volume at ONE price while the window barely moved
+    if (rows.length >= 10){
+      const ps = rows.map(r=>r.p), lo = Math.min(...ps), hi = Math.max(...ps), mid = median(ps);
+      if (mid > 0 && (hi-lo)/mid*100 <= 0.05){
+        const lv = {};
+        rows.forEach(r => { const o = lv[r.p] = lv[r.p] || {sum:0,n:0,buy:0,sell:0}; o.sum += r.q; o.n++; r.side==="Buy" ? o.buy += r.q : o.sell += r.q; });
+        const m2 = median(Object.values(lv).map(o=>o.sum)) || 1e-12;
+        rows.forEach(r => { const o = lv[r.p]; if (o.sum >= settings.absorb*m2 && o.n >= 4){ r.absorb = true; r.adir = o.buy >= o.sell ? "sellers" : "buyers"; } });
+      }
+    }
+    const buy = rows.filter(r=>r.side==="Buy").reduce((a,r)=>a+r.q,0), sell = rows.filter(r=>r.side==="Sell").reduce((a,r)=>a+r.q,0);
+    const span = rows.length ? (rows[rows.length-1].t - rows[0].t)/1000 : 0;
+    const hits = {}; rows.filter(r=>r.isNew).forEach(r => hits[r.p] = r.side);
+    const ab = new Set(rows.filter(r=>r.absorb).map(r=>r.p));
+    return { rows, hits, ab, abDir: (rows.find(r=>r.absorb)||{}).adir || "",
+             stats:{ pace: span>0 ? rows.length/span : rows.length, buyPct: buy+sell ? 100*buy/(buy+sell) : 50, delta: buy-sell } };
+  }
+};
+
+/* ---------------- own candlestick chart (canvas) ---------------- */
+function niceTicks(lo, hi, n){
+  const range = Math.max(hi-lo, 1e-12), raw = range/n, mag = Math.pow(10, Math.floor(Math.log10(raw))), nm = raw/mag;
+  const step = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag, out = [];
+  for (let v = Math.ceil(lo/step)*step; v <= hi; v += step) out.push(v);
+  return {ticks:out, step};
+}
+class CandleChart {
+  constructor(host){
+    this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
+    this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
+    this.ema = {9:true, 21:true, 50:false}; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+    const cv = this.cv;
+    cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
+    cv.addEventListener("pointerdown", e => this.down(e));
+    cv.addEventListener("pointermove", e => this.move(e));
+    cv.addEventListener("pointerup", e => this.up(e));
+    cv.addEventListener("pointerleave", () => { if (!this.drag){ this.mouse = null; this.draw(); } });
+    cv.addEventListener("dblclick", () => this.fit());
+    this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
+  }
+  destroy(){ this.ro.disconnect(); }
+  get PR(){ return this.W - 62; } get PB(){ return this.H - 20; }
+  resize(){
+    const dpr = window.devicePixelRatio || 1; this.W = this.host.clientWidth; this.H = this.host.clientHeight;
+    this.cv.width = this.W*dpr; this.cv.height = this.H*dpr; this.cv.style.width = this.W+"px"; this.cv.style.height = this.H+"px";
+    this.ctx.setTransform(dpr,0,0,dpr,0,0); this.draw();
+  }
+  setData(arr, fit){
+    this.data = arr; this.calcEma();
+    if (fit) this.fit(); else this.draw();
+  }
+  calcEma(){
+    this.emaV = {};
+    [9,21,50].forEach(n => { const k = 2/(n+1); let e = null; this.emaV[n] = this.data.map(c => (e = e == null ? c.c : c.c*k + e*(1-k))); });
+  }
+  fit(){
+    const n = this.data.length; this.yZoom = 1; this.yShift = 0;
+    this.r = n - 1 + Math.round(0.06*this.PR/this.bw); this.draw();
+  }
+  clampR(){
+    const n = this.data.length, maxR = n - 1 + 0.7*this.PR/this.bw, minR = Math.min(n-1, 3);
+    this.r = Math.max(minR, Math.min(maxR, this.r));
+  }
+  x(i){ return this.PR - (this.r - i + 0.5)*this.bw; }
+  idx(x){ return this.r + 0.5 - (this.PR - x)/this.bw; }
+  wheel(e){
+    const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
+    if (mx > this.PR){ this.yZoom = Math.max(0.1, Math.min(10, this.yZoom*Math.exp(e.deltaY*0.0015))); this.draw(); return; }
+    const anchor = this.idx(mx), f = Math.exp(-e.deltaY*0.0015);
+    this.bw = Math.max(2, Math.min(60, this.bw*f));
+    this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.draw(); this.checkMore();
+  }
+  down(e){
+    this.cv.setPointerCapture(e.pointerId);
+    const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
+    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.PR};
+  }
+  move(e){
+    const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top};
+    if (this.drag){
+      const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y; this.drag.x = e.clientX; this.drag.y = e.clientY;
+      if (this.drag.axis) this.yZoom = Math.max(0.1, Math.min(10, this.yZoom*Math.exp(dy*0.005)));
+      else { this.r -= dx/this.bw; this.yShift += dy/Math.max(1, this.PB); this.clampR(); this.checkMore(); }
+    }
+    this.draw();
+  }
+  up(e){ this.drag = null; }
+  checkMore(){ if (this.onNeedMore && this.r - this.PR/this.bw < 15) this.onNeedMore(); }
+  range(i0, i1){
+    let lo = Infinity, hi = -Infinity;
+    for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
+    if (!isFinite(lo)) return [0,1];
+    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
+    return [mid-span/2, mid+span/2];
+  }
+  fmtTime(ms){
+    const d = new Date(ms), day = d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+    if (this.tf === "1D" || this.tf === "1W") return day;
+    return d.getHours() === 0 && d.getMinutes() === 0 ? day : pad2(d.getHours())+":"+pad2(d.getMinutes());
+  }
+  draw(){
+    if (this._raf) return;
+    this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
+  }
+  paint(){
+    const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length;
+    c.fillStyle = "#0b0e11"; c.fillRect(0,0,W,H);
+    c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textBaseline = "middle";
+    if (!n){ c.fillStyle = "#848e9c"; c.fillText(T("loading"), 12, 20); return; }
+    const i0 = Math.max(0, Math.floor(this.idx(0)) - 1), i1 = Math.min(n-1, Math.ceil(this.r));
+    if (i1 < i0) return;
+    const [lo, hi] = this.range(i0, i1), py = v => PB - (v-lo)/(hi-lo)*PB;
+    // grid + price axis
+    const nt = niceTicks(lo, hi, Math.max(3, Math.floor(PB/48))), dec = Math.max(0, Math.min(8, 1 - Math.floor(Math.log10(nt.step))));
+    c.strokeStyle = "#1f252b"; c.fillStyle = "#848e9c"; c.lineWidth = 1; c.textAlign = "left";
+    nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), PR+5, y); });
+    // time axis
+    const stepBars = Math.max(1, Math.ceil(90/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
+    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 5 ? 5 : 10)*mag;
+    c.textAlign = "center";
+    for (let i = Math.ceil(i0/st)*st; i <= i1; i += st){
+      const x = Math.round(this.x(i))+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,PB); c.stroke();
+      c.fillText(this.fmtTime(this.data[i].t), x, PB+10);
+    }
+    c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(PR+.5,0); c.lineTo(PR+.5,H); c.stroke();
+    // clip plot
+    c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
+    let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
+    const bwp = Math.max(1, this.bw*0.7);
+    for (let i = i0; i <= i1; i++){
+      const k = this.data[i], up = k.c >= k.o, col = up ? "#0ecb81" : "#f6465d", x = this.x(i);
+      c.fillStyle = up ? "rgba(14,203,129,.28)" : "rgba(246,70,93,.28)";
+      const vh = vmax ? k.v/vmax*PB*0.18 : 0; c.fillRect(x-bwp/2, PB-vh, bwp, vh);
+      c.strokeStyle = col; c.fillStyle = col; c.beginPath(); c.moveTo(Math.round(x)+.5, py(k.h)); c.lineTo(Math.round(x)+.5, py(k.l)); c.stroke();
+      const y1 = py(k.o), y2 = py(k.c); c.fillRect(x-bwp/2, Math.min(y1,y2), bwp, Math.max(1, Math.abs(y1-y2)));
+    }
+    const ecol = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};
+    [9,21,50].forEach(nn => {
+      if (!this.ema[nn]) return;
+      c.strokeStyle = ecol[nn]; c.lineWidth = 1.2; c.beginPath();
+      for (let i = i0; i <= i1; i++){ const y = py(this.emaV[nn][i]), x = this.x(i); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+      c.stroke();
+    });
+    c.restore(); c.lineWidth = 1;
+    // last price line
+    const last = this.data[n-1], ly = py(last.c), lup = last.c >= last.o, lcol = lup ? "#0ecb81" : "#f6465d";
+    if (ly > 0 && ly < PB){
+      c.strokeStyle = lcol; c.setLineDash([3,3]); c.beginPath(); c.moveTo(0,ly+.5); c.lineTo(PR,ly+.5); c.stroke(); c.setLineDash([]);
+      c.fillStyle = lcol; c.fillRect(PR+1, ly-8, 60, 16); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(last.c.toFixed(dec), PR+5, ly);
+    }
+    // crosshair + legend
+    let show = last;
+    const m = this.mouse;
+    if (m && m.x < PR && m.y < PB){
+      const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last;
+      c.strokeStyle = "#5a636e"; c.setLineDash([2,3]); c.beginPath(); c.moveTo(m.x+.5,0); c.lineTo(m.x+.5,PB); c.moveTo(0,m.y+.5); c.lineTo(PR,m.y+.5); c.stroke(); c.setLineDash([]);
+      c.fillStyle = "#2b3139"; c.fillRect(PR+1, m.y-8, 60, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), PR+5, m.y);
+      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t); const tw = c.measureText(label).width + 10;
+      c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, PB+1, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, PB+10);
+    }
+    const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? "#0ecb81" : "#f6465d";
+    c.textAlign = "left"; c.fillStyle = "#848e9c";
+    const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";
+    c.fillText(txt, 8, 10); c.fillStyle = dcol; c.fillText((chg>=0?"+":"")+chg.toFixed(2)+"%", 8+c.measureText(txt).width, 10);
+  }
+}
+
+/* ---------------- widget panels ---------------- */
+const Ws = { panels:[], z:10, el:null, seq:1 };
+
+class Panel {
+  constructor(type, rect, state){
+    this.type = type; this.id = "p"+(Ws.seq++); this.state = Object.assign({sym:SYMS[0], group:0}, state||{});
+    this.rect = Object.assign({x:20,y:20,w:360,h:280}, rect||{}); this.min = !!this.state.min; this.max = false; this.unsubs = [];
+    this.root = el("div","panel");
+    this.head = el("div","ph"); this.ttl = el("span","ttl"); this.head.append(this.ttl);
+    this.grp = el("select"); this.grp.title = T("group");
+    ["—",1,2,3].forEach((g,i) => { const o = el("option"); o.value = i; o.textContent = i ? "#"+i : "—"; this.grp.append(o); });
+    this.grp.value = this.state.group; this.grp.onchange = () => { this.state.group = +this.grp.value; Ws.save(); };
+    this.grp.onpointerdown = e => e.stopPropagation();
+    const bMin = el("button",null,"–"), bMax = el("button",null,"▢"), bX = el("button",null,"✕");
+    [bMin,bMax,bX].forEach(b => b.onpointerdown = e => e.stopPropagation());
+    bMin.onclick = () => { this.min = !this.min; this.state.min = this.min; this.root.classList.toggle("min", this.min); Ws.save(); };
+    bMax.onclick = () => this.toggleMax(); bX.onclick = () => this.close();
+    this.head.append(this.grp, bMin, bMax, bX);
+    this.body = el("div","pb"); this.rz = el("div","rz");
+    this.root.append(this.head, this.body, this.rz);
+    Ws.el.append(this.root); Ws.panels.push(this);
+    this.apply(); this.root.classList.toggle("min", this.min);
+    this.bindDrag(); this.setTitle(); this.build();
+    this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
+  }
+  setTitle(){ this.ttl.textContent = T(this.type) + (["chart","dom","tape","limits"].includes(this.type) ? " · "+this.state.sym : ""); this.grp.title = T("group"); }
+  front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
+  apply(){ const r = this.rect, s = this.root.style; s.left = r.x+"px"; s.top = r.y+"px"; s.width = r.w+"px"; s.height = r.h+"px"; }
+  toggleMax(){
+    if (!this.max){ this.prev = Object.assign({}, this.rect); this.rect = {x:0,y:0,w:Ws.el.clientWidth,h:Ws.el.clientHeight}; this.max = true; this.min = false; this.root.classList.remove("min"); }
+    else { this.rect = this.prev; this.max = false; }
+    this.apply(); this.front(); Ws.save();
+  }
+  bindDrag(){
+    const snap = v => Math.round(v/10)*10;
+    this.head.addEventListener("pointerdown", e => {
+      if (this.max) return;
+      this.head.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, ox = this.rect.x, oy = this.rect.y;
+      const mv = ev => {
+        this.rect.x = Math.max(-this.rect.w+80, Math.min(Ws.el.clientWidth-60, snap(ox+ev.clientX-sx)));
+        this.rect.y = Math.max(0, Math.min(Ws.el.clientHeight-26, snap(oy+ev.clientY-sy))); this.apply();
+      };
+      const up = () => { this.head.removeEventListener("pointermove", mv); this.head.removeEventListener("pointerup", up); Ws.save(); };
+      this.head.addEventListener("pointermove", mv); this.head.addEventListener("pointerup", up);
+    });
+    this.head.addEventListener("dblclick", () => this.toggleMax());
+    this.rz.addEventListener("pointerdown", e => {
+      e.stopPropagation(); this.rz.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, ow = this.rect.w, oh = this.rect.h;
+      const mv = ev => { this.rect.w = Math.max(160, snap(ow+ev.clientX-sx)); this.rect.h = Math.max(90, snap(oh+ev.clientY-sy)); this.apply(); };
+      const up = () => { this.rz.removeEventListener("pointermove", mv); this.rz.removeEventListener("pointerup", up); this.max = false; Ws.save(); };
+      this.rz.addEventListener("pointermove", mv); this.rz.addEventListener("pointerup", up);
+    });
+  }
+  symSelect(){
+    const s = el("select"); SYMS.forEach(x => { const o = el("option"); o.value = x; o.textContent = x; s.append(o); });
+    s.value = this.state.sym; s.onchange = () => Ws.broadcast(this, s.value); return s;
+  }
+  setSymbol(sym){
+    this.state.sym = sym; this.setTitle(); if (this.symSel) this.symSel.value = sym; this.resub(); Ws.save();
+  }
+  clearSubs(){ this.unsubs.forEach(u => u()); this.unsubs = []; }
+  resub(){}
+  close(){ this.clearSubs(); this.destroy && this.destroy(); this.root.remove(); Ws.panels = Ws.panels.filter(p => p !== this); Ws.save(); Ws.checkEmpty(); }
+  build(){ this["build_"+this.type](); }
+
+  /* ---- chart ---- */
+  build_chart(){
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
+    this.tfBtns = {};
+    TFS.forEach(([v,l]) => { const b = el("button",null,l); b.onclick = () => this.setTf(v); this.tfBtns[v] = b; tb.append(b); });
+    const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
+    const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    tb.append(...emaBtns, fit); this.body.style.overflow = "hidden"; this.body.append(tb);
+    const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;top:30px;left:0;z-index:2"; this.body.append(this.msg);
+    this.chart = new CandleChart(wrap); this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    if (this.state.ema) this.chart.ema = Object.assign({}, this.state.ema);
+    emaBtns.forEach((b,i) => b.classList.toggle("on", !!this.chart.ema[[9,21,50][i]]));
+    this.chart.onNeedMore = () => this.loadMore();
+    this.tfBtns[this.state.tf] && this.tfBtns[this.state.tf].classList.add("on");
+    this.resub();
+  }
+  setTf(tf){
+    Object.values(this.tfBtns).forEach(b => b.classList.remove("on")); this.tfBtns[tf].classList.add("on");
+    this.state.tf = tf; this.chart.tf = tf; this.chart.data = []; this.chart.draw(); this.resub(); Ws.save();
+  }
+  parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
+  resub(){
+    if (this.type !== "chart") return;
+    clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
+    this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false;
+    const loop = async first => {
+      if (tok !== this.tok) return;
+      try {
+        const d = await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+tf+"&limit="+(first?300:3));
+        if (tok !== this.tok) return;
+        const rows = this.parseC(d); setStatus(true); this.msg.textContent = "";
+        if (first) this.chart.setData(rows, true);
+        else {
+          const data = this.chart.data.slice();
+          rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });
+          this.chart.setData(data, false);
+        }
+      } catch(e){ setStatus(false); this.msg.textContent = T("offline")+" ("+(e.message||e)+")"; }
+      this.timer = setTimeout(() => loop(!this.chart.data.length), 2000);
+    };
+    loop(true);
+  }
+  async loadMore(){
+    if (this.loadingMore || this.noMore || !this.chart.data.length) return;
+    this.loadingMore = true; const tok = this.tok;
+    try {
+      const oldest = this.chart.data[0].t;
+      const d = await okx("/market/history-candles?instId="+encodeURIComponent(this.state.sym)+"&bar="+this.state.tf+"&after="+oldest+"&limit=100");
+      if (tok === this.tok){
+        const rows = this.parseC(d);
+        if (!rows.length) this.noMore = true;
+        else { const ch = this.chart; ch.r += rows.length; ch.setData(rows.concat(ch.data), false); }
+      }
+    } catch(e){ this.noMore = true; }
+    this.loadingMore = false;
+  }
+  destroy(){ clearTimeout(this.timer); this.tok = -1; this.chart && this.chart.destroy(); this.unwatch && this.unwatch(); }
+
+  /* ---- DOM ---- */
+  build_dom(){
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
+    this.domBox = el("div"); this.body.append(tb, this.domBox); this.resub();
+  }
+  /* ---- tape ---- */
+  build_tape(){
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
+    this.statBox = el("div"); this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
+    this.body.append(tb, this.statBox, this.tapeBox, this.legBox); this.resub();
+  }
+  /* ---- limits ---- */
+  build_limits(){
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
+    this.evBox = el("div"); this.body.append(tb, this.evBox); this.lt = {prev:null, events:[]}; this.resub();
+  }
+  /* ---- watchlist ---- */
+  build_watch(){
+    this.wBox = el("div"); this.body.append(this.wBox); this.resub();
+  }
+  /* ---- news ---- */
+  build_news(){
+    this.nBox = el("div","news-body"); this.body.append(this.nBox); this.showNewsList();
+  }
+  showNewsList(){
+    const items = CFG.news || [];
+    if (!items.length || !items.some(n => n.url || n.summary)){ this.nBox.innerHTML = '<div class="err">'+esc(T("nonews"))+'</div>' + items.map(n => '<div class="news-item">'+esc(n.headline)+'</div>').join(""); return; }
+    this.nBox.innerHTML = "";
+    items.forEach(n => { const d = el("div","news-item"); d.innerHTML = '<div>'+esc(n.headline)+'</div><div class="m">'+esc(n.source||"")+(n.datetime ? " · "+esc(n.datetime) : "")+'</div>'; d.onclick = () => this.showNewsDetail(n); this.nBox.append(d); });
+  }
+  showNewsDetail(n){
+    const safe = /^https?:\/\//i.test(n.url||"") ? n.url : "";
+    this.nBox.innerHTML = '<div class="news-detail"><button class="bk">← '+esc(T("back"))+'</button><h3>'+esc(n.headline)+'</h3><div class="m">'+esc(n.source||"")+(n.datetime ? " · "+esc(n.datetime) : "")+'</div><p>'+esc(n.summary||"")+'</p>'+(safe ? '<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(safe)+'">'+esc(T("read"))+' ↗</a>' : "")+'</div>';
+    this.nBox.querySelector(".bk").onclick = () => this.showNewsList();
+  }
+  /* ---- video ---- */
+  build_video(){
+    const box = el("div","vbox"), bar = el("div","tb"), inp = el("input"); inp.placeholder = T("videoUrl"); inp.style.flex = "1"; inp.value = this.state.url || "";
+    const go = el("button",null,T("load")); bar.append(inp, go);
+    const vf = el("div","vf"); const ins = el("div","ins");
+    const ta = el("textarea"); ta.placeholder = T("transcript"); ta.style.cssText = "width:100%;height:56px;resize:vertical"; ta.value = this.state.txt || "";
+    const ex = el("button",null,T("extract")); const out = el("div"); const hint = el("div","m"); hint.textContent = T("hint");
+    ins.append(ta, ex, hint, out); box.append(bar, vf, ins); this.body.append(box); this.body.style.overflow = "hidden";
+    const load = () => {
+      const u = inp.value.trim(); this.state.url = u; Ws.save(); const src = embedUrl(u);
+      vf.innerHTML = src ? '<iframe class="vid" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" src="'+esc(src)+'"></iframe>' : '<div class="err">'+esc(T("videoUrl"))+'</div>';
+    };
+    go.onclick = load; inp.onkeydown = e => { if (e.key === "Enter") load(); }; if (this.state.url) load();
+    ex.onclick = () => { this.state.txt = ta.value; Ws.save(); out.innerHTML = insights(ta.value); };
+  }
+  /* ---- notes ---- */
+  build_notes(){
+    const ta = el("textarea"); ta.className = "fill"; ta.style.cssText = "width:100%;height:100%;border:0;border-radius:0;resize:none"; ta.value = this.state.txt || "";
+    ta.oninput = () => { this.state.txt = ta.value; Ws.save(); }; this.body.append(ta); this.body.style.overflow = "hidden";
+  }
+}
+
+/* subscriptions per type (kept outside the class for readability) */
+const origResub = Panel.prototype.resub;
+Panel.prototype.resub = function(){
+  if (this.type === "chart") return origResub.call(this);
+  this.clearSubs(); const sym = this.state.sym;
+  if (this.type === "dom"){
+    let book = null, prevSizes = null;
+    const draw = () => {
+      const tape = Hub.last["trades|"+sym];
+      if (!book) return;
+      if (book.error){ this.domBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      const res = renderDom(book, tape && !tape.error ? tape : null, prevSizes); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
+    };
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
+    this.unsubs.push(Hub.sub("trades", sym, () => {}));
+  } else if (this.type === "tape"){
+    this.unsubs.push(Hub.sub("trades", sym, p => {
+      if (p.error){ this.tapeBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      const s = p.stats;
+      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+s.pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(s.delta>=0?"g":"rd")+'">'+(s.delta>=0?"+":"-")+fmtQ(Math.abs(s.delta))+'</b>'+(p.abDir ? ' · <b style="color:#b57cff" class="ab">ABSORB by '+p.abDir+'</b>' : '')+'</div><div class="bar2"><div style="width:'+s.buyPct.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-s.buyPct).toFixed(0)+'%;background:#f6465d"></div></div>';
+      this.tapeBox.innerHTML = renderTape(p.rows.slice().reverse().slice(0, 40));
+    }));
+  } else if (this.type === "limits"){
+    this.lt = {prev:null, events:[]}; let book = null;
+    const run = () => { const tp = Hub.last["trades|"+sym]; if (book && !book.error) limitUpdate(this.lt, book, tp && !tp.error ? tp.rows : null); this.evBox.innerHTML = renderEvents(this.lt.events); };
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b; run(); }));
+    this.unsubs.push(Hub.sub("trades", sym, () => {}));
+  } else if (this.type === "watch"){
+    this.unsubs.push(Hub.sub("tickers", "all", m => {
+      if (m.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      let h = '<table><tr><th>'+esc(T("symbol"))+'</th><th class="r">'+esc(T("last"))+'</th><th class="r">'+esc(T("chg"))+'</th></tr>';
+      SYMS.forEach(s => { const x = m[s]; if (!x) return; const ch = x.open ? (x.last-x.open)/x.open*100 : 0; h += '<tr class="wr" data-s="'+esc(s)+'" style="cursor:pointer"><td>'+esc(s)+'</td><td class="r">'+fmtP(x.last)+'</td><td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"+":"")+ch.toFixed(2)+'%</td></tr>'; });
+      this.wBox.innerHTML = h+'</table>';
+      this.wBox.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s));
+    }));
+  }
+};
+
+function renderDom(book, tape, prev){
+  const asks = book.asks.slice().sort((a,b)=>a.p-b.p).slice(0,12), bids = book.bids.slice().sort((a,b)=>b.p-a.p).slice(0,12);
+  const all = asks.concat(bids).map(x=>x.q), mx = Math.max(...all, 1e-12), med = median(book.asks.concat(book.bids).map(x=>x.q));
+  const hits = tape ? tape.hits : {}, ab = tape ? tape.ab : new Set(), sizes = {};
+  const cell = (q, color, align, big, hot, grew) => {
+    const w = Math.max(4, Math.round(100*q/mx)), cls = (big ? "big " : "") + (hot ? "hot" : big ? "glow" : grew ? "gr" : "");
+    return '<div class="cell '+cls+'"><div class="f" style="'+(align==="right"?"right":"left")+':0;width:'+w+'%;background:'+color+'"></div><div class="t" style="text-align:'+align+'">'+(big?"★ ":"")+fmtQ(q)+'</div></div>';
+  };
+  let rows = "";
+  const line = (x, side) => {
+    sizes[x.p] = x.q; const big = med && x.q >= settings.big*med, hit = hits[x.p], grew = prev && (prev[x.p] == null || x.q >= prev[x.p]*1.25);
+    const isAsk = side === "ask", pc = ab.has(x.p) ? "ab" : hit ? (hit==="Buy" ? "hb" : "hs") : "";
+    return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew) : "")+'</td></tr>';
+  };
+  asks.slice().reverse().forEach(x => rows += line(x,"ask"));
+  if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">spread '+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
+  bids.forEach(x => rows += line(x,"bid"));
+  return {html:'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
+}
+function renderTape(rows){
+  let h = '<table><tr><th>'+esc(T("time"))+'</th><th>'+esc(T("price"))+'</th><th class="r">'+esc(T("size"))+'</th><th class="r">'+esc(T("value"))+'</th><th></th></tr>';
+  rows.forEach(r => {
+    const buy = r.side === "Buy", col = buy ? "#0ecb81" : "#f6465d";
+    let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
+    const bg = r.tier === "whale" ? "rgba(240,185,11,.22)" : r.tier === "smart" ? "rgba(240,185,11,.10)" : "transparent";
+    const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " ABSORB" : "");
+    h += '<tr class="'+cls+'" style="background:'+bg+';color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td class="m" style="font-weight:400">'+hms(r.t)+'</td><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#b57cff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td></tr>';
+  });
+  return h+'</table>';
+}
+function limitUpdate(lt, book, rows){
+  const now = Date.now(), cur = {};
+  [["bid", book.bids],["ask", book.asks]].forEach(([side, arr]) => {
+    const med = median(arr.map(x=>x.q));
+    arr.forEach(x => { if (med && x.q >= settings.big*med) cur[side+"|"+x.p] = x.q; });
+  });
+  let lo = null, hi = null; if (rows && rows.length){ const ps = rows.map(r=>r.p); lo = Math.min(...ps); hi = Math.max(...ps); }
+  if (lt.prev){
+    Object.keys(cur).forEach(k => { if (!(k in lt.prev)){ const [s,p] = k.split("|"); lt.events.unshift({t:now, ev:"PLACED", side:s, p:+p, q:cur[k]}); } });
+    const bmin = Math.min(...book.bids.map(x=>x.p)), amax = Math.max(...book.asks.map(x=>x.p));
+    Object.keys(lt.prev).forEach(k => {
+      const [s,ps] = k.split("|"), p = +ps, old = lt.prev[k], nq = cur[k] || 0;
+      if (s === "bid" && p < bmin) return; if (s === "ask" && p > amax) return;
+      if (nq < 0.4*old){ const thru = (s==="ask" && hi != null && hi >= p) || (s==="bid" && lo != null && lo <= p); lt.events.unshift({t:now, ev:thru?"FILLED":"PULLED", side:s, p, q:old}); }
+    });
+  }
+  lt.prev = cur; lt.events = lt.events.slice(0, 40);
+}
+function renderEvents(ev){
+  if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
+  const col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#848e9c"}, note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled")}, now = Date.now();
+  let h = '<table><tr><th>'+esc(T("time"))+'</th><th>Event</th><th>Side</th><th>'+esc(T("price"))+'</th><th class="r">'+esc(T("size"))+'</th><th></th></tr>';
+  ev.slice(0,15).forEach(e => { h += '<tr class="'+(now-e.t<30000?"evn":"")+'"><td class="m">'+hms(e.t)+'</td><td style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td></tr>'; });
+  return h+'</table>';
+}
+
+/* ---- video helpers ---- */
+function embedUrl(u){
+  let m;
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/i))) return "https://www.youtube-nocookie.com/embed/"+m[1];
+  if ((m = u.match(/youtube\.com\/playlist\?(?:.*&)?list=([\w-]+)/i))) return "https://www.youtube-nocookie.com/embed/videoseries?list="+m[1];
+  if ((m = u.match(/tiktok\.com\/.*\/video\/(\d+)/i))) return "https://www.tiktok.com/embed/v2/"+m[1];
+  return "";
+}
+function insights(text){
+  if (!text.trim()) return '<div class="m">'+esc(T("none"))+'</div>';
+  const low = text.toLowerCase(), names = {BTC:["btc","bitcoin","بيتكوين","البيتكوين"],ETH:["eth","ethereum","إيثريوم","ايثريوم"],SOL:["sol","solana","سولانا"],XRP:["xrp","ripple","ريبل"],BNB:["bnb","binance coin"],DOGE:["doge","dogecoin","دوج"]};
+  SYMS.forEach(s => { const b = s.split("-")[0]; if (!names[b]) names[b] = [b.toLowerCase()]; });
+  const coins = Object.keys(names).filter(k => names[k].some(w => new RegExp("(^|[^a-z\\u0600-\\u06FF])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[^a-z\\u0600-\\u06FF])","i").test(low)));
+  const lv = [...new Set((text.match(/\$?\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\$?\b\d{2,6}(?:\.\d+)?\s?[kK]\b|\$\d+(?:\.\d+)?/g) || []).map(s => s.trim()))].slice(0,14);
+  const bullW = ["bullish","breakout","rally","pump","support holds","buy","long","moon","صعود","صاعد","شراء","اختراق","ارتفاع"], bearW = ["bearish","breakdown","dump","crash","sell","short","resistance rejects","هبوط","هابط","بيع","كسر","انخفاض"];
+  const cnt = ws => ws.reduce((a,w) => a + (low.split(w).length-1), 0), b = cnt(bullW), r = cnt(bearW);
+  const sents = text.split(/(?<=[.!?؟\n])\s+/).filter(s => /(target|support|resistance|stop|entry|breakout|هدف|دعم|مقاومة|وقف|دخول|اختراق|\d)/i.test(s)).slice(0,6);
+  return '<div><b>'+esc(T("coins"))+':</b> '+(coins.length ? coins.map(c => '<span class="chip">'+esc(c)+'</span>').join("") : esc(T("none")))+'</div>'
+    +'<div><b>'+esc(T("levels"))+':</b> '+(lv.length ? lv.map(c => '<span class="chip">'+esc(c)+'</span>').join("") : esc(T("none")))+'</div>'
+    +'<div><b>'+esc(T("tone"))+':</b> <span class="g">'+esc(T("bull"))+' '+b+'</span> / <span class="rd">'+esc(T("bear"))+' '+r+'</span></div>'
+    +'<div><b>'+esc(T("claims"))+':</b><ul style="margin:2px 0;padding-inline-start:16px">'+(sents.length ? sents.map(s => '<li>'+esc(s)+'</li>').join("") : "<li>"+esc(T("none"))+"</li>")+'</ul></div>';
+}
+
+/* ---------------- workspace manager ---------------- */
+Ws.el = document.getElementById("ws");
+const SYMW = ["chart","dom","tape","limits"];
+Ws.broadcast = (from, sym) => {
+  if (SYMW.includes(from.type)) from.setSymbol(sym);
+  const g = from.state.group;
+  Ws.panels.forEach(p => { if (p !== from && SYMW.includes(p.type) && (g ? p.state.group === g : from.type === "watch")) p.setSymbol(sym); });
+};
+Ws.checkEmpty = () => { const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
+Ws.save = () => {
+  store.set(LS, { lang, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
+  Ws.checkEmpty();
+};
+Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
+Ws.defaults = () => {
+  const W = Ws.el.clientWidth || 1200, H = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10;
+  const cw = r(W*0.5), dw = r(W*0.2), tw = W - cw - dw - 20, top = r(H*0.6);
+  return [
+    ["chart", {x:0,y:0,w:cw,h:top}, {sym:SYMS[0], group:1, tf:"1H", ema:{9:true,21:true,50:false}}],
+    ["dom", {x:cw+10,y:0,w:dw,h:top}, {sym:SYMS[0], group:1}],
+    ["tape", {x:cw+dw+20,y:0,w:tw,h:top}, {sym:SYMS[0], group:1}],
+    ["watch", {x:0,y:top+10,w:r(W*0.22),h:H-top-10}, {group:1}],
+    ["limits", {x:r(W*0.22)+10,y:top+10,w:r(W*0.4),h:H-top-10}, {sym:SYMS[0], group:1}],
+    ["news", {x:r(W*0.62)+20,y:top+10,w:W-r(W*0.62)-20,h:H-top-10}, {}],
+  ];
+};
+Ws.build = list => { list.forEach(([t,r,s]) => new Panel(t, r, s)); Ws.checkEmpty(); };
+Ws.cascade = 0;
+Ws.add = type => {
+  const o = (Ws.cascade++ % 8)*30 + 20;
+  new Panel(type, {x:o,y:o,w:type==="chart"?560:340,h:type==="chart"?340:300}, {sym:SYMS[0], group:0});
+  Ws.save();
+};
+
+/* toolbar */
+function buildBar(){
+  const bar = document.getElementById("bar"); bar.innerHTML = "";
+  const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
+  ["chart","dom","tape","limits","watch","news","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
+  sel.onchange = () => { if (sel.value) Ws.add(sel.value); sel.value = ""; };
+  const bT = el("button",null,T("trading")), bB = el("button",null,T("blank"));
+  bT.onclick = () => { Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); }; bB.onclick = () => { Ws.clear(); Ws.save(); };
+  bar.append(sel, bT, bB, el("span","sp"));
+  [["smart","smart"],["big","big"],["abs","absorb"]].forEach(([lab,key]) => {
+    const l = el("label",null,esc(T(lab))), i = el("input"); i.type = "number"; i.step = "0.5"; i.min = "1"; i.value = settings[key];
+    i.onchange = () => { settings[key] = Math.max(1, +i.value || settings[key]); saveSettings(); }; l.append(i); bar.append(l);
+  });
+  const d = el("span"); d.id = "dot"; bar.append(d);
+  const lb = el("button", null, lang === "en" ? "ع" : "EN"); lb.title = "العربية / English";
+  lb.onclick = () => { lang = lang === "en" ? "ar" : "en"; Ws.save(); applyLang(true); }; bar.append(lb);
+}
+function applyLang(rebuild){
+  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar");
+  buildBar();
+  if (rebuild){ const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save(); }
+  Ws.checkEmpty();
+}
+(function init(){
+  const saved = store.get(LS, null);
+  lang = (saved && saved.lang) || CFG.lang || "en";
+  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
+  if (saved && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
+  else Ws.build(Ws.defaults());
+  window.__ws = Ws;
+})();
+</script>
+</body>
+</html>

@@ -662,39 +662,48 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
 
 
 def render_chart_scanner():
-    c1, c2, c3, c4 = st.columns([2.6, 0.7, 1.3, 1.5])
-    with c1:
-        tf = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1h", "1d", "1w"], index=4, horizontal=True, key="cs_tf")
-    with c2:
-        n_show = st.number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")   # +/- buttons, compact
-    with c3:
-        side_pick = st.radio("Side", ["Both", "Buy only", "Sell only"], horizontal=True, key="cs_side")
-    with c4:
-        mode = st.radio("Match", ["All selected", "Any selected"], horizontal=True, key="cs_mode")
-    f1, f2, f3 = st.columns([1, 1.6, 1])
-    with f1:
-        sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
-    with f2:
-        # Finviz / TradingView-screener style: a relation + an EMA length, instead of one long confusing list
-        e1, e2, e3, e4 = st.columns(4)
-        rel_px = e1.selectbox("Price vs EMA", ["—", "above", "below", "crossed above", "crossed below"], key="cs_px_rel")
-        len_px = e2.selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
-        rel_ma = e3.selectbox("EMA vs EMA", ["—", "above", "below", "crossed above", "crossed below"], key="cs_ma_rel")
-        pair = e4.selectbox("Pair", ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-        g1, g2 = st.columns(2)
-        stack = g1.selectbox("Trend alignment", ["—", "Bullish stack (px>9>20>50)", "Bearish stack (px<9<20<50)", "Price above all EMAs", "Price below all EMAs"], key="cs_stack")
-        look = g2.selectbox("Cross window", [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
-        rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
-        sel_ema = []
-        if rel_px != "—":
-            sel_ema.append(f"px_{rmap[rel_px]}_{len_px}")
-        if rel_ma != "—":
-            sel_ema.append(f"ma_{rmap[rel_ma]}_{pair.replace('/', '_')}")
-        sel_ema += {"Bullish stack (px>9>20>50)": ["stack_bull"], "Bearish stack (px<9<20<50)": ["stack_bear"],
-                    "Price above all EMAs": ["above_all"], "Price below all EMAs": ["below_all"]}.get(stack, [])
-    with f3:
-        sel_pat = st.multiselect("Patterns", list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-    sel_strat = st.multiselect("Strategies (scanner signals)", list(STRATEGY_FILTERS), format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
+    st.markdown("""<style>
+.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
+.st-key-csf label p,.st-key-csf [data-testid="stWidgetLabel"] p{font-size:10px!important;color:#848e9c!important;margin:0 0 1px 0!important;text-transform:uppercase;letter-spacing:.03em}
+.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:26px!important;font-size:11px!important}
+.st-key-csf [data-baseweb="select"] span,.st-key-csf [data-baseweb="tag"]{font-size:11px!important}
+.st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
+.st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
+.st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
+</style>""", unsafe_allow_html=True)
+    qp = st.query_params
+    if "cs_strat" not in st.session_state and qp.get("strat"):   # remembered selection (URL param survives reloads / bookmarks)
+        st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
+    rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
+    rels = ["—", "above", "below", "crossed above", "crossed below"]
+    with st.container(key="csf"):
+        r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
+        tf = r1[0].selectbox("Timeframe", ["1m", "5m", "15m", "30m", "1h", "1d", "1w"], index=4, key="cs_tf")
+        n_show = r1[1].number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")
+        side_pick = r1[2].selectbox("Side", ["Both", "Buy only", "Sell only"], key="cs_side")
+        mode = r1[3].selectbox("Match", ["All selected", "Any selected"], key="cs_mode")
+        look = r1[4].selectbox("Cross window", [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+        stack = r1[5].selectbox("Trend stack", ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack")
+        r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
+        rel_px = r2[0].selectbox("Price vs EMA", rels, key="cs_px_rel")
+        len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
+        rel_ma = r2[2].selectbox("EMA vs EMA", rels, key="cs_ma_rel")
+        pair = r2[3].selectbox("Pair", ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+        sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
+        sel_pat = r2[5].multiselect("Patterns", list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
+        sel_strat = st.multiselect("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)", list(STRATEGY_FILTERS),
+                                   format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
+    if sel_strat:
+        qp["strat"] = ",".join(sel_strat)
+    elif "strat" in qp:
+        del qp["strat"]
+    sel_ema = []
+    if rel_px != "—":
+        sel_ema.append(f"px_{rmap[rel_px]}_{len_px}")
+    if rel_ma != "—":
+        sel_ema.append(f"ma_{rmap[rel_ma]}_{pair.replace('/', '_')}")
+    sel_ema += {"Bullish (px>9>20>50)": ["stack_bull"], "Bearish (px<9<20<50)": ["stack_bear"],
+                "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = sel_rsi + sel_ema + sel_pat + sel_strat
     try:
         data = _chart_scan_data(tuple(CRYPTO_SYMBOLS), tf, look)

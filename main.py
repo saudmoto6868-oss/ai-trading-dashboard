@@ -10,6 +10,7 @@ Layout (top to bottom):
 The whole page re-runs every few seconds (auto-refresh) so data stays live.
 """
 
+import base64
 import html
 import time
 from datetime import datetime
@@ -20,13 +21,16 @@ import streamlit as st
 from config import (
     FOREX_SYMBOLS, METALS_SYMBOLS, STOCK_SYMBOLS, CRYPTO_SYMBOLS,
     EXTERNAL_LINKS, QUICK_LINK_ICONS, FINVIZ_PATTERNS, FINVIZ_PATTERN_URL,
-    TRADE_TYPES, AUTO_REFRESH_SECONDS,
+    TRADE_TYPES, AUTO_REFRESH_SECONDS, TV_SYMBOL_MAP,
 )
 from modules.data_fetcher import get_mt5_data
 from modules.scorer import (
     score_symbol, scan_symbol, SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
 )
-from modules.market_cache import fetch_frames
+from modules.market_cache import fetch_frames, get_klines
+from modules.arabic import (
+    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, n_,
+)
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
@@ -200,7 +204,7 @@ def watchlist_html(rows):
             "<div style='display:flex;justify-content:space-between;font-size:12px'>"
             f"<span style='color:{col}'>{stars} {score}/{mx}</span>"
             f"<span style='color:{bcol}'>{arrow} {html.escape(bias)}</span></div>"
-            f"<div style='font-size:11px;color:#848e9c'>{html.escape(str(r['trade_type']))}"
+            f"<div style='font-size:11px;color:#848e9c'>{trade_chip_html(str(r['trade_type']))}"
             f" &middot; {html.escape(reasons)}</div>"
             f"<div style='font-size:11px;color:#848e9c'>{sr}</div></div>"
         )
@@ -225,50 +229,89 @@ def _stars(n, mx):
 
 
 def render_scanner(results, notice, key):
-    """Scanner watchlist: one expander per coin. The label shows stars, bias,
-    signal icons and trade type at a glance; open it to see WHY it was flagged."""
-    selected = st.multiselect("Trade type", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
+    """Scanner watchlist. Each coin = one row: FULL SYMBOL first, price, stars,
+    direction, trade type, then coloured strategy tag boxes. The Arabic
+    analysis sits in a collapsed expander under the row. The trade-type filter
+    is tucked away in a collapsed expander at the bottom."""
+    selected = st.session_state.get(f"tt_{key}", TRADE_TYPES)
     filtered = [r for r in results if r["trade_type"] in selected]
     if notice:
         st.caption(notice)
     if not filtered and not notice:
-        st.info("No symbols match the current filter.")
+        st.info("لا توجد رموز مطابقة للفلتر الحالي.")
     for r in sorted(filtered, key=lambda r: (-r["score"], r["symbol"])):
-        arrow = {"bullish": "\u25B2", "bearish": "\u25BC"}.get(r["direction"], "\u25C6")
-        label = f"{_stars(r['score'], r['max_score'])} {r['symbol']} {arrow} {r['icons']} \u00B7 {r['trade_type']}"
-        with st.expander(label.strip()):
+        arrow, acol = {"bullish": ("\u25B2", "#0ecb81"), "bearish": ("\u25BC", "#f6465d")}.get(r["direction"], ("\u25C6", "#848e9c"))
+        ratio = r["score"] / r["max_score"] if r["max_score"] else 0
+        scol = "#0ecb81" if ratio >= 0.57 else ("#f0b90b" if ratio >= 0.28 else "#848e9c")
+        st.markdown(
+            "<div style='border-top:1px solid #2b3139;padding:6px 2px 2px 2px'>"
+            "<div style='display:flex;justify-content:space-between;align-items:baseline'>"
+            f"<span style='font-size:15px;font-weight:700'>{html.escape(r['symbol'])}</span>"
+            f"<span style='font-size:12px;color:#848e9c'>{fmt_price(r['price'])}</span></div>"
+            "<div style='display:flex;justify-content:space-between;align-items:center;margin:2px 0'>"
+            f"<span style='color:{scol};font-size:12px'>{_stars(r['score'], r['max_score'])}</span>"
+            f"<span style='color:{acol};font-size:12px'>{arrow} {DIR_AR.get(r['direction'], '')}</span>"
+            f"<span>{trade_chip_html(r['trade_type'])}</span></div>"
+            f"<div>{tags_html(r['signals'])}</div></div>",
+            unsafe_allow_html=True,
+        )
+        with st.expander("التحليل"):
             explain_symbol(r)
-    st.caption("Icons: " + "  ".join(f"{ic} {fam}" for fam, ic in FAMILY_ICONS.items())
-               + ".  Stars = how many of the 7 signal families agree.")
+    with st.expander("فلتر نوع الصفقة"):
+        st.multiselect("نوع الصفقة", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
+    st.caption("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.")
     return filtered
 
 
+def _rtl(lines, bullets=True):
+    items = "".join(f"<li>{html.escape(x)}</li>" for x in lines) if bullets else "".join(f"<div>{html.escape(x)}</div>" for x in lines)
+    body = f"<ul style='margin:2px 0;padding-inline-start:18px'>{items}</ul>" if bullets else items
+    return f"<div dir='rtl' style='text-align:right;font-size:13px'>{body}</div>"
+
+
 def explain_symbol(r):
-    """The 'why was this flagged' panel."""
-    st.markdown(f"**{html.escape(r['symbol'])}** &middot; price {fmt_price(r['price'])} &middot; "
-                f"{TF_LABEL.get(r['timeframe'], r['timeframe'])} scan &middot; "
-                f"{r['direction'].upper()} &middot; {r['score']}/{r['max_score']} stars &middot; {r['trade_type']}",
-                unsafe_allow_html=True)
+    """The 'why was this flagged' panel - written in Arabic."""
+    tf = TF_AR.get(r["timeframe"], r["timeframe"])
+    st.markdown(
+        f"<div dir='rtl' style='text-align:right'><b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
+        f"&middot; فحص {tf} &middot; {DIR_AR.get(r['direction'], '')} &middot; {r['score']}/{r['max_score']} نجوم "
+        f"&middot; {trade_chip_html(r['trade_type'])}</div>", unsafe_allow_html=True)
     if not r["signals"]:
-        st.caption("Mixed or no signals right now - nothing to act on." if not r.get("mixed")
-                   else "Bullish and bearish evidence cancel out - no dominant direction.")
-    for s_ in r["signals"]:
-        st.markdown(f"- {s_['icon']} **{s_['name']}** ({s_['family']}) - {s_['detail']}")
+        st.markdown(_rtl(["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ." if not r.get("mixed")
+                          else "الأدلة الصاعدة والهابطة تلغي بعضها - لا يوجد اتجاه مسيطر."], bullets=False), unsafe_allow_html=True)
+    else:
+        rows = []
+        for s_ in r["signals"]:
+            name, detail = signal_ar(s_)
+            rows.append(f"[{tag_for(s_)[0]}] {name}: {detail}")
+        st.markdown(_rtl(rows), unsafe_allow_html=True)
     if r.get("against"):
-        st.caption("Against: " + ", ".join(f"{a['icon']} {a['name']}" for a in r["against"]))
+        st.markdown(_rtl(["ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in r["against"])], bullets=False), unsafe_allow_html=True)
     if r["htf"]:
-        st.markdown("**Higher timeframes**")
-        for line in htf_lines(r):
-            st.markdown(f"- {line}")
+        st.markdown("<div dir='rtl' style='text-align:right'><b>الفريمات الأعلى</b></div>", unsafe_allow_html=True)
+        st.markdown(_rtl(htf_lines_ar(r)), unsafe_allow_html=True)
+    plan = None
     if r["direction"] in ("bullish", "bearish"):
         plan = build_trade_plan(r)
-        st.markdown(f"**Plan ({plan['direction']})** - entry {plan['entry']} - stop {plan['stop_loss']} - "
-                    f"TP1 {plan['take_profits'][0]} / TP2 {plan['take_profits'][1]} / TP3 {plan['take_profits'][2]}")
-        st.markdown("**Scenarios**")
-        for line in scenarios(r):
-            st.markdown(f"- {line}")
+        side = "شراء" if plan["direction"] == "Long" else "بيع"
+        st.markdown(
+            f"<div dir='rtl' style='text-align:right'><b>الخطة ({side})</b> - دخول {n_(plan['entry'])} - وقف {n_(plan['stop_loss'])} - "
+            f"هدف 1 {n_(plan['take_profits'][0])} / هدف 2 {n_(plan['take_profits'][1])} / هدف 3 {n_(plan['take_profits'][2])}</div>",
+            unsafe_allow_html=True)
+        st.markdown("<div dir='rtl' style='text-align:right'><b>السيناريوهات</b></div>", unsafe_allow_html=True)
+        st.markdown(_rtl(scenarios_ar(r)), unsafe_allow_html=True)
+    if r["symbol"] in TV_SYMBOL_MAP or "-" in r["symbol"]:
+        try:
+            svg = chart_svg(get_klines(r["symbol"], r["timeframe"], 300), r, plan)
+        except Exception:
+            svg = ""
+        if svg:
+            b64 = base64.b64encode(svg.encode('utf-8')).decode('ascii')
+            st.markdown(f"<img style='width:100%;max-width:640px' src='data:image/svg+xml;base64,{b64}'/>", unsafe_allow_html=True)
+            st.caption("رسم تقريبي للسيناريو: الشموع الأخيرة + مناطق الإشارات + الدخول/الوقف/الأهداف (الخط الأصفر = مسار الهدف الأول).")
+        st.link_button("افتح الشارت على TradingView", tv_link(r["symbol"], r["timeframe"]))
     if r.get("errors"):
-        st.caption("Detector notes: " + "; ".join(r["errors"]))
+        st.caption("ملاحظات الكواشف: " + "; ".join(r["errors"]))
 
 
 def fire_alerts(filtered):

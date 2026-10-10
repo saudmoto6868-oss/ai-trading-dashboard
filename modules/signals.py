@@ -129,10 +129,21 @@ def _flip_text(text: str) -> str:
     return _SWAP_RE.sub(lambda m: _SWAP_MAP[m.group(1)], text)
 
 
+# stable ids so the Arabic text/tag layer does not depend on the English wording
+_KEY_PATTERNS = [
+    (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
+    (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
+    (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
+    (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
+    (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
+]
+
+
 def _mk(family, name, detail, prices=None, vals=None, zone=None, counter=False):
     """counter=True marks a signal whose direction is OPPOSITE to the frame it
     was detected in (e.g. the ABC correction after a bullish impulse)."""
-    return {"family": family, "name": name, "_t": detail, "_p": prices or {}, "_v": vals or {},
+    key = next((k for pat, k in _KEY_PATTERNS if re.search(pat, name)), "other")
+    return {"family": family, "name": name, "key": key, "_t": detail, "_p": prices or {}, "_v": vals or {},
             "zone": zone, "counter": counter}
 
 
@@ -147,7 +158,7 @@ def _finalize(sig: dict, flipped: bool) -> dict:
     if flipped and not sig["counter"]:
         name, tmpl = _flip_text(name), _flip_text(tmpl)
     return {
-        "family": sig["family"], "name": name,
+        "family": sig["family"], "name": name, "key": sig["key"], "vals": dict(sig["_v"]),
         "direction": BEAR if (flipped ^ sig["counter"]) else BULL,
         "icon": FAMILY_ICONS[sig["family"]],
         "detail": tmpl.format(**{k: fp(v) for k, v in p.items()}, **sig["_v"]),
@@ -313,7 +324,7 @@ def fib_bull(df):
         "Fib", "Fib retracement zone",
         "price at {ret:.0%} retrace of the last up-leg: " + label.replace("{", "").replace("}", "")
         + "; extensions 1.272/1.618/2.0: {x1} / {x2} / {x3}; Monkey TPs (0.33/0.66/0.99): {m1} / {m2} / {m3}; leg start {start}",
-        prices=prices, vals={"ret": ret})]
+        prices=prices, vals={"ret": ret, "label": label})]
 
 
 # --------------------------------------------------------------------------

@@ -44,6 +44,7 @@ STRATEGY_FILTERS = {
     "st_fvg": ("Fair Value Gap (FVG)", ("key", "fvg")), "st_ote": ("ICT OTE (entry zone)", ("key", "ote")),
     "st_judas": ("ICT Judas swing", ("key", "judas")), "st_sweep": ("Liquidity sweep", ("key", "sweep")),
     "st_ifvg": ("Inverse FVG (IFVG)", ("extra", "ifvg")), "st_harm": ("Harmonic patterns (Gartley/Bat/Butterfly/Crab/Cypher)", ("extra", "harm")),
+    "st_mss": ("ICT MSS / CHoCH (structure shift)", ("extra", "mss")), "st_pd": ("ICT Premium / Discount (50% of range)", ("extra", "pd")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),
 }
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
@@ -78,6 +79,35 @@ def _ifvg_side(df: pd.DataFrame):
     return out
 
 
+def _mss_side(df: pd.DataFrame):
+    """Market-structure shift: a recent close beyond the latest confirmed swing high (buy) / low (sell)
+    that the previous structure had respected. -> 'buy'|'sell'|None"""
+    from modules.signals import fractal_pivots
+    c = df["close"].values
+    n = len(df)
+    piv = fractal_pivots(df, 3)
+    hs = [(i, p) for i, p, k in piv if k == "H"]
+    ls = [(i, p) for i, p, k in piv if k == "L"]
+    for look in range(n - 1, n - 5, -1):  # break within the last 4 bars
+        ph = [p for i, p in hs if i < look - 1]
+        pl = [p for i, p in ls if i < look - 1]
+        if ph and c[look] > ph[-1] and c[look - 1] <= ph[-1]:
+            return "buy"
+        if pl and c[look] < pl[-1] and c[look - 1] >= pl[-1]:
+            return "sell"
+    return None
+
+
+def _pd_side(df: pd.DataFrame, look: int = 100):
+    """Discount (lower half of the range) = buy zone, premium (upper half) = sell zone; only the outer 30% counts."""
+    seg = df.tail(look)
+    hi, lo, px = float(seg["high"].max()), float(seg["low"].min()), float(df["close"].iloc[-1])
+    if hi <= lo:
+        return None
+    pos = (px - lo) / (hi - lo)
+    return "buy" if pos <= 0.30 else "sell" if pos >= 0.70 else None
+
+
 def strategy_flags(df: pd.DataFrame):
     """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}."""
     from modules.signals import detect_all
@@ -97,6 +127,10 @@ def strategy_flags(df: pd.DataFrame):
         sd = _ifvg_side(d)
         if sd:
             flags.add("st_ifvg"); sides.setdefault("st_ifvg", set()).add(sd)
+        for fid, fn in (("st_mss", _mss_side), ("st_pd", _pd_side)):
+            sd = fn(d)
+            if sd:
+                flags.add(fid); sides.setdefault(fid, set()).add(sd)
         for hp in find_harmonics(d):
             flags.add("st_harm"); sides.setdefault("st_harm", set()).add("buy" if hp["dir"] == "bull" else "sell")
     except Exception:

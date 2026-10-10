@@ -160,6 +160,19 @@ function harmFind(d, maxN){   // newest-first list of {name, dir, pts:[{i,p}]*5}
   }
   return res;
 }
+/* Volume profile: rows [{h,l,v}] -> POC / value area (70%) / bins. Volume of each candle is spread across the price bins it touched. */
+function vpCalc(rows, nb){
+  nb = nb || 60; if (!rows.length) return null;
+  let lo = Infinity, hi = -Infinity; rows.forEach(r => { if (r.l < lo) lo = r.l; if (r.h > hi) hi = r.h; });
+  if (!(hi > lo)) return null; const st = (hi-lo)/nb, bins = new Array(nb).fill(0);
+  rows.forEach(r => { const a = Math.min(nb-1, Math.max(0, Math.floor((r.l-lo)/st))), b = Math.min(nb-1, Math.max(0, Math.floor((r.h-lo)/st))), v = (r.v || 0) / (b-a+1); for (let i = a; i <= b; i++) bins[i] += v; });
+  let pi = 0; bins.forEach((v,i) => { if (v > bins[pi]) pi = i; });
+  const tot = bins.reduce((a,b) => a+b, 0); let acc = bins[pi], a = pi, b = pi;
+  while (acc < tot*0.7 && (a > 0 || b < nb-1)){ const up = b < nb-1 ? bins[b+1] : -1, dn = a > 0 ? bins[a-1] : -1; if (up >= dn){ b++; acc += bins[b]; } else { a--; acc += bins[a]; } }
+  const mid = i => lo + (i+.5)*st;
+  return {poc:mid(pi), vah:lo+(b+1)*st, val:lo+a*st, lo, hi, st, bins, max:bins[pi]};
+}
+const VP_TFS = [["5m","5m"],["15m","15m"],["1H","1H"],["4H","4H"],["1D","1D"]];
 const FIB_PRESETS = {
   "Retracement":[0,0.236,0.382,0.5,0.618,0.786,1],
   "Fibo POP":[0,0.5,0.559,0.669,0.786,1],
@@ -177,7 +190,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",valuelv:"Value Levels",risk:"Risk Manager",indVp:"Volume Profile (POC/VA)",vpTip:"Volume profile of the loaded candles: POC = price with most traded volume, VAH/VAL = 70% value area",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -189,7 +202,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",cmDel:"Delete this drawing",cmAll:"Delete all drawings",cmOv:"Clear signal / Fib overlays",cmNone:"Nothing to delete",uniTip:"OKX universe: spot / perpetuals, USDT / USDC, by category",uniNone:"Nothing in this category.",uniAll:"Add all",journal:"Journal",jWin:"Win rate",jNet:"Net result",jTrades:"Wins / losses",jOpen:"open",jAvg:"Avg / trade",jBest:"Best trade",jWorst:"Worst trade",jDd:"Max drawdown",jEq:"Equity curve (R)",jEmpty:"Closed trades will draw the curve — the journal logs every scanner trade and follows it to TP1 or SL.",jStrat:"By strategy (win rate)",jLog:"Trade log",jRes:"Result",jExp:"expired",scanner:"Scanner",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow marks",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",valuelv:"مستويات القيمة",risk:"إدارة المخاطر",indVp:"بروفايل الحجم (POC/VA)",vpTip:"بروفايل الحجم للشموع المحملة: POC أكثر سعر اتداول عليه، VAH/VAL منطقة القيمة 70%",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -420,7 +433,7 @@ class CandleChart {
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -560,6 +573,7 @@ class CandleChart {
       c.stroke(); c.setLineDash([]);
     }
     if (this.harmOn) this.paintHarm(c, py, dec);
+    if (this.vpOn) this.paintVp(c, py, dec, PR, PB);
     const ov = this.showSig ? this.overlay : null;
     if (ov){
       (ov.zones || []).forEach(z => { c.fillStyle = z[2]; c.globalAlpha = .2; c.fillRect(0, py(z[1]), PR, Math.max(2, py(z[0])-py(z[1]))); c.globalAlpha = 1; });
@@ -607,6 +621,9 @@ class CandleChart {
     }
     if (ov && ov.ew) this.paintEW(c, py, ov.ew, dec);
     this.paintDraws(c, py, dec);
+    if (this.vpLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; this.vpLv.forEach(l => { const y = py(l.p); if (y < 0 || y > PB) return;
+      const col = l.k === "POC" ? "#f0b90b" : "#4aa3ff"; c.strokeStyle = col; c.globalAlpha = .85; c.lineWidth = l.k === "POC" ? 1.6 : 1; c.setLineDash(l.k === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.lineWidth = 1;
+      c.fillStyle = col; c.fillText(l.tf+" "+l.k+" "+l.p.toFixed(dec), PR-4, y-4); }); c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
     if (this.fibLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; this.fibLv.forEach(l => { const y = py(l.p); if (y < 0 || y > PB) return;
       const col = l.r < 0 ? "#0ecb81" : l.r > 1 ? "#f6465d" : "#f0b90b"; c.strokeStyle = col; c.globalAlpha = .8; c.setLineDash([4,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
       c.fillStyle = col; c.fillText(l.r+"  "+l.p.toFixed(dec), 4, y-5); }); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
@@ -663,6 +680,17 @@ class CandleChart {
 
 /* ---------------- drawing tools (TradingView-style) ---------------- */
 Object.assign(CandleChart.prototype, {
+  paintVp(c, py, dec, PR, PB){
+    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
+    if (!this._vp || this._vp.k !== k) this._vp = {k, v:vpCalc(this.data.map(d => ({h:d.h, l:d.l, v:d.v})), 60)};
+    const vp = this._vp.v; if (!vp) return;
+    const bw = Math.max(40, (PR||this.W)*0.18);
+    vp.bins.forEach((v,i) => { const y1 = py(vp.lo+(i+1)*vp.st), y0 = py(vp.lo+i*vp.st), w = bw*v/vp.max, inVA = (vp.lo+(i+.5)*vp.st) >= vp.val && (vp.lo+(i+.5)*vp.st) <= vp.vah;
+      c.fillStyle = inVA ? "rgba(74,163,255,.28)" : "rgba(132,142,156,.22)"; c.fillRect(PR-w, y1, w, Math.max(1, y0-y1-1)); });
+    [["POC",vp.poc,"#f0b90b"],["VAH",vp.vah,"#4aa3ff"],["VAL",vp.val,"#4aa3ff"]].forEach(([n,p,col]) => { const y = py(p); c.strokeStyle = col; c.lineWidth = n === "POC" ? 1.6 : 1; c.setLineDash(n === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.lineWidth = 1;
+      c.fillStyle = col; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillText(n+" "+p.toFixed(dec), PR-bw-4, y-4); });
+    c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
+  },
   paintHarm(c, py, dec){
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
     if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 3)};
@@ -1023,7 +1051,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = this.fibSel.value; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.harmOn = !!this.state.harm; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.harmOn = !!this.state.harm; this.chart.vpOn = !!this.state.vp; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -1056,6 +1084,7 @@ class Panel {
       {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; }},
+      {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }},
       {id:"harm", label:T("indHarm"), tip:T("harmTip"), get:() => ch().harmOn, set:v => { ch().harmOn = v; this.state.harm = v; }},
       {id:"sig", label:T("indSig"), get:() => ch().showSig, set:v => { ch().showSig = v; this.state.sig = v; }},
       {id:"flow", label:T("indFlow"), get:() => ch().flowOn, set:v => { ch().flowOn = v; this.state.flow = v; }},
@@ -1491,6 +1520,70 @@ class Panel {
     ex.onclick = () => { this.state.txt = ta.value; Ws.save(); out.innerHTML = insights(ta.value); };
   }
   /* ---- notes ---- */
+  /* ---- value levels: volume-profile POC / VAH / VAL on every timeframe ---- */
+  build_valuelv(){
+    const S = this.state; S.sym = S.sym || SYMS[0]; this.symSel = this.symSelect();
+    const ar = lang === "ar", L = (e, a) => ar ? a : e;
+    const tb = el("div","tb"), rf = el("button",null,"↻"), show = el("button",null,T("showchart")), clr = el("button",null,"✕"), box = el("div"); this.levelsData = {};
+    tb.append(this.symSel, rf, show, clr); this.body.append(tb, box); this.body.style.overflow = "auto";
+    const render = () => {
+      const D = this.levelsData; let px = null; Object.values(D).forEach(d => { if (d && d.px) px = d.px; });
+      let h = "<table class='rd'><tr><th>"+L("TF","الفريم")+"</th><th>VAH</th><th>POC</th><th>VAL</th><th>"+L("Price vs value","السعر مقابل القيمة")+"</th></tr>";
+      VP_TFS.forEach(([k,lab]) => { const d = D[k]; if (!d || !d.vp){ h += "<tr><td>"+lab+"</td><td colspan=4 class='m'>…</td></tr>"; return; }
+        const v = d.vp, dist = (d.px - v.poc)/v.poc*100; let st, col;
+        if (d.px > v.vah){ st = L("Above value ▲ (magnet ↓ POC)","فوق القيمة ▲ (المغناطيس ↓ POC)"); col = "#f6465d"; }
+        else if (d.px < v.val){ st = L("Below value ▼ (magnet ↑ POC)","تحت القيمة ▼ (المغناطيس ↑ POC)"); col = "#0ecb81"; }
+        else { st = L("Inside value ◆","جوه القيمة ◆"); col = "#848e9c"; }
+        h += "<tr><td><b>"+lab+"</b></td><td>"+fmtP(v.vah)+"</td><td style='color:#f0b90b'><b>"+fmtP(v.poc)+"</b></td><td>"+fmtP(v.val)+"</td><td style='color:"+col+"'>"+st+" · "+(dist>=0?"+":"")+dist.toFixed(2)+"% "+L("from POC","من POC")+"</td></tr>"; });
+      h += "</table>";
+      const pocs = VP_TFS.map(([k]) => D[k] && D[k].vp ? {k, p:D[k].vp.poc, px:D[k].px} : null).filter(Boolean);
+      if (pocs.length){ const px0 = pocs[0].px, near = pocs.slice().sort((a,b) => Math.abs(a.p-px0)-Math.abs(b.p-px0))[0];
+        h += "<div class='m' style='padding:6px 8px'>"+L("Nearest magnet: ","أقرب مغناطيس: ")+"<b style='color:#f0b90b'>"+near.k+" POC "+fmtP(near.p)+"</b> ("+((near.p-px0)/px0*100).toFixed(2)+"%)</div>"; }
+      box.innerHTML = h;
+    };
+    const load = async () => {
+      const sym = S.sym, tok = this.lvTok = (this.lvTok||0)+1; this.levelsData = {}; render();
+      await Promise.all(VP_TFS.map(async ([k]) => { try {
+        const rows = (await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+k+"&limit=300")).map(r => ({t:+r[0], h:+r[2], l:+r[3], c:+r[4], v:+r[5]})).reverse();
+        if (tok !== this.lvTok) return; this.levelsData[k] = {vp:vpCalc(rows, 60), px:rows[rows.length-1].c}; render(); } catch(e){ } }));
+    };
+    const push = on => Ws.panels.filter(p => p.type === "chart").forEach(p => { p.chart.vpLv = on ? VP_TFS.flatMap(([k]) => { const d = this.levelsData[k]; return d && d.vp ? [["POC",d.vp.poc],["VAH",d.vp.vah],["VAL",d.vp.val]].map(([n,pr]) => ({tf:k,k:n,p:pr})) : []; }) : null; p.chart.draw(); });
+    this.resub = () => { this.setTitle(); load(); }; this.setSymbol = sym => { S.sym = sym; this.symSel.value = sym; Ws.save(); this.resub(); };
+    rf.onclick = load; show.onclick = () => push(true); clr.onclick = () => push(false); this.symSel.value = S.sym; this.destroy = () => push(false);
+    this.lvTimer = setInterval(load, 120000); const od = this.destroy; this.destroy = () => { clearInterval(this.lvTimer); od(); }; load();
+  }
+  /* ---- risk manager: position size, lots, exposure, daily loss limit, Monte-Carlo risk of ruin ---- */
+  build_risk(){
+    const S = this.state, ar = lang === "ar", L = (e, a) => ar ? a : e;
+    Object.assign(S, Object.assign({bal:10000, rp:1, entry:"", stop:"", tp:"", kind:"crypto", lev:100, dl:3, dd:30}, S));
+    const wrap = el("div"); wrap.style.cssText = "padding:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;align-content:start"; const out = el("div"); out.style.cssText = "grid-column:1/-1;font-size:12px;line-height:1.7"; const ros = el("div"); ros.style.cssText = "grid-column:1/-1;font-size:12px;border-top:1px solid #2b3139;padding-top:6px";
+    const inp = (k, lab, step) => { const w = el("label"); w.style.cssText = "display:flex;flex-direction:column;font-size:10px;color:#848e9c;gap:2px"; const i = el("input"); i.type = "number"; i.step = step || "any"; i.value = S[k]; i.style.width = "100%"; i.oninput = () => { S[k] = i.value === "" ? "" : +i.value; Ws.save(); calc(); }; w.append(L(lab[0], lab[1]), i); wrap.append(w); return i; };
+    const ks = el("select"); [["crypto",L("Crypto (units)","كريبتو (وحدات)")],["fx",L("Forex lot = 100k","فوركس لوت = 100 ألف")],["gold",L("Gold lot = 100 oz","ذهب لوت = 100 أوقية")]].forEach(([v,l]) => ks.append(Object.assign(el("option"), {value:v, textContent:l}))); ks.value = S.kind; ks.onchange = () => { S.kind = ks.value; Ws.save(); calc(); };
+    const kw = el("label"); kw.style.cssText = "display:flex;flex-direction:column;font-size:10px;color:#848e9c;gap:2px"; kw.append(L("Instrument","الأداة"), ks);
+    inp("bal", ["Balance $","الرصيد $"]); inp("rp", ["Risk % per trade","المخاطرة % للصفقة"], "0.1"); wrap.append(kw); inp("lev", ["Leverage","الرافعة"]);
+    inp("entry", ["Entry","الدخول"]); inp("stop", ["Stop","الوقف"]); inp("tp", ["Target (optional)","الهدف (اختياري)"]); inp("dl", ["Daily loss limit %","حد الخسارة اليومي %"], "0.5"); inp("dd", ["Ruin = drawdown %","الإفلاس = تراجع %"]);
+    wrap.append(out, ros); this.body.append(wrap); this.body.style.overflow = "auto";
+    const cs = () => S.kind === "fx" ? 100000 : S.kind === "gold" ? 100 : 1;
+    const ruin = (p, b, risk, ddp) => { let ruined = 0; const N = 1500, T_ = 300; for (let n = 0; n < N; n++){ let eq = 1, pk = 1; for (let t = 0; t < T_; t++){ eq *= Math.random() < p ? 1 + risk*b : 1 - risk; if (eq > pk) pk = eq; if (eq <= pk*(1-ddp)){ ruined++; break; } } } return ruined/N*100; };
+    const calc = () => {
+      const bal = +S.bal, rp = +S.rp, e = +S.entry, sl = +S.stop, tp = +S.tp, risk$ = bal*rp/100; let h = "";
+      if (bal > 0 && rp > 0 && e > 0 && sl > 0 && e !== sl){
+        const d = Math.abs(e-sl), units = risk$/d, notional = units*e, lots = units/cs(), long = sl < e;
+        h += "<b>"+(long ? "▲ " : "▼ ")+L("Risk","المخاطرة")+" $"+risk$.toFixed(2)+"</b> · "+L("Size","الحجم")+" <b style='color:#f0b90b'>"+(S.kind === "crypto" ? units.toPrecision(4)+" "+L("units","وحدة") : lots.toFixed(2)+" "+L("lots","لوت"))+"</b><br>";
+        h += L("Notional","القيمة")+" $"+notional.toFixed(0)+" · "+L("Margin","الهامش")+" ≈ $"+(notional/Math.max(1,+S.lev)).toFixed(0)+" · "+L("Exposure","التعرض")+" "+(notional/bal*100).toFixed(0)+"%<br>";
+        if (tp > 0 && ((long && tp > e) || (!long && tp < e))){ const rr = Math.abs(tp-e)/d; h += "R:R <b>1 : "+rr.toFixed(2)+"</b> · "+L("Reward","العائد")+" $"+(risk$*rr).toFixed(2)+" · "+L("break-even win rate","نسبة النجاح المطلوبة")+" "+(100/(1+rr)).toFixed(0)+"%<br>"; }
+        h += "<span style='color:#848e9c'>"+L("Move stop to break-even after price travels 1R: ","حرّك الوقف للتعادل لما السعر يمشي 1R: ")+fmtP(long ? e+d : e-d)+"</span>";
+      } else h = "<span style='color:#848e9c'>"+L("Enter balance, entry and stop.","ادخل الرصيد والدخول والوقف.")+"</span>";
+      out.innerHTML = h;
+      const st = Journal.stats(0, 0), today = new Date(); today.setHours(0,0,0,0); const tr = st.closed.filter(t => t.t1 >= today.getTime()).reduce((a,t) => a + t.r, 0), lossPct = -tr*rp, lim = +S.dl;
+      const used = Math.max(0, Math.min(100, lossPct/lim*100)), p = st.closed.length >= 10 ? st.wr/100 : 0.45, bavg = st.closed.length >= 10 && st.wins ? Math.max(0.2, (st.net + st.losses)/st.wins) : 2, r = ruin(p, bavg, rp/100, +S.dd/100);
+      ros.innerHTML = L("Today (journal)","النهارده (الجورنال)")+": <b style='color:"+(tr>=0?"#0ecb81":"#f6465d")+"'>"+(tr>=0?"+":"")+tr.toFixed(2)+"R</b> ≈ "+(tr*rp>=0?"+":"")+(tr*rp).toFixed(2)+"% · "+L("daily limit used","المستخدم من حد اليوم")+" "+used.toFixed(0)+"%"
+        +"<div style='height:6px;background:#2b3139;border-radius:3px;margin:3px 0 6px'><div style='height:6px;width:"+used+"%;background:"+(used>=100?"#f6465d":used>60?"#f0b90b":"#0ecb81")+";border-radius:3px'></div></div>"
+        +(used >= 100 ? "<b style='color:#f6465d'>⛔ "+L("Daily loss limit hit — stop trading today.","وصلت حد الخسارة اليومي — وقّف تداول النهارده.")+"</b><br>" : "")
+        +L("Risk of ruin","احتمال الإفلاس")+" ("+L("hit","تراجع")+" "+S.dd+"% "+L("drawdown in 300 trades","خلال 300 صفقة")+"): <b style='color:"+(r>10?"#f6465d":r>3?"#f0b90b":"#0ecb81")+"'>"+r.toFixed(1)+"%</b><span style='color:#848e9c'> · "+L("win rate","نسبة النجاح")+" "+(p*100).toFixed(0)+"% "+L("avg win","متوسط الربح")+" "+bavg.toFixed(2)+"R "+(st.closed.length >= 10 ? L("(from journal)","(من الجورنال)") : L("(assumed, <10 journal trades)","(افتراضي، أقل من 10 صفقات)"))+"</span>";
+    };
+    this.riskSub = calc; Journal.subs.add(calc); this.destroy = () => Journal.subs.delete(calc); calc();
+  }
   build_notes(){
     const ta = el("textarea"); ta.className = "fill"; ta.style.cssText = "width:100%;height:100%;border:0;border-radius:0;resize:none"; ta.value = this.state.txt || "";
     ta.oninput = () => { this.state.txt = ta.value; Ws.save(); }; this.body.append(ta); this.body.style.overflow = "hidden";
@@ -1727,7 +1820,7 @@ Ws.add = type => {
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
-  ["ready","scanner","journal","chart","dom","tape","limits","watch","alerts","news","ticker","links","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
+  ["ready","scanner","journal","chart","dom","tape","limits","watch","alerts","valuelv","risk","news","ticker","links","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
   sel.onchange = () => { if (sel.value) Ws.add(sel.value); sel.value = ""; };
   const bT = el("button",null,T("trading")), bB = el("button",null,T("blank"));
   bT.onclick = () => { Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); }; bB.onclick = () => { Ws.clear(); Ws.save(); };

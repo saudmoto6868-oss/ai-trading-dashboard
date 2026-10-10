@@ -290,3 +290,27 @@ def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150)
         parts.append(f"<polyline fill='none' stroke='{col}' stroke-width='1.1' {'stroke-dasharray=' + chr(39) + dash + chr(39) if dash else ''} points='{pts}'/>")
     parts.append("</svg>")
     return "data:image/svg+xml;base64," + base64.b64encode("".join(parts).encode()).decode()
+
+
+_STATE = ("px_above", "px_below", "ma_above", "ma_below")
+
+
+def sides_of(k: str, d: dict) -> set:
+    """Which side(s) a flag points to for one chart's features dict."""
+    return set(d.get("sides", {}).get(k, [])) if k.startswith("st_") else ({flag_side(k)} - {None})
+
+
+def match_filters(d: dict, sel: list, want, any_mode: bool = False) -> bool:
+    """Does one chart pass the selected filters? want = 'buy' | 'sell' | None."""
+    if not sel:
+        if not want:
+            return True
+        return any(want in sides_of(k, d) for k in d["flags"] if not k.startswith(_STATE))
+    hits = []
+    for k in sel:
+        h = k in d["flags"]
+        if h and want:
+            sd = sides_of(k, d)
+            h = (want in sd) if sd else True
+        hits.append(h)
+    return any(hits) if any_mode else all(hits)

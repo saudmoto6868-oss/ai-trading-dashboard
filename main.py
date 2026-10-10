@@ -42,7 +42,7 @@ from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
 from modules.calendar_feed import fetch_calendar
 from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
-                                features as cs_features, flag_side, mini_chart_svg, strategy_flags)
+                                features as cs_features, flag_side, match_filters, mini_chart_svg, strategy_flags)
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -711,25 +711,8 @@ def render_chart_scanner():
         st.warning(f"Could not load candles: {e}")
         return
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    STATE = ("px_above", "px_below", "ma_above", "ma_below")
-
-    def sides_of(k, d):
-        return set(d.get("sides", {}).get(k, [])) if k.startswith("st_") else ({flag_side(k)} - {None})
-
     def ok(d):
-        if not sel:
-            if not want:
-                return True   # no condition at all: show everything
-            # only the side was chosen: any event / strategy / stack flag pointing that way
-            return any(want in sides_of(k, d) for k in d["flags"] if not k.startswith(STATE))
-        hits = []
-        for k in sel:
-            h = k in d["flags"]
-            if h and want:
-                sd = sides_of(k, d)
-                h = (want in sd) if sd else True
-            hits.append(h)
-        return all(hits) if mode == "All selected" else any(hits)
+        return match_filters(d, sel, want, mode == "Any selected")
     shown = [(sym, d) for sym, d in data.items() if ok(d)]
     st.caption(f"{len(shown)} of {len(data)} symbols match" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")

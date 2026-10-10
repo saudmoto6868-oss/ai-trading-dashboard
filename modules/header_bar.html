@@ -186,9 +186,12 @@ async function bellTick(){
   let cal; try { cal = await calData(); } catch(e){ $("bell").textContent = "🔔 calendar n/a"; return; }
   const now = Date.now(), nx = cal.find(e => e.impact === "High" && e.ts > now - 300000);
   const b = $("bell"); b.classList.remove("hot","blink");
-  if (!nx){ b.textContent = "🔔 no high-impact news"; return; }
+  const dkey = t => new Intl.DateTimeFormat("en-CA", {timeZone:"Africa/Cairo"}).format(t), hi = cal.filter(e => e.impact === "High" && e.ts > now - 300000),
+    nToday = hi.filter(e => dkey(e.ts) === dkey(now)).length, nTom = hi.filter(e => dkey(e.ts) === dkey(now+86400000)).length, nWeek = hi.length;
+  const cnt = " · today "+nToday+" · tomorrow "+nTom+" · week "+nWeek;
+  if (!nx){ b.textContent = "🔔 no high-impact news"+cnt; return; }
   const d = nx.ts - now, m = Math.round(d/60000), txt = d < 0 ? "now" : m < 60 ? m+"m" : Math.floor(m/60)+"h "+(m%60)+"m", day = new Date(nx.ts).toDateString() === new Date().toDateString() ? "today" : "later";
-  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+")";
+  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.textContent += cnt; b.style.maxWidth = "360px"; b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+"); high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek;
   if (d < 3600000) b.classList.add("hot"); if (d < 900000) b.classList.add("blink");
   const k = nx.ts+"|15"; if (d < 900000 && d > 0 && !beeped[k]){ beeped[k] = 1; beep(); }
 }

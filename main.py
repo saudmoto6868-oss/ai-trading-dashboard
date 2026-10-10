@@ -41,7 +41,8 @@ from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
 from modules.calendar_feed import fetch_calendar
-from modules.chart_scan import ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, SHORT as CS_SHORT, features as cs_features, mini_chart_svg
+from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
+                                features as cs_features, flag_side, mini_chart_svg, strategy_flags)
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -655,17 +656,20 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         if df is None or len(df) < 60:
             continue
         f = cs_features(df, look)
-        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"]), "svg": mini_chart_svg(df), "price": float(df["close"].iloc[-1])}
+        sflags, ssides = strategy_flags(df)
+        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df), "price": float(df["close"].iloc[-1])}
     return out
 
 
 def render_chart_scanner():
-    c1, c2, c3 = st.columns([1.2, 1.2, 1.6])
+    c1, c2, c3, c4 = st.columns([2.6, 0.7, 1.3, 1.5])
     with c1:
-        tf = st.radio("Timeframe", ["15m", "1h", "4h", "1d"], index=1, horizontal=True, key="cs_tf")
+        tf = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1h", "1d", "1w"], index=4, horizontal=True, key="cs_tf")
     with c2:
-        n_show = st.slider("Charts to show", 4, 16, 10, key="cs_n")
+        n_show = st.number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")   # +/- buttons, compact
     with c3:
+        side_pick = st.radio("Side", ["Both", "Buy only", "Sell only"], horizontal=True, key="cs_side")
+    with c4:
         mode = st.radio("Match", ["All selected", "Any selected"], horizontal=True, key="cs_mode")
     f1, f2, f3 = st.columns([1, 1.6, 1])
     with f1:
@@ -690,24 +694,40 @@ def render_chart_scanner():
                     "Price above all EMAs": ["above_all"], "Price below all EMAs": ["below_all"]}.get(stack, [])
     with f3:
         sel_pat = st.multiselect("Patterns", list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-    sel = sel_rsi + sel_ema + sel_pat
+    sel_strat = st.multiselect("Strategies (scanner signals)", list(STRATEGY_FILTERS), format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
+    sel = sel_rsi + sel_ema + sel_pat + sel_strat
     try:
         data = _chart_scan_data(tuple(CRYPTO_SYMBOLS), tf, look)
     except Exception as e:
         st.warning(f"Could not load candles: {e}")
         return
+    want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
+    STATE = ("px_above", "px_below", "ma_above", "ma_below")
+
+    def sides_of(k, d):
+        return set(d.get("sides", {}).get(k, [])) if k.startswith("st_") else ({flag_side(k)} - {None})
+
     def ok(d):
         if not sel:
-            return True
-        hits = [k in d["flags"] for k in sel]
+            if not want:
+                return True   # no condition at all: show everything
+            # only the side was chosen: any event / strategy / stack flag pointing that way
+            return any(want in sides_of(k, d) for k in d["flags"] if not k.startswith(STATE))
+        hits = []
+        for k in sel:
+            h = k in d["flags"]
+            if h and want:
+                sd = sides_of(k, d)
+                h = (want in sd) if sd else True
+            hits.append(h)
         return all(hits) if mode == "All selected" else any(hits)
     shown = [(sym, d) for sym, d in data.items() if ok(d)]
-    st.caption(f"{len(shown)} of {len(data)} symbols match" + (f" - showing the first {n_show}" if len(shown) > n_show else "")
+    st.caption(f"{len(shown)} of {len(data)} symbols match" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
         st.info("No symbols match the selected conditions right now.")
         return
-    shown = shown[:n_show]
+    shown = shown[:int(n_show)]
     per_row = 5
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)

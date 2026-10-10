@@ -36,7 +36,41 @@ PATTERN_FILTERS = {
     "tl_up": "Trendline break (down-trend line broken up)", "tl_dn": "Trendline break (up-trend line broken down)",
     "dbl_top": "Double top", "dbl_bottom": "Double bottom",
 }
-ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS}
+# strategy filters: id -> (label, matcher on the scanner's signals: family or key)
+STRATEGY_FILTERS = {
+    "st_elliott": ("Elliott Wave (3 / 5)", ("family", "Elliott")), "st_ew3": ("Elliott · Wave 3 start", ("key", "ew3")),
+    "st_msb": ("SMC · MSB + Order Block", ("family", "MSB-OB")), "st_ob": ("Order Block", ("key", "ob")),
+    "st_unicorn": ("ICT Unicorn", ("family", "Unicorn")), "st_breaker": ("Breaker Block", ("key", "breaker")),
+    "st_fvg": ("Fair Value Gap (FVG)", ("key", "fvg")), "st_ote": ("ICT OTE (entry zone)", ("key", "ote")),
+    "st_judas": ("ICT Judas swing", ("key", "judas")), "st_sweep": ("Liquidity sweep", ("key", "sweep")),
+    "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),
+}
+ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
+
+
+def flag_side(k: str):
+    """'buy' / 'sell' / None: which side a plain filter id points to (used by the Buy-only / Sell-only switch)."""
+    if k.startswith(("rsi_lt", "px_above", "px_xup", "ma_above", "ma_xup")) or k in ("stack_bull", "above_all", "chan_up", "tl_up", "dbl_bottom"):
+        return "buy"
+    if k.startswith(("rsi_gt", "px_below", "px_xdn", "ma_below", "ma_xdn")) or k in ("stack_bear", "below_all", "chan_dn", "tl_dn", "dbl_top"):
+        return "sell"
+    return None
+
+
+def strategy_flags(df: pd.DataFrame):
+    """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}."""
+    from modules.signals import detect_all
+    flags, sides = set(), {}
+    try:
+        sigs, _ = detect_all(df)
+    except Exception:
+        return flags, sides
+    for sg in sigs:
+        for fid, (_lab, (kind, val)) in STRATEGY_FILTERS.items():
+            if sg.get(kind) == val:
+                flags.add(fid)
+                sides.setdefault(fid, set()).add("buy" if sg.get("direction") == "bullish" else "sell")
+    return flags, sides
 SHORT = {
     **{k: ("RSI>" if "gt" in k else "RSI<") + k[-2:] for k in RSI_FILTERS},
     **{f"px_above_{n}": f"Px>EMA{n}" for n in EMA_LENS}, **{f"px_below_{n}": f"Px<EMA{n}" for n in EMA_LENS},
@@ -47,6 +81,7 @@ SHORT = {
     "chan_up": "Channel↑", "chan_dn": "Channel↓", "tl_up": "Trendline↑", "tl_dn": "Trendline↓",
     "dbl_top": "Double Top", "dbl_bottom": "Double Bottom",
 }
+SHORT.update({k: v[0].split(" (")[0] for k, v in STRATEGY_FILTERS.items()})
 CROSS_LOOKBACK = 3  # a cross counts if it happened within the last N candles
 
 

@@ -646,15 +646,15 @@ TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 
 @st.cache_data(ttl=60, show_spinner=False)
-def _chart_scan_data(symbols: tuple, tf: str):
+def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
-    frames, _errs = fetch_frames(list(symbols), [tf], limit=200)
+    frames, _errs = fetch_frames(list(symbols), [tf], limit=260)
     out = {}
     for sym in symbols:
         df = (frames.get(sym) or {}).get(tf)
         if df is None or len(df) < 60:
             continue
-        f = cs_features(df)
+        f = cs_features(df, look)
         out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"]), "svg": mini_chart_svg(df), "price": float(df["close"].iloc[-1])}
     return out
 
@@ -667,16 +667,32 @@ def render_chart_scanner():
         n_show = st.slider("Charts to show", 4, 16, 10, key="cs_n")
     with c3:
         mode = st.radio("Match", ["All selected", "Any selected"], horizontal=True, key="cs_mode")
-    f1, f2, f3 = st.columns(3)
+    f1, f2, f3 = st.columns([1, 1.6, 1])
     with f1:
         sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
     with f2:
-        sel_ema = st.multiselect("EMA", list(EMA_FILTERS), format_func=EMA_FILTERS.get, key="cs_ema")
+        # Finviz / TradingView-screener style: a relation + an EMA length, instead of one long confusing list
+        e1, e2, e3, e4 = st.columns(4)
+        rel_px = e1.selectbox("Price vs EMA", ["—", "above", "below", "crossed above", "crossed below"], key="cs_px_rel")
+        len_px = e2.selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
+        rel_ma = e3.selectbox("EMA vs EMA", ["—", "above", "below", "crossed above", "crossed below"], key="cs_ma_rel")
+        pair = e4.selectbox("Pair", ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+        g1, g2 = st.columns(2)
+        stack = g1.selectbox("Trend alignment", ["—", "Bullish stack (px>9>20>50)", "Bearish stack (px<9<20<50)", "Price above all EMAs", "Price below all EMAs"], key="cs_stack")
+        look = g2.selectbox("Cross window", [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+        rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
+        sel_ema = []
+        if rel_px != "—":
+            sel_ema.append(f"px_{rmap[rel_px]}_{len_px}")
+        if rel_ma != "—":
+            sel_ema.append(f"ma_{rmap[rel_ma]}_{pair.replace('/', '_')}")
+        sel_ema += {"Bullish stack (px>9>20>50)": ["stack_bull"], "Bearish stack (px<9<20<50)": ["stack_bear"],
+                    "Price above all EMAs": ["above_all"], "Price below all EMAs": ["below_all"]}.get(stack, [])
     with f3:
         sel_pat = st.multiselect("Patterns", list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
     sel = sel_rsi + sel_ema + sel_pat
     try:
-        data = _chart_scan_data(tuple(CRYPTO_SYMBOLS), tf)
+        data = _chart_scan_data(tuple(CRYPTO_SYMBOLS), tf, look)
     except Exception as e:
         st.warning(f"Could not load candles: {e}")
         return
@@ -698,7 +714,7 @@ def render_chart_scanner():
         for col, (sym, d) in zip(cols, shown[r0:r0 + per_row]):
             with col:
                 badges = "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
-                                 f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d["flags"] if k in ALL_FILTERS)
+                                 f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
                 rsi_v = d["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
                 st.markdown(

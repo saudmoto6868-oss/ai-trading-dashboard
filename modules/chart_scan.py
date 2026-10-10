@@ -19,14 +19,18 @@ RSI_FILTERS = {
     "rsi_gt70": "RSI > 70 (overbought)", "rsi_gt80": "RSI > 80", "rsi_gt90": "RSI > 90",
     "rsi_lt30": "RSI < 30 (oversold)", "rsi_lt20": "RSI < 20", "rsi_lt10": "RSI < 10",
 }
-EMA_FILTERS = {
-    "px_up_9": "Price crossed above EMA 9", "px_dn_9": "Price crossed below EMA 9",
-    "px_up_20": "Price crossed above EMA 20", "px_dn_20": "Price crossed below EMA 20",
-    "px_up_50": "Price crossed above EMA 50", "px_dn_50": "Price crossed below EMA 50",
-    "x_9_20_up": "EMA 9 crossed above EMA 20", "x_9_20_dn": "EMA 9 crossed below EMA 20",
-    "x_20_50_up": "EMA 20 crossed above EMA 50", "x_20_50_dn": "EMA 20 crossed below EMA 50",
-    "above_all": "Price above EMA 9/20/50 (all)", "below_all": "Price below EMA 9/20/50 (all)",
-}
+# Finviz / TradingView-screener style: state ("above / below") and event ("crossed above / below within the last N candles")
+EMA_LENS = (9, 20, 50, 200)
+EMA_PAIRS = ((9, 20), (20, 50), (50, 200))
+EMA_FILTERS = {}
+for _n in EMA_LENS:
+    EMA_FILTERS.update({f"px_above_{_n}": f"Price above EMA {_n}", f"px_below_{_n}": f"Price below EMA {_n}",
+                        f"px_xup_{_n}": f"Price crossed above EMA {_n}", f"px_xdn_{_n}": f"Price crossed below EMA {_n}"})
+for _a, _b in EMA_PAIRS:
+    EMA_FILTERS.update({f"ma_above_{_a}_{_b}": f"EMA {_a} above EMA {_b}", f"ma_below_{_a}_{_b}": f"EMA {_a} below EMA {_b}",
+                        f"ma_xup_{_a}_{_b}": f"EMA {_a} crossed above EMA {_b} (golden)", f"ma_xdn_{_a}_{_b}": f"EMA {_a} crossed below EMA {_b} (death)"})
+EMA_FILTERS.update({"stack_bull": "Bullish stack (price > EMA 9 > 20 > 50)", "stack_bear": "Bearish stack (price < EMA 9 < 20 < 50)",
+                    "above_all": "Price above EMA 9/20/50 (all)", "below_all": "Price below EMA 9/20/50 (all)"})
 PATTERN_FILTERS = {
     "chan_up": "Channel breakout (up)", "chan_dn": "Channel breakdown (down)",
     "tl_up": "Trendline break (down-trend line broken up)", "tl_dn": "Trendline break (up-trend line broken down)",
@@ -35,9 +39,11 @@ PATTERN_FILTERS = {
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS}
 SHORT = {
     **{k: ("RSI>" if "gt" in k else "RSI<") + k[-2:] for k in RSI_FILTERS},
-    **{f"px_up_{n}": f"Px↑EMA{n}" for n in (9, 20, 50)}, **{f"px_dn_{n}": f"Px↓EMA{n}" for n in (9, 20, 50)},
-    "x_9_20_up": "EMA9×20↑", "x_9_20_dn": "EMA9×20↓", "x_20_50_up": "EMA20×50↑", "x_20_50_dn": "EMA20×50↓",
-    "above_all": "فوق EMAs", "below_all": "تحت EMAs",
+    **{f"px_above_{n}": f"Px>EMA{n}" for n in EMA_LENS}, **{f"px_below_{n}": f"Px<EMA{n}" for n in EMA_LENS},
+    **{f"px_xup_{n}": f"Px↑EMA{n}" for n in EMA_LENS}, **{f"px_xdn_{n}": f"Px↓EMA{n}" for n in EMA_LENS},
+    **{f"ma_above_{a}_{b}": f"{a}>{b}" for a, b in EMA_PAIRS}, **{f"ma_below_{a}_{b}": f"{a}<{b}" for a, b in EMA_PAIRS},
+    **{f"ma_xup_{a}_{b}": f"{a}×{b}↑" for a, b in EMA_PAIRS}, **{f"ma_xdn_{a}_{b}": f"{a}×{b}↓" for a, b in EMA_PAIRS},
+    "stack_bull": "Stack↑", "stack_bear": "Stack↓", "above_all": "فوق EMAs", "below_all": "تحت EMAs",
     "chan_up": "Channel↑", "chan_dn": "Channel↓", "tl_up": "Trendline↑", "tl_dn": "Trendline↓",
     "dbl_top": "Double Top", "dbl_bottom": "Double Bottom",
 }
@@ -113,28 +119,35 @@ def _trendline_break(df) -> tuple[bool, bool]:
     return bool(up_break), bool(dn_break)
 
 
-def features(df: pd.DataFrame) -> dict:
+def features(df: pd.DataFrame, look: int = CROSS_LOOKBACK) -> dict:
     """-> {'rsi': float, 'flags': set(filter ids)} for one symbol/timeframe."""
     if df is None or len(df) < 60:
         return {"rsi": None, "flags": set()}
     df = df.reset_index(drop=True)
     c = df["close"]
     r = float(rsi(c).iloc[-1])
-    e = {n: ema(c, n) for n in (9, 20, 50)}
+    e = {n: ema(c, n) for n in EMA_LENS if n < len(c) - 5}
     f = set()
     for lim in (70, 80, 90):
         if r > lim: f.add(f"rsi_gt{lim}")
     for lim in (30, 20, 10):
         if r < lim: f.add(f"rsi_lt{lim}")
-    for n in (9, 20, 50):
-        if _crossed_up(c, e[n]): f.add(f"px_up_{n}")
-        if _crossed_up(e[n], c): f.add(f"px_dn_{n}")
-    for a, b in ((9, 20), (20, 50)):
-        if _crossed_up(e[a], e[b]): f.add(f"x_{a}_{b}_up")
-        if _crossed_up(e[b], e[a]): f.add(f"x_{a}_{b}_dn")
     last = float(c.iloc[-1])
-    if all(last > float(e[n].iloc[-1]) for n in e): f.add("above_all")
-    if all(last < float(e[n].iloc[-1]) for n in e): f.add("below_all")
+    for n, en in e.items():
+        v = float(en.iloc[-1])
+        f.add(f"px_above_{n}" if last > v else f"px_below_{n}")
+        if _crossed_up(c, en, look): f.add(f"px_xup_{n}")
+        if _crossed_up(en, c, look): f.add(f"px_xdn_{n}")
+    for a_, b_ in EMA_PAIRS:
+        if a_ in e and b_ in e:
+            f.add(f"ma_above_{a_}_{b_}" if float(e[a_].iloc[-1]) > float(e[b_].iloc[-1]) else f"ma_below_{a_}_{b_}")
+            if _crossed_up(e[a_], e[b_], look): f.add(f"ma_xup_{a_}_{b_}")
+            if _crossed_up(e[b_], e[a_], look): f.add(f"ma_xdn_{a_}_{b_}")
+    v9, v20, v50 = (float(e[n].iloc[-1]) for n in (9, 20, 50))
+    if last > v9 > v20 > v50: f.add("stack_bull")
+    if last < v9 < v20 < v50: f.add("stack_bear")
+    if last > max(v9, v20, v50): f.add("above_all")
+    if last < min(v9, v20, v50): f.add("below_all")
     cu, cd = _channel_break(df)
     if cu: f.add("chan_up")
     if cd: f.add("chan_dn")

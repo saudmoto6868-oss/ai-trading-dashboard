@@ -298,9 +298,9 @@ const Journal = {
       const bySym = {}; open.forEach(t => (bySym[t.symbol] = bySym[t.symbol] || []).push(t));
       for (const sym of Object.keys(bySym)){
         const trs = bySym[sym], oldest = Math.min(...trs.map(t => t.t0)), age = Date.now() - oldest, bar = age < 4.5*3600e3 ? JBAR["1m"] : age < 12*86400e3 ? JBAR["1H"] : JBAR["1D"];
-        let rows; try { rows = (await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bar[0]+"&limit=300")).map(r => ({t:+r[0], h:+r[2], l:+r[3]})).reverse(); } catch(e){ continue; }
+        let rows; try { rows = (await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bar[0]+"&limit=300")).map(r => ({t:+r[0], h:+r[2], l:+r[3], c:+r[4]})).reverse(); } catch(e){ continue; }
         trs.forEach(tr => {
-          const long_ = tr.dir === "bullish";
+          const long_ = tr.dir === "bullish"; if (rows.length){ tr.last = rows[rows.length-1].c; changed = true; }
           for (const c of rows){
             if (c.t + bar[1] <= tr.t0) continue;
             const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl, tp = long_ ? c.h >= tr.tp1 : c.l <= tr.tp1;
@@ -1585,13 +1585,13 @@ class Panel {
   /* ---- risk manager: position size, lots, exposure, daily loss limit, Monte-Carlo risk of ruin ---- */
   build_risk(){
     const S = this.state, ar = lang === "ar", L = (e, a) => ar ? a : e;
-    Object.assign(S, Object.assign({bal:10000, rp:1, entry:"", stop:"", tp:"", kind:"crypto", lev:100, dl:3, dd:30}, S));
+    Object.assign(S, Object.assign({bal:10000, rp:1, entry:"", stop:"", tp:"", kind:"crypto", lev:100, dl:3, wl:6, dd:30, be:1}, S));
     const wrap = el("div"); wrap.style.cssText = "padding:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;align-content:start"; const out = el("div"); out.style.cssText = "grid-column:1/-1;font-size:12px;line-height:1.7"; const ros = el("div"); ros.style.cssText = "grid-column:1/-1;font-size:12px;border-top:1px solid #2b3139;padding-top:6px";
     const inp = (k, lab, step) => { const w = el("label"); w.style.cssText = "display:flex;flex-direction:column;font-size:10px;color:#848e9c;gap:2px"; const i = el("input"); i.type = "number"; i.step = step || "any"; i.value = S[k]; i.style.width = "100%"; i.oninput = () => { S[k] = i.value === "" ? "" : +i.value; Ws.save(); calc(); }; w.append(L(lab[0], lab[1]), i); wrap.append(w); return i; };
     const ks = el("select"); [["crypto",L("Crypto (units)","كريبتو (وحدات)")],["fx",L("Forex lot = 100k","فوركس لوت = 100 ألف")],["gold",L("Gold lot = 100 oz","ذهب لوت = 100 أوقية")]].forEach(([v,l]) => ks.append(Object.assign(el("option"), {value:v, textContent:l}))); ks.value = S.kind; ks.onchange = () => { S.kind = ks.value; Ws.save(); calc(); };
     const kw = el("label"); kw.style.cssText = "display:flex;flex-direction:column;font-size:10px;color:#848e9c;gap:2px"; kw.append(L("Instrument","الأداة"), ks);
     inp("bal", ["Balance $","الرصيد $"]); inp("rp", ["Risk % per trade","المخاطرة % للصفقة"], "0.1"); wrap.append(kw); inp("lev", ["Leverage","الرافعة"]);
-    inp("entry", ["Entry","الدخول"]); inp("stop", ["Stop","الوقف"]); inp("tp", ["Target (optional)","الهدف (اختياري)"]); inp("dl", ["Daily loss limit %","حد الخسارة اليومي %"], "0.5"); inp("dd", ["Ruin = drawdown %","الإفلاس = تراجع %"]);
+    inp("entry", ["Entry","الدخول"]); inp("stop", ["Stop","الوقف"]); inp("tp", ["Target (optional)","الهدف (اختياري)"]); inp("dl", ["Daily loss limit %","حد الخسارة اليومي %"], "0.5"); inp("wl", ["Weekly loss limit %","حد الخسارة الأسبوعي %"], "0.5"); inp("be", ["Break-even after (R)","تعادل بعد (R)"], "0.1"); inp("dd", ["Ruin = drawdown %","الإفلاس = تراجع %"]);
     wrap.append(out, ros); this.body.append(wrap); this.body.style.overflow = "auto";
     const cs = () => S.kind === "fx" ? 100000 : S.kind === "gold" ? 100 : 1;
     const ruin = (p, b, risk, ddp) => { let ruined = 0; const N = 1500, T_ = 300; for (let n = 0; n < N; n++){ let eq = 1, pk = 1; for (let t = 0; t < T_; t++){ eq *= Math.random() < p ? 1 + risk*b : 1 - risk; if (eq > pk) pk = eq; if (eq <= pk*(1-ddp)){ ruined++; break; } } } return ruined/N*100; };
@@ -1607,10 +1607,17 @@ class Panel {
       out.innerHTML = h;
       const st = Journal.stats(0, 0), today = new Date(); today.setHours(0,0,0,0); const tr = st.closed.filter(t => t.t1 >= today.getTime()).reduce((a,t) => a + t.r, 0), lossPct = -tr*rp, lim = +S.dl;
       const used = Math.max(0, Math.min(100, lossPct/lim*100)), p = st.closed.length >= 10 ? st.wr/100 : 0.45, bavg = st.closed.length >= 10 && st.wins ? Math.max(0.2, (st.net + st.losses)/st.wins) : 2, r = ruin(p, bavg, rp/100, +S.dd/100);
+      const wk = new Date(); wk.setHours(0,0,0,0); wk.setDate(wk.getDate() - ((wk.getDay()+6)%7)); const wr_ = st.closed.filter(t => t.t1 >= wk.getTime()).reduce((a,t) => a + t.r, 0), wUsed = Math.max(0, Math.min(100, -wr_*rp/(+S.wl||1)*100));
+      const opn = Journal.list.filter(t => t.status === "open"), expo = opn.length*rp, be = [];
+      opn.forEach(t => { if (!t.last) return; const long = t.dir === "bullish", d = Math.abs(t.entry - t.sl), mv = (long ? t.last - t.entry : t.entry - t.last)/d; if (mv >= +S.be && (long ? t.sl < t.entry : t.sl > t.entry)) be.push(t.symbol+" "+(long?"▲":"▼")+" ("+mv.toFixed(1)+"R → SL "+fmtP(t.entry)+")"); });
+      const sameDir = {}; opn.forEach(t => { const k = t.dir; sameDir[k] = (sameDir[k]||0) + 1; });
+      const extra = "<div style='margin-top:6px'>"+L("Open exposure","التعرض المفتوح")+": <b style='color:"+(expo>+S.dl?"#f6465d":expo>+S.dl*0.6?"#f0b90b":"#0ecb81")+"'>"+opn.length+" "+L("trades","صفقة")+" × "+rp+"% = "+expo.toFixed(1)+"%</b>"+(Math.max(sameDir.bullish||0, sameDir.bearish||0) >= 3 ? " <span style='color:#f6465d'>⚠ "+L("3+ trades same direction (correlated)","3+ صفقات في نفس الاتجاه (مرتبطة)")+"</span>" : "")+"</div>"
+        +"<div>"+L("This week","الأسبوع")+": <b style='color:"+(wr_>=0?"#0ecb81":"#f6465d")+"'>"+(wr_>=0?"+":"")+wr_.toFixed(2)+"R</b> · "+L("weekly limit used","المستخدم من الحد الأسبوعي")+" "+wUsed.toFixed(0)+"%"+(wUsed >= 100 ? " <b style='color:#f6465d'>⛔ "+L("weekly limit hit","وصلت الحد الأسبوعي")+"</b>" : "")+"</div>"
+        +(be.length ? "<div style='color:#f0b90b'>🔒 "+L("Move stop to break-even: ","حرّك الوقف للتعادل: ")+esc(be.join(" · "))+"</div>" : "");
       ros.innerHTML = L("Today (journal)","النهارده (الجورنال)")+": <b style='color:"+(tr>=0?"#0ecb81":"#f6465d")+"'>"+(tr>=0?"+":"")+tr.toFixed(2)+"R</b> ≈ "+(tr*rp>=0?"+":"")+(tr*rp).toFixed(2)+"% · "+L("daily limit used","المستخدم من حد اليوم")+" "+used.toFixed(0)+"%"
         +"<div style='height:6px;background:#2b3139;border-radius:3px;margin:3px 0 6px'><div style='height:6px;width:"+used+"%;background:"+(used>=100?"#f6465d":used>60?"#f0b90b":"#0ecb81")+";border-radius:3px'></div></div>"
         +(used >= 100 ? "<b style='color:#f6465d'>⛔ "+L("Daily loss limit hit — stop trading today.","وصلت حد الخسارة اليومي — وقّف تداول النهارده.")+"</b><br>" : "")
-        +L("Risk of ruin","احتمال الإفلاس")+" ("+L("hit","تراجع")+" "+S.dd+"% "+L("drawdown in 300 trades","خلال 300 صفقة")+"): <b style='color:"+(r>10?"#f6465d":r>3?"#f0b90b":"#0ecb81")+"'>"+r.toFixed(1)+"%</b><span style='color:#848e9c'> · "+L("win rate","نسبة النجاح")+" "+(p*100).toFixed(0)+"% "+L("avg win","متوسط الربح")+" "+bavg.toFixed(2)+"R "+(st.closed.length >= 10 ? L("(from journal)","(من الجورنال)") : L("(assumed, <10 journal trades)","(افتراضي، أقل من 10 صفقات)"))+"</span>";
+        +L("Risk of ruin","احتمال الإفلاس")+" ("+L("hit","تراجع")+" "+S.dd+"% "+L("drawdown in 300 trades","خلال 300 صفقة")+"): <b style='color:"+(r>10?"#f6465d":r>3?"#f0b90b":"#0ecb81")+"'>"+r.toFixed(1)+"%</b><span style='color:#848e9c'> · "+L("win rate","نسبة النجاح")+" "+(p*100).toFixed(0)+"% "+L("avg win","متوسط الربح")+" "+bavg.toFixed(2)+"R "+(st.closed.length >= 10 ? L("(from journal)","(من الجورنال)") : L("(assumed, <10 journal trades)","(افتراضي، أقل من 10 صفقات)"))+"</span>"+extra;
     };
     this.riskSub = calc; Journal.subs.add(calc); this.destroy = () => Journal.subs.delete(calc); calc();
   }

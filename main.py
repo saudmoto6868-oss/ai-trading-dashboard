@@ -396,29 +396,34 @@ def render_limit_tracking(sym, book, trades):
                "inside one refresh is not seen. PULLED = vanished without trading.")
 
 
-def build_ws_payload():
-    # The payload is rebuilt only when a new candle closes, so the Workspace page
-    # (an iframe) is not re-created - and zoom/pan not reset - on every refresh.
-    ws_tf = st.session_state.get("scan_tf", "1h")
+@st.cache_resource
+def _scan_store():
+    import threading
+    return {"lock": threading.Lock(), "running": False, "key": None, "payload": None, "built": 0.0}
+
+
+def _scan_worker(store, ws_tf, ws_key):
+    """Heavy OKX scan, run in a background thread so the page renders immediately.
+    The chosen timeframe goes first and partial results are published as they arrive."""
     try:
-        _ref = get_klines(CRYPTO_SYMBOLS[0], ws_tf, 300)
-        ws_key = (ws_tf, str(_ref["time"].iloc[-2]), tuple(CRYPTO_SYMBOLS))
-    except Exception:
-        ws_key = None
-    cached_ws = st.session_state.get("ws_payload")
-    # an empty/failed scan is retried after 60 s instead of being kept for the whole candle
-    stale_empty = bool(cached_ws) and not cached_ws.get("mini") and time.time() - cached_ws.get("built", 0) > 60
-    if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None or stale_empty:
         ws_alerts, ws_scan, ws_seed, ws_mini, ws_errs = [], {}, None, [], []
-        # alerts = real scanner trades on every scan timeframe (1m scalp ... 1w position);
-        # the watchlist tags only use the chosen scan timeframe
-        for tf_ in SCAN_TFS:
+
+        def publish(done):
+            store["payload"] = {"key": ws_key, "alerts": list(ws_alerts), "scan": dict(ws_scan), "seed": ws_seed,
+                                "mini": list(ws_mini), "errs": list(ws_errs), "built": time.time(), "loading": not done}
+
+        try:
+            ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
+        except Exception:
+            ws_seed = None
+        for tf_ in [ws_tf] + [t for t in SCAN_TFS if t != ws_tf]:
             try:
                 ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, tf_)
                 if _ws_notice:
                     ws_errs.append(f"{tf_}: {_ws_notice[:120]}")
             except Exception as ex_:
                 ws_errs.append(f"{tf_}: {ex_}")
+                publish(False)
                 continue
             for r_ in ws_results:
                 try:
@@ -436,14 +441,43 @@ def build_ws_payload():
                     ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
                                              | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
-                    ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
-        try:
-            ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
-        except Exception:
-            ws_seed = None
-        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed, "mini": ws_mini,
-                                                  "errs": ws_errs, "built": time.time()}
-    return cached_ws
+                    ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
+            publish(False)
+        publish(True)
+        store["key"] = ws_key
+        store["built"] = time.time()
+    except Exception as ex_:
+        store["payload"] = {"key": ws_key, "alerts": [], "scan": {}, "seed": None, "mini": [],
+                            "errs": [f"scan crashed: {type(ex_).__name__}: {ex_}"], "built": time.time(), "loading": False}
+        store["key"] = ws_key
+        store["built"] = time.time()
+    finally:
+        store["running"] = False
+
+
+def build_ws_payload():
+    """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
+    background refresh when the 10-minute bucket changes or an empty result is older than 60 s."""
+    import threading
+    ws_tf = st.session_state.get("scan_tf", "1h")
+    ws_key = (ws_tf, str(int(time.time() // 600)), tuple(CRYPTO_SYMBOLS))
+    store = _scan_store()
+    pl = store["payload"]
+    stale_empty = bool(pl) and not pl.get("mini") and not pl.get("loading") and time.time() - pl.get("built", 0) > 60
+    if store["key"] != ws_key or stale_empty:
+        with store["lock"]:
+            # also restart a worker that has been silent for 5 minutes (hung)
+            hung = store["running"] and time.time() - store.get("started", 0) > 300
+            if (not store["running"] or hung) and (store["key"] != ws_key or stale_empty):
+                store["running"] = True
+                store["started"] = time.time()
+                threading.Thread(target=_scan_worker, args=(store, ws_tf, ws_key), daemon=True).start()
+    pl = store["payload"]
+    if pl is None:
+        return {"key": ws_key, "alerts": [], "scan": {}, "seed": None, "mini": [],
+                "errs": ["Scanning OKX in the background - results appear here in a few seconds..."],
+                "built": time.time(), "loading": True}
+    return pl
 
 
 MINI_CSS = """<style>
@@ -775,3 +809,10 @@ with tab_meme:
                 st.markdown(f"[View on DEXScreener]({p.get('url', '#')})")
     else:
         st.info("Enter a token name or contract address above to search live DEXScreener pairs.")
+
+
+# ---- While the background scan is still running, poll until it finishes ---------------
+_store_now = _scan_store()
+if _store_now["running"] or (_store_now["payload"] or {}).get("loading"):
+    time.sleep(5)
+    st.rerun()

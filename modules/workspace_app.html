@@ -133,6 +133,7 @@ const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 const TFSEC = {"5s":5,"15s":15,"1m":60,"5m":300,"15m":900,"30m":1800,"1H":3600,"4H":14400,"1D":86400,"1W":604800};
+const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; };
 const HARM_TOL = 0.06;
 const HARM_RULES = {
   "Gartley":{b:[.618,.618],c:[.382,.886],d:[.786,.786]}, "Bat":{b:[.382,.5],c:[.382,.886],d:[.886,.886]},
@@ -204,7 +205,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indFp:"Order flow: footprint (sell × buy)",fpTip:"Per price inside each candle: sells (hit bid) × buys (lifted ask), POC outlined, 3:1 imbalances bold. Builds from live trades while the chart is open; zoom in for the numbers.",indDelta:"Order flow: delta per candle",deltaTip:"Buy volume minus sell volume for each candle (builds from live trades while the chart is open)",tRect:"Rectangle",tChan:"Parallel channel (3 clicks)",tText:"Text note",valuelv:"Value Levels",risk:"Risk Manager",indVp:"Volume Profile (POC/VA)",vpTip:"Volume profile of the loaded candles: POC = price with most traded volume, VAH/VAL = 70% value area",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indBub:"Order flow: bubbles (big prints)",bubTip:"Circle per large trade, size = volume, green = buys / red = sells (⚙ for colours and size). Builds from live trades.",indDom:"Order flow: depth heat-map (DOM)",domTip:"Resting bid/ask liquidity behind the candles, heat = size. Builds from the live order book while the chart is open.",indMk:"Order flow: BUY/SELL markers + targets",indFp:"Order flow: footprint (sell × buy)",fpTip:"Per price inside each candle: sells (hit bid) × buys (lifted ask), POC outlined, 3:1 imbalances bold. Builds from live trades while the chart is open; zoom in for the numbers.",indDelta:"Order flow: delta per candle",deltaTip:"Buy volume minus sell volume for each candle (builds from live trades while the chart is open)",tRect:"Rectangle",tChan:"Parallel channel (3 clicks)",tText:"Text note",valuelv:"Value Levels",risk:"Risk Manager",indVp:"Volume Profile (POC/VA)",vpTip:"Volume profile of the loaded candles: POC = price with most traded volume, VAH/VAL = 70% value area",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -216,7 +217,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",cmDel:"Delete this drawing",cmAll:"Delete all drawings",cmOv:"Clear signal / Fib overlays",cmNone:"Nothing to delete",uniTip:"OKX universe: spot / perpetuals, USDT / USDC, by category",uniNone:"Nothing in this category.",uniAll:"Add all",journal:"Journal",jWin:"Win rate",jNet:"Net result",jTrades:"Wins / losses",jOpen:"open",jAvg:"Avg / trade",jBest:"Best trade",jWorst:"Worst trade",jDd:"Max drawdown",jEq:"Equity curve (R)",jEmpty:"Closed trades will draw the curve — the journal logs every scanner trade and follows it to TP1 or SL.",jStrat:"By strategy (win rate)",jLog:"Trade log",jRes:"Result",jExp:"expired",scanner:"Scanner",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow marks",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي (اختار النسب)",indFp:"أوردر فلو: فوت برينت (بيع × شراء)",fpTip:"لكل سعر جوه الشمعة: بيع × شراء، وPOC بإطار أصفر، والاختلال 3:1 بخط عريض. بيتبني من الصفقات الحية طول ما الشارت مفتوح، قرّب عشان تشوف الأرقام.",indDelta:"أوردر فلو: دلتا كل شمعة",deltaTip:"حجم الشراء ناقص حجم البيع لكل شمعة (بيتبني من الصفقات الحية)",tRect:"مستطيل",tChan:"قناة متوازية (3 نقرات)",tText:"ملاحظة نصية",valuelv:"مستويات القيمة",risk:"إدارة المخاطر",indVp:"بروفايل الحجم (POC/VA)",vpTip:"بروفايل الحجم للشموع المحملة: POC أكثر سعر اتداول عليه، VAH/VAL منطقة القيمة 70%",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي (اختار النسب)",indBub:"أوردر فلو: فقاعات (الصفقات الكبيرة)",bubTip:"دايرة لكل صفقة كبيرة، الحجم = الكمية، أخضر شراء / أحمر بيع (⚙ للألوان والحجم). بتتبني من الصفقات الحية.",indDom:"أوردر فلو: خريطة السيولة (DOM)",domTip:"السيولة الواقفة في دفتر الأوامر خلف الشموع، الحرارة = الحجم. بتتبني من الدفتر الحي طول ما الشارت مفتوح.",indMk:"أوردر فلو: علامات BUY/SELL والأهداف",indFp:"أوردر فلو: فوت برينت (بيع × شراء)",fpTip:"لكل سعر جوه الشمعة: بيع × شراء، وPOC بإطار أصفر، والاختلال 3:1 بخط عريض. بيتبني من الصفقات الحية طول ما الشارت مفتوح، قرّب عشان تشوف الأرقام.",indDelta:"أوردر فلو: دلتا كل شمعة",deltaTip:"حجم الشراء ناقص حجم البيع لكل شمعة (بيتبني من الصفقات الحية)",tRect:"مستطيل",tChan:"قناة متوازية (3 نقرات)",tText:"ملاحظة نصية",valuelv:"مستويات القيمة",risk:"إدارة المخاطر",indVp:"بروفايل الحجم (POC/VA)",vpTip:"بروفايل الحجم للشموع المحملة: POC أكثر سعر اتداول عليه، VAH/VAL منطقة القيمة 70%",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -458,7 +459,7 @@ class CandleChart {
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -576,6 +577,7 @@ class CandleChart {
     // clip plot
     c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
     if (this.kz) this.paintKZ(c, py, i0, i1, PB);
+    if (this.domOn) this.paintDom(c, py, i0, i1, PB);
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
     const bwp = Math.max(1, this.bw*0.7);
     for (let i = i0; i <= i1; i++){
@@ -600,6 +602,8 @@ class CandleChart {
     if (this.harmOn) this.paintHarm(c, py, dec);
     if (this.vpOn) this.paintVp(c, py, dec, PR, PB);
     if (this.fpOn || this.deltaOn) this.paintFp(c, py, dec, i0, i1, PB);
+    if (this.bubOn) this.paintBub(c, py, i0, i1);
+    if (this.mkOn) this.paintMk(c, py, PR);
     const ov = this.showSig ? this.overlay : null;
     if (ov){
       (ov.zones || []).forEach(z => { c.fillStyle = z[2]; c.globalAlpha = .2; c.fillRect(0, py(z[1]), PR, Math.max(2, py(z[0])-py(z[1]))); c.globalAlpha = 1; });
@@ -713,23 +717,53 @@ Object.assign(CandleChart.prototype, {
     const key = d[i].t; let m = this.fp.get(key); if (!m){ m = {px:new Map(), b:0, s:0}; this.fp.set(key, m); }
     const k = r.p, o = m.px.get(k) || (m.px.set(k, {b:0, s:0}), m.px.get(k));
     if (r.side === "Buy"){ o.b += r.q; m.b += r.q; } else { o.s += r.q; m.s += r.q; }
+    this.bub.push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (this.bub.length > 500) this.bub.splice(0, 100);
     if (this.fp.size > 600){ const ks = [...this.fp.keys()].sort((a,b) => a-b); for (let j = 0; j < 100; j++) this.fp.delete(ks[j]); }
+  },
+  domAdd(b){
+    const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
+    (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
+    (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
+  },
+  paintDom(c, py, i0, i1, PB){   // resting-liquidity heat map behind the candles (bid colour = buy, ask colour = sell)
+    const OF = this.st.of, bw = this.bw, d = this.data, lo = this._lo, hi = this._hi, raw = (hi-lo)/Math.max(1, PB/9), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
+    let mx = 0; const cols = [];
+    for (let i = i0; i <= i1; i++){ const m = this.dom.get(d[i].t); if (!m) continue; const g = new Map(); m.forEach((v, p) => { const k = Math.round(p/step), o = g.get(k); if (!o || v.q > o.q) g.set(k, v); }); g.forEach(v => { if (v.q > mx) mx = v.q; }); cols.push([i, g]); }
+    cols.forEach(([i, g]) => { const x = this.x(i); g.forEach((v, k) => { const y = py(k*step), h = Math.max(2, Math.abs(py(k*step) - py((k+1)*step)) - 1), a = Math.min(.85, Math.pow(v.q/(mx || 1), .55)*.8*OF.dom);
+      c.fillStyle = hexA(v.side === "b" ? OF.color : OF.color2, a); c.fillRect(x-bw/2, y-h/2, bw, h); }); });
+  },
+  paintBub(c, py, i0, i1){   // large prints as bubbles (size = volume)
+    const OF = this.st.of, d = this.data, minTier = OF.min >= 2 ? 2 : OF.min >= 1 ? 1 : 0, rank = {normal:0, smart:1, whale:2}; let mx = 0;
+    this.bub.forEach(b => { if (rank[b.tier] >= minTier && b.q > mx) mx = b.q; });
+    this.bub.forEach(b => { if (rank[b.tier] < minTier) return; let i = d.length-1; while (i > 0 && d[i].t > b.t) i--; if (i < i0 || i > i1) return;
+      const x = this.x(i), y = py(b.p), r = (3 + Math.sqrt(b.q/(mx || 1))*13)*OF.bsz, col = b.side === "Buy" ? OF.color : OF.color2;
+      c.fillStyle = hexA(col, .38); c.strokeStyle = col; c.lineWidth = b.tier === "whale" ? 2 : 1; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill(); c.stroke(); });
+    c.lineWidth = 1;
+  },
+  paintMk(c, py, PR){   // small BUY / SELL badge at the entry with its target
+    const ov = this.overlay, pl = ov && ov.plan; if (!pl || !this.data.length) return; const OF = this.st.of, long_ = (pl.tps && pl.tps[0] || 0) > pl.entry, col = long_ ? OF.color : OF.color2, x = this.x(this.data.length-1) + 14, y = py(pl.entry), dc = pl.entry >= 100 ? 2 : pl.entry >= 1 ? 4 : 6;
+    c.fillStyle = col; c.beginPath(); long_ ? (c.moveTo(x, y-6), c.lineTo(x-6, y+5), c.lineTo(x+6, y+5)) : (c.moveTo(x, y+6), c.lineTo(x-6, y-5), c.lineTo(x+6, y-5)); c.closePath(); c.fill();
+    c.font = "bold 10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText((long_ ? "BUY " : "SELL ")+pl.entry.toFixed(dc), x+9, y);
+    (pl.tps || []).slice(0, 3).forEach((v, n) => { const ty = py(v); c.fillStyle = col; c.beginPath(); c.arc(x, ty, 3, 0, 6.3); c.fill(); c.fillText("TP"+(n+1)+" "+v.toFixed(dc), x+9, ty); });
+    c.fillStyle = "#f6465d"; c.beginPath(); c.arc(x, py(pl.stop), 3, 0, 6.3); c.fill(); c.fillText("SL "+pl.stop.toFixed(dc), x+9, py(pl.stop));
   },
   paintFp(c, py, dec, i0, i1, PB){
     const bw = this.bw, d = this.data, fmt = v => v >= 1000 ? (v/1000).toFixed(1)+"k" : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
     const big = this.fpOn && bw >= 44, mid = bw >= 20;
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = 11, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
-    c.save(); c.textBaseline = "middle"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
+    const OF = this.st.of; c.save(); c.textBaseline = "middle"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
     for (let i = i0; i <= i1; i++){
-      const cd = d[i], m = this.fp.get(cd.t); if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? "#0ecb81" : "#f6465d";
+      const cd = d[i], m = this.fp.get(cd.t); if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? OF.color : OF.color2;
       if (this.fpOn && (big || mid)){
         const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
         let mx = 0, poc = null; rows.forEach((v, k) => { const t = v.b + v.s; if (t > mx){ mx = t; poc = k; } });
         rows.forEach((v, k) => {
           const y = py(k*step), h = Math.max(2, Math.abs(py(k*step) - py((k+1)*step)) - 1), a = (v.b + v.s)/(mx || 1);
-          c.fillStyle = v.b >= v.s ? "rgba(14,203,129,"+(.12+.5*a)+")" : "rgba(246,70,93,"+(.12+.5*a)+")"; c.fillRect(x-w/2, y-h/2, w, h);
-          if (k === poc){ c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.strokeRect(x-w/2, y-h/2, w, h); }
+          c.fillStyle = hexA(v.b >= v.s ? OF.color : OF.color2, .12+.5*a); c.fillRect(x-w/2, y-h/2, w, h);
+          if (k === poc){ c.strokeStyle = v.b >= v.s ? OF.color : OF.color2; c.lineWidth = 2; c.strokeRect(x-w/2, y-h/2, w, h); c.lineWidth = 1; }
+          if (big && (v.b + v.s) >= 3*(m.b + m.s)/Math.max(1, rows.size) && h >= 6){ const bc = v.b >= v.s ? OF.color : OF.color2; c.fillStyle = bc; c.beginPath(); c.arc(x+w/2+5, y, 3, 0, 6.3); c.fill();
+            if (i === i1){ const last = d[d.length-1].c, dist = k*step - last; c.textAlign = "left"; c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.fillText((dist >= 0 ? "+" : "")+dist.toFixed(dec), x+w/2+10, y); } }
           const imbB = v.b >= 3*Math.max(v.s, 1e-9) && v.b > 0, imbS = v.s >= 3*Math.max(v.b, 1e-9) && v.s > 0;
           if (big && h >= 8){ c.textAlign = "right"; c.fillStyle = imbS ? "#ff8a97" : "#c7ccd3"; c.font = (imbS ? "bold " : "") + "9px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.s), x-2, y);
             c.textAlign = "left"; c.fillStyle = imbB ? "#6df0b5" : "#c7ccd3"; c.font = (imbB ? "bold " : "") + "9px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.b), x+2, y); }
@@ -1123,7 +1157,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.harmOn = !!this.state.harm; this.chart.vpOn = !!this.state.vp; this.chart.fpOn = !!this.state.fp; this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.harmOn = !!this.state.harm; this.chart.vpOn = !!this.state.vp; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -1169,6 +1203,9 @@ class Panel {
       {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; }},
+      {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},
+      {id:"dom", label:T("indDom"), tip:T("domTip"), get:() => ch().domOn, set:v => { ch().domOn = v; this.state.dom = v; }},
+      {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
       {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }},
@@ -1250,7 +1287,8 @@ class Panel {
     this.chart.loadDraws(LS+"_dr_"+sym);
     this.chart.overlay = (CFG.scan && CFG.scan[sym] && passFilters(CFG.scan[sym].dir, CFG.scan[sym].ttype)) ? CFG.scan[sym] : null; this.chart.marks = [];
     this.flt = {prev:null, events:[], sym, abs:new Set()};
-    this.chart.fp = new Map(); const seenF = new Set();
+    this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); const seenF = new Set();
+    this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn) this.chart.draw(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
       (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn) ch.draw(); }));
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));

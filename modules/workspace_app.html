@@ -61,6 +61,10 @@ td{padding:1px 4px;white-space:nowrap}
 .tb button,.tb select{white-space:nowrap;flex:none}.indpop{position:absolute;top:32px;left:6px;z-index:30;min-width:230px;max-height:80%;overflow:auto;background:#1e2329;border:1px solid #3a424b;border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .irow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 4px;border-radius:4px}.irow:hover{background:rgba(255,255,255,.04)}.irow label{cursor:pointer}.irow>label{flex:1}
 .iset{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0 2px 22px}.iset input[type=color]{width:26px;height:22px;padding:0}
+.jr{padding:4px}.jcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.jc{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.jl{color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.4px}.jv{font-size:16px;font-weight:700;font-family:ui-monospace,Menlo,monospace}
+.jrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}.jcal{flex:1 1 260px}.jside{flex:1 1 160px}.jgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}
+.jh{text-align:center;color:var(--mut);font-size:10px}.jd{min-height:34px;border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:10px;display:flex;flex-direction:column;justify-content:space-between}.jd b{font-size:10px;font-family:ui-monospace,Menlo,monospace}
 .rdy{padding:2px 4px}.rd{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.rd th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px;position:sticky;top:0;background:var(--panel)}
 .rd td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.rd tr[data-i]{cursor:pointer}.rd tr[data-i]:hover{background:rgba(255,255,255,.04)}
 .rd a.tg{display:inline-block;border-radius:3px;padding:0 4px;margin-inline-end:2px;font-size:10px;font-weight:600;font-family:sans-serif;cursor:help;text-decoration:none}
@@ -141,7 +145,7 @@ const I18N = {
   hint:"Keyword extraction only (no AI). Paste captions from the video for best results.",
   placed:"new big order",pulled:"removed w/o trading - possible fake wall",filled:"traded through",watching:"Watching for big limit orders...",
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
-  symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",scanner:"Scanner",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow marks",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
+  symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",journal:"Journal",jWin:"Win rate",jNet:"Net result",jTrades:"Wins / losses",jOpen:"open",jAvg:"Avg / trade",jBest:"Best trade",jWorst:"Worst trade",jDd:"Max drawdown",jEq:"Equity curve (R)",jEmpty:"Closed trades will draw the curve — the journal logs every scanner trade and follows it to TP1 or SL.",jStrat:"By strategy (win rate)",jLog:"Trade log",jRes:"Result",jExp:"expired",scanner:"Scanner",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow marks",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
   vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
@@ -153,7 +157,7 @@ const I18N = {
   hint:"استخراج بالكلمات المفتاحية فقط (بدون ذكاء اصطناعي). الصق ترجمة الفيديو لأفضل نتيجة.",
   placed:"أمر كبير جديد",pulled:"اتشال من غير تنفيذ - ممكن حائط وهمي",filled:"اتنفّذ",watching:"بنراقب الأوامر الكبيرة...",
   group:"مجموعة الربط",time:"الوقت",price:"السعر",size:"الحجم",value:"القيمة",bid:"حجم الشراء",ask:"حجم البيع",loading:"جاري التحميل…",fit:"ملاءمة",
-  symbol:"الرمز",last:"آخر",chg:"24س",long:"شراء",short:"بيع",scanner:"السكانر",ind:"المؤشرات",indKz:"الجلسات و Kill Zones",indSig:"الإشارات (إليوت · OB · FVG · خطة الصفقة)",indFlow:"علامات تدفق الأوامر",indSet:"إعدادات",indColor:"اللون",indWidth:"سمك الخط",indStyle:"شكل الخط",ready:"الصفقات الجاهزة",rdEmpty:"مفيش صفقات جاهزة لسه — السكانر لسه شغال أو مفيش صفقة مؤهلة.",rdSetup:"السيناريو",rdType:"النوع",rdStr:"القوة",sound:"تنبيه صوتي لأي صفقة فوق 50%",scanning:"جاري المسح في الخلفية…",fib:"فيبوناتشي",fibRatios:"النسب (مفصولة بفاصلة)",fibHi:"أعلى",fibLo:"أدنى",fibAuto:"تلقائي من الشارت",fibDir:"الاتجاه"}
+  symbol:"الرمز",last:"آخر",chg:"24س",long:"شراء",short:"بيع",journal:"الجورنال",jWin:"نسبة النجاح",jNet:"صافي النتيجة",jTrades:"رابحة / خاسرة",jOpen:"مفتوحة",jAvg:"متوسط الصفقة",jBest:"أفضل صفقة",jWorst:"أسوأ صفقة",jDd:"أقصى تراجع",jEq:"منحنى الأرباح (R)",jEmpty:"الصفقات المقفولة هترسم المنحنى — الجورنال بيسجل كل صفقة من السكانر ويتابعها لحد الهدف الأول أو الستوب.",jStrat:"حسب الاستراتيجية (نسبة النجاح)",jLog:"سجل الصفقات",jRes:"النتيجة",jExp:"انتهت",scanner:"السكانر",ind:"المؤشرات",indKz:"الجلسات و Kill Zones",indSig:"الإشارات (إليوت · OB · FVG · خطة الصفقة)",indFlow:"علامات تدفق الأوامر",indSet:"إعدادات",indColor:"اللون",indWidth:"سمك الخط",indStyle:"شكل الخط",ready:"الصفقات الجاهزة",rdEmpty:"مفيش صفقات جاهزة لسه — السكانر لسه شغال أو مفيش صفقة مؤهلة.",rdSetup:"السيناريو",rdType:"النوع",rdStr:"القوة",sound:"تنبيه صوتي لأي صفقة فوق 50%",scanning:"جاري المسح في الخلفية…",fib:"فيبوناتشي",fibRatios:"النسب (مفصولة بفاصلة)",fibHi:"أعلى",fibLo:"أدنى",fibAuto:"تلقائي من الشارت",fibDir:"الاتجاه"}
 };
 let lang = "en";
 const T = k => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
@@ -207,6 +211,58 @@ async function okx(path){
   return j.data;
 }
 function setStatus(ok){ const d = document.getElementById("dot"); if (!d) return; d.className = ok ? "ok" : "bad"; d.title = ok ? T("live") : T("offline"); }
+
+/* ---------------- Trade journal: logs every scanner/alert trade, then follows it on OKX candles until TP1 or SL ---------------- */
+const JBAR = {"1m":["1m",60000], "1H":["1H",3600000], "1D":["1D",86400000]};
+const JEXP = {"1m":12*3600e3, "1h":3*86400e3, "1d":20*86400e3, "1w":60*86400e3};
+const Journal = {
+  list: store.get(LS+"_journal", []), subs: new Set(), busy: false,
+  save(){ this.list = this.list.slice(-1500); store.set(LS+"_journal", this.list); this.subs.forEach(f => f()); },
+  ingest(){
+    let added = 0; const pool = [];
+    (CFG.ready || []).forEach(e => pool.push(e)); Alerts.list.forEach(a => a.card && pool.push(a.card));
+    pool.forEach(e => {
+      if (!e || !e.plan || !e.plan.tps || !e.plan.tps.length || !(e.plan.stop > 0)) return;
+      const key = e.symbol+"|"+e.direction+"|"+e.tfk, en = e.plan.entry;
+      if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005))) return;
+      this.list.push({id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open"});
+      added++;
+    });
+    if (added) this.save();
+  },
+  async track(){
+    if (this.busy) return; const open = this.list.filter(t => t.status === "open"); if (!open.length) return; this.busy = true; let changed = false;
+    try {
+      const bySym = {}; open.forEach(t => (bySym[t.symbol] = bySym[t.symbol] || []).push(t));
+      for (const sym of Object.keys(bySym)){
+        const trs = bySym[sym], oldest = Math.min(...trs.map(t => t.t0)), age = Date.now() - oldest, bar = age < 4.5*3600e3 ? JBAR["1m"] : age < 12*86400e3 ? JBAR["1H"] : JBAR["1D"];
+        let rows; try { rows = (await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bar[0]+"&limit=300")).map(r => ({t:+r[0], h:+r[2], l:+r[3]})).reverse(); } catch(e){ continue; }
+        trs.forEach(tr => {
+          const long_ = tr.dir === "bullish";
+          for (const c of rows){
+            if (c.t + bar[1] <= tr.t0) continue;
+            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl, tp = long_ ? c.h >= tr.tp1 : c.l <= tr.tp1;
+            if (sl){ tr.status = "sl"; tr.r = -1; tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
+            if (tp){ tr.status = "tp"; tr.r = tr.rr; tr.t1 = c.t + bar[1]; changed = true; break; }
+          }
+          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = "exp"; tr.r = 0; tr.t1 = Date.now(); changed = true; }
+        });
+      }
+    } finally { this.busy = false; }
+    if (changed) this.save();
+  },
+  stats(minPct, since){
+    const L = this.list.filter(t => t.pct >= minPct && t.t0 >= since), closed = L.filter(t => t.status === "tp" || t.status === "sl").sort((a,b) => a.t1 - b.t1), W = closed.filter(t => t.status === "tp");
+    const gp = W.reduce((a,t) => a + t.r, 0), gl = closed.length - W.length; let eq = 0, peak = 0, dd = 0; const curve = closed.map(t => { eq += t.r; peak = Math.max(peak, eq); dd = Math.max(dd, peak - eq); return {t:t.t1, v:eq}; });
+    return {all:L, closed, wins:W.length, losses:gl, open:L.filter(t => t.status === "open").length, exp:L.filter(t => t.status === "exp").length,
+      wr: closed.length ? 100*W.length/closed.length : 0, net: eq, avg: closed.length ? eq/closed.length : 0, pf: gl ? gp/gl : (gp ? Infinity : 0),
+      best: closed.length ? Math.max(...closed.map(t => t.r)) : 0, worst: closed.length ? Math.min(...closed.map(t => t.r)) : 0, dd, curve};
+  }
+};
+setTimeout(() => { Journal.ingest(); Journal.track(); }, 1500);
+setInterval(() => { Journal.ingest(); Journal.track(); }, 30000);
+Alerts.subs.add(() => Journal.ingest());
 
 /* ---------------- OKX WebSocket (live ticks; REST polling keeps running as a fallback) ---------------- */
 const WSX = {
@@ -1244,6 +1300,56 @@ class Panel {
     draw();
   }
   build_scanner(){ this.build_ready(); }
+  /* ---- journal: funded-account style analytics (equity curve, stat cards, win/loss calendar) ---- */
+  build_journal(){
+    const S = this.state; S.jr = S.jr || "30"; S.jc = S.jc != null ? S.jc : 0; const now0 = new Date(); S.jm = S.jm || (now0.getFullYear()+"-"+now0.getMonth());
+    const tb = el("div","tb"), rng = el("select"), cf = el("select"), clr = el("button",null,T("clear")); let armed = 0;
+    [["7","7d"],["30","30d"],["90","90d"],["0",T("fAll")]].forEach(([v,l]) => rng.append(Object.assign(el("option"), {value:v, textContent:l}))); rng.value = S.jr;
+    [[0,T("fAll")],[50,"≥ 50%"],[70,"≥ 70%"]].forEach(([v,l]) => cf.append(Object.assign(el("option"), {value:v, textContent:T("conf")+" "+l}))); cf.value = S.jc;
+    rng.onchange = () => { S.jr = rng.value; Ws.save(); draw(); }; cf.onchange = () => { S.jc = +cf.value; Ws.save(); draw(); };
+    clr.onclick = () => { if (Date.now() - armed < 2500){ Journal.list = []; Journal.save(); armed = 0; clr.textContent = T("clear"); } else { armed = Date.now(); clr.textContent = "?"; setTimeout(() => clr.textContent = T("clear"), 2500); } };
+    tb.append(rng, cf, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
+    const f2 = v => (v >= 0 ? "+" : "") + v.toFixed(2);
+    const draw = () => {
+      const since = S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3, st = Journal.stats(+S.jc, since);
+      const card = (lab, val, col) => '<div class="jc"><div class="jl">'+esc(lab)+'</div><div class="jv" style="color:'+(col||"var(--txt)")+'">'+val+'</div></div>';
+      let h = '<div class="jcards">'
+        + card(T("jWin"), st.wr.toFixed(1)+"%", st.closed.length ? (st.wr >= 50 ? "#0ecb81" : "#f6465d") : "")
+        + card(T("jNet"), f2(st.net)+" R", st.net >= 0 ? "#0ecb81" : "#f6465d") + card(T("jTrades"), st.wins+" / "+st.losses+" · "+st.open+" "+T("jOpen"))
+        + card(T("jAvg"), f2(st.avg)+" R") + card("Profit factor", st.pf === Infinity ? "∞" : st.pf.toFixed(2)) + card(T("jBest"), f2(st.best)+" R", "#0ecb81") + card(T("jWorst"), f2(st.worst)+" R", "#f6465d") + card(T("jDd"), "-"+st.dd.toFixed(2)+" R", "#f6465d") + '</div>';
+      // equity curve
+      const c = st.curve; let svg = '<div class="jl" style="margin:6px 4px 0">'+esc(T("jEq"))+'</div>';
+      if (c.length > 1){ const W = 600, H = 120, vs = c.map(p => p.v).concat([0]), lo = Math.min(...vs), hi = Math.max(...vs), y = v => H-6-(v-lo)/((hi-lo)||1)*(H-12), x = i => i*W/(c.length-1);
+        const pts = c.map((p,i) => x(i).toFixed(1)+","+y(p.v).toFixed(1)).join(" "), up = c[c.length-1].v >= 0, col = up ? "#0ecb81" : "#f6465d";
+        svg += '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:120px;background:#0e1217;border:1px solid var(--line);border-radius:6px"><line x1="0" x2="'+W+'" y1="'+y(0)+'" y2="'+y(0)+'" stroke="#3a424b" stroke-dasharray="4 3"/><polygon points="0,'+y(0)+' '+pts+' '+W+','+y(0)+'" fill="'+col+'" opacity=".15"/><polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+      } else svg += '<div class="m" style="padding:10px">'+esc(T("jEmpty"))+'</div>';
+      h += svg;
+      // calendar
+      const [cy, cm] = S.jm.split("-").map(Number), first = new Date(cy, cm, 1), dim = new Date(cy, cm+1, 0).getDate(), day = {};
+      st.closed.forEach(t => { const d = new Date(t.t1), k = d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate(); (day[k] = day[k] || {r:0,n:0}).r += t.r; day[k].n++; });
+      const mname = first.toLocaleString(lang === "ar" ? "ar" : "en", {month:"long", year:"numeric"}); let cal = '<div class="jcal"><div class="jl" style="display:flex;align-items:center;gap:8px"><button class="jp">◀</button><b style="color:var(--txt)">'+esc(mname)+'</b><button class="jn">▶</button></div><div class="jgrid">';
+      ["S","M","T","W","T","F","S"].forEach(d => cal += '<div class="jh">'+d+'</div>'); for (let i = 0; i < first.getDay(); i++) cal += '<div></div>';
+      for (let d = 1; d <= dim; d++){ const x = day[cy+"-"+cm+"-"+d]; const bg = x ? (x.r >= 0 ? "rgba(14,203,129,"+Math.min(.75, .25+Math.abs(x.r)*.12)+")" : "rgba(246,70,93,"+Math.min(.75, .25+Math.abs(x.r)*.12)+")") : "transparent";
+        cal += '<div class="jd" style="background:'+bg+'" title="'+(x ? x.n+" trades" : "")+'"><span>'+d+'</span>'+(x ? '<b>'+f2(x.r)+'</b>' : "")+'</div>'; }
+      cal += '</div></div>';
+      // strategies
+      const by = {}; st.closed.forEach(t => (t.tags || []).forEach(g => { const k = tagTxt(g); (by[k] = by[k] || {w:0,n:0}).n++; if (t.status === "tp") by[k].w++; }));
+      const rowsS = Object.entries(by).sort((a,b) => b[1].n - a[1].n).slice(0,8).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
+      const byT = {}; st.closed.forEach(t => { const k = ttTxt(t.ttype); (byT[k] = byT[k] || {w:0,n:0}).n++; if (t.status === "tp") byT[k].w++; });
+      const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
+      const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rd">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rd">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table></div>';
+      h += '<div class="jrow">'+cal+side+'</div>';
+      // trades table
+      const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);
+      h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rd"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
+        + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "exp" ? T("jExp") : T("jOpen");
+          return '<tr><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
+      box.innerHTML = h;
+      const mv = dlt => { const d = new Date(cy, cm+dlt, 1); S.jm = d.getFullYear()+"-"+d.getMonth(); Ws.save(); draw(); };
+      box.querySelector(".jp").onclick = () => mv(-1); box.querySelector(".jn").onclick = () => mv(1);
+    };
+    draw(); Journal.subs.add(draw); this.unwatch = () => Journal.subs.delete(draw);
+  }
   /* ---- news ---- */
   build_news(){
     this.nBox = el("div","news-body"); this.body.append(this.nBox); this.showNewsList();
@@ -1511,7 +1617,7 @@ Ws.add = type => {
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
-  ["ready","scanner","chart","dom","tape","limits","watch","alerts","fib","news","ticker","links","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
+  ["ready","scanner","journal","chart","dom","tape","limits","watch","alerts","fib","news","ticker","links","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
   sel.onchange = () => { if (sel.value) Ws.add(sel.value); sel.value = ""; };
   const bT = el("button",null,T("trading")), bB = el("button",null,T("blank"));
   bT.onclick = () => { Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); }; bB.onclick = () => { Ws.clear(); Ws.save(); };

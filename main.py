@@ -227,7 +227,7 @@ def render_scanner(results, notice, key):
             f"<span style='color:{scol};font-size:12px'>{_stars(r['score'], r['max_score'])}</span>"
             f"<span style='color:{acol};font-size:12px'>{arrow} {DIR_AR.get(r['direction'], '')}</span>"
             f"<span>{trade_chip_html(r['trade_type'])}</span></div>"
-            f"<div>{tags_html(r['signals'])}</div></div>",
+            f"<div>{tags_html(r['signals'], tv_link(r['symbol'], r['timeframe']))}</div></div>",
             unsafe_allow_html=True,
         )
         with st.expander("التحليل"):
@@ -397,7 +397,7 @@ def build_ws_payload():
         ws_key = None
     cached_ws = st.session_state.get("ws_payload")
     if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None:
-        ws_alerts, ws_scan, ws_seed = [], {}, None
+        ws_alerts, ws_scan, ws_seed, ws_mini = [], {}, None, []
         # alerts = real scanner trades on every scan timeframe (1m scalp ... 1w position);
         # the watchlist tags only use the chosen scan timeframe
         for tf_ in SCAN_TFS:
@@ -415,8 +415,10 @@ def build_ws_payload():
                     e_ = None
                 if not e_:
                     continue
+                if e_.get("plan"):
+                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "plan", "score", "max", "tv", "spark")})
                 if tf_ == ws_tf:
-                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark")}
+                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype")}
                                              | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
                     ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
@@ -424,7 +426,7 @@ def build_ws_payload():
             ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
         except Exception:
             ws_seed = None
-        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed}
+        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed, "mini": ws_mini}
     return cached_ws
 
 
@@ -461,6 +463,7 @@ LINKS_CSS = """<style>
 .mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
 .mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
 .mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
+.mini a.tg{border:0;cursor:help;text-decoration:none}
 .mini .tg{display:inline-block;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;font-weight:600;font-family:sans-serif}
 .mini a{color:#4aa3ff;text-decoration:none;border:1px solid #2b3139;border-radius:3px;padding:0 4px}
 </style>"""
@@ -483,56 +486,78 @@ def _spark_svg(vals, pl, long_, w=64, h=20):
     return f"<img width='{w}' height='{h}' src='data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}'/>"
 
 
-def mini_scanner_html(scan, n=7):
-    rows = []
-    for sym, e in sorted(scan.items(), key=lambda kv: -kv[1].get("score", 0)):
-        if not e.get("plan"):
+TT_OPTIONS = {"All": "الكل", "Scalp": "سكالب", "Day Trade": "داي تريد", "Swing": "سوينج", "Position": "بوزيشن"}
+
+
+def _strength_bar(pct):
+    col = "#0ecb81" if pct >= 60 else ("#f0b90b" if pct >= 40 else "#848e9c")
+    return (f"<span style='display:inline-block;width:34px;height:6px;background:#2b3139;border-radius:3px;vertical-align:middle'>"
+            f"<span style='display:block;width:{pct}%;height:6px;background:{col};border-radius:3px'></span></span> <b style='color:{col}'>{pct}%</b>")
+
+
+def mini_scanner_html(mini, side="All", ttype="All", n=7):
+    rows, seen = [], set()
+    for e in sorted(mini, key=lambda x: (-x.get("score", 0), x.get("symbol", ""))):
+        if side != "All" and e["direction"] != ("bullish" if side == "Long" else "bearish"):
             continue
-        long_ = e["dir"] == "bullish"
+        if ttype != "All" and e.get("ttype") != ttype:
+            continue
         pl = e["plan"]
+        key = (e["symbol"], e["direction"], e.get("tfk"))
+        if key in seen:
+            continue
+        seen.add(key)
+        long_ = e["direction"] == "bullish"
         pct = round(100 * e.get("score", 0) / max(1, e.get("max", 7)))
-        strat = "".join(f"<span class='tg' style='background:{html.escape(t[1])};color:{html.escape(t[2])}'>{html.escape(t[0])}</span>"
+        strat = "".join(f"<a class='tg' href='{html.escape(e.get('tv', '#'), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"title='{html.escape(t[3] if len(t) > 3 else '', quote=True)}' style='background:{html.escape(t[1])};color:{html.escape(t[2])}'>{html.escape(t[0])}</a>"
                         for t in e.get("tags", [])[:4]) or "-"
-        spark = _spark_svg(e.get("spark"), pl, long_)
         rows.append(
             "<tr>"
-            f"<td><b>{html.escape(sym)}</b></td>"
+            f"<td><b>{html.escape(e['symbol'])}</b> <span style='color:#848e9c'>{html.escape(str(e.get('tfk', '')))}</span></td>"
             f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
-            f"<td>{strat}</td><td>{spark}</td>"
+            f"<td style='color:#f0b90b'>{html.escape(str(e.get('trade', '')))}</td>"
+            f"<td>{strat}</td><td>{_spark_svg(e.get('spark'), pl, long_)}</td>"
             f"<td style='color:#f6465d'>{fmt_price(pl['stop'])}</td>"
             f"<td style='color:#0ecb81'>{fmt_price(pl['tps'][0])}</td>"
-            f"<td><b>{pct}%</b></td>"
-            f"<td><a href='{html.escape(e.get('tv', '#'))}' target='_blank' rel='noopener noreferrer'>TV</a></td></tr>"
+            f"<td>{_strength_bar(pct)}</td>"
+            f"<td><a href='{html.escape(e.get('tv', '#'), quote=True)}' target='_blank' rel='noopener noreferrer'>TV</a></td></tr>"
         )
         if len(rows) >= n:
             break
     if not rows:
         return "<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>لا توجد صفقات جاهزة الآن</div>"
-    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Setup</th><th>Shape</th><th>SL</th><th>TP1</th><th>%</th><th></th></tr>"
+    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Type</th><th>Setup</th><th>Shape</th><th>SL</th><th>TP1</th><th>Strength</th><th></th></tr>"
             + "".join(rows) + "</table></div>")
 
 
 def render_header():
     st.markdown(LINKS_CSS, unsafe_allow_html=True)
-    h1, h2, h3 = st.columns([1.3, 3.4, 3.0])
+    h1, h2, h3 = st.columns([1.5, 0.8, 5.0])
     with h1:
         logo = next((pth for pth in (Path("assets/logo.png"), Path("assets/logo.jpg"), Path("assets/logo.svg")) if pth.exists()), None)
         if logo is not None:
             st.image(str(logo), width=96)
         else:
-            st.markdown("<div style='font-size:26px;font-weight:800;line-height:1.1'>6868 X</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:26px;font-weight:800;line-height:1.1;min-height:42px'>6868 X</div>", unsafe_allow_html=True)
         st.markdown(f"<div style='font-size:10px;color:#848e9c'>{datetime.now().strftime('%H:%M:%S')} &middot; "
                     f"{'Live ' + str(refresh_secs) + 's' if auto_on else 'Live off'}</div>", unsafe_allow_html=True)
     with h2:
+        st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
+                 format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
+    with h3:
         st.markdown(links_bar_html(), unsafe_allow_html=True)
         try:
             st.markdown(ticker_html(get_latest_news(category="general", limit=15)), unsafe_allow_html=True)
         except Exception as e:  # the ticker must never take the page down
             st.caption(f"News ticker unavailable: {e}")
-    with h3:
-        st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
-                 format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
-        st.markdown(mini_scanner_html(build_ws_payload()["scan"]), unsafe_allow_html=True)
+    f1, f2, _f3 = st.columns([1.3, 3.2, 3.0])
+    with f1:
+        side = st.radio("Side", ["All", "Long", "Short"], horizontal=True, key="mini_side", label_visibility="collapsed")
+    with f2:
+        tt = st.radio("Trade type", list(TT_OPTIONS), horizontal=True, key="mini_tt", label_visibility="collapsed",
+                      format_func=lambda k: TT_OPTIONS[k])
+    st.markdown(mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
 
 
 with header_box:
@@ -555,7 +580,8 @@ with tab_workspace:
     ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                      "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
     render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                     scan=cached_ws["scan"], links=ws_links)
+                     scan=cached_ws["scan"], links=ws_links,
+                     filters={"side": st.session_state.get("mini_side", "All"), "tt": st.session_state.get("mini_tt", "All")})
     st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                "Data comes straight from OKX in your browser, no refresh needed.")

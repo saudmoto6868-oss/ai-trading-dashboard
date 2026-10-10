@@ -133,7 +133,7 @@ def _flip_text(text: str) -> str:
 _KEY_PATTERNS = [
     (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
-    (r"Zombie", "zombie"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
+    (r"Zombie", "zombie"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
 ]
@@ -535,6 +535,105 @@ def unicorn_bull(df, max_age: int = 60):
 
 
 # --------------------------------------------------------------------------
+# More ICT setups (counted inside the existing families so stars stay /7)
+# --------------------------------------------------------------------------
+
+def ote_bull(df):
+    """OTE = Optimal Trade Entry: price retraced 62-79% of a displacement leg."""
+    zz = zigzag(df)
+    if len(zz) < 2 or zz[-1][2] != "H" or zz[-2][2] != "L":
+        return []
+    (ia, a, _), (ib, b, _) = zz[-2], zz[-1]
+    leg = b - a
+    atr = float(atr_series(df).iloc[ib])
+    price = float(df["close"].iloc[-1])
+    if leg < 2.5 * atr or len(df) - ib > 100 or not (a < price < b):
+        return []
+    ret = (b - price) / leg
+    if 0.62 <= ret <= 0.79:
+        lo, hi = b - 0.79 * leg, b - 0.62 * leg
+        return [_mk("Fib", "OTE entry (62-79%)",
+                    "displacement leg {a} -> {b}; price retraced {ret:.0%} into the OTE zone {zl} - {zh}; invalid below {a}",
+                    prices={"a": a, "b": b}, vals={"ret": ret}, zone=(lo, hi))]
+    return []
+
+
+def fvg_bull(df, max_age: int = 30):
+    """Fair Value Gap: a 3-candle imbalance still unfilled, price retesting it."""
+    atr = atr_series(df).values
+    c = df["close"].values
+    price = float(c[-1])
+    for f in reversed(fvgs_bull(df, start=max(2, len(df) - max_age))):
+        i, lo, hi = f["i"], f["lo"], f["hi"]
+        if hi - lo < 0.3 * atr[i] or i >= len(df) - 1:
+            continue
+        if (c[i + 1:] < lo).any():
+            continue  # gap failed (closed through it)
+        if lo - 0.15 * atr[-1] <= price <= hi + 0.15 * atr[-1]:
+            return [_mk("MSB-OB", "Fair value gap retest",
+                        "bullish imbalance {zl} - {zh} (formed {ago} bars ago) still open; price is filling it - a support zone",
+                        vals={"ago": len(df) - 1 - i}, zone=(lo, hi))]
+    return []
+
+
+def breaker_bull(df, max_age: int = 60):
+    """Breaker block: sweep of lows -> structure shift up -> price retests the
+    last up-candle before the sweep (it flipped from resistance to support)."""
+    sw = sweeps_bull(df, lookback=max_age)
+    if not sw:
+        return []
+    atr = atr_series(df).values
+    c, o = df["close"].values, df["open"].values
+    price = float(c[-1])
+    highs = [(i, p) for i, p, k in fractal_pivots(df, 3) if k == "H"]
+    for sx in reversed(sw):
+        j = sx["j"]
+        prior = [(i, p) for i, p in highs if i < j]
+        if not prior:
+            continue
+        hh = prior[-1][1]
+        m = next((x for x in range(j + 1, len(df)) if c[x] > hh), None)
+        k = next((x for x in range(j - 1, max(j - 16, -1), -1) if c[x] > o[x]), None)
+        if m is None or k is None:
+            continue
+        blo, bhi = float(df["low"].values[k]), float(df["high"].values[k])
+        if (c[m + 1:] < blo).any():
+            continue
+        if len(df) - 1 > m and blo - 0.15 * atr[-1] <= price <= bhi + 0.15 * atr[-1]:
+            return [_mk("Unicorn", "Breaker block retest",
+                        "sweep of {lvl}, structure shift above {hh}; price retesting the breaker block {zl} - {zh}",
+                        prices={"lvl": sx["level"], "hh": hh}, zone=(blo, bhi))]
+    return []
+
+
+def judas_bull(df, window_bars: int = 8):
+    """Judas swing: right after the day's open (00:00 UTC) price makes a false
+    move DOWN through the open (>= 1 ATR), then reclaims it and trades above.
+    Intraday timeframes only."""
+    if "time" not in df.columns or len(df) < 40:
+        return []
+    t = pd.to_datetime(df["time"])
+    step = (t.iloc[-1] - t.iloc[-2]).total_seconds()
+    if step <= 0 or step >= 86400:
+        return []
+    day = t.dt.normalize()
+    idx = np.where(day.values == day.values[-1])[0]
+    if len(idx) < 4:
+        return []
+    d0 = idx[0]
+    dopen = float(df["open"].iloc[d0])
+    atr = float(atr_series(df).iloc[-1])
+    early = df.iloc[d0:d0 + window_bars]
+    fake_low = float(early["low"].min())
+    price = float(df["close"].iloc[-1])
+    if dopen - fake_low >= 1.0 * atr and price >= dopen + 0.3 * atr and len(df) - 1 >= d0 + 2:
+        return [_mk("Liquidity", "Judas swing (false open move)",
+                    "after the day's open {op}, price faked down to {lo} (stop run) then reclaimed the open and trades above it",
+                    prices={"op": dopen, "lo": fake_low})]
+    return []
+
+
+# --------------------------------------------------------------------------
 # Primary family: liquidity / OHL / key levels / breakouts
 # --------------------------------------------------------------------------
 
@@ -588,7 +687,7 @@ def breakout_bull(df, lookback: int = 20):
 
 
 DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, unicorn_bull,
-             sweep_signal_bull, zombie_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
+             sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

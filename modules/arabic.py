@@ -53,6 +53,10 @@ KEY_TAGS = {
     "level": ("دعم/مقاومة", "#9e9e9e", "#000"),
     "zombie": ("زومبي", "#ff5fa2", "#000"),
     "ew3": ("موجة 3", "#f0b90b", "#000"),
+    "ote": ("OTE", "#ff7043", "#000"),
+    "fvg": ("FVG", "#7e57c2", "#fff"),
+    "breaker": ("بريكر", "#ab47bc", "#fff"),
+    "judas": ("يهوذا", "#ec407a", "#000"),
 }
 
 
@@ -60,17 +64,30 @@ def tag_for(sig: dict) -> tuple:
     return KEY_TAGS.get(sig.get("key")) or TAGS.get(sig.get("family"), (sig.get("family", "?"), "#555", "#fff"))
 
 
-def tags_html(signals: list) -> str:
+def tip_for(sig: dict) -> str:
+    """Plain-language tooltip for one signal instance, built from the detector data."""
+    try:
+        name, detail = signal_ar(sig)
+        return f"{name}: {detail}"
+    except Exception:
+        return sig.get("name", "")
+
+
+def tags_html(signals: list, link: str | None = None) -> str:
+    """Coloured badges; hover shows the real explanation of THIS signal, click opens TradingView."""
     seen, out = set(), []
     for s in signals:
         text, bg, fg = tag_for(s)
         if text in seen:
             continue
         seen.add(text)
-        out.append(
-            f"<span style='display:inline-block;background:{bg};color:{fg};font-size:11px;font-weight:700;"
-            f"padding:1px 6px;margin:0 3px 2px 0;border-radius:3px'>{html.escape(text)}</span>"
-        )
+        tip = html.escape(tip_for(s), quote=True)
+        style = (f"display:inline-block;background:{bg};color:{fg};font-size:11px;font-weight:700;"
+                 f"padding:1px 6px;margin:0 3px 2px 0;border-radius:3px;text-decoration:none;cursor:help")
+        if link:
+            out.append(f"<a href='{html.escape(link, quote=True)}' target='_blank' rel='noopener noreferrer' title='{tip}' style='{style}'>{html.escape(text)}</a>")
+        else:
+            out.append(f"<span title='{tip}' style='{style}'>{html.escape(text)}</span>")
     return "".join(out)
 
 
@@ -136,6 +153,19 @@ def signal_ar(s: dict) -> tuple:
     if k == "zombie":
         return ("حركة الزومبي (سحب سيولة عند EMA9)",
                 f"ذيل كسر {'قاع' if bull else 'قمة'} {f('lvl')} عند EMA9 ({f('e')}) ثم ارتد بقوة {'لأعلى' if bull else 'لأسفل'} - سحب ستوبات ثم انعكاس سريع")
+    if k == "ote":
+        return ("دخول OTE (منطقة 62-79%)",
+                f"موجة اندفاع من {f('a')} إلى {f('b')}؛ السعر ارتد {n_(format(v.get('ret', 0), '.0%'))} داخل منطقة الدخول المثالية {f('zl')} - {f('zh')}")
+    if k == "fvg":
+        return ("إعادة اختبار فجوة القيمة العادلة FVG",
+                f"فجوة سعرية {'صاعدة' if bull else 'هابطة'} {f('zl')} - {f('zh')} (تكونت منذ {n_(v.get('ago', '?'))} شمعة) لم تُغلق بعد؛ السعر يملؤها - منطقة {'دعم' if bull else 'مقاومة'}")
+    if k == "breaker":
+        return ("إعادة اختبار البريكر بلوك",
+                f"سحب سيولة {f('lvl')} ثم تحول هيكلي {f('hh')}؛ السعر يعيد اختبار البريكر {f('zl')} - {f('zh')}")
+    if k == "judas":
+        return ("يهوذا سوينج (حركة وهمية عند الافتتاح)",
+                f"بعد افتتاح اليوم {f('op')} نزل السعر وهميا إلى {f('lo')} (سحب ستوبات) ثم استعاد الافتتاح ويتداول {up} منه" if bull else
+                f"بعد افتتاح اليوم {f('op')} صعد السعر وهميا إلى {f('lo')} (سحب ستوبات) ثم استعاد الافتتاح ويتداول {up} منه")
     if k == "liqline":
         return ("كسر خط السيولة", f"إغلاق عبر مستوى السيولة {f('lvl')} (مستوى بُني على حجم تداول عالٍ بشكل غير عادي)")
     if k == "ohl_open":
@@ -318,7 +348,7 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
         t = tag_for(s)
         if t[0] not in seen:
             seen.add(t[0])
-            tags.append([t[0], t[1], t[2]])
+            tags.append([t[0], t[1], t[2], tip_for(s)])
     zones = [[round(float(s["zone"][0]), 6), round(float(s["zone"][1]), 6), tag_for(s)[1]] for s in r["signals"] if s.get("zone")]
     return {
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),

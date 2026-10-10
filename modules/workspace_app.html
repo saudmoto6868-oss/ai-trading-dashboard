@@ -150,6 +150,14 @@ const settings = Object.assign({smart:4, big:5, absorb:3}, store.get(LS+"_set", 
 const saveSettings = () => store.set(LS+"_set", settings);
 const extraSyms = store.get(LS+"_syms", []).filter(x => /^[A-Z0-9]{2,12}-[A-Z0-9]{2,6}$/.test(x));
 extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
+// Long/Short + trade-type filters chosen above the scanner table (Streamlit side) apply to chart overlays and alert cards too
+function passFilters(dir, ttype){
+  const f = CFG.filters || {};
+  if (f.side === "Long" && dir !== "bullish") return false;
+  if (f.side === "Short" && dir !== "bearish") return false;
+  if (f.tt && f.tt !== "All" && ttype && ttype !== f.tt) return false;
+  return true;
+}
 const Alerts = {
   list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),
   add(id, kind, sym, text, color, card){
@@ -618,7 +626,7 @@ class Panel {
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
     const chan = "candle"+tf, subMin = TFSEC[tf] < 60;
-    this.chart.overlay = CFG.scan && CFG.scan[sym] || null; this.chart.marks = [];
+    this.chart.overlay = (CFG.scan && CFG.scan[sym] && passFilters(CFG.scan[sym].dir, CFG.scan[sym].ttype)) ? CFG.scan[sym] : null; this.chart.marks = [];
     this.flt = {prev:null, events:[], sym, abs:new Set()};
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.flt, p.rows); this.syncMarks(); } }));
@@ -777,7 +785,7 @@ class Panel {
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
       const now = Date.now();
-      const rows = Alerts.list.filter(a => a.card && (!F.tf || a.card.tfk === F.tf) && (!F.tt || a.card.ttype === F.tt) && (!F.dir || a.card.direction === F.dir))
+      const rows = Alerts.list.filter(a => a.card && passFilters(a.card.direction, a.card.ttype) && (!F.tf || a.card.tfk === F.tf) && (!F.tt || a.card.ttype === F.tt) && (!F.dir || a.card.direction === F.dir))
         .sort((x,y) => (y.card.score - x.card.score) || (y.t - x.t));
       this.aBox.innerHTML = "";
       if (!rows.length){ this.aBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("noalerts"))+'</div>'; return; }
@@ -974,7 +982,7 @@ function alertCard(a){
   const d = el("div","card"); d.style.borderInlineStart = "3px solid "+(bull ? "#0ecb81" : "#f6465d");
   d.innerHTML = '<div class="row"><span class="logo" style="background:'+logoColor(base)+'">'+esc(base.slice(0,4))+'</span><b style="font-size:13px">'+esc(c.symbol)+'</b>'
     +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+(bull?"شراء":"بيع")+'</span><span class="grow"></span><span class="stars" title="'+c.score+'/'+c.max+'">'+st+'</span></div>'
-    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<span class="badge" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(t[0])+'</span>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
+    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(t[3]||"")+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(t[0])+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
     +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
     +'<div class="row" style="margin-top:5px"><span class="badge" style="border:1px solid #f0b90b;color:#f0b90b">'+esc(c.trade)+'</span><span class="m">'+esc(T("eta"))+': TP1 '+esc((c.eta||{}).tp1||"-")+' · TP3 '+esc((c.eta||{}).tp3||"-")+'</span></div>'
     +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';

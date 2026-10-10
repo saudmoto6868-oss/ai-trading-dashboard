@@ -52,6 +52,11 @@ td{padding:1px 4px;white-space:nowrap}
 .bar2{display:flex;height:5px;margin:3px 6px;border-radius:2px;overflow:hidden}
 .cell{position:relative;height:17px}.cell .f{position:absolute;top:0;bottom:0;opacity:.3}.cell .t{position:relative;padding:0 4px;line-height:17px}
 .big{border:1px solid var(--gold)}
+table.fx{table-layout:fixed}table.fx td,table.fx th{overflow:hidden;text-overflow:ellipsis}
+th{position:sticky}th .rzh{position:absolute;right:-3px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
+th .rzh:hover{background:var(--gold);opacity:.5}
+.seg{display:inline-flex}.seg button{border-radius:0;padding:1px 7px}.seg button:first-child{border-radius:4px 0 0 4px}.seg button:last-child{border-radius:0 4px 4px 0}
+.hdr{display:flex;align-items:center;gap:6px;padding-inline-end:6px}.hdr>div:first-child{flex:1;min-width:0}
 @keyframes flb{0%{background:rgba(14,203,129,.65)}100%{background:transparent}}
 @keyframes fls{0%{background:rgba(246,70,93,.65)}100%{background:transparent}}
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(240,185,11,0)}50%{box-shadow:0 0 9px 2px rgba(240,185,11,.85)}}
@@ -87,7 +92,7 @@ const TFS = [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["1H","1h"],["4
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No alerts yet — scanner signals, whale prints and big-order events will collect here.",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No alerts yet — scanner signals, whale prints and big-order events will collect here.",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -99,7 +104,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش تنبيهات لسه — إشارات السكانر وصفقات الحيتان وأحداث الأوامر الكبيرة هتتجمع هنا.",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش تنبيهات لسه — إشارات السكانر وصفقات الحيتان وأحداث الأوامر الكبيرة هتتجمع هنا.",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -242,9 +247,13 @@ const Hub = {
     const buy = rows.filter(r=>r.side==="Buy").reduce((a,r)=>a+r.q,0), sell = rows.filter(r=>r.side==="Sell").reduce((a,r)=>a+r.q,0);
     const span = rows.length ? (rows[rows.length-1].t - rows[0].t)/1000 : 0;
     const hits = {}; rows.filter(r=>r.isNew).forEach(r => hits[r.p] = r.side);
+    st.map = st.map || new Map(); st.buf = st.buf || [];
+    st.buf.forEach(b => b.isNew = false);
+    rows.forEach(r => { const o = st.map.get(r.id); if (o){ o.tier = r.tier; o.absorb = r.absorb; o.adir = r.adir; o.isNew = r.isNew; } else { st.map.set(r.id, r); st.buf.push(r); } });
+    if (st.buf.length > 3000){ st.buf.splice(0, 600).forEach(b => st.map.delete(b.id)); }
     if (!st.first) rows.filter(r=>r.absorb).slice(-1).forEach(r => Alerts.add("a|"+sym+"|"+r.p+"|"+Math.floor(Date.now()/120000), "absorb", sym, sym+" · ABSORB @ "+fmtP(r.p)+" ("+r.adir+")", "#b57cff"));
     const ab = new Set(rows.filter(r=>r.absorb).map(r=>r.p));
-    return { rows, hits, ab, abDir: (rows.find(r=>r.absorb)||{}).adir || "",
+    return { rows, all: st.buf, hits, ab, abDir: (rows.find(r=>r.absorb)||{}).adir || "",
              stats:{ pace: span>0 ? rows.length/span : rows.length, buyPct: buy+sell ? 100*buy/(buy+sell) : 50, delta: buy-sell } };
   }
 };
@@ -560,15 +569,26 @@ class Panel {
     this.domBox = el("div"); this.body.append(tb, this.domBox); this.resub();
   }
   /* ---- tape ---- */
+  winSelect(key, def){
+    const sel = el("select"); sel.title = T("win");
+    [["1m",60000],["5m",300000],["15m",900000],["1h",3600000],["all",0]].forEach(([l,v]) => { const o = el("option"); o.value = v; o.textContent = l; sel.append(o); });
+    sel.value = this.state[key] != null ? this.state[key] : def; sel.onchange = () => { this.state[key] = +sel.value; Ws.save(); this.rerender && this.rerender(); };
+    return sel;
+  }
   build_tape(){
-    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
-    this.statBox = el("div"); this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
-    this.body.append(tb, this.statBox, this.tapeBox, this.legBox); this.resub();
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("win", 300000));
+    const hd = el("div","hdr"); this.statBox = el("div"); this.depthCv = el("canvas"); this.depthCv.width = 240; this.depthCv.height = 84; this.depthCv.style.cssText = "width:120px;height:42px;flex:none;background:#0b0e11;border-radius:3px";
+    hd.append(this.statBox, this.depthCv);
+    this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
+    this.body.append(tb, hd, this.tapeBox, this.legBox); bindColResize(this, this.tapeBox, "tape", TAPE_COLS); this.resub();
   }
   /* ---- limits ---- */
   build_limits(){
-    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
-    this.evBox = el("div"); this.body.append(tb, this.evBox); this.resub();
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("lwin", 900000));
+    const seg = el("div","seg"); this.fltBtns = {};
+    [["all","fAll"],["bid","fBid"],["ask","fAsk"],["abs","fAbs"]].forEach(([k,l]) => { const b = el("button",null,T(l)); b.onclick = () => { this.state.flt = k; Object.entries(this.fltBtns).forEach(([kk,bb]) => bb.classList.toggle("on", kk===k)); Ws.save(); this.rerender(); }; this.fltBtns[k] = b; seg.append(b); });
+    this.state.flt = this.state.flt || "all"; this.fltBtns[this.state.flt].classList.add("on"); tb.append(seg);
+    this.evBox = el("div"); this.body.append(tb, this.evBox); bindColResize(this, this.evBox, "lim", LIM_COLS); this.resub();
   }
   /* ---- watchlist ---- */
   build_watch(){
@@ -647,17 +667,28 @@ Panel.prototype.resub = function(){
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
     this.unsubs.push(Hub.sub("trades", sym, () => {}));
   } else if (this.type === "tape"){
-    this.unsubs.push(Hub.sub("trades", sym, p => {
-      if (p.error){ this.tapeBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
-      const s = p.stats;
-      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+s.pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(s.delta>=0?"g":"rd")+'">'+(s.delta>=0?"+":"-")+fmtQ(Math.abs(s.delta))+'</b>'+(p.abDir ? ' · <b style="color:#b57cff" class="ab">ABSORB by '+p.abDir+'</b>' : '')+'</div><div class="bar2"><div style="width:'+s.buyPct.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-s.buyPct).toFixed(0)+'%;background:#f6465d"></div></div>';
-      this.tapeBox.innerHTML = renderTape(p.rows.slice().reverse().slice(0, 40));
-    }));
+    let last = null, book = null;
+    this.rerender = () => {
+      if (!last) return;
+      if (last.error){ this.tapeBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      const w = this.state.win != null ? this.state.win : 300000, now = Date.now();
+      const rows = (last.all || last.rows).filter(r => !w || r.t >= now - w);
+      const buy = rows.filter(r=>r.side==="Buy").reduce((a,r)=>a+r.q,0), sell = rows.filter(r=>r.side==="Sell").reduce((a,r)=>a+r.q,0);
+      const span = w ? w/1000 : (rows.length ? Math.max(1,(rows[rows.length-1].t-rows[0].t)/1000) : 1);
+      const pace = rows.length/span, bp = buy+sell ? 100*buy/(buy+sell) : 50, d = buy-sell;
+      const abr = rows.filter(r=>r.absorb), abDir = abr.length ? abr[abr.length-1].adir : "";
+      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(d>=0?"g":"rd")+'">'+(d>=0?"+":"-")+fmtQ(Math.abs(d))+'</b>'+(abDir ? ' · <b style="color:#b57cff" class="ab">ABSORB '+abDir+'</b>' : '')+'</div><div class="bar2"><div style="width:'+bp.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bp).toFixed(0)+'%;background:#f6465d"></div></div>';
+      this.tapeBox.innerHTML = renderTape(this, rows.slice().reverse().slice(0, 80));
+      drawDepth(this.depthCv, book);
+    };
+    this.unsubs.push(Hub.sub("trades", sym, p => { last = p; this.rerender(); }));
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b.error ? null : b; drawDepth(this.depthCv, book); }));
   } else if (this.type === "limits"){
-    this.lt = {prev:null, events:[], sym}; let book = null;
-    const run = () => { const tp = Hub.last["trades|"+sym]; if (book && !book.error) limitUpdate(this.lt, book, tp && !tp.error ? tp.rows : null); this.evBox.innerHTML = renderEvents(this.lt.events); };
+    this.lt = {prev:null, events:[], sym, abs:new Set()}; let book = null;
+    this.rerender = () => { this.evBox.innerHTML = renderEvents(this, this.lt.events); };
+    const run = () => { const tp = Hub.last["trades|"+sym]; if (book && !book.error) limitUpdate(this.lt, book, tp && !tp.error ? tp.rows : null); this.rerender(); };
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; run(); }));
-    this.unsubs.push(Hub.sub("trades", sym, () => {}));
+    this.unsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.lt, p.rows); this.rerender(); } }));
   } else if (this.type === "watch"){
     this.unsubs.push(Hub.sub("tickers", "all", m => {
       if (m.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
@@ -688,16 +719,53 @@ function renderDom(book, tape, prev){
   bids.forEach(x => rows += line(x,"bid"));
   return {html:'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
 }
-function renderTape(rows){
-  let h = '<table><tr><th>'+esc(T("time"))+'</th><th>'+esc(T("price"))+'</th><th class="r">'+esc(T("size"))+'</th><th class="r">'+esc(T("value"))+'</th><th></th></tr>';
+const TAPE_COLS = [24,20,22,18,16], LIM_COLS = [14,10,20,16,28,12];
+function colGroup(panel, key, def){ const w = (panel.state.cw && panel.state.cw[key]) || def; return '<colgroup>'+w.map(x => '<col style="width:'+x+'%">').join("")+'</colgroup>'; }
+function headRow(labels, aligns){ return '<tr>'+labels.map((l,i) => '<th class="'+(aligns[i]||"")+'" style="position:sticky">'+esc(l)+(i < labels.length-1 ? '<span class="rzh" data-i="'+i+'"></span>' : '')+'</th>').join("")+'</tr>'; }
+function bindColResize(panel, box, key, def){
+  box.addEventListener("pointerdown", e => {
+    const h = e.target.closest(".rzh"); if (!h) return; e.preventDefault(); e.stopPropagation();
+    const i = +h.dataset.i, table = box.querySelector("table"), total = table.clientWidth || 1, sx = e.clientX;
+    const w0 = ((panel.state.cw && panel.state.cw[key]) || def).slice();
+    const mv = ev => {
+      const d = (ev.clientX - sx)/total*100, w = w0.slice(), mn = 4;
+      let a = w0[i] + d, b = w0[i+1] - d; if (a < mn){ b -= mn - a; a = mn; } if (b < mn){ a -= mn - b; b = mn; }
+      w[i] = a; w[i+1] = b; panel.state.cw = panel.state.cw || {}; panel.state.cw[key] = w;
+      table.querySelectorAll("col").forEach((c,j) => c.style.width = w[j]+"%");
+    };
+    const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); Ws.save(); };
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+  });
+}
+function renderTape(panel, rows){
+  let h = '<table class="fx">'+colGroup(panel,"tape",TAPE_COLS)+headRow([T("price"),T("size"),T("value"),"",T("time")],["","r","r","","r"]);
   rows.forEach(r => {
-    const buy = r.side === "Buy", col = buy ? "#0ecb81" : "#f6465d";
+    const buy = r.side === "Buy", col = buy ? "#0ecb81" : "#f6465d", rgb = buy ? "14,203,129" : "246,70,93";
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
-    const bg = r.tier === "whale" ? "rgba(240,185,11,.22)" : r.tier === "smart" ? "rgba(240,185,11,.10)" : "transparent";
+    const bg = r.absorb ? "rgba(181,124,255,.28)" : "rgba("+rgb+","+(r.tier === "whale" ? .38 : r.tier === "smart" ? .24 : .10)+")";
+    const edge = r.tier !== "normal" ? "box-shadow:inset 3px 0 0 #f0b90b;" : "";
     const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " ABSORB" : "");
-    h += '<tr class="'+cls+'" style="background:'+bg+';color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td class="m" style="font-weight:400">'+hms(r.t)+'</td><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#b57cff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td></tr>';
+    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
+}
+function drawDepth(cv, book){
+  if (!cv) return; const c = cv.getContext("2d"), W = cv.width, H = cv.height; c.clearRect(0,0,W,H);
+  if (!book || !book.bids || !book.bids.length) return;
+  const bids = book.bids.slice().sort((a,b)=>b.p-a.p).slice(0,40), asks = book.asks.slice().sort((a,b)=>a.p-b.p).slice(0,40);
+  let cb = 0, ca = 0; const B = bids.map(x => ({p:x.p, c:(cb += x.q)})), A = asks.map(x => ({p:x.p, c:(ca += x.q)}));
+  const lo = B[B.length-1].p, hi = A[A.length-1].p, mx = Math.max(cb, ca) || 1, X = p => (p-lo)/(hi-lo || 1)*W, Y = v => H - 3 - v/mx*(H-8);
+  const area = (pts, col, fill) => {
+    c.beginPath(); c.moveTo(X(pts[0].p), H); pts.forEach(q => c.lineTo(X(q.p), Y(q.c))); c.lineTo(X(pts[pts.length-1].p), H); c.closePath();
+    c.fillStyle = fill; c.fill(); c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); pts.forEach((q,i) => i ? c.lineTo(X(q.p), Y(q.c)) : c.moveTo(X(q.p), Y(q.c))); c.stroke();
+  };
+  area(B, "#0ecb81", "rgba(14,203,129,.28)"); area(A, "#f6465d", "rgba(246,70,93,.28)");
+}
+function absorbEvents(lt, rows){
+  const now = Date.now(), seen = {};
+  rows.filter(r => r.absorb).forEach(r => { const o = seen[r.p] = seen[r.p] || {q:0, adir:r.adir}; o.q += r.q; });
+  Object.entries(seen).forEach(([p,o]) => { const k = p+"|"+Math.floor(now/120000); if (lt.abs.has(k)) return; lt.abs.add(k); lt.events.unshift({t:now, ev:"ABSORB", side:o.adir === "sellers" ? "ask" : "bid", p:+p, q:o.q}); });
+  lt.events = lt.events.slice(0, 200);
 }
 function limitUpdate(lt, book, rows){
   const now = Date.now(), cur = {};
@@ -715,14 +783,17 @@ function limitUpdate(lt, book, rows){
       if (nq < 0.4*old){ const thru = (s==="ask" && hi != null && hi >= p) || (s==="bid" && lo != null && lo <= p); lt.events.unshift({t:now, ev:thru?"FILLED":"PULLED", side:s, p, q:old}); }
     });
   }
-  lt.prev = cur; lt.events = lt.events.slice(0, 40);
+  lt.prev = cur; lt.events = lt.events.slice(0, 200);
   lt.events.filter(e => e.t === now).forEach(e => Alerts.add("l|"+lt.sym+"|"+e.ev+"|"+e.side+"|"+e.p+"|"+Math.floor(e.t/60000), "limit", lt.sym, lt.sym+" · "+e.ev+" "+e.side.toUpperCase()+" "+fmtQ(e.q)+" @ "+fmtP(e.p), e.ev==="PULLED" ? "#f0b90b" : e.ev==="PLACED" ? "#4aa3ff" : "#848e9c"));
 }
-function renderEvents(ev){
+function renderEvents(panel, evAll){
+  const w = panel.state.lwin != null ? panel.state.lwin : 900000, f = panel.state.flt || "all", now = Date.now();
+  const ev = evAll.filter(e => (!w || e.t >= now - w) && (f === "all" || (f === "abs" ? e.ev === "ABSORB" : e.side === f)));
   if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
-  const col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#848e9c"}, note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled")}, now = Date.now();
-  let h = '<table><tr><th>'+esc(T("time"))+'</th><th>Event</th><th>Side</th><th>'+esc(T("price"))+'</th><th class="r">'+esc(T("size"))+'</th><th></th></tr>';
-  ev.slice(0,15).forEach(e => { h += '<tr class="'+(now-e.t<30000?"evn":"")+'"><td class="m">'+hms(e.t)+'</td><td style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td></tr>'; });
+  const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff"};
+  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:"absorption"};
+  let h = '<table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
+  ev.slice(0,60).forEach(e => { h += '<tr class="'+(now-e.t<30000?"evn":"")+'" style="background:rgba('+rgb[e.ev]+',.20);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';
 }
 

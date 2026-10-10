@@ -30,12 +30,18 @@
 #det{margin-top:4px;padding:6px;border:1px solid var(--line);border-radius:6px;background:#10151a;font-size:11px;min-height:38px}
 #det a{color:#4aa3ff}
 .leg{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0;font-size:10px;color:var(--mut)}.leg label{cursor:pointer;display:flex;align-items:center;gap:3px}
+#bell{flex:none;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:2px 8px;cursor:pointer;font-size:11px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bell.hot{border-color:#f6465d;color:#f6465d}#bell.blink{animation:bl .8s infinite}@keyframes bl{50%{background:#3a1218}}
+#evpop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92%);max-height:92%;overflow:auto;background:#10151a;border:1px solid var(--acc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.8);padding:10px 12px;z-index:5;display:none}
+#evpop h4{margin:0 0 4px;font-size:13px}#evpop .x{position:absolute;right:8px;top:6px;cursor:pointer;color:var(--mut)}
+#evpop a{color:#4aa3ff}#evpop .hl{padding:4px 0;border-top:1px solid #20262c}
 #st{color:var(--mut);font-size:10px;margin-inline-start:6px}
 </style></head><body>
 <div id="strip">
   <div id="logo"></div>
   <div id="links" style="display:flex;gap:4px;align-items:center;flex:none"></div>
   <div id="tick" title="Click for the news list"><span class="tag">NEWS ▾</span><div class="track" id="track"></div></div>
+  <div id="bell" title="Next high-impact news (click for the calendar)">🔔 …</div>
   <div class="clk"><small>CAIRO</small><b id="tc">--:--:--</b></div>
   <div class="clk"><small>NEW YORK</small><b id="tn">--:--:--</b></div>
   <div class="lk" id="wm" title="World map: events">🌐 World</div>
@@ -43,8 +49,8 @@
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
     <div class="leg" id="leg"></div><div class="leg"><label><input type="radio" name="sv" value="ev" checked>Events</label><label><input type="radio" name="sv" value="cal">Economic calendar</label></div>
-    <div class="row"><div id="mapc"><canvas id="cv" width="880" height="440"></canvas></div><div id="side"></div></div>
-    <div id="det">Click a marker or an item to see details. <span id="st"></span></div>
+    <div class="row"><div id="mapc"><canvas id="cv" width="880" height="440"></canvas><div id="evpop"></div></div><div id="side"></div></div>
+    <div id="det">Click a marker or an item: a popup opens with the news / video. <span id="st"></span></div>
   </div>
 </div>
 <script>
@@ -119,10 +125,19 @@ $("cv").addEventListener("click", e => {
   let best = null, bd = 18; WM.events.filter(v => WM.on.has(v.cat)).forEach(v => { const [px,py] = proj(v.lon,v.lat,cv.width,cv.height), d = Math.hypot(px-x,py-y); if (d < bd){ bd = d; best = v; } });
   if (best) wmSelect(best);
 });
-function wmSelect(e){
+async function wmSelect(e){
   if (!e) return; WM.sel = e; wmDraw(); wmList();
-  $("det").innerHTML = '<b style="color:'+CATS[e.cat][0]+'">'+esc(CATS[e.cat][1])+'</b> · '+esc(e.title)+'<div style="color:var(--mut);margin:2px 0">'+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div>'+esc(e.desc)+'</div>' : "")+(safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Open source ↗</a> · ' : "")
+  const links = (safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Source ↗</a> · ' : "")
     +'<a target="_blank" rel="noopener noreferrer" href="https://news.google.com/search?q='+encodeURIComponent(e.title)+'">News ↗</a> · <a target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/results?search_query='+encodeURIComponent(e.title+" live")+'">Video ↗</a>';
+  const pop = $("evpop"); pop.style.display = "block";
+  pop.innerHTML = '<span class="x" id="evx">✕</span><h4 style="color:'+CATS[e.cat][0]+'">'+esc(e.title)+'</h4><div style="color:var(--mut);margin-bottom:6px">'+esc(CATS[e.cat][1])+' · '+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div style="margin-bottom:6px">'+esc(e.desc)+'</div>' : "")+'<div>'+links+'</div><div id="hl" style="margin-top:8px;color:var(--mut)">Loading related headlines…</div>';
+  $("evx").onclick = () => { pop.style.display = "none"; };
+  try {
+    const q = encodeURIComponent(e.title.replace(/^M[\d.]+\s+/, "").slice(0, 80));
+    const d = await jget("https://api.gdeltproject.org/api/v2/doc/doc?query="+q+"&mode=ArtList&format=json&maxrecords=6&sort=DateDesc");
+    const arts = (d.articles || []).slice(0, 6);
+    $("hl").innerHTML = arts.length ? '<b style="color:var(--txt)">Related headlines</b>'+arts.map(a => '<div class="hl"><a target="_blank" rel="noopener noreferrer" href="'+esc(safe(a.url))+'">'+esc(a.title)+'</a><div style="font-size:10px">'+esc(a.domain||"")+'</div></div>').join("") : "No related headlines found.";
+  } catch(err){ const h = $("hl"); if (h) h.textContent = "Related headlines unavailable here — use the News / Video links."; }
 }
 function topoRings(t){   // minimal TopoJSON (world-atlas) decoder -> polygon rings in lon/lat
   const [sx,sy] = t.transform.scale, [tx,ty] = t.transform.translate;
@@ -147,16 +162,37 @@ async function wmLoad(){
   await Promise.allSettled(jobs);
   WM.events.sort((a,b) => b.t - a.t); $("st").textContent = msgs.length ? "(could not load: "+msgs.join(", ")+")" : ""; wmDraw(); wmList();
 }
-/* ---- economic calendar (high / medium impact this week, shown in Cairo time) ---- */
-let CAL = null, sideMode = "ev";
+/* ---- economic calendar (server data CFG.cal, else fetched here) + news alert bell ---- */
+let CAL = null, sideMode = "ev", audioOK = false, beeped = {};
+document.addEventListener("pointerdown", () => { audioOK = true; }, {once:true});
+async function calData(){
+  if (CAL) return CAL;
+  if (CFG.cal && CFG.cal.length){ CAL = CFG.cal; return CAL; }
+  const rows = await jget("https://nfs.faireconomy.media/ff_calendar_thisweek.json");
+  CAL = rows.filter(e => /high|medium/i.test(e.impact)).map(e => ({title:e.title, country:e.country, ts:Date.parse(e.date), impact:/high/i.test(e.impact) ? "High" : "Medium", forecast:e.forecast||"", previous:e.previous||""})).sort((a,b) => a.ts-b.ts);
+  return CAL;
+}
 document.querySelectorAll('input[name=sv]').forEach(r => r.onchange = () => { sideMode = r.value; if (sideMode === "cal") calLoad(); else wmList(); });
+const cairoFmt = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", weekday:"short", hour:"2-digit", minute:"2-digit", hour12:false});
 async function calLoad(){
   $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Loading…</div>';
-  try { if (!CAL) CAL = (await jget("https://nfs.faireconomy.media/ff_calendar_thisweek.json")).filter(e => /high|medium/i.test(e.impact)).sort((a,b) => Date.parse(a.date)-Date.parse(b.date)); }
-  catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Calendar feed not reachable from here ('+esc(e.message||e)+'). Use the ForexFactory link.</div>'; return; }
-  const fmt = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", weekday:"short", hour:"2-digit", minute:"2-digit", hour12:false}), now = Date.now();
-  $("side").innerHTML = CAL.map(e => { const t = Date.parse(e.date), col = /high/i.test(e.impact) ? "#f6465d" : "#f0b90b";
-    return '<div class="ev" style="'+(t < now ? "opacity:.5" : "")+'"><span class="dot" style="background:'+col+'"></span><b>'+esc(e.country)+'</b> '+esc(e.title)+'<div style="color:var(--mut);font-size:10px">'+fmt.format(t)+' Cairo · fcst '+esc(e.forecast||"-")+' · prev '+esc(e.previous||"-")+'</div></div>'; }).join("") || '<div style="padding:8px;color:var(--mut)">No events.</div>';
+  let cal; try { cal = await calData(); } catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Calendar feed not reachable ('+esc(e.message||e)+'). Use the ForexFactory link.</div>'; return; }
+  const now = Date.now();
+  $("side").innerHTML = cal.map(e => { const col = e.impact === "High" ? "#f6465d" : "#f0b90b", d = e.ts - now, soon = d > -600000 && d < 172800000;
+    return '<div class="ev" style="'+(d < -600000 ? "opacity:.45" : "")+'"><span class="dot" style="background:'+col+'"></span><b>'+esc(e.country)+'</b> '+esc(e.title)+(soon && e.impact === "High" ? ' <span style="color:#f6465d">●</span>' : "")+'<div style="color:var(--mut);font-size:10px">'+cairoFmt.format(e.ts)+' Cairo · fcst '+esc(e.forecast||"-")+' · prev '+esc(e.previous||"-")+'</div></div>'; }).join("") || '<div style="padding:8px;color:var(--mut)">No events.</div>';
 }
+function beep(){ if (!audioOK) return; try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); o.stop(a.currentTime + .35); } catch(e){} }
+async function bellTick(){
+  let cal; try { cal = await calData(); } catch(e){ $("bell").textContent = "🔔 calendar n/a"; return; }
+  const now = Date.now(), nx = cal.find(e => e.impact === "High" && e.ts > now - 300000);
+  const b = $("bell"); b.classList.remove("hot","blink");
+  if (!nx){ b.textContent = "🔔 no high-impact news"; return; }
+  const d = nx.ts - now, m = Math.round(d/60000), txt = d < 0 ? "now" : m < 60 ? m+"m" : Math.floor(m/60)+"h "+(m%60)+"m", day = new Date(nx.ts).toDateString() === new Date().toDateString() ? "today" : "later";
+  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+")";
+  if (d < 3600000) b.classList.add("hot"); if (d < 900000) b.classList.add("blink");
+  const k = nx.ts+"|15"; if (d < 900000 && d > 0 && !beeped[k]){ beeped[k] = 1; beep(); }
+}
+$("bell").onclick = () => { if (openId !== "wmPop") $("wm").click(); document.querySelector('input[name=sv][value=cal]').checked = true; sideMode = "cal"; calLoad(); };
+bellTick(); setInterval(bellTick, 30000);
 window.__wm = WM;
 </script></body></html>

@@ -40,6 +40,7 @@ from modules.workspace import render_workspace, seed_from_df
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
+from modules.calendar_feed import fetch_calendar
 from modules.chart_scan import ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, SHORT as CS_SHORT, features as cs_features, mini_chart_svg
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
@@ -405,14 +406,19 @@ def build_ws_payload():
     except Exception:
         ws_key = None
     cached_ws = st.session_state.get("ws_payload")
-    if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None:
-        ws_alerts, ws_scan, ws_seed, ws_mini = [], {}, None, []
+    # an empty/failed scan is retried after 60 s instead of being kept for the whole candle
+    stale_empty = bool(cached_ws) and not cached_ws.get("mini") and time.time() - cached_ws.get("built", 0) > 60
+    if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None or stale_empty:
+        ws_alerts, ws_scan, ws_seed, ws_mini, ws_errs = [], {}, None, [], []
         # alerts = real scanner trades on every scan timeframe (1m scalp ... 1w position);
         # the watchlist tags only use the chosen scan timeframe
         for tf_ in SCAN_TFS:
             try:
                 ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, tf_)
-            except Exception:
+                if _ws_notice:
+                    ws_errs.append(f"{tf_}: {_ws_notice[:120]}")
+            except Exception as ex_:
+                ws_errs.append(f"{tf_}: {ex_}")
                 continue
             for r_ in ws_results:
                 try:
@@ -435,7 +441,8 @@ def build_ws_payload():
             ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
         except Exception:
             ws_seed = None
-        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed, "mini": ws_mini}
+        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed, "mini": ws_mini,
+                                                  "errs": ws_errs, "built": time.time()}
     return cached_ws
 
 
@@ -527,6 +534,11 @@ def _logo_data_uri():
     return ""
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _calendar_rows():
+    return fetch_calendar()
+
+
 def render_header():
     """ONE thin strip (a single iframe): logo | links | news (click = dropdown) | Cairo + New York clocks | World map.
     Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
@@ -544,7 +556,11 @@ def render_header():
             news = get_latest_news(category="general", limit=15)
         except Exception:
             news = []
-        render_header_bar(_logo_data_uri(), links, news)
+        try:
+            cal = _calendar_rows()
+        except Exception:
+            cal = []   # the strip then tries to fetch the calendar itself in the browser
+        render_header_bar(_logo_data_uri(), links, news, cal=cal)
     with h_lang:
         st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
@@ -556,7 +572,10 @@ def render_header():
     c_trades, c_macro = st.columns([6.2, 3.0])
     with c_trades:
         with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629", expanded=True):
-            st.markdown(MINI_CSS + mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
+            _pl = build_ws_payload()
+            st.markdown(MINI_CSS + mini_scanner_html(_pl.get("mini", []), side, tt), unsafe_allow_html=True)
+            if _pl.get("errs"):
+                st.caption("Scan problems: " + " | ".join(_pl["errs"][:3]))
     with c_macro:
         st.markdown(macro_html(), unsafe_allow_html=True)
 

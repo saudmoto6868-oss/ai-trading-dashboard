@@ -133,7 +133,7 @@ def _flip_text(text: str) -> str:
 _KEY_PATTERNS = [
     (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
-    (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
+    (r"Zombie", "zombie"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
 ]
@@ -432,6 +432,33 @@ def sweep_signal_bull(df, max_age: int = 6):
     return out
 
 
+def zombie_bull(df, max_age: int = 5):
+    """'Zombie move': a liquidity sweep (stop-hunt wick below a swing low) that
+    happens right AT the EMA9, followed by a sharp snap-back (>= 1 ATR off the
+    wick low, back above the EMA9). A hyper-scalping pattern."""
+    if len(df) < 40:
+        return []
+    c = df["close"].values
+    e9 = df["close"].ewm(span=9, adjust=False).mean().values
+    atr = float(atr_series(df).iloc[-1])
+    if not atr > 0:
+        return []
+    for sw in reversed(sweeps_bull(df, lookback=max_age + 1)):
+        j, lvl, lo = sw["j"], sw["level"], sw["low"]
+        if len(df) - 1 - j > max_age:
+            continue
+        at_ema = abs(lvl - e9[j]) <= 0.4 * atr or lo <= e9[j] <= float(df['high'].iloc[j])  # level or sweep bar touches EMA9
+        if j == len(df) - 1:
+            snapped = c[-1] - lo >= 1.5 * atr and c[-1] > e9[-1]
+        else:
+            snapped = c[-1] - lo >= 1.2 * atr and c[-1] - c[j] >= 0.6 * atr and c[-1] > e9[-1]
+        if at_ema and snapped:
+            return [_mk("Liquidity", "Zombie move (sweep at EMA9)",
+                        "stop-hunt wick took out the swing low {lvl} right at the EMA9 ({e}), then snapped back sharply",
+                        prices={"lvl": lvl, "lo": lo, "e": float(e9[j])})]
+    return []
+
+
 def unicorn_bull(df, max_age: int = 60):
     """Sweep of lows -> bullish market-structure shift -> breaker block that
     overlaps a fair value gap = 'Unicorn' zone; fires while price retests it."""
@@ -529,7 +556,7 @@ def breakout_bull(df, lookback: int = 20):
 
 
 DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, unicorn_bull,
-             sweep_signal_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
+             sweep_signal_bull, zombie_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

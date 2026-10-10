@@ -576,7 +576,7 @@ def _calendar_rows():
 def render_header():
     """ONE thin strip (a single iframe): logo | links | news (click = dropdown) | Cairo + New York clocks | World map.
     Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
-    h_main, h_lang, h_side, h_tt = st.columns([9.0, 0.8, 1.0, 1.3], vertical_alignment="center")
+    h_main, h_lang = st.columns([10.5, 0.8], vertical_alignment="center")
     with h_main:
         links = []
         for name, url in EXTERNAL_LINKS.items():
@@ -598,19 +598,8 @@ def render_header():
     with h_lang:
         st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
-    with h_side:
-        side = st.selectbox("Side", ["All", "Long", "Short"], key="mini_side", label_visibility="collapsed")
-    with h_tt:
-        tt = st.selectbox("Trade type", list(TT_OPTIONS), key="mini_tt", label_visibility="collapsed",
-                          format_func=lambda k: TT_OPTIONS[k])
-    c_trades, c_macro = st.columns([6.2, 3.0])
-    with c_trades:
-        with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629", expanded=True):
-            _pl = build_ws_payload()
-            st.markdown(MINI_CSS + mini_scanner_html(_pl.get("mini", []), side, tt), unsafe_allow_html=True)
-            if _pl.get("errs"):
-                st.caption("Scan problems: " + " | ".join(_pl["errs"][:3]))
-    with c_macro:
+    # the ready-trades table now lives inside the Workspace (movable widget); macro watchlist is in the sidebar
+    with st.sidebar.expander("Macro watchlist", expanded=False):
         st.markdown(macro_html(), unsafe_allow_html=True)
 
 
@@ -735,7 +724,9 @@ with tab_workspace:
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links,
-                         filters={"side": st.session_state.get("mini_side", "All"), "tt": st.session_state.get("mini_tt", "All")})
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
+        if cached_ws.get("errs"):
+            st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))
         st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                    "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                    "Data comes straight from OKX in your browser, no refresh needed.")

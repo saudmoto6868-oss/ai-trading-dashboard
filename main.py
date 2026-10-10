@@ -29,7 +29,7 @@ from modules.scorer import (
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
-    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_,
+    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_, scan_entry,
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
@@ -292,7 +292,7 @@ def explain_symbol(r):
         st.markdown(_rtl(htf_lines_ar(r)), unsafe_allow_html=True)
     plan = None
     if r["direction"] in ("bullish", "bearish"):
-        plan = build_trade_plan(r)
+        plan = build_trade_plan({**r, "trend_bias": r["direction"]})
         side = "شراء" if plan["direction"] == "Long" else "بيع"
         st.markdown(
             f"<div dir='rtl' style='text-align:right'><b>الخطة ({side})</b> - دخول {n_(plan['entry'])} - وقف {n_(plan['stop_loss'])} - "
@@ -424,24 +424,41 @@ with tab_workspace:
                        format_func=lambda k: {"en": "English", "ar": "العربية"}[k],
                        help="Starting language of the workspace. You can also switch inside it with the EN/ع button.")
     ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
-    ws_alerts = []
+    # The payload is rebuilt only when a new candle closes, so the Workspace page
+    # (an iframe) is not re-created - and zoom/pan not reset - on every refresh.
+    ws_tf = st.session_state.get("scan_tf", "1h")
     try:
-        ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, st.session_state.get("scan_tf", "1h"))
-        for r_ in ws_results:
-            if r_["score"] >= ALERT_SCORE_THRESHOLD and r_["direction"] in ("bullish", "bearish"):
-                ws_alerts.append({
-                    "id": f"scan|{r_['symbol']}|{r_['timeframe']}|{r_['direction']}|{r_['score']}",
-                    "symbol": r_["symbol"], "direction": r_["direction"], "score": r_["score"],
-                    "max": r_["max_score"], "trade": TRADE_AR.get(r_["trade_type"], r_["trade_type"]),
-                    "tags": [tag_for(x)[0] for x in r_["signals"]][:5], "tf": TF_AR.get(r_["timeframe"], r_["timeframe"]),
-                })
+        _ref = get_klines(CRYPTO_SYMBOLS[0], ws_tf, 300)
+        ws_key = (ws_tf, str(_ref["time"].iloc[-2]), tuple(CRYPTO_SYMBOLS))
     except Exception:
-        pass
-    try:
-        ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
-    except Exception:
-        ws_seed = None
-    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=ws_alerts, seed=ws_seed)
+        ws_key = None
+    cached_ws = st.session_state.get("ws_payload")
+    if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None:
+        ws_alerts, ws_scan, ws_seed = [], {}, None
+        try:
+            ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, ws_tf)
+            for r_ in ws_results:
+                try:
+                    e_ = scan_entry(r_, get_klines(r_["symbol"], ws_tf, 300))
+                except Exception:
+                    e_ = None
+                if not e_:
+                    continue
+                ws_scan[r_["symbol"]] = {k: e_[k] for k in ("tfc", "tags", "zones", "plan")} | {"tf": e_["tfc"], "dir": e_["direction"]}
+                if r_["score"] >= ALERT_SCORE_THRESHOLD:
+                    ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{ws_tf}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
+        except Exception:
+            pass
+        try:
+            ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
+        except Exception:
+            ws_seed = None
+        cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed}
+    ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
+    ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
+                     "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+                     scan=cached_ws["scan"], links=ws_links)
     st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                "Data comes straight from OKX in your browser, no refresh needed.")

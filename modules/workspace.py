@@ -21,7 +21,7 @@ _TEMPLATE = Path(__file__).with_name("workspace_app.html")
 
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
-                         ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None) -> str:
+                         ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None) -> str:
     cfg = {
         "symbols": list(symbols),
         "news": [
@@ -40,6 +40,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "wsBase": ws_base,
         "seed": seed,
         "scan": scan or {},
+        "links": links or [],
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
@@ -59,7 +60,7 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
 
 
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
-                     alerts: list | None = None, seed: dict | None = None, scan: dict | None = None):
+                     alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links), height=height, scrolling=False)

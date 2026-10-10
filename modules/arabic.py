@@ -260,3 +260,66 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
     o.append(f"<text x='{width - 8}' y='{height - 5}' fill='#848e9c' font-size='10' text-anchor='end'>{html.escape(title)}</text>")
     o.append("</svg>")
     return "".join(o)
+
+
+# --------------------------------------------------------------------------
+# Payload for the Workspace (alert cards + overlay on our own chart)
+# --------------------------------------------------------------------------
+
+TF_CHART = {"1m": "1m", "1h": "1H", "1d": "1D", "1w": "1W"}
+TF_SECONDS = {"1m": 60, "1h": 3600, "1d": 86400, "1w": 604800}
+
+
+def duration_ar(seconds: float) -> str:
+    if seconds < 90 * 60:
+        return f"~{max(1, round(seconds / 60))} دقيقة"
+    if seconds < 48 * 3600:
+        return f"~{round(seconds / 3600)} ساعة"
+    if seconds < 21 * 86400:
+        return f"~{round(seconds / 86400)} يوم"
+    return f"~{round(seconds / 604800)} أسبوع"
+
+
+def eta_ar(df: pd.DataFrame, plan: dict, tf: str) -> dict:
+    """Rough time-to-target: a target one ATR away needs roughly two bars of
+    noisy trading to be reached. A guide, not a promise."""
+    from modules.signals import atr_series
+
+    try:
+        atr = float(atr_series(df).iloc[-1])
+    except Exception:
+        return {}
+    if not atr or atr <= 0:
+        return {}
+    sec = TF_SECONDS.get(tf, 3600)
+    out = {}
+    for i in (0, 2):
+        dist = abs(plan["take_profits"][i] - plan["entry"])
+        out[f"tp{i + 1}"] = duration_ar(max(1, 2 * dist / atr) * sec)
+    return out
+
+
+def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
+    """Everything the Workspace needs for one scanner result. Entry uses the last
+    CLOSED candle so the payload stays stable between candle closes."""
+    from modules.risk_engine import build_trade_plan
+
+    if r["direction"] not in ("bullish", "bearish") or df is None or len(df) < 3:
+        return None
+    price = float(df["close"].iloc[-2])
+    plan = build_trade_plan({**r, "price": price, "trend_bias": r["direction"]})
+    tags, seen = [], set()
+    for s in r["signals"]:
+        t = tag_for(s)
+        if t[0] not in seen:
+            seen.add(t[0])
+            tags.append([t[0], t[1], t[2]])
+    zones = [[round(float(s["zone"][0]), 6), round(float(s["zone"][1]), 6), tag_for(s)[1]] for s in r["signals"] if s.get("zone")]
+    return {
+        "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
+        "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
+        "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,
+        "plan": {"entry": round(plan["entry"], 6), "stop": round(plan["stop_loss"], 6),
+                 "tps": [round(x, 6) for x in plan["take_profits"]]},
+        "eta": eta_ar(df, plan, r["timeframe"]), "tv": tv_link(r["symbol"], r["timeframe"]),
+    }

@@ -454,12 +454,17 @@ def links_bar_html():
 
 
 LINKS_CSS = """<style>
+.toprow{display:flex;align-items:center;gap:8px;height:34px;overflow:visible}
+.toprow .lkbar{flex:none;flex-wrap:nowrap}
+.toprow .news-ticker{flex:1;min-width:0;margin:0}
+div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{min-height:30px;font-size:12px}
+div[data-testid="stVerticalBlock"]{gap:.35rem}
 .lkbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:11px}
 .lkbar a,.lkd summary{color:#eaecef;text-decoration:none;border:1px solid #2b3139;border-radius:4px;padding:1px 6px;background:#1e2329;white-space:nowrap;cursor:pointer}
 .lkbar a:hover,.lkd summary:hover{border-color:#f0b90b;color:#f0b90b}
 .lkd{position:relative}.lkd summary{list-style:none}.lkd summary::-webkit-details-marker{display:none}
 .lkm{position:absolute;z-index:50;top:22px;left:0;background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:3px;min-width:140px}
-.mini{height:196px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
+.mini{height:150px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
 .mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
 .mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
 .mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
@@ -532,32 +537,33 @@ def mini_scanner_html(mini, side="All", ttype="All", n=7):
 
 
 def render_header():
+    """One thin strip: brand+clock | EN/ع | links + news ticker (one row) | side | trade type; table is a collapsed expander."""
     st.markdown(LINKS_CSS, unsafe_allow_html=True)
-    h1, h2, h3 = st.columns([1.5, 0.8, 5.0])
+    h1, h2, h3, h4, h5 = st.columns([1.5, 0.75, 6.0, 0.95, 1.25], vertical_alignment="center")
     with h1:
         logo = next((pth for pth in (Path("assets/logo.png"), Path("assets/logo.jpg"), Path("assets/logo.svg")) if pth.exists()), None)
         if logo is not None:
             st.image(str(logo), width=96)
         else:
-            st.markdown("<div style='font-size:26px;font-weight:800;line-height:1.1;min-height:42px'>6868 X</div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size:10px;color:#848e9c'>{datetime.now().strftime('%H:%M:%S')} &middot; "
-                    f"{'Live ' + str(refresh_secs) + 's' if auto_on else 'Live off'}</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:24px;font-weight:800;line-height:1'>6868 X</div>"
+                        f"<div style='font-size:9px;color:#848e9c;line-height:1.1'>{datetime.now().strftime('%H:%M:%S')} &middot; "
+                        f"{'Live ' + str(refresh_secs) + 's' if auto_on else 'Live off'}</div>", unsafe_allow_html=True)
     with h2:
         st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
     with h3:
-        st.markdown(links_bar_html(), unsafe_allow_html=True)
         try:
-            st.markdown(ticker_html(get_latest_news(category="general", limit=15)), unsafe_allow_html=True)
-        except Exception as e:  # the ticker must never take the page down
-            st.caption(f"News ticker unavailable: {e}")
-    f1, f2, _f3 = st.columns([1.3, 3.2, 3.0])
-    with f1:
-        side = st.radio("Side", ["All", "Long", "Short"], horizontal=True, key="mini_side", label_visibility="collapsed")
-    with f2:
-        tt = st.radio("Trade type", list(TT_OPTIONS), horizontal=True, key="mini_tt", label_visibility="collapsed",
-                      format_func=lambda k: TT_OPTIONS[k])
-    st.markdown(mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
+            tick = ticker_html(get_latest_news(category="general", limit=15))
+        except Exception:  # the ticker must never take the page down
+            tick = ""
+        st.markdown(f"<div class='toprow'>{links_bar_html()}{tick}</div>", unsafe_allow_html=True)
+    with h4:
+        side = st.selectbox("Side", ["All", "Long", "Short"], key="mini_side", label_visibility="collapsed")
+    with h5:
+        tt = st.selectbox("Trade type", list(TT_OPTIONS), key="mini_tt", label_visibility="collapsed",
+                          format_func=lambda k: TT_OPTIONS[k])
+    with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629"):
+        st.markdown(mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
 
 
 with header_box:

@@ -133,7 +133,7 @@ def _flip_text(text: str) -> str:
 _KEY_PATTERNS = [
     (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
-    (r"Zombie", "zombie"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
+    (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
 ]
@@ -428,6 +428,40 @@ def msb_ob_bull(df, max_age: int = 40):
     return out
 
 
+def order_block_bull(df, max_age: int = 80):
+    """Order block (swing-structure style): after a bullish break of structure the
+    bar with the LOWEST low inside the move (pivot -> break) is the order block.
+    Freshness: 'fresh' = price has not traded back into the zone since it formed
+    (unmitigated); 'tested' = already touched but not closed through. Fires while
+    price is inside / right above the zone, the moment it is worth watching."""
+    out = []
+    atr = atr_series(df).values
+    c, hi_, lo_ = df["close"].values, df["high"].values, df["low"].values
+    price = float(c[-1])
+    for brk in reversed(structure_breaks(df)):
+        j = brk["j"]
+        if len(df) - 1 - j > max_age or j >= len(df) - 1:
+            continue
+        i = brk["pivot"]
+        k = i + int(np.argmin(lo_[i:j + 1]))
+        zlo, zhi = float(lo_[k]), float(hi_[k])
+        if zhi - zlo < 0.2 * atr[k]:
+            continue
+        after = slice(j + 1, len(df) - 1)               # bars between the break and now (excluding current)
+        if (c[after] < zlo).any():
+            continue                                    # invalidated (closed through the block)
+        touched = bool((lo_[after] <= zhi).any())
+        pad = 0.5 * atr[-1]
+        if zlo - 0.15 * atr[-1] <= price <= zhi + pad:
+            st = "tested" if touched else "fresh"
+            out.append(_mk("MSB-OB", "Order block (" + st + ")",
+                           "bullish order block {zl} - {zh} formed before the structure break at {lvl}; " + st
+                           + " block (" + ("never revisited = unmitigated" if not touched else "already revisited once") + "); invalid on a close below {zl}",
+                           prices={"lvl": brk["level"]}, vals={"fresh": not touched}, zone=(zlo, zhi)))
+            break
+    return out
+
+
 def fvgs_bull(df, start: int = 2):
     h, l = df["high"].values, df["low"].values
     res = []
@@ -686,7 +720,7 @@ def breakout_bull(df, lookback: int = 20):
     return []
 
 
-DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, unicorn_bull,
+DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
 
 

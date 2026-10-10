@@ -1011,7 +1011,7 @@ Ws.broadcast = (from, sym) => {
 };
 Ws.checkEmpty = () => { const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
 Ws.save = () => {
-  store.set(LS, { lang, v:6, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
+  store.set(LS, { lang, v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
   Ws.checkEmpty();
 };
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
@@ -1067,8 +1067,8 @@ function applyLang(rebuild){
   const saved = store.get(LS, null);
   lang = (saved && saved.lang) || CFG.lang || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
-  if (saved && saved.v >= 6 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
-  else Ws.build(Ws.defaults());
+  if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
+  else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
   window.__ws = Ws;
 })();
 </script>

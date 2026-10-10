@@ -63,7 +63,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }
-    .block-container { padding-top: 1.2rem; }
+    .block-container { padding-top: 0.4rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,13 +407,16 @@ def build_ws_payload():
                 continue
             for r_ in ws_results:
                 try:
-                    e_ = scan_entry(r_, get_klines(r_["symbol"], tf_, 300))
+                    df_ = get_klines(r_["symbol"], tf_, 300)
+                    e_ = scan_entry(r_, df_)
+                    if e_:
+                        e_["spark"] = [round(float(x), 6) for x in df_["close"].iloc[-41:-1]]
                 except Exception:
                     e_ = None
                 if not e_:
                     continue
                 if tf_ == ws_tf:
-                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade")}
+                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark")}
                                              | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
                     ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
@@ -454,12 +457,30 @@ LINKS_CSS = """<style>
 .lkbar a:hover,.lkd summary:hover{border-color:#f0b90b;color:#f0b90b}
 .lkd{position:relative}.lkd summary{list-style:none}.lkd summary::-webkit-details-marker{display:none}
 .lkm{position:absolute;z-index:50;top:22px;left:0;background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:3px;min-width:140px}
-.mini{max-height:196px;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
+.mini{height:196px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
 .mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
 .mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
 .mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
+.mini .tg{display:inline-block;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;font-weight:600;font-family:sans-serif}
 .mini a{color:#4aa3ff;text-decoration:none;border:1px solid #2b3139;border-radius:3px;padding:0 4px}
 </style>"""
+
+
+def _spark_svg(vals, pl, long_, w=64, h=20):
+    """Tiny price-shape picture: recent closes + entry/SL/TP1 lines, as an <img> data URI."""
+    if not vals or len(vals) < 5:
+        return ""
+    lv = list(vals) + [pl["entry"], pl["stop"], pl["tps"][0]]
+    lo, hi = min(lv), max(lv)
+    span = (hi - lo) or 1.0
+    y = lambda v: round(h - 1 - (v - lo) / span * (h - 2), 1)
+    pts = " ".join(f"{round(i * (w - 1) / (len(vals) - 1), 1)},{y(v)}" for i, v in enumerate(vals))
+    col = "#0ecb81" if long_ else "#f6465d"
+    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' width='{w}' height='{h}'>"
+           f"<line x1='0' x2='{w}' y1='{y(pl['tps'][0])}' y2='{y(pl['tps'][0])}' stroke='#0ecb81' stroke-dasharray='2 2' stroke-width='.8'/>"
+           f"<line x1='0' x2='{w}' y1='{y(pl['stop'])}' y2='{y(pl['stop'])}' stroke='#f6465d' stroke-dasharray='2 2' stroke-width='.8'/>"
+           f"<polyline fill='none' stroke='{col}' stroke-width='1.2' points='{pts}'/></svg>")
+    return f"<img width='{w}' height='{h}' src='data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}'/>"
 
 
 def mini_scanner_html(scan, n=7):
@@ -470,12 +491,14 @@ def mini_scanner_html(scan, n=7):
         long_ = e["dir"] == "bullish"
         pl = e["plan"]
         pct = round(100 * e.get("score", 0) / max(1, e.get("max", 7)))
-        strat = "/".join(t[0] for t in e.get("tags", [])[:3]) or "-"
+        strat = "".join(f"<span class='tg' style='background:{html.escape(t[1])};color:{html.escape(t[2])}'>{html.escape(t[0])}</span>"
+                        for t in e.get("tags", [])[:4]) or "-"
+        spark = _spark_svg(e.get("spark"), pl, long_)
         rows.append(
             "<tr>"
             f"<td><b>{html.escape(sym)}</b></td>"
             f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
-            f"<td style='color:#848e9c'>{html.escape(strat)}</td>"
+            f"<td>{strat}</td><td>{spark}</td>"
             f"<td style='color:#f6465d'>{fmt_price(pl['stop'])}</td>"
             f"<td style='color:#0ecb81'>{fmt_price(pl['tps'][0])}</td>"
             f"<td><b>{pct}%</b></td>"
@@ -485,7 +508,7 @@ def mini_scanner_html(scan, n=7):
             break
     if not rows:
         return "<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>لا توجد صفقات جاهزة الآن</div>"
-    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Setup</th><th>SL</th><th>TP1</th><th>%</th><th></th></tr>"
+    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Setup</th><th>Shape</th><th>SL</th><th>TP1</th><th>%</th><th></th></tr>"
             + "".join(rows) + "</table></div>")
 
 

@@ -149,7 +149,8 @@ def scan_crypto_group(symbols, tf):
         try:
             results.append(scan_symbol(sym, frames[sym], tf))
         except Exception as e:
-            errors.append(f"{sym}: {fetch_errors.get(sym) or e}")
+            if fetch_errors.get(sym) or "not enough" not in str(e):   # a coin with a short history is just skipped, not a "problem"
+                errors.append(f"{sym}: {fetch_errors.get(sym) or e}")
     return results, "; ".join(errors)
 
 

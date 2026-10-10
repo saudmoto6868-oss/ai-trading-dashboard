@@ -48,10 +48,14 @@ def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):
 
     def run(job):
         s, tf = job
-        try:
-            return s, tf, get_klines(s, tf, limit), None
-        except Exception as e:
-            return s, tf, None, f"{tf}: {e}"
+        err = None
+        for attempt in range(3):   # rate-limit / transient failures: retry with a short back-off
+            try:
+                return s, tf, get_klines(s, tf, limit), None
+            except Exception as e:
+                err = f"{tf}: {e}"
+                time.sleep(0.6 * (attempt + 1))
+        return s, tf, None, err
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for s, tf, df, err in ex.map(run, jobs):

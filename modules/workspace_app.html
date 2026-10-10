@@ -101,14 +101,14 @@ const CFG = __CONFIG__;
 const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
-const LS = "ai_ws_v4";
+const LS = "ai_ws_v5";
 const TFSEC = {"5s":5,"15s":15,"1m":60,"5m":300,"15m":900,"30m":1800,"1H":3600,"4H":14400,"1D":86400,"1W":604800};
 const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["1H","1h"],["4H","4h"],["1D","1d"],["1W","1w"]];
 
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",sig:"Signals",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No alerts yet — scanner signals, whale prints and big-order events will collect here.",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No alerts yet — scanner signals, whale prints and big-order events will collect here.",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -120,7 +120,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",sig:"الإشارات",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش تنبيهات لسه — إشارات السكانر وصفقات الحيتان وأحداث الأوامر الكبيرة هتتجمع هنا.",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش تنبيهات لسه — إشارات السكانر وصفقات الحيتان وأحداث الأوامر الكبيرة هتتجمع هنا.",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -285,7 +285,7 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.overlay = null; this.showSig = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.overlay = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -435,6 +435,25 @@ class CandleChart {
         c.font = "11px ui-monospace,Menlo,Consolas,monospace";
       }
     }
+    if (this.flowOn && this.marks.length && n){
+      const al = this.pulse ? 1 : .35; c.font = "bold 10px sans-serif"; c.textAlign = "left";
+      this.marks.forEach(m => {
+        let k = -1; for (let i = n-1; i >= 0; i--) if (this.data[i].t <= m.t){ k = i; break; } if (k < 0) return;
+        const y = py(m.p), x0 = this.x(k), col = m.kind === "absorb" ? "#b57cff" : "#f0b90b"; if (y < 0 || y > PB) return;
+        c.globalAlpha = al; c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2; c.beginPath(); c.moveTo(Math.max(0, x0-10), y); c.lineTo(PR, y); c.stroke();
+        const up = m.dir > 0, ay = y + (up ? -16 : 16);
+        c.beginPath(); c.moveTo(x0, ay + (up ? -8 : 8)); c.lineTo(x0-6, ay + (up ? 4 : -4)); c.lineTo(x0+6, ay + (up ? 4 : -4)); c.closePath(); c.fill();
+        c.globalAlpha = 1; c.fillText((m.kind === "absorb" ? "ABSORB" : "SWEEP") + (m.tgt ? "" : ""), Math.min(x0+10, PR-52), y + (up ? 11 : -5));
+        if (m.tgt){
+          const ty = py(m.tgt);
+          if (ty > 0 && ty < PB){
+            c.globalAlpha = .9; c.setLineDash([2,4]); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0, y); c.lineTo(Math.min(PR-4, x0 + 80), ty); c.lineTo(PR, ty); c.stroke(); c.setLineDash([]);
+            c.fillText("→ "+m.tgt.toFixed(dec), Math.max(4, PR-82), ty + (up ? -4 : 11)); c.globalAlpha = 1;
+          }
+        }
+      });
+      c.globalAlpha = 1; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
+    }
     // last price line
     const last = this.data[n-1], ly = py(last.c), lup = last.c >= last.o, lcol = lup ? "#0ecb81" : "#f6465d";
     if (ly > 0 && ly < PB){
@@ -533,16 +552,19 @@ class Panel {
     const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
     const vw = el("button",null,T("vwap")); vw.onclick = () => { this.chart.ema.vwap = !this.chart.ema.vwap; this.state.ema = Object.assign({}, this.chart.ema); vw.classList.toggle("on", !!this.chart.ema.vwap); this.chart.draw(); Ws.save(); };
     const sg = el("button",null,T("sig")); sg.onclick = () => { this.chart.showSig = !this.chart.showSig; this.state.sig = this.chart.showSig; sg.classList.toggle("on", this.chart.showSig); this.chart.draw(); Ws.save(); };
+    const fl = el("button",null,T("flow")); fl.onclick = () => { this.chart.flowOn = !this.chart.flowOn; this.state.flow = this.chart.flowOn; fl.classList.toggle("on", this.chart.flowOn); this.chart.draw(); Ws.save(); };
     const rf = el("select"); rf.title = T("rf"); [["1s",1000],["2s",2000],["5s",5000]].forEach(([l,v]) => { const o = el("option"); o.value = v; o.textContent = "↻ "+l; rf.append(o); });
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
-    tb.append(...emaBtns, vw, sg, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; this.body.append(tb);
+    tb.append(...emaBtns, vw, sg, fl, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
+    this.chart.flowOn = this.state.flow !== false; fl.classList.toggle("on", this.chart.flowOn);
+    this.animTimer = setInterval(() => { if (this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
     this.cdTimer = setInterval(() => this.tickCd(), 1000);
     emaBtns.forEach((b,i) => b.classList.toggle("on", !!this.chart.ema[[9,21,50][i]]));
@@ -559,6 +581,15 @@ class Panel {
     const ms = (TFSEC[this.state.tf] || 3600)*1000; let rem = Math.max(0, d[d.length-1].t + ms - Date.now());
     const sec = Math.floor(rem/1000), h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), ss = sec%60;
     this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss));
+  }
+  syncMarks(){
+    const ch = this.chart, d = ch.data; if (!d.length || !this.flt) return;
+    const rows = d.slice(-14), atr = rows.reduce((a,k) => a + (k.h - k.l), 0)/rows.length || 0, now = Date.now(), out = [];
+    this.flt.events.filter(e => now - e.t < 900000 && (e.ev === "ABSORB" || e.ev === "FILLED")).slice(0, 6).forEach(e => {
+      if (e.ev === "ABSORB"){ const dir = e.side === "ask" ? -1 : 1; out.push({t:e.t, p:e.p, kind:"absorb", dir, tgt:e.p + dir*1.5*atr}); }
+      else out.push({t:e.t, p:e.p, kind:"sweep", dir:e.side === "bid" ? -1 : 1});
+    });
+    ch.marks = out; ch.draw();
   }
   setOverlay(o){ this.chart.overlay = o; this.chart.showSig = true; this.state.sig = true; this.chart.draw(); }
   showPx(price, src){
@@ -581,7 +612,10 @@ class Panel {
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
     const chan = "candle"+tf, subMin = TFSEC[tf] < 60;
-    this.chart.overlay = CFG.scan && CFG.scan[sym] || null;
+    this.chart.overlay = CFG.scan && CFG.scan[sym] || null; this.chart.marks = [];
+    this.flt = {prev:null, events:[], sym, abs:new Set()};
+    this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));
+    this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.flt, p.rows); this.syncMarks(); } }));
     if (subMin){
       const sec = TFSEC[tf], seen = new Set(); let firstB = true, hist = false;
       this.wsUnsubs.push(Hub.sub("trades", sym, p => {
@@ -653,7 +687,7 @@ class Panel {
     } catch(e){ this.noMore = true; }
     this.loadingMore = false;
   }
-  destroy(){ clearTimeout(this.timer); clearInterval(this.cdTimer); this.tok = -1; this.chart && this.chart.destroy(); this.unwatch && this.unwatch(); }
+  destroy(){ clearTimeout(this.timer); clearInterval(this.cdTimer); clearInterval(this.animTimer); this.tok = -1; this.chart && this.chart.destroy(); this.unwatch && this.unwatch(); }
 
   /* ---- DOM ---- */
   build_dom(){
@@ -983,13 +1017,14 @@ Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && 
 Ws.defaults = () => {
   const W = Ws.el.clientWidth || 1200, H = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10;
   const lw = r(W*0.22), x1 = lw+10, cw = r(W*0.36), x2 = x1+cw+10, dw = r(W*0.18), x3 = x2+dw+10, tw = W-x3;
-  const top = r(H*0.6), wh = r(H*0.62), sh = 100;
+  const top = r(H*0.7), wh = r(H*0.62), sh = 100;
   return [
     ["watch", {x:0,y:0,w:lw,h:wh}, {group:1}],
     ["alerts", {x:0,y:wh+10,w:lw,h:H-wh-10}, {}],
     ["links", {x:x1,y:0,w:cw+dw+10,h:sh-10}, {}],
     ["ticker", {x:x3,y:0,w:tw,h:sh-10}, {}],
-    ["chart", {x:x1,y:sh,w:cw,h:top-sh}, {sym:SYMS[0], group:1, tf:"1H", ema:{9:true,21:true,50:false}}],
+    ["chart", {x:x1,y:sh,w:cw,h:r((top-sh)/2)}, {sym:SYMS[0], group:1, tf:"15s", ema:{9:true,21:false,50:false}}],
+    ["chart", {x:x1,y:sh+r((top-sh)/2)+10,w:cw,h:top-sh-r((top-sh)/2)-10}, {sym:SYMS[0], group:1, tf:"5m", ema:{9:true,21:true,50:false}}],
     ["dom", {x:x2,y:sh,w:dw,h:top-sh}, {sym:SYMS[0], group:1}],
     ["tape", {x:x3,y:sh,w:tw,h:top-sh}, {sym:SYMS[0], group:1}],
     ["limits", {x:x1,y:top+10,w:cw+dw+10,h:H-top-10}, {sym:SYMS[0], group:1}],

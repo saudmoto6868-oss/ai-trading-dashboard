@@ -20,7 +20,8 @@ _TEMPLATE = Path(__file__).with_name("workspace_app.html")
 
 
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
-                         api_base: str = "https://www.okx.com", alerts: list | None = None) -> str:
+                         api_base: str = "https://www.okx.com", alerts: list | None = None,
+                         ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None) -> str:
     cfg = {
         "symbols": list(symbols),
         "news": [
@@ -36,14 +37,28 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "alerts": list(alerts or []),
         "lang": lang if lang in ("en", "ar") else "en",
         "apiBase": api_base,
+        "wsBase": ws_base,
+        "seed": seed,
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
     return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
 
 
+def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
+    """Snapshot of recent candles (from the server side) shown only if the
+    browser cannot reach OKX directly, so the chart is never blank."""
+    try:
+        d = df.iloc[:-1].tail(bars)  # drop the forming candle so the page HTML stays stable between refreshes
+        rows = [[int(t.timestamp() * 1000), float(o), float(h), float(l), float(c), float(v)]
+                for t, o, h, l, c, v in zip(d["time"], d["open"], d["high"], d["low"], d["close"], d["volume"])]
+        return {"sym": symbol, "tf": {"1h": "1H", "1d": "1D", "1w": "1W"}.get(tf, tf), "rows": rows}
+    except Exception:
+        return None
+
+
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
-                     alerts: list | None = None):
+                     alerts: list | None = None, seed: dict | None = None):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed), height=height, scrolling=False)

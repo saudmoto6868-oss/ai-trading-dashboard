@@ -79,6 +79,7 @@ td{padding:1px 4px;white-space:nowrap}
 "use strict";
 const CFG = __CONFIG__;
 const API = CFG.apiBase || "https://www.okx.com";
+const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v3";
 const TFS = [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["1H","1h"],["4H","4h"],["1D","1d"],["1W","1w"]];
@@ -149,6 +150,37 @@ async function okx(path){
   return j.data;
 }
 function setStatus(ok){ const d = document.getElementById("dot"); if (!d) return; d.className = ok ? "ok" : "bad"; d.title = ok ? T("live") : T("offline"); }
+
+/* ---------------- OKX WebSocket (live ticks; REST polling keeps running as a fallback) ---------------- */
+const WSX = {
+  conns:{}, subs:{},
+  conn(kind){
+    let c = this.conns[kind]; if (c) return c;
+    c = this.conns[kind] = {ws:null, ready:false, kind};
+    const open = () => {
+      let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return setTimeout(open, 5000); }
+      c.ws = ws;
+      ws.onopen = () => { c.ready = true; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
+        c.ping = setInterval(() => { try{ ws.send("ping"); }catch(e){} }, 20000); };
+      ws.onmessage = ev => {
+        if (ev.data === "pong") return;
+        let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+        if (!m.arg || !m.data) return;
+        const x = this.subs[JSON.stringify(m.arg)]; if (x) x.cbs.forEach(cb => { try{ cb(m.data); }catch(e){ console.error(e); } });
+      };
+      ws.onclose = () => { c.ready = false; clearInterval(c.ping); setTimeout(open, 3000); };
+      ws.onerror = () => { try{ ws.close(); }catch(e){} };
+    };
+    open(); return c;
+  },
+  sub(kind, arg, cb){
+    const c = this.conn(kind), key = JSON.stringify(arg);
+    const x = this.subs[key] = this.subs[key] || {arg, kind, cbs:new Set()};
+    x.cbs.add(cb);
+    if (c.ready && x.cbs.size === 1) c.ws.send(JSON.stringify({op:"subscribe", args:[arg]}));
+    return () => { x.cbs.delete(cb); if (!x.cbs.size){ delete this.subs[key]; if (c.ready) try{ c.ws.send(JSON.stringify({op:"unsubscribe", args:[arg]})); }catch(e){} } };
+  }
+};
 
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
 const Hub = {
@@ -439,7 +471,9 @@ class Panel {
     TFS.forEach(([v,l]) => { const b = el("button",null,l); b.onclick = () => this.setTf(v); this.tfBtns[v] = b; tb.append(b); });
     const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
-    tb.append(...emaBtns, fit); this.body.style.overflow = "hidden"; this.body.append(tb);
+    this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";
+    this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
+    tb.append(...emaBtns, fit, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.append(tb);
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;top:30px;left:0;z-index:2"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.state.ema);
@@ -452,24 +486,54 @@ class Panel {
     Object.values(this.tfBtns).forEach(b => b.classList.remove("on")); this.tfBtns[tf].classList.add("on");
     this.state.tf = tf; this.chart.tf = tf; this.chart.data = []; this.chart.draw(); this.resub(); Ws.save();
   }
+  showPx(price, src){
+    if (!(price > 0)) return;
+    const prev = this.lastPx; this.lastPx = price; this.pxEl.textContent = fmtP(price);
+    this.pxEl.style.color = prev == null || price === prev ? "#eaecef" : price > prev ? "#0ecb81" : "#f6465d";
+    if (prev != null && price !== prev){ this.pxEl.classList.remove("nb","ns"); void this.pxEl.offsetWidth; this.pxEl.classList.add(price > prev ? "nb" : "ns"); }
+    this.updEl.textContent = (src === "ws" ? "● WS " : "● ") + hms(Date.now());
+  }
+  liveTick(row){
+    const ch = this.chart; if (!ch.data.length) return;
+    const last = ch.data[ch.data.length-1];
+    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
+    ch.calcEma(); ch.draw(); this.showPx(row.c, "ws");
+  }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
     if (this.type !== "chart") return;
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
-    this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false;
+    this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
+    this.unwatch && this.unwatch(); this.wsUnsubs = [];
+    const chan = "candle"+tf;
+    this.wsUnsubs.push(WSX.sub("business", {channel:chan, instId:sym}, data => {
+      if (tok !== this.tok) return; const k = data[0]; this.liveTick({t:+k[0], o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5]});
+    }));
+    this.wsUnsubs.push(WSX.sub("public", {channel:"tickers", instId:sym}, data => {
+      if (tok !== this.tok || !this.chart.data.length) return;
+      const px = +data[0].last, ch = this.chart, last = ch.data[ch.data.length-1];
+      if (!(px > 0)) return;
+      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); ch.calcEma(); ch.draw(); this.showPx(px, "ws");
+    }));
+    this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     const loop = async first => {
       if (tok !== this.tok) return;
       try {
         const d = await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+tf+"&limit="+(first?300:3));
         if (tok !== this.tok) return;
         const rows = this.parseC(d); setStatus(true); this.msg.textContent = "";
+        if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (first) this.chart.setData(rows, true);
         else {
           const data = this.chart.data.slice();
           rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });
           this.chart.setData(data, false);
         }
-      } catch(e){ setStatus(false); this.msg.textContent = T("offline")+" ("+(e.message||e)+")"; }
+      } catch(e){
+        setStatus(false); this.msg.textContent = T("offline")+" ("+(e.message||e)+")";
+        const sd = CFG.seed;
+        if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
+      }
       this.timer = setTimeout(() => loop(!this.chart.data.length), 2000);
     };
     loop(true);

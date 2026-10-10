@@ -35,7 +35,7 @@ from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
-from modules.workspace import render_workspace
+from modules.workspace import render_workspace, seed_from_df
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -437,7 +437,11 @@ with tab_workspace:
                 })
     except Exception:
         pass
-    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=ws_alerts)
+    try:
+        ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
+    except Exception:
+        ws_seed = None
+    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=ws_alerts, seed=ws_seed)
     st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                "Data comes straight from OKX in your browser, no refresh needed.")

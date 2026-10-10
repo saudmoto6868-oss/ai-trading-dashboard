@@ -111,7 +111,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Kill zones (NY time): Asia 20-24, London 02-05, NY AM 07-10, NY PM 13:30-16 - with each session high/low (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): Asia/London/NY sessions (faint), Asia KZ 20-24, London Open KZ 02-05, NY AM KZ 07-10, NY PM KZ 13:30-16 with high/low (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -595,19 +595,24 @@ Object.assign(CandleChart.prototype, {
   },
   paintKZ(c, py, i0, i1, PB){
     if (this.secMs() > 3600*1000) return;           // kill zones only make sense on 1H and lower
-    const Z = [["Asia", 20*60, 24*60, "#4aa3ff"], ["London", 2*60, 5*60, "#f0b90b"], ["NY AM", 7*60, 10*60, "#0ecb81"], ["NY PM", 13.5*60, 16*60, "#b57cff"]];
+    // [name, start, end (>1440 = wraps past midnight), colour, background-only?]  (New York time)
+    const Z = [["Asia session", 19*60, 28*60, "#4aa3ff", 1], ["London session", 3*60, 12*60, "#f0b90b", 1], ["NY session", 8*60, 17*60, "#0ecb81", 1],
+               ["Asia KZ", 20*60, 24*60, "#4aa3ff"], ["London Open KZ", 2*60, 5*60, "#f0b90b"], ["NY AM KZ", 7*60, 10*60, "#0ecb81"], ["NY PM KZ", 13.5*60, 16*60, "#b57cff"]];
     const step = this.bw, d = this.data; c.font = "bold 10px sans-serif"; c.textAlign = "left"; c.textBaseline = "top";
-    Z.forEach(([name, a, b, col]) => {
+    Z.forEach(([name, a, b, col, bgOnly]) => {
       let start = -1;
       const close = end => {
         let hi = -Infinity, lo = Infinity; for (let k = start; k <= end; k++){ hi = Math.max(hi, d[k].h); lo = Math.min(lo, d[k].l); }
         const x0 = this.x(start) - step/2, x1 = this.x(end) + step/2;
-        c.globalAlpha = .10; c.fillStyle = col; c.fillRect(x0, 0, x1-x0, PB); c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = 1; c.setLineDash([4,3]);
-        [hi, lo].forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }); c.setLineDash([]);
-        c.globalAlpha = 1; c.fillStyle = col; if (x1-x0 > 26) c.fillText(name, x0+3, 3);
+        c.globalAlpha = bgOnly ? .045 : .10; c.fillStyle = col; c.fillRect(x0, 0, x1-x0, PB);
+        if (!bgOnly){
+          c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = 1; c.setLineDash([4,3]);
+          [hi, lo].forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }); c.setLineDash([]);
+        }
+        c.globalAlpha = 1; c.fillStyle = col; if (x1-x0 > 26) c.fillText(name, x0+3, bgOnly ? 14 : 3);
       };
       for (let i = Math.max(0, i0-60); i <= Math.min(d.length-1, i1+60); i++){
-        const m = this.nyMin(d[i].t), inZ = m >= a && m < b;
+        const m = this.nyMin(d[i].t), inZ = (m >= a && m < b) || (b > 1440 && m < b - 1440);
         if (inZ && start < 0) start = i; else if (!inZ && start >= 0){ close(i-1); start = -1; }
       }
       if (start >= 0) close(Math.min(d.length-1, i1+60));

@@ -38,6 +38,7 @@ from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.site_icons import site_icon_b64
+from modules.header_bar import render_header_bar
 from modules.chart_scan import ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, SHORT as CS_SHORT, features as cs_features, mini_chart_svg
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
@@ -73,21 +74,27 @@ st.sidebar.header("Settings")
 auto_on = st.sidebar.checkbox("Auto-refresh (live data)", value=True)
 refresh_secs = st.sidebar.slider("Refresh every (seconds)", 10, 60, AUTO_REFRESH_SECONDS, step=5)
 play_sound = st.sidebar.checkbox("Play sound on NEW strong signals", value=True)
-smart_mult = st.sidebar.slider(
-    "Smart trade = size >= N x median print", 2.0, 10.0, 4.0, step=0.5,
-    help="Prints this many times larger than the median trade in the window are flagged SMART; 2.5x that is WHALE.",
-)
-big_order_mult = st.sidebar.slider(
-    "Big limit order = N x median level", 3.0, 15.0, 5.0, step=0.5,
-    help="Used by the DOM highlight and by Limit Tracking.",
-)
-st.sidebar.markdown("**Order-flow effects**")
-fast_secs = st.sidebar.slider("DOM / Time&Sales refresh (seconds)", 1, 10, 3,
-                              help="How often the two order-flow panels update by themselves (flashes appear on each update).")
-absorb_mult = st.sidebar.slider(
-    "Absorption = level volume >= N x median level", 2.0, 8.0, 3.0, step=0.5,
-    help="Heavy volume trading at one price while the price barely moves.",
-)
+with st.sidebar.expander("Order Book / Time & Sales", expanded=False):
+    smart_mult = st.slider(
+        "Smart trade = size >= N x median print", 2.0, 10.0, 4.0, step=0.5,
+        help="Prints this many times larger than the median trade in the window are flagged SMART; 2.5x that is WHALE.",
+    )
+    big_order_mult = st.slider(
+        "Big limit order = N x median level", 3.0, 15.0, 5.0, step=0.5,
+        help="Used by the DOM highlight and by Limit Tracking.",
+    )
+    fast_secs = st.slider("DOM / Time&Sales refresh (seconds)", 1, 10, 3,
+                          help="How often the two order-flow panels update by themselves (flashes appear on each update).")
+    absorb_mult = st.slider(
+        "Absorption = level volume >= N x median level", 2.0, 8.0, 3.0, step=0.5,
+        help="Heavy volume trading at one price while the price barely moves.",
+    )
+with st.sidebar.expander("Chart / Layout", expanded=False):
+    ws_height = st.slider("Workspace height (px)", 500, 3000, 1720, step=20)
+    ui_bg = st.color_picker("Page background", "#0b0e11")
+    ui_accent = st.color_picker("Accent colour (tabs, highlights)", "#f0b90b")
+    st.caption("Per-widget colours: use the two colour dots in each Workspace widget's title bar.")
+st.markdown(f"<style>.stApp{{background-color:{ui_bg}}} .stTabs [aria-selected='true']{{color:{ui_accent};border-bottom-color:{ui_accent}}}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
     st_autorefresh(interval=refresh_secs * 1000, key="auto_refresh")
@@ -431,47 +438,15 @@ def build_ws_payload():
     return cached_ws
 
 
-def _icon_chip(name, domain):
-    data = site_icon_b64(domain)
-    img = (f"<img src='data:image/png;base64,{data}' width='14' height='14' style='vertical-align:-2px;margin-right:3px'/>"
-           if data else f"<span style='display:inline-block;width:14px;height:14px;border-radius:3px;background:#2b3139;"
-                        f"font-size:9px;text-align:center;line-height:14px;margin-right:3px'>{html.escape(name[:1])}</span>")
-    return img
-
-
-def links_bar_html():
-    parts = []
-    for name, url in EXTERNAL_LINKS.items():
-        if name == "Finviz Patterns":
-            items = "".join(f"<a href='{FINVIZ_PATTERN_URL.format(signal=v)}' target='_blank' rel='noopener noreferrer'>{html.escape(k)}</a>"
-                            for k, v in FINVIZ_PATTERNS.items())
-            parts.append(f"<details class='lkd'><summary>{_icon_chip('Finviz', 'finviz.com')}Finviz &#9662;</summary>"
-                         f"<div class='lkm'>{items}<a href='{url}' target='_blank' rel='noopener noreferrer'>All charts</a></div></details>")
-        else:
-            dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
-            short = name.split()[0]
-            parts.append(f"<a class='lk1' href='{url}' target='_blank' rel='noopener noreferrer'>{_icon_chip(name, dom)}{html.escape(short)}</a>")
-    return "<div class='lkbar'>" + "".join(parts) + "</div>"
-
-
-LINKS_CSS = """<style>
-.toprow{display:flex;align-items:center;gap:8px;height:34px;overflow:visible}
-.toprow .lkbar{flex:none;flex-wrap:nowrap}
-.toprow .news-ticker{flex:1;min-width:0;margin:0}
-div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{min-height:30px;font-size:12px}
-div[data-testid="stVerticalBlock"]{gap:.35rem}
-.lkbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:11px}
-.lkbar a,.lkd summary{color:#eaecef;text-decoration:none;border:1px solid #2b3139;border-radius:4px;padding:1px 6px;background:#1e2329;white-space:nowrap;cursor:pointer}
-.lkbar a:hover,.lkd summary:hover{border-color:#f0b90b;color:#f0b90b}
-.lkd{position:relative}.lkd summary{list-style:none}.lkd summary::-webkit-details-marker{display:none}
-.lkm{position:absolute;z-index:50;top:22px;left:0;background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:3px;min-width:140px}
+MINI_CSS = """<style>
 .mini{height:150px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
 .mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
 .mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
 .mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
-.mini a.tg{border:0;cursor:help;text-decoration:none}
-.mini .tg{display:inline-block;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;font-weight:600;font-family:sans-serif}
+.mini a.tg{display:inline-block;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;font-weight:600;font-family:sans-serif;border:0;cursor:help;text-decoration:none}
 .mini a{color:#4aa3ff;text-decoration:none;border:1px solid #2b3139;border-radius:3px;padding:0 4px}
+div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{min-height:30px;font-size:12px}
+div[data-testid="stVerticalBlock"]{gap:.35rem}
 </style>"""
 
 
@@ -537,34 +512,48 @@ def mini_scanner_html(mini, side="All", ttype="All", n=7):
             + "".join(rows) + "</table></div>")
 
 
+def site_icon_b64_uri(domain):
+    d = site_icon_b64(domain)
+    return f"data:image/x-icon;base64,{d}" if d else ""
+
+
+def _logo_data_uri():
+    import mimetypes
+    for pth in (Path("assets/logo.png"), Path("assets/logo.jpg"), Path("assets/logo.svg")):
+        if pth.exists():
+            mt = mimetypes.guess_type(str(pth))[0] or "image/png"
+            return f"data:{mt};base64," + base64.b64encode(pth.read_bytes()).decode()
+    return ""
+
+
 def render_header():
-    """One thin strip: brand+clock | EN/ع | links + news ticker (one row) | side | trade type; table is a collapsed expander."""
-    st.markdown(LINKS_CSS, unsafe_allow_html=True)
-    h1, h2, h3, h4, h5 = st.columns([1.5, 0.75, 6.0, 0.95, 1.25], vertical_alignment="center")
-    with h1:
-        logo = next((pth for pth in (Path("assets/logo.png"), Path("assets/logo.jpg"), Path("assets/logo.svg")) if pth.exists()), None)
-        if logo is not None:
-            st.image(str(logo), width=96)
-        else:
-            st.markdown("<div style='font-size:24px;font-weight:800;line-height:1'>6868 X</div>"
-                        f"<div style='font-size:9px;color:#848e9c;line-height:1.1'>{datetime.now().strftime('%H:%M:%S')} &middot; "
-                        f"{'Live ' + str(refresh_secs) + 's' if auto_on else 'Live off'}</div>", unsafe_allow_html=True)
-    with h2:
+    """ONE thin strip (a single iframe): logo | links | news (click = dropdown) | Cairo + New York clocks | World map.
+    Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
+    h_main, h_lang, h_side, h_tt = st.columns([9.0, 0.8, 1.0, 1.3], vertical_alignment="center")
+    with h_main:
+        links = []
+        for name, url in EXTERNAL_LINKS.items():
+            dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
+            if name == "Finviz Patterns":
+                links.append({"name": "Finviz", "url": url, "icon": site_icon_b64_uri("finviz.com"),
+                              "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+            else:
+                links.append({"name": name, "url": url, "icon": site_icon_b64_uri(dom)})
+        try:
+            news = get_latest_news(category="general", limit=15)
+        except Exception:
+            news = []
+        render_header_bar(_logo_data_uri(), links, news)
+    with h_lang:
         st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
-    with h3:
-        try:
-            tick = ticker_html(get_latest_news(category="general", limit=15))
-        except Exception:  # the ticker must never take the page down
-            tick = ""
-        st.markdown(f"<div class='toprow'>{links_bar_html()}{tick}</div>", unsafe_allow_html=True)
-    with h4:
+    with h_side:
         side = st.selectbox("Side", ["All", "Long", "Short"], key="mini_side", label_visibility="collapsed")
-    with h5:
+    with h_tt:
         tt = st.selectbox("Trade type", list(TT_OPTIONS), key="mini_tt", label_visibility="collapsed",
                           format_func=lambda k: TT_OPTIONS[k])
-    with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629"):
-        st.markdown(mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
+    with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629", expanded=True):
+        st.markdown(MINI_CSS + mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
 
 
 with header_box:
@@ -649,7 +638,6 @@ with tab_cscan:
 
 with tab_workspace:
     ws_lang = st.session_state.get("ws_lang", "en")
-    ws_height = st.sidebar.slider("Workspace height (px)", 500, 3000, 1720, step=20)
     cached_ws = build_ws_payload()
     ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
     ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],

@@ -1,0 +1,149 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0b0e11;--panel:#161a1e;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--acc:#f0b90b}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;color:var(--txt);font:12px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+#strip{height:54px;display:flex;align-items:center;gap:8px;padding:0 4px;position:relative}
+#logo{flex:none;display:flex;align-items:center;height:48px;margin-inline-end:6px}
+#logo b{font-size:32px;font-weight:800;letter-spacing:.5px;line-height:1}#logo img{height:46px;max-width:170px;object-fit:contain}
+.lk{flex:none;display:flex;align-items:center;gap:4px;color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:2px 7px;background:#1e2329;white-space:nowrap;cursor:pointer;font-size:11px}
+.lk:hover{border-color:var(--acc);color:var(--acc)}.lk img{width:14px;height:14px}.lk .ch{width:14px;height:14px;border-radius:3px;background:#2b3139;text-align:center;line-height:14px;font-size:9px}
+#tick{flex:1;min-width:60px;height:30px;border:1px solid var(--line);border-radius:5px;background:var(--panel);overflow:hidden;white-space:nowrap;cursor:pointer;position:relative}
+#tick .track{display:inline-block;white-space:nowrap;line-height:28px;animation:sc var(--dur,90s) linear infinite}
+#tick:hover .track{animation-play-state:paused}@keyframes sc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+#tick .tag{position:absolute;left:0;top:0;bottom:0;padding:0 8px;background:var(--panel);z-index:2;line-height:28px;color:var(--acc);font-weight:700;border-right:1px solid var(--line)}
+#tick .track{padding-left:70px}
+.clk{flex:none;text-align:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:1px 8px;min-width:86px}
+.clk small{display:block;font-size:9px;color:var(--mut);letter-spacing:.6px}.clk b{font:700 15px ui-monospace,Menlo,Consolas,monospace;color:var(--txt)}
+#wm{flex:none;cursor:pointer}
+.pop{position:absolute;top:56px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
+.pop.on{display:block}
+#newsPop{left:70px;right:260px;max-height:360px;overflow:auto;padding:4px}
+#newsPop a{display:block;color:var(--txt);text-decoration:none;padding:5px 8px;border-bottom:1px solid #20262c}#newsPop a:hover{background:#1e2329;color:var(--acc)}
+#newsPop .m{color:var(--mut);font-size:10px}
+#fvPop{padding:4px;min-width:150px}#fvPop a{display:block;color:var(--txt);text-decoration:none;padding:3px 8px}#fvPop a:hover{color:var(--acc)}
+#wmPop{right:4px;width:min(880px,calc(100% - 8px));padding:6px}
+#wmPop .row{display:flex;gap:8px}#mapc{flex:1;min-width:0;background:#0d1217;border:1px solid var(--line);border-radius:6px;position:relative}
+#mapc canvas{width:100%;display:block;cursor:pointer}
+#side{width:260px;flex:none;max-height:330px;overflow:auto;font-size:11px}
+#side .ev{padding:4px 6px;border-bottom:1px solid #20262c;cursor:pointer}#side .ev:hover,#side .ev.sel{background:#1e2329}
+#side .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:5px}
+#det{margin-top:4px;padding:6px;border:1px solid var(--line);border-radius:6px;background:#10151a;font-size:11px;min-height:38px}
+#det a{color:#4aa3ff}
+.leg{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0;font-size:10px;color:var(--mut)}.leg label{cursor:pointer;display:flex;align-items:center;gap:3px}
+#st{color:var(--mut);font-size:10px;margin-inline-start:6px}
+</style></head><body>
+<div id="strip">
+  <div id="logo"></div>
+  <div id="links" style="display:flex;gap:4px;align-items:center;flex:none"></div>
+  <div id="tick" title="Click for the news list"><span class="tag">NEWS ▾</span><div class="track" id="track"></div></div>
+  <div class="clk"><small>CAIRO</small><b id="tc">--:--:--</b></div>
+  <div class="clk"><small>NEW YORK</small><b id="tn">--:--:--</b></div>
+  <div class="lk" id="wm" title="World map: events">🌐 World</div>
+  <div class="pop" id="fvPop"></div>
+  <div class="pop" id="newsPop"></div>
+  <div class="pop" id="wmPop">
+    <div class="leg" id="leg"></div>
+    <div class="row"><div id="mapc"><canvas id="cv" width="880" height="440"></canvas></div><div id="side"></div></div>
+    <div id="det">Click a marker or an item to see details. <span id="st"></span></div>
+  </div>
+</div>
+<script>
+const CFG = __CONFIG__;
+const $ = id => document.getElementById(id), esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safe = u => /^https?:\/\//i.test(u || "") ? u : "";
+/* ---- frame resizing so popups can overlay the page below ---- */
+const BASE_H = 54;
+function setFrame(h){
+  try {
+    const f = window.frameElement; if (!f) return;
+    const p = f.parentElement;
+    if (h > BASE_H){ p.style.height = BASE_H+"px"; p.style.position = "relative"; p.style.overflow = "visible"; f.style.position = "absolute"; f.style.left = "0"; f.style.top = "0"; f.style.width = "100%"; f.style.zIndex = 99999; f.style.height = h+"px"; }
+    else { f.style.height = BASE_H+"px"; f.style.position = ""; f.style.zIndex = ""; p.style.height = ""; }
+  } catch(e){}
+}
+let openId = null;
+function closeAll(){ ["newsPop","fvPop","wmPop"].forEach(i => $(i).classList.remove("on")); openId = null; setFrame(BASE_H); }
+function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
+document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv")) closeAll(); });
+/* ---- logo + links ---- */
+$("logo").innerHTML = CFG.logo ? '<img alt="6868 X" src="'+esc(CFG.logo)+'">' : "<b>6868 X</b>";
+CFG.links.forEach(l => {
+  if (l.patterns){
+    const d = document.createElement("div"); d.className = "lk fv"; d.innerHTML = (l.icon ? '<img src="'+esc(l.icon)+'">' : '<span class="ch">F</span>')+esc(l.name)+" ▾";
+    $("fvPop").innerHTML = l.patterns.map(p => '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(p.url))+'">'+esc(p.name)+'</a>').join("") + '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(l.url))+'">All charts ↗</a>';
+    d.onclick = () => { if (openId === "fvPop") closeAll(); else { openPop("fvPop", BASE_H + $("fvPop").offsetHeight + 40); const r = d.getBoundingClientRect(); $("fvPop").style.left = r.left+"px"; setFrame(BASE_H + 260); } };
+    $("links").append(d);
+  } else {
+    const a = document.createElement("a"); a.className = "lk"; a.target = "_blank"; a.rel = "noopener noreferrer"; a.href = safe(l.url) || "#";
+    a.innerHTML = (l.icon ? '<img src="'+esc(l.icon)+'">' : '<span class="ch">'+esc(l.name[0])+'</span>')+esc(l.name.split(" ")[0]); $("links").append(a);
+  }
+});
+/* ---- news ---- */
+const news = CFG.news || [];
+const line = news.length ? news.map(n => '<span style="margin-right:26px">'+esc(n.headline)+(n.source ? ' <span style="color:var(--mut)">— '+esc(n.source)+'</span>' : '')+'</span>').join("") : '<span style="color:var(--mut)">'+esc(CFG.noNews)+'</span>';
+$("track").innerHTML = line + line; $("track").style.setProperty("--dur", Math.max(40, Math.round(news.reduce((a,n) => a + (n.headline||"").length, 0)/9))+"s");
+$("newsPop").innerHTML = news.length ? news.map(n => '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(n.url) || "#")+'">'+esc(n.headline)+'<div class="m">'+esc(n.source||"")+(n.datetime ? " · "+esc(n.datetime) : "")+'</div></a>').join("") : '<div style="padding:8px;color:var(--mut)">'+esc(CFG.noNews)+'</div>';
+$("tick").onclick = () => { if (openId === "newsPop") closeAll(); else openPop("newsPop", 54 + 366); };
+$("newsPop").addEventListener("mouseleave", () => { if (openId === "newsPop") closeAll(); });
+/* ---- clocks ---- */
+const fmtC = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const fmtN = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const tickClk = () => { const n = new Date(); $("tc").textContent = fmtC.format(n); $("tn").textContent = fmtN.format(n); };
+tickClk(); setInterval(tickClk, 1000);
+/* ---- world map ---- */
+const CATS = {conflict:["#f6465d","Conflict / attack"], quake:["#ff9800","Earthquake"], fire:["#ffd54f","Wildfire"], storm:["#b57cff","Storm / cyclone"], volcano:["#a1887f","Volcano"], other:["#4aa3ff","Other"]};
+const WM = {events:[], on:new Set(Object.keys(CATS)), sel:null, land:null, loaded:false, shape:null};
+$("leg").innerHTML = Object.entries(CATS).map(([k,[c,l]]) => '<label><input type="checkbox" checked data-k="'+k+'"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+c+'"></span>'+esc(l)+'</label>').join("");
+$("leg").addEventListener("change", e => { const k = e.target.dataset.k; e.target.checked ? WM.on.add(k) : WM.on.delete(k); wmDraw(); wmList(); });
+$("wm").onclick = () => { if (openId === "wmPop"){ closeAll(); return; } openPop("wmPop", 54 + 560); if (!WM.loaded) wmLoad(); wmDraw(); };
+const proj = (lon, lat, W, H) => [(lon+180)/360*W, (90-lat)/180*H];
+function wmDraw(){
+  const cv = $("cv"), c = cv.getContext("2d"), W = cv.width, H = cv.height; c.fillStyle = "#0d1217"; c.fillRect(0,0,W,H);
+  c.strokeStyle = "#1b232c"; c.lineWidth = 1; for (let lon = -180; lon <= 180; lon += 30){ const [x] = proj(lon,0,W,H); c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
+  for (let lat = -60; lat <= 90; lat += 30){ const [,y] = proj(0,lat,W,H); c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+  if (WM.land){ c.fillStyle = "#1c2733"; c.strokeStyle = "#2f3f4f"; WM.land.forEach(ring => { c.beginPath(); ring.forEach(([lo,la],i) => { const [x,y] = proj(lo,la,W,H); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.closePath(); c.fill(); c.stroke(); }); }
+  WM.events.filter(e => WM.on.has(e.cat)).forEach(e => {
+    const [x,y] = proj(e.lon, e.lat, W, H), col = CATS[e.cat][0], r = e === WM.sel ? 8 : 4.5;
+    c.fillStyle = col; c.globalAlpha = .35; c.beginPath(); c.arc(x,y,r+4,0,6.3); c.fill(); c.globalAlpha = 1; c.beginPath(); c.arc(x,y,r,0,6.3); c.fill();
+    if (e === WM.sel){ c.strokeStyle = "#fff"; c.lineWidth = 2; c.stroke(); c.lineWidth = 1; }
+  });
+}
+function wmList(){
+  const evs = WM.events.filter(e => WM.on.has(e.cat)).slice(0, 80);
+  $("side").innerHTML = evs.length ? evs.map((e,i) => '<div class="ev'+(e === WM.sel ? " sel" : "")+'" data-i="'+WM.events.indexOf(e)+'"><span class="dot" style="background:'+CATS[e.cat][0]+'"></span>'+esc(e.title)+'<div style="color:var(--mut);font-size:10px">'+esc(e.when||"")+'</div></div>').join("") : '<div style="padding:8px;color:var(--mut)">No events loaded (yet).</div>';
+}
+$("side").addEventListener("click", e => { const d = e.target.closest(".ev"); if (d) wmSelect(WM.events[+d.dataset.i]); });
+$("cv").addEventListener("click", e => {
+  const cv = $("cv"), r = cv.getBoundingClientRect(), x = (e.clientX-r.left)*cv.width/r.width, y = (e.clientY-r.top)*cv.height/r.height;
+  let best = null, bd = 18; WM.events.filter(v => WM.on.has(v.cat)).forEach(v => { const [px,py] = proj(v.lon,v.lat,cv.width,cv.height), d = Math.hypot(px-x,py-y); if (d < bd){ bd = d; best = v; } });
+  if (best) wmSelect(best);
+});
+function wmSelect(e){
+  if (!e) return; WM.sel = e; wmDraw(); wmList();
+  $("det").innerHTML = '<b style="color:'+CATS[e.cat][0]+'">'+esc(CATS[e.cat][1])+'</b> · '+esc(e.title)+'<div style="color:var(--mut);margin:2px 0">'+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div>'+esc(e.desc)+'</div>' : "")+(safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Open source ↗</a>' : "");
+}
+function topoRings(t){   // minimal TopoJSON (world-atlas) decoder -> polygon rings in lon/lat
+  const [sx,sy] = t.transform.scale, [tx,ty] = t.transform.translate;
+  const arcs = t.arcs.map(a => { let x = 0, y = 0; return a.map(([dx,dy]) => { x += dx; y += dy; return [x*sx+tx, y*sy+ty]; }); });
+  const ring = idx => { let pts = []; idx.forEach(i => { const a = i < 0 ? arcs[~i].slice().reverse() : arcs[i]; pts = pts.concat(pts.length ? a.slice(1) : a); }); return pts; };
+  const out = []; const obj = t.objects.countries || t.objects.land;
+  (obj.geometries || [obj]).forEach(g => { if (g.type === "Polygon") g.arcs.forEach(r => out.push(ring(r))); else if (g.type === "MultiPolygon") g.arcs.forEach(p => p.forEach(r => out.push(ring(r)))); });
+  return out;
+}
+const ago = t => { const m = Math.round((Date.now()-t)/60000); return m < 60 ? m+" min ago" : m < 1440 ? Math.round(m/60)+" h ago" : Math.round(m/1440)+" d ago"; };
+async function jget(u){ const r = await fetch(u, {cache:"no-store"}); if (!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+async function wmLoad(){
+  WM.loaded = true; const msgs = [];
+  const jobs = [
+    jget("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json").then(t => { WM.land = topoRings(t); }).catch(() => msgs.push("map outline")),
+    jget("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson").then(g => g.features.forEach(f => { const [lon,lat] = f.geometry.coordinates; WM.events.push({cat:"quake", lat, lon, title:"M"+(+f.properties.mag).toFixed(1)+" "+f.properties.place, when:ago(f.properties.time), t:f.properties.time, src:"USGS", url:f.properties.url, desc:""}); })).catch(() => msgs.push("USGS")),
+    jget("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=80").then(g => g.events.forEach(ev => { const geo = ev.geometry[ev.geometry.length-1]; if (!geo || geo.type !== "Point") return; const cid = (ev.categories[0]||{}).id || "";
+        const cat = /wildfire/i.test(cid) ? "fire" : /storm/i.test(cid) ? "storm" : /volcano/i.test(cid) ? "volcano" : "other";
+        WM.events.push({cat, lat:geo.coordinates[1], lon:geo.coordinates[0], title:ev.title, when:ago(Date.parse(geo.date)), t:Date.parse(geo.date), src:"NASA EONET", url:(ev.sources[0]||{}).url || ev.link, desc:(ev.categories[0]||{}).title||""}); })).catch(() => msgs.push("NASA EONET")),
+    jget("https://api.gdeltproject.org/api/v2/geo/geo?query=(attack%20OR%20missile%20OR%20airstrike%20OR%20shelling%20OR%20war)&mode=PointData&format=GeoJSON&timespan=24H&maxpoints=60").then(g => (g.features||[]).forEach(f => { const [lon,lat] = f.geometry.coordinates, p = f.properties || {}; WM.events.push({cat:"conflict", lat, lon, title:p.name || "Conflict reports", when:"last 24h", t:Date.now(), src:"GDELT", url:"", desc:String(p.html||"").replace(/<[^>]+>/g," ").slice(0,300)}); })).catch(() => msgs.push("GDELT"))
+  ];
+  await Promise.allSettled(jobs);
+  WM.events.sort((a,b) => b.t - a.t); $("st").textContent = msgs.length ? "(could not load: "+msgs.join(", ")+")" : ""; wmDraw(); wmList();
+}
+window.__wm = WM;
+</script></body></html>

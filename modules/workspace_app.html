@@ -119,6 +119,47 @@ const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 const TFSEC = {"5s":5,"15s":15,"1m":60,"5m":300,"15m":900,"30m":1800,"1H":3600,"4H":14400,"1D":86400,"1W":604800};
+const HARM_TOL = 0.06;
+const HARM_RULES = {
+  "Gartley":{b:[.618,.618],c:[.382,.886],d:[.786,.786]}, "Bat":{b:[.382,.5],c:[.382,.886],d:[.886,.886]},
+  "Butterfly":{b:[.786,.786],c:[.382,.886],d:[1.272,1.618]}, "Crab":{b:[.382,.618],c:[.382,.886],d:[1.618,1.618]},
+  "Cypher":{b:[.382,.618],cx:[1.13,1.414],d:[.786,.786]}};
+const harmIn = (v, r) => v >= r[0]*(1-HARM_TOL) && v <= r[1]*(1+HARM_TOL);
+function harmCheck(X, A, B, C, D){   // mirrors modules/harmonic.py
+  const xa = Math.abs(A-X), ab = Math.abs(A-B); if (xa <= 0 || ab <= 0) return null;
+  const sg = A > X ? 1 : -1; if (!(sg*(B-X) > 0 && sg*(A-B) > 0)) return null;
+  const b = ab/xa, cab = Math.abs(C-B)/ab;
+  for (const [name, r] of Object.entries(HARM_RULES)){
+    if (!harmIn(b, r.b)) continue;
+    if (name === "Cypher"){ if (!(sg*(C-A) > 0)) continue; const xc = Math.abs(C-X); if (!harmIn(xc/xa, r.cx) || !harmIn(Math.abs(C-D)/xc, r.d)) continue; }
+    else { if (!(sg*(A-C) > 0 && sg*(C-B) > 0) || !harmIn(cab, r.c)) continue; if (!harmIn(Math.abs(A-D)/xa, r.d) || sg*(D-C) >= 0) continue; }
+    return name;
+  }
+  return null;
+}
+function harmZigzag(d, dev, n){
+  const piv = [];
+  for (let i = n; i < d.length-n; i++){
+    let mh = -Infinity, ml = Infinity; for (let k = i-n; k <= i+n; k++){ if (d[k].h > mh) mh = d[k].h; if (d[k].l < ml) ml = d[k].l; }
+    if (d[i].h >= mh) piv.push({i, p:d[i].h, k:"H"}); else if (d[i].l <= ml) piv.push({i, p:d[i].l, k:"L"});
+  }
+  const out = [];
+  for (const q of piv){
+    const L = out[out.length-1];
+    if (L && L.k === q.k){ if ((q.k === "H" && q.p > L.p) || (q.k === "L" && q.p < L.p)) out[out.length-1] = q; continue; }
+    if (L && Math.abs(q.p-L.p)/L.p < dev) continue;
+    out.push(q);
+  }
+  return out;
+}
+function harmFind(d, maxN){   // newest-first list of {name, dir, pts:[{i,p}]*5}
+  const z = harmZigzag(d, 0.012, 3), res = [];
+  for (let e = z.length; e >= 5 && res.length < maxN; e--){
+    const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p);
+    if (nm) res.push({name:nm, dir:w[1].p > w[0].p ? "bull" : "bear", pts:w.map(q => ({i:q.i, p:q.p}))});
+  }
+  return res;
+}
 const FIB_PRESETS = {
   "Retracement":[0,0.236,0.382,0.5,0.618,0.786,1],
   "Fibo POP":[0,0.5,0.559,0.669,0.786,1],
@@ -136,7 +177,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -148,7 +189,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",cmDel:"Delete this drawing",cmAll:"Delete all drawings",cmOv:"Clear signal / Fib overlays",cmNone:"Nothing to delete",uniTip:"OKX universe: spot / perpetuals, USDT / USDC, by category",uniNone:"Nothing in this category.",uniAll:"Add all",journal:"Journal",jWin:"Win rate",jNet:"Net result",jTrades:"Wins / losses",jOpen:"open",jAvg:"Avg / trade",jBest:"Best trade",jWorst:"Worst trade",jDd:"Max drawdown",jEq:"Equity curve (R)",jEmpty:"Closed trades will draw the curve — the journal logs every scanner trade and follows it to TP1 or SL.",jStrat:"By strategy (win rate)",jLog:"Trade log",jRes:"Result",jExp:"expired",scanner:"Scanner",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow marks",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -379,7 +420,7 @@ class CandleChart {
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -518,6 +559,7 @@ class CandleChart {
       for (let i = i0; i <= i1; i++){ const y = py(this.vwV[i]), x = this.x(i); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); }
       c.stroke(); c.setLineDash([]);
     }
+    if (this.harmOn) this.paintHarm(c, py, dec);
     const ov = this.showSig ? this.overlay : null;
     if (ov){
       (ov.zones || []).forEach(z => { c.fillStyle = z[2]; c.globalAlpha = .2; c.fillRect(0, py(z[1]), PR, Math.max(2, py(z[0])-py(z[1]))); c.globalAlpha = 1; });
@@ -621,6 +663,25 @@ class CandleChart {
 
 /* ---------------- drawing tools (TradingView-style) ---------------- */
 Object.assign(CandleChart.prototype, {
+  paintHarm(c, py, dec){
+    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
+    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 3)};
+    const nm = ["X","A","B","C","D"];
+    this._harm.list.forEach((h, n) => {
+      const col = h.dir === "bull" ? "#0ecb81" : "#f6465d", P = h.pts.map(q => ({x:this.x(q.i), y:py(q.p), p:q.p}));
+      c.save(); c.globalAlpha = n ? .5 : 1;
+      c.fillStyle = col; c.globalAlpha *= .12;
+      [[0,1,2],[2,3,4]].forEach(t => { c.beginPath(); t.forEach((j,m) => m ? c.lineTo(P[j].x,P[j].y) : c.moveTo(P[j].x,P[j].y)); c.closePath(); c.fill(); });
+      c.globalAlpha = n ? .5 : 1; c.strokeStyle = col; c.lineWidth = 1.6; c.beginPath(); P.forEach((q,m) => m ? c.lineTo(q.x,q.y) : c.moveTo(q.x,q.y)); c.stroke();
+      c.lineWidth = 1; c.setLineDash([4,3]); c.beginPath(); [[0,2],[1,3],[2,4],[0,4]].forEach(([a,b]) => { c.moveTo(P[a].x,P[a].y); c.lineTo(P[b].x,P[b].y); }); c.stroke(); c.setLineDash([]);
+      c.font = "bold 11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.fillStyle = col;
+      P.forEach((q,m) => { const hi = h.pts[m].p >= Math.max(h.pts[Math.max(0,m-1)].p, h.pts[Math.min(4,m+1)].p); c.fillText(nm[m], q.x, q.y + (hi ? -8 : 12)); });
+      const xa = Math.abs(h.pts[1].p-h.pts[0].p), r = (Math.abs(h.pts[1].p-h.pts[4].p)/xa).toFixed(3);
+      c.fillText((h.dir === "bull" ? "▲ " : "▼ ") + h.name + "  D=" + r + "XA", P[4].x, P[4].y + (h.dir === "bull" ? 26 : -22));
+      c.restore();
+    });
+    c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
+  },
   secMs(){ return (TFSEC[this.tf] || 3600)*1000; },
   t2i(t){
     const d = this.data, n = d.length; if (!n) return 0; const sm = this.secMs();
@@ -954,7 +1015,7 @@ class Panel {
     const sm = el("select"); sm.title = T("setupmode"); [["lines",T("mLines")],["box",T("mBox")]].forEach(([v,l]) => { const o = el("option"); o.value = v; o.textContent = l; sm.append(o); });
     sm.value = this.state.smode || "lines"; sm.onchange = () => { this.state.smode = sm.value; this.chart.setupMode = sm.value; this.chart.draw(); Ws.save(); };
     this.indBtn = this.buildIndMenu();
-    this.fibSel = el("select"); this.fibSel.title = T("fibPreset"); Object.keys(FIB_PRESETS).forEach(k => this.fibSel.append(Object.assign(el("option"), {value:k, textContent:"Fib: "+k})));
+    this.fibSel = el("select"); this.fibSel.title = T("fibPreset"); this.fibSel.style.maxWidth = "120px"; Object.keys(FIB_PRESETS).forEach(k => this.fibSel.append(Object.assign(el("option"), {value:k, textContent:"Fib: "+k})));
     this.fibSel.value = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement";
     this.fibSel.onchange = () => { this.state.fibp = this.fibSel.value; this.chart.fibPreset = this.fibSel.value; const sl = this.chart.sel; if (sl && sl.type === "fib"){ sl.lv = FIB_PRESETS[this.fibSel.value].slice(); this.chart.saveDraws(); this.chart.draw(); } Ws.save(); };
     tb.append(this.indBtn, this.fibSel, sm, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
@@ -962,7 +1023,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = this.fibSel.value; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.harmOn = !!this.state.harm; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -995,6 +1056,7 @@ class Panel {
       {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; }},
+      {id:"harm", label:T("indHarm"), tip:T("harmTip"), get:() => ch().harmOn, set:v => { ch().harmOn = v; this.state.harm = v; }},
       {id:"sig", label:T("indSig"), get:() => ch().showSig, set:v => { ch().showSig = v; this.state.sig = v; }},
       {id:"flow", label:T("indFlow"), get:() => ch().flowOn, set:v => { ch().flowOn = v; this.state.flow = v; }},
       {id:"rsi", label:"RSI", get:() => ch().rsiOn, set:v => { ch().rsiOn = v; this.state.rsi = v; }, sty:"rsi", params:[P("len","Length",2,100,1), P("ob","Overbought",50,100,1), P("os","Oversold",0,50,1)]},

@@ -43,6 +43,7 @@ STRATEGY_FILTERS = {
     "st_unicorn": ("ICT Unicorn", ("family", "Unicorn")), "st_breaker": ("Breaker Block", ("key", "breaker")),
     "st_fvg": ("Fair Value Gap (FVG)", ("key", "fvg")), "st_ote": ("ICT OTE (entry zone)", ("key", "ote")),
     "st_judas": ("ICT Judas swing", ("key", "judas")), "st_sweep": ("Liquidity sweep", ("key", "sweep")),
+    "st_ifvg": ("Inverse FVG (IFVG)", ("extra", "ifvg")), "st_harm": ("Harmonic patterns (Gartley/Bat/Butterfly/Crab/Cypher)", ("extra", "harm")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),
 }
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
@@ -57,20 +58,52 @@ def flag_side(k: str):
     return None
 
 
+def _ifvg_side(df: pd.DataFrame):
+    """Inverse FVG: a gap that price closed THROUGH flips polarity and is now retested.
+    -> 'buy' (bearish gap closed above, retest from above) / 'sell' / None"""
+    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    n = len(df)
+    a = float((df["high"] - df["low"]).tail(14).mean()) or 1e-9
+    price = c[-1]
+    out = None
+    for i in range(max(2, n - 40), n - 1):
+        if h[i] < l[i - 2]:  # bearish gap [h[i], l[i-2]] -> inverted up when a later close is above it
+            lo, hi = h[i], l[i - 2]
+            if (c[i + 1:] > hi).any() and not (c[-1] < lo) and lo - 0.1 * a <= price <= hi + 0.3 * a:
+                out = "buy"
+        if l[i] > h[i - 2]:  # bullish gap [h[i-2], l[i]] -> inverted down
+            lo, hi = h[i - 2], l[i]
+            if (c[i + 1:] < lo).any() and not (c[-1] > hi) and lo - 0.3 * a <= price <= hi + 0.1 * a:
+                out = "sell"
+    return out
+
+
 def strategy_flags(df: pd.DataFrame):
     """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}."""
     from modules.signals import detect_all
+    from modules.harmonic import find_harmonics
     flags, sides = set(), {}
     try:
         sigs, _ = detect_all(df)
     except Exception:
-        return flags, sides
+        sigs = []
     for sg in sigs:
         for fid, (_lab, (kind, val)) in STRATEGY_FILTERS.items():
             if sg.get(kind) == val:
                 flags.add(fid)
                 sides.setdefault(fid, set()).add("buy" if sg.get("direction") == "bullish" else "sell")
+    try:
+        d = df.reset_index(drop=True)
+        sd = _ifvg_side(d)
+        if sd:
+            flags.add("st_ifvg"); sides.setdefault("st_ifvg", set()).add(sd)
+        for hp in find_harmonics(d):
+            flags.add("st_harm"); sides.setdefault("st_harm", set()).add("buy" if hp["dir"] == "bull" else "sell")
+    except Exception:
+        pass
     return flags, sides
+
+
 SHORT = {
     **{k: ("RSI>" if "gt" in k else "RSI<") + k[-2:] for k in RSI_FILTERS},
     **{f"px_above_{n}": f"Px>EMA{n}" for n in EMA_LENS}, **{f"px_below_{n}": f"Px<EMA{n}" for n in EMA_LENS},

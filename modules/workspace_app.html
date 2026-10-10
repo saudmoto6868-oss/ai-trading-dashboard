@@ -111,7 +111,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -617,8 +617,20 @@ Object.assign(CandleChart.prototype, {
         if (isSes){
           const next = segs[si+1], xe = next ? this.x(next[0]) - step/2 : PR, mid = (hi+lo)/2;
           c.globalAlpha = live ? .75 : .35; c.strokeRect(Math.round(x0)+.5, Math.round(py(hi))+.5, x1-x0, Math.round(py(lo))-Math.round(py(hi)));   // the session box (live-tracking while open)
-          c.globalAlpha = .6; c.setLineDash([5,3]);
-          [[hi,"H"],[lo,"L"],[mid,"M"]].forEach(([v,t],ix) => { const y = Math.round(py(v))+.5; if (ix === 2) c.globalAlpha = .35; c.beginPath(); c.moveTo(x1, y); c.lineTo(Math.max(x1, xe), y); c.stroke(); });
+          // resting liquidity: the session high / low stay as levels until a LATER bar raids (trades through) them
+          const raidAt = (lvl, up) => { for (let k = s1+1; k < n; k++){ if (up ? d[k].h > lvl : d[k].l < lvl) return k; } return -1; };
+          const sesOf = k => { const m = this.nyMin(d[k].t); return m >= 3*60 && m < 8*60 ? "London" : m >= 8*60 && m < 17*60 ? "NY" : "Asia"; };
+          c.setLineDash([5,3]);
+          [[hi, true, "H"], [lo, false, "L"]].forEach(([lv, up, tag]) => {
+            const rk = raidAt(lv, up), y = Math.round(py(lv))+.5, xr = rk >= 0 ? this.x(rk) : PR;
+            c.globalAlpha = rk >= 0 ? .3 : .75; c.beginPath(); c.moveTo(x1, y); c.lineTo(Math.max(x1, xr), y); c.stroke();
+            if (rk >= 0 && rk <= i1+1){          // flag the raid: diamond on the sweep bar + who raided what
+              c.setLineDash([]); c.globalAlpha = 1; c.fillStyle = col; const rx = this.x(rk), ry = py(up ? d[rk].h : d[rk].l);
+              c.beginPath(); c.moveTo(rx, ry-5); c.lineTo(rx+5, ry); c.lineTo(rx, ry+5); c.lineTo(rx-5, ry); c.closePath(); c.fill();
+              c.font = "bold 9px sans-serif"; c.fillText(sesOf(rk)+" raids "+name+" "+tag, Math.min(rx+7, PR-96), ry + (up ? -12 : 4)); c.font = "bold 10px sans-serif"; c.setLineDash([5,3]);
+            }
+          });
+          c.globalAlpha = .35; { const y = Math.round(py(mid))+.5; c.beginPath(); c.moveTo(x1, y); c.lineTo(Math.max(x1, xe), y); c.stroke(); }
           c.setLineDash([]);
           // rejection: wick beyond the session extreme, close back inside, EMA9/21 aligned with the reversal
           if (!live && e9 && e21){

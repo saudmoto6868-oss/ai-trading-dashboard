@@ -24,6 +24,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .panel.focus{border-color:#4a525c}
 .ph{height:26px;flex:none;display:flex;align-items:center;gap:5px;padding:0 6px;background:var(--panel2);cursor:move;user-select:none;touch-action:none}
 .ph .ttl{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph input.pc{width:16px;height:16px;padding:0;border:0;background:none;cursor:pointer;flex:none}
 .ph button{padding:0 6px;line-height:18px;border-color:transparent;background:transparent;color:var(--mut)}
 .ph button:hover{color:var(--txt);border-color:var(--line)}
 .ph select{padding:0 2px;font-size:11px}
@@ -492,15 +493,22 @@ class Panel {
     [bMin,bMax,bX].forEach(b => b.onpointerdown = e => e.stopPropagation());
     bMin.onclick = () => { this.min = !this.min; this.state.min = this.min; this.root.classList.toggle("min", this.min); Ws.save(); };
     bMax.onclick = () => this.toggleMax(); bX.onclick = () => this.close();
-    this.head.append(this.grp, bMin, bMax, bX);
+    // per-widget colours: header/border accent + body tint (saved with the layout)
+    const mkCol = (title, key) => { const i = el("input"); i.type = "color"; i.title = title; i.className = "pc"; i.value = this.state[key] || (key === "col" ? "#1e2329" : "#0b0e11");
+      i.onpointerdown = e => e.stopPropagation(); i.oninput = () => { this.state[key] = i.value; this.paint(); }; i.onchange = () => Ws.save(); return i; };
+    const rc = el("button",null,"↺"); rc.title = "reset colours"; rc.onpointerdown = e => e.stopPropagation();
+    rc.onclick = () => { delete this.state.col; delete this.state.bg; this.paint(); Ws.save(); };
+    this.head.append(mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX);
     this.body = el("div","pb"); this.rz = el("div","rz");
     this.root.append(this.head, this.body, this.rz);
     Ws.el.append(this.root); Ws.panels.push(this);
-    this.apply(); this.root.classList.toggle("min", this.min);
+    this.apply(); this.paint(); this.root.classList.toggle("min", this.min);
     this.bindDrag(); this.setTitle(); this.build();
     this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
   }
   setTitle(){ this.ttl.textContent = T(this.type) + (["chart","dom","tape","limits"].includes(this.type) ? " · "+this.state.sym : ""); this.grp.title = T("group"); }
+  paint(){ const c = this.state.col, b = this.state.bg;
+    this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
   apply(){ const r = this.rect, s = this.root.style; s.left = r.x+"px"; s.top = r.y+"px"; s.width = r.w+"px"; s.height = r.h+"px"; }
   toggleMax(){

@@ -607,7 +607,10 @@ def macro_html():
 
 
 with header_box:
-    render_header()
+    try:
+        render_header()
+    except Exception as _e:   # never let a header problem hide the rest of the page
+        st.error(f"Header error: {type(_e).__name__}: {_e}")
 
 
 # ---- Tabs -------------------------------------------------------------------------
@@ -684,20 +687,26 @@ def render_chart_scanner():
 
 
 with tab_cscan:
-    render_chart_scanner()
+    try:
+        render_chart_scanner()
+    except Exception as _e:
+        st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 
 with tab_workspace:
-    ws_lang = st.session_state.get("ws_lang", "en")
-    cached_ws = build_ws_payload()
-    ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
-    ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
-                     "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
-    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                     scan=cached_ws["scan"], links=ws_links,
-                     filters={"side": st.session_state.get("mini_side", "All"), "tt": st.session_state.get("mini_tt", "All")})
-    st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
-               "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
-               "Data comes straight from OKX in your browser, no refresh needed.")
+    try:
+        ws_lang = st.session_state.get("ws_lang", "en")
+        cached_ws = build_ws_payload()
+        ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
+        ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
+                         "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+        render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+                         scan=cached_ws["scan"], links=ws_links,
+                         filters={"side": st.session_state.get("mini_side", "All"), "tt": st.session_state.get("mini_tt", "All")})
+        st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
+                   "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
+                   "Data comes straight from OKX in your browser, no refresh needed.")
+    except Exception as _e:
+        st.error(f"Workspace error: {type(_e).__name__}: {_e}")
 
 with tab_crypto:
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])

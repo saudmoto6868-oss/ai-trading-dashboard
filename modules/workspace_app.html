@@ -17,7 +17,15 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 #bar input[type=number]{width:46px}
 #dot{width:9px;height:9px;border-radius:50%;background:var(--mut);display:inline-block}
 #dot.ok{background:var(--grn)}#dot.bad{background:var(--red)}
-#ws{position:absolute;top:34px;left:0;right:0;bottom:0;overflow:hidden;
+#strip{position:absolute;top:34px;left:0;right:0;height:28px;display:flex;align-items:center;gap:5px;padding:0 8px;background:#0e1114;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin}
+#strip .chip{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:11px;padding:1px 8px;font-size:11px;cursor:pointer;background:#161a1e;color:#eaecef}
+#strip .chip:hover{background:#2b3139}
+#strip .chip b{font-weight:700}
+#strip .lbl{flex:none;color:var(--mut);font-size:10px;text-transform:uppercase}
+.stpop{position:fixed;z-index:9999;background:#161a1e;border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
+.stpop label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.stpop .full{grid-column:1/-1;color:#f0b90b;cursor:pointer;text-align:center;padding:2px}
+#ws{position:absolute;top:62px;left:0;right:0;bottom:0;overflow:hidden;
  background:radial-gradient(circle,#1b2027 1px,transparent 1px) 0 0/20px 20px,var(--bg)}
 #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mut);font-size:14px;pointer-events:none}
 .panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.45)}
@@ -115,6 +123,7 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 </head>
 <body>
 <div id="bar"></div>
+<div id="strip"></div>
 <div id="ws"><div id="empty"></div></div>
 <script>
 "use strict";
@@ -238,8 +247,19 @@ const SYM_RE = /^[A-Z0-9]{2,12}-[A-Z0-9]{2,6}(-SWAP)?$/;
 const extraSyms = store.get(LS+"_syms", []).filter(x => SYM_RE.test(x));
 extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
 // Long/Short + trade-type filters chosen above the scanner table (Streamlit side) apply to chart overlays and alert cards too
-const FILT = Object.assign({side:"All", tt:"All"}, store.get(LS+"_filt", {}));
-function passFilters(dir, ttype){
+const FILT = Object.assign({side:"All", tt:"All", st:[]}, store.get(LS+"_filt", {}));
+if (!Array.isArray(FILT.st)) FILT.st = [];
+// strategy filter: id = the setup-tag label the scanner puts on a trade (Arabic key), label = what the user sees
+const STRATS = [["موجة 3","Wave 3"],["اليوت","Elliott"],["MSB-OB","MSB + OB"],["OB","Order Block"],["FVG","FVG"],["OTE","OTE"],["بريكر","Breaker"],["يونيكورن","Unicorn"],["يهوذا","Judas"],["سيولة","Liquidity sweep"],["اختراق","Breakout"],["دعم/مقاومة","Support/Resistance"],["فيبو","Fibonacci"],["VWAP","VWAP"],["متوسطات","Moving averages"],["زومبي","Zombie"]];
+function readyList(){
+  const seen = new Map();
+  const put = (e, t) => { if (!e || !e.plan || !passFilters(e.direction, e.ttype, e.tags || [])) return; const k = e.symbol+"|"+e.direction+"|"+e.tfk; const old = seen.get(k);
+    if (!old || (e.score/e.max) > (old.score/old.max)) seen.set(k, Object.assign({}, e, {_t:t||0})); };
+  (CFG.ready || []).forEach(e => put(e, 0)); Alerts.list.forEach(a => put(a.card, a.t));
+  return [...seen.values()].sort((a,b) => (b.score/b.max - a.score/a.max) || (b._t - a._t));
+}
+function passFilters(dir, ttype, tags){
+  if (tags && FILT.st.length && !tags.some(t => FILT.st.includes(t[0]))) return false;
   if (FILT.side === "Long" && dir !== "bullish") return false;
   if (FILT.side === "Short" && dir !== "bearish") return false;
   if (FILT.tt && FILT.tt !== "All" && ttype && ttype !== FILT.tt) return false;
@@ -1396,20 +1416,16 @@ class Panel {
     const sv = () => { store.set(LS+"_filt", FILT); draw(); Alerts.subs.forEach(f => f()); };
     sideSel.onchange = () => { FILT.side = sideSel.value; sv(); }; ttSel.onchange = () => { FILT.tt = ttSel.value; sv(); };
     snd.onchange = () => { this.state.snd = snd.checked; Ws.save(); };
-    this.head.insertBefore(snd, this.ttl.nextSibling); this.head.insertBefore(ttSel, snd); this.head.insertBefore(sideSel, ttSel);
+    const stBtn = el("button"); stBtn.style.cssText = "font-size:11px;padding:1px 6px"; stBtn.onpointerdown = e => e.stopPropagation(); this.stBtn = stBtn;
+    const stTxt = () => { stBtn.textContent = (lang === "ar" ? "استراتيجيات: " : "Strategies: ") + (FILT.st.length ? FILT.st.length : (lang === "ar" ? "الكل" : "All")) + " ▾"; };
+    stTxt(); stBtn.onclick = e => { e.stopPropagation(); Ws.stratPop(stBtn, () => { stTxt(); sv(); }); };
+    this.head.insertBefore(stBtn, this.ttl.nextSibling); this.head.insertBefore(snd, stBtn); this.head.insertBefore(ttSel, snd); this.head.insertBefore(sideSel, ttSel);
     const box = el("div","rdy"); this.body.append(box); this.body.style.overflow = "auto";
     const TFC = {"1m":"1m","1h":"1H","1d":"1D","1w":"1W"};
     const spark = (e, long_) => { const v = e.spark || []; if (v.length < 2) return ""; const pl = e.plan, all = v.concat([pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), W = 64, H = 20;
       const y = p => H-2-(p-lo)/((hi-lo)||1)*(H-4), pts = v.map((p,i) => (i*W/(v.length-1)).toFixed(1)+","+y(p).toFixed(1)).join(" ");
       return '<svg width="'+W+'" height="'+H+'"><polyline points="'+pts+'" fill="none" stroke="#9aa3ad" stroke-width="1"/><line x1="0" x2="'+W+'" y1="'+y(pl.stop)+'" y2="'+y(pl.stop)+'" stroke="#f6465d" stroke-dasharray="2 2"/><line x1="0" x2="'+W+'" y1="'+y(pl.tps[0])+'" y2="'+y(pl.tps[0])+'" stroke="#0ecb81" stroke-dasharray="2 2"/></svg>'; };
-    const collect = () => {
-      const seen = new Map();
-      const put = (e, t) => { if (!e || !e.plan || !passFilters(e.direction, e.ttype)) return; const k = e.symbol+"|"+e.direction+"|"+e.tfk; const old = seen.get(k);
-        if (!old || (e.score/e.max) > (old.score/old.max)) seen.set(k, Object.assign({}, e, {_t:t||0})); };
-      (CFG.ready || []).forEach(e => put(e, 0));
-      Alerts.list.forEach(a => put(a.card, a.t));
-      return [...seen.values()].sort((a,b) => (b.score/b.max - a.score/a.max) || (b._t - a._t));
-    };
+    const collect = readyList;
     const beep = () => { try { const ac = Ws.ac || (Ws.ac = new (window.AudioContext || window.webkitAudioContext)()); if (ac.state === "suspended") ac.resume();
       [0, .16].forEach((d, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = i ? 1175 : 880; g.gain.value = .06; o.connect(g); g.connect(ac.destination); o.start(ac.currentTime+d); o.stop(ac.currentTime+d+.12); }); } catch(e){} };
     document.addEventListener("pointerdown", () => { try { Ws.ac && Ws.ac.resume(); } catch(e){} }, {once:true});
@@ -1786,6 +1802,26 @@ function alertCard(a){
   d.querySelector(".sc").onclick = () => Ws.showOnChart(c);
   return d;
 }
+/* strategy picker popup (shared by the Ready-trades header) */
+Ws.stratPop = (anchor, onChange) => {
+  document.querySelectorAll(".stpop").forEach(x => x.remove());
+  const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-330))+"px"; pop.style.top = (r.bottom+3)+"px";
+  const all = el("div","full"); all.textContent = lang === "ar" ? "الكل (بدون فلتر)" : "All (no filter)"; all.onclick = () => { FILT.st = []; pop.querySelectorAll("input").forEach(i => i.checked = false); onChange(); }; pop.append(all);
+  STRATS.forEach(([id, en]) => { const lb = el("label"), cb = el("input"); cb.type = "checkbox"; cb.checked = FILT.st.includes(id);
+    cb.onchange = () => { FILT.st = cb.checked ? FILT.st.concat([id]) : FILT.st.filter(x => x !== id); onChange(); }; lb.append(cb, document.createTextNode(lang === "ar" ? id : en)); pop.append(lb); });
+  document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+};
+/* quick-jump strip: live setup chips from the scanner; click = load symbol + setup on the chart */
+Ws.drawStrip = () => {
+  const box = document.getElementById("strip"); if (!box) return; const rows = readyList().slice(0, 40), TFC = {"1m":"1m","1h":"1H","1d":"1D","1w":"1W"};
+  box.innerHTML = ""; const lb = el("span","lbl"); lb.textContent = lang === "ar" ? "إشارات حية" : "Live setups"; box.append(lb);
+  if (!rows.length){ const m = el("span","m"); m.textContent = CFG.scanning ? T("scanning") : T("rdEmpty"); box.append(m); return; }
+  rows.forEach(e => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), c = el("span","chip");
+    c.style.borderColor = long_ ? "#0ecb81" : "#f6465d"; c.title = (e.tags||[]).map(t => t[3] || t[0]).join("\n");
+    c.innerHTML = "<b>"+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+"</b> <span style='color:"+(long_?"#0ecb81":"#f6465d")+"'>"+(long_ ? "▲" : "▼")+"</span> "+esc((e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "))+" <span class='m'>"+esc(e.tfk||"")+" "+pct+"%</span>";
+    c.onclick = () => Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); box.append(c); });
+};
+Alerts.subs.add(() => Ws.drawStrip()); setInterval(() => Ws.drawStrip(), 5000); setTimeout(() => Ws.drawStrip(), 300);
 Ws.showOnChart = c => {
   const ch = Ws.panels.find(p => p.type === "chart"); if (!ch) return;
   if (ch.state.sym !== c.symbol) Ws.broadcast(ch, c.symbol);

@@ -357,7 +357,19 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
             seen.add(t[0])
             tags.append([t[0], t[1], t[2], tip_for(s)])
     zones = [[round(float(s["zone"][0]), 6), round(float(s["zone"][1]), 6), tag_for(s)[1]] for s in r["signals"] if s.get("zone")]
+    ew = None
+    for sg in r["signals"]:
+        if sg.get("key") in ("ew3", "ew5") and sg.get("vals", {}).get("idx") and sg.get("direction") == r["direction"]:
+            try:
+                idx = sg["vals"]["idx"]; pr = sg["prices"]
+                names = ["w0", "w1", "w2", "w3", "w4"][:len(idx)]
+                ew = {"kind": sg["key"], "pts": [[int(df["time"].iloc[i].timestamp() * 1000), round(float(pr[nm]), 6)] for i, nm in zip(idx, names)],
+                      "tgt": round(float(pr.get("t", pr.get("t1", 0))), 6) or None, "inv": round(float(pr["inv"]), 6) if "inv" in pr else None}
+            except Exception:
+                ew = None
+            break
     return {
+        "ew": ew,
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
         "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
         "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,

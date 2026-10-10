@@ -265,7 +265,7 @@ def elliott_bull(df):
     # and (c) wave 2 reacting OFF an EMA 9/21/50 or VWAP level (tap/cross + hold).
     if kinds[-3:] == ["L", "H", "L"]:
         p0, p1, p2 = px[-3:]
-        i2 = zz[-1][0]
+        i0_, i1_, i2 = zz[-3][0], zz[-2][0], zz[-1][0]
         w1 = p1 - p0
         if w1 > 0 and p2 > p0:
             ret = (p1 - p2) / w1
@@ -276,8 +276,8 @@ def elliott_bull(df):
                     out.append(_mk(
                         "Elliott", "Wave 3 start",
                         "wave 2 retraced {ret:.0%} of wave 1{ideal} and reacted off " + lvl[0] + " {ma}; target 1.618 x W1 = {t}; invalid below {inv}",
-                        prices={"t": p2 + 1.618 * w1, "inv": p0, "ma": lvl[1]},
-                        vals={"ret": ret, "ideal": ideal, "ma_name": lvl[0]}))
+                        prices={"t": p2 + 1.618 * w1, "inv": p0, "ma": lvl[1], "w0": p0, "w1": p1, "w2": p2},
+                        vals={"ret": ret, "ideal": ideal, "ma_name": lvl[0], "idx": [int(i0_), int(i1_), int(i2)]}))
 
     # ---- Wave 5 start: L H L H L ---------------------------------------------
     if len(zz) >= 5 and kinds[-5:] == ["L", "H", "L", "H", "L"]:
@@ -289,7 +289,8 @@ def elliott_bull(df):
                 out.append(_mk(
                     "Elliott", "Wave 5 start",
                     "wave 4 retraced {ret:.0%} of wave 3 (typ. 38.2%); target W5 = W1: {t1}, or 1.618 x (W1 start to W3 end): {t2}",
-                    prices={"t1": p4 + w1, "t2": p0 + 1.618 * (p3 - p0)}, vals={"ret": ret4}))
+                    prices={"t1": p4 + w1, "t2": p0 + 1.618 * (p3 - p0), "w0": p0, "w1": p1, "w2": p2, "w3": p3, "w4": p4},
+                    vals={"ret": ret4, "idx": [int(zz[-5][0]), int(zz[-4][0]), int(zz[-3][0]), int(zz[-2][0]), int(zz[-1][0])]}))
 
     # ---- after a COMPLETE impulse (L H L H L H) -> correction ------------------
     def valid_impulse(q):

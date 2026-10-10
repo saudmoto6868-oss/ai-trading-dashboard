@@ -15,6 +15,7 @@
 .clk{flex:none;text-align:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:1px 8px;min-width:86px}
 .clk small{display:block;font-size:9px;color:var(--mut);letter-spacing:.6px}.clk b{font:700 15px ui-monospace,Menlo,Consolas,monospace;color:var(--txt)}
 #wm{flex:none;cursor:pointer}
+#rt{flex:none;width:26%;min-width:440px;display:flex;align-items:center;justify-content:flex-end;gap:6px}
 .pop{position:absolute;top:56px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
 .pop.on{display:block}
 #newsPop{left:70px;right:260px;max-height:360px;overflow:auto;padding:4px}
@@ -30,7 +31,7 @@
 #det{margin-top:4px;padding:6px;border:1px solid var(--line);border-radius:6px;background:#10151a;font-size:11px;min-height:38px}
 #det a{color:#4aa3ff}
 .leg{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0;font-size:10px;color:var(--mut)}.leg label{cursor:pointer;display:flex;align-items:center;gap:3px}
-#bell{flex:none;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:2px 8px;cursor:pointer;font-size:11px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bell{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:2px 8px;cursor:pointer;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #bell.hot{border-color:#f6465d;color:#f6465d}#bell.blink{animation:bl .8s infinite}@keyframes bl{50%{background:#3a1218}}
 #evpop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92%);max-height:92%;overflow:auto;background:#10151a;border:1px solid var(--acc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.8);padding:10px 12px;z-index:5;display:none}
 #evpop h4{margin:0 0 4px;font-size:13px}#evpop .x{position:absolute;right:8px;top:6px;cursor:pointer;color:var(--mut)}
@@ -41,10 +42,10 @@
   <div id="logo"></div>
   <div id="links" style="display:flex;gap:4px;align-items:center;flex:none"></div>
   <div id="tick" title="Click for the news list"><span class="tag">NEWS ▾</span><div class="track" id="track"></div></div>
-  <div id="bell" title="Next high-impact news (click for the calendar)">🔔 …</div>
+  <div id="rt"><div id="bell" title="Next high-impact news (click for the calendar)">🔔 …</div>
   <div class="clk"><small>CAIRO</small><b id="tc">--:--:--</b></div>
   <div class="clk"><small>NEW YORK</small><b id="tn">--:--:--</b></div>
-  <div class="lk" id="wm" title="World map: events">🌐 World</div>
+  <div class="lk" id="wm" title="World map: events">🌐 World</div></div>
   <div class="pop" id="fvPop"></div>
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
@@ -191,7 +192,7 @@ async function bellTick(){
   const cnt = " · today "+nToday+" · tomorrow "+nTom+" · week "+nWeek;
   if (!nx){ b.textContent = "🔔 no high-impact news"+cnt; return; }
   const d = nx.ts - now, m = Math.round(d/60000), txt = d < 0 ? "now" : m < 60 ? m+"m" : Math.floor(m/60)+"h "+(m%60)+"m", day = new Date(nx.ts).toDateString() === new Date().toDateString() ? "today" : "later";
-  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.textContent += cnt; b.style.maxWidth = "360px"; b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+"); high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek;
+  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.textContent += cnt;  b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+"); high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek;
   if (d < 3600000) b.classList.add("hot"); if (d < 900000) b.classList.add("blink");
   const k = nx.ts+"|15"; if (d < 900000 && d > 0 && !beeped[k]){ beeped[k] = 1; beep(); }
 }

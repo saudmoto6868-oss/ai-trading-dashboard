@@ -8,8 +8,11 @@ import requests
 
 from config import TWELVEDATA_API_KEY
 
-MACRO = [("Gold", "XAU/USD"), ("Oil WTI", "WTI/USD"), ("EUR/USD", "EUR/USD"), ("DXY", "DXY"),
-         ("USD/JPY", "USD/JPY"), ("GBP/USD", "GBP/USD")]
+# TwelveData Basic (free) covers US equities, forex and crypto; commodities/indices are paid-plan.
+# So: forex pairs directly, and US-listed ETFs as proxies for gold / oil / the dollar. XAU/USD is tried too
+# (shows "n/a" if the plan does not include it). DXY itself is NOT expected on the free plan.
+MACRO = [("EUR/USD", "EUR/USD"), ("USD/JPY", "USD/JPY"), ("GBP/USD", "GBP/USD"), ("Gold XAU", "XAU/USD"),
+         ("Gold (GLD)", "GLD"), ("Oil (USO)", "USO"), ("Dollar (UUP)", "UUP")]
 URL = "https://api.twelvedata.com/quote"
 
 

@@ -111,7 +111,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",kzTip:"Kill zones (NY time): Asia 20-24, London 02-05, NY AM 07-10, NY PM 13:30-16 - with each session high/low (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -123,7 +123,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -404,6 +404,7 @@ class CandleChart {
     c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(PR+.5,0); c.lineTo(PR+.5,H); c.stroke();
     // clip plot
     c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
+    if (this.kz) this.paintKZ(c, py, i0, i1, PB);
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
     const bwp = Math.max(1, this.bw*0.7);
     for (let i = i0; i <= i1; i++){
@@ -586,6 +587,33 @@ Object.assign(CandleChart.prototype, {
     dd.last = q; return true;
   },
   toolUp(e){ if (this.dragD){ if (this.dragD.changed) this.saveDraws(); this.dragD = null; } },
+  nyMin(t){   // minutes since midnight in New York (DST-aware), cached per candle
+    const m = this._ny || (this._ny = new Map()); let v = m.get(t); if (v != null) return v;
+    if (!this._nyf) this._nyf = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false});
+    const parts = this._nyf.formatToParts(new Date(t)); v = (+parts.find(x => x.type === "hour").value % 24)*60 + (+parts.find(x => x.type === "minute").value);
+    m.set(t, v); return v;
+  },
+  paintKZ(c, py, i0, i1, PB){
+    if (this.secMs() > 3600*1000) return;           // kill zones only make sense on 1H and lower
+    const Z = [["Asia", 20*60, 24*60, "#4aa3ff"], ["London", 2*60, 5*60, "#f0b90b"], ["NY AM", 7*60, 10*60, "#0ecb81"], ["NY PM", 13.5*60, 16*60, "#b57cff"]];
+    const step = this.bw, d = this.data; c.font = "bold 10px sans-serif"; c.textAlign = "left"; c.textBaseline = "top";
+    Z.forEach(([name, a, b, col]) => {
+      let start = -1;
+      const close = end => {
+        let hi = -Infinity, lo = Infinity; for (let k = start; k <= end; k++){ hi = Math.max(hi, d[k].h); lo = Math.min(lo, d[k].l); }
+        const x0 = this.x(start) - step/2, x1 = this.x(end) + step/2;
+        c.globalAlpha = .10; c.fillStyle = col; c.fillRect(x0, 0, x1-x0, PB); c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = 1; c.setLineDash([4,3]);
+        [hi, lo].forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }); c.setLineDash([]);
+        c.globalAlpha = 1; c.fillStyle = col; if (x1-x0 > 26) c.fillText(name, x0+3, 3);
+      };
+      for (let i = Math.max(0, i0-60); i <= Math.min(d.length-1, i1+60); i++){
+        const m = this.nyMin(d[i].t), inZ = m >= a && m < b;
+        if (inZ && start < 0) start = i; else if (!inZ && start >= 0){ close(i-1); start = -1; }
+      }
+      if (start >= 0) close(Math.min(d.length-1, i1+60));
+    });
+    c.globalAlpha = 1; c.textBaseline = "middle"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
+  },
   paintSetupBox(c, py, pl, dec){
     const n = this.data.length, x0 = Math.max(0, this.x(n-1)), x1 = this.PR, w = Math.max(30, x1 - x0), long_ = pl.tps && pl.tps[0] > pl.entry;
     const tp = pl.tps && pl.tps.length ? pl.tps[pl.tps.length-1] : pl.entry, yE = py(pl.entry), yS = py(pl.stop), yT = py(tp);
@@ -728,13 +756,14 @@ class Panel {
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
+    const kzb = el("button",null,"KZ"); kzb.title = T("kzTip"); kzb.onclick = () => { this.chart.kz = !this.chart.kz; this.state.kz = this.chart.kz; kzb.classList.toggle("on", this.chart.kz); this.chart.draw(); Ws.save(); };
     const sm = el("select"); sm.title = T("setupmode"); [["lines",T("mLines")],["box",T("mBox")]].forEach(([v,l]) => { const o = el("option"); o.value = v; o.textContent = l; sm.append(o); });
     sm.value = this.state.smode || "lines"; sm.onchange = () => { this.state.smode = sm.value; this.chart.setupMode = sm.value; this.chart.draw(); Ws.save(); };
-    tb.append(...emaBtns, vw, sg, sm, fl, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
+    tb.append(...emaBtns, vw, kzb, sg, sm, fl, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
-    this.chart.setupMode = this.state.smode || "lines";
+    this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
     [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {

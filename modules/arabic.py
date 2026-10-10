@@ -52,6 +52,7 @@ KEY_TAGS = {
     "ohl_open": ("OHL", "#8bc34a", "#000"),
     "level": ("دعم/مقاومة", "#9e9e9e", "#000"),
     "zombie": ("زومبي", "#ff5fa2", "#000"),
+    "ew3": ("موجة 3", "#f0b90b", "#000"),
 }
 
 
@@ -101,7 +102,7 @@ def signal_ar(s: dict) -> tuple:
     if k == "ew3":
         ideal = " (المنطقة المثالية 50-61.8%)" if v.get("ideal") else ""
         return ("بداية الموجة 3 (إليوت)",
-                f"الموجة 2 ارتدت {n_(format(v.get('ret', 0), '.0%'))} من الموجة 1{ideal}؛ الهدف 1.618×الموجة 1 = {f('t')}؛ "
+                f"الموجة 2 ارتدت {n_(format(v.get('ret', 0), '.0%'))} من الموجة 1{ideal} وارتدّت من {v.get('ma_name', 'متوسط')} عند {f('ma')}؛ الهدف 1.618×الموجة 1 = {f('t')}؛ "
                 f"تلغى الفكرة {dn} {f('inv')}")
     if k == "ew5":
         return ("بداية الموجة 5 (إليوت)",
@@ -321,7 +322,7 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
     zones = [[round(float(s["zone"][0]), 6), round(float(s["zone"][1]), 6), tag_for(s)[1]] for s in r["signals"] if s.get("zone")]
     return {
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
-        "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
+        "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
         "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,
         "plan": {"entry": round(plan["entry"], 6), "stop": round(plan["stop_loss"], 6),
                  "tps": [round(x, 6) for x in plan["take_profits"]]},

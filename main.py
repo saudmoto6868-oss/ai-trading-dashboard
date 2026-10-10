@@ -398,21 +398,25 @@ def build_ws_payload():
     cached_ws = st.session_state.get("ws_payload")
     if cached_ws is None or cached_ws["key"] != ws_key or ws_key is None:
         ws_alerts, ws_scan, ws_seed = [], {}, None
-        try:
-            ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, ws_tf)
+        # alerts = real scanner trades on every scan timeframe (1m scalp ... 1w position);
+        # the watchlist tags only use the chosen scan timeframe
+        for tf_ in SCAN_TFS:
+            try:
+                ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, tf_)
+            except Exception:
+                continue
             for r_ in ws_results:
                 try:
-                    e_ = scan_entry(r_, get_klines(r_["symbol"], ws_tf, 300))
+                    e_ = scan_entry(r_, get_klines(r_["symbol"], tf_, 300))
                 except Exception:
                     e_ = None
                 if not e_:
                     continue
-                ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade")}
-                                         | {"tf": e_["tfc"], "dir": e_["direction"]})
+                if tf_ == ws_tf:
+                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade")}
+                                             | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
-                    ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{ws_tf}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
-        except Exception:
-            pass
+                    ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
         try:
             ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
         except Exception:
@@ -522,7 +526,7 @@ CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 
 with tab_workspace:
     ws_lang = st.session_state.get("ws_lang", "en")
-    ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
+    ws_height = st.sidebar.slider("Workspace height (px)", 500, 3000, 1720, step=20)
     cached_ws = build_ws_payload()
     ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
     ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],

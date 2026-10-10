@@ -220,6 +220,32 @@ def n_short(df, k):
 # Primary family: Elliott waves
 # --------------------------------------------------------------------------
 
+def _wave2_reaction(df, i2, p2):
+    """(name, level) of the EMA 9/21/50 or VWAP that the wave-2 low tapped or
+    crossed and that price now holds above; None if wave 2 hit none of them."""
+    if i2 < 20 or i2 >= len(df):
+        return None
+    c = df["close"]
+    a = float(atr_series(df).iloc[i2])
+    lo, hi = max(0, i2 - 2), min(len(df), i2 + 3)
+    low = float(df["low"].iloc[lo:hi].min())
+    high = float(df["high"].iloc[lo:hi].max())
+    tp = (df["high"] + df["low"] + df["close"]) / 3
+    vol = df["volume"].replace(0, np.nan)
+    vw = (tp * vol).rolling(100, min_periods=20).sum() / vol.rolling(100, min_periods=20).sum()
+    cands = [(f"EMA{n}", c.ewm(span=n, adjust=False).mean()) for n in (9, 21, 50)] + [("VWAP", vw)]
+    for name, ser in cands:
+        lv = ser.iloc[lo:hi].mean()
+        if pd.isna(lv):
+            continue
+        lv = float(lv)
+        touched = low <= lv + 0.4 * a and high >= lv - 0.4 * a   # wave-2 low tapped / crossed it
+        holds = float(c.iloc[-1]) > float(ser.iloc[-1])           # price is back above it now
+        if touched and holds:
+            return (name, lv)
+    return None
+
+
 def elliott_bull(df):
     """Rule-based impulse (0-1-2-3-4-5) + ABC detector on zig-zag pivots.
     Fires only for the *start* of a wave, per the watchlist spec:
@@ -235,17 +261,23 @@ def elliott_bull(df):
     price = float(df["close"].iloc[-1])
 
     # ---- Wave 3 start: pivots L(0) H(1) L(2) --------------------------------
+    # Needs (a) a strong first move, (b) a 50-70% retracement (small tolerance),
+    # and (c) wave 2 reacting OFF an EMA 9/21/50 or VWAP level (tap/cross + hold).
     if kinds[-3:] == ["L", "H", "L"]:
         p0, p1, p2 = px[-3:]
+        i2 = zz[-1][0]
         w1 = p1 - p0
         if w1 > 0 and p2 > p0:
             ret = (p1 - p2) / w1
-            if 0.382 <= ret <= 0.786 and p2 + 0.25 * w1 <= price <= p1 + 0.618 * w1:
-                ideal = " (ideal 50-61.8% zone)" if 0.5 <= ret <= 0.618 else ""
-                out.append(_mk(
-                    "Elliott", "Wave 3 start",
-                    "wave 2 retraced {ret:.0%} of wave 1{ideal}; target 1.618 x W1 = {t}; invalid below {inv}",
-                    prices={"t": p2 + 1.618 * w1, "inv": p0}, vals={"ret": ret, "ideal": ideal}))
+            if 0.45 <= ret <= 0.72 and p2 + 0.25 * w1 <= price <= p1 + 0.618 * w1:
+                lvl = _wave2_reaction(df, i2, p2)
+                if lvl:
+                    ideal = " (ideal 50-61.8% zone)" if 0.5 <= ret <= 0.618 else ""
+                    out.append(_mk(
+                        "Elliott", "Wave 3 start",
+                        "wave 2 retraced {ret:.0%} of wave 1{ideal} and reacted off " + lvl[0] + " {ma}; target 1.618 x W1 = {t}; invalid below {inv}",
+                        prices={"t": p2 + 1.618 * w1, "inv": p0, "ma": lvl[1]},
+                        vals={"ret": ret, "ideal": ideal, "ma_name": lvl[0]}))
 
     # ---- Wave 5 start: L H L H L ---------------------------------------------
     if len(zz) >= 5 and kinds[-5:] == ["L", "H", "L", "H", "L"]:

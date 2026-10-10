@@ -108,7 +108,7 @@ const TFS = [["5s","5s"],["15s","15s"],["1m","1m"],["5m","5m"],["15m","15m"],["3
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No alerts yet — scanner signals, whale prints and big-order events will collect here.",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
+  vwap:"VWAP",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",pace:"pace",delta:"delta",
   legend:"green buy · red sell · gold = big/SMART/WHALE (blinks) · violet = absorption · blue outline = level grew",
@@ -120,7 +120,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش تنبيهات لسه — إشارات السكانر وصفقات الحيتان وأحداث الأوامر الكبيرة هتتجمع هنا.",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
+  vwap:"VWAP",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",pace:"السرعة",delta:"الفرق",
   legend:"أخضر شراء · أحمر بيع · دهبي = كبير/سمارت/حوت (بيومّض) · بنفسجي = امتصاص · إطار أزرق = المستوى زاد",
@@ -150,7 +150,7 @@ const saveSettings = () => store.set(LS+"_set", settings);
 const extraSyms = store.get(LS+"_syms", []).filter(x => /^[A-Z0-9]{2,12}-[A-Z0-9]{2,6}$/.test(x));
 extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
 const Alerts = {
-  list: store.get(LS+"_alerts", []), subs: new Set(),
+  list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),
   add(id, kind, sym, text, color, card){
     if (this.list.some(a => a.id === id)) return;
     this.list.unshift({id, t:Date.now(), kind, sym, text, color, card}); this.list = this.list.slice(0, 200);
@@ -246,7 +246,6 @@ const Hub = {
       r.absorb = false; r.adir = "";
       r.notional = r.p*r.q;
     });
-    if (!st.first) rows.forEach(r => { if (r.isNew && r.tier === "whale") Alerts.add("w|"+sym+"|"+r.id, "whale", sym, sym+" · WHALE "+(r.side==="Buy"?"شراء":"بيع")+" "+fmtQ(r.q)+" @ "+fmtP(r.p), r.side==="Buy" ? "#0ecb81" : "#f6465d"); });
     rows.forEach(r => st.seen.add(r.id));
     if (st.seen.size > 800) st.seen = new Set(rows.map(r=>r.id));
     st.first = false;
@@ -267,7 +266,6 @@ const Hub = {
     st.buf.forEach(b => b.isNew = false);
     rows.forEach(r => { const o = st.map.get(r.id); if (o){ o.tier = r.tier; o.absorb = r.absorb; o.adir = r.adir; o.isNew = r.isNew; } else { st.map.set(r.id, r); st.buf.push(r); } });
     if (st.buf.length > 3000){ st.buf.splice(0, 600).forEach(b => st.map.delete(b.id)); }
-    if (!st.first) rows.filter(r=>r.absorb).slice(-1).forEach(r => Alerts.add("a|"+sym+"|"+r.p+"|"+Math.floor(Date.now()/120000), "absorb", sym, sym+" · ABSORB @ "+fmtP(r.p)+" ("+r.adir+")", "#b57cff"));
     const ab = new Set(rows.filter(r=>r.absorb).map(r=>r.p));
     return { rows, all: st.buf, hits, ab, abDir: (rows.find(r=>r.absorb)||{}).adir || "",
              stats:{ pace: span>0 ? rows.length/span : rows.length, buyPct: buy+sell ? 100*buy/(buy+sell) : 50, delta: buy-sell } };
@@ -762,16 +760,20 @@ class Panel {
   }
   /* ---- alerts ---- */
   build_alerts(){
-    const tb = el("div","tb"), clr = el("button",null,T("clear")); clr.onclick = () => Alerts.clear(); tb.append(clr);
+    const F = this.state.af = Object.assign({tf:"", tt:"", dir:""}, this.state.af || {});
+    const tb = el("div","tb"), clr = el("button",null,T("clear")); clr.onclick = () => Alerts.clear();
+    const mkSel = (key, opts) => { const s2 = el("select"); opts.forEach(([v,l]) => { const o = el("option",null,esc(l)); o.value = v; s2.append(o); }); s2.value = F[key]; s2.onchange = () => { F[key] = s2.value; Ws.save(); draw(); }; return s2; };
+    tb.append(mkSel("dir", [["",T("fAll")],["bullish","Long"],["bearish","Short"]]),
+      mkSel("tt", [["",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]]),
+      mkSel("tf", [["",T("fAll")],["1m","1m"],["1h","1h"],["1d","1d"],["1w","1w"]]), clr);
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
-      if (!Alerts.list.length){ this.aBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("noalerts"))+'</div>'; return; }
       const now = Date.now();
+      const rows = Alerts.list.filter(a => a.card && (!F.tf || a.card.tfk === F.tf) && (!F.tt || a.card.ttype === F.tt) && (!F.dir || a.card.direction === F.dir))
+        .sort((x,y) => (y.card.score - x.card.score) || (y.t - x.t));
       this.aBox.innerHTML = "";
-      Alerts.list.slice().sort((x,y) => (!!y.card) - (!!x.card)).forEach(a => {
-        if (a.card){ this.aBox.append(alertCard(a)); return; }
-        const d = el("div","al-item "+(now-a.t<20000?"evn":""), '<div>'+esc(a.text)+'</div><div class="m">'+hms(a.t)+'</div>'); d.style.borderInlineStart = "3px solid "+a.color; this.aBox.append(d);
-      });
+      if (!rows.length){ this.aBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("noalerts"))+'</div>'; return; }
+      rows.forEach(a => this.aBox.append(alertCard(a)));
     };
     draw(); Alerts.subs.add(draw); this.unwatch = () => Alerts.subs.delete(draw);
   }
@@ -945,7 +947,6 @@ function limitUpdate(lt, book, rows){
     });
   }
   lt.prev = cur; lt.events = lt.events.slice(0, 200);
-  lt.events.filter(e => e.t === now).forEach(e => Alerts.add("l|"+lt.sym+"|"+e.ev+"|"+e.side+"|"+e.p+"|"+Math.floor(e.t/60000), "limit", lt.sym, lt.sym+" · "+e.ev+" "+e.side.toUpperCase()+" "+fmtQ(e.q)+" @ "+fmtP(e.p), e.ev==="PULLED" ? "#f0b90b" : e.ev==="PLACED" ? "#4aa3ff" : "#848e9c"));
 }
 function renderEvents(panel, evAll){
   const w = panel.state.lwin != null ? panel.state.lwin : 900000, f = panel.state.flt || "all", now = Date.now();
@@ -965,7 +966,7 @@ function alertCard(a){
   const d = el("div","card"); d.style.borderInlineStart = "3px solid "+(bull ? "#0ecb81" : "#f6465d");
   d.innerHTML = '<div class="row"><span class="logo" style="background:'+logoColor(base)+'">'+esc(base.slice(0,4))+'</span><b style="font-size:13px">'+esc(c.symbol)+'</b>'
     +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+(bull?"شراء":"بيع")+'</span><span class="grow"></span><span class="stars" title="'+c.score+'/'+c.max+'">'+st+'</span></div>'
-    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<span class="badge" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(t[0])+'</span>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span></div>'
+    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<span class="badge" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(t[0])+'</span>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
     +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
     +'<div class="row" style="margin-top:5px"><span class="badge" style="border:1px solid #f0b90b;color:#f0b90b">'+esc(c.trade)+'</span><span class="m">'+esc(T("eta"))+': TP1 '+esc((c.eta||{}).tp1||"-")+' · TP3 '+esc((c.eta||{}).tp3||"-")+'</span></div>'
     +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';
@@ -1010,7 +1011,7 @@ Ws.broadcast = (from, sym) => {
 };
 Ws.checkEmpty = () => { const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
 Ws.save = () => {
-  store.set(LS, { lang, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
+  store.set(LS, { lang, v:6, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
   Ws.checkEmpty();
 };
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
@@ -1066,7 +1067,7 @@ function applyLang(rebuild){
   const saved = store.get(LS, null);
   lang = (saved && saved.lang) || CFG.lang || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
-  if (saved && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
+  if (saved && saved.v >= 6 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else Ws.build(Ws.defaults());
   window.__ws = Ws;
 })();

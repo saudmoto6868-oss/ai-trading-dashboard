@@ -192,7 +192,7 @@ def scenarios_ar(res: dict) -> list:
 # --------------------------------------------------------------------------
 
 def tv_link(symbol: str, tf: str) -> str:
-    sym = TV_SYMBOL_MAP.get(symbol) or symbol.replace("-", "")
+    sym = TV_SYMBOL_MAP.get(symbol) or ("BINANCE:" + symbol.replace("-", "") if symbol.endswith("-USDT") else symbol.replace("-", ""))
     return f"https://www.tradingview.com/chart/?symbol={sym}&interval={TV_INTERVAL.get(tf, '60')}"
 
 

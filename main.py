@@ -29,7 +29,7 @@ from modules.scorer import (
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
-    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, n_,
+    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_,
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
@@ -51,7 +51,7 @@ except ImportError:  # package missing: dashboard still works, just not live
     st_autorefresh = None
 
 st.set_page_config(
-    page_title="AI Trading Desk", layout="wide", page_icon="\U0001F4CA",
+    page_title="6868 X", layout="wide", page_icon="\U0001F4CA",
     initial_sidebar_state="collapsed",
 )
 
@@ -93,7 +93,7 @@ elif auto_on:
 
 # ---- Header: title, news ticker, quick links --------------------------------
 head_l, head_r = st.columns([3, 1])
-head_l.title("AI Trading Desk")
+head_l.title("6868 X")
 head_r.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                + (f"  \nLive: every {refresh_secs}s" if auto_on else "  \nLive: off"))
 
@@ -424,7 +424,20 @@ with tab_workspace:
                        format_func=lambda k: {"en": "English", "ar": "العربية"}[k],
                        help="Starting language of the workspace. You can also switch inside it with the EN/ع button.")
     ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
-    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height)
+    ws_alerts = []
+    try:
+        ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, st.session_state.get("scan_tf", "1h"))
+        for r_ in ws_results:
+            if r_["score"] >= ALERT_SCORE_THRESHOLD and r_["direction"] in ("bullish", "bearish"):
+                ws_alerts.append({
+                    "id": f"scan|{r_['symbol']}|{r_['timeframe']}|{r_['direction']}|{r_['score']}",
+                    "symbol": r_["symbol"], "direction": r_["direction"], "score": r_["score"],
+                    "max": r_["max_score"], "trade": TRADE_AR.get(r_["trade_type"], r_["trade_type"]),
+                    "tags": [tag_for(x)[0] for x in r_["signals"]][:5], "tf": TF_AR.get(r_["timeframe"], r_["timeframe"]),
+                })
+    except Exception:
+        pass
+    render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=ws_alerts)
     st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                "Data comes straight from OKX in your browser, no refresh needed.")

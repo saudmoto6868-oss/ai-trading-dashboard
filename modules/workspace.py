@@ -20,7 +20,7 @@ _TEMPLATE = Path(__file__).with_name("workspace_app.html")
 
 
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
-                         api_base: str = "https://www.okx.com") -> str:
+                         api_base: str = "https://www.okx.com", alerts: list | None = None) -> str:
     cfg = {
         "symbols": list(symbols),
         "news": [
@@ -33,6 +33,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
             }
             for n in (news or [])
         ],
+        "alerts": list(alerts or []),
         "lang": lang if lang in ("en", "ar") else "en",
         "apiBase": api_base,
     }
@@ -41,7 +42,8 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
     return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
 
 
-def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860):
+def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
+                     alerts: list | None = None):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts), height=height, scrolling=False)

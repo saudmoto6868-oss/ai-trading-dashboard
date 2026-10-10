@@ -1,4 +1,4 @@
-# AI Trading Desk Dashboard
+# 6868 X
 
 ## What this is
 A Streamlit dashboard with 5 tabs (Crypto, Forex, Metals, Stocks, Meme Coins).

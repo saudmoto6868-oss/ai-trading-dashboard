@@ -11,7 +11,10 @@ INDEX_SYMBOLS = ["US100", "US500"]  # broker-dependent CFD naming — verify aga
 STOCK_SYMBOLS = ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN"]  # placeholder starter list — edit freely
 
 # OKX symbol style: "BASE-QUOTE" (e.g. "BTC-USDT"), different from Binance's "BTCUSDT"
-CRYPTO_SYMBOLS = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT"]
+CRYPTO_SYMBOLS = [
+    "BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "DOGE-USDT", "ADA-USDT", "AVAX-USDT",
+    "LINK-USDT", "DOT-USDT", "TRX-USDT", "LTC-USDT", "TON-USDT", "SUI-USDT", "NEAR-USDT", "APT-USDT",
+]  # add more here (OKX "BASE-USDT" names); the Workspace watchlist also has an "add symbol" box
 
 MEMECOIN_CHAIN = "solana"  # default chain for DEXScreener trending/whale lookups
 

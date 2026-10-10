@@ -13,6 +13,7 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 import base64
 import html
 import time
+from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
@@ -36,6 +37,7 @@ from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
+from modules.site_icons import site_icon_b64
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -91,35 +93,8 @@ if auto_on and st_autorefresh is not None:
 elif auto_on:
     st.sidebar.warning("streamlit-autorefresh is not installed - add it to requirements.txt.")
 
-# ---- Header: title, news ticker, quick links --------------------------------
-head_l, head_r = st.columns([3, 1])
-head_l.title("6868 X")
-head_r.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-               + (f"  \nLive: every {refresh_secs}s" if auto_on else "  \nLive: off"))
-
-try:
-    st.markdown(ticker_html(get_latest_news(category="general", limit=15)), unsafe_allow_html=True)
-except Exception as e:  # the ticker must never take the page down
-    st.caption(f"News ticker unavailable: {e}")
-
-
-def render_quick_links():
-    names = list(EXTERNAL_LINKS)
-    cols = st.columns(len(names))
-    for col, name in zip(cols, names):
-        label = f"{QUICK_LINK_ICONS.get(name, '')} {name}".strip()
-        with col:
-            if name == "Finviz Patterns":
-                with st.popover(label):
-                    st.caption("Pick a chart pattern - opens Finviz in a new tab")
-                    for pat, signal in FINVIZ_PATTERNS.items():
-                        st.link_button(pat, FINVIZ_PATTERN_URL.format(signal=signal))
-                    st.link_button("All charts (no filter)", EXTERNAL_LINKS[name])
-            else:
-                st.link_button(label, EXTERNAL_LINKS[name])
-
-
-render_quick_links()
+# ---- Header (filled in below once the scanner helpers exist) ----------------------
+header_box = st.container()
 
 
 # ---- Data helpers -------------------------------------------------------------
@@ -411,19 +386,7 @@ def render_limit_tracking(sym, book, trades):
                "inside one refresh is not seen. PULLED = vanished without trading.")
 
 
-# ---- Tabs -------------------------------------------------------------------------
-tab_workspace, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
-    ["\U0001F9E9 Workspace", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
-)
-
-TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
-CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
-
-with tab_workspace:
-    ws_lang = st.radio("Language / اللغة", ["en", "ar"], horizontal=True, key="ws_lang",
-                       format_func=lambda k: {"en": "English", "ar": "العربية"}[k],
-                       help="Starting language of the workspace. You can also switch inside it with the EN/ع button.")
-    ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
+def build_ws_payload():
     # The payload is rebuilt only when a new candle closes, so the Workspace page
     # (an iframe) is not re-created - and zoom/pan not reset - on every refresh.
     ws_tf = st.session_state.get("scan_tf", "1h")
@@ -444,7 +407,8 @@ with tab_workspace:
                     e_ = None
                 if not e_:
                     continue
-                ws_scan[r_["symbol"]] = {k: e_[k] for k in ("tfc", "tags", "zones", "plan")} | {"tf": e_["tfc"], "dir": e_["direction"]}
+                ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade")}
+                                         | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
                     ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{ws_tf}|{r_['direction']}|{r_['score']}|{ws_key[1] if ws_key else ''}"})
         except Exception:
@@ -454,6 +418,112 @@ with tab_workspace:
         except Exception:
             ws_seed = None
         cached_ws = st.session_state["ws_payload"] = {"key": ws_key, "alerts": ws_alerts, "scan": ws_scan, "seed": ws_seed}
+    return cached_ws
+
+
+def _icon_chip(name, domain):
+    data = site_icon_b64(domain)
+    img = (f"<img src='data:image/png;base64,{data}' width='14' height='14' style='vertical-align:-2px;margin-right:3px'/>"
+           if data else f"<span style='display:inline-block;width:14px;height:14px;border-radius:3px;background:#2b3139;"
+                        f"font-size:9px;text-align:center;line-height:14px;margin-right:3px'>{html.escape(name[:1])}</span>")
+    return img
+
+
+def links_bar_html():
+    parts = []
+    for name, url in EXTERNAL_LINKS.items():
+        if name == "Finviz Patterns":
+            items = "".join(f"<a href='{FINVIZ_PATTERN_URL.format(signal=v)}' target='_blank' rel='noopener noreferrer'>{html.escape(k)}</a>"
+                            for k, v in FINVIZ_PATTERNS.items())
+            parts.append(f"<details class='lkd'><summary>{_icon_chip('Finviz', 'finviz.com')}Finviz &#9662;</summary>"
+                         f"<div class='lkm'>{items}<a href='{url}' target='_blank' rel='noopener noreferrer'>All charts</a></div></details>")
+        else:
+            dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
+            short = name.split()[0]
+            parts.append(f"<a class='lk1' href='{url}' target='_blank' rel='noopener noreferrer'>{_icon_chip(name, dom)}{html.escape(short)}</a>")
+    return "<div class='lkbar'>" + "".join(parts) + "</div>"
+
+
+LINKS_CSS = """<style>
+.lkbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:11px}
+.lkbar a,.lkd summary{color:#eaecef;text-decoration:none;border:1px solid #2b3139;border-radius:4px;padding:1px 6px;background:#1e2329;white-space:nowrap;cursor:pointer}
+.lkbar a:hover,.lkd summary:hover{border-color:#f0b90b;color:#f0b90b}
+.lkd{position:relative}.lkd summary{list-style:none}.lkd summary::-webkit-details-marker{display:none}
+.lkm{position:absolute;z-index:50;top:22px;left:0;background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:3px;min-width:140px}
+.mini{max-height:196px;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
+.mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
+.mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
+.mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
+.mini a{color:#4aa3ff;text-decoration:none;border:1px solid #2b3139;border-radius:3px;padding:0 4px}
+</style>"""
+
+
+def mini_scanner_html(scan, n=7):
+    rows = []
+    for sym, e in sorted(scan.items(), key=lambda kv: -kv[1].get("score", 0)):
+        if not e.get("plan"):
+            continue
+        long_ = e["dir"] == "bullish"
+        pl = e["plan"]
+        pct = round(100 * e.get("score", 0) / max(1, e.get("max", 7)))
+        strat = "/".join(t[0] for t in e.get("tags", [])[:3]) or "-"
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(sym)}</b></td>"
+            f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
+            f"<td style='color:#848e9c'>{html.escape(strat)}</td>"
+            f"<td style='color:#f6465d'>{fmt_price(pl['stop'])}</td>"
+            f"<td style='color:#0ecb81'>{fmt_price(pl['tps'][0])}</td>"
+            f"<td><b>{pct}%</b></td>"
+            f"<td><a href='{html.escape(e.get('tv', '#'))}' target='_blank' rel='noopener noreferrer'>TV</a></td></tr>"
+        )
+        if len(rows) >= n:
+            break
+    if not rows:
+        return "<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>لا توجد صفقات جاهزة الآن</div>"
+    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Setup</th><th>SL</th><th>TP1</th><th>%</th><th></th></tr>"
+            + "".join(rows) + "</table></div>")
+
+
+def render_header():
+    st.markdown(LINKS_CSS, unsafe_allow_html=True)
+    h1, h2, h3 = st.columns([1.3, 3.4, 3.0])
+    with h1:
+        logo = next((pth for pth in (Path("assets/logo.png"), Path("assets/logo.jpg"), Path("assets/logo.svg")) if pth.exists()), None)
+        if logo is not None:
+            st.image(str(logo), width=96)
+        else:
+            st.markdown("<div style='font-size:26px;font-weight:800;line-height:1.1'>6868 X</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:10px;color:#848e9c'>{datetime.now().strftime('%H:%M:%S')} &middot; "
+                    f"{'Live ' + str(refresh_secs) + 's' if auto_on else 'Live off'}</div>", unsafe_allow_html=True)
+    with h2:
+        st.markdown(links_bar_html(), unsafe_allow_html=True)
+        try:
+            st.markdown(ticker_html(get_latest_news(category="general", limit=15)), unsafe_allow_html=True)
+        except Exception as e:  # the ticker must never take the page down
+            st.caption(f"News ticker unavailable: {e}")
+    with h3:
+        st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
+                 format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
+        st.markdown(mini_scanner_html(build_ws_payload()["scan"]), unsafe_allow_html=True)
+
+
+with header_box:
+    render_header()
+
+
+# ---- Tabs -------------------------------------------------------------------------
+tab_workspace, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
+    ["\U0001F9E9 Workspace", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
+)
+
+TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
+CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
+
+with tab_workspace:
+    ws_lang = st.session_state.get("ws_lang", "en")
+    ws_height = st.sidebar.slider("Workspace height (px)", 500, 1400, 860, step=20)
+    cached_ws = build_ws_payload()
     ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
     ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                      "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})

@@ -39,6 +39,7 @@ from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
+from modules.macro import api_key, fetch_macro
 from modules.chart_scan import ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, SHORT as CS_SHORT, features as cs_features, mini_chart_svg
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
@@ -552,8 +553,38 @@ def render_header():
     with h_tt:
         tt = st.selectbox("Trade type", list(TT_OPTIONS), key="mini_tt", label_visibility="collapsed",
                           format_func=lambda k: TT_OPTIONS[k])
-    with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629", expanded=True):
-        st.markdown(MINI_CSS + mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
+    c_trades, c_macro = st.columns([6.2, 3.0])
+    with c_trades:
+        with st.expander("\u26A1 \u0627\u0644\u0635\u0641\u0642\u0627\u062a \u0627\u0644\u062c\u0627\u0647\u0632\u0629", expanded=True):
+            st.markdown(MINI_CSS + mini_scanner_html(build_ws_payload().get("mini", []), side, tt), unsafe_allow_html=True)
+    with c_macro:
+        st.markdown(macro_html(), unsafe_allow_html=True)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _macro_rows():
+    return fetch_macro()
+
+
+def macro_html():
+    box = "border:1px solid #2b3139;border-radius:6px;background:#161a1e;padding:4px 8px;font-size:11px"
+    key = api_key()
+    if not key:
+        return (f"<div style='{box};color:#848e9c'><b style='color:#eaecef'>Macro watchlist</b> "
+                "(Gold / Oil / EURUSD / DXY): add a free TwelveData key as <code>TWELVEDATA_API_KEY</code> in config.py or Streamlit secrets.</div>")
+    try:
+        rows = _macro_rows()
+    except Exception as e:
+        return f"<div style='{box};color:#f6465d'>Macro watchlist unavailable: {html.escape(str(e))}</div>"
+    cells = []
+    for r in rows:
+        if not r["ok"]:
+            cells.append(f"<tr><td>{html.escape(r['name'])}</td><td colspan='2' style='color:#848e9c'>n/a</td></tr>")
+            continue
+        col = "#0ecb81" if r["pct"] >= 0 else "#f6465d"
+        cells.append(f"<tr><td>{html.escape(r['name'])}</td><td style='text-align:right'>{fmt_price(r['price'])}</td>"
+                     f"<td style='text-align:right;color:{col}'>{r['pct']:+.2f}%</td></tr>")
+    return f"<div style='{box}'><table style='width:100%;border-collapse:collapse;font-family:monospace'>" + "".join(cells) + "</table></div>"
 
 
 with header_box:

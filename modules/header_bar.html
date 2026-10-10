@@ -42,7 +42,7 @@
   <div class="pop" id="fvPop"></div>
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
-    <div class="leg" id="leg"></div>
+    <div class="leg" id="leg"></div><div class="leg"><label><input type="radio" name="sv" value="ev" checked>Events</label><label><input type="radio" name="sv" value="cal">Economic calendar</label></div>
     <div class="row"><div id="mapc"><canvas id="cv" width="880" height="440"></canvas></div><div id="side"></div></div>
     <div id="det">Click a marker or an item to see details. <span id="st"></span></div>
   </div>
@@ -109,6 +109,7 @@ function wmDraw(){
   });
 }
 function wmList(){
+  if (sideMode === "cal") return;
   const evs = WM.events.filter(e => WM.on.has(e.cat)).slice(0, 80);
   $("side").innerHTML = evs.length ? evs.map((e,i) => '<div class="ev'+(e === WM.sel ? " sel" : "")+'" data-i="'+WM.events.indexOf(e)+'"><span class="dot" style="background:'+CATS[e.cat][0]+'"></span>'+esc(e.title)+'<div style="color:var(--mut);font-size:10px">'+esc(e.when||"")+'</div></div>').join("") : '<div style="padding:8px;color:var(--mut)">No events loaded (yet).</div>';
 }
@@ -120,7 +121,8 @@ $("cv").addEventListener("click", e => {
 });
 function wmSelect(e){
   if (!e) return; WM.sel = e; wmDraw(); wmList();
-  $("det").innerHTML = '<b style="color:'+CATS[e.cat][0]+'">'+esc(CATS[e.cat][1])+'</b> · '+esc(e.title)+'<div style="color:var(--mut);margin:2px 0">'+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div>'+esc(e.desc)+'</div>' : "")+(safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Open source ↗</a>' : "");
+  $("det").innerHTML = '<b style="color:'+CATS[e.cat][0]+'">'+esc(CATS[e.cat][1])+'</b> · '+esc(e.title)+'<div style="color:var(--mut);margin:2px 0">'+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div>'+esc(e.desc)+'</div>' : "")+(safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Open source ↗</a> · ' : "")
+    +'<a target="_blank" rel="noopener noreferrer" href="https://news.google.com/search?q='+encodeURIComponent(e.title)+'">News ↗</a> · <a target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/results?search_query='+encodeURIComponent(e.title+" live")+'">Video ↗</a>';
 }
 function topoRings(t){   // minimal TopoJSON (world-atlas) decoder -> polygon rings in lon/lat
   const [sx,sy] = t.transform.scale, [tx,ty] = t.transform.translate;
@@ -144,6 +146,17 @@ async function wmLoad(){
   ];
   await Promise.allSettled(jobs);
   WM.events.sort((a,b) => b.t - a.t); $("st").textContent = msgs.length ? "(could not load: "+msgs.join(", ")+")" : ""; wmDraw(); wmList();
+}
+/* ---- economic calendar (high / medium impact this week, shown in Cairo time) ---- */
+let CAL = null, sideMode = "ev";
+document.querySelectorAll('input[name=sv]').forEach(r => r.onchange = () => { sideMode = r.value; if (sideMode === "cal") calLoad(); else wmList(); });
+async function calLoad(){
+  $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Loading…</div>';
+  try { if (!CAL) CAL = (await jget("https://nfs.faireconomy.media/ff_calendar_thisweek.json")).filter(e => /high|medium/i.test(e.impact)).sort((a,b) => Date.parse(a.date)-Date.parse(b.date)); }
+  catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Calendar feed not reachable from here ('+esc(e.message||e)+'). Use the ForexFactory link.</div>'; return; }
+  const fmt = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", weekday:"short", hour:"2-digit", minute:"2-digit", hour12:false}), now = Date.now();
+  $("side").innerHTML = CAL.map(e => { const t = Date.parse(e.date), col = /high/i.test(e.impact) ? "#f6465d" : "#f0b90b";
+    return '<div class="ev" style="'+(t < now ? "opacity:.5" : "")+'"><span class="dot" style="background:'+col+'"></span><b>'+esc(e.country)+'</b> '+esc(e.title)+'<div style="color:var(--mut);font-size:10px">'+fmt.format(t)+' Cairo · fcst '+esc(e.forecast||"-")+' · prev '+esc(e.previous||"-")+'</div></div>'; }).join("") || '<div style="padding:8px;color:var(--mut)">No events.</div>';
 }
 window.__wm = WM;
 </script></body></html>

@@ -68,6 +68,7 @@ DEXSCREENER_TOKEN_URL = "https://api.dexscreener.com/latest/dex/tokens"
 DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search"
 
 # Finnhub free tier — user must add their own free API key (finnhub.io) for news.
+TWELVEDATA_API_KEY = ""  # <-- paste a free TwelveData key here (gold / oil / EURUSD / DXY macro watchlist)
 FINNHUB_API_KEY = ""  # <-- paste your free Finnhub API key here
 FINNHUB_NEWS_URL = "https://finnhub.io/api/v1/news"
 

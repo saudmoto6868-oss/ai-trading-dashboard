@@ -35,7 +35,8 @@ def _av_fallback(limit: int, why: list) -> list:
         return why
     rows = r.get("rows") or []
     if not rows:
-        return why
+        err = r.get("error") or "no articles"
+        return _status(why[0]["headline"] + f"  |  Alpha Vantage fallback: {err}")
     return [{"headline": a["title"], "source": f"{a['source']} (AV {a['score']:+.2f})", "url": a["url"] or "",
              "icon": ASSET_ICONS["general"], "summary": "", "datetime": a["time"]} for a in rows[:limit]]
 

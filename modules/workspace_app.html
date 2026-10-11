@@ -1064,6 +1064,8 @@ Object.assign(CandleChart.prototype, {
     c.textAlign = "left"; c.fillStyle = "#848e9c"; c.font = "9px sans-serif"; const sp = span >= 60000 ? Math.round(span/60000*10)/10+"m" : Math.round(span/1000)+"s";
     c.fillText(Lg("ORDER FLOW · "+sp+" window (wheel = zoom)", "أوردر فلو · نافذة "+sp+" (العجلة = تكبير الوقت)"), gx0, 10);
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
+    { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
+      c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
     c.restore();
   },
   paintDiv(c, kind, series, X, Y, i0, i1, tag){   // divergence line between the two swing points, drawn on the indicator's own pane (green = bullish, red = bearish)
@@ -1737,7 +1739,7 @@ class Panel {
       this.chart.overlay = (sc && planOk(sc.plan, sc.dir) && passFilters(sc.dir, sc.ttype)) ? sc : null; } this.chart.marks = [];
     this.flt = {prev:null, events:[], sym, abs:new Set()};
     this.chart.lvD = null; const lvIv = setInterval(() => { if (tok !== this.tok){ clearInterval(lvIv); return; } if (this.chart.lvOn && Date.now() - (this.lvT || 0) > 30000){ this.lvT = Date.now(); this.lvKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(lvIv));
-    this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); this.chart.flowB = []; this.chart.flowT = []; const seenF = new Set();
+    this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); this.chart.flowB = []; this.chart.flowT = []; this.chart.sym = sym; const seenF = new Set();
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn) this.chart.draw(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
       (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn) ch.draw(); }));

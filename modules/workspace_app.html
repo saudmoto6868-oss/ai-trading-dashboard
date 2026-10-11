@@ -178,13 +178,41 @@ function harmZigzag(d, dev, n){
   }
   return out;
 }
-function harmFind(d, maxN){   // newest-first list of {name, dir, pts:[{i,p}]*5}
-  const z = harmZigzag(d, 0.012, 3), res = [];
+/* Harmonic patterns (Carney / Pesavento ratio definitions: Gartley, Bat, Butterfly, Crab, Cypher). A "completed" pattern has its D pivot; a "forming" one has X-A-B-C confirmed and projects the
+   Potential Reversal Zone (PRZ) where D should print. PRZ = the XA-retracement level (or range) intersected with the BC projection range of the pattern; plan = entry at D / PRZ, stop beyond X
+   (Gartley / Bat / Cypher) or beyond the PRZ (Butterfly / Crab), targets at 0.382 / 0.618 of the A-D leg and at A. These stop / target conventions are common practice, not a fixed standard. */
+const HARM_BC = {"Gartley":[1.13,1.618], "Bat":[1.618,2.618], "Butterfly":[1.618,2.24], "Crab":[2.24,3.618]};
+function harmPrz(name, X, A, B, C){
+  const sg = A > X ? 1 : -1, xa = Math.abs(A-X), r = HARM_RULES[name];
+  if (name === "Cypher"){ const xc = Math.abs(C-X), l = C - sg*r.d[0]*xc; return {lo:Math.min(l, l), hi:Math.max(l, l), mid:l, pad:.03*xa}; }
+  let l1 = A - sg*r.d[0]*xa, l2 = A - sg*r.d[1]*xa; if (r.d[0] === r.d[1]){ l1 += .03*xa*sg; l2 -= .03*xa*sg; }   // single ratio -> +-3% of XA band
+  let lo = Math.min(l1, l2), hi = Math.max(l1, l2); const bc = HARM_BC[name];
+  if (bc){ const q1 = C - sg*bc[0]*Math.abs(C-B), q2 = C - sg*bc[1]*Math.abs(C-B), plo = Math.min(q1, q2), phi = Math.max(q1, q2), olo = Math.max(lo, plo), ohi = Math.min(hi, phi); if (olo <= ohi){ lo = olo; hi = ohi; } }
+  return {lo, hi, mid:(lo+hi)/2, pad:0};
+}
+function harmPlan(name, X, A, C, D, prz){   // D = price where the trade is taken (D pivot, or the PRZ mid for a forming pattern)
+  const sg = A > X ? 1 : -1, xa = Math.abs(A-X), far = sg > 0 ? Math.min(D, prz.lo) : Math.max(D, prz.hi);
+  const stop = (name === "Butterfly" || name === "Crab") ? far - sg*0.1*xa : X - sg*0.02*xa, ad = Math.abs(A-D);
+  const tps = [D + sg*0.382*ad, D + sg*0.618*ad, A], risk = Math.abs(D-stop) || 1e-9;
+  return {dir:sg > 0 ? "long" : "short", entry:D, stop, tps, rr:Math.abs(tps[0]-D)/risk};
+}
+function harmFind(d, maxN){   // newest-first list of {name, dir, state:"done"|"forming", pts:[{i,p}] (5 for done, 4 for forming), prz, plan}
+  const z = harmZigzag(d, 0.012, 3), res = [], n = d.length; if (z.length < 4 || !n) return res; const last = d[n-1].c;
   for (let e = z.length; e >= 5 && res.length < maxN; e--){
-    const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p);
-    if (nm) res.push({name:nm, dir:w[1].p > w[0].p ? "bull" : "bear", pts:w.map(q => ({i:q.i, p:q.p}))});
+    const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p); if (!nm || n-1 - w[4].i > 150) continue;
+    const prz = harmPrz(nm, w[0].p, w[1].p, w[2].p, w[3].p);
+    res.push({name:nm, dir:w[1].p > w[0].p ? "bull" : "bear", state:"done", pts:w.map(q => ({i:q.i, p:q.p})), prz, plan:harmPlan(nm, w[0].p, w[1].p, w[3].p, w[4].p, prz)});
   }
-  return res;
+  const w = z.slice(-4), X = w[0].p, A = w[1].p, B = w[2].p, C = w[3].p, sg = A > X ? 1 : -1;   // forming: X-A-B-C confirmed, price heading for D
+  if (sg*(B-X) > 0 && sg*(A-B) > 0 && sg*(A-C) > 0 && sg*(C-B) > 0 && n-1 - w[3].i <= 60){
+    const xa = Math.abs(A-X), ab = Math.abs(A-B), b = ab/xa, cab = Math.abs(C-B)/ab;
+    for (const [nm, r] of Object.entries(HARM_RULES)){
+      if (!harmIn(b, r.b)) continue; if (nm === "Cypher"){ if (!(sg*(C-A) > 0) || !harmIn(Math.abs(C-X)/xa, r.cx)) continue; } else if (!harmIn(cab, r.c)) continue;
+      const prz = harmPrz(nm, X, A, B, C), tgtSide = sg > 0 ? last >= prz.lo - .1*xa : last <= prz.hi + .1*xa;   // price has not blown through the zone
+      if (tgtSide && (sg > 0 ? last < C : last > C)){ res.unshift({name:nm, dir:sg > 0 ? "bull" : "bear", state:"forming", pts:w.map(q => ({i:q.i, p:q.p})), prz, plan:harmPlan(nm, X, A, C, prz.mid, prz)}); break; }
+    }
+  }
+  return res.slice(0, maxN);
 }
 /* Volume profile: rows [{h,l,v}] -> POC / value area (70%) / bins. Volume of each candle is spread across the price bins it touched. */
 function vpCalc(rows, nb){
@@ -1108,21 +1136,36 @@ Object.assign(CandleChart.prototype, {
       if (n === 0 && w.pts.length){ const q = w.pts[1]; c.font = "9px sans-serif"; c.fillStyle = col; c.globalAlpha = .9; c.fillText("EW · "+this.tf+(w.up ? " ▲" : " ▼"), this.x(w.pts[0].i)+6, py(w.pts[0].p) + (w.up ? 14 : -14)); } });
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.textBaseline = "alphabetic"; c.globalAlpha = 1;
   },
-  paintHarm(c, py, dec){
+  paintHarm(c, py, dec){   // XABCD legs + ratio labels, PRZ box, and the pattern's own trade box (Entry / SL / TP) - separate from the scanner signal box
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
-    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 3)};
-    const nm = ["X","A","B","C","D"];
-    this._harm.list.forEach((h, n) => {
-      const col = h.dir === "bull" ? "#0ecb81" : "#f6465d", P = h.pts.map(q => ({x:this.x(q.i), y:py(q.p), p:q.p}));
-      c.save(); c.globalAlpha = n ? .5 : 1;
-      c.fillStyle = col; c.globalAlpha *= .12;
-      [[0,1,2],[2,3,4]].forEach(t => { c.beginPath(); t.forEach((j,m) => m ? c.lineTo(P[j].x,P[j].y) : c.moveTo(P[j].x,P[j].y)); c.closePath(); c.fill(); });
-      c.globalAlpha = n ? .5 : 1; c.strokeStyle = col; c.lineWidth = 1.6; c.beginPath(); P.forEach((q,m) => m ? c.lineTo(q.x,q.y) : c.moveTo(q.x,q.y)); c.stroke();
-      c.lineWidth = 1; c.setLineDash([4,3]); c.beginPath(); [[0,2],[1,3],[2,4],[0,4]].forEach(([a,b]) => { c.moveTo(P[a].x,P[a].y); c.lineTo(P[b].x,P[b].y); }); c.stroke(); c.setLineDash([]);
-      c.font = "bold 11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.fillStyle = col;
-      P.forEach((q,m) => { const hi = h.pts[m].p >= Math.max(h.pts[Math.max(0,m-1)].p, h.pts[Math.min(4,m+1)].p); c.fillText(nm[m], q.x, q.y + (hi ? -8 : 12)); });
-      const xa = Math.abs(h.pts[1].p-h.pts[0].p), r = (Math.abs(h.pts[1].p-h.pts[4].p)/xa).toFixed(3);
-      c.fillText((h.dir === "bull" ? "▲ " : "▼ ") + h.name + "  D=" + r + "XA", P[4].x, P[4].y + (h.dir === "bull" ? 26 : -22));
+    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 2)};
+    const nm = ["X","A","B","C","D"], n = this.data.length, PRx = this.PR, F = v => Number(v).toFixed(dec), fs = "bold 10px ui-monospace,Menlo,Consolas,monospace";
+    this._harm.list.forEach((h, q) => {
+      const bull = h.dir === "bull", col = bull ? "#0ecb81" : "#f6465d", forming = h.state === "forming", P = h.pts.map(t => ({x:this.x(t.i), y:py(t.p), p:t.p})), m = P.length, bw = Math.max(this.bw, 4);
+      c.save(); const A0 = q ? .55 : 1; c.globalAlpha = A0;
+      if (!forming){ c.fillStyle = col; c.globalAlpha = A0*.12; [[0,1,2],[2,3,4]].forEach(t => { c.beginPath(); t.forEach((j,u) => u ? c.lineTo(P[j].x,P[j].y) : c.moveTo(P[j].x,P[j].y)); c.closePath(); c.fill(); }); }
+      c.globalAlpha = A0; c.strokeStyle = col; c.lineWidth = 1.8; c.beginPath(); P.forEach((t,u) => u ? c.lineTo(t.x,t.y) : c.moveTo(t.x,t.y)); c.stroke();
+      const xD = forming ? this.x(n-1) + 4*bw : P[4].x, yPm = py(h.prz.mid);
+      if (forming){ c.setLineDash([5,4]); c.beginPath(); c.moveTo(P[3].x, P[3].y); c.lineTo(xD, yPm); c.stroke(); c.setLineDash([]); }
+      const D = forming ? {x:xD, y:yPm, p:h.prz.mid} : P[4], pts = P.concat(forming ? [D] : []);
+      c.lineWidth = 1; c.setLineDash([4,3]); c.globalAlpha = A0*.8; c.beginPath(); [[0,2],[1,3],[2,4],[0,4]].forEach(([a,b]) => { if (!pts[a] || !pts[b]) return; c.moveTo(pts[a].x,pts[a].y); c.lineTo(pts[b].x,pts[b].y); }); c.stroke(); c.setLineDash([]); c.globalAlpha = A0;
+      c.font = fs; c.textAlign = "center"; c.fillStyle = col;
+      pts.forEach((t,u) => { const hi = t.p >= Math.max((pts[Math.max(0,u-1)]||t).p, (pts[Math.min(pts.length-1,u+1)]||t).p); c.fillText(nm[u]+(forming && u === 4 ? "?" : ""), t.x, t.y + (hi ? -8 : 13)); });
+      const ratio = (a, b, d_) => (Math.abs(pts[a].p - pts[b].p)/Math.abs(pts[d_[0]].p - pts[d_[1]].p)).toFixed(3), mid = (a, b) => [(pts[a].x+pts[b].x)/2, (pts[a].y+pts[b].y)/2];
+      c.fillStyle = "#cfd6dd"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
+      [[0,2,ratio(1,2,[0,1])],[1,3,ratio(2,3,[1,2])],[0,4,ratio(1,4,[0,1])],[2,4,ratio(3,4,[2,3])]].forEach(([a,b,tx]) => { if (!pts[a] || !pts[b]) return; const [mx,my] = mid(a,b); c.fillText(tx, mx, my - 3); });
+      // PRZ box (Potential Reversal Zone)
+      const z0 = Math.min(py(h.prz.lo), py(h.prz.hi)), zh = Math.max(6, Math.abs(py(h.prz.lo) - py(h.prz.hi))), zx = forming ? xD - 6*bw : D.x - 2*bw, zw = (forming ? 12 : 14)*bw;
+      c.fillStyle = "rgba(255,193,7,.16)"; c.fillRect(zx, z0 - (zh < 8 ? (8-zh)/2 : 0), zw, Math.max(8, zh)); c.strokeStyle = "#ffc107"; c.setLineDash([4,3]); c.strokeRect(zx + .5, z0 - (zh < 8 ? (8-zh)/2 : 0) + .5, zw, Math.max(8, zh)); c.setLineDash([]);
+      c.fillStyle = "#ffc107"; c.font = fs; c.textAlign = "left"; c.fillText("PRZ "+F(h.prz.lo)+(h.prz.hi - h.prz.lo > 1e-12 ? " – "+F(h.prz.hi) : ""), zx + 3, z0 - 5);
+      // title
+      c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
+      // trade box
+      const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
+      if (bwid > 60){ c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
+        c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
+        [[pl.entry,"#4aa3ff","ENTRY "+F(pl.entry)],[pl.stop,"#f6465d","SL "+F(pl.stop)],[pl.tps[0],"#0ecb81","TP1 "+F(pl.tps[0])+"  R:R "+pl.rr.toFixed(1)],[pl.tps[1],"#0ecb81","TP2 "+F(pl.tps[1])],[pl.tps[2],"#0ecb81","TP3 (A) "+F(pl.tps[2])]].forEach(([v,cl,tx]) => { const y = py(v); c.strokeStyle = cl; c.lineWidth = 1; c.beginPath(); c.moveTo(bx, y+.5); c.lineTo(bx+bwid, y+.5); c.stroke(); c.fillStyle = cl; c.fillText(tx, bx + 3, y - 3); });
+        c.fillStyle = "#b57cff"; c.fillText(Lg("HARMONIC PLAN", "خطة الهارمونيك")+(forming ? " ("+Lg("pending", "معلّقة")+")" : ""), bx + 3, Math.min(yE, yT3, yS) - 12); }
       c.restore();
     });
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";

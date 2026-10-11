@@ -136,7 +136,7 @@ _KEY_PATTERNS = [
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
-    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"),
+    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"), (r"Session AMD", "sess_amd"), (r"opening-range breakout", "orb"),
 ]
 
 
@@ -877,9 +877,84 @@ def donchian_bull(df, min_agree: float = 2 / 3, fresh_bars: int = 3):
                     "and a fresh breakout fired within the last 3 bars: trend-following ensemble", vals={"k": longs, "m": len(lbs), "lo": lbs[0], "hi": lbs[-1]})]
     return []
 
+
+# --------------------------------------------------------------------------
+# ICT session model (UTC, fixed approximations - ICT quotes New York times, which shift with daylight saving):
+#   Asia range (accumulation) 00:00-07:00, London window (manipulation) 07:00-12:00, New York window 12:00-17:00 (distribution)
+#   Opening range = first 15 minutes after the London open (07:00) and the New York open (13:30)
+# --------------------------------------------------------------------------
+ASIA_END_H, LONDON_END_H, DIST_END_H = 7, 12, 17
+OPEN_RANGES = ((7, 0), (13, 30))   # (hour, minute) UTC
+
+
+def _bar_minutes(df):
+    t = df["time"]
+    if len(t) < 3:
+        return None
+    return float(t.diff().dropna().median().total_seconds()) / 60.0
+
+
+def session_amd_bull(df):
+    """Power of 3 / AMD: Asia range builds, London sweeps its LOW (stop run) and price closes back inside -> distribution up."""
+    step = _bar_minutes(df)
+    if not step or step > 60:
+        return []
+    t = df["time"]; day = t.iloc[-1].normalize(); h = t.iloc[-1].hour + t.iloc[-1].minute / 60
+    if not (ASIA_END_H <= h < DIST_END_H):
+        return []
+    asia = df[(t >= day) & (t < day + pd.Timedelta(hours=ASIA_END_H))]
+    if len(asia) < max(4, int(180 / step)):
+        return []
+    al, ah = float(asia["low"].min()), float(asia["high"].max())
+    after = df[(t >= day + pd.Timedelta(hours=ASIA_END_H)) & (t <= day + pd.Timedelta(hours=LONDON_END_H))]
+    if after.empty:
+        return []
+    atr = float(atr_series(df).iloc[-1])
+    sweep = float(after["low"].min())
+    if sweep >= al - 0.1 * atr or float(after["high"].max()) > ah:      # no sweep of the low, or the high was taken first
+        return []
+    close = float(df["close"].iloc[-1])
+    if close < al + 0.3 * atr or close >= ah:
+        return []
+    return [_mk("Liquidity", "Session AMD sweep",
+                "AMD session model: the Asian range (accumulation) low {al} was swept to {sw} in the London window (manipulation) and price closed back above it; "
+                "distribution phase targets the Asian high {ah}, stop below the sweep {sw}",
+                prices={"al": al, "ah": ah, "sw": sweep, "t": ah, "inv": sweep})]
+
+
+def session_orb_bull(df):
+    """Opening-range breakout: first 15 minutes after the London / New York open define the range; a fresh close above its high."""
+    step = _bar_minutes(df)
+    if not step or step > 15:
+        return []
+    t = df["time"]; last = t.iloc[-1]; day = last.normalize(); atr = float(atr_series(df).iloc[-1])
+    for hh, mm in OPEN_RANGES:
+        o = day + pd.Timedelta(hours=hh, minutes=mm); e = o + pd.Timedelta(minutes=15)
+        if not (e <= last <= o + pd.Timedelta(hours=3)):
+            continue
+        orng = df[(t >= o) & (t < e)]
+        if len(orng) < max(1, int(15 / step)):
+            continue
+        oh, ol = float(orng["high"].max()), float(orng["low"].min())
+        post = df[t >= e]
+        c = post["close"].values
+        up = c > oh + 0.1 * atr
+        if not up[-1] or (post["close"].values < ol).any():
+            continue
+        first = int(np.argmax(up))
+        if len(c) - 1 - first > 6:      # breakout must be fresh
+            continue
+        return [_mk("Liquidity", "Session opening-range breakout",
+                    "Opening range (first 15 minutes after the {sess} open) {ol} - {oh}: price closed above the range high and has not closed below its low; "
+                    "range high is the pivot, stop below the range low",
+                    prices={"oh": oh, "ol": ol, "t": oh + (oh - ol) * 2, "inv": ol}, vals={"sess": "London" if hh == 7 else "New York"})]
+    return []
+
+DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
+
 DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
-             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull)
+             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

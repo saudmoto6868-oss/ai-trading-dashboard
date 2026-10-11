@@ -50,6 +50,8 @@ STRATEGY_FILTERS = {
     "st_bvd": ("Breakout + volume delta (strong close through a swing)", ("extra", "bvd")),
     "st_smt": ("SMT divergence (correlated pairs, e.g. BTC / ETH / SOL)", ("key", "smt")),
     "st_crt": ("CRT - Candle Range Theory (HTF range sweep + reclaim)", ("key", "crt")),
+    "st_sessamd": ("ICT session AMD: Asian range swept in London, back inside (intraday)", ("key", "sess_amd")),
+    "st_orb": ("Session opening-range breakout (first 15 min of London / New York)", ("key", "orb")),
     "st_donch": ("Donchian ensemble trend (several lookbacks, vol-sized)", ("key", "donch")),
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),

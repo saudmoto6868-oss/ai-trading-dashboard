@@ -26,8 +26,29 @@ def _status(msg: str) -> list:
     return [{"headline": msg, "source": "", "url": "", "icon": "", "status": True}]
 
 
+def _av_fallback(limit: int, why: list) -> list:
+    """Finnhub failed -> Alpha Vantage NEWS_SENTIMENT headlines; if that fails too, keep Finnhub's status line."""
+    try:
+        from modules import alphavantage as av
+        r = av.news()
+    except Exception:
+        return why
+    rows = r.get("rows") or []
+    if not rows:
+        return why
+    return [{"headline": a["title"], "source": f"{a['source']} (AV {a['score']:+.2f})", "url": a["url"] or "",
+             "icon": ASSET_ICONS["general"], "summary": "", "datetime": a["time"]} for a in rows[:limit]]
+
+
 @st.cache_data(ttl=300)
 def get_latest_news(category: str = "general", limit: int = 10):
+    res = _finnhub_news(category, limit)
+    if res and res[0].get("status"):
+        return _av_fallback(limit, res)
+    return res
+
+
+def _finnhub_news(category: str, limit: int):
     key = _finnhub_key()
     if not key:
         return _status("Finnhub: no key found - add FINNHUB_API_KEY in Streamlit Secrets (or config.py).")

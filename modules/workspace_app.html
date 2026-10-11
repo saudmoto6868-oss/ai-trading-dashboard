@@ -459,7 +459,7 @@ class CandleChart {
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9}}; this.overlay = null; this.harmOn = false; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -618,12 +618,15 @@ class CandleChart {
         this.paintSetupBox(c, py, pl, dec);
       } else if (pl){
         const lines = [[pl.entry, "Entry", "#4aa3ff", ""], [pl.stop, "SL", "#f6465d", "5,4"]].concat((pl.tps||[]).map((v,i) => [v, "TP"+(i+1), "#0ecb81", "5,4"]));
+        const sp = this.planSpan();
         lines.forEach(([v, lab, col, dash]) => {
           const y = py(v); if (y < 0 || y > PB) return;
-          c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash ? dash.split(",").map(Number) : []); c.beginPath(); c.moveTo(0, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]);
+          c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash ? dash.split(",").map(Number) : []); c.beginPath(); c.moveTo(sp.x0, y+.5); c.lineTo(sp.x1, y+.5); c.stroke(); c.setLineDash([]);
           c.fillStyle = col; c.fillRect(PR+1, y-7, 60, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), PR+3, y);
         });
       }
+      if (pl){ const sp = this.planSpan(), hy = py(pl.entry); this._planH = {x:sp.x1, y:hy, x0:sp.x0};
+        c.fillStyle = "#4aa3ff"; c.strokeStyle = "#0b0e11"; c.lineWidth = 1; c.fillRect(sp.x1-4, hy-6, 8, 12); c.strokeRect(sp.x1-4+.5, hy-6+.5, 7, 11); }
       if (ov.tf === this.tf && (ov.tags||[]).length){
         const lx = this.x(n-1), ly = py(this.data[n-1].h) - 6; c.font = "bold 10px sans-serif"; c.textAlign = "left";
         ov.tags.slice(0,5).forEach((t,i) => {
@@ -887,6 +890,7 @@ Object.assign(CandleChart.prototype, {
   chanOff(d){ const a = d.pts[0], b = d.pts[1], c = d.pts[2], dt = b.t-a.t || 1; return c.p - (a.p + (b.p-a.p)*(c.t-a.t)/dt); },
   toolDown(e){
     const q = this.pt(e); if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
+    const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){
       const order = this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse();
       for (const d of order){
@@ -916,6 +920,7 @@ Object.assign(CandleChart.prototype, {
     this.draw(); return true;
   },
   toolMove(e){
+    if (this.planDrag){ const q = this.pt(e), ph = this._planH; if (ph) this.planLen = Math.max(5, Math.min(2000, Math.round((q.x - ph.x0)/this.bw))); return true; }
     if (this.creating){ const q = this.pt(e), c = this.creating; c.pts[c.pts.length-1] = {t:q.t, p:q.p}; return true; }
     const dd = this.dragD; if (!dd) return false;
     const q = this.pt(e), d = dd.d; dd.changed = true;
@@ -927,7 +932,7 @@ Object.assign(CandleChart.prototype, {
     }
     dd.last = q; return true;
   },
-  toolUp(e){ if (this.dragD){ if (this.dragD.changed) this.saveDraws(); this.dragD = null; } },
+  toolUp(e){ if (this.planDrag){ this.planDrag = false; this.onPlanLen && this.onPlanLen(this.planLen); } if (this.dragD){ if (this.dragD.changed) this.saveDraws(); this.dragD = null; } },
   nyMin(t){   // minutes since midnight in New York (DST-aware), cached per candle
     const m = this._ny || (this._ny = new Map()); let v = m.get(t); if (v != null) return v;
     if (!this._nyf) this._nyf = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false});
@@ -953,7 +958,7 @@ Object.assign(CandleChart.prototype, {
       segs.forEach(([s0, s1, live], si) => {
         let hi = -Infinity, lo = Infinity; for (let k = s0; k <= s1; k++){ hi = Math.max(hi, d[k].h); lo = Math.min(lo, d[k].l); }
         const x0 = this.x(s0) - step/2, x1 = this.x(s1) + step/2;
-        c.globalAlpha = isSes ? .045 : .10; c.fillStyle = col; c.fillRect(x0, 0, x1-x0, PB);
+        c.globalAlpha = isSes ? .09 : .14; c.fillStyle = col; c.fillRect(x0, py(hi), x1-x0, Math.max(2, py(lo)-py(hi)));   // box = the price range the session actually travelled, not the full chart height
         c.strokeStyle = col; c.lineWidth = 1;
         if (isSes){
           const next = segs[si+1], xe = next ? this.x(next[0]) - step/2 : PR, mid = (hi+lo)/2;
@@ -1013,8 +1018,14 @@ Object.assign(CandleChart.prototype, {
     c.globalAlpha = 1; c.fillStyle = col; c.textAlign = "left"; c.fillText("Elliott · "+(ew.kind === "ew5" ? "Wave 5 start" : "Wave 3 start"), Math.max(2, x0+3), top-8);
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
   },
+  planSpan(){   // limited-length trade plan: starts at the bar where it was loaded, runs planLen bars (drag the handle to stretch it)
+    const ov = this.overlay, d = this.data, n = d.length; if (ov && ov.t0 == null && n) ov.t0 = d[n-1].t;
+    let i0 = n-1; if (ov && ov.t0 != null) while (i0 > 0 && d[i0].t > ov.t0) i0--;
+    const x0 = Math.max(0, this.x(i0)), x1 = Math.max(x0 + 30, Math.min(this.PR, this.x(i0 + this.planLen)));
+    return {x0, x1};
+  },
   paintSetupBox(c, py, pl, dec){
-    const n = this.data.length, x0 = Math.max(0, this.x(n-1)), x1 = this.PR, w = Math.max(30, x1 - x0), long_ = pl.tps && pl.tps[0] > pl.entry;
+    const n = this.data.length, sp = this.planSpan(), x0 = sp.x0, x1 = sp.x1, w = Math.max(30, x1 - x0), long_ = pl.tps && pl.tps[0] > pl.entry;
     const tp = pl.tps && pl.tps.length ? pl.tps[pl.tps.length-1] : pl.entry, yE = py(pl.entry), yS = py(pl.stop), yT = py(tp);
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
     c.fillStyle = "rgba(14,203,129,.16)"; c.fillRect(x0, Math.min(yE,yT), w, Math.abs(yE-yT));
@@ -1179,7 +1190,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.harmOn = !!this.state.harm; this.chart.vpOn = !!this.state.vp; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.vpOn = !!this.state.vp; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};

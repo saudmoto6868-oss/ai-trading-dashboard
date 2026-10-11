@@ -8,7 +8,7 @@ import time
 
 import requests
 
-CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
+CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
 MARKET_TYPES = {"Spot": "SPOT", "Perp (swap)": "SWAP", "Futures": "FUTURES"}
 NO_FEED = {"Egypt (EGX)", "Saudi (Tadawul)"}   # no verified free live feed yet (needs an API key); never show invented numbers
 MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", "MEME", "BOME", "POPCAT", "MEW", "PNUT", "ACT", "GOAT", "TRUMP", "FARTCOIN", "MOODENG", "PENGU", "1000SATS"]
@@ -53,11 +53,33 @@ def _load(inst_type="SWAP", base_url=OKX):
     return rows
 
 
+OPTION_ULYS = ("BTC-USD", "ETH-USD")   # the underlyings OKX lists listed options for
+
+
+def _load_options(base_url=OKX):
+    """OKX option contracts (e.g. BTC-USD-261225-90000-C), busiest first by 24h contracts traded; cached 10 min."""
+    c = _cache.get("OPTION")
+    if c and time.time() - c[0] < 600:
+        return c[1]
+    rows = []
+    for uly in OPTION_ULYS:
+        for x in requests.get(f"{base_url}/market/tickers", params={"instType": "OPTION", "uly": uly}, timeout=10).json().get("data", []):
+            rows.append({"id": x["instId"], "cls": "Options", "vol": float(x.get("vol24h") or 0)})
+    _cache["OPTION"] = (time.time(), rows)
+    return rows
+
+
 def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
     if cls in NO_FEED:
         return [], f"{cls}: no verified free live feed yet (needs an API key)"
+    if cls == "Options":
+        try:
+            rows = sorted(_load_options(base_url), key=lambda r: r["vol"], reverse=True)
+        except Exception as e:
+            return [], f"OKX options list unavailable ({type(e).__name__})"
+        return [r["id"] for r in rows[:top]], ("" if rows else "OKX lists no options right now")
     if cls == "Crypto" and mtype == "SPOT":
         return list(crypto_symbols), ""
     inst = mtype if (cls in ("Crypto", "Meme coins") or mtype != "SPOT") else "SWAP"

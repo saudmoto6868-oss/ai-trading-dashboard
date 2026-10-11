@@ -670,6 +670,20 @@ def _cmc_data():
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
+def _stock_fund(tickers: tuple):
+    from modules.stock_fund import fetch_stock_fund
+    return fetch_stock_fund(tickers)
+
+
+def _stock_tickers():
+    if asset_cls == "Stocks":
+        t = tuple(s.split("-")[0] for s in ACTIVE_SYMBOLS[:10] if s.split("-")[0].isalpha())
+        if t:
+            return t
+    return ()
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
 def _macro_fund():
     from modules.macro_fund import fetch_macro_fund
     return fetch_macro_fund()
@@ -881,7 +895,7 @@ with tab_workspace:
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund())
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()))
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):

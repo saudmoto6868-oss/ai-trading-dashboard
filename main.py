@@ -663,6 +663,12 @@ def render_header():
         st.markdown(macro_html(), unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _cmc_data():
+    from modules.cmc import fetch_cmc
+    return fetch_cmc()
+
+
 @st.cache_data(ttl=30, show_spinner=False)
 def _macro_rows():
     return fetch_macro()
@@ -869,7 +875,7 @@ with tab_workspace:
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data())
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):

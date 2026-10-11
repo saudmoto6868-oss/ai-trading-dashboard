@@ -1019,8 +1019,7 @@ Object.assign(CandleChart.prototype, {
     const idx = new Map(A.map((x, k) => [x.i, k]));
     let mn = Infinity, mx = -Infinity, pmn = Infinity, pmx = -Infinity; for (let i = i0; i <= i1; i++){ const d = this.data[i]; if (!d) continue; mn = Math.min(mn, d.l); mx = Math.max(mx, d.h); const k = idx.get(i); if (k != null){ const v = inv ? -B[k].c : B[k].c; pmn = Math.min(pmn, v); pmx = Math.max(pmx, v); } }
     if (!isFinite(pmn) || pmx <= pmn) return; const sc = v => mn + (v - pmn)/(pmx - pmn)*(mx - mn), pv = (k, key) => sc(inv ? -(key === "h" ? B[k].l : B[k].h) : B[k][key] );
-    c.save(); c.strokeStyle = "#ffd54f"; c.globalAlpha = .75; c.lineWidth = 1.2; c.setLineDash([5,3]); c.beginPath(); let f = true;
-    for (let i = i0; i <= i1; i++){ const k = idx.get(i); if (k == null) continue; const x = this.x(i), y = py(sc(inv ? -B[k].c : B[k].c)); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; } c.stroke(); c.setLineDash([]);
+    c.save();   // (the dashed yellow line of the correlated market was removed on request; only the divergence marks are drawn)
     c.globalAlpha = 1; c.font = "10px sans-serif"; c.fillStyle = "#ffd54f"; c.fillText("SMT ⇄ "+(this.smtName || "")+(inv ? " (inverse)" : "")+"  ·  "+(this.smtD.length ? "" : ""), 8, 24);
     smtFind(A, B, inv).filter(e => A[e.i2].i >= i0 - 5).forEach(e => { const up = e.side === "up", col = up ? "#0ecb81" : "#f6465d", a1 = A[e.i1], a2 = A[e.i2], key = up ? "l" : "h";
       c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.moveTo(this.x(a1.i), py(a1[key])); c.lineTo(this.x(a2.i), py(a2[key])); c.stroke();                       // the market that made the new extreme

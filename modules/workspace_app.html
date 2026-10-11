@@ -938,8 +938,15 @@ Object.assign(CandleChart.prototype, {
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
     const OF = this.st.of; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
+    const BO = 20, brk = i => { if (i < BO) return 0; let hh = -Infinity, ll = Infinity; for (let j = i-BO; j < i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return d[i].c > hh ? 1 : d[i].c < ll ? -1 : 0; };   // closed beyond the previous 20-bar range
     for (let i = i0; i <= i1; i++){
-      const cd = d[i], m = this.fp.get(cd.t); if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? OF.color : OF.color2;
+      const cd = d[i], m = this.fp.get(cd.t), bk = brk(i), isBo = bk !== 0 && brk(i-1) !== bk;   // only the FIRST candle of a breakout is marked
+      if (isBo){   // the breakout candle: its body shows the buy / sell split (green = buyers, red = sellers), a small plain text under it gives the ratio
+        const rg = cd.h - cd.l, est = !m, b_ = m ? m.b : (rg > 0 ? (cd.c - cd.l)/rg : .5), s_ = m ? m.s : 1 - b_, tot = (b_ + s_) || 1, bp = b_/tot, x_ = this.x(i), bwid = Math.max(5, bw*0.8), yT = Math.min(py(cd.o), py(cd.c)), yB = Math.max(py(cd.o), py(cd.c)), hB = Math.max(8, yB - yT), yT2 = yT - (hB - (yB - yT))/2;
+        c.fillStyle = OF.color2; c.fillRect(x_ - bwid/2, yT2, bwid, hB*(1 - bp)); c.fillStyle = OF.color; c.fillRect(x_ - bwid/2, yT2 + hB*(1 - bp), bwid, hB*bp);
+        c.strokeStyle = bk > 0 ? OF.color : OF.color2; c.lineWidth = 1.2; c.strokeRect(x_ - bwid/2 + .5, yT2 + .5, bwid - 1, hB - 1); c.lineWidth = 1;
+        if (bw >= 14){ const bps = Math.round(bp*100), tx = (est ? "~" : "")+Lg("Buy ", "شراء ")+bps+"% · "+Lg("Sell ", "بيع ")+(100 - bps)+"%"; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillStyle = bp >= .5 ? OF.color : OF.color2; c.fillText(tx, x_, Math.min(PB - 6, py(cd.l) + 12)); c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; } }
+      if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? OF.color : OF.color2;
       if (this.fpOn && (big || mid)){
         const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
         let mx = 0, poc = null; rows.forEach((v, k) => { const t = v.b + v.s; if (t > mx){ mx = t; poc = k; } });
@@ -957,8 +964,6 @@ Object.assign(CandleChart.prototype, {
             c.textAlign = "left"; c.fillStyle = imbB ? "#6df0b5" : "#c7ccd3"; c.font = (imbB ? "bold " : "") + fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.b), x+2, y); }
         });
       }
-      if (mid){ const y = py(cd.l) + 9; c.textAlign = "center"; c.fillStyle = dcol; c.font = "bold "+fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((delta >= 0 ? "+" : "")+fmt(delta), x, Math.min(PB-6, y)); }
-      else { c.fillStyle = dcol; c.globalAlpha = .8; c.fillRect(x-1.5, Math.min(PB-4, py(cd.l)+3), 3, 3); c.globalAlpha = 1; }
     }
     c.restore();
   },

@@ -10,8 +10,9 @@ import requests
 from modules.data_fetcher import aggregate_frame
 
 PREFIX = "Y:"
-URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
-HDR = {"User-Agent": "Mozilla/5.0 (compatible; 6868X)"}
+URL = "https://{host}/v8/finance/chart/{sym}"
+HDR = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "application/json"}
+HOSTS = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
 # our tf -> (yahoo interval, range, bars to merge)
 TF = {"1m": ("1m", "7d", 1), "5m": ("5m", "60d", 1), "15m": ("15m", "60d", 1), "30m": ("30m", "60d", 1),
       "1h": ("60m", "730d", 1), "4h": ("60m", "730d", 4), "1d": ("1d", "5y", 1), "1w": ("1wk", "10y", 1)}
@@ -54,13 +55,25 @@ def get_yahoo_klines(sym: str, tf: str, limit: int = 300) -> pd.DataFrame:
     if tf not in TF:
         raise ValueError(f"Yahoo feed: timeframe {tf} not supported")
     iv, rg, n = TF[tf]
-    r = requests.get(URL.format(sym=requests.utils.quote(sym[len(PREFIX):] if is_yahoo(sym) else sym, safe="")),
-                     params={"interval": iv, "range": rg}, headers=HDR, timeout=12)
+    ysym = requests.utils.quote(sym[len(PREFIX):] if is_yahoo(sym) else sym, safe="")
+    r = None
+    for host in HOSTS:   # second host as a fallback when one is throttled
+        try:
+            r = requests.get(URL.format(host=host, sym=ysym), params={"interval": iv, "range": rg}, headers=HDR, timeout=12)
+        except requests.RequestException as e:
+            r = None
+            err = type(e).__name__
+            continue
+        if r.status_code == 200:
+            break
+    if r is None:
+        raise RuntimeError(f"Yahoo unreachable ({err})")
     if r.status_code == 429:
         raise RuntimeError("Yahoo rate limit (429)")
     if r.status_code == 404:
         raise ValueError("Yahoo: unknown symbol")
-    r.raise_for_status()
+    if r.status_code != 200:
+        raise RuntimeError(f"Yahoo HTTP {r.status_code}")
     df = parse_chart(r.json())
     if n > 1:
         df = aggregate_frame(df, n, 60)

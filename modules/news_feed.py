@@ -36,7 +36,15 @@ def _av_fallback(limit: int, why: list) -> list:
     rows = r.get("rows") or []
     if not rows:
         err = r.get("error") or "no articles"
-        return _status(why[0]["headline"] + f"  |  Alpha Vantage fallback: {err}")
+        try:
+            from modules import rss_news
+            rss = rss_news.fetch(limit)
+        except Exception:
+            rss = []
+        if rss:
+            return [{"headline": a["title"], "source": a["source"], "url": a["url"], "icon": ASSET_ICONS["general"],
+                     "summary": "", "datetime": a["time"]} for a in rss]
+        return _status(why[0]["headline"] + f"  |  Alpha Vantage fallback: {err[:60]}")
     return [{"headline": a["title"], "source": f"{a['source']} (AV {a['score']:+.2f})", "url": a["url"] or "",
              "icon": ASSET_ICONS["general"], "summary": "", "datetime": a["time"]} for a in rows[:limit]]
 

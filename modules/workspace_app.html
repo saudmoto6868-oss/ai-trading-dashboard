@@ -2368,8 +2368,20 @@ Ws.broadcast = (from, sym) => {
 Ws.checkEmpty = () => { const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
 Ws.save = () => {
   store.set(LS, { lang, v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
-  Ws.checkEmpty();
+  Ws.checkEmpty(); Ws.histPush();
 };
+/* Undo / Redo: every saved change of the workspace (panels added / removed / moved / resized, symbols, timeframes, indicators, colours, per-panel settings) is a step; the last 120 steps are kept */
+Ws.hist = {a:[], i:-1, max:121, mute:0};
+Ws.histPush = () => { const H = Ws.hist; if (H.mute) return; let snap; try { snap = JSON.stringify(Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state])); } catch(e){ return; }
+  if (H.a[H.i] === snap) return; const now = Date.now(); if (H.i > 0 && H.i === H.a.length-1 && now - (H.t || 0) < 400){ H.a[H.i] = snap; H.t = now; Ws.histUI(); return; }   // saves fired back-to-back by one action count as one step
+  H.t = now; H.a = H.a.slice(0, H.i+1); H.a.push(snap); if (H.a.length > H.max) H.a.shift(); H.i = H.a.length-1; Ws.histUI(); };
+Ws.histGo = d => { const H = Ws.hist, j = H.i + d; if (j < 0 || j >= H.a.length) return; H.i = j; H.mute++;
+  try { const list = JSON.parse(H.a[j]); Ws.clear(); Ws.build(list); Ws.save(); } finally { H.mute--; } Ws.histUI(); };
+Ws.undo = () => Ws.histGo(-1); Ws.redo = () => Ws.histGo(1);
+Ws.histUI = () => { const H = Ws.hist, u = document.getElementById("undoB"), r = document.getElementById("redoB"); if (u){ u.disabled = H.i <= 0; u.title = (lang === "ar" ? "تراجع (Ctrl+Z) — " : "Undo (Ctrl+Z) — ")+Math.max(0, H.i)+(lang === "ar" ? " خطوة متاحة" : " steps available"); }
+  if (r){ r.disabled = H.i >= H.a.length-1; r.title = (lang === "ar" ? "إعادة (Ctrl+Shift+Z / Ctrl+Y) — " : "Redo (Ctrl+Shift+Z / Ctrl+Y) — ")+Math.max(0, H.a.length-1-H.i)+(lang === "ar" ? " خطوة" : " steps"); } };
+document.addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey) || e.altKey) return; const t = e.target, tn = t && t.tagName; if (tn === "INPUT" || tn === "TEXTAREA" || tn === "SELECT" || (t && t.isContentEditable)) return;
+  const k = e.key.toLowerCase(); if (k === "z" && !e.shiftKey){ e.preventDefault(); Ws.undo(); } else if ((k === "z" && e.shiftKey) || k === "y"){ e.preventDefault(); Ws.redo(); } });
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
 Ws.defaults = () => {
   const W = Ws.el.clientWidth || 1200, H0 = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10, rh = 150, oy = rh + 10, H = H0 - oy;
@@ -2388,7 +2400,7 @@ Ws.defaults = () => {
     ["news", {x:x3,y:top+10,w:tw,h:H-top-10}, {}],
   ].map(([t,rc,st]) => [t, Object.assign({}, rc, {y:rc.y+oy}), st]));
 };
-Ws.build = list => { list.forEach(([t,r,s]) => new Panel(t, r, s)); Ws.checkEmpty(); };
+Ws.build = list => { Ws.hist.mute++; try { list.forEach(([t,r,s]) => new Panel(t, r, s)); } finally { Ws.hist.mute--; } Ws.checkEmpty(); };
 Ws.cascade = 0;
 Ws.add = type => {
   const o = (Ws.cascade++ % 8)*30 + 20;
@@ -2403,7 +2415,8 @@ function buildBar(){
   ["ready","scanner","journal","chart","dom","tape","limits","watch","alerts","valuelv","risk","news","ticker","links","video","notes"].forEach(t => sel.append(Object.assign(el("option"), {textContent:T(t), value:t})));
   const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
   sel.onchange = () => { const v = sel.value; if (v === "@trading"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
-  bar.append(sel, el("span","sp"));
+  const ub = el("button", null, "↶"), rb = el("button", null, "↷"); ub.id = "undoB"; rb.id = "redoB"; ub.onclick = () => Ws.undo(); rb.onclick = () => Ws.redo(); ub.style.cssText = rb.style.cssText = "padding:2px 8px;font-size:14px";
+  bar.append(sel, ub, rb, el("span","sp")); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }
 function applyLang(rebuild){
@@ -2418,7 +2431,7 @@ function applyLang(rebuild){
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
-  window.__ws = Ws;
+  window.__ws = Ws; Ws.histPush();
 })();
 </script>
 </body>

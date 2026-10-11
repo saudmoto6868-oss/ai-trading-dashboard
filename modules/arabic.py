@@ -44,8 +44,10 @@ TAGS = {
     "Fib": ("فيبو", "#ff9800", "#000"),
     "MA": ("متوسطات", "#5a6b7d", "#fff"),
     "VWAP": ("VWAP", "#5a6b7d", "#fff"),
+    "TL": ("كسر ترند", "#e0a030", "#000"),
 }
 KEY_TAGS = {
+    "tlbreak": ("كسر ترند", "#e0a030", "#000"),
     "sweep": ("سيولة", "#4aa3ff", "#000"),
     "liqline": ("سيولة", "#4aa3ff", "#000"),
     "breakout": ("اختراق", "#0ecb81", "#000"),
@@ -116,6 +118,11 @@ def signal_ar(s: dict) -> tuple:
     bull = s["direction"] == "bullish"
     up, dn = ("فوق", "تحت") if bull else ("تحت", "فوق")
     f = lambda key: n_(fp(p[key])) if key in p else "-"
+    if k == "tlbreak":
+        why = {"volume expansion": "فوليوم أعلى من المعتاد", "3+ touches": "3 لمسات على الخط", "strong close": "شمعة كسر قوية", "retest held": "إعادة اختبار صمدت"}
+        en = s.get("detail", "").split("confirmed by: ")[-1].split(", ") if "confirmed by" in s.get("detail", "") else []
+        return (f"كسر خط ترند {'هابط' if bull else 'صاعد'} لأعلى" if bull else "كسر خط ترند صاعد لأسفل",
+                f"إغلاق {up} خط الترند ({f('tp')}) منذ {n_(v.get('ago', '?'))} شمعة · لمسات {n_(v.get('touches', '?'))} · تأكيدات: " + ("، ".join(why.get(x, x) for x in en) or "-"))
     if k == "ma_cross":
         nm = s["name"].replace(" bullish cross", "").replace(" bearish cross", "")
         return (f"تقاطع {nm} {'صاعد' if bull else 'هابط'}",

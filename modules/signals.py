@@ -29,6 +29,7 @@ BULL, BEAR = "bullish", "bearish"
 FAMILY_ICONS = {
     "MA": "\U0001F4C8",         # chart increasing
     "VWAP": "⚓",           # anchor
+    "TL": "\u2702\ufe0f",        # scissors: trendline break
     "Elliott": "\U0001F30A",    # wave
     "Unicorn": "\U0001F984",    # unicorn
     "MSB-OB": "\U0001F9F1",     # brick
@@ -36,8 +37,8 @@ FAMILY_ICONS = {
     "Liquidity": "\U0001F4A7",  # droplet
 }
 PRIMARY_FAMILIES = ("Elliott", "Unicorn", "MSB-OB", "Fib", "Liquidity")
-CONFIRM_FAMILIES = ("MA", "VWAP")
-ALL_FAMILIES = PRIMARY_FAMILIES + CONFIRM_FAMILIES  # 7 families -> max 7 stars
+CONFIRM_FAMILIES = ("MA", "VWAP", "TL")
+ALL_FAMILIES = PRIMARY_FAMILIES + CONFIRM_FAMILIES  # 8 families -> max 8 stars
 
 
 # --------------------------------------------------------------------------
@@ -118,6 +119,7 @@ _SWAPS = [
     ("bullish", "bearish"), ("bearish", "bullish"), ("support", "resistance"), ("resistance", "support"),
     ("above", "below"), ("below", "above"), ("Above", "Below"), ("Below", "Above"),
     ("buyers", "sellers"), ("longs", "shorts"), ("up-leg", "down-leg"), ("closed up", "closed down"),
+    ("falling", "rising"), ("rising", "falling"),
     ("low", "high"), ("high", "low"),
 ]
 _SWAP_MAP = dict(_SWAPS)
@@ -131,7 +133,7 @@ def _flip_text(text: str) -> str:
 
 # stable ids so the Arabic text/tag layer does not depend on the English wording
 _KEY_PATTERNS = [
-    (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
+    (r"Trendline break", "tlbreak"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
@@ -196,6 +198,55 @@ def ma_bull(df):
     if n >= 60 and e9.iloc[-1] > e21.iloc[-1] > e50.iloc[-1] and c.iloc[-1] > e9.iloc[-1]:
         out.append(_mk("MA", "EMA stack aligned (9/21/50)", "price above a fully stacked fast-to-slow EMA trend"))
     return out
+
+
+def trendbreak_bull(df, lookback: int = 120, max_age: int = 3):
+    """Trendline break (bullish = a falling line through lower swing highs is broken UP; the bearish twin comes from the
+    inverted frame). Rules (common trendline-break practice: LuxAlgo / TradingView trendline-break scripts):
+      line   : through two fractal swing highs (n=3) at least 6 bars apart, the later one lower; the touches count
+               (other swing highs within 0.25 ATR of the line). Between the first pivot and the break NO close may have
+               been above the line (otherwise the line was already invalid).
+      break  : a bar CLOSES above the line by >= 0.2 ATR (a poke / wick does not count), within the last `max_age` bars,
+               the bar before it closed under the line (first break), and the latest close is still above the line.
+      quality: needs >= 1 of: volume >= 1.2x its 20-bar mean (or >= 3 touches), strong breakout candle (body >= 60% of range,
+               close in its top 30%), a retest (price came back to the line within 0.3 ATR after the break and held).
+    Ordinary mean-reversion on the break bar itself is not a signal - it must hold above the line on the last close."""
+    n = len(df)
+    if n_short(df, 60):
+        return []
+    c, h, l, o, v = (df[k].values for k in ("close", "high", "low", "open", "volume"))
+    a = atr_series(df).values
+    piv = [p for p in fractal_pivots(df, 3) if p[2] == "H" and p[0] >= n - lookback]
+    piv = piv[-5:]
+    best = None
+    for x in range(len(piv)):
+        for y in range(x + 1, len(piv)):
+            i1, p1, _ = piv[x]; i2, p2, _ = piv[y]
+            if i2 - i1 < 6 or not p2 < p1:
+                continue
+            slope = (p2 - p1) / (i2 - i1)
+            line = lambda i: p1 + slope * (i - i1)
+            touches = 2 + sum(1 for (i3, p3, _) in piv if i3 not in (i1, i2) and i3 > i1 and abs(p3 - line(i3)) <= 0.25 * a[i3])
+            for b in range(n - 1, max(i2 + 1, n - max_age) - 1, -1):                    # most recent break first
+                if not (c[b] > line(b) + 0.2 * a[b] and c[b - 1] <= line(b - 1) + 0.05 * a[b - 1]):
+                    continue
+                if c[-1] <= line(n - 1) or any(c[j] > line(j) + 0.05 * a[j] for j in range(i1 + 1, b)):
+                    continue                                                           # fell back under the line / line was already broken earlier
+                rng = max(h[b] - l[b], 1e-12)
+                vol_ok = n > 25 and v[b] > 0 and v[b] >= 1.2 * np.mean(v[max(0, b - 20):b])
+                strong = (c[b] - o[b]) >= 0.6 * rng and (h[b] - c[b]) <= 0.3 * rng
+                retest = any(l[j] <= line(j) + 0.3 * a[j] and c[j] > line(j) for j in range(b + 1, n))
+                q = (vol_ok or touches >= 3) + strong + retest
+                if q >= 1 and (best is None or (q, touches, -(n - 1 - b)) > best[0]):
+                    best = ((q, touches, -(n - 1 - b)), b, line(b), touches, vol_ok, strong, retest, n - 1 - b)
+                break
+    if not best:
+        return []
+    _, b, lv, touches, vol_ok, strong, retest, ago = best
+    why = [t for ok, t in ((vol_ok, "volume expansion"), (touches >= 3, "3+ touches"), (strong, "strong close"), (retest, "retest held")) if ok]
+    return [_mk("TL", f"Trendline break ({touches} touches)",
+                "close above a falling trendline ({tp}) {ago} bar(s) ago; confirmed by: " + ", ".join(why),
+                prices={"tp": float(lv)}, vals={"ago": ago, "touches": touches, "q": len(why)})]
 
 
 def vwap_bull(df, window: int = 100):
@@ -952,7 +1003,7 @@ def session_orb_bull(df):
 
 DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 
-DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
+DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
              rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull)
 

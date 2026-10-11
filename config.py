@@ -81,16 +81,16 @@ AUTO_REFRESH_SECONDS = 20
 EXTERNAL_LINKS = {
     "ForexFactory Calendar": "https://www.forexfactory.com/calendar",
     "Finviz Patterns": "https://finviz.com/screener.ashx?v=211",  # charts view; per-pattern links below
-    "TrendVision": "https://trendvision.bot/",
-    "CoinGlass Heatmap": "https://www.coinglass.com/pro/futures/LiquidationHeatMap",
+    "CoinGlass RSI Heatmap": "https://www.coinglass.com/RsiHeatMap",
+    "Investing.com": "https://www.investing.com/",
     "DEXScreener Trending": "https://dexscreener.com/solana",
 }
 
 QUICK_LINK_ICONS = {
     "ForexFactory Calendar": "\U0001F4C5",
     "Finviz Patterns": "\U0001F50E",
-    "TrendVision": "\U0001F4C8",
-    "CoinGlass Heatmap": "\U0001F525",
+    "CoinGlass RSI Heatmap": "\U0001F525",
+    "Investing.com": "\U0001F4C8",
     "DEXScreener Trending": "\U0001F9ED",
 }
 

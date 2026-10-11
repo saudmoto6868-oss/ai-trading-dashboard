@@ -86,10 +86,10 @@ td{padding:1px 4px;white-space:nowrap}
 .jrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}.jcal{flex:1 1 260px}.jside{flex:1 1 160px}.jgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}
 .jh{text-align:center;color:var(--mut);font-size:10px}.jd{min-height:34px;border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:10px;display:flex;flex-direction:column;justify-content:space-between}.jd b{font-size:10px;font-family:ui-monospace,Menlo,monospace}
 .ctxm{background:#1e2329;border:1px solid #3a424b;border-radius:6px;padding:3px;box-shadow:0 6px 18px rgba(0,0,0,.5);display:flex;flex-direction:column;min-width:170px}.ctxm button{text-align:start;border:0;background:transparent;padding:5px 10px}.ctxm button:hover{background:rgba(255,255,255,.08)}
-.rdy{padding:2px 4px}.rd{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.rd th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px;position:sticky;top:0;background:var(--panel)}
-.rd td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.rd tr[data-i]{cursor:pointer}.rd tr[data-i]:hover{background:rgba(255,255,255,.04)}
-.rd a.tg{display:inline-block;border-radius:3px;padding:0 4px;margin-inline-end:2px;font-size:10px;font-weight:600;font-family:sans-serif;cursor:help;text-decoration:none}
-.rd .bar{display:inline-block;width:44px;height:6px;background:#2b3139;border-radius:3px;vertical-align:middle}.rd .bar i{display:block;height:100%;border-radius:3px}
+.rdy{padding:2px 4px}.rdt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.rdt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px;position:sticky;top:0;background:var(--panel)}
+.rdt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.rdt tr[data-i]{cursor:pointer}.rdt tr[data-i]:hover{background:rgba(255,255,255,.04)}
+.rdt a.tg{display:inline-block;border-radius:3px;padding:0 4px;margin-inline-end:2px;font-size:10px;font-weight:600;font-family:sans-serif;cursor:help;text-decoration:none}
+.rdt .bar{display:inline-block;width:44px;height:6px;background:#2b3139;border-radius:3px;vertical-align:middle}.rdt .bar i{display:block;height:100%;border-radius:3px}
 .badge{display:inline-block;padding:0 6px;border-radius:3px;font-size:11px;font-weight:700}
 .stars{letter-spacing:1px;color:var(--gold);font-size:12px}.stars .o{color:#4a525c}
 .plan{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-top:5px;font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
@@ -100,6 +100,7 @@ td{padding:1px 4px;white-space:nowrap}
 .mq{overflow:hidden;white-space:nowrap;position:relative;height:22px;line-height:22px}
 .mq .tr{display:inline-block;animation:mq var(--d,60s) linear infinite}.mq.rev .tr{animation-direction:reverse}.mq:hover .tr{animation-play-state:paused}
 .mq span.it{cursor:pointer;margin-inline-end:32px}.mq span.it:hover{color:var(--gold);text-decoration:underline}.mq .sr{color:var(--mut)}
+@keyframes wfu{0%{background:rgba(14,203,129,.55)}100%{background:transparent}}@keyframes wfd{0%{background:rgba(246,70,93,.55)}100%{background:transparent}}.wt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.wt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:#161a1e;border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
 @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .pop{position:absolute;inset:0;background:var(--panel);z-index:5;overflow:auto;padding:8px}
 table.fx{table-layout:fixed}table.fx td,table.fx th{overflow:hidden;text-overflow:ellipsis}
@@ -429,6 +430,29 @@ const WSX = {
 };
 
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
+const Lg = (a, b) => lang === "ar" ? b : a;
+const smtPeers = sym => { const b = sym.split("-SWAP")[0].split("-").slice(0,2).join("-"), o = []; (CFG.smt || []).forEach(([a, c, inv]) => { if (a === b) o.push([c, !!inv]); else if (c === b) o.push([a, !!inv]); }); return o; };
+function smtFind(A, B, inv){   // swing-by-swing divergence between two aligned candle arrays; returns [{i1,i2,side,j1,j2}] (side up = bullish)
+  const n = A.length, out = []; if (n < 40) return out; const rg = A.slice(-14).reduce((a, x) => a + (x.h - x.l), 0)/14 || 1e-9, rgB = B.slice(-14).reduce((a, x) => a + (x.h - x.l), 0)/14 || 1e-9;
+  const bl = i => inv ? -B[i].h : B[i].l, bh = i => inv ? -B[i].l : B[i].h;
+  const pv = (key) => { const r = []; for (let i = 3; i < n-3; i++){ let ok = true; for (let k = i-3; k <= i+3 && ok; k++) if (k !== i && (key === "l" ? A[k].l < A[i].l : A[k].h > A[i].h)) ok = false; if (ok) r.push(i); } return r; };
+  const wmin = (f, i) => { let m = Infinity, j = i; for (let k = Math.max(0, i-3); k <= Math.min(n-1, i+3); k++) if (f(k) < m){ m = f(k); j = k; } return [m, j]; };
+  const wmax = (f, i) => { let m = -Infinity, j = i; for (let k = Math.max(0, i-3); k <= Math.min(n-1, i+3); k++) if (f(k) > m){ m = f(k); j = k; } return [m, j]; };
+  const L = pv("l"); for (let q = 1; q < L.length; q++){ const i1 = L[q-1], i2 = L[q]; if (i2 - i1 < 5 || i2 - i1 > 60 || A[i2].l >= A[i1].l - 0.1*rg) continue; if (Math.min(...A.slice(i1+1, i2).map(x => x.l)) <= A[i2].l) continue;
+    const [b1, j1] = wmin(bl, i1), [b2, j2] = wmin(bl, i2); if (b2 >= b1 + 0.1*rgB) out.push({i1, i2, side:"up", j1, j2}); }
+  const H = pv("h"); for (let q = 1; q < H.length; q++){ const i1 = H[q-1], i2 = H[q]; if (i2 - i1 < 5 || i2 - i1 > 60 || A[i2].h <= A[i1].h + 0.1*rg) continue; if (Math.max(...A.slice(i1+1, i2).map(x => x.h)) >= A[i2].h) continue;
+    const [b1, j1] = wmax(bh, i1), [b2, j2] = wmax(bh, i2); if (b2 <= b1 - 0.1*rgB) out.push({i1, i2, side:"dn", j1, j2}); }
+  return out;
+}
+function amdPhase(d){   // ICT Power of 3 on the last candles: Accumulation (tight range) -> Manipulation (sweep of the range extreme + close back inside) -> Distribution (expansion beyond the range)
+  const n = d.length; if (n < 30) return {phase:"?"};
+  const atr = d.slice(-30, -1).reduce((a, x) => a + (x.h - x.l), 0)/29 || 1e-12, base = d.slice(-26, -4), hi = Math.max(...base.map(x => x.h)), lo = Math.min(...base.map(x => x.l)), rec = d.slice(-4), last = d[n-1];
+  const sLo = rec.some(x => x.l < lo - 0.1*atr) && last.c > lo, sHi = rec.some(x => x.h > hi + 0.1*atr) && last.c < hi;
+  if (sLo && !sHi) return {phase:"M", dir:"up"}; if (sHi && !sLo) return {phase:"M", dir:"dn"};
+  const mv = last.c - d[n-7].c; if (Math.abs(mv) >= 2.5*atr && (last.c > hi || last.c < lo)) return {phase:"D", dir:mv > 0 ? "up" : "dn"};
+  const r12 = d.slice(-12); if (Math.max(...r12.map(x => x.h)) - Math.min(...r12.map(x => x.l)) <= 3.5*atr) return {phase:"A"};
+  return {phase:"-"};
+}
 const Hub = {
   subs:{}, last:{}, timers:{}, an:{},
   sub(kind, sym, cb){
@@ -451,7 +475,7 @@ const Hub = {
           const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
-          const types = ["SPOT"]; if (SYMS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (SYMS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
+          const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
           const m = {}; (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); payload = m;
         }
         this.last[key] = payload; setStatus(true);
@@ -659,6 +683,7 @@ class CandleChart {
       for (let i = i0; i <= i1; i++){ const y = py(this.vwV[i]), x = this.x(i); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); }
       c.stroke(); c.setLineDash([]);
     }
+    if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
     if (this.harmOn) this.paintHarm(c, py, dec);
     if (this.vpOn) this.paintVp(c, py, dec, PR, PB);
     if (this.bvdOn) this.paintBvd(c, py, dec, i0, i1);
@@ -887,6 +912,21 @@ Object.assign(CandleChart.prototype, {
       if (mid){ const y = py(cd.l) + 9; c.textAlign = "center"; c.fillStyle = dcol; c.font = "bold "+fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((delta >= 0 ? "+" : "")+fmt(delta), x, Math.min(PB-6, y)); }
       else { c.fillStyle = dcol; c.globalAlpha = .8; c.fillRect(x-1.5, Math.min(PB-4, py(cd.l)+3), 3, 3); c.globalAlpha = 1; }
     }
+    c.restore();
+  },
+  paintSmt(c, py, dec, i0, i1){   // the correlated market drawn on THIS chart (rescaled) + SMT divergences between the two, marked swing to swing
+    const D = this.smtD; if (!D || !D.length || !this.data.length) return; const mp = new Map(D.map(x => [x.t, x])), inv = !!this.smtInv, A = [], B = [];
+    this.data.forEach((x, i) => { const q = mp.get(x.t); if (q){ A.push(Object.assign({i}, x)); B.push(q); } }); if (A.length < 40) return;
+    const idx = new Map(A.map((x, k) => [x.i, k]));
+    let mn = Infinity, mx = -Infinity, pmn = Infinity, pmx = -Infinity; for (let i = i0; i <= i1; i++){ const d = this.data[i]; if (!d) continue; mn = Math.min(mn, d.l); mx = Math.max(mx, d.h); const k = idx.get(i); if (k != null){ const v = inv ? -B[k].c : B[k].c; pmn = Math.min(pmn, v); pmx = Math.max(pmx, v); } }
+    if (!isFinite(pmn) || pmx <= pmn) return; const sc = v => mn + (v - pmn)/(pmx - pmn)*(mx - mn), pv = (k, key) => sc(inv ? -(key === "h" ? B[k].l : B[k].h) : B[k][key] );
+    c.save(); c.strokeStyle = "#ffd54f"; c.globalAlpha = .75; c.lineWidth = 1.2; c.setLineDash([5,3]); c.beginPath(); let f = true;
+    for (let i = i0; i <= i1; i++){ const k = idx.get(i); if (k == null) continue; const x = this.x(i), y = py(sc(inv ? -B[k].c : B[k].c)); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; } c.stroke(); c.setLineDash([]);
+    c.globalAlpha = 1; c.font = "10px sans-serif"; c.fillStyle = "#ffd54f"; c.fillText("SMT ⇄ "+(this.smtName || "")+(inv ? " (inverse)" : "")+"  ·  "+(this.smtD.length ? "" : ""), 8, 24);
+    smtFind(A, B, inv).filter(e => A[e.i2].i >= i0 - 5).forEach(e => { const up = e.side === "up", col = up ? "#0ecb81" : "#f6465d", a1 = A[e.i1], a2 = A[e.i2], key = up ? "l" : "h";
+      c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.moveTo(this.x(a1.i), py(a1[key])); c.lineTo(this.x(a2.i), py(a2[key])); c.stroke();                       // the market that made the new extreme
+      c.strokeStyle = "#ffd54f"; c.lineWidth = 1.4; c.beginPath(); c.moveTo(this.x(A[e.j1].i), py(pv(e.j1, key))); c.lineTo(this.x(A[e.j2].i), py(pv(e.j2, key))); c.stroke();   // ... and the one that refused
+      const x = this.x(a2.i), y = py(a2[key]) + (up ? 16 : -16); c.fillStyle = "#0b0e11"; c.fillRect(x-17, y-8, 34, 14); c.strokeStyle = col; c.strokeRect(x-17, y-8, 34, 14); c.fillStyle = col; c.textAlign = "center"; c.fillText("SMT "+(up ? "▲" : "▼"), x, y+3); c.textAlign = "left"; });
     c.restore();
   },
   paintVp(c, py, dec, PR, PB){
@@ -1326,7 +1366,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.smtOn = !!this.state.smt; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -1379,6 +1419,7 @@ class Panel {
       {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
       {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
+      {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; this.smtT = 0; if (!v) ch().smtD = null; }},
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }},
       {id:"ew", label:T("indEw"), get:() => ch().ewOn, set:v => { ch().ewOn = v; this.state.ew = v; }},
       {id:"bvd", label:T("indBvd"), tip:T("bvdTip"), get:() => ch().bvdOn, set:v => { ch().bvdOn = v; this.state.bvd = v; }},
@@ -1517,6 +1558,7 @@ class Panel {
         if (tok !== this.tok) return;
         const rows = this.parseC(d); setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
+        if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         if (first) this.chart.setData(rows, true);
         else {
           const data = this.chart.data.slice();
@@ -1531,6 +1573,11 @@ class Panel {
       this.timer = setTimeout(() => loop(!this.chart.data.length), this.state.rf || 2000);
     };
     loop(true);
+  }
+  async smtFetch(sym, tf, tok){
+    const pr = smtPeers(sym); if (!pr.length){ this.chart.smtD = null; this.chart.smtName = Lg("no correlated pair for "+sym, "لا يوجد زوج مرتبط"); this.chart.draw(); return; }
+    const sel = pr.find(x => x[0] === this.state.smtPeer) || pr[0]; this.chart.smtName = sel[0]; this.chart.smtInv = sel[1];
+    try { const d = await okx("/market/candles?instId="+encodeURIComponent(sel[0])+"&bar="+tf+"&limit=300"); if (tok !== this.tok) return; this.chart.smtD = this.parseC(d); this.chart.draw(); } catch(e){}
   }
   async loadMore(){
     if (this.loadingMore || this.noMore || !this.chart.data.length) return;
@@ -1596,14 +1643,12 @@ class Panel {
     const CAT = {"1":"Crypto","3":"Stocks","4":"Commodities","5":"Forex","6":"Bonds"}, METAL = ["XAU","XAG","XPT","XPD","XAUT","PAXG"], ENERGY = ["CL","WTI","BRENT","XTI","XBR","NG","NATGAS","OIL","UKOIL","USOIL","HO","RB"], INDEX = ["SPX","NDX","DJI","US500","US100","US30","SPX500","NAS100","DAX","GER40","FTSE","UK100","HSI","N225","JP225","VIX"];
     const MEMEB = (CFG.meme || []).map(s => s.split("-")[0]), catOf = (i, base) => (METAL.includes(base) ? "Metals" : ENERGY.includes(base) ? "Oil & Gas" : INDEX.includes(base) ? "Indices" : MEMEB.includes(base) ? "Meme coins" : CAT[i.instCategory]) || "Crypto";
     const renderU = () => {
-      if (/^(Egypt|Saudi)/.test(U.cat)){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "لا يوجد مصدر مجاني مؤكد للسوق ده لسه — محتاج مفتاح API (EGX / تداول). مش هعرض أرقام مش حقيقية." : "No verified free live feed for this market yet — needs an API key (EGX / Tadawul). No made-up numbers are shown.")+'</div>'; return; }
-      const q = "-"+U.quote; let r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities"))).sort((a,b) => b.vol - a.vol).slice(0, U.top); uBox.innerHTML = "";
-      if (!r.length){ uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("uniNone"))+'</div>'; return; }
-      const t = el("table","rd"); t.innerHTML = "<tr><th>"+esc(T("symbol"))+"</th><th>"+esc(T("last"))+"</th><th>"+esc(T("chg"))+"</th><th></th></tr>";
-      r.forEach(x => { const tr = el("tr"); tr.style.cursor = "pointer"; tr.title = lang === "ar" ? "اضغط لفتح الشارت" : "Click to open the chart"; tr.innerHTML = "<td><b>"+esc(x.id)+'</b> <span class="m">'+esc(x.cat)+"</span></td><td>"+fmtP(x.last)+'</td><td style="color:'+(x.chg >= 0 ? "#0ecb81" : "#f6465d")+'">'+(x.chg >= 0 ? "+" : "")+x.chg.toFixed(2)+"%</td><td><button>+</button></td>";
-        tr.querySelector("button").onclick = ev => { ev.stopPropagation(); addSym(x.id); };
-        tr.onclick = () => { addSym(x.id); Ws.broadcast(this, x.id); }; t.append(tr); });   // a row click adds the symbol and opens it on the linked chart
-      const all = el("button",null,T("uniAll")+" ("+r.length+")"); all.onclick = () => r.forEach(x => addSym(x.id)); uBox.append(t, all);
+      uBox.innerHTML = ""; this.uSyms = []; this.uMeta = {};
+      if (/^(Egypt|Saudi)/.test(U.cat)){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "لا يوجد مصدر مجاني مؤكد للسوق ده لسه — محتاج مفتاح API (EGX / تداول). مش هعرض أرقام مش حقيقية." : "No verified free live feed for this market yet — needs an API key (EGX / Tadawul). No made-up numbers are shown.")+'</div>'; this.wDraw && this.wDraw(); return; }
+      const r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities"))).sort((a,b) => b.vol - a.vol).slice(0, U.top);
+      if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("uniNone"))+'</div>';
+      this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");
+      this.wRender && this.wRender(Hub.last["tickers|all"]);   // the symbols simply load into the live list below
     };
     const loadU = async () => {
       uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("loading"))+'</div>';
@@ -1622,7 +1667,9 @@ class Panel {
     ub.onclick = () => { const on = uni.style.display === "none"; uni.style.display = on ? "block" : "none"; if (on) loadU(); };
     loadU();   // selectors + list are part of the watchlist itself
     go.onclick = add; inp.onkeydown = e => { if (e.key === "Enter") add(); };
-    tb.append(inp, go, ub); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
+    const favB = el("button",null,"★"), tfS = el("select"); favB.title = lang === "ar" ? "المفضلة فقط" : "Favorites only"; favB.onclick = () => { this.state.favOnly = !this.state.favOnly; favB.style.color = this.state.favOnly ? "#f0b90b" : ""; Ws.save(); this.wDraw && this.wDraw(); }; favB.style.color = this.state.favOnly ? "#f0b90b" : "";
+    ["1H","4H"].forEach(v => tfS.append(Object.assign(el("option"), {value:v, textContent:"AMD "+v}))); tfS.value = this.state.wtf || "1H"; tfS.title = "Accumulation / Manipulation / Distribution"; tfS.onchange = () => { this.state.wtf = tfS.value; this.amd = {}; Ws.save(); this.wDraw && this.wDraw(); };
+    tb.append(inp, go, favB, tfS, ub); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
   }
   /* ---- links bar ---- */
   build_links(){
@@ -1702,7 +1749,7 @@ class Panel {
     const draw = () => {
       const rows = collect(); box.innerHTML = "";
       if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(CFG.scanning ? T("scanning") : T("rdEmpty"))+'</div>'; return; }
-      let h = '<table class="rd"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("rdSetup"))+'</th><th></th><th>'+esc(T("stop"))+'</th><th>TP1</th><th>'+esc(T("rdStr"))+'</th><th></th></tr>';
+      let h = '<table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("rdSetup"))+'</th><th></th><th>'+esc(T("stop"))+'</th><th>TP1</th><th>'+esc(T("rdStr"))+'</th><th></th></tr>';
       rows.slice(0, 40).forEach((e, i) => {
         const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
         h += '<tr data-i="'+i+'"><td><b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span> <button class="ana" title="'+esc(lang === "ar" ? "التحليل" : "Analysis")+'">ⓘ</button></td>'
@@ -1738,7 +1785,7 @@ class Panel {
     const push = () => { const ch = Ws.panels.find(p => p.type === "chart"); if (ch) { ch.chart.fibLv = rows().filter(x => x.on && isFinite(x.p)).map(x => ({r:x.r, p:x.p})); ch.chart.draw(); } };
     const draw = () => {
       rt.value = ratios().join(", "); box.innerHTML = "";
-      const t = el("table","rd"); t.innerHTML = "<tr><th></th><th>"+esc(T("fib"))+"</th><th>"+esc(T("price"))+"</th></tr>";
+      const t = el("table","rdt"); t.innerHTML = "<tr><th></th><th>"+esc(T("fib"))+"</th><th>"+esc(T("price"))+"</th></tr>";
       rows().forEach(x => { const tr = el("tr"); tr.innerHTML = '<td><input type="checkbox" '+(x.on?"checked":"")+'></td><td style="color:'+(x.r < 0 ? "#0ecb81" : x.r > 1 ? "#f6465d" : "#f0b90b")+'">'+x.r+'</td><td>'+fmt(x.p)+'</td>';
         tr.querySelector("input").onchange = e => { S.fon[x.r] = e.target.checked; Ws.save(); push(); }; t.append(tr); });
       box.append(t); push();
@@ -1793,7 +1840,7 @@ class Panel {
       { const ts = CFG.tfstats && CFG.tfstats.stats, ar = lang === "ar", L = (x,y) => ar ? y : x; h += '<div class="jl" style="margin:6px 4px 0">'+L("Best timeframe per strategy (historical TP1 hit-rate, walk-forward on OKX candles)","أفضل تايم فريم لكل استراتيجية (نسبة ضرب الهدف الأول تاريخياً)")+'</div>';
         if (!ts) h += '<div class="m" style="padding:8px">'+L("Backtest not ready yet — it runs in the background and is cached for a day.","الباك تيست لسه ما جهزش — بيشتغل في الخلفية وبيتحفظ يوم.")+'</div>';
         else { const TFS = ["1m","1h","1d","1w"], min = CFG.tfstats.min_n || 8, best = CFG.tfstats.best || {};
-          h += '<table class="rd"><tr><th>'+L("Strategy","الاستراتيجية")+'</th>'+TFS.map(t => '<th>'+t+'</th>').join("")+'<th>'+L("Best","الأفضل")+'</th></tr>'
+          h += '<table class="rdt"><tr><th>'+L("Strategy","الاستراتيجية")+'</th>'+TFS.map(t => '<th>'+t+'</th>').join("")+'<th>'+L("Best","الأفضل")+'</th></tr>'
             + Object.keys(ts).sort((a,b) => a === "*" ? -1 : b === "*" ? 1 : 0).map(g => '<tr><td>'+esc(g === "*" ? L("All signals","كل الإشارات") : tagTxt(g))+'</td>'+TFS.map(t => { const d = ts[g][t]; return !d || d.n < min ? '<td class="m">–</td>' : '<td style="color:'+(d.hit >= .5 ? "#0ecb81" : "#f6465d")+(best[g] === t ? ";font-weight:700" : "")+'">'+Math.round(100*d.hit)+'% <span class="m">n'+d.n+'</span></td>'; }).join("")+'<td style="color:#f0b90b">'+esc(best[g] || "–")+'</td></tr>').join("")+'</table>'; } }
       // calendar
       const [cy, cm] = S.jm.split("-").map(Number), first = new Date(cy, cm, 1), dim = new Date(cy, cm+1, 0).getDate(), day = {};
@@ -1808,11 +1855,11 @@ class Panel {
       const rowsS = Object.entries(by).sort((a,b) => b[1].n - a[1].n).slice(0,8).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
       const byT = {}; st.closed.forEach(t => { const k = ttTxt(t.ttype); (byT[k] = byT[k] || {w:0,n:0}).n++; if (t.status === "tp") byT[k].w++; });
       const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
-      const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rd">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rd">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table></div>';
+      const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table></div>';
       h += '<div class="jrow">'+cal+side+'</div>';
       // trades table
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);
-      h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rd"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
+      h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
         + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "exp" ? T("jExp") : T("jOpen");
           return '<tr><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
       box.innerHTML = h;
@@ -1865,7 +1912,7 @@ class Panel {
     tb.append(this.symSel, rf, show, clr); this.body.append(tb, box); this.body.style.overflow = "auto";
     const render = () => {
       const D = this.levelsData; let px = null; Object.values(D).forEach(d => { if (d && d.px) px = d.px; });
-      let h = "<table class='rd'><tr><th>"+L("TF","الفريم")+"</th><th>VAH</th><th>POC</th><th>VAL</th><th>"+L("Price vs value","السعر مقابل القيمة")+"</th></tr>";
+      let h = "<table class='rdt'><tr><th>"+L("TF","الفريم")+"</th><th>VAH</th><th>POC</th><th>VAL</th><th>"+L("Price vs value","السعر مقابل القيمة")+"</th></tr>";
       VP_TFS.forEach(([k,lab]) => { const d = D[k]; if (!d || !d.vp){ h += "<tr><td>"+lab+"</td><td colspan=4 class='m'>…</td></tr>"; return; }
         const v = d.vp, dist = (d.px - v.poc)/v.poc*100; let st, col;
         if (d.px > v.vah){ st = L("Above value ▲ (magnet ↓ POC)","فوق القيمة ▲ (المغناطيس ↓ POC)"); col = "#f6465d"; }
@@ -1973,13 +2020,39 @@ Panel.prototype.resub = function(){
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; run(); }));
     this.unsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.lt, p.rows); this.rerender(); } }));
   } else if (this.type === "watch"){
-    this.unsubs.push(Hub.sub("tickers", "all", m => {
-      if (m.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
-      let h = '<table><tr><th>'+esc(T("symbol"))+'</th><th class="r">'+esc(T("last"))+'</th><th class="r">'+esc(T("chg"))+'</th></tr>';
-      SYMS.forEach(s => { const x = m[s]; if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'" style="cursor:pointer"><td>'+esc(s)+'</td><td class="r m">…</td><td class="r m">–</td></tr>'; return; } const ch = x.open ? (x.last-x.open)/x.open*100 : 0; h += '<tr class="wr" data-s="'+esc(s)+'" style="cursor:pointer"><td>'+esc(s)+'</td><td class="r">'+fmtP(x.last)+'</td><td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"+":"")+ch.toFixed(2)+'%</td></tr>'; });
-      this.wBox.innerHTML = h+'</table>';
+    this.amd = this.amd || {}; this.pv = this.pv || {}; this.flash = new Set(); let M = null;
+    const favs = () => store.get(LS+"_fav", []), SYMS_ = () => SYMS;
+    const L_ = (a, b) => lang === "ar" ? b : a;
+    const PH = {A:["#4aa3ff", L_("Accum","تجميع")], M:["#f0b90b", L_("Manip","تلاعب")], D:["#b57cff", L_("Distrib","توزيع")]};
+    const amdChip = s => { const a = this.amd[s]; if (!a || a.phase === "?" ) return '<span class="m">'+(a ? "–" : "…")+'</span>'; if (a.phase === "-") return '<span class="m">–</span>'; const [c, n] = PH[a.phase];
+      return '<span class="amd" style="color:'+c+';border-color:'+c+'" title="'+esc(L_("Phase on the "+(this.state.wtf||"1H")+" chart (ICT AMD / Power of 3)","المرحلة على فريم "+(this.state.wtf||"1H")+" (ICT AMD)"))+'">'+n+(a.dir ? (a.dir === "up" ? " ▲" : " ▼") : "")+'</span>'; };
+    const amdLoad = async list => { const bar = this.state.wtf || "1H";
+      for (const s of list.slice(0, 40)){ const c = this.amd[s]; if (c && (c.busy || (c.bar === bar && Date.now() - c.t < 120000))) continue; this.amd[s] = {busy:true, bar, t:Date.now()};
+        try { const d = (await okx("/market/candles?instId="+encodeURIComponent(s)+"&bar="+bar+"&limit=60")).map(r => ({o:+r[1], h:+r[2], l:+r[3], c:+r[4]})).reverse(); this.amd[s] = Object.assign(amdPhase(d), {bar, t:Date.now()}); }
+        catch(e){ this.amd[s] = {phase:"?", bar, t:Date.now() - 100000}; }
+        this.wDraw(); } };
+    this.wDraw = () => {
+      if (!M) return; if (M.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      const F = favs(), only = !!this.state.favOnly, mine = SYMS.filter(s => !F.includes(s)), uni = (this.uSyms || []).filter(s => !F.includes(s) && !SYMS.includes(s));
+      const groups = [[L_("★ Favorites","★ المفضلة"), F]]; if (!only){ groups.push([L_("My list","قائمتي"), mine], [L_("Market","السوق")+(this.uTitle ? " · "+this.uTitle : ""), uni]); }
+      const shown = []; let h = '<table class="wt"><tr><th></th><th>'+esc(T("symbol"))+'</th><th class="r">'+esc(T("last"))+'</th><th class="r">'+esc(T("chg"))+'</th><th>AMD '+esc(this.state.wtf || "1H")+'</th></tr>';
+      groups.forEach(([title, list]) => { if (!list.length) return; h += '<tr class="wh"><td colspan="5">'+esc(title)+'</td></tr>';
+        list.forEach(s => { shown.push(s); const x = M[s], p = this.pv[s] || {}, fav = F.includes(s), fl = this.flash.has(s) ? (p.dir > 0 ? " fu" : " fd") : "", col = p.dir > 0 ? "g" : p.dir < 0 ? "rd" : "";
+          const st = '<td class="stc"><span class="st'+(fav ? " on" : "")+'" data-st="'+esc(s)+'">'+(fav ? "★" : "☆")+'</span></td>';
+          if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+esc(s)+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
+          const ch = x.open ? (x.last-x.open)/x.open*100 : 0;
+          h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+esc(s)+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td><td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td><td>'+amdChip(s)+'</td></tr>'; }); });
+      if (!shown.length) h += '<tr><td colspan="5" class="m">'+esc(only ? L_("No favorites yet — tap ☆ next to a symbol","لا توجد مفضلة — اضغط ☆ بجانب أي رمز") : T("uniNone"))+'</td></tr>';
+      this.wBox.innerHTML = h+'</table>'; this.flash.clear();
       this.wBox.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s));
-    }));
+      this.wBox.querySelectorAll(".st").forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.st, f = favs(), i = f.indexOf(k); i < 0 ? f.push(k) : f.splice(i, 1); store.set(LS+"_fav", f); this.wDraw(); });
+      Hub.extra = new Set(); Ws.panels.forEach(p => { if (p.type === "watch") favs().concat(p.uSyms || []).forEach(z => Hub.extra.add(z)); });
+      amdLoad(shown);
+    };
+    this.wRender = m => { if (!m) return; M = m; if (!m.error){ const seen = new Set(SYMS.concat(favs(), this.uSyms || []));
+        seen.forEach(s => { const x = m[s]; if (!x) return; const p = this.pv[s] = this.pv[s] || {last:x.last, dir:0}; if (x.last !== p.last){ p.dir = x.last > p.last ? 1 : -1; p.last = x.last; this.flash.add(s); } }); }
+      this.wDraw(); };
+    this.unsubs.push(Hub.sub("tickers", "all", m => this.wRender(m)));
   }
 };
 

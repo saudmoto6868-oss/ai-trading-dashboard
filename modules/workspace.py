@@ -19,6 +19,14 @@ from pathlib import Path
 _TEMPLATE = Path(__file__).with_name("workspace_app.html")
 
 
+def _smt_pairs():
+    try:
+        from modules.smt import SMT_PAIRS
+        return SMT_PAIRS
+    except Exception:
+        return []
+
+
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
@@ -48,6 +56,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "scanning": bool(scanning),
         "cls": asset_cls,
         "tfstats": tfstats or {},
+        "smt": [list(x) for x in _smt_pairs()],
         "world": [{k: v for k, v in n.items() if k in ("headline", "source", "url", "summary", "datetime", "ts", "topic", "lang")} for n in (world or [])],
         "meme": list(meme or []),
     }

@@ -68,7 +68,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }
-    .block-container { padding-top: 0.4rem; }
+    .block-container { padding-top: 0.4rem; padding-left: 0.6rem; padding-right: 0.6rem; max-width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -93,7 +93,7 @@ with st.sidebar.expander("Order Book / Time & Sales", expanded=False):
         help="Heavy volume trading at one price while the price barely moves.",
     )
 with st.sidebar.expander("Chart / Layout", expanded=False):
-    ws_height = st.slider("Workspace height (px)", 500, 3000, 1720, step=20)
+    ws_height = st.slider("Workspace height (px)", 500, 6000, 3400, step=20)
     ui_bg = st.color_picker("Page background", "#0b0e11")
     ui_accent = st.color_picker("Accent colour (tabs, highlights)", "#f0b90b")
     st.caption("Per-widget colours: use the two colour dots in each Workspace widget's title bar.")

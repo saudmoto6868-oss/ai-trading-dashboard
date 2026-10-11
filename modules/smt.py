@@ -13,6 +13,8 @@ import pandas as pd
 
 from modules.signals import _finalize, _mk, atr_series, fractal_pivots, invert
 
+MIN_CORR = 0.5   # |correlation| of the last 100 returns needed for a divergence to mean anything
+
 # (A, B, inverse)
 SMT_PAIRS = [
     ("BTC-USDT", "ETH-USDT", False), ("BTC-USDT", "SOL-USDT", False), ("ETH-USDT", "SOL-USDT", False),
@@ -71,6 +73,9 @@ def smt_signals(df: pd.DataFrame, peer_df: pd.DataFrame, peer_label: str, invers
     m = m.sort_values("time").reset_index(drop=True)
     a = m[["time", "open", "high", "low", "close"]]
     b = m[["open_b", "high_b", "low_b", "close_b"]].rename(columns=lambda c: c[:-2])
+    cr = a["close"].pct_change().tail(100).corr(b["close"].pct_change().tail(100))   # ignore SMT when the pair has decoupled
+    if not np.isfinite(cr) or (cr > -MIN_CORR if inverse else cr < MIN_CORR):
+        return []
     if inverse:
         b = invert(b)
     out = []

@@ -54,7 +54,7 @@ STRATEGY_FILTERS = {
     "st_orb": ("Session opening-range breakout (first 15 min of London / New York)", ("key", "orb")),
     "st_donch": ("Donchian ensemble trend (several lookbacks, vol-sized)", ("key", "donch")),
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
-    "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
+    "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_cisd": ("Sweep + CISD (liquidity grab, body close through the open of the down-candle run, before the structure break)", ("key", "cisd")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
 }
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
 

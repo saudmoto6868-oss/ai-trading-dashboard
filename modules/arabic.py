@@ -47,6 +47,7 @@ TAGS = {
     "TL": ("كسر ترند", "#e0a030", "#000"),
 }
 KEY_TAGS = {
+    "cisd": ("CISD", "#26c6da", "#000"),
     "tlbreak": ("كسر ترند", "#e0a030", "#000"),
     "sweep": ("سيولة", "#4aa3ff", "#000"),
     "liqline": ("سيولة", "#4aa3ff", "#000"),
@@ -118,6 +119,9 @@ def signal_ar(s: dict) -> tuple:
     bull = s["direction"] == "bullish"
     up, dn = ("فوق", "تحت") if bull else ("تحت", "فوق")
     f = lambda key: n_(fp(p[key])) if key in p else "-"
+    if k == "cisd":
+        return ("سحب سيولة + CISD" if bull else "سحب سيولة + CISD (بيعي)",
+                f"السعر سحب {'القاع' if bull else 'القمة'} {f('lvl')} ثم أغلق جسم شمعة {up} مستوى الـ CISD ({f('cl')}) منذ {n_(v.get('ago', '?'))} شمعة والهيكل لسه ما انكسرش · الوقف {dn} السحب ({f('sl')}) · الهدف {f('st')}" + (f" · تأكيدات: {n_(v.get('q', 0))}" if v.get("q") else ""))
     if k == "tlbreak":
         why = {"volume expansion": "فوليوم أعلى من المعتاد", "3+ touches": "3 لمسات على الخط", "strong close": "شمعة كسر قوية", "retest held": "إعادة اختبار صمدت"}
         en = s.get("detail", "").split("confirmed by: ")[-1].split(", ") if "confirmed by" in s.get("detail", "") else []

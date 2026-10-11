@@ -133,7 +133,7 @@ def _flip_text(text: str) -> str:
 
 # stable ids so the Arabic text/tag layer does not depend on the English wording
 _KEY_PATTERNS = [
-    (r"Trendline break", "tlbreak"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
+    (r"Trendline break", "tlbreak"), (r"Sweep \+ CISD", "cisd"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
@@ -549,6 +549,68 @@ def sweep_signal_bull(df, max_age: int = 6):
                        "wick took out the swing low {lvl} (low {lo}) and closed back above it - stops grabbed",
                        prices={"lvl": s["level"], "lo": s["low"]}))
     return out
+
+
+def cisd_bull(df, lookback: int = 40, max_age: int = 6):
+    """Sweep + CISD (Change in State of Delivery), bullish; the bearish twin comes from the inverted frame.
+    Rules (ICT CISD model as taught in the channel summaries and described by LuxAlgo):
+      1. liquidity : a bar trades BELOW the latest confirmed swing low (sell-side liquidity taken).
+      2. the run   : the last unbroken series of DOWN-closing candles into the lowest low after that sweep.
+      3. CISD level: the OPEN of the first candle of that series.
+      4. confirm   : a later candle BODY closes above that level (a wick through it does not count), within `max_age` bars,
+                     and the latest close is still above the level.
+      5. structure : price has NOT yet broken the last swing high that stood before the sweep - the point of the model is to
+                     be in BEFORE the market-structure break. (If it already broke, MSB-OB covers it.)
+    Entry = retest of the CISD level, stop under the sweep low, target the swing highs (1-3R).
+    Quality tags: displacement (a fair value gap left by the confirming move), retest held, London / New York window."""
+    n = len(df)
+    if n_short(df, 60):
+        return []
+    o, h, l, c = (df[k].values for k in ("open", "high", "low", "close"))
+    a = atr_series(df).values
+    piv = fractal_pivots(df, 3)
+    lows = [(i, p) for i, p, k in piv if k == "L"]
+    highs = [(i, p) for i, p, k in piv if k == "H"]
+    for j in range(n - 1, max(2, n - lookback) - 1, -1):                       # most recent sweep first
+        cand = [(i, p) for i, p in lows if i + 3 <= j]
+        if not cand:
+            continue
+        si, lvl = cand[-1]
+        if not l[j] < lvl:
+            continue
+        e = j + int(np.argmin(l[j:]))                                         # the extreme of the sweep move
+        prior_h = [p for i, p in highs if i < j]
+        if not prior_h:
+            continue
+        struct = prior_h[-1]
+        m = e
+        while m >= 0 and not c[m] < o[m]:
+            m -= 1                                                            # last down-close at/under the extreme
+        if m < 1:
+            continue
+        s0 = m
+        while s0 - 1 >= 0 and c[s0 - 1] < o[s0 - 1]:
+            s0 -= 1                                                           # first candle of that down series
+        cl = float(o[s0])
+        conf = next((b for b in range(e + 1, n) if c[b] > cl and c[b] > o[b]), None)
+        if conf is None or n - 1 - conf > max_age or c[-1] <= cl:
+            continue
+        if h[conf:].max() > struct or h[e + 1:conf].max(initial=-1e18) > struct:
+            continue                                                          # structure already broken -> not a pre-break entry
+        fvg = any(l[k] > h[k - 2] for k in range(max(2, conf), min(n, conf + 2)))
+        retest = any(l[k] <= cl + 0.3 * a[k] and c[k] > cl for k in range(conf + 1, n))
+        kz = False
+        if "time" in df.columns:
+            hr = pd.to_datetime(df["time"].iloc[conf]).hour
+            kz = 7 <= hr < 10 or 12 <= hr < 15                                # London / New York windows in UTC (DST ignored)
+        why = [t for ok, t in ((fvg, "displacement + FVG"), (retest, "retest held"), (kz, "London/NY window")) if ok]
+        sl = float(l[e])
+        return [_mk("Liquidity", "Sweep + CISD",
+                    "swing low {lvl} swept (low {sl}); candle body closed above the CISD level {cl} (open of the last down-candle series) "
+                    "{ago} bar(s) ago, structure not broken yet" + ("; " + ", ".join(why) if why else "") + "; stop under {sl}, target the swing high {st}",
+                    prices={"lvl": float(lvl), "sl": sl, "cl": cl, "st": float(struct)},
+                    vals={"ago": n - 1 - conf, "q": len(why)})]
+    return []
 
 
 def zombie_bull(df, max_age: int = 5):
@@ -1003,7 +1065,7 @@ def session_orb_bull(df):
 
 DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 
-DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
+DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
              rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull)
 

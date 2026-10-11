@@ -84,6 +84,7 @@ EXTERNAL_LINKS = {
     "CoinGlass RSI Heatmap": "https://www.coinglass.com/RsiHeatMap",
     "Investing.com": "https://www.investing.com/",
     "DEXScreener Trending": "https://dexscreener.com/solana",
+    "CoinMarketCap": "https://coinmarketcap.com/",
 }
 
 QUICK_LINK_ICONS = {
@@ -92,6 +93,7 @@ QUICK_LINK_ICONS = {
     "CoinGlass RSI Heatmap": "\U0001F525",
     "Investing.com": "\U0001F4C8",
     "DEXScreener Trending": "\U0001F9ED",
+    "CoinMarketCap": "\U0001FA99",
 }
 
 # Finviz chart-pattern screener: v=211 is the "Charts" view, s=ta_p_<pattern>

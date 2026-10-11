@@ -1925,9 +1925,10 @@ class Panel {
     const renderU = () => {
       uBox.innerHTML = ""; this.uSyms = []; this.uMeta = {};
       if (U.cat.startsWith("__")){ this.uTitle = ""; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
-      if (/^(Egypt|Saudi)/.test(U.cat)){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "لا يوجد مصدر مجاني مؤكد للسوق ده لسه — محتاج مفتاح API (EGX / تداول). مش هعرض أرقام مش حقيقية." : "No verified free live feed for this market yet — needs an API key (EGX / Tadawul). No made-up numbers are shown.")+'</div>'; this.wDraw && this.wDraw(); return; }
-      const r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities"))).sort((a,b) => b.vol - a.vol).slice(0, U.top);
-      if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("uniNone"))+'</div>';
+      const yfCat = y => /\.CA$|^Y:\^CASE30$/.test(y) ? "Egypt (EGX)" : /\.SR$/.test(y) ? "Saudi (Tadawul)" : /=X$/.test(y) ? "Forex" : /^Y:\^/.test(y) ? "Indices" : "", yfRows = Object.keys(YF).filter(y => yfCat(y) === U.cat).map(y => ({id:y, vol:1e18, cat:U.cat}));   // Yahoo markets (not in OKX): candles were embedded for the page-level Asset class
+      if (/^(Egypt|Saudi)/.test(U.cat) && !yfRows.length){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "السوق ده بييجي من Yahoo: اختار \""+U.cat+"\" من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "This market comes from Yahoo: pick \""+U.cat+"\" in the Asset class dropdown (Chart Scanner tab), then come back.")+'</div>'; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
+      const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, Math.max(U.top, yfRows.length));
+      if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
       this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");
       this.wRender && this.wRender(Hub.last["tickers|all"]);   // the symbols simply load into the live list below
     };
@@ -1944,7 +1945,7 @@ class Panel {
           U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = CFG.cls === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
         catSel.value = U.cat; renderU();
-      } catch(e){ uBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; }
+      } catch(e){ if (Object.keys(YF).length){ rowsU = []; U.cat = CFG.cls || U.cat; renderU(); uBox.insertAdjacentHTML("afterbegin", '<div class="err">'+esc(T("offline"))+'</div>'); return; } uBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; }   // OKX universe down: the Yahoo markets (embedded in the page) still list
     };
     ub.onclick = () => { const on = uni.style.display === "none"; uni.style.display = on ? "block" : "none"; if (on) loadU(); };
     loadU();   // selectors + list are part of the watchlist itself

@@ -1048,10 +1048,16 @@ Object.assign(CandleChart.prototype, {
         c.fillStyle = "rgba(255,"+Math.round(190 + 65*t*t)+","+Math.round(30 + 210*t*t*t)+","+(.08 + .9*t).toFixed(2)+")"; c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     // 2) mid-price trace (the line the heat map is read against)
     if (this.domOn && B.length > 1){ c.strokeStyle = "#eaecef"; c.lineWidth = 1.2; c.beginPath(); let st = false; B.forEach(sn => { if (!sn.bb || !sn.ba) return; const x = tx(sn.t); if (x < gx0) return; const y = py((sn.bb + sn.ba)/2); st ? c.lineTo(x, y) : (c.moveTo(x, y), st = true); }); c.stroke(); }
+    // 2b) absorption: lots of volume traded at ONE price row without the price leaving it = the resting orders there soaked it up -> purple frame on the heat map
+    const ab = new Map(); { const g = new Map(), w0 = now - Math.min(span, 45000); T_.forEach(x => { if (x.t < w0) return; const k = Math.round(x.p/step), o = g.get(k) || (g.set(k, {sum:0, n:0, buy:0, sell:0, t0:x.t}), g.get(k)); o.sum += x.q; o.n++; x.side === "Buy" ? o.buy += x.q : o.sell += x.q; if (x.t < o.t0) o.t0 = x.t; });
+      const sums = [...g.values()].map(o => o.sum).sort((a, b) => a - b), med = sums.length ? sums[sums.length >> 1] : 0;
+      g.forEach((o, k) => { if (o.n >= 4 && sums.length >= 4 && o.sum >= 3*Math.max(med, 1e-12)) ab.set(k, o); }); }
+    if (this.domOn) ab.forEach((o, k) => { const y = py(k*step), x0 = Math.max(gx0, tx(o.t0)); if (y < -rowH || y > PB + rowH) return; c.strokeStyle = "#b57cff"; c.lineWidth = 1.6; c.fillStyle = "rgba(181,124,255,.16)"; c.fillRect(x0, y - rowH/2, gx1 - x0, rowH); c.strokeRect(x0, y - rowH/2, gx1 - x0, rowH);
+      c.fillStyle = "#d9b8ff"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("ABS " + (o.buy >= o.sell ? Lg("sellers absorb","البيع بيمتص") : Lg("buyers absorb","الشراء بيمتص")), x0 + 2, y - rowH/2 - 3); });
     // 3) bubbles: one per print, size = quantity, buy = green / sell = red, they drift left as time passes and fade with age
     let qm = 0; T_.forEach(x => { if (x.q > qm) qm = x.q; }); const maxR = Math.min(22, Math.max(5, gw/9))*(OF.bsz || 1), top = [], mt = OF.min >= 2 ? 2 : OF.min >= 1 ? 1 : 0, rk = {normal:0, smart:1, whale:2};
-    if (this.bubOn) T_.forEach(x => { if (rk[x.tier || "normal"] < mt) return; if (x.q < qm*0.04) return; const X = tx(x.t), Y = py(x.p); if (X < gx0 - 4 || Y < -10 || Y > PB + 10) return; const age = (now - x.t)/span, r = Math.max(1.8, maxR*Math.sqrt(x.q/(qm || 1))), col = x.side === "Buy" ? OF.color : OF.color2;
-      c.globalAlpha = Math.max(.35, 1 - age*.65); c.fillStyle = hexA(col, .5); c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(X, Y, r, 0, 6.3); c.fill(); c.stroke(); c.globalAlpha = 1; top.push([x.q, X, Y]); });
+    if (this.bubOn) T_.forEach(x => { if (rk[x.tier || "normal"] < mt) return; if (x.q < qm*0.04) return; const X = tx(x.t), Y = py(x.p); if (X < gx0 - 4 || Y < -10 || Y > PB + 10) return; const age = (now - x.t)/span, r = Math.max(1.8, maxR*Math.pow(x.q/(qm || 1), .5)*Math.min(1, .35 + (now - x.t)/500)), col = x.side === "Buy" ? OF.color : OF.color2;
+      c.globalAlpha = Math.max(.35, 1 - age*.65); c.fillStyle = hexA(col, .5); c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(X, Y, r, 0, 6.3); c.fill(); c.stroke(); if (ab.has(Math.round(x.p/step))){ c.strokeStyle = "#b57cff"; c.lineWidth = 2.2; c.beginPath(); c.arc(X, Y, r + 2.5, 0, 6.3); c.stroke(); } c.globalAlpha = 1; top.push([x.q, X, Y]); });
     c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.fillStyle = "#cfd6dd";
     top.sort((a, b) => b[0] - a[0]).slice(0, 5).forEach(([q, X, Y]) => c.fillText(q >= 1000 ? (q/1000).toFixed(1)+"k" : q >= 10 ? q.toFixed(0) : q.toFixed(2), Math.max(gx0 + 12, Math.min(gx1 - 12, X)), Y - 10));
     const ly = py(this.data[this.data.length-1].c); c.strokeStyle = "#4aa3ff"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(X0, ly + .5); c.lineTo(XE, ly + .5); c.stroke(); c.setLineDash([]);
@@ -1566,15 +1572,13 @@ class Panel {
     this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
     const kzb = el("button",null,"KZ"); kzb.title = T("kzTip"); kzb.onclick = () => { this.chart.kz = !this.chart.kz; this.state.kz = this.chart.kz; kzb.classList.toggle("on", this.chart.kz); this.chart.draw(); Ws.save(); };
-    const sm = el("select"); sm.title = T("setupmode"); [["lines",T("mLines")],["box",T("mBox")]].forEach(([v,l]) => { const o = el("option"); o.value = v; o.textContent = l; sm.append(o); });
-    sm.value = this.state.smode || "lines"; sm.onchange = () => { this.state.smode = sm.value; this.chart.setupMode = sm.value; this.chart.draw(); Ws.save(); };
-    this.indBtn = this.buildIndMenu();
+        this.indBtn = this.buildIndMenu();
     const lockBtn = el("button"); lockBtn.title = T("lockTip");
     const lockSync = () => { lockBtn.textContent = this.chart.lockR ? "🔒 "+T("manual") : "⇅ "+T("auto"); lockBtn.classList.toggle("on", !!this.chart.lockR); };
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, sm, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
+    tb.append(this.indBtn, lockBtn, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
@@ -1624,6 +1628,7 @@ class Panel {
       {id:"e21", label:"EMA 21", get:() => ch().ema[21], set:v => { ch().ema[21] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"21", params:[P("len","Length",1,500,1)]},
       {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
+      {id:"sbox", label:Lg("Trade box (setup as a box, not lines)","صندوق الصفقة (الخطة كصندوق بدل خطوط)"), tip:Lg("Draws the signal's trade plan (entry / stop / targets) as a risk-reward box on the chart instead of plain lines.","بيرسم خطة الصفقة (دخول / وقف / أهداف) كصندوق ربح/خسارة على الشارت بدل الخطوط."), get:() => ch().setupMode === "box", set:v => { ch().setupMode = v ? "box" : "lines"; this.state.smode = v ? "box" : "lines"; }},
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},

@@ -15,7 +15,7 @@ MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", 
 _CAT = {"3": "Stocks", "4": "Commodities", "5": "Forex"}
 _METAL = {"XAU", "XAG", "XPT", "XPD", "XAUT", "PAXG"}
 _ENERGY = {"CL", "WTI", "BRENT", "XTI", "XBR", "NG", "NATGAS", "OIL", "UKOIL", "USOIL", "HO", "RB"}
-_INDEX = {"SPX", "NDX", "DJI", "US500", "US100", "US30", "SPX500", "NAS100", "DAX", "GER40", "FTSE", "UK100", "HSI", "N225", "JP225", "VIX"}
+_INDEX = {"SPX", "NDX", "DJI", "US500", "US100", "US30", "SPX500", "NAS100", "DAX", "GER40", "FTSE", "UK100", "HSI", "N225", "JP225", "VIX", "SPY", "QQQ", "IWM", "DIA", "VOO", "IVV"}   # OKX lists no index contract; it lists index ETFs (SPY = S&P 500) as equity perps
 _cache = {}
 OKX = "https://www.okx.com/api/v5"
 

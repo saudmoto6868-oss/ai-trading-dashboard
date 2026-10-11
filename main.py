@@ -694,13 +694,15 @@ def render_chart_scanner():
 .st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
 .st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
+.st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
+.st-key-csf [data-baseweb="select"]>div{max-height:56px;overflow-y:auto}
 </style>""", unsafe_allow_html=True)
     qp = st.query_params
     if "cs_strat" not in st.session_state and qp.get("strat"):   # remembered selection (URL param survives reloads / bookmarks)
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    with st.container(key="csf"):
+    with st.expander("Filters", expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
         tf = r1[0].selectbox("Timeframe", ["1m", "5m", "15m", "30m", "1h", "1d", "1w"], index=4, key="cs_tf")
         n_show = r1[1].number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")

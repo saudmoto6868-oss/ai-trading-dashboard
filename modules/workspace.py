@@ -23,7 +23,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                         asset_cls: str = "Crypto", meme: list | None = None) -> str:
+                         asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None) -> str:
     cfg = {
         "symbols": list(symbols),
         "news": [
@@ -47,6 +47,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "ready": list(ready or []),
         "scanning": bool(scanning),
         "cls": asset_cls,
+        "world": [{k: v for k, v in n.items() if k in ("headline", "source", "url", "summary", "datetime", "ts", "topic", "lang")} for n in (world or [])],
         "meme": list(meme or []),
     }
     # "</" inside a <script> block would end it early
@@ -69,7 +70,7 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None):
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world), height=height, scrolling=False)

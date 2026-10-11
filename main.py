@@ -458,6 +458,12 @@ def _scan_worker(store, ws_tf, ws_key):
         store["running"] = False
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _world_news():
+    from modules.world_news import fetch_world
+    return fetch_world()
+
+
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 10-minute bucket changes or an empty result is older than 60 s."""
@@ -764,12 +770,18 @@ with tab_workspace:
     try:
         ws_lang = st.session_state.get("ws_lang", "en")
         cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
+        try:
+            world_items, world_errs = _world_news()
+        except Exception:
+            world_items, world_errs = [], ["world news unavailable"]
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES],
+                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items,
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
+        if world_errs:
+            st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
             st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))
         st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "

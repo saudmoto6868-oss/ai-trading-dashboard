@@ -248,6 +248,12 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
                 set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
 const settings = Object.assign({smart:4, big:5, absorb:3}, store.get(LS+"_set", {}));
 const saveSettings = () => store.set(LS+"_set", settings);
+/* World Monitor: Finnhub headlines + free RSS (BBC / Al Jazeera / Reuters ...), filtered by the news-widget switches */
+const worldItems = (wm = {eco:1, pol:1, geo:1, ar:1, en:1}) => {
+  const tp = {economic:"eco", political:"pol", geopolitical:"geo"};
+  return (CFG.news || []).map(n => Object.assign({topic:"economic", lang:"en"}, n)).concat(CFG.world || [])
+    .filter(n => wm[tp[n.topic] || "eco"] && wm[n.lang === "ar" ? "ar" : "en"]).sort((a,b) => (b.ts || 0) - (a.ts || 0));
+};
 const SYM_RE = /^[A-Z0-9]{2,12}-[A-Z0-9]{2,6}(-SWAP)?$/;
 const extraSyms = store.get(LS+"_syms", []).filter(x => SYM_RE.test(x));
 extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
@@ -1528,7 +1534,7 @@ class Panel {
   }
   /* ---- news ticker ---- */
   build_ticker(){
-    const items = (CFG.news || []).filter(n => n.headline); this.body.style.overflow = "hidden";
+    const items = worldItems().filter(n => n.headline); this.body.style.overflow = "hidden";
     if (!items.length){ this.body.innerHTML = '<div class="err">'+esc(T("nonews"))+'</div>'; return; }
     const half = Math.ceil(items.length/2), rows = items.length > 3 ? [items.slice(0,half), items.slice(half)] : [items];
     rows.forEach((r, ri) => {
@@ -1708,10 +1714,15 @@ class Panel {
   }
   /* ---- news ---- */
   build_news(){
-    this.nBox = el("div","news-body"); this.body.append(this.nBox); this.showNewsList();
+    const S = this.state, ar = lang === "ar"; S.wm = Object.assign({eco:1, pol:1, geo:1, ar:1, en:1}, S.wm || {});
+    const bar = el("div","tb"); bar.style.flexWrap = "wrap";
+    [["eco", ar ? "اقتصادي" : "Economic"],["pol", ar ? "سياسي" : "Political"],["geo", ar ? "جيوسياسي" : "Geopolitical"],["ar", "عربي"],["en", ar ? "أجنبي" : "Foreign"]].forEach(([k, lab]) => {
+      const b = el("button", null, lab), paint = () => { b.style.opacity = S.wm[k] ? "1" : ".4"; b.style.borderColor = S.wm[k] ? "#f0b90b" : ""; }; paint();
+      b.onclick = () => { S.wm[k] = S.wm[k] ? 0 : 1; paint(); Ws.save(); this.showNewsList(); }; bar.append(b); });
+    this.nBox = el("div","news-body"); this.body.append(bar, this.nBox); this.showNewsList();
   }
   showNewsList(){
-    const items = CFG.news || [];
+    const items = worldItems(this.state.wm);
     if (!items.length || !items.some(n => n.url || n.summary)){ this.nBox.innerHTML = '<div class="err">'+esc(T("nonews"))+'</div>' + items.map(n => '<div class="news-item">'+esc(n.headline)+'</div>').join(""); return; }
     this.nBox.innerHTML = "";
     items.forEach(n => { const d = el("div","news-item"); d.innerHTML = '<div>'+esc(n.headline)+'</div><div class="m">'+esc(n.source||"")+(n.datetime ? " · "+esc(n.datetime) : "")+'</div>'; d.onclick = () => this.showNewsDetail(n); this.nBox.append(d); });

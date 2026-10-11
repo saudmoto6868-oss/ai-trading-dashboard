@@ -539,8 +539,9 @@ const Hub = {
       try {
         let payload;
         if (kind === "book"){
-          const d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=50"))[0];
-          payload = { bids:d.bids.map(x=>({p:+x[0],q:+x[1]})), asks:d.asks.map(x=>({p:+x[0],q:+x[1]})) };
+          const d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400"))[0];
+          const bb = d.bids.map(x=>({p:+x[0],q:+x[1]})), aa = d.asks.map(x=>({p:+x[0],q:+x[1]}));
+          payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
         } else if (kind === "trades"){
           const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
@@ -935,7 +936,7 @@ Object.assign(CandleChart.prototype, {
     if (this.fp.size > 600){ const ks = [...this.fp.keys()].sort((a,b) => a-b); for (let j = 0; j < 100; j++) this.fp.delete(ks[j]); }
   },
   domAdd(b){
-    this.lastBook = b; { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:(b.bids || []).concat(b.asks || []).map(x => [x.p, x.q])}); if (fb.length > 1500) fb.splice(0, 300); }   // Bookmap column: one book snapshot per poll, own timestamp
+    this.lastBook = b; { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:((b.deep ? b.deep.bids : b.bids) || []).concat((b.deep ? b.deep.asks : b.asks) || []).map(x => [x.p, x.q])}); if (fb.length > 900) fb.splice(0, 200); }   // Bookmap column: one book snapshot per poll, own timestamp
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });

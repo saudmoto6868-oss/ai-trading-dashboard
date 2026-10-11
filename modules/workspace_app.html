@@ -605,7 +605,7 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.lvOn = false; this.divOn = true; this.colOn = false; this.znOn = false; this.bsoOn = false; this.rmOn = false;
+    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.lvOn = false; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","zn","bso","rm"]; this.znOn = false; this.bsoOn = false; this.rmOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
@@ -623,8 +623,9 @@ class CandleChart {
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
   destroy(){ this.ro.disconnect(); }
-  cw(){ return this.colOn ? Math.max(120, Math.min(200, Math.round(this.W*0.26))) : 0; }
-  get PR(){ return this.W - 62 - this.cw(); } subHs(){ const a = []; if (this.rsiOn) a.push(Math.max(50, Math.round(this.H*this.st.rsi.hp/100))); if (this.macdOn) a.push(Math.max(50, Math.round(this.H*this.st.macd.hp/100))); ["zn","bso","rm"].forEach(k => { if (this[k+"On"]) a.push(Math.max(50, Math.round(this.H*this.st[k].hp/100))); }); const tot = a.reduce((x,y) => x+y, 0), cap = Math.max(0, this.H - 160); return tot > cap && tot ? a.map(v => v*cap/tot) : a; }
+  cw(){ if (!this.colOn) return 0; return this.colW ? Math.max(80, Math.min(Math.round(this.W*0.5), this.colW)) : Math.max(120, Math.min(200, Math.round(this.W*0.26))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
+  subActive(){ return this.subOrd.filter(k => this[k+"On"]); }
+  get PR(){ return this.W - 62 - this.cw(); } subHs(){ const a = this.subActive().map(k => Math.max(50, Math.round(this.H*this.st[k].hp/100))); const tot = a.reduce((x,y) => x+y, 0), cap = Math.max(0, this.H - 160); return tot > cap && tot ? a.map(v => v*cap/tot) : a; }
   get subH(){ return this.subHs().reduce((x,y) => x+y, 0); }
   get PB(){ return this.H - 20 - this.subH; }
   resize(){
@@ -664,22 +665,32 @@ class CandleChart {
   idx(x){ return this.r + 0.5 - (this.PR - x)/this.bw; }
   wheel(e){
     const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
-    if (mx > this.PR){ this.yZoom = Math.max(0.02, Math.min(60, this.yZoom*Math.exp(e.deltaY*0.0015))); this.draw(); return; }
+    if (mx > this.W-62){ this.yZoom = Math.max(0.02, Math.min(60, this.yZoom*Math.exp(e.deltaY*0.0015))); this.draw(); return; }
+    if (mx > this.PR) return;   // over the order-flow column: leave the chart alone
     const anchor = this.idx(mx), f = Math.exp(-e.deltaY*0.0015);
     this.bw = Math.max(0.6, Math.min(600, this.bw*f));
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.draw(); this.checkMore();
   }
   down(e){
     this.cv.setPointerCapture(e.pointerId); this.cv.focus();
-    { const rect0 = this.cv.getBoundingClientRect(), my = e.clientY - rect0.top; if (this.subH > 0 && my >= this.PB+12 && my <= this.PB+26){ this.subDrag = {y:e.clientY, rsi:this.st.rsi.hp, macd:this.st.macd.hp}; return; } }
+    { const r0 = this.cv.getBoundingClientRect(), mx0 = e.clientX - r0.left, my = e.clientY - r0.top, hit = this.layoutHit(mx0, my);
+      if (hit){
+        if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
+        if (hit.kind === "up" || hit.kind === "dn"){ this.swapSub(hit.k, hit.kind === "up" ? -1 : 1); return; }
+        if (hit.kind === "move"){ this.subMove = {k:hit.k}; return; }
+        if (hit.kind === "size"){ this.subDrag = {k:hit.k, y:e.clientY, hp:this.st[hit.k].hp}; return; }
+      } }
     if (this.toolDown(e)) return;
     const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
-    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.PR};
+    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-62};
   }
   move(e){
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top};
-    if (this.subDrag){ const dh = (this.subDrag.y - e.clientY)/Math.max(1, this.H)*100; this.st.rsi.hp = Math.max(8, Math.min(45, Math.round(this.subDrag.rsi + dh))); this.st.macd.hp = Math.max(8, Math.min(45, Math.round(this.subDrag.macd + dh))); this.resize(); this.draw(); return; }
-    this.cv.style.cursor = (this.subH > 0 && this.mouse.y >= this.PB+12 && this.mouse.y <= this.PB+26) ? "ns-resize" : (this.tool === "cur" ? "" : "crosshair");
+    if (this.colDrag){ this.colW = Math.max(80, Math.min(Math.round(this.W*0.5), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)))); this.draw(); return; }
+    if (this.subDrag){ const dh = (this.subDrag.y - e.clientY)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(8, Math.min(45, Math.round(this.subDrag.hp + dh))); this.resize(); this.draw(); return; }
+    if (this.subMove){ const act = this.subActive(), i = act.indexOf(this.subMove.k), P = this._panes || [], me = P.find(q => q.k === this.subMove.k);
+      if (me && i >= 0){ const my = this.mouse.y; if (i > 0 && my < me.y0 - 4) this.swapSub(this.subMove.k, -1); else if (i < act.length-1 && my > me.y0 + me.h + 8) this.swapSub(this.subMove.k, 1); } return; }
+    { const hh = this.layoutHit(this.mouse.x, this.mouse.y); this.cv.style.cursor = hh ? (hh.kind === "col" ? "ew-resize" : hh.kind === "size" ? "ns-resize" : hh.kind === "move" ? "grab" : "pointer") : (this.tool === "cur" ? "" : "crosshair"); }
     if (this.toolMove(e)){ this.draw(); return; }
     if (this.drag){
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y; this.drag.x = e.clientX; this.drag.y = e.clientY;
@@ -688,7 +699,13 @@ class CandleChart {
     }
     this.draw();
   }
-  up(e){ if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } this.toolUp(e); this.drag = null; }
+  up(e){ if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
+  swapSub(k, dir){ const act = this.subActive(), i = act.indexOf(k), j = i + dir; if (i < 0 || j < 0 || j >= act.length) return; const a = this.subOrd.indexOf(k), b = this.subOrd.indexOf(act[j]); [this.subOrd[a], this.subOrd[b]] = [this.subOrd[b], this.subOrd[a]]; this.onLayout && this.onLayout(); this.draw(); }
+  layoutHit(mx, my){   // what the pointer is on: the order-flow column's left edge, a sub-pane's top edge (resize), its title (drag to reorder) or its up/down buttons
+    if (this.colOn && Math.abs(mx - this.PR) <= 4 && my >= 0 && my < this.PB) return {kind:"col"};
+    for (const q of (this._panes || [])){ if (my >= q.y0 - 7 && my <= q.y0 + 2 && mx < this.PR) return {kind:"size", k:q.k};
+      if (my > q.y0 + 2 && my <= q.y0 + 17){ if (mx >= this.PR - 36 && mx < this.PR - 20) return {kind:"up", k:q.k}; if (mx >= this.PR - 20 && mx < this.PR - 4) return {kind:"dn", k:q.k}; if (mx >= 0 && mx < 150) return {kind:"move", k:q.k}; } }
+    return null; }
   checkMore(){ if (this.onNeedMore && this.r - this.PR/this.bw < 15) this.onNeedMore(); }
   planLevels(){
     const o = this.overlay, lastC = this.data.length ? this.data[this.data.length-1].c : 0; if (!o || !o.plan || !this.showSig) return [];
@@ -724,7 +741,7 @@ class CandleChart {
     // grid + price axis
     const nt = niceTicks(lo, hi, Math.max(3, Math.floor(PB/48))), dec = Math.max(0, Math.min(8, 1 - Math.floor(Math.log10(nt.step))));
     c.strokeStyle = "#1f252b"; c.fillStyle = "#848e9c"; c.lineWidth = 1; c.textAlign = "left";
-    nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), PR+5, y); });
+    nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), (this.W-62)+5, y); });
     // time axis
     const stepBars = Math.max(1, Math.ceil(90/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
     const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 5 ? 5 : 10)*mag;
@@ -733,7 +750,7 @@ class CandleChart {
       const x = Math.round(this.x(i))+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,PB); c.stroke();
       c.fillText(this.fmtTime(this.data[i].t), x, PB+10);
     }
-    c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(PR+.5,0); c.lineTo(PR+.5,H); c.stroke();
+    c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo((this.W-62)+.5,0); c.lineTo((this.W-62)+.5,H); c.stroke();
     // clip plot
     c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
     if (this.kz) this.paintKZ(c, py, i0, i1, PB);
@@ -792,7 +809,7 @@ class CandleChart {
         lines.forEach(([v, lab, col, dash]) => {
           const y = py(v); if (y < 0 || y > PB) return;
           c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash ? dash.split(",").map(Number) : []); c.beginPath(); c.moveTo(sp.x0, y+.5); c.lineTo(sp.x1, y+.5); c.stroke(); c.setLineDash([]);
-          c.fillStyle = col; c.fillRect(PR+1, y-7, 60, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), PR+3, y);
+          c.fillStyle = col; c.fillRect((this.W-62)+1, y-7, 60, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), (this.W-62)+3, y);
         });
       }
       if (pl){ const sp = this.planSpan(), hy = py(pl.entry); this._planH = {x:sp.x1, y:hy, x0:sp.x0};
@@ -838,9 +855,9 @@ class CandleChart {
     const last = this.data[n-1], ly = py(last.c), lup = last.c >= last.o, lcol = lup ? "#0ecb81" : "#f6465d";
     if (ly > 0 && ly < PB){
       c.strokeStyle = lcol; c.setLineDash([3,3]); c.beginPath(); c.moveTo(0,ly+.5); c.lineTo(PR,ly+.5); c.stroke(); c.setLineDash([]);
-      c.fillStyle = lcol; c.fillRect(PR+1, ly-8, 60, 16); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(last.c.toFixed(dec), PR+5, ly);
+      c.fillStyle = lcol; c.fillRect((this.W-62)+1, ly-8, 60, 16); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(last.c.toFixed(dec), (this.W-62)+5, ly);
       const rem = candleRem(last.t, this.tf), sec = Math.floor(rem/1000), hh = Math.floor(sec/3600), mm = Math.floor(sec%3600/60), ss = sec%60;
-      c.fillStyle = "#2b3139"; c.fillRect(PR+1, ly+9, 60, 14); c.fillStyle = "#eaecef"; c.fillText("⏱ "+(hh ? hh+":"+pad2(mm)+":"+pad2(ss) : pad2(mm)+":"+pad2(ss)), PR+5, ly+16);
+      c.fillStyle = "#2b3139"; c.fillRect((this.W-62)+1, ly+9, 60, 14); c.fillStyle = "#eaecef"; c.fillText("⏱ "+(hh ? hh+":"+pad2(mm)+":"+pad2(ss) : pad2(mm)+":"+pad2(ss)), (this.W-62)+5, ly+16);
     }
     // crosshair + legend
     let show = last;
@@ -848,7 +865,7 @@ class CandleChart {
     if (m && m.x < PR && m.y < PB){
       const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last;
       c.strokeStyle = "#5a636e"; c.setLineDash([2,3]); c.beginPath(); c.moveTo(m.x+.5,0); c.lineTo(m.x+.5,PB); c.moveTo(0,m.y+.5); c.lineTo(PR,m.y+.5); c.stroke(); c.setLineDash([]);
-      c.fillStyle = "#2b3139"; c.fillRect(PR+1, m.y-8, 60, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), PR+5, m.y);
+      c.fillStyle = "#2b3139"; c.fillRect((this.W-62)+1, m.y-8, 60, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), (this.W-62)+5, m.y);
       const tx = this.x(ii), label = this.fmtTime(this.data[ii].t); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, PB+1, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, PB+10);
     }
@@ -860,11 +877,12 @@ class CandleChart {
     this.paintSub(c, PB, i0, i1);
   }
   paintSub(c, PB, i0, i1){
-    const subs = []; if (this.rsiOn && this.rsiV) subs.push("rsi"); if (this.macdOn && this.macdV) subs.push("macd"); if (this.znOn && this.znV) subs.push("zn"); if (this.bsoOn && this.bsoV) subs.push("bso"); if (this.rmOn && this.rmV) subs.push("rm");
+    const subs = this.subActive(); this._panes = [];
     if (!subs.length) return; const PR = this.PR, hsub = this.subHs(), dash = d => d ? d.split(",").map(Number) : [];
     subs.forEach((k, j) => {
-      const hE = hsub[j] || 50, y0 = PB + 20 + hsub.slice(0, j).reduce((x,y) => x+y, 0), h = hE - 4; c.save(); c.beginPath(); c.rect(0, y0, PR, h); c.clip();
+      const hE = hsub[j] || 50, y0 = PB + 20 + hsub.slice(0, j).reduce((x,y) => x+y, 0), h = hE - 4; this._panes.push({k, y0, h}); c.save(); c.beginPath(); c.rect(0, y0, PR, h); c.clip();
       c.fillStyle = "#0e1217"; c.fillRect(0, y0, PR, h); c.strokeStyle = "#1f252b"; c.lineWidth = 1; c.strokeRect(.5, y0+.5, PR-1, h-1);
+      if (!this[k+"V"]){ c.restore(); return; }
       c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace";
       if (k === "rsi"){
         const st = this.st.rsi, y = v => y0 + h - 2 - v/100*(h-4);
@@ -873,7 +891,7 @@ class CandleChart {
         for (let i = i0; i <= i1; i++){ const yy = y(this.rsiV[i]), x = this.x(i); i === i0 ? c.moveTo(x,yy) : c.lineTo(x,yy); } c.stroke(); c.setLineDash([]);
         this.paintDiv(c, "rsi", this.rsiV, i => this.x(i), i => y(this.rsiV[i]), i0, i1);
         c.restore(); c.fillStyle = "#848e9c"; c.fillText("RSI "+st.len+"  "+(this.rsiV[Math.min(i1, this.data.length-1)]||0).toFixed(1), 6, y0+8);
-        [st.os, st.ob].forEach(v => c.fillText(String(v), PR+5, y(v)));
+        [st.os, st.ob].forEach(v => c.fillText(String(v), (this.W-62)+5, y(v)));
       } else if (k === "macd"){
         const st = this.st.macd, M = this.macdV; let mx = 1e-12; for (let i = i0; i <= i1; i++) mx = Math.max(mx, Math.abs(M.m[i]), Math.abs(M.s[i]), Math.abs(M.h[i]));
         const y = v => y0 + h/2 - v/mx*(h/2-3), bw = Math.max(1, this.bw*0.6);
@@ -886,6 +904,13 @@ class CandleChart {
       } else this.paintX(c, k, y0, h, i0, i1, PR);
       c.font = "11px ui-monospace,Menlo,Consolas,monospace";
     });
+    // pane controls: grip (drag the title to reorder), up / down buttons, thin handle on the top edge (drag to resize)
+    c.save(); c.textAlign = "center"; c.textBaseline = "middle"; c.font = "10px sans-serif";
+    this._panes.forEach((q, j) => { const bx = PR - 36;
+      c.fillStyle = "rgba(43,49,57,.9)"; c.fillRect(bx, q.y0 + 3, 15, 13); c.fillRect(bx + 17, q.y0 + 3, 15, 13);
+      c.fillStyle = j > 0 ? "#eaecef" : "#5a636e"; c.fillText("▲", bx + 7.5, q.y0 + 10); c.fillStyle = j < this._panes.length-1 ? "#eaecef" : "#5a636e"; c.fillText("▼", bx + 24.5, q.y0 + 10);
+      c.fillStyle = "#5a636e"; c.fillRect(Math.round(PR/2) - 14, q.y0 - 3, 28, 3); });
+    c.restore();
   }
 }
 
@@ -1006,26 +1031,35 @@ Object.assign(CandleChart.prototype, {
     }
     c.restore();
   },
-  paintCol(c, py, PB, PR, i0, i1){   // side column to the right of the price axis, same price scale as the chart: yellow liquidity heat map (resting orders) + bubbles (what traded at each price)
-    const W = this.W, d = this.data, OF = this.st.of, X0 = PR + 62, x0 = X0 + 5, x1 = W - 3, hw = Math.round((x1 - x0)*0.42), bx = x0 + hw + (x1 - x0 - hw)/2, lo = this._lo, hi = this._hi;
-    c.save(); c.fillStyle = "#0d1116"; c.fillRect(X0, 0, W - X0, PB); c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.stroke(); c.beginPath(); c.rect(X0, 0, W - X0, PB); c.clip();
+  paintCol(c, py, PB, PR, i0, i1){   // order-flow column between the plot and the price axis (same price scale): a Bookmap-style heat map that scrolls with time (newest strip on the right, one strip per candle) + bubbles per strip
+    const d = this.data, OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, n = d.length;
+    c.save(); c.fillStyle = "#0d1116"; c.fillRect(X0, 0, CW, PB); c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
+    c.fillStyle = "#3a424b"; c.fillRect(X0 + 1, Math.round(PB/2) - 12, 3, 24);   // grip: drag this edge to resize (double-click = default width)
+    c.beginPath(); c.rect(X0 + 5, 0, CW - 7, PB); c.clip();
+    const gx0 = X0 + 6, gw = CW - 10, K = Math.max(10, Math.min(80, Math.floor(gw/4))), sw = gw/K, first = Math.max(0, n - K);
     const raw = (hi-lo)/Math.max(1, PB/10), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw, rowH = Math.max(3, Math.abs(py(0) - py(step)) - 1);
-    const heat = new Map(), put = (p, q) => { const k = Math.round(p/step), o = heat.get(k); if (!o || q > o) heat.set(k, q); };
-    for (let i = i0; i <= i1; i++){ const m = d[i] && this.dom.get(d[i].t); if (m) m.forEach((v, p) => put(p, v.q)); }
-    if (this.lastBook){ (this.lastBook.bids || []).forEach(x => put(x.p, x.q)); (this.lastBook.asks || []).forEach(x => put(x.p, x.q)); }
-    let hm = 0; heat.forEach(v => { if (v > hm) hm = v; });
-    heat.forEach((q, k) => { const t = Math.pow(q/(hm || 1), .5), y = py(k*step); if (y < -rowH || y > PB + rowH) return;   // dark amber -> yellow -> hot white
-      c.fillStyle = "rgba(255,"+Math.round(205 + 50*t*t)+","+Math.round(40 + 190*t*t*t)+","+(.12 + .85*t).toFixed(2)+")"; c.fillRect(x0, y - rowH/2, hw*(.25 + .75*t), rowH); });
-    const agg = new Map(), add = (p, b, s_) => { const k = Math.round(p/step), o = agg.get(k) || (agg.set(k, {b:0, s:0}), agg.get(k)); o.b += b; o.s += s_; };
-    if (this.fp.size){ for (let i = i0; i <= i1; i++){ const m = d[i] && this.fp.get(d[i].t); if (m) m.px.forEach((v, p) => add(p, v.b, v.s)); } }
-    else { const t0 = d[i0] ? d[i0].t : 0; this.bub.forEach(b => { if (b.t >= t0) add(b.p, b.side === "Buy" ? b.q : 0, b.side === "Buy" ? 0 : b.q); }); }
-    let am = 0; agg.forEach(v => { am = Math.max(am, v.b + v.s); });
-    const top = []; agg.forEach((v, k) => { const tot = v.b + v.s, y = py(k*step); if (y < -10 || y > PB + 10) return; const r = Math.min(Math.max(2, rowH*.8), 12) * (.35 + .65*Math.sqrt(tot/(am || 1))) + 1, col = v.b >= v.s ? OF.color : OF.color2;
-      c.fillStyle = hexA(col, .45); c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(bx, y, r, 0, 6.3); c.fill(); c.stroke(); top.push([tot, y, v]); });
-    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.fillStyle = "#cfd6dd"; top.sort((a, b) => b[0] - a[0]).slice(0, 5).forEach(([tot, y, v]) => c.fillText(tot >= 1000 ? (tot/1000).toFixed(1)+"k" : tot >= 10 ? tot.toFixed(0) : tot.toFixed(2), bx + 12, y + 3));
-    const ly = py(d[d.length-1].c); c.strokeStyle = "#4aa3ff"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(X0, ly + .5); c.lineTo(W, ly + .5); c.stroke(); c.setLineDash([]);
-    c.fillStyle = "#848e9c"; c.font = "9px sans-serif"; c.fillText(Lg("LIQUIDITY", "السيولة"), x0, 10); c.fillText(Lg("TRADED", "المتداول"), x0 + hw + 6, 10);
-    if (!heat.size && !agg.size){ c.fillStyle = "#848e9c"; c.fillText(Lg("builds live from now on", "بيتبني لايف من دلوقتي"), x0, 26); }
+    const stripX = i => gx0 + (K - (n - i))*sw;   // newest candle -> right edge
+    // 1) resting liquidity per strip (book snapshots), shared brightness scale
+    const heat = []; let hm = 0;
+    for (let i = first; i < n; i++){ const m = this.dom.get(d[i].t), row = new Map(); if (m) m.forEach((v, p) => { const k = Math.round(p/step), o = row.get(k); if (!o || v.q > o) row.set(k, v.q); });
+      if (i === n-1 && this.lastBook){ [].concat(this.lastBook.bids || [], this.lastBook.asks || []).forEach(x => { const k = Math.round(x.p/step), o = row.get(k); if (!o || x.q > o) row.set(k, x.q); }); }
+      row.forEach(v => { if (v > hm) hm = v; }); heat.push([i, row]); }
+    heat.forEach(([i, row]) => { const x = stripX(i); row.forEach((q, k) => { const t = Math.pow(q/(hm || 1), .5), y = py(k*step); if (y < -rowH || y > PB + rowH) return;   // dark amber -> yellow -> hot white
+      c.fillStyle = "rgba(255,"+Math.round(205 + 50*t*t)+","+Math.round(40 + 190*t*t*t)+","+(.10 + .85*t).toFixed(2)+")"; c.fillRect(x, y - rowH/2, sw + .6, rowH); }); });
+    // 2) traded volume as bubbles: one per price level per strip, size = volume (they appear, grow and shrink as the candle trades)
+    const per = new Map();   // candle index -> Map(price key -> {b,s})
+    const addB = (i, p, b, s_) => { let m = per.get(i); if (!m) per.set(i, m = new Map()); const k = Math.round(p/step), o = m.get(k) || (m.set(k, {b:0, s:0}), m.get(k)); o.b += b; o.s += s_; };
+    if (this.fp.size){ for (let i = first; i < n; i++){ const m = this.fp.get(d[i].t); if (m) m.px.forEach((v, p) => addB(i, p, v.b, v.s)); } }
+    else { const t0 = d[first] ? d[first].t : 0; this.bub.forEach(b => { if (b.t < t0) return; let i = n-1; while (i > first && d[i].t > b.t) i--; addB(i, b.p, b.side === "Buy" ? b.q : 0, b.side === "Buy" ? 0 : b.q); }); }
+    let am = 0; per.forEach(m => m.forEach(v => { am = Math.max(am, v.b + v.s); }));
+    const top = []; const maxR = Math.min(11, Math.max(3, sw*1.3 + 2));
+    per.forEach((m, i) => { const x = stripX(i) + sw/2; m.forEach((v, k) => { const tot = v.b + v.s, y = py(k*step); if (y < -10 || y > PB + 10 || tot < am*0.06) return;
+      const r = Math.max(1.6, maxR*Math.sqrt(tot/(am || 1))), col = v.b >= v.s ? OF.color : OF.color2; c.fillStyle = hexA(col, .5); c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill(); c.stroke(); top.push([tot, x, y]); }); });
+    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = "#cfd6dd";
+    top.sort((a, b) => b[0] - a[0]).slice(0, 4).forEach(([tot, x, y]) => c.fillText(tot >= 1000 ? (tot/1000).toFixed(1)+"k" : tot >= 10 ? tot.toFixed(0) : tot.toFixed(1), Math.min(XE - 4, x - 4), y - 8));
+    const ly = py(d[n-1].c); c.strokeStyle = "#4aa3ff"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(X0, ly + .5); c.lineTo(XE, ly + .5); c.stroke(); c.setLineDash([]);
+    c.textAlign = "left"; c.fillStyle = "#848e9c"; c.font = "9px sans-serif"; c.fillText(Lg("ORDER FLOW · last "+K+" bars", "أوردر فلو · آخر "+K+" شمعة"), gx0, 10);
+    if (!hm && !am){ c.fillText(Lg("builds live from now on", "بيتبني لايف من دلوقتي"), gx0, 26); }
     c.restore();
   },
   paintDiv(c, kind, series, X, Y, i0, i1, tag){   // divergence line between the two swing points, drawn on the indicator's own pane (green = bullish, red = bearish)
@@ -1079,7 +1113,7 @@ Object.assign(CandleChart.prototype, {
       L(80, "#3a424b", [3,3]); L(50, "#1f252b"); L(20, "#3a424b", [3,3]); path(B.k, st.color, st.w); path(B.d, st.color2, st.w);
       for (let i = Math.max(i0, 1); i <= i1; i++){ if (B.k[i-1] >= 80 && B.k[i] < 80 && B.k[i] < B.d[i]) mark(i, false, "SELL"); else if (B.k[i-1] <= 20 && B.k[i] > 20 && B.k[i] > B.d[i]) mark(i, true, "BUY"); }
       title = "Bollinger "+st.bb+","+st.dev+" · Stoch "+st.k+","+st.d+","+st.s+" · OsMA "+st.fast+","+st.slow+","+st.sig; labs = [[80,"80"],[20,"20"]]; }
-    c.restore(); c.fillStyle = "#848e9c"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.fillText(title, 6, y0+8); labs.forEach(([v,t]) => c.fillText(t, PR+5, y(v)+3));
+    c.restore(); c.fillStyle = "#848e9c"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.fillText(title, 6, y0+8); labs.forEach(([v,t]) => c.fillText(t, (this.W-62)+5, y(v)+3));
   },
   paintSmt(c, py, dec, i0, i1){   // the correlated market drawn on THIS chart (rescaled) + SMT divergences between the two, marked swing to swing
     const D = this.smtD; if (!D || !D.length || !this.data.length){ if (this.smtName){ c.save(); c.font = "10px sans-serif"; c.fillStyle = "#ffd54f"; c.fillText("SMT: "+this.smtName, 8, 24); c.restore(); } return; } const mp = new Map(D.map(x => [x.t, x])), inv = !!this.smtInv, A = [], B = [];
@@ -1393,7 +1427,7 @@ Object.assign(CandleChart.prototype, {
     c.fillStyle = "#f6465d"; c.fillText("SL "+pl.stop.toFixed(dec), x0+4, yS + (long_ ? 8 : -8));
     const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1); c.fillStyle = "#4aa3ff"; c.fillText((long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(1)+"  entry "+pl.entry.toFixed(dec), x0+4, yE - 7);
     c.restore();
-    [[pl.entry,"Entry","#4aa3ff"],[pl.stop,"SL","#f6465d"]].concat((pl.tps||[]).map((v,i) => [v,"TP"+(i+1),"#0ecb81"])).forEach(([v,lab,col]) => { const y = py(v); if (y<0||y>this.PB) return; c.fillStyle = col; c.fillRect(this.PR+1, y-7, 60, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), this.PR+3, y); });
+    [[pl.entry,"Entry","#4aa3ff"],[pl.stop,"SL","#f6465d"]].concat((pl.tps||[]).map((v,i) => [v,"TP"+(i+1),"#0ecb81"])).forEach(([v,lab,col]) => { const y = py(v); if (y<0||y>this.PB) return; c.fillStyle = col; c.fillRect((this.W-62)+1, y-7, 60, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), (this.W-62)+3, y); });
   },
   paintDraws(c, py, dec){
     if (!this.data.length) return;
@@ -1547,7 +1581,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","zn","bso","rm"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};

@@ -648,16 +648,17 @@ with header_box:
 
 
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
-from modules.asset_classes import CLASSES as ASSET_CLASSES, MEME_BASES, class_symbols
+from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_CLASSES:
     st.session_state["asset_cls"] = st.query_params["cls"]
-_ac_col, _ac_note = st.columns([1, 5])
+_ac_col, _ac_mt, _ac_note = st.columns([1, 1, 4])
 asset_cls = _ac_col.selectbox("Asset class", ASSET_CLASSES, key="asset_cls", help="Drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
 if asset_cls != "Crypto":
     st.query_params["cls"] = asset_cls
 elif "cls" in st.query_params:
     del st.query_params["cls"]
-ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS)
+market_type = _ac_mt.selectbox("Market", list(MARKET_TYPES), key="market_type", help="Spot / Perpetual swap / dated Futures (OKX).")
+ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES[market_type])
 if _ac_msg:
     _ac_note.warning(_ac_msg + " - showing Crypto instead.")
     ACTIVE_SYMBOLS = list(CRYPTO_SYMBOLS)
@@ -782,7 +783,7 @@ with tab_workspace:
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items,
+                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls.split(" ")[0], meme=[b + "-USDT" for b in MEME_BASES], world=world_items,
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))

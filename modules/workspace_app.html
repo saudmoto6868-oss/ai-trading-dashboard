@@ -313,6 +313,7 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
 const settings = Object.assign({smart:4, big:5, absorb:3}, store.get(LS+"_set", {}));
 const saveSettings = () => store.set(LS+"_set", settings);
 /* World Monitor: Finnhub headlines + free RSS (BBC / Al Jazeera / Reuters ...), filtered by the news-widget switches */
+const feedMsg = () => (CFG.feedStatus || []).join(" | ");
 const worldItems = (wm = {eco:1, pol:1, geo:1, ar:1, en:1}) => {
   const tp = {economic:"eco", political:"pol", geopolitical:"geo"};
   return (CFG.news || []).map(n => Object.assign({topic:"economic", lang:"en"}, n)).concat(CFG.world || [])
@@ -1884,7 +1885,7 @@ class Panel {
   /* ---- news ticker ---- */
   build_ticker(){
     const items = worldItems().filter(n => n.headline); this.body.style.overflow = "hidden";
-    if (!items.length){ this.body.innerHTML = '<div class="err">'+esc(T("nonews"))+'</div>'; return; }
+    if (!items.length){ this.body.innerHTML = '<div class="err">'+esc(feedMsg() || T("nonews"))+'</div>'; return; }
     const half = Math.ceil(items.length/2), rows = items.length > 3 ? [items.slice(0,half), items.slice(half)] : [items];
     rows.forEach((r, ri) => {
       const mq = el("div","mq"+(ri ? " rev" : "")), tr = el("div","tr");
@@ -2080,8 +2081,8 @@ class Panel {
   }
   showNewsList(){
     const items = worldItems(this.state.wm);
-    if (!items.length || !items.some(n => n.url || n.summary)){ this.nBox.innerHTML = '<div class="err">'+esc(T("nonews"))+'</div>' + items.map(n => '<div class="news-item">'+esc(n.headline)+'</div>').join(""); return; }
-    this.nBox.innerHTML = "";
+    if (!items.length || !items.some(n => n.url || n.summary)){ this.nBox.innerHTML = '<div class="err">'+esc(feedMsg() || T("nonews"))+'</div>' + items.map(n => '<div class="news-item">'+esc(n.headline)+'</div>').join(""); return; }
+    this.nBox.innerHTML = ""; if (feedMsg()){ const b = el("div","m"); b.style.cssText = "padding:4px 8px;color:#f0b90b;font-size:11px"; b.textContent = feedMsg(); this.nBox.append(b); }
     items.forEach(n => { const d = el("div","news-item"); d.innerHTML = '<div>'+esc(n.headline)+'</div><div class="m">'+esc(n.source||"")+(n.datetime ? " · "+esc(n.datetime) : "")+'</div>'; d.onclick = () => this.showNewsDetail(n); this.nBox.append(d); });
   }
   showNewsDetail(n){

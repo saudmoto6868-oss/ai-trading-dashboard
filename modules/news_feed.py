@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import requests
 import streamlit as st
 from config import FINNHUB_API_KEY, FINNHUB_NEWS_URL
+from modules.stock_fund import api_key as _finnhub_key   # config.py -> env var -> Streamlit secrets
 
 ASSET_ICONS = {
     "forex": "[FX]",
@@ -20,19 +21,29 @@ ASSET_ICONS = {
 }
 
 
+def _status(msg: str) -> list:
+    """One placeholder row that the Workspace shows as a status line (never as a headline)."""
+    return [{"headline": msg, "source": "", "url": "", "icon": "", "status": True}]
+
+
 @st.cache_data(ttl=300)
 def get_latest_news(category: str = "general", limit: int = 10):
-    if not FINNHUB_API_KEY:
-        return [{"headline": "Add your free Finnhub API key in config.py to enable live news.",
-                  "source": "", "url": "", "icon": ASSET_ICONS.get("general")}]
-
-    params = {"category": category, "token": FINNHUB_API_KEY}
+    key = _finnhub_key()
+    if not key:
+        return _status("Finnhub: no key found - add FINNHUB_API_KEY in Streamlit Secrets (or config.py).")
     try:
-        r = requests.get(FINNHUB_NEWS_URL, params=params, timeout=10)
+        r = requests.get(FINNHUB_NEWS_URL, params={"category": category, "token": key}, timeout=10)
+        if r.status_code in (401, 403):
+            return _status(f"Finnhub: key rejected (HTTP {r.status_code}) - check FINNHUB_API_KEY.")
+        if r.status_code == 429:
+            return _status("Finnhub: rate limit reached - try again in a minute.")
         r.raise_for_status()
-        data = r.json()[:limit]
-    except Exception as e:
-        return [{"headline": f"News fetch failed: {e}", "source": "", "url": "", "icon": ""}]
+        data = r.json()
+        if not isinstance(data, list):
+            return _status("Finnhub: unexpected answer (not a news list).")
+        data = data[:limit]
+    except Exception as e:   # type name only: the exception text can contain the request URL with the key
+        return _status(f"Finnhub: news fetch failed ({type(e).__name__}).")
 
     icon = ASSET_ICONS.get(category, ASSET_ICONS["general"])
     return [

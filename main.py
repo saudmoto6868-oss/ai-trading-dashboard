@@ -897,7 +897,7 @@ with tab_workspace:
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()))
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()), world_errs=world_errs)
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
@@ -946,14 +946,47 @@ def simple_tab(key, symbols):
     fire_alerts(filtered)
 
 
+def _tv_symbol_for(cls, inst):
+    """OKX instrument id -> TradingView symbol for the embedded chart."""
+    parts = inst.split("-"); base = parts[0]; quote = parts[1] if len(parts) > 1 else "USD"
+    q = "USD" if quote in ("USDT", "USDC") else quote
+    if cls == "Metals" and base in ("XAU", "XAG", "XPT", "XPD"):
+        return "OANDA:" + base + "USD"
+    if cls == "Forex":
+        return "OANDA:" + base + q
+    if cls == "Stocks":
+        return base
+    return TV_SYMBOL_MAP.get(inst, inst)
+
+
+def class_tab(key, cls):
+    """Forex / Metals / Stocks tab. These used to read MetaTrader 5 (Windows only, so empty on the cloud server);
+    they now use the live OKX instruments of that class (OKX lists FX, metals and tokenised stocks as swaps), like the Chart Scanner does."""
+    syms, note = class_symbols(cls, CRYPTO_SYMBOLS, top=12, mtype="SWAP")
+    col_watch, col_chart = st.columns([1.25, 3.4])
+    with col_watch:
+        st.markdown("**Scanner**")
+        if not syms:
+            st.warning(note or f"No {cls} instruments from OKX right now.")
+        else:
+            tf = st.radio("Scan timeframe", ["1h", "4h", "1d"] if "4h" in ALL_SCAN_TFS else ["1h", "1d"], index=0, horizontal=True, key=f"scan_tf_{key}")
+            results, notice = scan_crypto_group(syms, tf)
+            render_scanner(results, notice, key)
+    with col_chart:
+        if syms:
+            pick = st.selectbox("Chart symbol", syms, key=f"{key}_chart_pick")
+            render_tv_chart(_tv_symbol_for(cls, pick), key=key)
+        st.caption(f"{cls}: live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace.")
+
+
 with tab_forex:
-    simple_tab("forex", FOREX_SYMBOLS)
+    class_tab("forex", "Forex")
 
 with tab_metals:
-    simple_tab("metals", METALS_SYMBOLS)
+    class_tab("metals", "Metals")
 
 with tab_stocks:
-    simple_tab("stocks", STOCK_SYMBOLS)
+    class_tab("stocks", "Stocks")
 
 with tab_meme:
     st.subheader("Meme coin / whale tracking (DEXScreener)")

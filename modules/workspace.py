@@ -31,9 +31,14 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                         asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None) -> str:
+                         asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None) -> str:
+    news = list(news or [])
+    status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
+    if world_errs:
+        status.append("World feeds failed: " + ", ".join(str(e) for e in world_errs[:6]))
     cfg = {
         "symbols": list(symbols),
+        "feedStatus": status,
         "news": [
             {
                 "headline": str(n.get("headline", "")),
@@ -42,7 +47,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                 "summary": str(n.get("summary", "")),
                 "datetime": str(n.get("datetime", "")),
             }
-            for n in (news or [])
+            for n in news if not n.get("status")
         ],
         "alerts": list(alerts or []),
         "lang": lang if lang in ("en", "ar") else "en",
@@ -83,7 +88,7 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None):
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs), height=height, scrolling=False)

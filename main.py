@@ -987,6 +987,31 @@ with tab_metals:
 
 with tab_stocks:
     class_tab("stocks", "Stocks")
+    with st.expander("News sentiment + movers (Alpha Vantage)", expanded=False):
+        from modules import alphavantage as _av
+
+        @st.cache_data(ttl=600, show_spinner=False)
+        def _av_news(t):
+            return _av.news(tickers=t)
+
+        @st.cache_data(ttl=600, show_spinner=False)
+        def _av_movers():
+            return _av.movers()
+
+        _t = st.text_input("Tickers (optional, e.g. AAPL,NVDA)", key="av_t")
+        _n = _av_news(_t.strip().upper())
+        if _n["error"]:
+            st.warning(_n["error"])
+        for a in _n["rows"][:15]:
+            st.markdown(f"**{a['score']:+.2f}** {a['label']} - [{a['title']}]({a['url']}) - {a['source']} {a['tickers']}")
+        _m = _av_movers()
+        if _m["error"]:
+            st.warning(_m["error"])
+        else:
+            for k, rows in _m["data"].items():
+                st.caption(k)
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
     with st.expander("Options flow (Unusual Whales) - ask-side, OTM, single-leg, premium >= $45k, vol > OI", expanded=False):
         from modules import options_flow as _of
 

@@ -2147,7 +2147,7 @@ class Panel {
       else row(L("Funding rate","معدل التمويل"), na, L("no perpetual swap for this symbol on OKX","مفيش عقد دائم للرمز ده على OKX"));
       // open interest
       if (D.oi){ const ch = D.oiCh;
-        row(L("Open interest","الفائدة المفتوحة"), "<b>"+usd(D.oi)+"</b>"+(ch != null ? " <span style='color:"+col(ch,0,0)+"'>"+pc(ch,1)+"</span>" : ""), ch != null ? L("change over "+D.oiHrs+"h","التغير خلال "+D.oiHrs+" ساعة") : L("history unavailable","مفيش تاريخ"));
+        row(L("Open interest","الفائدة المفتوحة"), "<b>"+usd(D.oi)+"</b>"+(ch != null ? " <span style='color:"+col(ch,0,0)+"'>"+pc(ch,1)+"</span>" : ""), ch != null ? L("change over "+D.oiHrs+"h","التغير خلال "+D.oiHrs+" ساعة") : L("history unavailable","مفيش تاريخ")+(D.errs && D.errs.oi ? " ("+D.errs.oi+")" : ""));
         if (ch != null && D.pxCh != null){ const up = D.pxCh >= 0, oiUp = ch >= 0;
           reads.push(up && oiUp ? [G, L("Price up + OI up: new longs entering - healthy trend.","السعر طالع + الفائدة طالعة: لونج جديد داخل - اتجاه صحي.")] : up ? [Y, L("Price up + OI down: short covering, not new buying - weaker move.","السعر طالع + الفائدة نازلة: تغطية شورت مش شراء جديد - حركة أضعف.")] : oiUp ? [R, L("Price down + OI up: new shorts entering - bearish pressure.","السعر نازل + الفائدة طالعة: شورت جديد داخل - ضغط هبوطي.")] : [Y, L("Price down + OI down: longs closing/liquidated - may be near exhaustion.","السعر نازل + الفائدة نازلة: لونج بيقفل/بيتصفى - ممكن قرب الاستنزاف.")]); } }
       else row(L("Open interest","الفائدة المفتوحة"), na, "");
@@ -2155,10 +2155,10 @@ class Panel {
       if (D.ls){ row(L("Long/Short accounts","نسبة لونج/شورت (حسابات)"), "<b style='color:"+(D.ls > 1.5 ? R : D.ls < 0.8 ? G : M)+"'>"+D.ls.toFixed(2)+"</b>"+(D.ls0 ? " <span class='m'>("+L("was ","كانت ")+D.ls0.toFixed(2)+" "+L("before","قبل")+" "+D.lsHrs+"h)</span>" : ""), L("accounts net long vs short (contrarian at extremes)","عدد الحسابات لونج مقابل شورت (عكسي عند التطرف)"));
         if (D.ls > 1.5) reads.push([R, L("Long/short ratio is stretched to the long side - retail crowd long.","النسبة مايلة بقوة للونج - الجمهور داخل لونج.")]);
         else if (D.ls < 0.8) reads.push([G, L("Long/short ratio leans short - crowd short, contrarian bullish.","النسبة مايلة للشورت - الجمهور شورت، إشارة عكسية صاعدة.")]); }
-      else row(L("Long/Short accounts","نسبة لونج/شورت (حسابات)"), na, "");
+      else row(L("Long/Short accounts","نسبة لونج/شورت (حسابات)"), na, D.errs && D.errs.ls ? "OKX: "+D.errs.ls : "");
       // taker flow
       if (D.tk){ row(L("Taker buy share","حصة الشراء العدواني"), "<b style='color:"+col(D.tk,52,48)+"'>"+D.tk.toFixed(1)+"%</b>"+(D.tk1 != null ? " <span class='m'>("+L("last 1h ","آخر ساعة ")+D.tk1.toFixed(1)+"%)</span>" : ""), L("market buys vs sells in contracts, last "+D.tkHrs+"h","شراء مقابل بيع بأوامر السوق في العقود، آخر "+D.tkHrs+" ساعة")); }
-      else row(L("Taker buy share","حصة الشراء العدواني"), na, "");
+      else row(L("Taker buy share","حصة الشراء العدواني"), na, D.errs && D.errs.tk ? "OKX: "+D.errs.tk : "");
       // volume
       if (D.vol != null){ row(L("24h volume (spot)","حجم 24 ساعة (سبوت)"), "<b>"+usd(D.vol)+"</b>"+(D.volRel != null ? " <span style='color:"+col(D.volRel-100,30,-30)+"'>"+D.volRel.toFixed(0)+"%</span>" : ""), D.volRel != null ? L("of the previous 7-day average","من متوسط آخر 7 أيام") : ""); }
       else row(L("24h volume (spot)","حجم 24 ساعة (سبوت)"), na, "");
@@ -2176,11 +2176,17 @@ class Panel {
     const load = async () => {
       const sym = S.sym, tok = this.fdTok = (this.fdTok||0)+1, base = sym.split("-")[0], sw = base+"-USDT-SWAP", enc = encodeURIComponent, d = {at:Date.now()};
       D = null; render(); const g = async (f) => { try { return await f(); } catch(e){ return null; } };
-      const [fr, frh, oi, oiv, ls, tk, tkr, sp, sT, dc] = await Promise.all([
+      const errs = d.errs = {}, slp = ms => new Promise(r => setTimeout(r, ms));
+      const g2 = async (name, ...fs) => { for (const f of fs){ try { const r = await f(); if (r && r.length) return r; errs[name] = "empty"; } catch(e){ errs[name] = String(e.message || e).slice(0, 40); } await slp(350); } return null; };
+      const rub = (async () => {   // rubik (statistics) endpoints are rate-limited: go one by one, with a newer per-instrument route as fallback
+        const oiv = await g2("oi", () => okx("/rubik/stat/contracts/open-interest-volume?ccy="+base+"&period=1H"), () => okx("/rubik/stat/contracts/open-interest-history?instId="+sw+"&period=1H&limit=48").then(a => a.map(x => [x[0], x[3]]))); await slp(350);
+        const ls = await g2("ls", () => okx("/rubik/stat/contracts/long-short-account-ratio?ccy="+base+"&period=1H"), () => okx("/rubik/stat/contracts/long-short-account-ratio-contract?instId="+sw+"&period=1H&limit=48")); await slp(350);
+        const tk = await g2("tk", () => okx("/rubik/stat/taker-volume?ccy="+base+"&instType=CONTRACTS&period=1H"), () => okx("/rubik/stat/taker-volume-contract?instId="+sw+"&period=1H&limit=48"));
+        return [oiv, ls, tk]; })();
+      const [fr, frh, oi, sp, sT, dc] = await Promise.all([
         g(() => okx("/public/funding-rate?instId="+sw)), g(() => okx("/public/funding-rate-history?instId="+sw+"&limit=21")), g(() => okx("/public/open-interest?instType=SWAP&instId="+sw)),
-        g(() => okx("/rubik/stat/contracts/open-interest-volume?ccy="+base+"&period=1H")), g(() => okx("/rubik/stat/contracts/long-short-account-ratio?ccy="+base+"&period=1H")),
-        g(() => okx("/rubik/stat/taker-volume?ccy="+base+"&instType=CONTRACTS&period=1H")), Promise.resolve(null),
         g(() => okx("/market/ticker?instId="+enc(sym))), g(() => okx("/market/ticker?instId="+enc(sw))), g(() => okx("/market/candles?instId="+enc(sym)+"&bar=1D&limit=8"))]);
+      const [oiv, ls, tk] = await rub;
       if (tok !== this.fdTok) return;
       if (fr && fr[0]){ const f = fr[0], hrs = f.nextFundingTime && f.fundingTime ? Math.round((+f.nextFundingTime - +f.fundingTime)/3600000) : 8; d.fr = {rate:+f.fundingRate, hrs:hrs > 0 ? hrs : 8}; }
       if (frh && frh.length) d.frAvg = frh.reduce((a, x) => a + +x.fundingRate, 0) / frh.length;
@@ -2191,7 +2197,7 @@ class Panel {
       if (!d.oi && oi && oi[0]) d.oi = +oi[0].oiUsd;
       const LS = ser(ls); if (LS.length){ d.ls = LS[0][1]; const k = Math.min(24, LS.length-1); if (k >= 6){ d.ls0 = LS[k][1]; d.lsHrs = k; } }
       const T_ = ser(tk); if (T_.length){ const w = T_.slice(0, 24), b = w.reduce((a, x) => a + x[2], 0), t = w.reduce((a, x) => a + x[1] + x[2], 0); if (t > 0){ d.tk = b/t*100; d.tkHrs = w.length; d.tk1 = T_[0][1]+T_[0][2] > 0 ? T_[0][2]/(T_[0][1]+T_[0][2])*100 : null; } }
-      if (dc && dc.length > 3){ const q = dc.map(r => +r[7]); const prev = q.slice(1), avg = prev.reduce((a, b) => a + b, 0)/prev.length; if (avg > 0){ d.volRel = q[0]/avg*100; if (d.vol == null) d.vol = q[0]; } }
+      if (dc && dc.length > 3){ const q = dc.map(r => +r[7]); const prev = q.slice(1), avg = prev.reduce((a, b) => a + b, 0)/prev.length; if (d.vol == null) d.vol = q[0]; if (avg > 0 && d.vol > 0) d.volRel = d.vol/avg*100; }
       D = d; render();
     };
     this.resub = () => { this.setTitle(); load(); }; this.setSymbol = sym => { S.sym = sym; this.symSel.value = sym; Ws.save(); this.resub(); };

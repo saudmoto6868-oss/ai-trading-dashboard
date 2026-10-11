@@ -1138,8 +1138,9 @@ Object.assign(CandleChart.prototype, {
     else if (k === "r2"){ const Q = this.r2V; if (!Q) { c.restore(); return; } const bw = Math.max(1, this.bw*0.5), UP = "#0ecb81", DN = "#f6465d", LV = 10;   // same colours as the candles
       for (let i = i0; i <= i1; i++){ const v = Q.osma[i]; if (!(v > 0)) continue; const x = this.x(i), hh = Math.min(100, v)/100*(h - 4); c.fillStyle = v <= LV ? UP : DN; c.globalAlpha = .8; c.fillRect(x - bw/2, y0 + h - 2 - hh, bw, Math.max(1, hh)); c.globalAlpha = 1; }   // OsMA bars on the same 0-100 scale as the RSI (like MT5: negative values fall below the pane and are not shown). Bar at/under the 10 line = up (green), above it = down (red)
       [[30,"#3a424b",[3,3]],[20,"#3a424b",[3,3]],[LV,"#8a94a3",[]],[5,"#3a424b",[3,3]]].forEach(([v,col,d]) => L(v, col, d));   // (the RSI(2) line itself is no longer drawn - bars only)
-      for (let i = Math.max(i0, 1); i <= i1; i++){ const a = Q.osma[i-1], b = Q.osma[i]; if (a > LV && b > 0 && b <= LV) mark(i, true, "up"); else if (a > 0 && a <= LV && b > LV) mark(i, false, "down"); }
-      title = "OsMA("+st.fast+","+st.slow+","+st.sig+") "+(Q.osma[Math.min(i1, Q.osma.length-1)]||0).toFixed(3)+"  · bar ≤10 = up, >10 = down"; (this.r2S || []).forEach((t, q) => { c.save(); c.fillStyle = "#b8c0cc"; c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.fillText("hit-rate " + t, 6, y0 + 20 + q*11); c.restore(); }); labs = [[30,"30"],[20,"20"],[LV,"10"],[5,"5"]]; }
+      for (let i = Math.max(i0, 1); i <= i1; i++){ const a = Q.osma[i-1], b = Q.osma[i]; if (a > LV && b > 0 && b <= LV) mark(i, true, ""); else if (a > 0 && a <= LV && b > LV) mark(i, false, ""); }
+      title = "";   // no title / hit-rate text: bars, level lines and arrows only
+      labs = [[30,"30"],[20,"20"],[LV,"10"],[5,"5"]]; }
     else { const B = this.bsoV; let mx = 1e-12; for (let i = i0; i <= i1; i++) mx = Math.max(mx, Math.abs(B.osma[i]));
       const yo = v => y0 + h/2 - v/mx*(h/2 - 3), bw = Math.max(1, this.bw*0.6);
       for (let i = i0; i <= i1; i++){ const v = B.osma[i], x = this.x(i); c.fillStyle = v >= 0 ? "rgba(14,203,129,.32)" : "rgba(246,70,93,.32)"; c.fillRect(x-bw/2, Math.min(yo(v), yo(0)), bw, Math.max(1, Math.abs(yo(v)-yo(0)))); }

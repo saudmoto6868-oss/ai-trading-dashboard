@@ -326,7 +326,7 @@ extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
 const FILT = Object.assign({side:"All", tt:"All", st:[], tf:"All"}, store.get(LS+"_filt", {}));
 if (!Array.isArray(FILT.st)) FILT.st = [];
 // strategy filter: id = the setup-tag label the scanner puts on a trade (Arabic key), label = what the user sees
-const STRATS = [["موجة 3","Wave 3"],["اليوت","Elliott"],["MSB-OB","MSB + OB"],["OB","Order Block"],["FVG","FVG"],["OTE","OTE"],["بريكر","Breaker"],["يونيكورن","Unicorn"],["يهوذا","Judas"],["سيولة","Liquidity sweep"],["اختراق","Breakout"],["دعم/مقاومة","Support/Resistance"],["فيبو","Fibonacci"],["VWAP","VWAP"],["متوسطات","Moving averages"],["كسر ترند","Trendline break"],["CISD","Sweep + CISD"],["زومبي","Zombie"],["SMT","SMT divergence"],["CRT","CRT (range sweep)"],["دايفرجنس RSI","RSI divergence"],["دايفرجنس MACD","MACD divergence"],["Donchian","Donchian ensemble"],["جلسات AMD","Session AMD"],["نطاق الافتتاح","Opening range"]];
+const STRATS = [["موجة 3","Wave 3"],["اليوت","Elliott"],["MSB-OB","MSB + OB"],["OB","Order Block"],["FVG","FVG"],["OTE","OTE"],["بريكر","Breaker"],["يونيكورن","Unicorn"],["يهوذا","Judas"],["سيولة","Liquidity sweep"],["اختراق","Breakout"],["دعم/مقاومة","Support/Resistance"],["فيبو","Fibonacci"],["VWAP","VWAP"],["متوسطات","Moving averages"],["كسر ترند","Trendline break"],["CISD","Sweep + CISD"],["Model 2022","ICT Model 2022"],["زومبي","Zombie"],["SMT","SMT divergence"],["CRT","CRT (range sweep)"],["دايفرجنس RSI","RSI divergence"],["دايفرجنس MACD","MACD divergence"],["Donchian","Donchian ensemble"],["جلسات AMD","Session AMD"],["نطاق الافتتاح","Opening range"]];
 /* strategy x timeframe TP1 hit-rates from the walk-forward backtest (modules/backtest_tf.py) */
 function tfInfo(e){
   const T_ = CFG.tfstats && CFG.tfstats.stats; if (!T_) return null; const min = CFG.tfstats.min_n || 8, tf = e.tfk, best = CFG.tfstats.best || {};
@@ -2661,7 +2661,7 @@ Ws.anaPop = (anchor, e) => {
   else { const pl = e.plan; h += '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal">'
     + (e.vol && e.vol.weight ? '<div style="margin-top:6px"><b style="color:#f0b90b">حجم المركز المقترح</b> — '+Math.round(e.vol.weight*100)+'% من رأس المال المخصص للصفقة (تذبذب سنوي حالي '+Math.round(e.vol.ann_vol*100)+'%، الهدف '+Math.round(e.vol.target*100)+'%) — كل ما زاد التذبذب قلّ الحجم</div>' : "")
     + (pl ? '<div style="margin-top:6px"><b style="color:#f0b90b">الخطة</b> — دخول '+fmtP(pl.entry)+' · وقف '+fmtP(pl.stop)+' · '+pl.tps.map((v,i) => 'هدف '+(i+1)+' '+fmtP(v)).join(' · ')+'</div>' : "")
-    + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("السيناريوهات", a.scen) + '</div>'; }
+    + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("السياق (تحيز اليوم / النطاق / التوقيت)", a.ctx) + sec("السيناريوهات", a.scen) + '</div>'; }
   pop.innerHTML = h; document.body.append(pop);
   setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };

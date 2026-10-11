@@ -133,7 +133,13 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
     price = float(df["close"].iloc[-1])
     order = {f: i for i, f in enumerate(ALL_FAMILIES)}
     mine.sort(key=lambda s: order[s["family"]])
+    try:
+        from modules.context import market_context
+        ctx = market_context(df, direction if direction != "neutral" else None)
+    except Exception:
+        ctx = {}
     return {
+        "context": ctx,   # where / when / which side (daily bias, premium/discount, NY killzone) - shown, never counted in the stars
         "symbol": symbol,
         "score": agg["stars"], "max_score": MAX_STARS,
         "direction": direction,

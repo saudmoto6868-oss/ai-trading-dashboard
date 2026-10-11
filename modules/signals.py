@@ -133,7 +133,7 @@ def _flip_text(text: str) -> str:
 
 # stable ids so the Arabic text/tag layer does not depend on the English wording
 _KEY_PATTERNS = [
-    (r"Trendline break", "tlbreak"), (r"Sweep \+ CISD", "cisd"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
+    (r"Trendline break", "tlbreak"), (r"Sweep \+ CISD", "cisd"), (r"Model 2022", "m2022"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
@@ -551,6 +551,23 @@ def sweep_signal_bull(df, max_age: int = 6):
     return out
 
 
+def _raid(df, lookback: int, lows=None):
+    """The sell-side raid of the window: the window's LOWEST low (e) must lie below a confirmed swing low (lvl) that stood before it;
+    j is the first bar that took that level out. -> (j, e, lvl) or None. Anchoring on the window's extreme (not on 'any bar under a stale
+    swing low') keeps the later reversal bars from being mistaken for the raid."""
+    n = len(df); l = df["low"].values
+    if lows is None:
+        lows = [(i, p) for i, p, k in fractal_pivots(df, 3) if k == "L"]
+    s0 = max(3, n - lookback)
+    e = s0 + int(np.argmin(l[s0:]))
+    cand = [(i, p) for i, p in lows if i + 3 <= e and p > l[e] and i < e]
+    if not cand:
+        return None
+    si, lvl = cand[-1]
+    j = next((b for b in range(si + 1, e + 1) if l[b] < lvl), e)
+    return j, e, lvl
+
+
 def cisd_bull(df, lookback: int = 40, max_age: int = 6):
     """Sweep + CISD (Change in State of Delivery), bullish; the bearish twin comes from the inverted frame.
     Rules (ICT CISD model as taught in the channel summaries and described by LuxAlgo):
@@ -571,14 +588,11 @@ def cisd_bull(df, lookback: int = 40, max_age: int = 6):
     piv = fractal_pivots(df, 3)
     lows = [(i, p) for i, p, k in piv if k == "L"]
     highs = [(i, p) for i, p, k in piv if k == "H"]
-    for j in range(n - 1, max(2, n - lookback) - 1, -1):                       # most recent sweep first
-        cand = [(i, p) for i, p in lows if i + 3 <= j]
-        if not cand:
+    for _once in (0,):
+        rd = _raid(df, lookback, lows)
+        if rd is None:
             continue
-        si, lvl = cand[-1]
-        if not l[j] < lvl:
-            continue
-        e = j + int(np.argmin(l[j:]))                                         # the extreme of the sweep move
+        j, e, lvl = rd                                                        # e = the extreme of the sweep move
         prior_h = [p for i, p in highs if i < j]
         if not prior_h:
             continue
@@ -610,6 +624,55 @@ def cisd_bull(df, lookback: int = 40, max_age: int = 6):
                     "{ago} bar(s) ago, structure not broken yet" + ("; " + ", ".join(why) if why else "") + "; stop under {sl}, target the swing high {st}",
                     prices={"lvl": float(lvl), "sl": sl, "cl": cl, "st": float(struct)},
                     vals={"ago": n - 1 - conf, "q": len(why)})]
+    return []
+
+
+def model2022_bull(df, lookback: int = 40, max_age: int = 8):
+    """ICT Model 2022 (bullish; bearish twin from the inverted frame): raid -> displacement + market-structure shift -> FVG entry.
+      1. raid        : a bar trades below the latest confirmed swing low (sell-side liquidity taken).
+      2. MSS         : after the raid's extreme, a bar CLOSES above the most recent swing high that stood before it, with a real
+                       body (>= 0.6 ATR) - 'displacement'. A structure break with no raid before it is not a Model 2022 setup.
+      3. imbalance   : that move leaves a bullish fair value gap = the entry zone (limit order inside it).
+      4. stop        : under the raid's low.   target : the opposing liquidity pool (highest swing high in the window).
+      5. time        : only taken in a New York killzone / Silver Bullet window (checked when the frame has a 'time' column).
+    A setup that is still waiting for the structure break is the CISD signal's job; this one is the confirmed version."""
+    n = len(df)
+    if n_short(df, 60):
+        return []
+    o, h, l, c = (df[k].values for k in ("open", "high", "low", "close"))
+    a = atr_series(df).values
+    piv = fractal_pivots(df, 3)
+    lows = [(i, p) for i, p, k in piv if k == "L"]
+    highs = [(i, p) for i, p, k in piv if k == "H"]
+    for _once in (0,):
+        rd = _raid(df, lookback, lows)
+        if rd is None:
+            continue
+        j, e, lvl = rd
+        opp = [p for i, p in highs if i < e]
+        if not opp:
+            continue
+        sh = opp[-1]
+        m = next((b for b in range(e + 1, n) if c[b] > sh and (c[b] - o[b]) >= 0.6 * a[b]), None)
+        if m is None or n - 1 - m > max_age or c[-1] <= l[e]:
+            continue
+        gaps = [k for k in range(max(2, e + 1), min(n, m + 2)) if l[k] > h[k - 2]]
+        if not gaps:
+            continue
+        k = gaps[-1]; zone = (float(h[k - 2]), float(l[k]))
+        in_window = True
+        if "time" in df.columns:
+            from modules.context import time_window
+            tw = time_window(df.iloc[:m + 1])
+            in_window = bool(tw["kz"] or tw["silver"]) if tw["ny_hour"] is not None else True
+        if not in_window:
+            continue
+        pool = max([p for i, p in highs if i >= n - lookback] or [sh])
+        return [_mk("Liquidity", "Model 2022 (raid + MSS + FVG)",
+                    "swing low {lvl} raided (low {sl}), then a displacement candle closed above the swing high {sh} {ago} bar(s) ago leaving a fair value gap; "
+                    "entry inside the gap, stop under {sl}, target the liquidity pool {pool}",
+                    prices={"lvl": float(lvl), "sl": float(l[e]), "sh": float(sh), "pool": float(pool), "t": float(pool), "inv": float(l[e])},
+                    vals={"ago": n - 1 - m}, zone=zone)]
     return []
 
 
@@ -1065,7 +1128,7 @@ def session_orb_bull(df):
 
 DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 
-DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
+DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, model2022_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
              rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull)
 

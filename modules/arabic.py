@@ -47,6 +47,7 @@ TAGS = {
     "TL": ("كسر ترند", "#e0a030", "#000"),
 }
 KEY_TAGS = {
+    "m2022": ("Model 2022", "#00bcd4", "#000"),
     "cisd": ("CISD", "#26c6da", "#000"),
     "tlbreak": ("كسر ترند", "#e0a030", "#000"),
     "sweep": ("سيولة", "#4aa3ff", "#000"),
@@ -119,6 +120,9 @@ def signal_ar(s: dict) -> tuple:
     bull = s["direction"] == "bullish"
     up, dn = ("فوق", "تحت") if bull else ("تحت", "فوق")
     f = lambda key: n_(fp(p[key])) if key in p else "-"
+    if k == "m2022":
+        return ("Model 2022: سحب + كسر هيكل + FVG" if bull else "Model 2022 (بيعي)",
+                f"سحب {'القاع' if bull else 'القمة'} {f('lvl')} ثم شمعة اندفاع أغلقت {up} {'القمة' if bull else 'القاع'} {f('sh')} منذ {n_(v.get('ago', '?'))} شمعة وتركت فجوة FVG؛ الدخول داخل الفجوة · الوقف {dn} السحب ({f('sl')}) · الهدف مجمع السيولة {f('pool')} · داخل كيل زون نيويورك")
     if k == "cisd":
         return ("سحب سيولة + CISD" if bull else "سحب سيولة + CISD (بيعي)",
                 f"السعر سحب {'القاع' if bull else 'القمة'} {f('lvl')} ثم أغلق جسم شمعة {up} مستوى الـ CISD ({f('cl')}) منذ {n_(v.get('ago', '?'))} شمعة والهيكل لسه ما انكسرش · الوقف {dn} السحب ({f('sl')}) · الهدف {f('st')}" + (f" · تأكيدات: {n_(v.get('q', 0))}" if v.get("q") else ""))
@@ -276,6 +280,32 @@ def scenarios_ar(res: dict) -> list:
     return out
 
 
+def context_ar(res: dict) -> list:
+    """Arabic lines for the market-context layer (daily bias / premium-discount / NY window) with a tick or cross vs the trade direction."""
+    c = (res or {}).get("context") or {}
+    if not c:
+        return []
+    ag = c.get("agree") or {}
+    mark = lambda v: "" if v is None else (" ✓" if v else " ✗")
+    out = []
+    db = c.get("daily") or {}
+    if db.get("bias"):
+        nm = {"bullish": "صاعد (أمس أغلق فوق قمة اليوم السابق)", "bearish": "هابط (أمس أغلق تحت قاع اليوم السابق)",
+              "inside": "لا تحيز (أمس داخل نطاق اليوم السابق)", "neutral": "لا تحيز (أمس أغلق داخل النطاق)"}[db["bias"]]
+        out.append("تحيز اليوم: " + nm + mark(ag.get("bias")))
+    if db.get("accumulation"):
+        out.append("⚠ يومان داخليان متتاليان = تجميع، الأفضل عدم التداول" + mark(not ag.get("stand_aside", False) if "stand_aside" in ag else None))
+    pdz = c.get("pd") or {}
+    if pdz.get("zone"):
+        nm = {"discount": "ديسكاونت (منطقة شراء)", "premium": "بريميوم (منطقة بيع)", "equilibrium": "منتصف النطاق"}[pdz["zone"]]
+        out.append(f"موقع السعر في النطاق: {nm} {n_(round(pdz.get('pos', 0)))}%" + mark(ag.get("pd")))
+    w = c.get("window") or {}
+    if w.get("ny_hour") is not None:
+        nm = (("كيل زون " + w["kz"]) if w.get("kz") else "") + (" · نافذة Silver Bullet" if w.get("silver") else "")
+        out.append("التوقيت: " + (nm.strip(" ·") or "خارج الكيل زون") + mark(ag.get("window")))
+    return out
+
+
 def analysis_ar(res: dict) -> dict:
     """Plain-language Arabic analysis of one scanner result (same text as the Crypto tab's 'التحليل' panel),
     as data so the Workspace and the Chart Scanner can show it too."""
@@ -302,7 +332,7 @@ def analysis_ar(res: dict) -> dict:
         scen = []
     if not sig:
         sig = ["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ."]
-    return {"sig": sig, "against": against, "htf": htf, "scen": scen}
+    return {"sig": sig, "against": against, "htf": htf, "scen": scen, "ctx": context_ar(res)}
 
 
 # --------------------------------------------------------------------------

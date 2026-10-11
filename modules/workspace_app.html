@@ -1794,7 +1794,7 @@ class Panel {
       if (!rows.length){ this.aBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("noalerts"))+'</div>'; return; }
       rows.forEach(a => this.aBox.append(alertCard(a)));
     };
-    draw(); Alerts.subs.add(draw); this.unwatch = () => Alerts.subs.delete(draw);
+    draw(); Alerts.subs.add(draw); Journal.subs.add(draw); this.unwatch = () => { Alerts.subs.delete(draw); Journal.subs.delete(draw); };
   }
   /* ---- ready trades (scanner trades + alerts, best confidence first) ---- */
   build_ready(){
@@ -2229,14 +2229,23 @@ function renderEvents(panel, evAll){
 }
 
 function logoColor(sym){ let h = 0; for (const c of sym) h = (h*31 + c.charCodeAt(0)) % 360; return "hsl("+h+",70%,60%)"; }
+const durTxt = ms => { const m = Math.max(1, Math.round(ms/60000)), d = Math.floor(m/1440), h = Math.floor(m%1440/60), mi = m%60, ar = lang === "ar";
+  return (d ? d+(ar ? " يوم " : "d ") : "")+(h ? h+(ar ? " ساعة " : "h ") : "")+(!d ? mi+(ar ? " دقيقة" : "m") : "").trim(); };
+function alertOutcome(a){   // the journal follows every alert trade on OKX candles until TP1 or the stop is touched
+  const c = a.card, key = c.symbol+"|"+c.direction+"|"+c.ttype; let best = null;
+  Journal.list.forEach(t => { if (t.key === key && t.t0 >= a.t - 60000 && (t.status === "tp" || t.status === "sl") && t.t1 && (!best || t.t0 < best.t0)) best = t; });
+  return best;
+}
 function alertCard(a){
   const c = a.card, bull = c.direction === "bullish", st = "★".repeat(c.score)+'<span class="o">'+"★".repeat(Math.max(0,c.max-c.score))+'</span>';
   const f = v => fmtP(v), pl = c.plan, base = c.symbol.split("-")[0];
+  const oc = alertOutcome(a);
   const d = el("div","card"); d.style.borderInlineStart = "3px solid "+(bull ? "#0ecb81" : "#f6465d");
   d.innerHTML = '<div class="row"><span class="logo" style="background:'+logoColor(base)+'">'+esc(base.slice(0,4))+'</span><b style="font-size:13px">'+esc(c.symbol)+'</b>'
     +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+esc(bull ? T("long") : T("short"))+'</span><span class="grow"></span><span class="stars" title="'+c.score+'/'+c.max+'">'+st+'</span></div>'
     +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(tagTip(t))+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
-    +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
+    +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+(oc && oc.status === "sl" ? ' <b style="font-size:13px">✓</b>' : '')+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+(oc && oc.status === "tp" && i === 0 ? ' <b style="font-size:13px">✓</b>' : '')+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
+    +(oc ? '<div class="m" style="margin-top:3px;font-weight:600;color:'+(oc.status === "tp" ? "#0ecb81" : "#f6465d")+'">✓ '+esc(oc.status === "tp" ? (lang === "ar" ? "تحقق الهدف TP1" : "TP1 hit") : (lang === "ar" ? "تحقق وقف الخسارة SL" : "Stop-loss hit"))+' · '+esc((lang === "ar" ? "خلال " : "after ")+durTxt(oc.t1 - a.t))+'</div>' : '')
     +'<div class="row" style="margin-top:5px"><span class="badge" style="border:1px solid #f0b90b;color:#f0b90b">'+esc(ttTxt(c.ttype))+'</span><span class="m">'+esc(T("eta"))+': TP1 '+esc(etaTxt((c.eta||{}).tp1))+' · TP3 '+esc(etaTxt((c.eta||{}).tp3))+'</span></div>'
     +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><button class="an">'+esc(lang === "ar" ? "التحليل" : "Analysis")+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';
   d.querySelector(".sc").onclick = () => Ws.showOnChart(c);

@@ -136,7 +136,7 @@ _KEY_PATTERNS = [
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
-    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"),
+    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"),
 ]
 
 
@@ -839,9 +839,47 @@ def crt_bull(df, fresh: int = 5):
     return []
 
 
+# --------------------------------------------------------------------------
+# Donchian-channel ensemble (trend following)
+# --------------------------------------------------------------------------
+# Idea from "Catching Crypto Trends" (Zarattini, Pagani, Barbon, SSRN 5209907): aggregate several Donchian-channel
+# trend models with DIFFERENT lookbacks into one signal. The abstract does not publish the lookback list or any
+# thresholds, so the horizons and the 2/3-agreement + fresh-breakout rule below are this dashboard's own choices.
+DONCH_LOOKBACKS = (5, 10, 20, 30, 60, 90, 150, 250, 360)
+
+
+def donchian_state(close, n: int):
+    """Channel model for one lookback on CLOSES: +1 after a close above the previous n closes' high, -1 after a close
+    below their low, otherwise the previous state holds. -> (state, bars since the last change of state)."""
+    c = np.asarray(close, dtype=float)
+    st, age = 0, 0
+    for i in range(n, len(c)):
+        w = c[i - n:i]
+        new = 1 if c[i] > w.max() else -1 if c[i] < w.min() else st
+        age = 0 if new != st else age + 1
+        st = new
+    return st, age
+
+
+def donchian_bull(df, min_agree: float = 2 / 3, fresh_bars: int = 3):
+    c = df["close"].values
+    lbs = [n for n in DONCH_LOOKBACKS if len(c) >= n + 10]
+    if len(lbs) < 4:
+        return []
+    longs, fresh = 0, False
+    for n in lbs:
+        stt, age = donchian_state(c, n)
+        if stt > 0:
+            longs += 1
+            fresh = fresh or age < fresh_bars
+    if longs / len(lbs) >= min_agree and fresh:
+        return [_mk("MA", "Donchian ensemble trend", "{k} of {m} Donchian channels ({lo}-{hi} bars) are in a breakout state - price closed above the channel high - "
+                    "and a fresh breakout fired within the last 3 bars: trend-following ensemble", vals={"k": longs, "m": len(lbs), "lo": lbs[0], "hi": lbs[-1]})]
+    return []
+
 DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
-             rsi_div_bull, macd_div_bull, crt_bull)
+             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

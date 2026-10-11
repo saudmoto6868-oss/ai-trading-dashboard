@@ -62,6 +62,7 @@ KEY_TAGS = {
     "smt": ("SMT", "#ffd54f", "#000"),
     "rsi_div": ("دايفرجنس RSI", "#ff8a65", "#000"),
     "macd_div": ("دايفرجنس MACD", "#4db6ac", "#000"),
+    "donch": ("Donchian", "#81c784", "#000"),
 }
 
 
@@ -177,6 +178,10 @@ def signal_ar(s: dict) -> tuple:
         return ("يهوذا سوينج (حركة وهمية عند الافتتاح)",
                 f"بعد افتتاح اليوم {f('op')} نزل السعر وهميا إلى {f('lo')} (سحب ستوبات) ثم استعاد الافتتاح ويتداول {up} منه" if bull else
                 f"بعد افتتاح اليوم {f('op')} صعد السعر وهميا إلى {f('lo')} (سحب ستوبات) ثم استعاد الافتتاح ويتداول {up} منه")
+    if k == "donch":
+        return (f"قنوات Donchian (اتجاه مجمّع) {'صاعد' if bull else 'هابط'}",
+                f"{n_(v.get('k', '?'))} من {n_(v.get('m', '?'))} قناة Donchian (من {n_(v.get('lo', '?'))} إلى {n_(v.get('hi', '?'))} شمعة) في حالة اختراق {'صاعد' if bull else 'هابط'} "
+                f"(الإغلاق {up} {'أعلى' if bull else 'أدنى'} سعر إغلاق في القناة)، وحدث اختراق جديد خلال آخر 3 شموع؛ متابعة اتجاه بتجميع عدة فترات بدل فترة واحدة")
     if k == "crt":
         tf = v.get("tf", "")
         return (f"CRT: سحب {'قاع' if bull else 'قمة'} نطاق شمعة {tf} ثم عودة",
@@ -417,7 +422,7 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
                 ew = None
             break
     return {
-        "ew": ew, "ana": analysis_ar(r),
+        "ew": ew, "ana": analysis_ar(r), "vol": r.get("vol"),
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
         "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
         "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,

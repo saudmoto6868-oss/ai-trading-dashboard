@@ -123,6 +123,8 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
             break
 
     res, sup = sr_levels(df)
+    from modules.risk_engine import vol_target_weight
+    volsz = vol_target_weight(df, trigger_tf)
     price = float(df["close"].iloc[-1])
     order = {f: i for i, f in enumerate(ALL_FAMILIES)}
     mine.sort(key=lambda s: order[s["family"]])
@@ -143,6 +145,7 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
         "supports": sup, "resistances": res,
         "liquidity_levels": [],
         "errors": errs,
+        "vol": volsz,
     }
 
 

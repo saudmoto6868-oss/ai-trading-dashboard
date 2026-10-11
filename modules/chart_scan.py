@@ -45,6 +45,9 @@ STRATEGY_FILTERS = {
     "st_judas": ("ICT Judas swing", ("key", "judas")), "st_sweep": ("Liquidity sweep", ("key", "sweep")),
     "st_ifvg": ("Inverse FVG (IFVG)", ("extra", "ifvg")), "st_harm": ("Harmonic patterns (Gartley/Bat/Butterfly/Crab/Cypher)", ("extra", "harm")),
     "st_mss": ("ICT MSS / CHoCH (structure shift)", ("extra", "mss")), "st_pd": ("ICT Premium / Discount (50% of range)", ("extra", "pd")),
+    "st_silver": ("ICT Silver Bullet (FVG inside NY 3 / 10 / 14h window)", ("extra", "silver")),
+    "st_mit": ("ICT Mitigation Block", ("extra", "mit")),
+    "st_bvd": ("Breakout + volume delta (strong close through a swing)", ("extra", "bvd")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),
 }
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
@@ -108,6 +111,81 @@ def _pd_side(df: pd.DataFrame, look: int = 100):
     return "buy" if pos <= 0.30 else "sell" if pos >= 0.70 else None
 
 
+def _atr(df: pd.DataFrame, n: int = 14) -> float:
+    return float((df["high"] - df["low"]).tail(n).mean()) or 1e-9
+
+
+def _silver_buy(df: pd.DataFrame) -> bool:
+    """ICT Silver Bullet (long): a bullish FVG formed inside one of the NY windows (03-04, 10-11, 14-15) that
+    price is now retesting. Needs a datetime 'time' column and an intraday timeframe."""
+    t = df["time"]
+    if not pd.api.types.is_datetime64_any_dtype(t) or len(df) < 30:
+        return False
+    step = (t.iloc[-1] - t.iloc[-2]).total_seconds()
+    if step > 3600:
+        return False
+    ny = t.dt.tz_localize("UTC").dt.tz_convert("America/New_York") if t.dt.tz is None else t.dt.tz_convert("America/New_York")
+    inwin = ny.dt.hour.isin([3, 10, 14]).values
+    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    a, n = _atr(df), len(df)
+    for i in range(max(2, n - 30), n - 1):
+        if inwin[i] and l[i] > h[i - 2] and (l[i] - h[i - 2]) >= 0.3 * a:
+            lo, hi = h[i - 2], l[i]
+            if not (c[i + 1:] < lo).any() and lo - 0.15 * a <= c[-1] <= hi + 0.15 * a and inwin[-1]:
+                return True
+    return False
+
+
+def _mit_buy(df: pd.DataFrame) -> bool:
+    """ICT Mitigation Block (long): a down-swing fails to make a lower low (higher low), price then breaks the
+    swing high (structure shift up); the last down candle before that move is the block - price is back in it."""
+    from modules.signals import fractal_pivots
+    o, h, l, c = df["open"].values, df["high"].values, df["low"].values, df["close"].values
+    n, a = len(df), _atr(df)
+    piv = fractal_pivots(df, 3)
+    lows = [(i, p) for i, p, k in piv if k == "L"]
+    highs = [(i, p) for i, p, k in piv if k == "H"]
+    for (i1, p1), (i2, p2) in zip(lows[:-1][::-1], lows[1:][::-1]):
+        if p2 <= p1 or n - i2 > 70:
+            continue
+        hh = [p for i, p in highs if i1 < i < i2]
+        if not hh:
+            continue
+        h1 = max(hh)
+        brk = [k for k in range(i2 + 1, n) if c[k] > h1]
+        if not brk:
+            continue
+        blk = [k for k in range(max(0, i2 - 3), min(n, i2 + 2)) if c[k] < o[k]]
+        if not blk:
+            continue
+        k = blk[-1]
+        lo, hi = l[k], h[k]
+        if not (c[brk[0]:] < lo).any() and brk[0] < n - 1 and lo - 0.1 * a <= c[-1] <= hi + 0.15 * a:
+            return True
+    return False
+
+
+def _bvd_side(df: pd.DataFrame):
+    """Breakout volume delta: a close through the latest swing high/low in the last 3 bars, accepted only when the
+    breakout bar's buy/sell split (close position inside the bar, a stand-in for lower-timeframe delta) backs it."""
+    from modules.signals import fractal_pivots
+    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    n = len(df)
+    piv = fractal_pivots(df, 5)
+    hs = [(i, p) for i, p, k in piv if k == "H"]
+    ls = [(i, p) for i, p, k in piv if k == "L"]
+    for k in range(n - 1, n - 4, -1):
+        rng = (h[k] - l[k]) or 1e-9
+        buy = (c[k] - l[k]) / rng
+        ph = [p for i, p in hs if i < k - 1]
+        pl = [p for i, p in ls if i < k - 1]
+        if ph and c[k] > ph[-1] and c[k - 1] <= ph[-1] and buy >= 0.6:
+            return "buy"
+        if pl and c[k] < pl[-1] and c[k - 1] >= pl[-1] and buy <= 0.4:
+            return "sell"
+    return None
+
+
 def strategy_flags(df: pd.DataFrame):
     """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}."""
     from modules.signals import detect_all
@@ -127,6 +205,16 @@ def strategy_flags(df: pd.DataFrame):
         sd = _ifvg_side(d)
         if sd:
             flags.add("st_ifvg"); sides.setdefault("st_ifvg", set()).add(sd)
+        from modules.signals import invert
+        inv = invert(d)
+        for fid, fn in (("st_silver", _silver_buy), ("st_mit", _mit_buy)):
+            if fn(d):
+                flags.add(fid); sides.setdefault(fid, set()).add("buy")
+            if fn(inv):
+                flags.add(fid); sides.setdefault(fid, set()).add("sell")
+        bv = _bvd_side(d)
+        if bv:
+            flags.add("st_bvd"); sides.setdefault("st_bvd", set()).add(bv)
         for fid, fn in (("st_mss", _mss_side), ("st_pd", _pd_side)):
             sd = fn(d)
             if sd:

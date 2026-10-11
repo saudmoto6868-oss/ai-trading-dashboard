@@ -431,7 +431,7 @@ def _scan_worker(store, ws_tf, ws_key):
         syms_ = list(ws_key[2])
 
         def publish(done):
-            store["payload"] = {"key": ws_key, "alerts": list(ws_alerts), "scan": dict(ws_scan), "seed": ws_seed,
+            store["payload"] = {"key": ws_key, "alerts": list(ws_alerts), "scan": {k_: dict(v_) for k_, v_ in ws_scan.items()}, "seed": ws_seed,
                                 "mini": list(ws_mini), "errs": list(ws_errs), "built": time.time(), "loading": not done}
 
         try:
@@ -459,9 +459,11 @@ def _scan_worker(store, ws_tf, ws_key):
                     continue
                 if e_.get("plan"):
                     ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "plan", "score", "max", "tv", "spark")})
-                if tf_ == ws_tf:
-                    ws_scan[r_["symbol"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
-                                             | {"tf": e_["tfc"], "dir": e_["direction"]})
+                # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
+                _slot = ws_scan.setdefault(r_["symbol"], {})
+                if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
+                    _slot[e_["tfc"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
+                                        | {"tf": e_["tfc"], "dir": e_["direction"]})
                 if r_["score"] >= ALERT_SCORE_THRESHOLD:
                     ws_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
             publish(False)

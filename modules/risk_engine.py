@@ -30,6 +30,12 @@ def build_trade_plan(score_result: dict) -> dict:
         stop_loss = stop_ref
         take_profits = [entry - risk_distance * rr for rr in RR_TARGETS]
 
+    # direction sanity: long = stop below entry and targets above; short = the mirror. Never hand out a plan that points the wrong way.
+    if risk_distance <= 0:
+        risk_distance = price * 0.005
+        stop_loss = entry - risk_distance if bias == "bullish" else entry + risk_distance
+        take_profits = [entry + risk_distance * rr if bias == "bullish" else entry - risk_distance * rr for rr in RR_TARGETS]
+
     return {
         "entry": round(entry, 5),
         "stop_loss": round(stop_loss, 5),

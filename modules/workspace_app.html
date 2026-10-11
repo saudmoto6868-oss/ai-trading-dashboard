@@ -332,9 +332,14 @@ function tfInfo(e){
 }
 const wScore = e => { const r = e.score/Math.max(1,e.max), i = tfInfo(e); return i ? r*(0.75 + 0.5*i.hit) : r; };   // timeframes that historically hit TP1 more often rank higher
 const tfTxt = e => { const i = tfInfo(e); return i ? "TP1 "+Math.round(100*i.hit)+"% · n"+i.n+(i.isBest ? " ★" : "") : ""; };
+// a trade plan must point the way its direction says: long = stop < entry < targets, short = stop > entry > targets
+const planOk = (pl, dir) => { if (!pl || !pl.tps || !pl.tps.length || !(pl.stop > 0) || !(pl.entry > 0)) return false;
+  if (dir === "bullish") return pl.stop < pl.entry && pl.tps.every(t => t > pl.entry);
+  if (dir === "bearish") return pl.stop > pl.entry && pl.tps.every(t => t < pl.entry);
+  return true; };
 function readyList(){
   const seen = new Map();
-  const put = (e, t) => { if (!e || !e.plan || !passFilters(e.direction, e.ttype, e.tags || []) || (FILT.tf !== "All" && e.tfk !== FILT.tf)) return; const k = e.symbol+"|"+e.direction+"|"+e.ttype; const old = seen.get(k);
+  const put = (e, t) => { if (!e || !e.plan || !planOk(e.plan, e.direction) || !passFilters(e.direction, e.ttype, e.tags || []) || (FILT.tf !== "All" && e.tfk !== FILT.tf)) return; const k = e.symbol+"|"+e.direction+"|"+e.ttype; const old = seen.get(k);
     if (!old || (e.score/e.max) > (old.score/old.max)) seen.set(k, Object.assign({}, e, {_t:t||0})); };
   (CFG.ready || []).forEach(e => put(e, 0)); Alerts.list.forEach(a => put(a.card, a.t));
   return [...seen.values()].sort((a,b) => (wScore(b) - wScore(a)) || (b._t - a._t));
@@ -397,7 +402,7 @@ const Journal = {
     let added = 0; const pool = [];
     (CFG.ready || []).forEach(e => pool.push(e)); Alerts.list.forEach(a => a.card && pool.push(a.card));
     pool.forEach(e => {
-      if (!e || !e.plan || !e.plan.tps || !e.plan.tps.length || !(e.plan.stop > 0)) return;
+      if (!e || !e.plan || !planOk(e.plan, e.direction)) return;
       const key = e.symbol+"|"+e.direction+"|"+e.ttype, en = e.plan.entry;
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005))) return;
       this.list.push({id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
@@ -1661,7 +1666,7 @@ class Panel {
     out.sort((a,b) => b.t - a.t).forEach(m => { const o = ded.find(x => x.kind === m.kind && x.dir === m.dir && Math.abs(x.p - m.p) <= 0.35*atr && Math.abs(x.t - m.t) <= 6*sec); if (o) o.n = (o.n || 1) + 1; else ded.push(Object.assign({tf}, m)); });
     ch.marks = ded; ch.draw();
   }
-  setOverlay(o){ this.chart.overlay = o; this.chart.showSig = true; this.state.sig = true; this.chart.draw(); }
+  setOverlay(o){ if (o && o.plan && !planOk(o.plan, o.dir)){ console.warn("plan direction mismatch - not drawn", o.dir, o.plan); o = null; } this.chart.overlay = o; this.chart.showSig = true; this.state.sig = true; this.chart.draw(); }
   showPx(price, src){
     if (!(price > 0)) return;
     const prev = this.lastPx; this.lastPx = price; this.pxEl.textContent = fmtP(price);
@@ -1685,7 +1690,8 @@ class Panel {
     this.chart.loadDraws(LS+"_dr_"+sym);
     if (this.jsub) Journal.subs.delete(this.jsub);
     this.jsub = () => { if (!this.chart) return; this.chart.sigs = Journal.list.filter(t => t.symbol === sym && t.t0).map(t => ({t:t.t0, dir:t.dir, pct:t.pct, tfk:t.tfk, status:t.status})); this.chart.draw(); }; Journal.subs.add(this.jsub); this.jsub();
-    this.chart.overlay = (CFG.scan && CFG.scan[sym] && passFilters(CFG.scan[sym].dir, CFG.scan[sym].ttype)) ? CFG.scan[sym] : null; this.chart.marks = [];
+    { const sc = CFG.scan && CFG.scan[sym] && CFG.scan[sym][tf];   // the scanner result for exactly this symbol AND this chart timeframe (a plan from another timeframe may point the other way)
+      this.chart.overlay = (sc && planOk(sc.plan, sc.dir) && passFilters(sc.dir, sc.ttype)) ? sc : null; } this.chart.marks = [];
     this.flt = {prev:null, events:[], sym, abs:new Set()};
     this.chart.lvD = null; const lvIv = setInterval(() => { if (tok !== this.tok){ clearInterval(lvIv); return; } if (this.chart.lvOn && Date.now() - (this.lvT || 0) > 30000){ this.lvT = Date.now(); this.lvKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(lvIv));
     this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); const seenF = new Set();
@@ -2607,7 +2613,7 @@ Alerts.subs.add(() => Ws.drawStrip()); setInterval(() => Ws.drawStrip(), 5000); 
 Ws.showOnChart = c => {
   const ch = Ws.panels.find(p => p.type === "chart"); if (!ch) return;
   if (ch.state.sym !== c.symbol) Ws.broadcast(ch, c.symbol);
-  ch.setOverlay({tf:c.tfc, tags:c.tags, zones:c.zones, plan:c.plan, ew:c.ew}); ch.front();
+  ch.setOverlay({tf:c.tfc, dir:c.direction, tags:c.tags, zones:c.zones, plan:c.plan, ew:c.ew}); ch.front();
 };
 /* ---- video helpers ---- */
 function embedUrl(u){

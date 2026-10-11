@@ -458,6 +458,22 @@ function smtFind(A, B, inv){   // swing-by-swing divergence between two aligned 
   return out;
 }
 const DON_LB = [5,10,20,30,60,90,150,250,360];
+/* regular divergences between price swings and an oscillator / volume (same rules as modules/signals.py: fractal pivots n=3, 5-60 bars apart, clean pair, 0.1 ATR beyond the previous swing).
+   kind "rsi": oscillator must differ by >= 2 points and start below 45 (bull) / above 55 (bear); "macd": >= 0.03 ATR, MACD line below / above 0; "vol": the 5-bar average volume at the second swing is <= 80% of the first (momentum fading) */
+function divFind(d, osc, kind){
+  const n = d.length, out = []; if (n < 40 || !osc) return out;
+  const rg = i => { let a = 0, c = 0; for (let k = Math.max(0, i-13); k <= i; k++){ a += d[k].h - d[k].l; c++; } return a/c || 1e-9; };
+  const val = kind === "vol" ? i => { let a = 0, c = 0; for (let k = Math.max(0, i-2); k <= Math.min(n-1, i+2); k++){ a += d[k].v || 0; c++; } return a/c; } : i => osc[i];
+  const piv = key => { const r = []; for (let i = 3; i < n-3; i++){ let ok = true; for (let k = i-3; k <= i+3 && ok; k++) if (k !== i && (key === "l" ? d[k].l < d[i].l : d[k].h > d[i].h)) ok = false; if (ok) r.push(i); } return r; };
+  const L = piv("l"), H = piv("h");
+  for (let q = 1; q < L.length; q++){ const i1 = L[q-1], i2 = L[q]; if (i2 - i1 < 5 || i2 - i1 > 60 || d[i2].l >= d[i1].l - 0.1*rg(i2)) continue; let lo = Infinity; for (let k = i1+1; k < i2; k++) lo = Math.min(lo, d[k].l); if (lo <= d[i2].l) continue;
+    const o1 = val(i1), o2 = val(i2), thr = kind === "rsi" ? 2 : kind === "macd" ? 0.03*rg(i2) : 0;
+    const ok = kind === "vol" ? o1 > 0 && o2 <= 0.8*o1 : (o2 - o1 >= thr && o1 < (kind === "rsi" ? 45 : 0)); if (ok) out.push({i1, i2, side:"up"}); }
+  for (let q = 1; q < H.length; q++){ const i1 = H[q-1], i2 = H[q]; if (i2 - i1 < 5 || i2 - i1 > 60 || d[i2].h <= d[i1].h + 0.1*rg(i2)) continue; let hi = -Infinity; for (let k = i1+1; k < i2; k++) hi = Math.max(hi, d[k].h); if (hi >= d[i2].h) continue;
+    const o1 = val(i1), o2 = val(i2), thr = kind === "rsi" ? 2 : kind === "macd" ? 0.03*rg(i2) : 0;
+    const ok = kind === "vol" ? o1 > 0 && o2 <= 0.8*o1 : (o1 - o2 >= thr && o1 > (kind === "rsi" ? 55 : 0)); if (ok) out.push({i1, i2, side:"dn"}); }
+  return out;
+}
 function donState(c, n){ let st = 0, age = 0; for (let i = n; i < c.length; i++){ let hi = -Infinity, lo = Infinity; for (let j = i-n; j < i; j++){ if (c[j] > hi) hi = c[j]; if (c[j] < lo) lo = c[j]; } const nw = c[i] > hi ? 1 : c[i] < lo ? -1 : st; age = nw !== st ? 0 : age + 1; st = nw; } return [st, age]; }
 function amdPhase(d){   // ICT Power of 3 on the last candles: Accumulation (tight range) -> Manipulation (sweep of the range extreme + close back inside) -> Distribution (expansion beyond the range)
   const n = d.length; if (n < 30) return {phase:"?"};
@@ -550,7 +566,7 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.lvOn = false; this.znOn = false; this.bsoOn = false; this.rmOn = false;
+    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.lvOn = false; this.divOn = true; this.znOn = false; this.bsoOn = false; this.rmOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,hi:92,lo:8,hp:18}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
@@ -708,6 +724,7 @@ class CandleChart {
       c.stroke(); c.setLineDash([]);
     }
     if (this.bsoOn) this.paintBB(c, py, dec, i0, i1);
+    if (this.volOn && vmax) this.paintDiv(c, "vol", [1], i => this.x(i), i => PB - this.data[i].v/vmax*PB*(this.st.vol.h/100), i0, i1);
     if (this.donOn) this.paintDon(c, py, i0, i1);
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
@@ -813,6 +830,7 @@ class CandleChart {
         [st.os, 50, st.ob].forEach((v,q) => { c.strokeStyle = q === 1 ? "#1f252b" : "#3a424b"; c.setLineDash(q === 1 ? [] : [3,3]); c.beginPath(); c.moveTo(0,y(v)+.5); c.lineTo(PR,y(v)+.5); c.stroke(); }); c.setLineDash([]);
         c.strokeStyle = st.color; c.lineWidth = st.w; c.setLineDash(dash(st.dash)); c.beginPath();
         for (let i = i0; i <= i1; i++){ const yy = y(this.rsiV[i]), x = this.x(i); i === i0 ? c.moveTo(x,yy) : c.lineTo(x,yy); } c.stroke(); c.setLineDash([]);
+        this.paintDiv(c, "rsi", this.rsiV, i => this.x(i), i => y(this.rsiV[i]), i0, i1);
         c.restore(); c.fillStyle = "#848e9c"; c.fillText("RSI "+st.len+"  "+(this.rsiV[Math.min(i1, this.data.length-1)]||0).toFixed(1), 6, y0+8);
         [st.os, st.ob].forEach(v => c.fillText(String(v), PR+5, y(v)));
       } else if (k === "macd"){
@@ -822,6 +840,7 @@ class CandleChart {
         for (let i = i0; i <= i1; i++){ const v = M.h[i], x = this.x(i); c.fillStyle = v >= 0 ? "rgba(14,203,129,.55)" : "rgba(246,70,93,.55)"; c.fillRect(x-bw/2, Math.min(y(v), y(0)), bw, Math.max(1, Math.abs(y(v)-y(0)))); }
         [[M.m, st.color],[M.s, st.color2]].forEach(([arr,col]) => { c.strokeStyle = col; c.lineWidth = st.w; c.setLineDash(dash(st.dash)); c.beginPath();
           for (let i = i0; i <= i1; i++){ const yy = y(arr[i]), x = this.x(i); i === i0 ? c.moveTo(x,yy) : c.lineTo(x,yy); } c.stroke(); c.setLineDash([]); });
+        this.paintDiv(c, "macd", M.m, i => this.x(i), i => y(M.m[i]), i0, i1);
         c.restore(); c.fillStyle = "#848e9c"; c.fillText("MACD "+st.fast+" "+st.slow+" "+st.sig, 6, y0+8);
       } else this.paintX(c, k, y0, h, i0, i1, PR);
       c.font = "11px ui-monospace,Menlo,Consolas,monospace";
@@ -939,6 +958,15 @@ Object.assign(CandleChart.prototype, {
       if (mid){ const y = py(cd.l) + 9; c.textAlign = "center"; c.fillStyle = dcol; c.font = "bold "+fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((delta >= 0 ? "+" : "")+fmt(delta), x, Math.min(PB-6, y)); }
       else { c.fillStyle = dcol; c.globalAlpha = .8; c.fillRect(x-1.5, Math.min(PB-4, py(cd.l)+3), 3, 3); c.globalAlpha = 1; }
     }
+    c.restore();
+  },
+  paintDiv(c, kind, series, X, Y, i0, i1, tag){   // divergence line between the two swing points, drawn on the indicator's own pane (green = bullish, red = bearish)
+    if (!this.divOn || !series) return; const k = kind+":"+this.data.length+":"+(this.data.length ? this.data[this.data.length-1].c+"/"+this.data[this.data.length-1].v : 0)+":"+(kind === "rsi" ? this.st.rsi.len : kind === "macd" ? this.st.macd.fast+"-"+this.st.macd.slow+"-"+this.st.macd.sig : "");
+    this._dv = this._dv || {}; if (!this._dv[kind] || this._dv[kind].k !== k) this._dv[kind] = {k, r:divFind(this.data, series, kind)};
+    const lab = kind === "vol" ? "Vol" : kind.toUpperCase(); c.save(); c.font = "bold 9px sans-serif"; c.lineWidth = 1.6;
+    this._dv[kind].r.filter(e => e.i2 >= i0 && e.i1 <= i1).forEach(e => { const up = e.side === "up", col = up ? "#0ecb81" : "#f6465d", x1 = X(e.i1), x2 = X(e.i2), y1 = Y(e.i1), y2 = Y(e.i2);
+      c.strokeStyle = col; c.fillStyle = col; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); [[x1,y1],[x2,y2]].forEach(([x,y]) => { c.beginPath(); c.arc(x, y, 2.4, 0, 6.3); c.fill(); });
+      c.textAlign = "center"; c.fillText(lab+(up ? " ▲" : " ▼"), x2, up ? y2 - 5 : y2 + 11); });
     c.restore();
   },
   paintLv(c, py, PR){   // Daily / 4H / Weekly / Monthly open (solid) and the previous period's open (dashed); the previous close of a 24/7 market IS the new open, so it shares the label
@@ -1437,7 +1465,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.smtOn = !!this.state.smt; this.chart.donOn = !!this.state.don; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.smtOn = !!this.state.smt; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -1500,6 +1528,7 @@ class Panel {
       {id:"volume", label:T("indVol"), get:() => ch().volOn, set:v => { ch().volOn = v; this.state.volOn = v; }, sty:"vol", params:[P("h","Height %",5,60,1), P("delta","Colour by delta (1/0)",0,1,1)]},
       {id:"rsi", label:"RSI", get:() => ch().rsiOn, set:v => { ch().rsiOn = v; this.state.rsi = v; }, sty:"rsi", params:[P("len","Length",2,100,1), P("ob","Overbought",50,100,1), P("os","Oversold",0,50,1), P("hp","Height %",8,45,1)]},
       {id:"lv", label:Lg("Open levels (4H / D / W / M)","مستويات الفتح (4س / يوم / أسبوع / شهر)"), tip:Lg("Open of the current 4-hour, daily, weekly and monthly candle (solid) and the previous candle's open (dashed). In a 24/7 market the previous close equals the new open, so one line carries both. Daily/weekly/monthly use UTC candles.","فتح شمعة 4 ساعات واليوم والأسبوع والشهر الحالية (خط كامل) وفتح الشمعة السابقة (متقطع). في سوق 24/7 إغلاق الشمعة السابقة = فتح الجديدة فخط واحد بيمثلهم. اليوم والأسبوع والشهر بتوقيت UTC."), get:() => ch().lvOn, set:v => { ch().lvOn = v; this.state.lv = v; if (v){ this.lvT = 0; setTimeout(() => this.lvKick(), 0); } }},
+      {id:"div", label:Lg("Divergence lines (RSI / MACD / Volume)","خطوط الدايفرجنس (RSI / MACD / الفوليوم)"), tip:Lg("Draws regular bullish (green) and bearish (red) divergences on the RSI and MACD panes and on the volume bars: price makes a new swing extreme but the indicator (or volume) does not confirm. Needs the RSI / MACD panes switched on.","يرسم الدايفرجنس العادي الصاعد (أخضر) والهابط (أحمر) على بانل RSI وMACD وعلى أعمدة الفوليوم: السعر يعمل قمة/قاع جديد والمؤشر (أو الفوليوم) ما يأكدش. لازم بانل RSI / MACD يكونوا شغالين."), get:() => ch().divOn, set:v => { ch().divOn = v; this.state.div = v; }},
       {id:"don", label:Lg("Donchian ensemble","قنوات Donchian (مجمّعة)"), tip:Lg("Donchian channels on closes (20 / 60 / 150 bars) and how many of the 9 lookbacks (5-360) are in an up or down breakout. Idea from the SSRN paper 'Catching Crypto Trends'; the thresholds are this dashboard's own.","قنوات Donchian على الإغلاق (20 / 60 / 150 شمعة) وكام فترة من 9 (5-360) في حالة اختراق صاعد أو هابط. الفكرة من ورقة SSRN 'Catching Crypto Trends'، والعتبات من عندنا."), get:() => ch().donOn, set:v => { ch().donOn = v; this.state.don = v; }},
       {id:"zn", label:Lg("Scalp zones (Stoch+RSI)","زونات السكالب (Stoch+RSI)"), tip:Lg("Stoch 5,9,3 with RSI 14. Sell zone 85-90, TP line 50, Buy zone 10-15; SELL/BUY marks when the line leaves a zone. Rebuilt from a screenshot - the original custom indicator is not public.","Stoch 5,9,3 مع RSI 14. منطقة بيع 85-90، خط TP عند 50، منطقة شراء 10-15؛ علامات SELL/BUY لما الخط يخرج من المنطقة. مبني من لقطة شاشة."), get:() => ch().znOn, set:v => { ch().znOn = v; this.state.zn = v; }, sty:"zn", params:[P("k","Stoch K",2,50,1), P("d","Stoch D",1,50,1), P("s","Slowing",1,10,1), P("rl","RSI length",2,50,1), P("sell","Sell level",60,95,1), P("buy","Buy level",5,40,1), P("hp","Height %",8,45,1)]},
       {id:"bso", label:Lg("Bollinger + Stoch + OsMA","بولينجر + Stoch + OsMA"), tip:Lg("Bollinger Bands on the price (20,2) with a pane of Stoch 5,3,3 and OsMA 12,26,9. SELL/BUY marks when Stoch leaves 80/20 and crosses its signal.","بولينجر على السعر (20,2) مع Stoch 5,3,3 وOsMA 12,26,9. علامات SELL/BUY لما Stoch يخرج من 80/20 ويقطع الإشارة."), get:() => ch().bsoOn, set:v => { ch().bsoOn = v; this.state.bso = v; }, sty:"bso", params:[P("bb","BB period",5,100,1), P("dev","BB deviation",0.5,4,0.1), P("k","Stoch K",2,50,1), P("d","Stoch D",1,50,1), P("s","Slowing",1,10,1), P("fast","OsMA fast",2,100,1), P("slow","OsMA slow",2,200,1), P("sig","OsMA signal",1,100,1), P("hp","Height %",8,45,1)], col2:true},

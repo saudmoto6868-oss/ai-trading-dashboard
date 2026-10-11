@@ -31,7 +31,11 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
     if hit and now - hit[0] < ttl:
         return hit[1]
     try:
-        df = get_binance_klines(symbol, interval=tf, limit=limit)
+        if symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
+            from modules.yahoo_feed import get_yahoo_klines
+            df = get_yahoo_klines(symbol, tf, limit)
+        else:
+            df = get_binance_klines(symbol, interval=tf, limit=limit)
         with _lock:
             _cache[key] = (now, df)
         return df

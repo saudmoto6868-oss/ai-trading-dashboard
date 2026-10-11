@@ -72,8 +72,9 @@ def _load_options(base_url=OKX):
 def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
-    if cls in NO_FEED:
-        return [], f"{cls}: no verified free live feed yet (needs an API key)"
+    from modules import yahoo_feed
+    if cls in NO_FEED:   # EGX / Tadawul: Yahoo only (unofficial, delayed)
+        return yahoo_feed.symbols(cls)[:top], ""
     if cls == "Options":
         try:
             rows = sorted(_load_options(base_url), key=lambda r: r["vol"], reverse=True)
@@ -86,8 +87,9 @@ def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
     try:
         rows = _load(inst, base_url)
     except Exception as e:
-        return [], f"OKX list unavailable ({type(e).__name__})"
+        ys = yahoo_feed.symbols(cls)
+        return (ys, "") if ys else ([], f"OKX list unavailable ({type(e).__name__})")
     sel = [r for r in rows if r["cls"] == cls or (cls == "Metals" and r["cls"] == "Commodities")]
     sel.sort(key=lambda r: r["vol"], reverse=True)
-    syms = [r["id"] for r in sel[:top]]
+    syms = [r["id"] for r in sel[:top]] + yahoo_feed.symbols(cls)   # Forex / Indices: OKX contracts plus Yahoo majors
     return syms, ("" if syms else f"OKX lists no {cls} {inst} instruments right now")

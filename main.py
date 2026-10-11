@@ -732,9 +732,10 @@ if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_C
     st.session_state["asset_cls"] = st.query_params["cls"]
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
 market_type = st.session_state.get("market_type", "Spot")
-ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
+SCAN_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
 if _ac_msg:
-    ACTIVE_SYMBOLS = list(CRYPTO_SYMBOLS)
+    SCAN_SYMBOLS = list(CRYPTO_SYMBOLS)
+ACTIVE_SYMBOLS = [s for s in SCAN_SYMBOLS if not s.startswith("Y:")] or list(CRYPTO_SYMBOLS)   # the Workspace streams OKX only; Yahoo symbols feed the scanner / tabs
 
 
 def render_universe_controls():
@@ -838,7 +839,7 @@ def render_chart_scanner():
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = sel_rsi + sel_ema + sel_pat + sel_strat
     try:
-        data = _chart_scan_data(tuple(ACTIVE_SYMBOLS), tf, look)
+        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, look)
     except Exception as e:
         st.warning(f"Could not load candles: {e}")
         return
@@ -948,6 +949,9 @@ def simple_tab(key, symbols):
 
 def _tv_symbol_for(cls, inst):
     """OKX instrument id -> TradingView symbol for the embedded chart."""
+    if inst.startswith("Y:"):
+        from modules.yahoo_feed import tv_symbol
+        return tv_symbol(inst)
     parts = inst.split("-"); base = parts[0]; quote = parts[1] if len(parts) > 1 else "USD"
     q = "USD" if quote in ("USDT", "USDC") else quote
     if cls == "Metals" and base in ("XAU", "XAG", "XPT", "XPD"):

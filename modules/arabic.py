@@ -229,6 +229,35 @@ def scenarios_ar(res: dict) -> list:
     return out
 
 
+def analysis_ar(res: dict) -> dict:
+    """Plain-language Arabic analysis of one scanner result (same text as the Crypto tab's 'التحليل' panel),
+    as data so the Workspace and the Chart Scanner can show it too."""
+    sig = []
+    for s in res.get("signals", []):
+        try:
+            name, detail = signal_ar(s)
+            sig.append(f"[{tag_for(s)[0]}] {name}: {detail}")
+        except Exception:
+            continue
+    against = ""
+    if res.get("against"):
+        try:
+            against = "ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in res["against"])
+        except Exception:
+            against = ""
+    try:
+        htf = htf_lines_ar(res) if res.get("htf") else []
+    except Exception:
+        htf = []
+    try:
+        scen = scenarios_ar(res) if res.get("direction") in ("bullish", "bearish") else []
+    except Exception:
+        scen = []
+    if not sig:
+        sig = ["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ."]
+    return {"sig": sig, "against": against, "htf": htf, "scen": scen}
+
+
 # --------------------------------------------------------------------------
 # Chart link + annotated image
 # --------------------------------------------------------------------------
@@ -369,7 +398,7 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
                 ew = None
             break
     return {
-        "ew": ew,
+        "ew": ew, "ana": analysis_ar(r),
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
         "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
         "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,

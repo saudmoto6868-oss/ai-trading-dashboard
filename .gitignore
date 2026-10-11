@@ -1,2 +1,3 @@
 __pycache__/
 .streamlit/secrets.toml
+data/tf_stats.json

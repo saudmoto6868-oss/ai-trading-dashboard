@@ -458,6 +458,38 @@ def _scan_worker(store, ws_tf, ws_key):
         store["running"] = False
 
 
+@st.cache_resource
+def _tfstats_store():
+    return {"running": False, "data": None, "t": 0.0}
+
+
+def _tf_worker(store):
+    try:
+        from modules import backtest_tf as B
+        p = B.run(CRYPTO_SYMBOLS[:6], stride=8)
+        B.save(p)
+        store["data"] = p
+    except Exception:
+        pass
+    finally:
+        store["running"] = False
+
+
+def get_tf_stats():
+    """Per-strategy best-timeframe table (walk-forward TP1 hit-rates). Cached on disk; rebuilt in the background once a day."""
+    import threading
+    from modules import backtest_tf as B
+    store = _tfstats_store()
+    d, stale = B.load(max_age=86400)
+    if d:
+        store["data"] = d
+    if (stale or not store["data"]) and not store["running"] and time.time() - store["t"] > 1800:
+        store["running"], store["t"] = True, time.time()
+        threading.Thread(target=_tf_worker, args=(store,), daemon=True).start()
+    d = store["data"]
+    return {"stats": d["stats"], "best": d["best"], "min_n": d["min_n"], "built": d["built"]} if d else {}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _world_news():
     from modules.world_news import fetch_world
@@ -686,6 +718,23 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     return out
 
 
+_CS_KEY = {"1m": "1m", "5m": "1m", "15m": "1m", "30m": "1h", "1h": "1h", "1d": "1d", "1w": "1w"}   # scorer knows 1m/1h/1d/1w; the rest borrow the nearest
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _cs_result(sym: str, tf: str):
+    """Full scanner result for one chart (signals, higher-timeframe view, scenarios) so it can be explained in Arabic."""
+    key = _CS_KEY.get(tf, "1h")
+    frames, _e = fetch_frames([sym], sorted({tf, key} | set(CONTEXT_TFS.get(key, []))))
+    fr = dict(frames.get(sym) or {})
+    if tf not in fr:
+        return None
+    fr[key] = fr[tf]
+    r = scan_symbol(sym, fr, key)
+    r["timeframe"] = tf
+    return r
+
+
 def render_chart_scanner():
     st.markdown("""<style>
 .st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
@@ -763,6 +812,13 @@ def render_chart_scanner():
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
                     f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d['svg']}'/>"
                     f"<div style='min-height:18px;margin-top:2px'>{badges}</div>", unsafe_allow_html=True)
+                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf}", help="Plain-language Arabic analysis of this setup (same as the Crypto tab)"):
+                    try:
+                        r_ = _cs_result(sym, tf)
+                        if r_:
+                            explain_symbol(r_)
+                    except Exception as e_:
+                        st.caption(f"Analysis unavailable: {e_}")
 
 
 with tab_cscan:
@@ -783,7 +839,7 @@ with tab_workspace:
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls.split(" ")[0], meme=[b + "-USDT" for b in MEME_BASES], world=world_items,
+                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls.split(" ")[0], meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))

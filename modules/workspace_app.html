@@ -24,6 +24,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 @keyframes hotg{0%,100%{box-shadow:0 0 0 0 var(--hc,#0ecb81);background:#161a1e}50%{box-shadow:0 0 9px 2px var(--hc,#0ecb81);background:#202a26}}
 .jperf{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:4px;margin:4px}
 .jperf .jc{padding:4px 6px}
+.rdy .ana,.card .an{font-size:11px;padding:0 6px;margin-inline-start:4px}
 .ihelp{margin-left:2px;padding:0 5px;font-size:11px;opacity:.7}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
@@ -289,12 +290,21 @@ const FILT = Object.assign({side:"All", tt:"All", st:[]}, store.get(LS+"_filt", 
 if (!Array.isArray(FILT.st)) FILT.st = [];
 // strategy filter: id = the setup-tag label the scanner puts on a trade (Arabic key), label = what the user sees
 const STRATS = [["موجة 3","Wave 3"],["اليوت","Elliott"],["MSB-OB","MSB + OB"],["OB","Order Block"],["FVG","FVG"],["OTE","OTE"],["بريكر","Breaker"],["يونيكورن","Unicorn"],["يهوذا","Judas"],["سيولة","Liquidity sweep"],["اختراق","Breakout"],["دعم/مقاومة","Support/Resistance"],["فيبو","Fibonacci"],["VWAP","VWAP"],["متوسطات","Moving averages"],["زومبي","Zombie"]];
+/* strategy x timeframe TP1 hit-rates from the walk-forward backtest (modules/backtest_tf.py) */
+function tfInfo(e){
+  const T_ = CFG.tfstats && CFG.tfstats.stats; if (!T_) return null; const min = CFG.tfstats.min_n || 8, tf = e.tfk, best = CFG.tfstats.best || {};
+  const tags = (e.tags || []).map(t => t[0]).filter(g => T_[g] && T_[g][tf] && T_[g][tf].n >= min);
+  if (tags.length){ const hit = tags.reduce((s,g) => s + T_[g][tf].hit, 0)/tags.length, n = Math.min(...tags.map(g => T_[g][tf].n)); return {hit, n, isBest: tags.some(g => best[g] === tf), bestTf: best[tags[0]] || ""}; }
+  const a = T_["*"] && T_["*"][tf]; return a && a.n >= min ? {hit:a.hit, n:a.n, isBest: best["*"] === tf, bestTf: best["*"] || ""} : null;
+}
+const wScore = e => { const r = e.score/Math.max(1,e.max), i = tfInfo(e); return i ? r*(0.75 + 0.5*i.hit) : r; };   // timeframes that historically hit TP1 more often rank higher
+const tfTxt = e => { const i = tfInfo(e); return i ? "TP1 "+Math.round(100*i.hit)+"% · n"+i.n+(i.isBest ? " ★" : "") : ""; };
 function readyList(){
   const seen = new Map();
-  const put = (e, t) => { if (!e || !e.plan || !passFilters(e.direction, e.ttype, e.tags || [])) return; const k = e.symbol+"|"+e.direction+"|"+e.tfk; const old = seen.get(k);
+  const put = (e, t) => { if (!e || !e.plan || !passFilters(e.direction, e.ttype, e.tags || [])) return; const k = e.symbol+"|"+e.direction+"|"+e.ttype; const old = seen.get(k);
     if (!old || (e.score/e.max) > (old.score/old.max)) seen.set(k, Object.assign({}, e, {_t:t||0})); };
   (CFG.ready || []).forEach(e => put(e, 0)); Alerts.list.forEach(a => put(a.card, a.t));
-  return [...seen.values()].sort((a,b) => (b.score/b.max - a.score/a.max) || (b._t - a._t));
+  return [...seen.values()].sort((a,b) => (wScore(b) - wScore(a)) || (b._t - a._t));
 }
 function passFilters(dir, ttype, tags){
   if (tags && FILT.st.length && !tags.some(t => FILT.st.includes(t[0]))) return false;
@@ -314,6 +324,7 @@ const Alerts = {
   list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),
   add(id, kind, sym, text, color, card){
     if (this.list.some(a => a.id === id)) return;
+    if (card){ const g = card.symbol+"|"+card.direction+"|"+card.ttype; this.list = this.list.filter(a => !(a.card && a.card.symbol+"|"+a.card.direction+"|"+a.card.ttype === g)); }
     this.list.unshift({id, t:Date.now(), kind, sym, text, color, card}); this.list = this.list.slice(0, 200);
     store.set(LS+"_alerts", this.list); this.subs.forEach(f => f());
   },
@@ -1621,6 +1632,7 @@ class Panel {
       const now = Date.now();
       const rows = Alerts.list.filter(a => a.card && passFilters(a.card.direction, a.card.ttype) && (!F.tf || a.card.tfk === F.tf) && (!F.tt || a.card.ttype === F.tt) && (!F.dir || a.card.direction === F.dir))
         .sort((x,y) => (y.card.score - x.card.score) || (y.t - x.t));
+      { const seenG = new Set(); for (let i = 0; i < rows.length; i++){ const c = rows[i].card, g = c.symbol+"|"+c.direction+"|"+c.ttype; if (seenG.has(g)){ rows.splice(i--, 1); } else seenG.add(g); } }   // same symbol + side + type = one card
       this.aBox.innerHTML = "";
       if (!rows.length){ this.aBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("noalerts"))+'</div>'; return; }
       rows.forEach(a => this.aBox.append(alertCard(a)));
@@ -1657,13 +1669,13 @@ class Panel {
       let h = '<table class="rd"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("rdSetup"))+'</th><th></th><th>'+esc(T("stop"))+'</th><th>TP1</th><th>'+esc(T("rdStr"))+'</th><th></th></tr>';
       rows.slice(0, 40).forEach((e, i) => {
         const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
-        h += '<tr data-i="'+i+'"><td><b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span></td>'
+        h += '<tr data-i="'+i+'"><td><b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span> <button class="ana" title="'+esc(lang === "ar" ? "التحليل" : "Analysis")+'">ⓘ</button></td>'
           +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags||[]).slice(0,4).map(t => '<a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" title="'+esc(tagTip(t))+'" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'</td>'
           +'<td>'+spark(e, long_)+'</td><td style="color:#f6465d">'+fmtP(e.plan.stop)+'</td><td style="color:#0ecb81">'+fmtP(e.plan.tps[0])+'</td>'
-          +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td><td><a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" style="border:1px solid #2b3139;color:#4aa3ff">TV</a></td></tr>';
+          +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%<div class="m" style="font-size:10px" title="'+esc(lang === "ar" ? "نسبة ضرب الهدف الأول تاريخياً لهذه الاستراتيجية على هذا التايم فريم" : "Historical TP1 hit-rate of this strategy on this timeframe")+'">'+esc(tfTxt(e))+'</div></td><td><a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" style="border:1px solid #2b3139;color:#4aa3ff">TV</a></td></tr>';
       });
       box.innerHTML = h+'</table>';
-      box.querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = ev => { if (ev.target.closest("a")) return; const e = rows[+tr.dataset.i]; Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); });
+      box.querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = ev => { if (ev.target.closest("a")) return; const e = rows[+tr.dataset.i]; if (ev.target.closest(".ana")){ ev.stopPropagation(); Ws.anaPop(ev.target.closest(".ana"), e); return; } Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); });
       // sound once for a NEW 50%+ trade (never on the first paint after load)
       const fresh = rows.filter(e => 100*e.score/e.max >= 50 && !seenKeys.has(e.symbol+"|"+e.direction+"|"+e.tfk+"|"+e.score));
       fresh.forEach(e => seenKeys.add(e.symbol+"|"+e.direction+"|"+e.tfk+"|"+e.score));
@@ -1742,6 +1754,11 @@ class Panel {
           h += '<div class="jperf">'+pc(L("Expectancy / trade","التوقع / صفقة"), f2(av(cl))+" R", av(cl) >= 0 ? "#0ecb81" : "#f6465d")+pc(L("Avg win","متوسط الربح"), f2(av(W))+" R", "#0ecb81")+pc(L("Avg loss","متوسط الخسارة"), f2(av(Ls))+" R", "#f6465d")
             +pc(L("Max win streak","أطول سلسلة ربح"), mw)+pc(L("Max loss streak","أطول سلسلة خسارة"), ml)+pc(L("Long win rate","نجاح الشراء"), wr("bullish"))+pc(L("Short win rate","نجاح البيع"), wr("bearish"))
             +pc(L("Avg hold","متوسط المدة"), hm)+pc(L("Best symbol","أفضل رمز"), esc(bst[0])+" "+f2(bst[1]), "#0ecb81")+pc(L("Worst symbol","أسوأ رمز"), esc(wst[0])+" "+f2(wst[1]), "#f6465d")+'</div>'; } }
+      { const ts = CFG.tfstats && CFG.tfstats.stats, ar = lang === "ar", L = (x,y) => ar ? y : x; h += '<div class="jl" style="margin:6px 4px 0">'+L("Best timeframe per strategy (historical TP1 hit-rate, walk-forward on OKX candles)","أفضل تايم فريم لكل استراتيجية (نسبة ضرب الهدف الأول تاريخياً)")+'</div>';
+        if (!ts) h += '<div class="m" style="padding:8px">'+L("Backtest not ready yet — it runs in the background and is cached for a day.","الباك تيست لسه ما جهزش — بيشتغل في الخلفية وبيتحفظ يوم.")+'</div>';
+        else { const TFS = ["1m","1h","1d","1w"], min = CFG.tfstats.min_n || 8, best = CFG.tfstats.best || {};
+          h += '<table class="rd"><tr><th>'+L("Strategy","الاستراتيجية")+'</th>'+TFS.map(t => '<th>'+t+'</th>').join("")+'<th>'+L("Best","الأفضل")+'</th></tr>'
+            + Object.keys(ts).sort((a,b) => a === "*" ? -1 : b === "*" ? 1 : 0).map(g => '<tr><td>'+esc(g === "*" ? L("All signals","كل الإشارات") : tagTxt(g))+'</td>'+TFS.map(t => { const d = ts[g][t]; return !d || d.n < min ? '<td class="m">–</td>' : '<td style="color:'+(d.hit >= .5 ? "#0ecb81" : "#f6465d")+(best[g] === t ? ";font-weight:700" : "")+'">'+Math.round(100*d.hit)+'% <span class="m">n'+d.n+'</span></td>'; }).join("")+'<td style="color:#f0b90b">'+esc(best[g] || "–")+'</td></tr>').join("")+'</table>'; } }
       // calendar
       const [cy, cm] = S.jm.split("-").map(Number), first = new Date(cy, cm, 1), dim = new Date(cy, cm+1, 0).getDate(), day = {};
       st.closed.forEach(t => { const d = new Date(t.t1), k = d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate(); (day[k] = day[k] || {r:0,n:0}).r += t.r; day[k].n++; });
@@ -2036,8 +2053,10 @@ function alertCard(a){
     +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(tagTip(t))+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
     +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
     +'<div class="row" style="margin-top:5px"><span class="badge" style="border:1px solid #f0b90b;color:#f0b90b">'+esc(ttTxt(c.ttype))+'</span><span class="m">'+esc(T("eta"))+': TP1 '+esc(etaTxt((c.eta||{}).tp1))+' · TP3 '+esc(etaTxt((c.eta||{}).tp3))+'</span></div>'
-    +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';
+    +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><button class="an">'+esc(lang === "ar" ? "التحليل" : "Analysis")+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';
   d.querySelector(".sc").onclick = () => Ws.showOnChart(c);
+  d.querySelector(".an").onclick = e => { e.stopPropagation(); Ws.anaPop(e.currentTarget, c); };
+  { const tt = tfTxt(c); if (tt){ const m = el("div","m"); m.style.cssText = "font-size:10px;margin-top:3px"; m.textContent = (lang === "ar" ? "تاريخياً: " : "History: ")+tt; d.append(m); } }
   return d;
 }
 /* Time & Sales sensitivity (Smart / Big / Absorb) — lives in the tape + Order Flow settings, not the top bar */
@@ -2065,6 +2084,21 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+};
+/* Arabic plain-language trade analysis (same text as the Crypto-tab scanner's "التحليل") */
+Ws.anaPop = (anchor, e) => {
+  document.querySelectorAll(".stpop").forEach(x => x.remove()); const a = e.ana, ar = lang === "ar", long_ = e.direction === "bullish";
+  const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-460))+"px"; pop.style.top = Math.min(r.bottom+3, innerHeight-320)+"px"; pop.style.display = "block"; pop.style.width = "450px"; pop.style.maxHeight = "70vh"; pop.style.overflow = "auto";
+  const sec = (t, lines) => lines && lines.length ? '<div style="margin-top:6px"><b style="color:#f0b90b">'+esc(t)+'</b>'+lines.map(x => '<div style="margin:2px 0;padding-inline-start:8px">'+esc(x)+'</div>').join("")+'</div>' : "";
+  let h = '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal"><b>'+esc(e.symbol)+'</b> · '+esc(long_ ? "شراء" : "بيع")+' · '+e.score+'/'+e.max+' · '+esc(e.trade || e.ttype || "")+' · '+esc(e.tf || e.tfk || "");
+  const ti = tfTxt(e); if (ti) h += ' · <span style="color:#0ecb81">'+esc(ti)+'</span>';
+  h += '</div>';
+  if (!a){ h += '<div class="m" style="padding:8px">'+esc(ar ? "التحليل غير متاح لهذه الصفقة (قديمة) — هيظهر في المسح الجاي." : "No analysis stored for this older trade — it appears after the next scan.")+'</div>'; }
+  else { const pl = e.plan; h += '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal">'
+    + (pl ? '<div style="margin-top:6px"><b style="color:#f0b90b">الخطة</b> — دخول '+fmtP(pl.entry)+' · وقف '+fmtP(pl.stop)+' · '+pl.tps.map((v,i) => 'هدف '+(i+1)+' '+fmtP(v)).join(' · ')+'</div>' : "")
+    + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("السيناريوهات", a.scen) + '</div>'; }
+  pop.innerHTML = h; document.body.append(pop);
+  setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
 /* strategy picker popup (shared by the Ready-trades header) */
 Ws.stratPop = (anchor, onChange) => {

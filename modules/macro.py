@@ -43,8 +43,12 @@ def parse_quotes(payload: dict) -> list[dict]:
 
 def fetch_macro(key: str | None = None) -> list[dict]:
     key = key or api_key()
-    if not key:
-        return []
+    if not key:   # no TwelveData key: at least show spot gold from the keyless gold-api.com
+        try:
+            from modules.extra_markets import gold_spot
+            return [gold_spot()]
+        except Exception:
+            return []
     r = requests.get(URL, params={"symbol": ",".join(s for _, s in MACRO), "apikey": key}, timeout=10)
     r.raise_for_status()
     return parse_quotes(r.json())

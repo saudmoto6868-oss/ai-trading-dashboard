@@ -620,11 +620,12 @@ def _macro_rows():
 def macro_html():
     box = "border:1px solid #2b3139;border-radius:6px;background:#161a1e;padding:4px 8px;font-size:11px"
     key = api_key()
-    if not key:
-        return (f"<div style='{box};color:#848e9c'><b style='color:#eaecef'>Macro watchlist</b> "
-                "(Gold / Oil / EURUSD / DXY): add a free TwelveData key as <code>TWELVEDATA_API_KEY</code> in config.py or Streamlit secrets.</div>")
+    hint = (f"<div style='{box};color:#848e9c'><b style='color:#eaecef'>Macro watchlist</b> "
+            "(Gold / Oil / EURUSD / DXY): add a free TwelveData key as <code>TWELVEDATA_API_KEY</code> in config.py or Streamlit secrets.</div>")
     try:
         rows = _macro_rows()
+        if not key and not rows:
+            return hint
     except Exception as e:
         return f"<div style='{box};color:#f6465d'>Macro watchlist unavailable: {html.escape(str(e))}</div>"
     cells = []
@@ -632,9 +633,10 @@ def macro_html():
         if not r["ok"]:
             cells.append(f"<tr><td>{html.escape(r['name'])}</td><td colspan='2' style='color:#848e9c'>n/a</td></tr>")
             continue
-        col = "#0ecb81" if r["pct"] >= 0 else "#f6465d"
+        col = "#0ecb81" if (r["pct"] or 0) >= 0 else "#f6465d"
+        pct_txt = "" if r["pct"] is None else f"{r['pct']:+.2f}%"
         cells.append(f"<tr><td>{html.escape(r['name'])}</td><td style='text-align:right'>{fmt_price(r['price'])}</td>"
-                     f"<td style='text-align:right;color:{col}'>{r['pct']:+.2f}%</td></tr>")
+                     f"<td style='text-align:right;color:{col}'>{pct_txt}</td></tr>")
     return f"<div style='{box}'><table style='width:100%;border-collapse:collapse;font-family:monospace'>" + "".join(cells) + "</table></div>"
 
 

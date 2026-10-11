@@ -140,7 +140,10 @@ const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
-const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"1H":3600,"4H":14400,"1D":86400,"1W":604800};
+const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"13m":780,"1H":3600,"2H":7200,"3H":10800,"4H":14400,"6H":21600,"7H":25200,"8H":28800,"12H":43200,"1D":86400,"3D":259200,"1W":604800,"1M":2592000};
+/* OKX bar sizes: 2H is native; 6H / 12H / 3D / 1M use its UTC variants; 13m, 3H, 7H and 8H do not exist on OKX, so they are built from 1m / 1H candles (buckets aligned to the UTC epoch) */
+const TF_OKX = {"2H":"2H","6H":"6Hutc","12H":"12Hutc","3D":"3Dutc","1M":"1Mutc"}, TF_AGG = {"13m":["1m",13],"3H":["1H",3],"7H":["1H",7],"8H":["1H",8]};
+const okxBar = tf => TF_OKX[tf] || tf;
 const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; };
 const HARM_TOL = 0.06;
 const HARM_RULES = {
@@ -233,7 +236,7 @@ const FIB_PRESETS = {
   "Premium / Discount":[0,0.5,1],
   "Fib retracement (earn every day)":[2.64,2.6,2.56,1.55,1.47,1,0,-0.21,-0.255,-0.3,-0.39]
 };
-const TFS = [["5s","5s"],["15s","15s"],["30s","30s"],["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["1H","1h"],["4H","4h"],["1D","1d"],["1W","1w"]];
+const TFS = [["5s","5s"],["15s","15s"],["30s","30s"],["1m","1m"],["5m","5m"],["13m","13m"],["15m","15m"],["30m","30m"],["1H","1h"],["2H","2h"],["3H","3h"],["4H","4h"],["6H","6h"],["7H","7h"],["8H","8h"],["12H","12h"],["1D","1d"],["3D","3d"],["1W","1w"],["1M","1M"]];
 
 /* ---------------- i18n ---------------- */
 const I18N = {
@@ -344,11 +347,21 @@ async function okx(path){
   if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
   return j.data;
 }
+function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
+const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();
+async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest for any chart timeframe (native, UTC variant, or aggregated); `want` = how many bars the first load should aim for
+  const ag = TF_AGG[tf]; if (!ag) return parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&limit="+(first ? 300 : 3)));
+  const [bb, n] = ag, unit = TFSEC[bb]*1000; let base = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&limit="+(first ? 300 : 100)));
+  if (first){ const need = (want || 120)*n; let guard = 0; while (base.length < need && guard++ < 40){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&after="+base[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; base = more.concat(base); } }
+  const out = aggBars(base, n, unit); if (out.length) out.shift();   // the oldest bucket is usually incomplete
+  return out.map(({n:_n, ...r}) => r);
+}
 function setStatus(ok){ const d = document.getElementById("dot"); if (!d) return; d.className = ok ? "ok" : "bad"; d.title = ok ? T("live") : T("offline"); }
 
 /* ---------------- Trade journal: logs every scanner/alert trade, then follows it on OKX candles until TP1 or SL ---------------- */
 const JBAR = {"1m":["1m",60000], "1H":["1H",3600000], "1D":["1D",86400000]};
-const JEXP = {"1m":12*3600e3, "1h":3*86400e3, "1d":20*86400e3, "1w":60*86400e3};
+const JEXP = {"1m":12*3600e3, "13m":24*3600e3, "1h":3*86400e3, "2h":4*86400e3, "3h":5*86400e3, "6h":8*86400e3, "7h":9*86400e3, "8h":10*86400e3, "12h":14*86400e3, "1d":20*86400e3, "3d":40*86400e3, "1w":60*86400e3, "1mo":120*86400e3};
+const TFC_ALL = {"1m":"1m","13m":"13m","1h":"1H","2h":"2H","3h":"3H","6h":"6H","7h":"7H","8h":"8H","12h":"12H","1d":"1D","3d":"3D","1w":"1W","1mo":"1M"}, TFK_OPTS = [["1m","1m"],["13m","13m"],["1h","1h"],["2h","2h"],["3h","3h"],["6h","6h"],["7h","7h"],["8h","8h"],["12h","12h"],["1d","1d"],["3d","3d"],["1w","1w"],["1mo","1M"]];
 const Journal = {
   list: store.get(LS+"_journal", []), subs: new Set(), busy: false,
   save(){ this.list = this.list.slice(-1500); store.set(LS+"_journal", this.list); this.subs.forEach(f => f()); },
@@ -1567,7 +1580,7 @@ class Panel {
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
-    const chan = "candle"+tf, subMin = TFSEC[tf] < 60;
+    const chan = "candle"+okxBar(tf), subMin = TFSEC[tf] < 60;
     this.chart.loadDraws(LS+"_dr_"+sym);
     if (this.jsub) Journal.subs.delete(this.jsub);
     this.jsub = () => { if (!this.chart) return; this.chart.sigs = Journal.list.filter(t => t.symbol === sym && t.t0).map(t => ({t:t.t0, dir:t.dir, pct:t.pct, tfk:t.tfk, status:t.status})); this.chart.draw(); }; Journal.subs.add(this.jsub); this.jsub();
@@ -1604,7 +1617,7 @@ class Panel {
           hist = agg.length > 0; if (hist) this.chart.setData(agg, true);
         } catch(e){ this.msg.textContent = "No second-level history from OKX here - candles build live from trades (" + (e.message||e) + ")"; }
       })();
-    } else
+    } else if (!TF_AGG[tf])
     this.wsUnsubs.push(WSX.sub("business", {channel:chan, instId:sym}, data => {
       if (tok !== this.tok) return; const k = data[0]; this.liveTick({t:+k[0], o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5]});
     }));
@@ -1619,9 +1632,9 @@ class Panel {
     const loop = async first => {
       if (tok !== this.tok) return;
       try {
-        const d = await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+tf+"&limit="+(first?300:3));
+        const rows = await candlesTf(sym, tf, first);
         if (tok !== this.tok) return;
-        const rows = this.parseC(d); setStatus(true); this.msg.textContent = "";
+        setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         if (first) this.chart.setData(rows, true);
@@ -1643,7 +1656,7 @@ class Panel {
     const pr = smtPeers(sym); if (!pr.length){ this.chart.smtD = null; this.chart.smtName = Lg("no correlated pair for "+sym, "لا يوجد زوج مرتبط"); this.chart.draw(); return; }
     const sel = pr.find(x => x[0] === this.state.smtPeer) || pr[0]; this.chart.smtName = sel[0]; this.chart.smtInv = sel[1];
     this.chart.smtName = sel[0]+(this.chart.smtD ? "" : " (loading...)"); const sec = TFSEC[tf], sub = sec < 60;
-    try { const d = await okx("/market/candles?instId="+encodeURIComponent(sel[0])+"&bar="+(sub ? "1s" : tf)+"&limit=300"); if (tok !== this.tok) return; let rows = this.parseC(d);
+    try { let rows = sub ? this.parseC(await okx("/market/candles?instId="+encodeURIComponent(sel[0])+"&bar=1s&limit=300")) : await candlesTf(sel[0], tf, true, 150); if (tok !== this.tok) return;
       if (sub){ const agg = []; rows.forEach(k => { const b = Math.floor(k.t/(sec*1000))*sec*1000, l = agg[agg.length-1]; if (l && l.t === b){ l.h = Math.max(l.h,k.h); l.l = Math.min(l.l,k.l); l.c = k.c; l.v += k.v; } else agg.push({t:b,o:k.o,h:k.h,l:k.l,c:k.c,v:k.v}); }); rows = agg; }
       this.chart.smtD = rows; this.chart.smtName = sel[0]; this.chart.draw(); } catch(e){ this.chart.smtName = sel[0]+" (peer data failed: "+(e.message||e)+")"; this.chart.draw(); }
   }
@@ -1652,11 +1665,11 @@ class Panel {
       .then(r => { if (tok !== this.tok) return; const o = {}; r.forEach(x => { if (x) o[x[0]] = x[1]; }); this.chart.lvD = Object.keys(o).length ? o : null; this.chart.draw(); }); }
   smtKick(){ if (this.type !== "chart" || !this.chart.smtOn) return; this.smtT = Date.now(); this.smtFetch(this.state.sym, this.state.tf, this.tok); }
   async loadMore(){
-    if (this.loadingMore || this.noMore || !this.chart.data.length) return;
+    if (this.loadingMore || this.noMore || !this.chart.data.length) return; if (TF_AGG[this.state.tf]){ this.noMore = true; return; }
     this.loadingMore = true; const tok = this.tok;
     try {
       const oldest = this.chart.data[0].t;
-      const d = await okx("/market/history-candles?instId="+encodeURIComponent(this.state.sym)+"&bar="+this.state.tf+"&after="+oldest+"&limit=100");
+      const d = await okx("/market/history-candles?instId="+encodeURIComponent(this.state.sym)+"&bar="+okxBar(this.state.tf)+"&after="+oldest+"&limit=100");
       if (tok === this.tok){
         const rows = this.parseC(d);
         if (!rows.length) this.noMore = true;
@@ -1783,7 +1796,7 @@ class Panel {
     const mkSel = (key, opts) => { const s2 = el("select"); opts.forEach(([v,l]) => { const o = el("option",null,esc(l)); o.value = v; s2.append(o); }); s2.value = F[key]; s2.onchange = () => { F[key] = s2.value; Ws.save(); draw(); }; return s2; };
     tb.append(mkSel("dir", [["",T("fAll")],["bullish","Long"],["bearish","Short"]]),
       mkSel("tt", [["",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]]),
-      mkSel("tf", [["",T("fAll")],["1m","1m"],["1h","1h"],["1d","1d"],["1w","1w"]]), clr);
+      mkSel("tf", [["",T("fAll")]].concat(TFK_OPTS)), clr);
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
       const now = Date.now();
@@ -1801,7 +1814,7 @@ class Panel {
     const sideSel = el("select"), ttSel = el("select"), snd = el("input");
     [["All",T("fAll")],["Long","Long"],["Short","Short"]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     [["All",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
-    const tfSel = el("select"); [["All",T("fAll")],["1m","1m"],["1h","1H"],["1d","1D"],["1w","1W"]].forEach(([v,l]) => tfSel.append(Object.assign(el("option"), {value:v, textContent:l}))); tfSel.title = lang === "ar" ? "الفريم" : "Timeframe"; tfSel.value = FILT.tf || "All"; tfSel.onpointerdown = e => e.stopPropagation(); tfSel.onchange = () => { FILT.tf = tfSel.value; sv(); };
+    const tfSel = el("select"); [["All",T("fAll")]].concat(TFK_OPTS).forEach(([v,l]) => tfSel.append(Object.assign(el("option"), {value:v, textContent:l}))); tfSel.title = lang === "ar" ? "الفريم" : "Timeframe"; tfSel.value = FILT.tf || "All"; tfSel.onpointerdown = e => e.stopPropagation(); tfSel.onchange = () => { FILT.tf = tfSel.value; sv(); };
     sideSel.value = FILT.side; ttSel.value = FILT.tt; snd.type = "checkbox"; snd.title = T("sound"); snd.checked = this.state.snd !== false;
     [sideSel, ttSel, snd].forEach(x => x.onpointerdown = e => e.stopPropagation());
     const sv = () => { store.set(LS+"_filt", FILT); draw(); Alerts.subs.forEach(f => f()); };
@@ -1812,7 +1825,7 @@ class Panel {
     stTxt(); stBtn.onclick = e => { e.stopPropagation(); Ws.stratPop(stBtn, () => { stTxt(); sv(); }); };
     this.head.insertBefore(stBtn, this.ttl.nextSibling); this.head.insertBefore(snd, stBtn); this.head.insertBefore(ttSel, snd); this.head.insertBefore(sideSel, ttSel); this.head.insertBefore(tfSel, ttSel);
     const box = el("div","rdy"); this.body.append(box); this.body.style.overflow = "auto";
-    const TFC = {"1m":"1m","1h":"1H","1d":"1D","1w":"1W"};
+    const TFC = TFC_ALL;
     const spark = (e, long_) => { const v = e.spark || []; if (v.length < 2) return ""; const pl = e.plan, all = v.concat([pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), W = 64, H = 20;
       const y = p => H-2-(p-lo)/((hi-lo)||1)*(H-4), pts = v.map((p,i) => (i*W/(v.length-1)).toFixed(1)+","+y(p).toFixed(1)).join(" ");
       return '<svg width="'+W+'" height="'+H+'"><polyline points="'+pts+'" fill="none" stroke="#9aa3ad" stroke-width="1"/><line x1="0" x2="'+W+'" y1="'+y(pl.stop)+'" y2="'+y(pl.stop)+'" stroke="#f6465d" stroke-dasharray="2 2"/><line x1="0" x2="'+W+'" y1="'+y(pl.tps[0])+'" y2="'+y(pl.tps[0])+'" stroke="#0ecb81" stroke-dasharray="2 2"/></svg>'; };
@@ -2307,7 +2320,7 @@ Ws.stratPop = (anchor, onChange) => {
 };
 /* quick-jump strip: live setup chips from the scanner; click = load symbol + setup on the chart */
 Ws.drawStrip = () => {
-  const box = document.getElementById("strip"); if (!box) return; const rows = readyList().slice(0, 40), TFC = {"1m":"1m","1h":"1H","1d":"1D","1w":"1W"};
+  const box = document.getElementById("strip"); if (!box) return; const rows = readyList().slice(0, 40), TFC = TFC_ALL;
   box.innerHTML = ""; const lb = el("span","lbl"); lb.textContent = lang === "ar" ? "إشارات حية" : "Live setups"; box.append(lb);
   if (!rows.length){ const m = el("span","m"); m.textContent = CFG.scanning ? T("scanning") : T("rdEmpty"); box.append(m); return; }
   rows.forEach(e => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), c = el("span","chip");

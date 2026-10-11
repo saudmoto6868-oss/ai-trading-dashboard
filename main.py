@@ -26,7 +26,7 @@ from config import (
 )
 from modules.data_fetcher import get_mt5_data
 from modules.scorer import (
-    score_symbol, scan_symbol, SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
+    score_symbol, scan_symbol, SCAN_TFS, ALL_SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
@@ -745,7 +745,8 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     return out
 
 
-_CS_KEY = {"1m": "1m", "5m": "1m", "15m": "1m", "30m": "1h", "1h": "1h", "1d": "1d", "1w": "1w"}   # scorer knows 1m/1h/1d/1w; the rest borrow the nearest
+_CS_KEY = {"1m": "1m", "5m": "1m", "15m": "1m", "30m": "1h", "1h": "1h", "1d": "1d", "1w": "1w", "4h": "1h",
+           "13m": "13m", "2h": "2h", "3h": "3h", "6h": "6h", "7h": "7h", "8h": "8h", "12h": "12h", "3d": "3d", "1mo": "1mo"}   # scorer knows 1m/1h/1d/1w; the rest borrow the nearest
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -781,7 +782,7 @@ def render_chart_scanner():
     rels = ["—", "above", "below", "crossed above", "crossed below"]
     with st.expander("Filters", expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
-        tf = r1[0].selectbox("Timeframe", ["1m", "5m", "15m", "30m", "1h", "1d", "1w"], index=4, key="cs_tf")
+        tf = r1[0].selectbox("Timeframe", ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"], index=5, key="cs_tf")
         n_show = r1[1].number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")
         side_pick = r1[2].selectbox("Side", ["Both", "Buy only", "Sell only"], key="cs_side")
         mode = r1[3].selectbox("Match", ["All selected", "Any selected"], key="cs_mode")
@@ -883,8 +884,8 @@ with tab_crypto:
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])
     with col_watch:
         st.markdown("**Scanner**")
-        scan_tf = st.radio("Scan timeframe", SCAN_TFS, index=1, horizontal=True, key="scan_tf",
-                           format_func=lambda t: {"1m": "1 min", "1h": "1 hour", "1d": "1 day", "1w": "1 week"}[t])
+        scan_tf = st.radio("Scan timeframe", ALL_SCAN_TFS, index=2, horizontal=True, key="scan_tf",
+                           format_func=lambda t: TF_LABEL.get(t, t).replace("minute", "min").replace("hour", "h").replace("day", "d").replace("week", "w").replace("month", "mo").replace(" ", ""))
         results, notice = scan_crypto_group(CRYPTO_SYMBOLS, scan_tf)
         filtered = render_scanner(results, notice, "crypto")
     with col_chart:

@@ -13,7 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from modules.data_fetcher import get_binance_klines  # name kept; talks to OKX now
 
 # how long a candle set stays fresh, per timeframe (seconds)
-TTL = {"1m": 15, "5m": 30, "15m": 60, "1h": 60, "4h": 180, "1d": 300, "1w": 900}
+TTL = {"1m": 15, "5m": 30, "15m": 60, "1h": 60, "4h": 180, "1d": 300, "1w": 900,
+       "13m": 60, "2h": 120, "3h": 180, "6h": 300, "7h": 300, "8h": 300, "12h": 600, "3d": 900, "1mo": 1800}
 MAX_STALE_FACTOR = 6
 
 _cache: dict = {}

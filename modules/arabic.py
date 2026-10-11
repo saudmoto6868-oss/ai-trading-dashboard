@@ -31,9 +31,10 @@ def n_(x) -> str:
 
 TRADE_AR = {"Scalp": "سكالب", "Day Trade": "داي تريد", "Swing": "سوينج", "Position": "بوزشن"}
 TRADE_COLOR = {"Scalp": "#f6465d", "Day Trade": "#f0b90b", "Swing": "#4aa3ff", "Position": "#b57cff"}
-TF_AR = {"1m": "دقيقة", "1h": "ساعة", "1d": "يومي", "1w": "أسبوعي"}
+TF_AR = {"1m": "دقيقة", "13m": "13 دقيقة", "1h": "ساعة", "2h": "ساعتين", "3h": "3 ساعات", "6h": "6 ساعات", "7h": "7 ساعات", "8h": "8 ساعات", "12h": "12 ساعة",
+         "1d": "يومي", "3d": "3 أيام", "1w": "أسبوعي", "1mo": "شهري"}
 DIR_AR = {"bullish": "صاعد", "bearish": "هابط", "neutral": "محايد"}
-TV_INTERVAL = {"1m": "1", "1h": "60", "1d": "D", "1w": "W"}
+TV_INTERVAL = {"1m": "1", "13m": "13", "1h": "60", "2h": "120", "3h": "180", "6h": "360", "7h": "420", "8h": "480", "12h": "720", "1d": "D", "3d": "3D", "1w": "W", "1mo": "M"}
 
 # tag text, background, text colour
 TAGS = {
@@ -372,8 +373,8 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
 # Payload for the Workspace (alert cards + overlay on our own chart)
 # --------------------------------------------------------------------------
 
-TF_CHART = {"1m": "1m", "1h": "1H", "1d": "1D", "1w": "1W"}
-TF_SECONDS = {"1m": 60, "1h": 3600, "1d": 86400, "1w": 604800}
+TF_CHART = {"1m": "1m", "13m": "13m", "1h": "1H", "2h": "2H", "3h": "3H", "6h": "6H", "7h": "7H", "8h": "8H", "12h": "12H", "1d": "1D", "3d": "3D", "1w": "1W", "1mo": "1M"}
+TF_SECONDS = {"1m": 60, "13m": 780, "1h": 3600, "2h": 7200, "3h": 10800, "6h": 21600, "7h": 25200, "8h": 28800, "12h": 43200, "1d": 86400, "3d": 259200, "1w": 604800, "1mo": 2592000}
 
 
 def duration_ar(seconds: float) -> str:

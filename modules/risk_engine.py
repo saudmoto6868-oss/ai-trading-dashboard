@@ -39,7 +39,7 @@ def build_trade_plan(score_result: dict) -> dict:
     }
 
 
-BARS_PER_YEAR = {"1m": 525600, "5m": 105120, "15m": 35040, "30m": 17520, "1h": 8760, "4h": 2190, "1d": 365, "1w": 52}
+BARS_PER_YEAR = {"1m": 525600, "5m": 105120, "15m": 35040, "30m": 17520, "1h": 8760, "4h": 2190, "1d": 365, "1w": 52, "13m": 40431, "2h": 4380, "3h": 2920, "6h": 1460, "7h": 1251, "8h": 1095, "12h": 730, "3d": 122, "1mo": 12}
 
 
 def vol_target_weight(df, tf: str, target: float = 0.25, lookback: int = 60) -> dict | None:

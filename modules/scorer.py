@@ -26,11 +26,16 @@ from modules.signals import (
 
 MAX_STARS = len(ALL_FAMILIES)  # 7
 
-SCAN_TFS = ["1m", "1h", "1d", "1w"]
-CONTEXT_TFS = {"1m": ["1h", "1d", "1w"], "1h": ["1d", "1w"], "1d": ["1w"], "1w": []}
-BASE_TRADE_TYPE = {"1m": "Scalp", "1h": "Day Trade", "1d": "Swing", "1w": "Position"}
+SCAN_TFS = ["1m", "1h", "1d", "1w"]   # the four horizons scanned in the background for the workspace
+# every timeframe the user can pick for a scan (13m/3h/7h/8h are built from 1m/1h candles, the rest are OKX bar sizes)
+ALL_SCAN_TFS = ["1m", "13m", "1h", "2h", "3h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"]
+CONTEXT_TFS = {"1m": ["1h", "1d", "1w"], "13m": ["1h", "1d", "1w"], "1h": ["1d", "1w"], "2h": ["1d", "1w"], "3h": ["1d", "1w"],
+               "6h": ["1d", "1w"], "7h": ["1d", "1w"], "8h": ["1d", "1w"], "12h": ["1d", "1w"], "1d": ["1w"], "3d": ["1w"], "1w": [], "1mo": []}
+BASE_TRADE_TYPE = {"1m": "Scalp", "13m": "Scalp", "1h": "Day Trade", "2h": "Day Trade", "3h": "Day Trade", "6h": "Swing", "7h": "Swing", "8h": "Swing",
+                   "12h": "Swing", "1d": "Swing", "3d": "Swing", "1w": "Position", "1mo": "Position"}
 CONFIRM_TRADE_TYPE = {"1h": "Day Trade", "1d": "Swing", "1w": "Position"}
-TF_LABEL = {"1m": "1 minute", "1h": "1 hour", "1d": "1 day", "1w": "1 week"}
+TF_LABEL = {"1m": "1 minute", "13m": "13 minutes", "1h": "1 hour", "2h": "2 hours", "3h": "3 hours", "6h": "6 hours", "7h": "7 hours", "8h": "8 hours",
+            "12h": "12 hours", "1d": "1 day", "3d": "3 days", "1w": "1 week", "1mo": "1 month"}
 
 # legacy labels used by the MT5 (forex/metals/stocks) path
 LEGACY_TF = {"M1": "1m", "M5": "1m", "M15": "1m", "H1": "1h", "H4": "1h", "D1": "1d", "W1": "1w", "MN1": "1w"}

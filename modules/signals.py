@@ -136,6 +136,7 @@ _KEY_PATTERNS = [
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
+    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"),
 ]
 
 
@@ -721,8 +722,126 @@ def breakout_bull(df, lookback: int = 20):
     return []
 
 
+# --------------------------------------------------------------------------
+# Momentum divergence (RSI / MACD regular) + CRT (Candle Range Theory)
+# --------------------------------------------------------------------------
+
+def _rsi_arr(close: pd.Series, n: int = 14) -> np.ndarray:
+    d = close.diff()
+    au = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    ad = (-d).clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    out = 100 - 100 / (1 + au / ad.replace(0, np.nan))
+    return out.where(ad != 0, 100.0).fillna(50.0).values
+
+
+def _macd_arr(close: pd.Series) -> np.ndarray:
+    return (close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()).values
+
+
+def _div_bull(df, osc, osc_name, key_name, o_thr, zone_ok, show, max_age=15, min_gap=5, max_gap=60):
+    """Regular BULLISH divergence: price prints a lower swing low, the oscillator a HIGHER low at the same swing.
+    Bearish is the mirror and comes from running this on the inverted frame."""
+    piv = [(i, p) for i, p, k in fractal_pivots(df, 3) if k == "L"]
+    n = len(df)
+    if len(piv) < 2 or n - 1 - piv[-1][0] > max_age:
+        return []
+    l, c = df["low"].values, df["close"].values
+    atr = float(atr_series(df).iloc[-1])
+    i2, p2 = piv[-1]
+    if l[i2 + 1:].size and l[i2 + 1:].min() <= p2:
+        return []
+    if c[-1] < p2 + 0.3 * atr:                          # price must already be turning up
+        return []
+    for i1, p1 in reversed(piv[:-1][-3:]):
+        if not (min_gap <= i2 - i1 <= max_gap) or p2 >= p1 - 0.1 * atr:
+            continue
+        if l[i1 + 1:i2].min() <= p2:                    # something lower in between -> not a clean pair
+            continue
+        o1, o2 = float(osc[i1]), float(osc[i2])
+        if o2 - o1 >= o_thr and zone_ok(o1, o2):
+            return [_mk("MA", f"{osc_name} divergence", "price made a new low {p2} (previous low {p1}) but " + osc_name +
+                        " did NOT confirm: " + osc_name + " {o2} vs {o1} at the previous low",
+                        prices={"p1": p1, "p2": p2}, vals={"o1": show(df, o1), "o2": show(df, o2)})]
+    return []
+
+
+def _inv_frame(df):                                     # the mirrored frame has negative prices
+    return float(df["close"].iloc[-1]) < 0
+
+
+def rsi_div_bull(df):
+    if len(df) < 60:
+        return []
+    r = _rsi_arr(df["close"])
+    show = lambda d, v: f"{(100 - v if _inv_frame(d) else v):.0f}"
+    return _div_bull(df, r, "RSI", "rsi_div", 2.0, lambda o1, o2: o1 < 45, show)
+
+
+def macd_div_bull(df):
+    if len(df) < 70:
+        return []
+    m = _macd_arr(df["close"])
+    atr = float(atr_series(df).iloc[-1]) or 1e-9
+    show = lambda d, v: f"{(-v if _inv_frame(d) else v):.4g}"
+    return _div_bull(df, m, "MACD", "macd_div", 0.03 * atr, lambda o1, o2: o1 < 0, show)
+
+
+_CRT_MAP = ((300, 3600, "1H"), (3600, 14400, "4H"), (14400, 86400, "1D"), (86400, 604800, "1W"))
+
+
+def crt_bull(df, fresh: int = 5):
+    """Candle Range Theory (bullish): the last COMPLETED higher-timeframe candle is the reference range. A later
+    candle wicks BELOW its low (sweep of sell-side liquidity) and closes back inside; entry on that reclaim, stop under
+    the sweep wick, target the opposite side of the range. HTF is derived from the same candles (1m->1H, 1h->4H, 4h->1D, 1d->1W)."""
+    if "time" not in df.columns or len(df) < 60:
+        return []
+    t = pd.to_datetime(df["time"])
+    if t.dt.tz is not None:
+        t = t.dt.tz_localize(None)
+    sec = ((t - pd.Timestamp(0)) // pd.Timedelta(seconds=1)).values.astype("int64")
+    step = int(np.median(np.diff(sec[-30:]))) if len(sec) > 3 else 0
+    m = next(((per, lab) for mx, per, lab in _CRT_MAP if 0 < step <= mx), None)
+    if not m or step >= m[0]:
+        return []
+    per, lab = m
+    g = (sec - (345600 if per == 604800 else 0)) // per
+    ids = list(dict.fromkeys(g.tolist()))
+    if len(ids) < 3:
+        return []
+    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    n, atr = len(df), float(atr_series(df).iloc[-1])
+    for rid in (ids[-2], ids[-3]):
+        idx = np.where(g == rid)[0]
+        if len(idx) < 0.6 * per / step:                 # partial candle (start of the data) -> not a real range
+            continue
+        rh, rl = float(h[idx].max()), float(l[idx].min())
+        rng = rh - rl
+        start = int(idx[-1]) + 1
+        if rng < 3 * atr or start >= n - 1:
+            continue
+        if (c[start:] >= rh).any():                      # the range was already taken out on the other side
+            continue
+        sw = next((k for k in range(start, n) if l[k] < rl), None)
+        if sw is None:
+            continue
+        j = next((k for k in range(sw, n) if c[k] > rl), None)
+        if j is None or n - 1 - j > fresh or (c[j:] <= rl).any():
+            continue
+        sl = float(l[sw:].min())
+        if rl - sl > 1.0 * rng or c[-1] > rl + 0.5 * rng:   # sweep too deep / entry already late
+            continue
+        if (rh - c[-1]) < (c[-1] - sl):                  # need at least 1R to the far side of the range
+            continue
+        return [_mk("Liquidity", f"CRT sweep ({lab} range low)",
+                    "reference " + lab + " candle range {rl} - {rh}: price swept below the range low then closed back inside; "
+                    "entry on the reclaim, stop beyond the sweep wick {sl}, target the other side of the range {rh}",
+                    prices={"rl": rl, "rh": rh, "sl": sl}, vals={"tf": lab}, zone=(sl, rl))]
+    return []
+
+
 DETECTORS = (ma_bull, vwap_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
-             sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull)
+             sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
+             rsi_div_bull, macd_div_bull, crt_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

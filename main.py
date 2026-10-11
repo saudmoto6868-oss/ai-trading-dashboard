@@ -141,14 +141,33 @@ def score_mt5_group(symbols):
     return results, ("; ".join(errors) if errors else "")
 
 
+def _peer_frames(symbols, tf):
+    """Candles (timeframe `tf`) of the correlated markets needed for SMT divergence, fetched once for the whole list."""
+    from modules.smt import peers_of
+    need = sorted({p for sy in symbols for p, _i in peers_of(sy)})
+    if not need:
+        return {}
+    try:
+        fr, _e = fetch_frames(need, [tf])
+    except Exception:
+        return {}
+    return {sy: v.get(tf) for sy, v in fr.items() if v.get(tf) is not None}
+
+
+def _peers_for(sym, tf, pframes):
+    from modules.smt import peers_of
+    return {p: (inv, pframes[p]) for p, inv in peers_of(sym) if p in pframes}
+
+
 def scan_crypto_group(symbols, tf):
     """Multi-timeframe scan: candles for the chosen timeframe PLUS its higher
     context timeframes are fetched in parallel (cached), then scored."""
     frames, fetch_errors = fetch_frames(symbols, [tf] + CONTEXT_TFS[tf])
+    pframes = _peer_frames(symbols, tf)
     results, errors = [], []
     for sym in symbols:
         try:
-            results.append(scan_symbol(sym, frames[sym], tf))
+            results.append(scan_symbol(sym, frames[sym], tf, peers=_peers_for(sym, tf, pframes)))
         except Exception as e:
             if fetch_errors.get(sym) or "not enough" not in str(e):   # a coin with a short history is just skipped, not a "problem"
                 errors.append(f"{sym}: {fetch_errors.get(sym) or e}")
@@ -714,13 +733,14 @@ CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260)
+    pfr = _peer_frames(symbols, tf)
     out = {}
     for sym in symbols:
         df = (frames.get(sym) or {}).get(tf)
         if df is None or len(df) < 60:
             continue
         f = cs_features(df, look)
-        sflags, ssides = strategy_flags(df)
+        sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
         out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df), "price": float(df["close"].iloc[-1])}
     return out
 
@@ -737,7 +757,7 @@ def _cs_result(sym: str, tf: str):
     if tf not in fr:
         return None
     fr[key] = fr[tf]
-    r = scan_symbol(sym, fr, key)
+    r = scan_symbol(sym, fr, key, peers=_peers_for(sym, tf, _peer_frames([sym], tf)))
     r["timeframe"] = tf
     return r
 

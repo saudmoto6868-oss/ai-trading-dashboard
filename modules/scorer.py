@@ -96,11 +96,20 @@ def htf_view(df, tf: str, direction: str) -> dict:
     return {"tf": tf, "available": True, "confirms": ok, "trend_aligned": bool(trend)}
 
 
-def scan_symbol(symbol: str, frames: dict, trigger_tf: str) -> dict:
+def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None = None) -> dict:
+    """peers = {peer_symbol: (inverse, df_on_trigger_tf)} enables SMT divergence against correlated markets."""
     df = frames.get(trigger_tf)
     if df is None or len(df) < 60:
         raise ValueError(f"not enough {trigger_tf} candles for {symbol}")
     sigs, errs = cached_detect(df)
+    if peers:
+        from modules.smt import smt_signals
+        sigs, errs = list(sigs), list(errs)
+        for psym, (inv, pdf) in peers.items():
+            try:
+                sigs += smt_signals(df, pdf, psym, inv)
+            except Exception as e:
+                errs.append(f"smt {psym}: {e}")
     agg = aggregate(sigs)
     direction = agg["direction"]
     mine = [s for s in sigs if s["direction"] == direction] if direction != "neutral" else []

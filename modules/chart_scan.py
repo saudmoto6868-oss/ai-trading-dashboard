@@ -48,6 +48,9 @@ STRATEGY_FILTERS = {
     "st_silver": ("ICT Silver Bullet (FVG inside NY 3 / 10 / 14h window)", ("extra", "silver")),
     "st_mit": ("ICT Mitigation Block", ("extra", "mit")),
     "st_bvd": ("Breakout + volume delta (strong close through a swing)", ("extra", "bvd")),
+    "st_smt": ("SMT divergence (correlated pairs, e.g. BTC / ETH / SOL)", ("key", "smt")),
+    "st_crt": ("CRT - Candle Range Theory (HTF range sweep + reclaim)", ("key", "crt")),
+    "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")),
 }
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
@@ -186,8 +189,9 @@ def _bvd_side(df: pd.DataFrame):
     return None
 
 
-def strategy_flags(df: pd.DataFrame):
-    """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}."""
+def strategy_flags(df: pd.DataFrame, peers: dict | None = None):
+    """-> (flags, sides) from the scanner's own detectors; sides[flag] = {'buy','sell'}.
+    peers = {peer_symbol: (inverse, df)} adds SMT divergence."""
     from modules.signals import detect_all
     from modules.harmonic import find_harmonics
     flags, sides = set(), {}
@@ -195,6 +199,13 @@ def strategy_flags(df: pd.DataFrame):
         sigs, _ = detect_all(df)
     except Exception:
         sigs = []
+    if peers:
+        from modules.smt import smt_signals
+        for psym, (inv, pdf) in peers.items():
+            try:
+                sigs = list(sigs) + smt_signals(df, pdf, psym, inv)
+            except Exception:
+                pass
     for sg in sigs:
         for fid, (_lab, (kind, val)) in STRATEGY_FILTERS.items():
             if sg.get(kind) == val:

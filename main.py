@@ -735,7 +735,7 @@ market_type = st.session_state.get("market_type", "Spot")
 SCAN_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
 if _ac_msg:
     SCAN_SYMBOLS = list(CRYPTO_SYMBOLS)
-ACTIVE_SYMBOLS = [s for s in SCAN_SYMBOLS if not s.startswith("Y:")] or list(CRYPTO_SYMBOLS)   # the Workspace streams OKX only; Yahoo symbols feed the scanner / tabs
+ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Workspace gets their candles embedded in the page (no live book / tape for them)
 
 
 def render_universe_controls():
@@ -896,7 +896,14 @@ with tab_workspace:
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
-        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+        _yf = {}
+        if any(x.startswith("Y:") for x in ACTIVE_SYMBOLS):
+            try:
+                from modules.yahoo_feed import embed as _yf_embed
+                _yf = _yf_embed(tuple(ACTIVE_SYMBOLS))
+            except Exception:
+                _yf = {}
+        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, yf=_yf, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()), world_errs=world_errs)
         if world_errs:

@@ -377,7 +377,17 @@ const Alerts = {
   Alerts.add(a.id, "scan", a.symbol, a.symbol+" · "+(bull ? "Long" : "Short")+" · "+a.score+"/"+a.max, bull ? "#0ecb81" : "#f6465d", a);
 });
 
+const YF = CFG.yf || {}, YF_BAR = {"15m":"15m","1H":"1h","4H":"4h","1D":"1d"};
+function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Tadawul): candles were embedded by the server from Yahoo Finance, answered here in OKX's shape (newest first)
+  const q = new URLSearchParams(path.split("?")[1] || ""), sym = q.get("instId"), D = YF[sym];
+  if (/\/history-candles/.test(path)) return [];
+  if (!D) throw new Error("no data for "+sym+" (Yahoo feed)");
+  if (/\/market\/ticker/.test(path)){ const h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (!h.length) throw new Error("no data"); const l = h[h.length-1][4], pv = d.length > 1 ? d[d.length-2][4] : d[0][1]; return [{instId:sym, last:String(l), open24h:String(pv), vol24h:"0"}]; }
+  if (/\/market\/candles/.test(path)){ const k = YF_BAR[q.get("bar")]; if (!k || !D[k]) throw new Error("timeframe "+q.get("bar")+" not available for this market (15m / 1H / 4H / 1D only)"); const lim = +q.get("limit") || 100; return D[k].slice(-lim).reverse().map(r => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), String(r[4]), String(r[5]), "0", "0", "1"]); }
+  throw new Error("not available for this market (Yahoo feed)");
+}
 async function okx(path){
+  if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
   if (!r.ok) throw new Error("HTTP "+r.status);
   const j = await r.json();
@@ -538,7 +548,8 @@ const Hub = {
       if (!this.subs[key] || !this.subs[key].size) return;
       try {
         let payload;
-        if (kind === "book"){
+        if (/^Y:/.test(sym) && (kind === "book" || kind === "trades")){ payload = {error:"no order book / tape for this market (Yahoo feed)"}; }
+        else if (kind === "book"){
           const d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400"))[0];
           const bb = d.bids.map(x=>({p:+x[0],q:+x[1]})), aa = d.asks.map(x=>({p:+x[0],q:+x[1]}));
           payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
@@ -547,7 +558,7 @@ const Hub = {
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
-          const m = {}; (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); payload = m;
+          const m = {}; (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
         }
         this.last[key] = payload; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
@@ -1903,7 +1914,7 @@ class Panel {
     const addSym = v => { if (!SYMS.includes(v)){ SYMS.push(v); extraSyms.push(v); store.set(LS+"_syms", extraSyms); } Ws.panels.forEach(p => p.type === "watch" && p.resub()); };
     // ---- OKX universe: every USDT / USDC instrument OKX lists, grouped by category, "top N by 24h volume" ----
     const uni = el("div","uni"); uni.style.display = "block"; const ub = el("button",null,"🌐"); ub.title = T("uniTip");
-    const U = this.state.u = Object.assign({type:"SPOT", quote:"USDT", cat:"All", top:10}, this.state.u || {});
+    const U = this.state.u = Object.assign({type:"SPOT", quote:"USDT", cat:(Object.keys(YF).length ? "__mine" : "All"), top:10}, this.state.u || {});   // Yahoo markets are not in OKX's universe -> "My list" by default
     const selU = (opts, key) => { const x = el("select"); opts.forEach(([v,l]) => x.append(Object.assign(el("option"), {value:v, textContent:l}))); x.value = U[key]; x.onchange = () => { U[key] = isNaN(+x.value) ? x.value : +x.value; Ws.save(); loadU(); }; return x; };
     const uTb = el("div","tb"), uBox = el("div"); const catSel = el("select"); catSel.onchange = () => { U.cat = catSel.value; if (!U.cat.startsWith("__")){ const want = U.cat === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(U.cat) ? "SPOT" : (U.cat === "All" ? U.type : (U.type === "SPOT" ? "SWAP" : U.type)); if (want !== U.type){ U.type = want; typeSel.value = want; if (!/^(Crypto|Meme|All)/.test(U.cat)) U.quote = "ALL"; Ws.save(); return loadU(); } } Ws.save(); renderU(); };
     const typeSel = selU([["SPOT","Spot"],["SWAP","Perp (swap)"],["FUTURES","Futures"],["OPTION","Options"]], "type");
@@ -2480,7 +2491,7 @@ Panel.prototype.resub = function(){
         this.wDraw(); } };
     this.wDraw = () => {
       if (!M) return; if (M.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
-      const F = favs(), UC = (this.state.u || {}).cat || "All", only = UC === "__fav";
+      const F = favs(), UC = (this.state.u || {}).cat || (Object.keys(YF).length ? "__mine" : "All"), only = UC === "__fav";   // Yahoo markets (forex / EGX / ...) are not in OKX's universe: show "My list" by default
       const groups = UC === "__fav" ? [[L_("★ Favorites","★ المفضلة"), F]] : UC === "__mine" ? [[L_("My list","قائمتي"), SYMS.slice()]] : [[(this.uTitle || L_("Market","السوق")), this.uSyms || []]];
       const shown = []; let h = '<table class="wt"><tr><th></th><th>'+esc(T("symbol"))+'</th><th class="r">'+esc(T("last"))+'</th><th class="r">'+esc(T("chg"))+'</th><th>AMD '+esc(this.state.wtf || "1H")+'</th></tr>';
       groups.forEach(([title, list]) => { if (!list.length) return; h += '<tr class="wh"><td colspan="5">'+esc(title)+'</td></tr>';

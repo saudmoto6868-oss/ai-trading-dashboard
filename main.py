@@ -409,18 +409,19 @@ def _scan_worker(store, ws_tf, ws_key):
     The chosen timeframe goes first and partial results are published as they arrive."""
     try:
         ws_alerts, ws_scan, ws_seed, ws_mini, ws_errs = [], {}, None, [], []
+        syms_ = list(ws_key[2])
 
         def publish(done):
             store["payload"] = {"key": ws_key, "alerts": list(ws_alerts), "scan": dict(ws_scan), "seed": ws_seed,
                                 "mini": list(ws_mini), "errs": list(ws_errs), "built": time.time(), "loading": not done}
 
         try:
-            ws_seed = seed_from_df(CRYPTO_SYMBOLS[0], "1h", get_klines(CRYPTO_SYMBOLS[0], "1h", 300))
+            ws_seed = seed_from_df(syms_[0], "1h", get_klines(syms_[0], "1h", 300))
         except Exception:
             ws_seed = None
         for tf_ in [ws_tf] + [t for t in SCAN_TFS if t != ws_tf]:
             try:
-                ws_results, _ws_notice = scan_crypto_group(CRYPTO_SYMBOLS, tf_)
+                ws_results, _ws_notice = scan_crypto_group(syms_, tf_)
                 if _ws_notice:
                     ws_errs.append(f"{tf_}: {_ws_notice[:120]}")
             except Exception as ex_:
@@ -457,12 +458,12 @@ def _scan_worker(store, ws_tf, ws_key):
         store["running"] = False
 
 
-def build_ws_payload():
+def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 10-minute bucket changes or an empty result is older than 60 s."""
     import threading
     ws_tf = st.session_state.get("scan_tf", "1h")
-    ws_key = (ws_tf, str(int(time.time() // 600)), tuple(CRYPTO_SYMBOLS))
+    ws_key = (ws_tf, str(int(time.time() // 600)), tuple(symbols or CRYPTO_SYMBOLS))
     store = _scan_store()
     pl = store["payload"]
     stale_empty = bool(pl) and not pl.get("mini") and not pl.get("loading") and time.time() - pl.get("built", 0) > 60
@@ -638,6 +639,21 @@ with header_box:
         st.error(f"Header error: {type(_e).__name__}: {_e}")
 
 
+# ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
+from modules.asset_classes import CLASSES as ASSET_CLASSES, MEME_BASES, class_symbols
+if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_CLASSES:
+    st.session_state["asset_cls"] = st.query_params["cls"]
+_ac_col, _ac_note = st.columns([1, 5])
+asset_cls = _ac_col.selectbox("Asset class", ASSET_CLASSES, key="asset_cls", help="Drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
+if asset_cls != "Crypto":
+    st.query_params["cls"] = asset_cls
+elif "cls" in st.query_params:
+    del st.query_params["cls"]
+ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS)
+if _ac_msg:
+    _ac_note.warning(_ac_msg + " - showing Crypto instead.")
+    ACTIVE_SYMBOLS = list(CRYPTO_SYMBOLS)
+
 # ---- Tabs -------------------------------------------------------------------------
 tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
     ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
@@ -706,7 +722,7 @@ def render_chart_scanner():
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = sel_rsi + sel_ema + sel_pat + sel_strat
     try:
-        data = _chart_scan_data(tuple(CRYPTO_SYMBOLS), tf, look)
+        data = _chart_scan_data(tuple(ACTIVE_SYMBOLS), tf, look)
     except Exception as e:
         st.warning(f"Could not load candles: {e}")
         return
@@ -747,12 +763,12 @@ with tab_cscan:
 with tab_workspace:
     try:
         ws_lang = st.session_state.get("ws_lang", "en")
-        cached_ws = build_ws_payload()
+        cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
-        render_workspace(CRYPTO_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links,
+        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES],
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")))
         if cached_ws.get("errs"):
             st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))

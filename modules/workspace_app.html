@@ -1490,9 +1490,9 @@ class Panel {
     uTb.append(selU([["SPOT","Spot"],["SWAP","Perp (swap)"]], "type"), selU([["USDT","USDT"],["USDC","USDC"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"]], "top"));
     uni.append(uTb, uBox); let rowsU = [], cats = [];
     const CAT = {"1":"Crypto","3":"Stocks","4":"Commodities","5":"Forex","6":"Bonds"}, METAL = ["XAU","XAG","XPT","XPD"];
-    const catOf = (i, base) => (METAL.includes(base) ? "Metals" : CAT[i.instCategory]) || "Crypto";
+    const MEMEB = (CFG.meme || []).map(s => s.split("-")[0]), catOf = (i, base) => (METAL.includes(base) ? "Metals" : MEMEB.includes(base) ? "Meme coins" : CAT[i.instCategory]) || "Crypto";
     const renderU = () => {
-      const q = "-"+U.quote; let r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat)).sort((a,b) => b.vol - a.vol).slice(0, U.top); uBox.innerHTML = "";
+      const q = "-"+U.quote; let r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities"))).sort((a,b) => b.vol - a.vol).slice(0, U.top); uBox.innerHTML = "";
       if (!r.length){ uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("uniNone"))+'</div>'; return; }
       const t = el("table","rd"); t.innerHTML = "<tr><th>"+esc(T("symbol"))+"</th><th>"+esc(T("last"))+"</th><th>"+esc(T("chg"))+"</th><th></th></tr>";
       r.forEach(x => { const tr = el("tr"); tr.innerHTML = "<td><b>"+esc(x.id.replace("-SWAP",""))+'</b> <span class="m">'+esc(x.cat)+"</span></td><td>"+fmtP(x.last)+'</td><td style="color:'+(x.chg >= 0 ? "#0ecb81" : "#f6465d")+'">'+(x.chg >= 0 ? "+" : "")+x.chg.toFixed(2)+"%</td><td><button>+</button></td>";
@@ -1507,7 +1507,8 @@ class Panel {
         rowsU = tk.filter(x => x.instId.split("-")[1] === U.quote && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
           return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:(+x.volCcy24h || 0) * (U.type === "SWAP" ? last : 1), cat:catOf(meta[x.instId], base)}; });
         cats = [...new Set(rowsU.map(x => x.cat))].sort(); catSel.innerHTML = ""; ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
-        if (U.cat !== "All" && !cats.includes(U.cat)) U.cat = "All"; catSel.value = U.cat; renderU();
+        if (CFG.cls){ U.cat = CFG.cls === "Metals" ? "Metals" : CFG.cls; catSel.style.display = "none"; if (CFG.cls !== "Crypto" && CFG.cls !== "Meme coins" && U.type !== "SWAP"){ U.type = "SWAP"; return loadU(); } }
+        else if (U.cat !== "All" && !cats.includes(U.cat)) U.cat = "All"; catSel.value = U.cat; renderU();
       } catch(e){ uBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; }
     };
     ub.onclick = () => { const on = uni.style.display === "none"; uni.style.display = on ? "block" : "none"; if (on) loadU(); };

@@ -987,6 +987,31 @@ with tab_metals:
 
 with tab_stocks:
     class_tab("stocks", "Stocks")
+    with st.expander("Options flow (Unusual Whales) - ask-side, OTM, single-leg, premium >= $45k, vol > OI", expanded=False):
+        from modules import options_flow as _of
+
+        @st.cache_data(ttl=60, show_spinner=False)
+        def _flow():
+            return _of.fetch()
+
+        if st.button("Refresh flow", key="uw_refresh"):
+            _flow.clear()
+        res = _flow()
+        if res["error"]:
+            st.warning(res["error"])
+        else:
+            kept, why = _of.filter_alerts(res["rows"])
+            st.caption(f"{len(res['rows'])} alerts fetched, {len(kept)} pass. API usage {res['used']}/{res['cap']}. "
+                       f"Rejected: {why or 'none'}")
+            if kept:
+                st.dataframe(pd.DataFrame([{
+                    "Ticker": a.get("ticker") or a.get("ticker_symbol"), "Type": a.get("type"), "Strike": a.get("strike"),
+                    "Expiry": a.get("expiry"), "Underlying": a.get("underlying_price"),
+                    "Premium": a.get("total_premium"), "Ask prem": a.get("total_ask_side_prem"),
+                    "Vol": a.get("volume"), "OI": a.get("open_interest"), "Time": a.get("created_at")} for a in kept]),
+                    use_container_width=True, hide_index=True)
+            elif res["rows"]:
+                st.info("Nothing passes the filter now. If this looks wrong, check field names: " + _of.diagnose(res["rows"]))
 
 with tab_meme:
     st.subheader("Meme coin / whale tracking (DEXScreener)")

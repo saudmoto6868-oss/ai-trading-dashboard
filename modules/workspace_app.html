@@ -304,6 +304,8 @@ function passFilters(dir, ttype, tags){
   return true;
 }
 const TAG_EN = {"سيولة":"Liquidity","اختراق":"Breakout","دعم/مقاومة":"S/R","زومبي":"Zombie","موجة 3":"Wave 3","بريكر":"Breaker","يهوذا":"Judas","اليوت":"Elliott","يونيكورن":"Unicorn","فيبو":"Fib","متوسطات":"MAs"};
+const TAG_TIP_EN = {"سيولة":"Liquidity: price swept a cluster of stops/old highs-lows — often a reversal or continuation trigger.","اختراق":"Breakout: price closed through a key level with momentum.","دعم/مقاومة":"Support/Resistance: price is reacting at a level that held before.","زومبي":"Zombie: weak, drifting move with fading volume — low conviction.","موجة 3":"Wave 3: Elliott impulse wave 3 — usually the strongest, longest leg.","بريكر":"Breaker block: a failed order block that flipped — retests are entries.","يهوذا":"Judas swing: a fake early-session move to grab liquidity before the real direction.","اليوت":"Elliott wave count supports this direction.","يونيكورن":"Unicorn: breaker block overlapping a fair-value gap — high-probability zone.","فيبو":"Fibonacci confluence: entry sits in a key retracement zone (0.5–0.79).","متوسطات":"Moving averages aligned with the trade direction.","MSB-OB":"Market-structure break + order block.","OB":"Order block: the last opposite candle before an impulsive move.","FVG":"Fair-value gap: an imbalance price tends to revisit.","OTE":"Optimal Trade Entry: 0.62–0.79 retracement of the swing."};
+const tagTip = t => lang === "ar" ? (t[3] || "") : (TAG_TIP_EN[t[0]] || t[3] || "");
 const tagTxt = x => lang === "ar" ? x : (TAG_EN[x] || x);
 const etaTxt = x => lang === "ar" || !x ? (x || "-") : String(x).replace("دقيقة","min").replace("ساعة","h").replace("يوم","d").replace("أسبوع","w");
 const TT_AR = {"Scalp":"سكالب","Day Trade":"داي تريد","Swing":"سوينج","Position":"بوزشن"};
@@ -691,7 +693,7 @@ class CandleChart {
         c.globalAlpha = al; c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2; c.beginPath(); c.moveTo(Math.max(0, x0-10), y); c.lineTo(PR, y); c.stroke();
         const up = m.dir > 0, ay = y + (up ? -16 : 16);
         c.beginPath(); c.moveTo(x0, ay + (up ? -8 : 8)); c.lineTo(x0-6, ay + (up ? 4 : -4)); c.lineTo(x0+6, ay + (up ? 4 : -4)); c.closePath(); c.fill();
-        c.globalAlpha = 1; c.fillText((m.kind === "absorb" ? "ABSORB" : "SWEEP") + (m.tgt ? "" : ""), Math.min(x0+10, PR-52), y + (up ? 11 : -5));
+        c.globalAlpha = 1; c.fillText((m.kind === "absorb" ? "ABSORB" : "SWEEP") + (m.tf ? "·"+m.tf : "") + (m.n > 1 ? " ×"+m.n : ""), Math.min(x0+10, PR-52), y + (up ? 11 : -5));
         if (m.tgt){
           const ty = py(m.tgt);
           if (ty > 0 && ty < PB){
@@ -1656,7 +1658,7 @@ class Panel {
       rows.slice(0, 40).forEach((e, i) => {
         const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
         h += '<tr data-i="'+i+'"><td><b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span></td>'
-          +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags||[]).slice(0,4).map(t => '<a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" title="'+esc(t[3]||"")+'" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'</td>'
+          +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags||[]).slice(0,4).map(t => '<a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" title="'+esc(tagTip(t))+'" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'</td>'
           +'<td>'+spark(e, long_)+'</td><td style="color:#f6465d">'+fmtP(e.plan.stop)+'</td><td style="color:#0ecb81">'+fmtP(e.plan.tps[0])+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td><td><a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" style="border:1px solid #2b3139;color:#4aa3ff">TV</a></td></tr>';
       });
@@ -2031,7 +2033,7 @@ function alertCard(a){
   const d = el("div","card"); d.style.borderInlineStart = "3px solid "+(bull ? "#0ecb81" : "#f6465d");
   d.innerHTML = '<div class="row"><span class="logo" style="background:'+logoColor(base)+'">'+esc(base.slice(0,4))+'</span><b style="font-size:13px">'+esc(c.symbol)+'</b>'
     +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+esc(bull ? T("long") : T("short"))+'</span><span class="grow"></span><span class="stars" title="'+c.score+'/'+c.max+'">'+st+'</span></div>'
-    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(t[3]||"")+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
+    +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(tagTip(t))+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
     +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
     +'<div class="row" style="margin-top:5px"><span class="badge" style="border:1px solid #f0b90b;color:#f0b90b">'+esc(ttTxt(c.ttype))+'</span><span class="m">'+esc(T("eta"))+': TP1 '+esc(etaTxt((c.eta||{}).tp1))+' · TP3 '+esc(etaTxt((c.eta||{}).tp3))+'</span></div>'
     +'<div class="row" style="margin-top:5px"><button class="sc">'+esc(T("showchart"))+'</button><a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'">'+esc(T("tvopen"))+' ↗</a><span class="grow"></span><span class="m">'+hms(a.t)+'</span></div>';
@@ -2079,7 +2081,7 @@ Ws.drawStrip = () => {
   box.innerHTML = ""; const lb = el("span","lbl"); lb.textContent = lang === "ar" ? "إشارات حية" : "Live setups"; box.append(lb);
   if (!rows.length){ const m = el("span","m"); m.textContent = CFG.scanning ? T("scanning") : T("rdEmpty"); box.append(m); return; }
   rows.forEach(e => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), c = el("span","chip");
-    c.style.borderColor = long_ ? "#0ecb81" : "#f6465d"; if (pct >= 70){ c.classList.add("hot"); c.style.setProperty("--hc", long_ ? "#0ecb81" : "#f6465d"); } c.title = (e.tags||[]).map(t => t[3] || t[0]).join("\n");
+    c.style.borderColor = long_ ? "#0ecb81" : "#f6465d"; if (pct >= 70){ c.classList.add("hot"); c.style.setProperty("--hc", long_ ? "#0ecb81" : "#f6465d"); } c.title = (e.tags||[]).map(t => tagTip(t) || t[0]).join("\n");
     c.innerHTML = "<b>"+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+"</b> <span style='color:"+(long_?"#0ecb81":"#f6465d")+"'>"+(long_ ? "▲" : "▼")+"</span> "+esc((e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "))+" <span class='m'>"+esc(e.tfk||"")+" "+pct+"%</span>";
     c.onclick = () => Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); box.append(c); });
 };

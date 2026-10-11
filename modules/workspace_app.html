@@ -966,7 +966,7 @@ Object.assign(CandleChart.prototype, {
     c.restore(); c.fillStyle = "#848e9c"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.fillText(title, 6, y0+8); labs.forEach(([v,t]) => c.fillText(t, PR+5, y(v)+3));
   },
   paintSmt(c, py, dec, i0, i1){   // the correlated market drawn on THIS chart (rescaled) + SMT divergences between the two, marked swing to swing
-    const D = this.smtD; if (!D || !D.length || !this.data.length) return; const mp = new Map(D.map(x => [x.t, x])), inv = !!this.smtInv, A = [], B = [];
+    const D = this.smtD; if (!D || !D.length || !this.data.length){ if (this.smtName){ c.save(); c.font = "10px sans-serif"; c.fillStyle = "#ffd54f"; c.fillText("SMT: "+this.smtName, 8, 24); c.restore(); } return; } const mp = new Map(D.map(x => [x.t, x])), inv = !!this.smtInv, A = [], B = [];
     this.data.forEach((x, i) => { const q = mp.get(x.t); if (q){ A.push(Object.assign({i}, x)); B.push(q); } }); if (A.length < 40) return;
     const idx = new Map(A.map((x, k) => [x.i, k]));
     let mn = Infinity, mx = -Infinity, pmn = Infinity, pmx = -Infinity; for (let i = i0; i <= i1; i++){ const d = this.data[i]; if (!d) continue; mn = Math.min(mn, d.l); mx = Math.max(mx, d.h); const k = idx.get(i); if (k != null){ const v = inv ? -B[k].c : B[k].c; pmn = Math.min(pmn, v); pmx = Math.max(pmx, v); } }
@@ -1470,7 +1470,7 @@ class Panel {
       {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
       {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
-      {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; this.smtT = 0; if (!v) ch().smtD = null; }},
+      {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; if (v){ this.smtT = 0; setTimeout(() => this.smtKick(), 0); } this.smtT = 0; if (!v) ch().smtD = null; }},
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }},
       {id:"ew", label:T("indEw"), get:() => ch().ewOn, set:v => { ch().ewOn = v; this.state.ew = v; }},
       {id:"bvd", label:T("indBvd"), tip:T("bvdTip"), get:() => ch().bvdOn, set:v => { ch().bvdOn = v; this.state.bvd = v; }},
@@ -1573,6 +1573,7 @@ class Panel {
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.flt, p.rows); this.syncMarks(); } }));
     if (subMin){
       const sec = TFSEC[tf], seen = new Set(); let firstB = true, hist = false;
+      const smtIv = setInterval(() => { if (tok !== this.tok){ clearInterval(smtIv); return; } if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000) this.smtKick(); }, 1500); this.wsUnsubs.push(() => clearInterval(smtIv));
       this.wsUnsubs.push(Hub.sub("trades", sym, p => {
         if (tok !== this.tok || p.error) return;
         const ch = this.chart, doApply = !(firstB && hist && ch.data.length);
@@ -1632,8 +1633,12 @@ class Panel {
   async smtFetch(sym, tf, tok){
     const pr = smtPeers(sym); if (!pr.length){ this.chart.smtD = null; this.chart.smtName = Lg("no correlated pair for "+sym, "لا يوجد زوج مرتبط"); this.chart.draw(); return; }
     const sel = pr.find(x => x[0] === this.state.smtPeer) || pr[0]; this.chart.smtName = sel[0]; this.chart.smtInv = sel[1];
-    try { const d = await okx("/market/candles?instId="+encodeURIComponent(sel[0])+"&bar="+tf+"&limit=300"); if (tok !== this.tok) return; this.chart.smtD = this.parseC(d); this.chart.draw(); } catch(e){}
+    this.chart.smtName = sel[0]+(this.chart.smtD ? "" : " (loading...)"); const sec = TFSEC[tf], sub = sec < 60;
+    try { const d = await okx("/market/candles?instId="+encodeURIComponent(sel[0])+"&bar="+(sub ? "1s" : tf)+"&limit=300"); if (tok !== this.tok) return; let rows = this.parseC(d);
+      if (sub){ const agg = []; rows.forEach(k => { const b = Math.floor(k.t/(sec*1000))*sec*1000, l = agg[agg.length-1]; if (l && l.t === b){ l.h = Math.max(l.h,k.h); l.l = Math.min(l.l,k.l); l.c = k.c; l.v += k.v; } else agg.push({t:b,o:k.o,h:k.h,l:k.l,c:k.c,v:k.v}); }); rows = agg; }
+      this.chart.smtD = rows; this.chart.smtName = sel[0]; this.chart.draw(); } catch(e){ this.chart.smtName = sel[0]+" (peer data failed: "+(e.message||e)+")"; this.chart.draw(); }
   }
+  smtKick(){ if (this.type !== "chart" || !this.chart.smtOn) return; this.smtT = Date.now(); this.smtFetch(this.state.sym, this.state.tf, this.tok); }
   async loadMore(){
     if (this.loadingMore || this.noMore || !this.chart.data.length) return;
     this.loadingMore = true; const tok = this.tok;

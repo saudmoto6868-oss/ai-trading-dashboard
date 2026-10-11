@@ -144,6 +144,9 @@ const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"1
 /* OKX bar sizes: 2H is native; 6H / 12H / 3D / 1M use its UTC variants; 13m, 3H, 7H and 8H do not exist on OKX, so they are built from 1m / 1H candles (buckets aligned to the UTC epoch) */
 const TF_OKX = {"2H":"2H","6H":"6Hutc","12H":"12Hutc","3D":"3Dutc","1M":"1Mutc"}, TF_AGG = {"13m":["1m",13],"3H":["1H",3],"7H":["1H",7],"8H":["1H",8]};
 const okxBar = tf => TF_OKX[tf] || tf;
+// the PC clock can be minutes off; candle times come from OKX, so the countdown uses OKX server time (offset measured against /public/time)
+let SKEW = 0; const nowS = () => Date.now() + SKEW;
+const candleRem = (lastT, tf) => { const ms = (TFSEC[tf] || 3600)*1000; let e = nowS() - lastT; if (e < 0) e = 0; return e < ms ? ms - e : ms - (e % ms); };   // ms until the next candle opens
 const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; };
 const HARM_TOL = 0.06;
 const HARM_RULES = {
@@ -380,6 +383,8 @@ async function okx(path){
   if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
   return j.data;
 }
+async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} }
+syncClock(); setInterval(syncClock, 300000);
 function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
 const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();
 async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest for any chart timeframe (native, UTC variant, or aggregated); `want` = how many bars the first load should aim for
@@ -833,7 +838,7 @@ class CandleChart {
     if (ly > 0 && ly < PB){
       c.strokeStyle = lcol; c.setLineDash([3,3]); c.beginPath(); c.moveTo(0,ly+.5); c.lineTo(PR,ly+.5); c.stroke(); c.setLineDash([]);
       c.fillStyle = lcol; c.fillRect(PR+1, ly-8, 60, 16); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(last.c.toFixed(dec), PR+5, ly);
-      const rem = Math.max(0, last.t + (TFSEC[this.tf] || 3600)*1000 - Date.now()), sec = Math.floor(rem/1000), hh = Math.floor(sec/3600), mm = Math.floor(sec%3600/60), ss = sec%60;
+      const rem = candleRem(last.t, this.tf), sec = Math.floor(rem/1000), hh = Math.floor(sec/3600), mm = Math.floor(sec%3600/60), ss = sec%60;
       c.fillStyle = "#2b3139"; c.fillRect(PR+1, ly+9, 60, 14); c.fillStyle = "#eaecef"; c.fillText("⏱ "+(hh ? hh+":"+pad2(mm)+":"+pad2(ss) : pad2(mm)+":"+pad2(ss)), PR+5, ly+16);
     }
     // crosshair + legend
@@ -1650,7 +1655,7 @@ class Panel {
   }
   tickCd(){
     const d = this.chart.data; if (!d.length) { this.cdEl.textContent = ""; return; }
-    const ms = (TFSEC[this.state.tf] || 3600)*1000; let rem = Math.max(0, d[d.length-1].t + ms - Date.now());
+    let rem = candleRem(d[d.length-1].t, this.state.tf);
     const sec = Math.floor(rem/1000), h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), ss = sec%60;
     this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss)); this.chart.draw();
   }

@@ -29,7 +29,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
 #strip .lbl{flex:none;color:var(--mut);font-size:10px;text-transform:uppercase}
-.stpop{position:fixed;z-index:9999;background:#161a1e;border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
+.stpop{position:fixed;z-index:2147483000;background:#161a1e;border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
 .stpop label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
 .stpop .full{grid-column:1/-1;color:#f0b90b;cursor:pointer;text-align:center;padding:2px}
 #ws{position:absolute;top:62px;left:0;right:0;bottom:0;overflow:hidden;
@@ -1064,7 +1064,7 @@ Object.assign(CandleChart.prototype, {
     e.preventDefault(); document.querySelectorAll(".ctxm").forEach(m => m.remove());
     const q = this.pt(e); let target = null;
     if (q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
-    const m = el("div","ctxm"); m.style.cssText = "position:fixed;z-index:99999;left:"+e.clientX+"px;top:"+e.clientY+"px";
+    const m = el("div","ctxm"); m.style.cssText = "position:fixed;z-index:2147483001;left:"+e.clientX+"px;top:"+e.clientY+"px";
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
     if (this.draws.length) item(T("cmAll")+" ("+this.draws.length+")", () => this.clearDraws());

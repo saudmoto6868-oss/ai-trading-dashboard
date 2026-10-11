@@ -45,7 +45,7 @@ def _load(inst_type="SWAP", base_url=OKX):
     for x in tk:
         i = meta.get(x["instId"])
         parts = x["instId"].split("-")
-        if not i or len(parts) < 2 or parts[1] not in ("USDT", "USD"):
+        if not i or len(parts) < 2:
             continue
         last = float(x.get("last") or 0)
         rows.append({"id": x["instId"], "cls": category_of(i.get("instCategory"), parts[0]), "vol": float(x.get("volCcy24h") or 0) * (last if inst_type != "SPOT" else 1)})

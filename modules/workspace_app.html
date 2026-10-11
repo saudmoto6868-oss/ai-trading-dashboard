@@ -1591,7 +1591,7 @@ class Panel {
     const selU = (opts, key) => { const x = el("select"); opts.forEach(([v,l]) => x.append(Object.assign(el("option"), {value:v, textContent:l}))); x.value = U[key]; x.onchange = () => { U[key] = isNaN(+x.value) ? x.value : +x.value; Ws.save(); loadU(); }; return x; };
     const uTb = el("div","tb"), uBox = el("div"); const catSel = el("select"); catSel.onchange = () => { U.cat = catSel.value; Ws.save(); renderU(); };
     const typeSel = selU([["SPOT","Spot"],["SWAP","Perp (swap)"],["FUTURES","Futures"]], "type");
-    uTb.append(typeSel, selU([["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"]], "top"));
+    uTb.append(typeSel, selU([["ALL","All quotes"],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
     uni.append(uTb, uBox); let rowsU = [], cats = [];
     const CAT = {"1":"Crypto","3":"Stocks","4":"Commodities","5":"Forex","6":"Bonds"}, METAL = ["XAU","XAG","XPT","XPD","XAUT","PAXG"], ENERGY = ["CL","WTI","BRENT","XTI","XBR","NG","NATGAS","OIL","UKOIL","USOIL","HO","RB"], INDEX = ["SPX","NDX","DJI","US500","US100","US30","SPX500","NAS100","DAX","GER40","FTSE","UK100","HSI","N225","JP225","VIX"];
     const MEMEB = (CFG.meme || []).map(s => s.split("-")[0]), catOf = (i, base) => (METAL.includes(base) ? "Metals" : ENERGY.includes(base) ? "Oil & Gas" : INDEX.includes(base) ? "Indices" : MEMEB.includes(base) ? "Meme coins" : CAT[i.instCategory]) || "Crypto";
@@ -1600,8 +1600,9 @@ class Panel {
       const q = "-"+U.quote; let r = rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities"))).sort((a,b) => b.vol - a.vol).slice(0, U.top); uBox.innerHTML = "";
       if (!r.length){ uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("uniNone"))+'</div>'; return; }
       const t = el("table","rd"); t.innerHTML = "<tr><th>"+esc(T("symbol"))+"</th><th>"+esc(T("last"))+"</th><th>"+esc(T("chg"))+"</th><th></th></tr>";
-      r.forEach(x => { const tr = el("tr"); tr.innerHTML = "<td><b>"+esc(x.id.replace("-SWAP",""))+'</b> <span class="m">'+esc(x.cat)+"</span></td><td>"+fmtP(x.last)+'</td><td style="color:'+(x.chg >= 0 ? "#0ecb81" : "#f6465d")+'">'+(x.chg >= 0 ? "+" : "")+x.chg.toFixed(2)+"%</td><td><button>+</button></td>";
-        tr.querySelector("button").onclick = () => addSym(x.id); t.append(tr); });
+      r.forEach(x => { const tr = el("tr"); tr.style.cursor = "pointer"; tr.title = lang === "ar" ? "اضغط لفتح الشارت" : "Click to open the chart"; tr.innerHTML = "<td><b>"+esc(x.id)+'</b> <span class="m">'+esc(x.cat)+"</span></td><td>"+fmtP(x.last)+'</td><td style="color:'+(x.chg >= 0 ? "#0ecb81" : "#f6465d")+'">'+(x.chg >= 0 ? "+" : "")+x.chg.toFixed(2)+"%</td><td><button>+</button></td>";
+        tr.querySelector("button").onclick = ev => { ev.stopPropagation(); addSym(x.id); };
+        tr.onclick = () => { addSym(x.id); Ws.broadcast(this, x.id); }; t.append(tr); });   // a row click adds the symbol and opens it on the linked chart
       const all = el("button",null,T("uniAll")+" ("+r.length+")"); all.onclick = () => r.forEach(x => addSym(x.id)); uBox.append(t, all);
     };
     const loadU = async () => {
@@ -1609,11 +1610,11 @@ class Panel {
       try {
         const [tk, ins] = await Promise.all([okx("/market/tickers?instType="+U.type), okx("/public/instruments?instType="+U.type)]);
         const meta = {}; ins.forEach(i => meta[i.instId] = i);
-        rowsU = tk.filter(x => x.instId.split("-")[1] === U.quote && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
-          return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:(+x.volCcy24h || 0) * (U.type === "SWAP" ? last : 1), cat:catOf(meta[x.instId], base)}; });
+        rowsU = tk.filter(x => (U.quote === "ALL" || x.instId.split("-")[1] === U.quote) && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
+          return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:(+x.volCcy24h || 0) * (U.type !== "SPOT" ? last : 1), cat:catOf(meta[x.instId], base)}; });
         cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Indices","Stocks","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
         if (CFG.cls && U.ucls !== CFG.cls){   // the page-level Asset class dropdown sets the default once; the selectors here stay usable
-          U.ucls = CFG.cls; U.cat = CFG.cls; const want = /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
+          U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
         catSel.value = U.cat; renderU();
       } catch(e){ uBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; }

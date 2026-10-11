@@ -8,12 +8,14 @@ import time
 
 import requests
 
-CLASSES = ["Crypto", "Forex", "Metals", "Stocks", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
+CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
 MARKET_TYPES = {"Spot": "SPOT", "Perp (swap)": "SWAP", "Futures": "FUTURES"}
 NO_FEED = {"Egypt (EGX)", "Saudi (Tadawul)"}   # no verified free live feed yet (needs an API key); never show invented numbers
 MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", "MEME", "BOME", "POPCAT", "MEW", "PNUT", "ACT", "GOAT", "TRUMP", "FARTCOIN", "MOODENG", "PENGU", "1000SATS"]
 _CAT = {"3": "Stocks", "4": "Commodities", "5": "Forex"}
 _METAL = {"XAU", "XAG", "XPT", "XPD", "XAUT", "PAXG"}
+_ENERGY = {"CL", "WTI", "BRENT", "XTI", "XBR", "NG", "NATGAS", "OIL", "UKOIL", "USOIL", "HO", "RB"}
+_INDEX = {"SPX", "NDX", "DJI", "US500", "US100", "US30", "SPX500", "NAS100", "DAX", "GER40", "FTSE", "UK100", "HSI", "N225", "JP225", "VIX"}
 _cache = {}
 OKX = "https://www.okx.com/api/v5"
 
@@ -22,6 +24,10 @@ def category_of(inst_category, base):
     """OKX instCategory + base currency -> our class name."""
     if base in _METAL:
         return "Metals"
+    if base in _ENERGY:
+        return "Oil & Gas"
+    if base in _INDEX:
+        return "Indices"
     if base in MEME_BASES:
         return "Meme coins"
     return {"3": "Stocks", "4": "Commodities", "5": "Forex"}.get(str(inst_category), "Crypto")

@@ -683,17 +683,24 @@ with header_box:
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_CLASSES:
     st.session_state["asset_cls"] = st.query_params["cls"]
-_ac_col, _ac_mt, _ac_note = st.columns([1, 1, 4])
-asset_cls = _ac_col.selectbox("Asset class", ASSET_CLASSES, key="asset_cls", help="Drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
-if asset_cls != "Crypto":
-    st.query_params["cls"] = asset_cls
-elif "cls" in st.query_params:
-    del st.query_params["cls"]
-market_type = _ac_mt.selectbox("Market", list(MARKET_TYPES), key="market_type", help="Spot / Perpetual swap / dated Futures (OKX).")
-ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES[market_type])
+asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
+market_type = st.session_state.get("market_type", "Spot")
+ACTIVE_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
 if _ac_msg:
-    _ac_note.warning(_ac_msg + " - showing Crypto instead.")
     ACTIVE_SYMBOLS = list(CRYPTO_SYMBOLS)
+
+
+def render_universe_controls():
+    c1, c2, c3 = st.columns([1, 1, 4])
+    c1.selectbox("Asset class", ASSET_CLASSES, key="asset_cls", help="Drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
+    c2.selectbox("Market", list(MARKET_TYPES), key="market_type", help="Spot / Perpetual swap / dated Futures (OKX).")
+    if st.session_state.get("asset_cls", "Crypto") != "Crypto":
+        st.query_params["cls"] = st.session_state["asset_cls"]
+    elif "cls" in st.query_params:
+        del st.query_params["cls"]
+    if _ac_msg:
+        c3.warning(_ac_msg + " - showing Crypto instead.")
+
 
 # ---- Tabs -------------------------------------------------------------------------
 tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
@@ -823,6 +830,7 @@ def render_chart_scanner():
 
 with tab_cscan:
     try:
+        render_universe_controls()
         render_chart_scanner()
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")

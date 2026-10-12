@@ -1003,14 +1003,18 @@ Object.assign(CandleChart.prototype, {
     const sw = [];
     for (let i = N; i < n-N; i++){ let hh = true, ll = true; for (let k = i-N; k <= i+N; k++){ if (k === i) continue; if (d[k].h >= d[i].h) hh = false; if (d[k].l <= d[i].l) ll = false; } if (hh) sw.push({i, p:d[i].h, up:true}); if (ll) sw.push({i, p:d[i].l, up:false}); }
     c.save(); c.font = "bold 10px sans-serif"; c.textBaseline = "middle";
+    const drawn = [];   // label boxes already placed: a new label is skipped if it would sit on top of one of them
     sw.forEach(w => { let k = -1; for (let j = w.i+N+1; j < n; j++){ if (w.up ? d[j].c > w.p : d[j].c < w.p){ k = j; break; } if (w.up ? d[j].h > w.p*1.5 : false) break; }
       if (k < i0 || k > i1 || k < 0) return;
       const m = this.fp.get(d[k].t), rng = (d[k].h - d[k].l) || 1e-9; let buy, real = false;
       if (m && m.b + m.s > 0){ buy = m.b/(m.b+m.s); real = true; } else buy = (d[k].c - d[k].l)/rng;   // real delta from live trades when we have them, otherwise close position inside the bar
       const bull = w.up, good = bull ? buy >= .55 : buy <= .45, pct = Math.round((bull ? buy : 1-buy)*100), col = good ? (bull ? OF.color : OF.color2) : "#848e9c", x0 = this.x(w.i), x1 = this.x(k), y = py(w.p);
+      if (!good || (!real && pct < 70)) return;   // weak breakouts and guessed (~) labels below 70% stay hidden: the chart shows only clear ones
+      const txt = (bull ? "▲ BUY " : "▼ SELL ")+pct+"%"+(real ? "" : "~"), tw = c.measureText(txt).width+8, ty = py(bull ? d[k].h : d[k].l) + (bull ? -14 : 14), bx = x1-tw/2, by = ty-8;
+      if (drawn.some(r => bx < r[0]+r[2]+3 && bx+tw+3 > r[0] && by < r[1]+r[3]+2 && by+16+2 > r[1])) return;
+      drawn.push([bx, by, tw, 16]);
       c.strokeStyle = col; c.globalAlpha = .7; c.setLineDash([4,3]); c.lineWidth = 1; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
-      const txt = (good ? (bull ? "▲ BUY " : "▼ SELL ") : "⚠ weak ")+pct+"%"+(real ? "" : "~"), tw = c.measureText(txt).width+8, ty = py(bull ? d[k].h : d[k].l) + (bull ? -14 : 14);
-      c.fillStyle = hexA(col, .9); c.fillRect(x1-tw/2, ty-8, tw, 16); c.fillStyle = "#0b0e11"; c.textAlign = "center"; c.fillText(txt, x1, ty); });
+      c.fillStyle = hexA(col, .9); c.fillRect(bx, by, tw, 16); c.fillStyle = "#0b0e11"; c.textAlign = "center"; c.fillText(txt, x1, ty); });
     c.restore();
   },
   paintBal(c, PB, PR){   // ATAS-style vertical bid/ask balance bar (resting book): ask on top (sell colour), bid below (buy colour)

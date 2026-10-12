@@ -41,10 +41,24 @@ TF_LABEL = {"1m": "1 minute", "13m": "13 minutes", "1h": "1 hour", "2h": "2 hour
 LEGACY_TF = {"M1": "1m", "M5": "1m", "M15": "1m", "H1": "1h", "H4": "1h", "D1": "1d", "W1": "1w", "MN1": "1w"}
 
 
+# Direct buy/sell indicators (MSB-OB: "structure break + order block retest") are CONFIRMATION only: they never start a
+# trade, they add their family's star only when another primary family already backs the same side.
+CONFIRM_ONLY_KEYS = ("msb_ob",)
+
+
 def aggregate(signals: list) -> dict:
     fams = {BULL: set(), BEAR: set()}
+    held = {BULL: set(), BEAR: set()}                  # families that only a confirm-only signal supports
     for s in signals:
-        fams[s["direction"]].add(s["family"])
+        if s.get("key") in CONFIRM_ONLY_KEYS:
+            held[s["direction"]].add(s["family"])
+        else:
+            fams[s["direction"]].add(s["family"])
+    for d in (BULL, BEAR):
+        others = fams[d] & set(PRIMARY_FAMILIES)
+        for f in held[d]:
+            if f in fams[d] or others:                  # a primary family (other than the held one) already agrees
+                fams[d].add(f)
 
     def effective(d):
         f = fams[d]
@@ -86,6 +100,8 @@ def cached_detect(df):
 def _meaningful_for_htf(s: dict) -> bool:
     """Which signals may confirm a trade from a HIGHER timeframe: structure, zones,
     waves, sweeps and key levels - not one-bar noise like OHL or a 20-bar breakout."""
+    if s.get("key") in CONFIRM_ONLY_KEYS:
+        return False                                      # confirmation only: cannot be what upgrades a trade's horizon
     if s["family"] in ("Elliott", "Unicorn", "MSB-OB", "Fib"):
         return True
     return s["family"] == "Liquidity" and ("sweep" in s["name"].lower() or s["name"].startswith("At "))

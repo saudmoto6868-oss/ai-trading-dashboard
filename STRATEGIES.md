@@ -53,6 +53,11 @@ Volume filters switch themselves off for markets whose candles carry no volume (
 | Power of Three (restricted) | `power_of_three_bull` | daily open (00:00 NY); price >= 0.5 ATR below it with that low printed INSIDE a kill zone; entry only after a displacement candle closes back above the open (rebound confirmed); target = max(open + 2x depth, yesterday's high); >= 1.5R |
 SMT (BTC/ETH/SOL pairs, `modules/smt.py`) and CRT (`crt_bull`) already existed and are unchanged.
 
+## Group C + confirmation-only
+- **Elliott OTE boxes** (Workspace, `Elliott waves` indicator): yellow 62-79% retracement boxes of each impulse leg (where wave 2 / 4 / A ends); the newest runs to the right edge. Visual only - no stars.
+- **Harmonics** were already built from scratch in the Workspace (`harmFind`, XABCD + PRZ box); unchanged.
+- **Confirmation only** (`scorer.CONFIRM_ONLY_KEYS`): the direct buy/sell signal "structure break + order block retest" (`msb_ob`) can no longer start a trade or upgrade a trade's horizon; it adds its star only when another primary family already backs the same side. Plain order blocks (`ob`) are unchanged. Super IndiBot (EMA ribbon) is NOT built as a separate signal - the existing MA family (EMA stack / cross) is the confirmation layer.
+
 ## Scanner-only flags (`modules/chart_scan.py`) - NOT in stars / alerts yet
 IFVG, Mitigation block, MSS/CHoCH, Premium-Discount (outer 30%), Silver Bullet (FVG in a window), Breakout+volume-delta, Harmonics, channel breaks, double top/bottom.
 These are candidates for promotion once a walk-forward test on real candles shows they beat the baseline.

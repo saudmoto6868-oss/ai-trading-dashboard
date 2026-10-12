@@ -841,14 +841,6 @@ class CandleChart {
       }
       if (pl){ const sp = this.planSpan(), hy = py(pl.entry); this._planH = {x:sp.x1, y:hy, x0:sp.x0};
         c.fillStyle = "#4aa3ff"; c.strokeStyle = "#0b0e11"; c.lineWidth = 1; c.fillRect(sp.x1-4, hy-6, 8, 12); c.strokeRect(sp.x1-4+.5, hy-6+.5, 7, 11); }
-      if (ov.tf === this.tf && (ov.tags||[]).length){
-        const lx = this.x(n-1), ly = py(this.data[n-1].h) - 6; c.font = "bold 10px sans-serif"; c.textAlign = "left";
-        ov.tags.slice(0,5).forEach((t,i) => {
-          const w = c.measureText(t[0]).width + 8, x0 = Math.min(lx - w/2, PR - w - 2), y0 = Math.max(2, ly - 14 - i*15);
-          c.fillStyle = t[1]; c.fillRect(x0, y0, w, 13); c.fillStyle = t[2]; c.fillText(t[0], x0+4, y0+7);
-        });
-        c.font = "11px ui-monospace,Menlo,Consolas,monospace";
-      }
     }
     if (this.showSig && n) this.paintSigs(c, py, PR, PB, ov);
     if (this.flowOn && this.marks.length && n){

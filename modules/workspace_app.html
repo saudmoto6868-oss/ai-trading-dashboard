@@ -981,9 +981,9 @@ Object.assign(CandleChart.prototype, {
     const shown = list.filter(s => { if (s.live) return true; if (s.t - lastK[s.dir] < GAP) return false; lastK[s.dir] = s.t; return true; });
     shown.forEach(s => {
       if (s.t < d[0].t - sm) return; let k = -1; for (let i = n-1; i >= 0; i--) if (d[i].t <= s.t){ k = i; break; } if (k < 0) return;
-      const long_ = s.dir === "bullish", x = this.x(k), col = long_ ? "#0ecb81" : "#f6465d", y = long_ ? py(d[k].l) + 10 : py(d[k].h) - 10; if (y < 4 || y > PB - 4 || x < 0 || x > PR) return;
+      const long_ = s.dir === "bullish", x = this.x(k), col = long_ ? "#0ecb81" : "#f6465d", y = long_ ? py(d[k].l) + 26 : py(d[k].h) - 26; if (y < 4 || y > PB - 4 || x < 0 || x > PR) return;
       c.fillStyle = col; c.strokeStyle = s.status === "tp" ? "#ffffff" : s.status === "sl" ? "#848e9c" : col; c.lineWidth = s.live ? 2 : 1;
-      const sz = s.live ? 6 : 4.5, mo = this.mouse, hot = !!mo && Math.abs(mo.x - x) <= 9 && Math.abs(mo.y - y) <= 12; c.beginPath(); if (long_){ c.moveTo(x, y-sz); c.lineTo(x-sz, y+sz*.7); c.lineTo(x+sz, y+sz*.7); } else { c.moveTo(x, y+sz); c.lineTo(x-sz, y-sz*.7); c.lineTo(x+sz, y-sz*.7); } c.closePath(); c.fill(); c.stroke();
+      const sz = s.live ? 6 : 4.5, mo = this.mouse, hot = !!mo && Math.abs(mo.x - x) <= 9 && Math.abs(mo.y - y) <= 12; c.beginPath(); c.arc(x, y, hot ? sz+1 : sz-.5, 0, 6.3); c.fill(); c.stroke(); c.fillStyle = "#0b0e11"; c.beginPath(); c.arc(x, y, 1.4, 0, 6.3); c.fill(); c.fillStyle = col;
       const lab = (long_ ? "BUY " : "SELL ") + (s.pct != null ? s.pct+"% " : "") + (s.tfk || "") + (s.status === "tp" ? " ✓" : s.status === "sl" ? " ✗" : "");
       if (!hot){ c.globalAlpha = 1; return; }   // name + strength only while the pointer is on the marker
       const w = c.measureText(lab).width + 8, ly = long_ ? y + sz + 10 : y - sz - 10; c.fillStyle = col; c.globalAlpha = s.live ? 1 : .8; c.fillRect(x-w/2, ly-7, w, 13); c.globalAlpha = 1; c.fillStyle = "#0b0e11"; c.fillText(lab, x, ly);
@@ -1010,11 +1010,11 @@ Object.assign(CandleChart.prototype, {
       if (m && m.b + m.s > 0){ buy = m.b/(m.b+m.s); real = true; } else buy = (d[k].c - d[k].l)/rng;   // real delta from live trades when we have them, otherwise close position inside the bar
       const bull = w.up, good = bull ? buy >= .55 : buy <= .45, pct = Math.round((bull ? buy : 1-buy)*100), col = good ? (bull ? OF.color : OF.color2) : "#848e9c", x0 = this.x(w.i), x1 = this.x(k), y = py(w.p);
       if (!good || (!real && pct < 70)) return;   // weak breakouts and guessed (~) labels below 70% stay hidden
-      const txt = (bull ? "▲ BUY " : "▼ SELL ")+pct+"%"+(real ? "" : "~"), ty = py(bull ? d[k].h : d[k].l) + (bull ? -9 : 9), mo = this.mouse, hot = !!mo && Math.abs(mo.x - x1) <= 8 && Math.abs(mo.y - ty) <= 10, s5 = hot ? 6 : 4.5;
-      c.fillStyle = hexA(col, hot ? 1 : .85); c.beginPath(); if (bull){ c.moveTo(x1, ty-s5); c.lineTo(x1-s5, ty+s5*.8); c.lineTo(x1+s5, ty+s5*.8); } else { c.moveTo(x1, ty+s5); c.lineTo(x1-s5, ty-s5*.8); c.lineTo(x1+s5, ty-s5*.8); } c.closePath(); c.fill();
+      const txt = (bull ? "▲ BUY " : "▼ SELL ")+pct+"%"+(real ? "" : "~"), ty = py(bull ? d[k].l : d[k].h) + (bull ? 26 : -26), mo = this.mouse, hot = !!mo && Math.abs(mo.x - x1) <= 8 && Math.abs(mo.y - ty) <= 10, s5 = hot ? 6 : 4.5;
+      c.fillStyle = hexA(col, hot ? 1 : .9); c.strokeStyle = "#0b0e11"; c.lineWidth = 1.5; c.beginPath(); c.arc(x1, ty, s5-.5, 0, 6.3); c.fill(); c.stroke(); c.fillStyle = "#0b0e11"; c.beginPath(); c.arc(x1, ty, 1.4, 0, 6.3); c.fill();   // round dot (not a triangle, so it never reads as a fractal arrow)
       if (hot){   // strength shows only while the pointer is on the marker
         c.strokeStyle = col; c.globalAlpha = .7; c.setLineDash([4,3]); c.lineWidth = 1; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
-        const tw = c.measureText(txt).width+8, ly = ty + (bull ? -20 : 20); c.fillStyle = hexA(col, .95); c.fillRect(x1-tw/2, ly-8, tw, 16); c.fillStyle = "#0b0e11"; c.textAlign = "center"; c.fillText(txt, x1, ly); } });
+        const tw = c.measureText(txt).width+8, ly = ty + (bull ? 18 : -18); c.fillStyle = hexA(col, .95); c.fillRect(x1-tw/2, ly-8, tw, 16); c.fillStyle = "#0b0e11"; c.textAlign = "center"; c.fillText(txt, x1, ly); } });
     c.restore();
   },
   paintBal(c, PB, PR){   // ATAS-style vertical bid/ask balance bar (resting book): ask on top (sell colour), bid below (buy colour)

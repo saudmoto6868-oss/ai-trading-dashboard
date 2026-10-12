@@ -11,13 +11,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:12px/1
 button,select,input,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
 button{cursor:pointer}button:hover{border-color:var(--gold)}
 button.on{background:var(--gold);color:#000;border-color:var(--gold)}
-#bar{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+#bar{height:26px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
 #bar .sp{flex:1}
 #bar label{color:var(--mut);display:flex;align-items:center;gap:3px}
 #bar input[type=number]{width:46px}
 #dot{width:9px;height:9px;border-radius:50%;background:var(--mut);display:inline-block}
 #dot.ok{background:var(--grn)}#dot.bad{background:var(--red)}
-#strip{position:absolute;top:34px;left:0;right:0;height:28px;display:flex;align-items:center;gap:5px;padding:0 8px;background:#0e1114;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin}
+#strip{position:absolute;top:26px;left:0;right:0;height:22px;display:flex;align-items:center;gap:5px;padding:0 8px;background:#0e1114;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin}
 #strip .chip{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:11px;padding:1px 8px;font-size:11px;cursor:pointer;background:#161a1e;color:#eaecef}
 #strip .chip:hover{background:#2b3139}
 #strip .chip.hot{animation:hotg 1.1s ease-in-out infinite;font-weight:700}
@@ -25,6 +25,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .jperf{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:4px;margin:4px}
 .jperf .jc{padding:4px 6px}
 .rdy .ana,.card .an{font-size:11px;padding:0 6px;margin-inline-start:4px}
+.sgl{display:inline-flex;align-items:center;gap:2px;margin-left:6px;font-size:10px;color:var(--mut);cursor:pointer}
 .ihelp{margin-left:2px;padding:0 5px;font-size:11px;opacity:.7}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
@@ -32,7 +33,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .stpop{position:fixed;z-index:2147483000;background:#161a1e;border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
 .stpop label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
 .stpop .full{grid-column:1/-1;color:#f0b90b;cursor:pointer;text-align:center;padding:2px}
-#ws{position:absolute;top:62px;left:0;right:0;bottom:0;overflow:hidden;
+#ws{position:absolute;top:48px;left:0;right:0;bottom:0;overflow:hidden;
  background:radial-gradient(circle,#1b2027 1px,transparent 1px) 0 0/20px 20px,var(--bg)}
 #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mut);font-size:14px;pointer-events:none}
 .panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.45)}
@@ -493,6 +494,7 @@ const WSX = {
 };
 
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
+const SIG_IND = ["zn", "bso", "rm", "r2"];   // indicators that draw BUY/SELL marks today (more join this list as the new indicators are added)
 const Lg = (a, b) => lang === "ar" ? b : a;
 const smtPeers = sym => { const b = sym.split("-SWAP")[0].split("-").slice(0,2).join("-"), o = []; (CFG.smt || []).forEach(([a, c, inv]) => { if (a === b) o.push([c, !!inv]); else if (c === b) o.push([a, !!inv]); }); return o; };
 function smtFind(A, B, inv){   // swing-by-swing divergence between two aligned candle arrays; returns [{i1,i2,side,j1,j2}] (side up = bullish)
@@ -1138,7 +1140,7 @@ Object.assign(CandleChart.prototype, {
   paintX(c, k, y0, h, i0, i1, PR){   // the three extra oscillator panes: zn = scalp zones (Stoch+RSI), bso = Bollinger + Stoch + OsMA, rm = RSI + MA with extreme levels
     const st = this.st[k], y = v => y0 + h - 2 - v/100*(h-4), L = (v, col, dash) => { c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash || []); c.beginPath(); c.moveTo(0, y(v)+.5); c.lineTo(PR, y(v)+.5); c.stroke(); c.setLineDash([]); };
     const path = (arr, col, w, dash) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash ? dash.split(",").map(Number) : []); c.beginPath(); for (let i = i0; i <= i1; i++){ const yy = y(arr[i]), x = this.x(i); i === i0 ? c.moveTo(x,yy) : c.lineTo(x,yy); } c.stroke(); c.setLineDash([]); };
-    const mark = (i, up, txt) => { const x = this.x(i), yy = up ? y0 + h - 8 : y0 + 9; c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.font = "bold 9px sans-serif"; c.textAlign = "center"; c.fillText((up ? "▲ " : "▼ ")+txt, x, yy); c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; };
+    const mark = (i, up, txt) => { if (st.sg === false) return; const x = this.x(i), yy = up ? y0 + h - 8 : y0 + 9; c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.font = "bold 9px sans-serif"; c.textAlign = "center"; c.fillText((up ? "▲ " : "▼ ")+txt, x, yy); c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; };
     let title = "", labs = [];
     if (k === "zn"){ const Z = this.znV, hi = st.sell, hi2 = hi + 5, lo = st.buy, lo2 = lo - 5;
       c.fillStyle = "rgba(246,70,93,.07)"; c.fillRect(0, y(100), PR, y(hi2) - y(100)); c.fillStyle = "rgba(14,203,129,.07)"; c.fillRect(0, y(lo2), PR, y(0) - y(lo2));
@@ -1718,6 +1720,7 @@ class Panel {
         { const note = indHelp(it.id) || it.tip; if (note){ const q = el("button",null,"ⓘ"); q.title = lang === "ar" ? "شرح المؤشر" : "What is this?"; q.className = "ihelp"; const nb = el("div","inote"); nb.textContent = note; nb.style.display = it.hOpen ? "block" : "none";
           q.onclick = e => { e.stopPropagation(); it.hOpen = !it.hOpen; nb.style.display = it.hOpen ? "block" : "none"; }; row.append(q); row.after = null; row._note = nb; } }
         if (it.sty){
+          if (SIG_IND.includes(it.sty)){ const sl = el("label","sgl"), sc = el("input"); sc.type = "checkbox"; sc.checked = ch().st[it.sty].sg !== false; sl.title = Lg("Signals: show this indicator's BUY / SELL marks","إشارات: اعرض علامات الشراء/البيع بتاعة المؤشر"); sc.onchange = () => { ch().st[it.sty].sg = sc.checked; save(); }; sl.append(sc, document.createTextNode(Lg("Signals","إشارات"))); sl.onclick = e => e.stopPropagation(); row.append(sl); }
           const g = el("button",null,"⚙"); g.title = T("indSet"); row.append(g); const box = el("div","iset"); box.style.display = it.open ? "flex" : "none";
           const st = () => ch().st[it.sty];
           const col = el("input"); col.type = "color"; col.value = st().color; col.title = T("indColor"); col.oninput = () => { st().color = col.value; save(); };

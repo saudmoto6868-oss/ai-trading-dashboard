@@ -37,6 +37,22 @@ Context is deliberately **not** a star: it is evidence about the setting, not a 
 
 CISD vs Model 2022: CISD fires first (body close through the open of the last down-candle run, structure not yet broken); Model 2022 is the confirmed version (structure broke with displacement, entry in the gap).
 
+## Group A - quality filters on existing detectors (`modules/sig_filters.py`)
+They only REMOVE signals that fail an extra test (never add any). Switch each off with an env var, tune with `SIGF_*` (see the module header).
+| Filter | Applies to | Test | Needs |
+|---|---|---|---|
+| Strict SMC (`SIGF_STRICT_SMC`) | order block, breaker, unicorn | a real structure break exists: close beyond the swing high by >= 0.1 ATR, break/leg body >= 1 ATR, first break of that swing | - |
+| OB volume (`SIGF_OB_VOL`) | order block | volume of the OB candle + 2 next >= 1.0x the typical 3-bar volume | real volume |
+| Breakout volume delta (`SIGF_BO_VOL`) | breakout, liquidity-line break, OHL break, ORB | best of last 3 bars >= 1.2x 20-bar avg volume AND estimated net buying >= 10% (delta = volume x close-location, a candle ESTIMATE, not tick data) | real volume |
+Volume filters switch themselves off for markets whose candles carry no volume (Yahoo forex / indices). Not backtested yet: run `python -m modules.backtest_signals` with the switches on and off on real OKX data before trusting them.
+
+## Group B - new signals (`modules/signals.py`)
+| Signal | Detector | Rules |
+|---|---|---|
+| Kill Zone Sniper | `killzone_sniper_bull` | inside London / NY-AM kill zone (New York time): sweep of the 20-bar low + close back above + bullish displacement body >= 0.9 ATR; with real volume >= 1.5x average; >= 1.5R to the 30-bar swing high |
+| Power of Three (restricted) | `power_of_three_bull` | daily open (00:00 NY); price >= 0.5 ATR below it with that low printed INSIDE a kill zone; entry only after a displacement candle closes back above the open (rebound confirmed); target = max(open + 2x depth, yesterday's high); >= 1.5R |
+SMT (BTC/ETH/SOL pairs, `modules/smt.py`) and CRT (`crt_bull`) already existed and are unchanged.
+
 ## Scanner-only flags (`modules/chart_scan.py`) - NOT in stars / alerts yet
 IFVG, Mitigation block, MSS/CHoCH, Premium-Discount (outer 30%), Silver Bullet (FVG in a window), Breakout+volume-delta, Harmonics, channel breaks, double top/bottom.
 These are candidates for promotion once a walk-forward test on real candles shows they beat the baseline.

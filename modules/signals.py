@@ -24,6 +24,8 @@ import re
 import numpy as np
 import pandas as pd
 
+from modules import sig_filters as _sig_filters
+
 BULL, BEAR = "bullish", "bearish"
 
 FAMILY_ICONS = {
@@ -138,7 +140,7 @@ _KEY_PATTERNS = [
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
-    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"), (r"Session AMD", "sess_amd"), (r"opening-range breakout", "orb"),
+    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"), (r"Session AMD", "sess_amd"), (r"opening-range breakout", "orb"), (r"Kill Zone Sniper", "kzs"), (r"Power of Three", "po3"),
 ]
 
 
@@ -148,6 +150,18 @@ def _mk(family, name, detail, prices=None, vals=None, zone=None, counter=False):
     key = next((k for pat, k in _KEY_PATTERNS if re.search(pat, name)), "other")
     return {"family": family, "name": name, "key": key, "_t": detail, "_p": prices or {}, "_v": vals or {},
             "zone": zone, "counter": counter}
+
+
+def _filter_note(v: dict) -> str:
+    """What the Group-A quality filters measured (see sig_filters.py), appended to the signal text."""
+    bits = []
+    if v.get("strict"):
+        bits.append("strict structure break")
+    if v.get("obvol"):
+        bits.append("order-block volume x" + str(v["obvol"]) + " of normal")
+    if v.get("bovol"):
+        bits.append("breakout volume x" + str(v["bovol"]) + ", est. net buying " + str(round(100 * v.get("bodelta", 0))) + "% (candle-based estimate)")
+    return " [" + "; ".join(bits) + "]" if bits else ""
 
 
 def _finalize(sig: dict, flipped: bool) -> dict:
@@ -164,7 +178,7 @@ def _finalize(sig: dict, flipped: bool) -> dict:
         "family": sig["family"], "name": name, "key": sig["key"], "vals": dict(sig["_v"]),
         "direction": BEAR if (flipped ^ sig["counter"]) else BULL,
         "icon": FAMILY_ICONS[sig["family"]],
-        "detail": tmpl.format(**{k: fp(v) for k, v in p.items()}, **sig["_v"]),
+        "detail": tmpl.format(**{k: fp(v) for k, v in p.items()}, **sig["_v"]) + _filter_note(sig["_v"]),
         "prices": p, "zone": zone,
     }
 
@@ -1126,11 +1140,106 @@ def session_orb_bull(df):
                     prices={"oh": oh, "ol": ol, "t": oh + (oh - ol) * 2, "inv": ol}, vals={"sess": "London" if hh == 7 else "New York"})]
     return []
 
+# --------------------------------------------------------------------------
+# Group B: Kill Zone Sniper + Power of Three (new). Times are New York (daylight-saving aware).
+# Both fire only INSIDE a kill zone; both need a displacement candle (not just a poke) and at least 1.5R to the
+# target, because a bare power-of-three entry has a weak default R:R.
+# --------------------------------------------------------------------------
+KZ_NY = (("London", 2, 5), ("NY AM", 7, 10))     # same windows as modules/context.py
+
+
+def _ny_clock(df):
+    t = pd.to_datetime(df["time"])
+    t = t.dt.tz_localize("UTC") if t.dt.tz is None else t
+    return t.dt.tz_convert("America/New_York")
+
+
+def _kz_name(ts):
+    hr = ts.hour + ts.minute / 60
+    return next((n for n, a, b in KZ_NY if a <= hr < b), None)
+
+
+def _intraday(df, max_min: int = 60):
+    step = _bar_minutes(df)
+    return bool(step) and step <= max_min
+
+
+def killzone_sniper_bull(df, fresh: int = 3, look: int = 20):
+    """ICT Kill Zone Sniper (bullish): inside London / NY-AM a candle sweeps the lowest low of the last 20 bars, closes back
+    above it with a displacement body (>= 0.9 ATR, bullish); with real volume the candle must also trade >= 1.5x its 20-bar
+    average. Entry on that candle's close, stop under the sweep wick, target the swing high of the last 30 bars (>= 1.5R)."""
+    if "time" not in df.columns or len(df) < 60 or not _intraday(df):
+        return []
+    n = len(df); clk = _ny_clock(df)
+    o, h, l, c = (df[x].values for x in ("open", "high", "low", "close"))
+    atr = atr_series(df).values
+    vol_ok = "volume" in df.columns and (np.nan_to_num(df["volume"].values) > 0).mean() >= 0.9
+    v = df["volume"].values.astype(float) if vol_ok else None
+    for j in range(n - 1, max(n - 2 - fresh, look + 2), -1):
+        kz = _kz_name(clk.iloc[j])
+        if not kz:
+            continue
+        lvl = float(l[j - look:j].min())
+        if not (l[j] < lvl and c[j] > lvl and c[j] > o[j] and (c[j] - o[j]) >= 0.9 * atr[j]):
+            continue
+        vr = None
+        if vol_ok:
+            avg = float(np.mean(v[j - 20:j]))
+            vr = float(v[j] / avg) if avg > 0 else 0.0
+            if vr < 1.5:
+                continue
+        sl = float(l[j:].min())
+        tgt = float(h[max(0, n - 30):].max())
+        px = float(c[-1])
+        if (c[j:] <= sl).any() or px - sl <= 0 or (tgt - px) < 1.5 * (px - sl):
+            continue
+        txt = ("inside the " + kz + " kill zone a candle swept the 20-bar low {lvl} and closed back above it with a displacement body"
+               + (" on " + str(round(vr, 1)) + "x average volume" if vr else "") + "; stop under the sweep wick {sl}, target the recent swing high {t}")
+        return [_mk("Liquidity", "Kill Zone Sniper sweep", txt, prices={"lvl": lvl, "sl": sl, "t": tgt, "inv": sl}, vals={"kz": kz, "vr": round(vr, 1) if vr else 0}, zone=(sl, lvl))]
+    return []
+
+
+def power_of_three_bull(df, fresh: int = 4):
+    """ICT Power of Three (bullish), restricted: day opens (00:00 New York) = accumulation reference; MANIPULATION = price
+    trades >= 0.5 ATR BELOW the daily open and that low prints inside a kill zone; the entry is only allowed after the
+    REBOUND is confirmed - a bullish displacement candle that closes back ABOVE the daily open (return inside the range).
+    Stop under the manipulation low, target = the higher of (daily open + 2x the manipulation depth) and yesterday's high, and the move must still offer >= 1.5R."""
+    if "time" not in df.columns or len(df) < 60 or not _intraday(df):
+        return []
+    n = len(df); clk = _ny_clock(df)
+    day = clk.dt.normalize()
+    last_day = day.iloc[-1]
+    idx = np.where((day == last_day).values)[0]
+    if len(idx) < 8:
+        return []
+    o, h, l, c = (df[x].values for x in ("open", "high", "low", "close"))
+    atr = atr_series(df).values
+    d0 = int(idx[0]); op = float(o[d0])
+    seg = slice(d0, n)
+    ml_i = d0 + int(np.argmin(l[seg])); ml = float(l[ml_i])
+    if op - ml < 0.5 * atr[-1] or not _kz_name(clk.iloc[ml_i]):
+        return []                                        # no real dip below the open, or it did not happen in a kill zone
+    j = next((k for k in range(ml_i, n) if c[k] > op and c[k] > o[k] and (c[k] - o[k]) >= 0.7 * atr[k]), None)
+    if j is None or n - 1 - j > fresh or (c[j:] <= op).any():
+        return []                                        # no confirmed rebound / too old / lost the open again
+    px = float(c[-1]); sl = ml - 0.1 * atr[-1]; tgt = op + 2 * (op - ml)
+    prev = np.where((day == day.iloc[d0 - 1]).values)[0] if d0 > 0 else []
+    if len(prev):
+        pdh = float(h[prev].max())                       # yesterday's high = the usual distribution objective
+        tgt = max(tgt, pdh) if pdh > px else tgt
+    if px - sl <= 0 or (tgt - px) < 1.5 * (px - sl):
+        return []
+    return [_mk("Liquidity", "Power of Three rebound",
+                "Power of Three: the day opened at {op}, price was manipulated down to {ml} inside a kill zone, then rebounded with a displacement candle and closed back above the daily open; "
+                "stop under the manipulation low, distribution target {t}",
+                prices={"op": op, "ml": ml, "t": tgt, "inv": sl}, zone=(ml, op))]
+
+
 DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 
 DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, model2022_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
-             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull)
+             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull, killzone_sniper_bull, power_of_three_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):
@@ -1143,7 +1252,7 @@ def detect_all(df: pd.DataFrame, detectors=None):
     for flipped, frame in ((False, df), (True, invert(df))):
         for fn in detectors:
             try:
-                sigs += [_finalize(s, flipped) for s in fn(frame)]
+                sigs += [_finalize(s, flipped) for s in _sig_filters.apply(frame, fn(frame))]
             except Exception as e:  # one broken detector must never kill the scan
                 errs.append(f"{fn.__name__}: {e}")
     return sigs, errs

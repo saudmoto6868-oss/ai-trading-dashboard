@@ -85,7 +85,7 @@ def fmt(a: dict) -> str:
     esc = html.escape
     up = a["direction"] == "bullish"
     p = a.get("plan") or {}
-    tags = " · ".join(esc(str(t[1])) for t in (a.get("tags") or [])[:5] if len(t) > 1)
+    tags = " · ".join(esc(str(t[0])) for t in (a.get("tags") or [])[:6] if t)   # tag = [abbr, bg, fg, tip]
     lines = [f"{'🟢' if up else '🔴'} <b>{esc(a['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {esc(str(a.get('tfk') or a.get('tfc')))} · {esc(str(a.get('trade', '')))}",
              f"الجودة: <b>{a['q']}/100</b> · النجوم {a.get('score')}/{a.get('max')}"]
     if p:

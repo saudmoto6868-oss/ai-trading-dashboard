@@ -553,7 +553,7 @@ const Hub = {
         let payload;
         if (/^Y:/.test(sym) && (kind === "book" || kind === "trades")){ payload = {error:"no order book / tape for this market (Yahoo feed)"}; }
         else if (kind === "book"){
-          const d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400"))[0];
+          let d; try { d = (await okx("/market/books-full?instId="+encodeURIComponent(sym)+"&sz=2000"))[0]; if (!d || !d.bids || d.bids.length < 5) throw 0; } catch(e){ d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400"))[0]; }   // up to 2000 levels a side = the widest band OKX's REST book gives; falls back to 400
           const bb = d.bids.map(x=>({p:+x[0],q:+x[1]})), aa = d.asks.map(x=>({p:+x[0],q:+x[1]}));
           payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
         } else if (kind === "trades"){
@@ -622,7 +622,7 @@ class CandleChart {
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","zn","bso","rm","r2"]; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, mt5:{color:"#ffeb3b",w:1.4,dash:"",step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
@@ -953,8 +953,21 @@ Object.assign(CandleChart.prototype, {
     (this.flowT = this.flowT || []).push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (this.flowT.length > 4000) this.flowT.splice(0, 800);   // Bookmap column: every print with its own timestamp
     if (this.fp.size > 600){ const ks = [...this.fp.keys()].sort((a,b) => a-b); for (let j = 0; j < 100; j++) this.fp.delete(ks[j]); }
   },
+  bucketBook(bids, asks){   // price levels -> buckets of a stable round step (~0.4 bp of price), summed sizes: one snapshot stays a few hundred numbers even with 2000 levels a side
+    const all = bids.concat(asks); if (!all.length) return []; let mn = Infinity, mx = -Infinity; all.forEach(x => { if (x.p < mn) mn = x.p; if (x.p > mx) mx = x.p; }); const mid = all[0].p, raw = Math.max(mid*0.00004, (mx - mn)/300), mag = Math.pow(10, Math.floor(Math.log10(raw || 1e-9))), bk = [1,2,5,10].map(x => x*mag).find(x => x >= raw) || raw, g = new Map();
+    all.forEach(x => { const k = Math.round(x.p/bk); g.set(k, (g.get(k) || 0) + x.q); }); const out = []; g.forEach((q, k) => out.push([k*bk, q])); this.bk = bk; return out;
+  },
+  flowDiff(fb){   // a big resting order that shrank between two book snapshots: executed (trades at that price covered it) = "fill", otherwise it was pulled = "pull"
+    const n = fb.length; if (n < 2) return; const A = fb[n-2], B = fb[n-1], cur = new Map(B.lv.map(([p, q]) => [p, q])); if (!A.lv.length || !B.lv.length) return;
+    let lo = Infinity, hi = -Infinity; B.lv.forEach(([p]) => { if (p < lo) lo = p; if (p > hi) hi = p; });
+    const avg = A.lv.reduce((a, x) => a + x[1], 0)/A.lv.length, mid = (B.bb + B.ba)/2, tk = Math.max(1e-12, ...[0].concat(A.lv.length > 1 ? [Math.abs(A.lv[1][0] - A.lv[0][0])] : [])) || 1e-9;
+    const T_ = (this.flowT || []).filter(x => x.t >= A.t - 500), E = this.flowE = this.flowE || [];
+    A.lv.forEach(([p, q]) => { if (q < 4*avg || p < lo || p > hi) return; const q2 = cur.get(p) || 0, drop = q - q2; if (drop < 0.5*q) return;
+      const ex = T_.reduce((a, x) => a + (Math.abs(x.p - p) <= tk*0.6 ? x.q : 0), 0); E.push({t:B.t, p, q:drop, kind:ex >= 0.5*drop ? "fill" : "pull", bid:p <= mid}); });
+    if (E.length > 300) E.splice(0, 100);
+  },
   domAdd(b){
-    this.lastBook = b; { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:((b.deep ? b.deep.bids : b.bids) || []).concat((b.deep ? b.deep.asks : b.asks) || []).map(x => [x.p, x.q])}); if (fb.length > 900) fb.splice(0, 200); }   // Bookmap column: one book snapshot per poll, own timestamp
+    this.lastBook = b; { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); }   // Bookmap column: one book snapshot per poll, own timestamp
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
@@ -1067,16 +1080,18 @@ Object.assign(CandleChart.prototype, {
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.flowSpan || 120000, gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const tx = t => gx1 - (now - t)/span*gw;   // time -> x
-    c.save(); c.fillStyle = "#0d1116"; c.fillRect(X0, 0, CW, PB); c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
+    c.save(); c.fillStyle = (this.st.of.hm || "book") === "book" && this.domOn ? "rgb(8,16,60)" : "#0d1116"; c.fillRect(X0, 0, CW, PB);   // heat-map base colour fills the column top to bottom; the book itself only exists where the exchange lists orders c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
     c.fillStyle = "#3a424b"; c.fillRect(X0 + 1, Math.round(PB/2) - 12, 3, 24);   // grip: drag to resize, double-click = default
     c.beginPath(); c.rect(X0 + 5, 0, CW - 7, PB); c.clip();
-    const raw = (hi-lo)/Math.max(1, PB/6), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw, rowH = Math.max(2, Math.abs(py(0) - py(step)));
+    const raw = Math.max((hi-lo)/Math.max(1, PB/6), this.bk || 0), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw, rowH = Math.max(2, Math.abs(py(0) - py(step)));
     const B = (this.flowB || []).filter(x => x.t >= now - span*1.05), T_ = (this.flowT || []).filter(x => x.t >= now - span);
-    // 1) heat map: each book snapshot is a vertical slice that lasts until the next snapshot; brightness = resting size at that price
-    let hm = 0; const rows = B.map(sn => { const m = new Map(); sn.lv.forEach(([p, q]) => { const k = Math.round(p/step), o = m.get(k); if (!o || q > o) m.set(k, q); }); m.forEach(v => { if (v > hm) hm = v; }); return m; });
+    // 1) heat map: each book snapshot is a vertical slice that lasts until the next snapshot; colour = resting size at that price (scheme: Bookmap thermal / bid-ask colours / amber). The per-snapshot price rows are computed once and cached.
+    let hm = 0; const rows = B.map(sn => { if (sn._rs !== step){ const m = new Map(); sn.lv.forEach(([p, q]) => { const k = Math.round(p/step), o = m.get(k); if (o) o.q += q; else m.set(k, {q, bid:sn.bb ? p <= sn.bb : true}); }); let mx = 0; m.forEach(v => { if (v.q > mx) mx = v.q; }); sn._r = m; sn._mx = mx; sn._rs = step; } if (sn._mx > hm) hm = sn._mx; return sn._r; });
+    const scheme = OF.hm || "book", RAMP = [[0,[8,16,60]],[.25,[20,70,190]],[.5,[20,190,210]],[.7,[240,220,40]],[.88,[245,120,30]],[1,[255,250,235]]];
+    const ramp = t => { for (let q = 1; q < RAMP.length; q++){ if (t <= RAMP[q][0]){ const a = RAMP[q-1], b = RAMP[q], u = (t - a[0])/(b[0] - a[0] || 1); return "rgb("+Math.round(a[1][0] + (b[1][0]-a[1][0])*u)+","+Math.round(a[1][1] + (b[1][1]-a[1][1])*u)+","+Math.round(a[1][2] + (b[1][2]-a[1][2])*u)+")"; } } return "rgb(255,250,235)"; };
     if (this.domOn) B.forEach((sn, i) => { const x0 = Math.max(gx0, tx(sn.t)), x1 = Math.min(gx1, i + 1 < B.length ? tx(B[i+1].t) : gx1), w = Math.max(1.2, x1 - x0); if (x1 < gx0) return;
-      rows[i].forEach((q, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const t = Math.min(1, Math.pow(q/(hm || 1), .55)*(OF.dom || 1));   // dark -> amber -> yellow -> white-hot
-        c.fillStyle = "rgba(255,"+Math.round(190 + 65*t*t)+","+Math.round(30 + 210*t*t*t)+","+(.08 + .9*t).toFixed(2)+")"; c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+      rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const t = Math.min(1, Math.pow(v.q/(hm || 1), .55)*(OF.dom || 1)); if (t < .04) return;
+        c.fillStyle = scheme === "side" ? hexA(v.bid ? OF.color : OF.color2, .08 + .9*t) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*t*t)+","+Math.round(30 + 210*t*t*t)+","+(.08 + .9*t).toFixed(2)+")" : ramp(t); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     // 2) mid-price trace (the line the heat map is read against)
     if (this.domOn && B.length > 1){ c.strokeStyle = "#eaecef"; c.lineWidth = 1.2; c.beginPath(); let st = false; B.forEach(sn => { if (!sn.bb || !sn.ba) return; const x = tx(sn.t); if (x < gx0) return; const y = py((sn.bb + sn.ba)/2); st ? c.lineTo(x, y) : (c.moveTo(x, y), st = true); }); c.stroke(); }
     // 2b) absorption: lots of volume traded at ONE price row without the price leaving it = the resting orders there soaked it up -> purple frame on the heat map
@@ -1085,6 +1100,10 @@ Object.assign(CandleChart.prototype, {
       g.forEach((o, k) => { if (o.n >= 4 && sums.length >= 4 && o.sum >= 3*Math.max(med, 1e-12)) ab.set(k, o); }); }
     if (this.domOn) ab.forEach((o, k) => { const y = py(k*step), x0 = Math.max(gx0, tx(o.t0)); if (y < -rowH || y > PB + rowH) return; c.strokeStyle = "#b57cff"; c.lineWidth = 1.6; c.fillStyle = "rgba(181,124,255,.16)"; c.fillRect(x0, y - rowH/2, gx1 - x0, rowH); c.strokeRect(x0, y - rowH/2, gx1 - x0, rowH);
       c.fillStyle = "#d9b8ff"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("ABS " + (o.buy >= o.sell ? Lg("sellers absorb","البيع بيمتص") : Lg("buyers absorb","الشراء بيمتص")), x0 + 2, y - rowH/2 - 3); });
+    // 2c) flashes: a big resting order that vanished. White = pulled (cancelled), purple = filled / absorbed by trades. Bright for 2.5 s, then a faint tick stays at that price and time
+    if (this.domOn){ const nowT = now, FE = (this.flowE || []).filter(e => e.t >= now - span); let em = 0; FE.forEach(e => { if (e.q > em) em = e.q; });
+      FE.forEach(e => { const X = tx(e.t), Y = py(e.p); if (X < gx0 - 4 || Y < -10 || Y > PB + 10) return; const age = (nowT - e.t)/1000, hot = age < 2.5, col = e.kind === "fill" ? "#b57cff" : "#ffffff", hh = Math.max(rowH, 3), ww = hot ? 16 + 20*Math.sqrt(e.q/(em || 1)) : 4;
+        c.globalAlpha = hot ? Math.max(.25, 1 - age/2.5)*(.55 + .45*(Math.floor(age*6) % 2)) : .5; c.fillStyle = col; c.fillRect(X, Y - hh/2, ww, hh); if (hot){ c.strokeStyle = col; c.lineWidth = 1.2; c.strokeRect(X - 1, Y - hh/2 - 1, ww + 2, hh + 2); } c.globalAlpha = 1; }); }
     // 3) bubbles: one per print, size = quantity, buy = green / sell = red, they drift left as time passes and fade with age
     let qm = 0; T_.forEach(x => { if (x.q > qm) qm = x.q; }); const maxR = Math.min(22, Math.max(5, gw/9))*(OF.bsz || 1), top = [], mt = OF.min >= 2 ? 2 : OF.min >= 1 ? 1 : 0, rk = {normal:0, smart:1, whale:2};
     if (this.bubOn) T_.forEach(x => { if (rk[x.tier || "normal"] < mt) return; if (x.q < qm*0.04) return; const X = tx(x.t), Y = py(x.p); if (X < gx0 - 4 || Y < -10 || Y > PB + 10) return; const age = (now - x.t)/span, r = Math.max(1.8, maxR*Math.pow(x.q/(qm || 1), .5)*Math.min(1, .35 + (now - x.t)/500)), col = x.side === "Buy" ? OF.color : OF.color2;
@@ -1094,6 +1113,8 @@ Object.assign(CandleChart.prototype, {
     const ly = py(this.data[this.data.length-1].c); c.strokeStyle = "#4aa3ff"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(X0, ly + .5); c.lineTo(XE, ly + .5); c.stroke(); c.setLineDash([]);
     c.textAlign = "left"; c.fillStyle = "#848e9c"; c.font = "9px sans-serif"; const sp = span >= 60000 ? Math.round(span/60000*10)/10+"m" : Math.round(span/1000)+"s";
     c.fillText(Lg("ORDER FLOW · "+sp+" window (wheel = zoom)", "أوردر فلو · نافذة "+sp+" (العجلة = تكبير الوقت)"), gx0, 10);
+    if (this.domOn){ c.fillStyle = "#ffffff"; c.fillText("■ "+Lg("pulled","اتلغى"), gx1 - 96, 10); c.fillStyle = "#b57cff"; c.fillText("■ "+Lg("filled","اتنفذ"), gx1 - 46, 10); c.fillStyle = "#848e9c"; }
+    if (this.domOn && B.length){ const sn = B[B.length-1], ps = sn.lv.map(x => x[0]), mid = (sn.bb + sn.ba)/2; if (ps.length && mid){ const cov = (Math.max(...ps) - Math.min(...ps))/mid*100/2; c.fillStyle = "#6b7684"; c.fillText(Lg("book depth ±"+cov.toFixed(2)+"% (exchange limit)", "عمق الدفتر ±"+cov.toFixed(2)+"% (حد البورصة)"), gx0, 36); } }
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
@@ -2672,6 +2693,7 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   const m = el("select"); [[1, L("Sweep/absorb follow buy/sell colour","السويب/الامتصاص بلون الشراء/البيع")],[0, L("Custom marker colours","ألوان مخصصة")]].forEach(([v,l]) => m.append(Object.assign(el("option"), {value:v, textContent:l}))); m.value = OF.sidec ? 1 : 0; m.onchange = () => { OF.sidec = +m.value; onChange(); }; row(L("Marker colours","ألوان العلامات"), m);
   col("sweepC", L("Sweep marker (custom)","علامة السويب (مخصص)")); col("absC", L("Absorption marker (custom)","علامة الامتصاص (مخصص)"));
   num("min", L("Bubbles: min size (0 all · 1 smart · 2 whale)","الفقاعات: أقل حجم (0 الكل · 1 ذكي · 2 حوت)"), 0, 2, 1); num("bsz", L("Bubble size ×","حجم الفقاعة ×"), 0.3, 3, 0.1);
+  { const hs = el("select"); [["book", L("Bookmap thermal (blue → yellow → red)","بوك ماب حراري (أزرق ← أصفر ← أحمر)")], ["side", L("Bid / ask colours (buy & sell colour)","ألوان الطلب والعرض (لون الشراء والبيع)")], ["amber", L("Amber (old)","كهرماني (القديم)")]].forEach(([v, l]) => hs.append(Object.assign(el("option"), {value:v, textContent:l}))); hs.value = OF.hm || "book"; hs.onchange = () => { OF.hm = hs.value; onChange(); }; row(L("Heat-map colours","ألوان الهيت ماب"), hs); }
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);

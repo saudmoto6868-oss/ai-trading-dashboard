@@ -92,6 +92,16 @@ with st.sidebar.expander("Order Book / Time & Sales", expanded=False):
         "Absorption = level volume >= N x median level", 2.0, 8.0, 3.0, step=0.5,
         help="Heavy volume trading at one price while the price barely moves.",
     )
+with st.sidebar.expander("Telegram alerts (optional)", expanded=False):
+    tg_on = st.checkbox("Send the best alerts to Telegram", value=False, key="tg_on",
+                        help="Only the top-ranked alerts (evidence score, not a proven win rate). Needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Secrets.")
+    tg_top = st.number_input("Max alerts per scan", 1, 10, 3, key="tg_top")
+    tg_min = st.slider("Minimum quality (0-100)", 30, 95, 60, key="tg_min")
+    if st.button("Send test message", key="tg_test"):
+        from modules import telegram_alerts as _tga
+        _err = _tga.send("✅ 6868 X: Telegram connected.")
+        st.success("Sent.") if not _err else st.error(_err)
+    st.caption("Quality = strategy families agreeing + daily bias / premium-discount / killzone + reward:risk. It ranks the evidence; it does not predict success.")
 with st.sidebar.expander("Chart / Layout", expanded=False):
     ws_height = st.slider("Workspace height (px)", 500, 6000, 3400, step=20)
     ui_bg = st.color_picker("Page background", "#0b0e11")
@@ -452,6 +462,11 @@ def _scan_worker(store, ws_tf, ws_key):
                     df_ = get_klines(r_["symbol"], tf_, 300)
                     e_ = scan_entry(r_, df_)
                     if e_:
+                        try:
+                            from modules.telegram_alerts import quality as _tq
+                            e_["q"], e_["qwhy"] = _tq(r_, e_)   # evidence rank 0-100 (used to pick what goes to Telegram)
+                        except Exception:
+                            e_["q"], e_["qwhy"] = 0, []
                         e_["spark"] = [round(float(x), 6) for x in df_["close"].iloc[-41:-1]]
                 except Exception:
                     e_ = None
@@ -477,6 +492,12 @@ def _scan_worker(store, ws_tf, ws_key):
         store["built"] = time.time()
     finally:
         store["running"] = False
+
+
+@st.cache_resource
+def _tg_sent():
+    """symbol|side|tf -> (time, quality) of what was already sent to Telegram (shared across reruns)."""
+    return {}
 
 
 @st.cache_resource
@@ -889,6 +910,13 @@ with tab_workspace:
     try:
         ws_lang = st.session_state.get("ws_lang", "en")
         cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
+        if tg_on and not cached_ws.get("loading"):
+            from modules import telegram_alerts as _tga
+            _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))
+            if _err:
+                st.sidebar.warning("Telegram: " + _err)
+            elif _n:
+                st.sidebar.caption(f"Telegram: sent {_n} alert(s).")
         try:
             world_items, world_errs = _world_news()
         except Exception:

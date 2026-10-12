@@ -420,7 +420,8 @@ const Journal = {
     pool.forEach(e => {
       if (!e || !e.plan || !planOk(e.plan, e.direction)) return;
       const key = e.symbol+"|"+e.direction+"|"+e.ttype, en = e.plan.entry;
-      if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005))) return;
+      const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
+      if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       this.list.push({id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
         rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open"});
       added++;
@@ -970,7 +971,9 @@ Object.assign(CandleChart.prototype, {
   paintSigs(c, py, PR, PB, ov){   // BUY/SELL arrows: live scanner signal on the last candle + past journal signals for this symbol
     const d = this.data, n = d.length, sm = this.secMs(), list = this.sigs.slice(); c.font = "bold 10px sans-serif"; c.textAlign = "center";
     if (ov && ov.dir){ list.push({t:d[n-1].t, dir:ov.dir, pct:Math.round(100*ov.score/Math.max(1,ov.max)), tfk:ov.tf || this.tf, live:true}); }
-    list.forEach(s => {
+    list.sort((a, b) => a.t - b.t); const lastK = {bullish:-1e18, bearish:-1e18}, GAP = 8*sm;   // thin out: at most one marker per side every 8 candles (live one always shown)
+    const shown = list.filter(s => { if (s.live) return true; if (s.t - lastK[s.dir] < GAP) return false; lastK[s.dir] = s.t; return true; });
+    shown.forEach(s => {
       if (s.t < d[0].t - sm) return; let k = -1; for (let i = n-1; i >= 0; i--) if (d[i].t <= s.t){ k = i; break; } if (k < 0) return;
       const long_ = s.dir === "bullish", x = this.x(k), col = long_ ? "#0ecb81" : "#f6465d", y = long_ ? py(d[k].l) + 16 : py(d[k].h) - 16; if (y < 4 || y > PB - 4 || x < 0 || x > PR) return;
       c.fillStyle = col; c.strokeStyle = s.status === "tp" ? "#ffffff" : s.status === "sl" ? "#848e9c" : col; c.lineWidth = s.live ? 2 : 1;

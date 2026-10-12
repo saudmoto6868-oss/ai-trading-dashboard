@@ -82,20 +82,34 @@ def mark(a: dict, sent: dict, now: float | None = None):
 
 
 def fmt(a: dict) -> str:
+    """The "Setup" message: same content as the dashboard's Setup Card (what fired, the plan, the context)."""
     esc = html.escape
     up = a["direction"] == "bullish"
     p = a.get("plan") or {}
+    ana = a.get("ana") or {}
     tags = " · ".join(esc(str(t[0])) for t in (a.get("tags") or [])[:6] if t)   # tag = [abbr, bg, fg, tip]
-    lines = [f"{'🟢' if up else '🔴'} <b>{esc(a['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {esc(str(a.get('tfk') or a.get('tfc')))} · {esc(str(a.get('trade', '')))}",
+    lines = [f"📋 <b>SETUP</b> {'🟢' if up else '🔴'} <b>{esc(a['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {esc(str(a.get('tfk') or a.get('tfc')))} · {esc(str(a.get('trade', '')))}",
              f"الجودة: <b>{a['q']}/100</b> · النجوم {a.get('score')}/{a.get('max')}"]
     if p:
-        lines.append(f"دخول {p.get('entry')} · وقف {p.get('stop')} · أهداف {' / '.join(str(x) for x in p.get('tps', []))}")
-    if tags:
-        lines.append("الأدلة: " + tags)
+        try:
+            risk = abs(p["entry"] - p["stop"]); rr = f" · R:R 1:{abs(p['tps'][0] - p['entry']) / risk:.1f}" if risk else ""
+        except Exception:
+            rr = ""
+        lines.append(f"\n<b>الخطة</b>\nدخول {p.get('entry')} · وقف {p.get('stop')}\nأهداف {' / '.join(str(x) for x in p.get('tps', []))}{rr}")
+    sig = [x for x in (ana.get("sig") or []) if x][:5]
+    if sig:
+        lines.append("\n<b>الشروط اللي اتحققت</b>\n" + "\n".join("• " + esc(str(x))[:170] for x in sig))
+    elif tags:
+        lines.append("\nالأدلة: " + tags)
+    ctx = [x for x in (ana.get("ctx") or []) if x][:4]
+    if ctx:
+        lines.append("\n<b>السياق</b>\n" + "\n".join("• " + esc(str(x))[:150] for x in ctx))
+    if ana.get("against"):
+        lines.append("⚠ " + esc(str(ana["against"]))[:200])
     if a.get("qwhy"):
-        lines.append(esc(" · ".join(a["qwhy"])))
-    lines.append("<i>ترتيب بالأدلة مش نسبة نجاح مثبتة. مش نصيحة مالية.</i>")
-    return "\n".join(lines)
+        lines.append("\n" + esc(" · ".join(a["qwhy"])))
+    lines.append("\n<i>ترتيب بالأدلة مش نسبة نجاح مثبتة. مش نصيحة مالية.</i>")
+    return "\n".join(lines)[:3900]
 
 
 def send(text: str, token: str | None = None, chat: str | None = None) -> str | None:

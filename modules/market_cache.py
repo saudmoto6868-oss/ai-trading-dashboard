@@ -33,7 +33,16 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
     try:
         if symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
             from modules.yahoo_feed import get_yahoo_klines
-            df = get_yahoo_klines(symbol, tf, limit)
+            try:
+                df = get_yahoo_klines(symbol, tf, limit)
+            except Exception as ye:   # Yahoo down / throttled: forex daily+weekly can come from Alpha Vantage instead
+                from modules import av_feed
+                if tf not in ("1d", "1w") or not av_feed.pair(symbol):
+                    raise
+                try:
+                    df = av_feed.get_fx_klines(symbol, tf, limit)
+                except Exception as ae:
+                    raise RuntimeError(f"{ye} | {ae}")
         else:
             df = get_binance_klines(symbol, interval=tf, limit=limit)
         with _lock:

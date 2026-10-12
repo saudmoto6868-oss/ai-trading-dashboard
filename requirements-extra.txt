@@ -1,0 +1,3 @@
+# optional extras (see modules/perf_report.py) - pip install -r requirements-extra.txt
+quantstats
+pandas-ta   # if it fails on a new numpy / pandas, use the maintained fork instead: pandas-ta-classic

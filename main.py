@@ -684,6 +684,16 @@ def render_header():
     # the ready-trades table now lives inside the Workspace (movable widget); macro watchlist is in the sidebar
     with st.sidebar.expander("Macro watchlist", expanded=False):
         st.markdown(macro_html(), unsafe_allow_html=True)
+    with st.sidebar.expander("US economy (FRED)", expanded=False):
+        st.caption("Monthly/daily official data, not live prices. Needs FRED_API_KEY in Secrets.")
+        for r_ in _fred_rows():
+            st.write(f"**{r_['label']}**: {r_['value'] if r_['value'] is not None else 'n/a'}  {r_['date']} {('- ' + r_['note']) if r_['note'] else ''}")
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fred_rows():
+    from modules.fred_feed import snapshot
+    return snapshot()
 
 
 @st.cache_data(ttl=900, show_spinner=False)

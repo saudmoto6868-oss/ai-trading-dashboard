@@ -36,11 +36,18 @@ def _av_fallback(limit: int, why: list) -> list:
     rows = r.get("rows") or []
     if not rows:
         err = r.get("error") or "no articles"
+        rss = []
         try:
-            from modules import rss_news
-            rss = rss_news.fetch(limit)
+            from modules import currents_news
+            rss = currents_news.fetch(limit)
         except Exception:
             rss = []
+        if not rss:
+            try:
+                from modules import rss_news
+                rss = rss_news.fetch(limit)
+            except Exception:
+                rss = []
         if rss:
             return [{"headline": a["title"], "source": a["source"], "url": a["url"], "icon": ASSET_ICONS["general"],
                      "summary": "", "datetime": a["time"]} for a in rss]

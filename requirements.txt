@@ -3,3 +3,5 @@ pandas
 numpy
 requests
 streamlit-autorefresh
+quantstats
+pandas-ta-classic

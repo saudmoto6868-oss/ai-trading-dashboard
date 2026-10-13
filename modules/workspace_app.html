@@ -2183,7 +2183,12 @@ class Panel {
     [[0,T("fAll")],[50,"≥ 50%"],[70,"≥ 70%"]].forEach(([v,l]) => cf.append(Object.assign(el("option"), {value:v, textContent:T("conf")+" "+l}))); cf.value = S.jc;
     rng.onchange = () => { S.jr = rng.value; Ws.save(); draw(); }; cf.onchange = () => { S.jc = +cf.value; Ws.save(); draw(); };
     clr.onclick = () => { if (Date.now() - armed < 2500){ Journal.list = []; Journal.save(); armed = 0; clr.textContent = T("clear"); } else { armed = Date.now(); clr.textContent = "?"; setTimeout(() => clr.textContent = T("clear"), 2500); } };
-    tb.append(rng, cf, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
+    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades (time, symbol, side, tf, r) for the Performance tab","صدّر الصفقات المقفولة (للتاب Performance)");
+    csvB.onclick = () => { const st = Journal.stats(+S.jc, S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3), rows = ["time,symbol,side,tf,r"].concat(st.closed.map(t => [new Date(t.t1).toISOString(), t.symbol || t.sym || "", t.dir === "bullish" ? "long" : "short", t.tfk || "", (+t.r).toFixed(3)].join(",")));
+      const txt = rows.join("\n"); try { const a2 = document.createElement("a"); a2.href = URL.createObjectURL(new Blob([txt], {type:"text/csv"})); a2.download = "journal_trades.csv"; document.body.append(a2); a2.click(); a2.remove(); }
+      catch(e){}
+      try { navigator.clipboard.writeText(txt).then(() => { csvB.textContent = "✓"; setTimeout(() => csvB.textContent = "CSV", 1500); }, () => {}); } catch(e2){} };   // also copied to the clipboard in case the host page blocks downloads
+    tb.append(rng, cf, csvB, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
     const f2 = v => (v >= 0 ? "+" : "") + v.toFixed(2);
     const draw = () => {
       const since = S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3, st = Journal.stats(+S.jc, since);

@@ -91,3 +91,19 @@ def ta_extra(df: pd.DataFrame) -> pd.DataFrame:
     ma, sd = c.rolling(20).mean(), c.rolling(20).std(ddof=0)
     out["bb_lo"], out["bb_hi"] = ma - 2 * sd, ma + 2 * sd
     return out
+
+
+def returns_from_trades(df: pd.DataFrame, risk_pct: float = 1.0) -> pd.Series:
+    """Journal export (CSV with a time column and an R column) -> per-trade fractional returns indexed by close time.
+    R is risk multiples (+2 = won 2x the risk, -1 = lost the risk); each trade risks `risk_pct` % of the account,
+    so return = R * risk_pct / 100. Several trades closing at the same time are summed."""
+    cols = {str(c).strip().lower(): c for c in df.columns}
+    tcol = next((cols[k] for k in ("time", "closed", "closed_at", "date", "t1", "datetime") if k in cols), None)
+    rcol = next((cols[k] for k in ("r", "r_multiple", "pnl_r", "result_r") if k in cols), None)
+    if tcol is None or rcol is None:
+        raise ValueError("CSV needs a time column (time / closed / date) and an R column (r)")
+    t = pd.to_datetime(df[tcol], errors="coerce", utc=True).dt.tz_localize(None)
+    r = pd.to_numeric(df[rcol], errors="coerce")
+    ok = t.notna() & r.notna()
+    out = (r[ok] * risk_pct / 100.0).groupby(t[ok]).sum().sort_index()
+    return out

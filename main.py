@@ -772,8 +772,8 @@ def render_universe_controls():
 
 
 # ---- Tabs -------------------------------------------------------------------------
-tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme = st.tabs(
-    ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins"]
+tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme, tab_perf = st.tabs(
+    ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]
 )
 
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
@@ -1104,3 +1104,34 @@ _store_now = _scan_store()
 if _store_now["running"] or (_store_now["payload"] or {}).get("loading"):
     time.sleep(5)
     st.rerun()
+
+
+with tab_perf:
+    st.subheader("Performance report (QuantStats)")
+    st.caption("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
+               "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge.")
+    import pandas as _pd
+    from modules.perf_report import perf_stats, quantstats_html, returns_from_trades
+    _up = st.file_uploader("Journal CSV (columns: time, r)", type=["csv"], key="perf_csv")
+    _risk = st.number_input("Risk per trade (% of account)", min_value=0.1, max_value=10.0, value=1.0, step=0.1, key="perf_risk")
+    if _up is not None:
+        try:
+            _ret = returns_from_trades(_pd.read_csv(_up), float(_risk))
+            if len(_ret) < 5:
+                st.warning("Need at least 5 closed trades for meaningful statistics.")
+            else:
+                _st = perf_stats(_ret)
+                _c = st.columns(4)
+                _c[0].metric("Trades", _st["n"]); _c[1].metric("Total return", f"{_st['total_return']*100:.1f}%")
+                _c[2].metric("Max drawdown", f"{_st['max_drawdown']*100:.1f}%"); _c[3].metric("Win rate", f"{_st['win_rate']*100:.0f}%")
+                _c = st.columns(3)
+                _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric("Stats source", _st["source"])
+                st.line_chart((1 + _ret).cumprod().rename("equity"))
+                import streamlit.components.v1 as _components
+                _html = quantstats_html(_ret)
+                if _html:
+                    _components.html(_html, height=900, scrolling=True)
+                else:
+                    st.info("QuantStats is not installed here, so only the built-in statistics are shown.")
+        except Exception as _e:
+            st.error(f"Could not read the file: {type(_e).__name__}: {_e}")

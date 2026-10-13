@@ -67,7 +67,10 @@ def ta_extra(df: pd.DataFrame) -> pd.DataFrame:
     """Add rsi14 / macd / macd_sig / atr14 / bb_lo / bb_hi columns (candles with open/high/low/close)."""
     out = df.copy()
     try:
-        import pandas_ta as ta   # or: import pandas_ta_classic as ta
+        try:
+            import pandas_ta_classic as ta   # maintained fork (pip install pandas-ta-classic)
+        except ImportError:
+            import pandas_ta as ta           # original package
         out["rsi14"] = ta.rsi(out["close"], length=14)
         m = ta.macd(out["close"])
         out["macd"], out["macd_sig"] = m.iloc[:, 0], m.iloc[:, 2]

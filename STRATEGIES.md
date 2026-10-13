@@ -71,3 +71,9 @@ These are candidates for promotion once a walk-forward test on real candles show
 - `python -m modules.backtest_osma` - RSI(2)+OsMA bar rule vs inverse vs trend-filtered.
 - `python -m modules.backtest_signals` - trendline break, CISD, Model 2022 vs a random baseline, plus **context_filters**: does killzone / premium-discount / daily bias raise the hit rate?
 - Random-walk checks: all tests report ~50% and no false "edge" flags. Published win-rate claims for SMC/ICT (e.g. 58% filtered) come from unaudited sources - treat as hypotheses.
+
+## Filter on/off backtest (not run yet - needs OKX access)
+`python -m modules.backtest_filters [BTC-USDT ETH-USDT ...]` walks every detector (Donchian ensemble, Session AMD, ORB, OB / breaker /
+unicorn, breakouts, Kill Zone Sniper, Power of Three) with the Group A filters OFF and ON on real OKX candles, against a random-direction
+baseline, and prints a Markdown table (also saved to `data/filter_compare.json`). Paste the table here once it has run.
+Direction hit-rate only (no costs, stops or targets). Results: **none yet** - the build sandbox cannot reach OKX (HTTP 403 from the egress proxy).

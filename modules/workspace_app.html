@@ -707,7 +707,7 @@ class CandleChart {
   wheel(e){
     const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
     if (mx > this.W-this.axw){ this.yZoom = Math.max(0.02, Math.min(60, this.yZoom*Math.exp(e.deltaY*0.0015))); this.draw(); return; }
-    if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, (this.flowSpan || 120000)*Math.exp(e.deltaY*0.001))); this.draw(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
+    if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.draw(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
     const anchor = this.idx(mx), f = Math.exp(-e.deltaY*0.0015);
     this.bw = Math.max(0.6, Math.min(600, this.bw*f));
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.draw(); this.checkMore();
@@ -984,6 +984,11 @@ Object.assign(CandleChart.prototype, {
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
   },
+  fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins; otherwise AUTO: just wide enough to hold the recorded book history, so the heat map fills the column from the first second (no zoom needed) and widens by itself as history grows
+    if (this.flowSpan) return this.flowSpan; if ((this.st.of.hmm || "fix") !== "fix") return 120000;
+    let t0 = Infinity; if (this.hm && this.hmSym === this.sym) this.hm.b.forEach((o, t) => { if (t < t0) t0 = t; }); const fb = this.flowB && this.flowB[0]; if (fb && (!isFinite(t0) || t0 > fb.t - 60000)) t0 = fb.t;   // history older than the live feed counts; the 60 s bucket rounding does not
+    const age = isFinite(t0) ? now - t0 : 0; return [30000,60000,120000,300000,600000,900000,1800000,3600000,7200000,10800000,21600000,43200000,86400000,172800000,259200000,604800000].find(v => v >= age*1.15) || 604800000;
+  },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
     const s = store.get(LS+"_hm_"+this.sym, null); if (s && s.step && s.b){ this.hm.step = s.step; Object.keys(s.b).forEach(k => { const o = s.b[k]; this.hm.b.set(+k, {w:o.w, m:o.m, c:new Map(o.c)}); }); }
@@ -1118,7 +1123,7 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
-    const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.flowSpan || ((OF.hmm || "fix") === "fix" ? 21600000 : 120000), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
+    const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
     const tx = t => gx1 - (anchor - t)/span*gw;   // time -> x
     c.save(); c.fillStyle = (this.st.of.hm || "book") === "book" && this.domOn ? "rgb(8,16,60)" : "#0d1116"; c.fillRect(X0, 0, CW, PB);   // heat-map base colour fills the column top to bottom; the book itself only exists where the exchange lists orders c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
@@ -2766,7 +2771,7 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   num("min", L("Bubbles: min size (0 all · 1 smart · 2 whale)","الفقاعات: أقل حجم (0 الكل · 1 ذكي · 2 حوت)"), 0, 2, 1); num("bsz", L("Bubble size ×","حجم الفقاعة ×"), 0.3, 3, 0.1);
   { const hs = el("select"); [["book", L("Bookmap thermal (blue → yellow → red)","بوك ماب حراري (أزرق ← أصفر ← أحمر)")], ["side", L("Bid / ask colours (buy & sell colour)","ألوان الطلب والعرض (لون الشراء والبيع)")], ["amber", L("Amber (old)","كهرماني (القديم)")]].forEach(([v, l]) => hs.append(Object.assign(el("option"), {value:v, textContent:l}))); hs.value = OF.hm || "book"; hs.onchange = () => { OF.hm = hs.value; onChange(); }; row(L("Heat-map colours","ألوان الهيت ماب"), hs); }
   { const hx = el("select"); [["fix", L("Fixed saved history (up to 7 days when zoomed out)","تاريخ ثابت محفوظ (لحد 7 أيام لما تبعد)")], ["live", L("Live scrolling (old, max 20 min)","لايف بيتحرك (القديم، أقصى 20 دقيقة)")]].forEach(([v, l]) => hx.append(Object.assign(el("option"), {value:v, textContent:l}))); hx.value = OF.hmm || "fix"; hx.onchange = () => { OF.hmm = hx.value; onChange(); }; row(L("Heat-map mode","نمط الهيت ماب"), hx); }
-  { const ws_ = el("select"); [[120000,"2 min"],[600000,"10 min"],[3600000,"1 h"],[21600000,"6 h"],[86400000,"1 day"],[259200000,"3 days"],[604800000,"7 days"]].forEach(([v, l]) => ws_.append(Object.assign(el("option"), {value:v, textContent:l}))); ws_.value = String(ch().flowSpan || ((OF.hmm || "fix") === "fix" ? 21600000 : 120000)); ws_.onchange = () => { ch().flowSpan = +ws_.value; onChange(); }; row(L("Column time window","الفترة الزمنية للعمود"), ws_); }
+  { const ws_ = el("select"); [[0,"Auto"],[120000,"2 min"],[600000,"10 min"],[3600000,"1 h"],[21600000,"6 h"],[86400000,"1 day"],[259200000,"3 days"],[604800000,"7 days"]].forEach(([v, l]) => ws_.append(Object.assign(el("option"), {value:v, textContent:l}))); ws_.value = String(ch().flowSpan || 0); ws_.onchange = () => { ch().flowSpan = +ws_.value || 0; onChange(); }; row(L("Column time window","الفترة الزمنية للعمود"), ws_); }
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);

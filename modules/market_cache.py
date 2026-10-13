@@ -36,13 +36,23 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
             try:
                 df = get_yahoo_klines(symbol, tf, limit)
             except Exception as ye:   # Yahoo down / throttled: forex daily+weekly can come from Alpha Vantage instead
-                from modules import av_feed
-                if tf not in ("1d", "1w") or not av_feed.pair(symbol):
-                    raise
-                try:
-                    df = av_feed.get_fx_klines(symbol, tf, limit)
-                except Exception as ae:
-                    raise RuntimeError(f"{ye} | {ae}")
+                from modules import av_feed, biquote_feed
+                df = None
+                errs = [str(ye)]
+                if biquote_feed.symbol_for(symbol):   # forex / gold / silver: keyless Biquote feed first
+                    try:
+                        df = biquote_feed.get_klines(symbol, tf, limit)
+                    except Exception as be:
+                        errs.append(str(be))
+                if df is None and tf in ("1d", "1w") and av_feed.pair(symbol):
+                    try:
+                        df = av_feed.get_fx_klines(symbol, tf, limit)
+                    except Exception as ae:
+                        errs.append(str(ae))
+                if df is None:
+                    if len(errs) == 1:
+                        raise
+                    raise RuntimeError(" | ".join(errs))
         else:
             df = get_binance_klines(symbol, interval=tf, limit=limit)
         with _lock:

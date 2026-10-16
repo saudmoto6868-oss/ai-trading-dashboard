@@ -38,7 +38,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 |---|------|--------|
 | 1 | **Real backtest** of Donchian ensemble, Session AMD, ORB (+ other detectors) with Group A filters ON vs OFF on real OKX data; record in `STRATEGIES.md` | Tool ready (`python -m modules.backtest_filters`); **not run** - needs a machine with OKX access. Waiting for the table. |
 | 2 | Real inverse SMT between pairs | **done 2026-10-16** (synthetic-shape tests only; not checked on live Yahoo candles). Pairs: EURUSD/GBPUSD/AUDUSD/gold/silver vs dollar index (inverse), USDJPY/USDCHF vs EURUSD (inverse), EURUSD/GBPUSD, AUDUSD/NZDUSD, gold/silver, US index pairs. Daily bars matched by calendar day; |corr|<0.5 -> no signal. In the Workspace the peer's candles exist only if it is in the same Asset class page (DXY added to the Forex list). |
-| 3 | Server-side signal counting/logging (real performance measurement) | todo |
+| 3 | Server-side signal counting/logging (real performance measurement) | **done 2026-10-16** (`modules/signal_log.py`; unit-tested on hand-made candles; the cron integration itself was not run against live data). Every alert from `tg_cron` is logged (`.signal_log.jsonl`, kept by actions/cache + uploaded as artifact `signal-log`), then settled against real candles (pessimistic: stop first if both in one candle; entry must be filled; expire after 48 bars). `python -m modules.signal_log` prints the stats; `--csv out.csv` exports closed trades for the Performance tab. Stats show n and say 'not evidence' under n=30. |
 | 4 | Real Finnhub + Unusual Whales keys (owner action: put in Secrets) | waiting on owner |
 | 5 | Central **Signals tab** | todo |
 | 6 | Define **Scanner vs Alerts** (+ timing layer, 120-pip / 30-50 stop stat) | todo (needs a decision) |
@@ -64,6 +64,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-16 Item 3: server-side signal log + outcome stats (`signal_log.py`, `tg_cron.py`, workflow cache/artifact, `tests/test_signal_log.py`).
 - 2026-10-16 Item 2: inverse SMT pairs for forex/gold/indices (`smt.py`, `tests/test_smt_inverse.py`, DXY in the Forex list).
 - 2026-10-16 PROJECT_STATUS.md created.
 - 66dc7ea `backtest_filters.py` (filters ON vs OFF comparison; not run on real data).

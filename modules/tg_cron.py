@@ -74,6 +74,17 @@ def main(argv=None) -> int:
     sent = load_state()
     n, err = T.dispatch(best, sent, top, min_q)
     save_state(sent)
+    try:   # measured-performance log: record every alert, then settle the open ones against real candles (never blocks the alerts)
+        from modules import signal_log as L
+        recs = L.load()
+        px = {a["symbol"]: float(get_klines(a["symbol"], a.get("tfk") or "1h", 300)["close"].iloc[-1]) for a in alerts}
+        sent_keys = set(sent)
+        added = L.log_alerts(alerts, recs, sent_keys, px=px)
+        settled = L.resolve(recs, lambda s, tf: get_klines(s, tf, 300))
+        L.save(recs)
+        print(f"signal log: +{added} new, {settled} settled, {len(recs)} total")
+    except Exception as ex:
+        print("signal log skipped:", type(ex).__name__)
     print(f"sent {n} of {len(best)} candidate(s)" + (f"; Telegram error: {err}" if err else ""))
     return 1 if err else 0
 

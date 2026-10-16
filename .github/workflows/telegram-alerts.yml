@@ -26,7 +26,9 @@ jobs:
       - name: Restore what was already sent
         uses: actions/cache@v4
         with:
-          path: .tg_sent.json
+          path: |
+            .tg_sent.json
+            .signal_log.jsonl
           key: tg-sent-${{ github.run_id }}
           restore-keys: tg-sent-
       - name: Scan, rank, send the best alerts
@@ -34,3 +36,13 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m modules.tg_cron
+      - name: Signal log (stats + artifact)
+        if: always()
+        run: python -m modules.signal_log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signal-log
+          path: .signal_log.jsonl
+          if-no-files-found: ignore
+          retention-days: 90

@@ -1038,7 +1038,9 @@ Object.assign(CandleChart.prototype, {
   fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins; otherwise AUTO: just wide enough to hold the recorded book history, so the heat map fills the column from the first second (no zoom needed) and widens by itself as history grows
     if (this.flowSpan) return this.flowSpan; if ((this.st.of.hmm || "fix") !== "fix") return 120000;
     let t0 = Infinity; if (this.hm && this.hmSym === this.sym) this.hm.b.forEach((o, t) => { if (t < t0) t0 = t; }); const fb = this.flowB && this.flowB[0]; if (fb && (!isFinite(t0) || t0 > fb.t - 60000)) t0 = fb.t;   // history older than the live feed counts; the 60 s bucket rounding does not
-    const age = isFinite(t0) ? now - t0 : 0; return [30000,60000,120000,300000,600000,900000,1800000,3600000,7200000,10800000,21600000,43200000,86400000,172800000,259200000,604800000].find(v => v >= age*1.15) || 604800000;
+    const age = isFinite(t0) ? now - t0 : 0;
+    if (age <= 900000){ const t1 = fb ? fb.t : t0, a1 = isFinite(t1) ? now - t1 : 0; return Math.max(10000, Math.round(a1*1.04)); }   // Bookmap style: while the history is short (< 15 min) the window is exactly the recorded history, so the heat map is spread over the WHOLE column from the first seconds and compresses smoothly as it grows
+    return [30000,60000,120000,300000,600000,900000,1800000,3600000,7200000,10800000,21600000,43200000,86400000,172800000,259200000,604800000].find(v => v >= age*1.15) || 604800000;
   },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
@@ -1175,7 +1177,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
-    const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
+    const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 && (this.flowSpan || span > 900000) ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
     const tx = t => gx1 - (anchor - t)/span*gw;   // time -> x
     c.save(); c.fillStyle = (this.st.of.hm || "book") === "book" && this.domOn ? "rgb(8,16,60)" : "#0d1116"; c.fillRect(X0, 0, CW, PB);   // heat-map base colour fills the column top to bottom; the book itself only exists where the exchange lists orders c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
     c.fillStyle = "#3a424b"; c.fillRect(X0 + 1, Math.round(PB/2) - 12, 3, 24);   // grip: drag to resize, double-click = default

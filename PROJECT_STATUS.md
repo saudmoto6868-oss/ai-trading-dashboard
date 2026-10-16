@@ -41,7 +41,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 | 3 | Server-side signal counting/logging (real performance measurement) | **done 2026-10-16** (`modules/signal_log.py`; unit-tested on hand-made candles; the cron integration itself was not run against live data). Every alert from `tg_cron` is logged (`.signal_log.jsonl`, kept by actions/cache + uploaded as artifact `signal-log`), then settled against real candles (pessimistic: stop first if both in one candle; entry must be filled; expire after 48 bars). `python -m modules.signal_log` prints the stats; `--csv out.csv` exports closed trades for the Performance tab. Stats show n and say 'not evidence' under n=30. |
 | 4 | Real Finnhub + Unusual Whales keys (owner action: put in Secrets) | waiting on owner |
 | 5 | Central **Signals tab** | **done 2026-10-16** as a Workspace widget "Signals" (+ Widget menu): one list of every live signal (scanner trades + alerts), search, side/TF/min-strength filters, sortable columns, R:R, age, source, click = show on chart. Playwright-tested with mock alerts. |
-| 6 | Define **Scanner vs Alerts** (+ timing layer, 120-pip / 30-50 stop stat) | todo (needs a decision) |
+| 6 | Define **Scanner vs Alerts** (+ timing layer, 120-pip / 30-50 stop stat) | **done 2026-10-16 as a PROPOSAL - owner to confirm the definition.** Scanner = the STATE: everything that qualifies right now (Signals / Ready widgets). Alerts = EVENTS: a setup that newly appeared (card + sound + Telegram, logged by `signal_log`). Timing layer (`planTiming`, Timing column in the Signals widget): at entry (within 0.25 R) / waiting / running (<50% to TP1) / late - do not chase (>=50%) / stop hit / TP1 hit, from the live ticker price. Special mark `★120` (`pipSetup`): FOREX plans only with a 30-50 pip stop and a 120+ pip target (pip 0.0001, JPY 0.01; gold/indices/crypto never marked because 'pip' is ambiguous there). The 'historical stat' of that setup is NOT computed yet (needs the signal log to accumulate real outcomes). Function-level tested in the browser; the live-price feed in that widget was not checked on real data. |
 | 7 | Swing timeframe coherence (4H/1D/1W) + multi-timeframe framework table | todo |
 | 8 | Journal quality improvement (win rate ~33%) | todo |
 | 9 | Full chart visual design: colours, settings page, Day/Dark, preset modes (JOAT Kill-Zone-Sniper style) | todo |
@@ -64,6 +64,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-16 Item 6: timing layer + ★120 pip mark in the Signals widget (definition awaiting owner OK).
 - 2026-10-16 Item 5: Signals widget (`build_signals` in workspace_app.html).
 - 2026-10-16 Item 3: server-side signal log + outcome stats (`signal_log.py`, `tg_cron.py`, workflow cache/artifact, `tests/test_signal_log.py`).
 - 2026-10-16 Item 2: inverse SMT pairs for forex/gold/indices (`smt.py`, `tests/test_smt_inverse.py`, DXY in the Forex list).

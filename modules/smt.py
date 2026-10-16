@@ -2,9 +2,9 @@
 Bullish: A prints a lower swing low while B holds a higher low (B refuses to confirm). Bearish: A prints a higher
 swing high while B fails to make one. Inverse pairs (DXY vs EURUSD / gold) are handled by mirroring B.
 
-Pairs usable with the data the app has today (OKX spot, same timeframe, 24/7 so candles line up exactly):
-BTC/ETH, BTC/SOL, ETH/SOL (+ a few large caps). Forex / metals (EURUSD, GBPUSD, XAUUSD, DXY inverse) are
-supported by the maths (inverse=True) but need a feed that carries them - add them to SMT_PAIRS when one exists."""
+Pairs: crypto majors (OKX, 24/7, candles line up exactly) and, from the Yahoo feed, forex / gold / silver against the
+dollar index (inverse) and a few index pairs. Candles are matched on time; daily bars of different venues are matched by
+calendar day. Too little overlap or |correlation| < MIN_CORR -> no signal (never a guess)."""
 
 from __future__ import annotations
 
@@ -15,10 +15,17 @@ from modules.signals import _finalize, _mk, atr_series, fractal_pivots, invert
 
 MIN_CORR = 0.5   # |correlation| of the last 100 returns needed for a divergence to mean anything
 
-# (A, B, inverse)
+# (A, B, inverse). "Y:" ids come from the Yahoo feed (forex / gold / indices); inverse=True means B moves AGAINST A (USD pairs vs the dollar index).
+DXY = "Y:DX-Y.NYB"
 SMT_PAIRS = [
     ("BTC-USDT", "ETH-USDT", False), ("BTC-USDT", "SOL-USDT", False), ("ETH-USDT", "SOL-USDT", False),
     ("ETH-USDT", "BNB-USDT", False), ("SOL-USDT", "AVAX-USDT", False),
+    # forex / metals vs the dollar (inverse) and USD-quoted majors against each other
+    ("Y:EURUSD=X", DXY, True), ("Y:GBPUSD=X", DXY, True), ("Y:AUDUSD=X", DXY, True), ("Y:GC=F", DXY, True), ("Y:SI=F", DXY, True),
+    ("Y:EURUSD=X", "Y:GBPUSD=X", False), ("Y:AUDUSD=X", "Y:NZDUSD=X", False), ("Y:GC=F", "Y:SI=F", False),
+    ("Y:USDJPY=X", "Y:EURUSD=X", True), ("Y:USDCHF=X", "Y:EURUSD=X", True),
+    # US indices
+    ("Y:^GSPC", "Y:^IXIC", False), ("Y:^NDX", "Y:^GSPC", False), ("Y:^DJI", "Y:^GSPC", False),
 ]
 
 
@@ -62,12 +69,27 @@ def _smt_bull(a: pd.DataFrame, b: pd.DataFrame, label: str, max_age: int = 15, m
     return []
 
 
+def _align(df: pd.DataFrame, peer_df: pd.DataFrame) -> pd.DataFrame:
+    """Merge the two candle sets on time. Daily / weekly bars of different venues (forex vs futures) start at different
+    hours, so when the exact merge is too short and the bars are >= ~1 day apart, match them by calendar day."""
+    cols = ["time", "open", "high", "low", "close"]
+    m = df[cols].merge(peer_df[cols], on="time", suffixes=("", "_b"))
+    if len(m) >= 60:
+        return m
+    step = df["time"].diff().median()
+    if pd.notna(step) and step >= pd.Timedelta(hours=20):
+        a, b = df[cols].copy(), peer_df[cols].copy()
+        a["time"], b["time"] = a["time"].dt.normalize(), b["time"].dt.normalize()
+        return a.drop_duplicates("time").merge(b.drop_duplicates("time"), on="time", suffixes=("", "_b"))
+    return m
+
+
 def smt_signals(df: pd.DataFrame, peer_df: pd.DataFrame, peer_label: str, inverse: bool = False):
     """Finalized signals (same dict shape as detect_all) for the scanned market `df` against one correlated `peer_df`.
     Both directions, and both roles (this market made the extreme / the peer did)."""
     if df is None or peer_df is None or "time" not in df.columns or "time" not in peer_df.columns:
         return []
-    m = df[["time", "open", "high", "low", "close"]].merge(peer_df[["time", "open", "high", "low", "close"]], on="time", suffixes=("", "_b"))
+    m = _align(df, peer_df)
     if len(m) < 60:
         return []
     m = m.sort_values("time").reset_index(drop=True)

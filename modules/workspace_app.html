@@ -1216,6 +1216,22 @@ Object.assign(CandleChart.prototype, {
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
+    if (this.domOn && gw >= 230) this.paintGauge(c, gx1, PB);
+    c.restore();
+  },
+  gaugeData(now){   // buy/sell pressure from REAL data only: aggressor volume of the last 2 min of prints, and bid vs ask size resting within 0.5 % of the mid (latest book snapshot)
+    const W = 120000, T = (this.flowT || []).filter(x => x.t >= now - W); let b = 0, s = 0; T.forEach(x => { if (x.side === "Buy") b += x.q; else s += x.q; });
+    const sn = this.flowB && this.flowB[this.flowB.length-1]; let bd = 0, ad = 0; if (sn && sn.bb && sn.ba){ const mid = (sn.bb + sn.ba)/2; sn.lv.forEach(([p, q]) => { if (Math.abs(p - mid)/mid > 0.005) return; if (p <= sn.bb) bd += q; else ad += q; }); }
+    return {tr: b + s > 0 ? {buy:b, sell:s, n:T.length, v:(b - s)/(b + s)} : null, bk: bd + ad > 0 ? {bid:bd, ask:ad, v:(bd - ad)/(bd + ad)} : null};
+  },
+  paintGauge(c, gx1, PB){   // semicircle gauge (sell | buy) bottom-right of the order-flow column; needle = net aggressor pressure, bar below = book imbalance
+    const OF = this.st.of, G = this.gaugeData(nowS()), R = 30, cx = gx1 - R - 14, cy = PB - 52;
+    c.save(); c.fillStyle = "rgba(8,12,18,.72)"; c.fillRect(cx - R - 12, cy - R - 16, 2*R + 24, R + 62); c.textBaseline = "middle";
+    for (let k = 0; k < 40; k++){ const a0 = Math.PI + k/40*Math.PI, a1 = Math.PI + (k + 1)/40*Math.PI, t = k/39; c.strokeStyle = t < .5 ? hexA(OF.color2, .35 + .65*(1 - t*2)) : hexA(OF.color, .35 + .65*((t - .5)*2)); c.lineWidth = 7; c.beginPath(); c.arc(cx, cy, R - 4, a0, a1 + .02); c.stroke(); }
+    const v = G.tr ? G.tr.v : 0, ang = Math.PI + (v + 1)/2*Math.PI; c.strokeStyle = G.tr ? "#fff" : "#6b7684"; c.lineWidth = 2; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(ang)*(R - 8), cy + Math.sin(ang)*(R - 8)); c.stroke(); c.fillStyle = "#fff"; c.beginPath(); c.arc(cx, cy, 3, 0, 6.3); c.fill();
+    c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillStyle = G.tr ? (v >= 0 ? OF.color : OF.color2) : "#6b7684"; c.fillText(G.tr ? Math.round(100*G.tr.buy/(G.tr.buy + G.tr.sell))+"% "+Lg("buy","شراء") : Lg("no prints","مفيش صفقات"), cx, cy + 10);
+    c.font = "8px sans-serif"; c.fillStyle = "#9aa4b2"; c.fillText(Lg("prints 2m","صفقات 2د")+(G.tr ? " · "+G.tr.n : ""), cx, cy + 20);
+    const by = cy + 29, bw = 2*R, bx = cx - R; c.fillStyle = "#1b2027"; c.fillRect(bx, by, bw, 5); if (G.bk){ const f = G.bk.bid/(G.bk.bid + G.bk.ask); c.fillStyle = OF.color; c.fillRect(bx, by, bw*f, 5); c.fillStyle = OF.color2; c.fillRect(bx + bw*f, by, bw*(1 - f), 5); c.fillStyle = "#9aa4b2"; c.fillText(Lg("book bid ","دفتر شراء ")+Math.round(100*f)+"%", cx, by + 12); } else { c.fillStyle = "#6b7684"; c.fillText(Lg("book –","دفتر –"), cx, by + 12); }
     c.restore();
   },
   paintDiv(c, kind, series, X, Y, i0, i1, tag){   // divergence line between the two swing points, drawn on the indicator's own pane (green = bullish, red = bearish)

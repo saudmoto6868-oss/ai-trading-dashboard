@@ -49,6 +49,12 @@ def quality(r: dict, e: dict) -> tuple[int, list[str]]:
         q += 6; why.append("✓ كيل زون")
     if ag.get("stand_aside"):
         q -= 10; why.append("⚠ تجميع (يفضل الانتظار)")
+    m = r.get("mtf") or {}   # swing / position trades: do weekly + daily + 4H back the side?
+    if m.get("status") and r.get("trade_type") in ("Swing", "Position"):
+        if m["status"] == "aligned":
+            q += 8; why.append("✓ فريمات السوينج متوافقة")
+        elif m["status"] == "conflict":
+            q -= 12; why.append("✗ الأسبوعي/اليومي ضد الاتجاه")
     ag_n = len(r.get("against") or [])
     if ag_n:
         q -= min(15, 5 * ag_n); why.append(f"⚠ {ag_n} إشارة عكسية")
@@ -104,6 +110,9 @@ def fmt(a: dict) -> str:
     ctx = [x for x in (ana.get("ctx") or []) if x][:4]
     if ctx:
         lines.append("\n<b>السياق</b>\n" + "\n".join("• " + esc(str(x))[:150] for x in ctx))
+    mt = [x for x in (ana.get("mtf") or []) if x]
+    if mt and a.get("ttype") in ("Swing", "Position"):
+        lines.append("\n<b>إطار الأسبوعي / اليومي / 4س</b>\n" + "\n".join("• " + esc(str(x))[:150] for x in mt))
     if ana.get("against"):
         lines.append("⚠ " + esc(str(ana["against"]))[:200])
     if a.get("qwhy"):

@@ -494,6 +494,7 @@ function setupHtml(e){
     if (a.ctx && a.ctx.length) h += H(Lg("Context: daily bias / premium-discount / kill zone","السياق: تحيز اليوم / بريميوم-ديسكاونت / الكيل زون"))+li(a.ctx);
     if (a.against) h += '<div dir="rtl" style="margin-top:7px;color:#f6465d;text-align:right">'+esc(a.against)+'</div>';
     if (a.htf && a.htf.length) h += H(Lg("Higher timeframes","الفريمات الأعلى"))+li(a.htf);
+    if (a.mtf && a.mtf.length) h += H(Lg("Weekly / Daily / 4H framework","إطار الأسبوعي / اليومي / 4 ساعات"))+li(a.mtf);
     if (a.scen && a.scen.length) h += H(Lg("Scenarios","السيناريوهات"))+li(a.scen); }
   else h += '<div class="m" style="margin-top:8px">'+esc(Lg("No stored analysis for this older setup; it fills in after the next scan.","مفيش تحليل متخزن للسيت اب القديم ده؛ هيظهر بعد المسح الجاي."))+'</div>';
   return h+'<div class="m" style="margin-top:9px;font-size:10px">'+esc(Lg("Evidence ranking, not a proven win rate. Not financial advice.","ترتيب بالأدلة مش نسبة نجاح مثبتة. مش نصيحة مالية."))+'</div></div>';
@@ -2841,7 +2842,7 @@ Ws.anaPop = (anchor, e) => {
   else { const pl = e.plan; h += '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal">'
     + (e.vol && e.vol.weight ? '<div style="margin-top:6px"><b style="color:#f0b90b">حجم المركز المقترح</b> — '+Math.round(e.vol.weight*100)+'% من رأس المال المخصص للصفقة (تذبذب سنوي حالي '+Math.round(e.vol.ann_vol*100)+'%، الهدف '+Math.round(e.vol.target*100)+'%) — كل ما زاد التذبذب قلّ الحجم</div>' : "")
     + (pl ? '<div style="margin-top:6px"><b style="color:#f0b90b">الخطة</b> — دخول '+fmtP(pl.entry)+' · وقف '+fmtP(pl.stop)+' · '+pl.tps.map((v,i) => 'هدف '+(i+1)+' '+fmtP(v)).join(' · ')+'</div>' : "")
-    + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("السياق (تحيز اليوم / النطاق / التوقيت)", a.ctx) + sec("السيناريوهات", a.scen) + '</div>'; }
+    + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("إطار الأسبوعي / اليومي / 4س", a.mtf) + sec("السياق (تحيز اليوم / النطاق / التوقيت)", a.ctx) + sec("السيناريوهات", a.scen) + '</div>'; }
   pop.innerHTML = h; document.body.append(pop);
   setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };

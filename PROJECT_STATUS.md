@@ -42,7 +42,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 | 4 | Real Finnhub + Unusual Whales keys (owner action: put in Secrets) | waiting on owner |
 | 5 | Central **Signals tab** | **done 2026-10-16** as a Workspace widget "Signals" (+ Widget menu): one list of every live signal (scanner trades + alerts), search, side/TF/min-strength filters, sortable columns, R:R, age, source, click = show on chart. Playwright-tested with mock alerts. |
 | 6 | Define **Scanner vs Alerts** (+ timing layer, 120-pip / 30-50 stop stat) | **done 2026-10-16 as a PROPOSAL - owner to confirm the definition.** Scanner = the STATE: everything that qualifies right now (Signals / Ready widgets). Alerts = EVENTS: a setup that newly appeared (card + sound + Telegram, logged by `signal_log`). Timing layer (`planTiming`, Timing column in the Signals widget): at entry (within 0.25 R) / waiting / running (<50% to TP1) / late - do not chase (>=50%) / stop hit / TP1 hit, from the live ticker price. Special mark `★120` (`pipSetup`): FOREX plans only with a 30-50 pip stop and a 120+ pip target (pip 0.0001, JPY 0.01; gold/indices/crypto never marked because 'pip' is ambiguous there). The 'historical stat' of that setup is NOT computed yet (needs the signal log to accumulate real outcomes). Function-level tested in the browser; the live-price feed in that widget was not checked on real data. |
-| 7 | Swing timeframe coherence (4H/1D/1W) + multi-timeframe framework table | todo |
+| 7 | Swing timeframe coherence (4H/1D/1W) + multi-timeframe framework table | **done 2026-10-16** (`modules/mtf.py`; synthetic-frame tests; not checked on real candles). Per TF: swing structure (HH/HL, LH/LL) + side of EMA50 -> bias; verdict aligned / partial / conflict (weekly or daily against). Swing triggers (6h-3d) now also fetch 4H (`scorer.fetch_tfs`). Shown in the Setup Card, the analysis popup and Telegram (swing/position only); Telegram quality +8 aligned / -12 conflict (stars unchanged). A framework TABLE widget is not built - the rows appear as text lines in the Setup Card. |
 | 8 | Journal quality improvement (win rate ~33%) | todo |
 | 9 | Full chart visual design: colours, settings page, Day/Dark, preset modes (JOAT Kill-Zone-Sniper style) | todo |
 | 10 | Live-setups strip auto-scroll (pause on hover, drag, no scrollbar, flash >=70%) | todo |
@@ -64,6 +64,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-16 Item 7: weekly/daily/4H framework + coherence (`mtf.py`, scorer, arabic, telegram, Setup Card, `tests/test_mtf.py`).
 - 2026-10-16 Item 6: timing layer + ★120 pip mark in the Signals widget (definition awaiting owner OK).
 - 2026-10-16 Item 5: Signals widget (`build_signals` in workspace_app.html).
 - 2026-10-16 Item 3: server-side signal log + outcome stats (`signal_log.py`, `tg_cron.py`, workflow cache/artifact, `tests/test_signal_log.py`).

@@ -342,7 +342,12 @@ def analysis_ar(res: dict) -> dict:
         scen = []
     if not sig:
         sig = ["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ."]
-    return {"sig": sig, "against": against, "htf": htf, "scen": scen, "ctx": context_ar(res)}
+    try:
+        from modules.mtf import lines_ar as _mtf_ar
+        mtf = _mtf_ar(res.get("mtf"))
+    except Exception:
+        mtf = []
+    return {"sig": sig, "against": against, "htf": htf, "mtf": mtf, "scen": scen, "ctx": context_ar(res)}
 
 
 # --------------------------------------------------------------------------

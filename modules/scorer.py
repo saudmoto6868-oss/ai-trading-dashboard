@@ -107,6 +107,17 @@ def _meaningful_for_htf(s: dict) -> bool:
     return s["family"] == "Liquidity" and ("sweep" in s["name"].lower() or s["name"].startswith("At "))
 
 
+SWING_FETCH = {"6h", "7h", "8h", "12h", "1d", "3d"}   # swing triggers also pull the 4H candles for the weekly/daily/4H framework (modules/mtf.py)
+
+
+def fetch_tfs(trigger_tf: str) -> list:
+    """Timeframes to fetch for one scan: the trigger, its higher-timeframe context, and 4H for swing triggers."""
+    out = [trigger_tf] + list(CONTEXT_TFS.get(trigger_tf, []))
+    if trigger_tf in SWING_FETCH and "4h" not in out:
+        out.append("4h")
+    return out
+
+
 def htf_view(df, tf: str, direction: str) -> dict:
     """Does this higher timeframe back the trigger? (meaningful primary signal on the same side)"""
     if df is None or len(df) < 60 or direction == "neutral":
@@ -143,6 +154,13 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
             trade_type = CONFIRM_TRADE_TYPE[h["tf"]]
             break
 
+    mtf = None
+    try:   # weekly / daily / 4H framework + coherence; shown and used for ranking, never counted in the stars
+        from modules.mtf import analyse as _mtf
+        if direction != "neutral":
+            mtf = _mtf(frames, direction, trigger_tf, df)
+    except Exception:
+        mtf = None
     res, sup = sr_levels(df)
     from modules.risk_engine import vol_target_weight
     volsz = vol_target_weight(df, trigger_tf)
@@ -166,6 +184,7 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
         "reasons": [f"{s['icon']} {s['name']}" for s in mine],
         "icons": "".join(dict.fromkeys(s["icon"] for s in mine)),
         "htf": htf,
+        "mtf": mtf,
         "trade_type": trade_type,
         "timeframe": trigger_tf,
         "price": price,

@@ -16,7 +16,7 @@ from config import CRYPTO_SYMBOLS
 from modules import telegram_alerts as T
 from modules.arabic import scan_entry
 from modules.market_cache import fetch_frames, get_klines
-from modules.scorer import CONTEXT_TFS, scan_symbol
+from modules.scorer import CONTEXT_TFS, fetch_tfs, scan_symbol
 
 STATE = Path(os.environ.get("TG_STATE", ".tg_sent.json"))
 
@@ -38,7 +38,7 @@ def scan_alerts(symbols, tfs, min_stars: int) -> tuple[list[dict], list[str]]:
     out, errs = [], []
     for tf in tfs:
         try:
-            frames, _ = fetch_frames(symbols, [tf] + CONTEXT_TFS.get(tf, []))
+            frames, _ = fetch_frames(symbols, fetch_tfs(tf))
         except Exception as ex:
             errs.append(f"{tf}: {type(ex).__name__}")
             continue

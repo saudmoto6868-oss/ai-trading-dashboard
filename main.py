@@ -26,7 +26,7 @@ from config import (
 )
 from modules.data_fetcher import get_mt5_data
 from modules.scorer import (
-    score_symbol, scan_symbol, SCAN_TFS, ALL_SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
+    score_symbol, scan_symbol, fetch_tfs, SCAN_TFS, ALL_SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
@@ -172,7 +172,7 @@ def _peers_for(sym, tf, pframes):
 def scan_crypto_group(symbols, tf):
     """Multi-timeframe scan: candles for the chosen timeframe PLUS its higher
     context timeframes are fetched in parallel (cached), then scored."""
-    frames, fetch_errors = fetch_frames(symbols, [tf] + CONTEXT_TFS[tf])
+    frames, fetch_errors = fetch_frames(symbols, fetch_tfs(tf))
     pframes = _peer_frames(symbols, tf)
     results, errors = [], []
     for sym in symbols:
@@ -813,7 +813,7 @@ _CS_KEY = {"1m": "1m", "5m": "1m", "15m": "1m", "30m": "1h", "1h": "1h", "1d": "
 def _cs_result(sym: str, tf: str):
     """Full scanner result for one chart (signals, higher-timeframe view, scenarios) so it can be explained in Arabic."""
     key = _CS_KEY.get(tf, "1h")
-    frames, _e = fetch_frames([sym], sorted({tf, key} | set(CONTEXT_TFS.get(key, []))))
+    frames, _e = fetch_frames([sym], sorted({tf, key} | set(fetch_tfs(key))))
     fr = dict(frames.get(sym) or {})
     if tf not in fr:
         return None

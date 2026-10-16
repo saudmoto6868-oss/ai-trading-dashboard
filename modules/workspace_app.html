@@ -433,6 +433,8 @@ const JEXP = {"1m":12*3600e3, "13m":24*3600e3, "1h":3*86400e3, "2h":4*86400e3, "
 const TFC_ALL = {"1m":"1m","13m":"13m","1h":"1H","2h":"2H","3h":"3H","6h":"6H","7h":"7H","8h":"8H","12h":"12H","1d":"1D","3d":"3D","1w":"1W","1mo":"1M"}, TFK_OPTS = [["1m","1m"],["13m","13m"],["1h","1h"],["2h","2h"],["3h","3h"],["6h","6h"],["7h","7h"],["8h","8h"],["12h","12h"],["1d","1d"],["3d","3d"],["1w","1w"],["1mo","1M"]];
 const Journal = {
   list: store.get(LS+"_journal", []), subs: new Set(), busy: false,
+  cfg: Object.assign({min:50, rr:1}, store.get(LS+"_jset", {}) || {}),   // what gets LOGGED: weak (< min % strength) or poor-payoff (< rr R:R) setups are not recorded, so they cannot drag the win rate down
+  px(sym){ const t = Hub.last["tickers|all"]; return t && !t.error && t[sym] ? t[sym].last : null; },
   save(){ this.list = this.list.slice(-1500); store.set(LS+"_journal", this.list); this.subs.forEach(f => f()); },
   ingest(){
     let added = 0; const pool = [];
@@ -440,10 +442,11 @@ const Journal = {
     pool.forEach(e => {
       if (!e || !e.plan || !planOk(e.plan, e.direction)) return;
       const key = e.symbol+"|"+e.direction+"|"+e.ttype, en = e.plan.entry;
+      if (100*e.score/Math.max(1, e.max) < this.cfg.min) return; { const r0 = Math.abs(en - e.plan.stop); if (!r0 || Math.abs(e.plan.tps[0] - en)/r0 < this.cfg.rr) return; }
       const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       this.list.push({id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
-        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open"});
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()});   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
       added++;
     });
     if (added) this.save();
@@ -459,11 +462,15 @@ const Journal = {
           const long_ = tr.dir === "bullish"; if (rows.length){ tr.last = rows[rows.length-1].c; changed = true; }
           for (const c of rows){
             if (c.t + bar[1] <= tr.t0) continue;
-            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl, tp = long_ ? c.h >= tr.tp1 : c.l <= tr.tp1;
+            let fc = false;   // fill candle: the target in the same candle could have printed BEFORE the fill, so only the stop counts there
+            if (tr.fill === false){   // entry not touched yet: a move to the stop or the target WITHOUT touching the entry was never a trade
+              if (c.l <= tr.entry && tr.entry <= c.h){ tr.fill = true; fc = true; changed = true; }
+              else { const away = long_ ? (c.l > tr.entry ? c.h >= tr.tp1 : c.h < tr.entry && c.l <= tr.sl) : (c.h < tr.entry ? c.l <= tr.tp1 : c.l > tr.entry && c.h >= tr.sl); if (away){ tr.status = "nf"; tr.r = 0; tr.t1 = c.t + bar[1]; changed = true; break; } continue; } }
+            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl, tp = !fc && (long_ ? c.h >= tr.tp1 : c.l <= tr.tp1);
             if (sl){ tr.status = "sl"; tr.r = -1; tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
             if (tp){ tr.status = "tp"; tr.r = tr.rr; tr.t1 = c.t + bar[1]; changed = true; break; }
           }
-          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = "exp"; tr.r = 0; tr.t1 = Date.now(); changed = true; }
+          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = 0; tr.t1 = Date.now(); changed = true; }
         });
       }
     } finally { this.busy = false; }
@@ -472,7 +479,7 @@ const Journal = {
   stats(minPct, since){
     const L = this.list.filter(t => t.pct >= minPct && t.t0 >= since), closed = L.filter(t => t.status === "tp" || t.status === "sl").sort((a,b) => a.t1 - b.t1), W = closed.filter(t => t.status === "tp");
     const gp = W.reduce((a,t) => a + t.r, 0), gl = closed.length - W.length; let eq = 0, peak = 0, dd = 0; const curve = closed.map(t => { eq += t.r; peak = Math.max(peak, eq); dd = Math.max(dd, peak - eq); return {t:t.t1, v:eq}; });
-    return {all:L, closed, wins:W.length, losses:gl, open:L.filter(t => t.status === "open").length, exp:L.filter(t => t.status === "exp").length,
+    return {all:L, closed, wins:W.length, losses:gl, open:L.filter(t => t.status === "open").length, exp:L.filter(t => t.status === "exp").length, nf:L.filter(t => t.status === "nf").length,
       wr: closed.length ? 100*W.length/closed.length : 0, net: eq, avg: closed.length ? eq/closed.length : 0, pf: gl ? gp/gl : (gp ? Infinity : 0),
       best: closed.length ? Math.max(...closed.map(t => t.r)) : 0, worst: closed.length ? Math.min(...closed.map(t => t.r)) : 0, dd, curve};
   }
@@ -2246,7 +2253,10 @@ class Panel {
       const txt = rows.join("\n"); try { const a2 = document.createElement("a"); a2.href = URL.createObjectURL(new Blob([txt], {type:"text/csv"})); a2.download = "journal_trades.csv"; document.body.append(a2); a2.click(); a2.remove(); }
       catch(e){}
       try { navigator.clipboard.writeText(txt).then(() => { csvB.textContent = "✓"; setTimeout(() => csvB.textContent = "CSV", 1500); }, () => {}); } catch(e2){} };   // also copied to the clipboard in case the host page blocks downloads
-    tb.append(rng, cf, csvB, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
+    const lg = el("select"); [[0,"0%"],[40,"≥ 40%"],[50,"≥ 50%"],[60,"≥ 60%"],[70,"≥ 70%"]].forEach(([v,l]) => lg.append(Object.assign(el("option"), {value:v, textContent:Lg("Log only","سجّل بس")+" "+l}))); lg.value = String(Journal.cfg.min);
+    lg.title = Lg("Only setups at or above this strength are recorded from now on (weak ones stay out of the statistics). Existing records are not changed.","الصفقات اللي قوتها أقل من كده مش هتتسجل من دلوقتي (عشان ما تبوّظش الإحصائيات). السجلات القديمة ما بتتغيرش.");
+    lg.onchange = () => { Journal.cfg.min = +lg.value; store.set(LS+"_jset", Journal.cfg); };
+    tb.append(rng, cf, lg, csvB, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
     const f2 = v => (v >= 0 ? "+" : "") + v.toFixed(2);
     const draw = () => {
       const since = S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3, st = Journal.stats(+S.jc, since);
@@ -2292,12 +2302,15 @@ class Panel {
       const rowsS = Object.entries(by).sort((a,b) => b[1].n - a[1].n).slice(0,8).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
       const byT = {}; st.closed.forEach(t => { const k = ttTxt(t.ttype); (byT[k] = byT[k] || {w:0,n:0}).n++; if (t.status === "tp") byT[k].w++; });
       const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
-      const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table></div>';
+      const mkRows = f => { const o = {}; st.closed.forEach(t => { const k = f(t); (o[k] = o[k] || {w:0,n:0,r:0}).n++; o[k].r += t.r; if (t.status === "tp") o[k].w++; }); return Object.entries(o).sort((a,b) => b[1].n - a[1].n).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td><td style="color:'+(v.r >= 0 ? "#0ecb81" : "#f6465d")+'">'+f2(v.r/v.n)+'</td></tr>').join("") || '<tr><td class="m">–</td></tr>'; };
+      const rowsF = mkRows(t => t.tfk || "?"), rowsP = mkRows(t => t.pct >= 70 ? "≥70%" : t.pct >= 50 ? "50-69%" : "<50%");
+      const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table>'
+        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Timeframe (n · win · avg R)","الفريم (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsF+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Strength (n · win · avg R)","القوة (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsP+'</table></div>';
       h += '<div class="jrow">'+cal+side+'</div>';
       // trades table
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);
       h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
-        + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "exp" ? T("jExp") : T("jOpen");
+        + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "nf" ? Lg("no fill","ما اتنفذتش") : t.status === "exp" ? T("jExp") : T("jOpen");
           return '<tr><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
       box.innerHTML = h;
       const mv = dlt => { const d = new Date(cy, cm+dlt, 1); S.jm = d.getFullYear()+"-"+d.getMonth(); Ws.save(); draw(); };

@@ -1036,12 +1036,9 @@ Object.assign(CandleChart.prototype, {
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
   },
-  fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins; otherwise AUTO: just wide enough to hold the recorded book history, so the heat map fills the column from the first second (no zoom needed) and widens by itself as history grows
+  fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins. AUTO = Bookmap's rolling window: exactly the live book history recorded in this session, capped at 10 min (min 10 s), always anchored to "now" - so the heat map fills the WHOLE column from the first seconds and then scrolls left as new snapshots arrive. Longer windows (1 h .. 7 d from the saved history) are chosen manually.
     if (this.flowSpan) return this.flowSpan; if ((this.st.of.hmm || "fix") !== "fix") return 120000;
-    let t0 = Infinity; if (this.hm && this.hmSym === this.sym) this.hm.b.forEach((o, t) => { if (t < t0) t0 = t; }); const fb = this.flowB && this.flowB[0]; if (fb && (!isFinite(t0) || t0 > fb.t - 60000)) t0 = fb.t;   // history older than the live feed counts; the 60 s bucket rounding does not
-    const age = isFinite(t0) ? now - t0 : 0;
-    if (age <= 900000){ const t1 = fb ? fb.t : t0, a1 = isFinite(t1) ? now - t1 : 0; return Math.max(10000, Math.round(a1*1.04)); }   // Bookmap style: while the history is short (< 15 min) the window is exactly the recorded history, so the heat map is spread over the WHOLE column from the first seconds and compresses smoothly as it grows
-    return [30000,60000,120000,300000,600000,900000,1800000,3600000,7200000,10800000,21600000,43200000,86400000,172800000,259200000,604800000].find(v => v >= age*1.15) || 604800000;
+    const fb = this.flowB && this.flowB[0], age = fb ? now - fb.t : 0; return Math.max(10000, Math.min(600000, Math.round(age*1.04)));
   },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();

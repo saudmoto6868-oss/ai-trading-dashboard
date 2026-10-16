@@ -3,8 +3,12 @@
 :root{--bg:#0b0e11;--panel:#161a1e;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--acc:#f0b90b}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;color:var(--txt);font:12px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
 #strip{height:54px;display:flex;align-items:center;gap:8px;padding:0 4px;position:relative}
-#logo{flex:none;display:flex;align-items:center;height:48px;margin-inline-end:6px}
-#logo b{font-size:32px;font-weight:800;letter-spacing:.5px;line-height:1}#logo img{height:46px;max-width:170px;object-fit:contain}
+#logo{flex:none;display:flex;align-items:center;height:40px;margin-inline-end:6px}
+#logo img{height:38px;max-width:170px;object-fit:contain}
+#logo .wm{display:flex;align-items:baseline;gap:5px;line-height:1;white-space:nowrap}
+/* golden-ratio wordmark: 6868 is 1.618x the size of X PIX (26px / 16px) */
+#logo .wm b{font-size:26px;font-weight:800;letter-spacing:.5px;background:linear-gradient(180deg,#ffe58a,#f0b90b 55%,#b98400);-webkit-background-clip:text;background-clip:text;color:transparent}
+#logo .wm i{font-style:normal;font-size:16px;font-weight:700;letter-spacing:2px;color:#eaecef}
 .lk{flex:none;display:flex;align-items:center;gap:4px;color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:2px 7px;background:#1e2329;white-space:nowrap;cursor:pointer;font-size:11px}
 .lk:hover{border-color:var(--acc);color:var(--acc)}.lk img{width:14px;height:14px}.lk .ch{width:14px;height:14px;border-radius:3px;background:#2b3139;text-align:center;line-height:14px;font-size:9px}
 #tick{flex:1;min-width:60px;height:30px;border:1px solid var(--line);border-radius:5px;background:var(--panel);overflow:hidden;white-space:nowrap;cursor:pointer;position:relative}
@@ -73,7 +77,7 @@ function closeAll(){ ["newsPop","fvPop","wmPop"].forEach(i => $(i).classList.rem
 function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
 document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv")) closeAll(); });
 /* ---- logo + links ---- */
-$("logo").innerHTML = CFG.logo ? '<img alt="6868 X" src="'+esc(CFG.logo)+'">' : "<b>6868 X</b>";
+$("logo").innerHTML = CFG.logo ? '<img alt="6868 X" src="'+esc(CFG.logo)+'">' : '<span class="wm"><b>6868</b><i>X PIX</i></span>';   // no assets/logo.* file: the text wordmark
 CFG.links.forEach(l => {
   if (l.patterns){
     const d = document.createElement("div"); d.className = "lk fv"; d.innerHTML = (l.icon ? '<img src="'+esc(l.icon)+'">' : '<span class="ch">F</span>')+esc(l.name)+" ▾";

@@ -68,7 +68,9 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }
-    .block-container { padding-top: 0.4rem; padding-left: 0.6rem; padding-right: 0.6rem; max-width: 100%; }
+    .block-container { padding-top: 0rem; padding-left: 0.6rem; padding-right: 0.6rem; max-width: 100%; }
+    header[data-testid="stHeader"] { background: transparent; height: 1.6rem; }
+    div[data-testid="stSelectbox"] { margin-bottom: 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -656,10 +658,18 @@ def _calendar_rows():
     return fetch_calendar()
 
 
+from modules import asset_classes as _AC   # the dropdown options (also used by render_header)
+
+
 def render_header():
     """ONE thin strip (a single iframe): logo | links | news (click = dropdown) | Cairo + New York clocks | World map.
     Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
-    h_main, h_lang = st.columns([10.5, 0.8], vertical_alignment="center")
+    h_cls, h_mkt, h_main, h_lang = st.columns([1.35, 1.0, 8.4, 0.8], vertical_alignment="center")
+    with h_cls:   # the asset-class / market dropdowns live in the top row now (they drive the scanner, ready trades and the watchlist together)
+        st.selectbox("Asset class", _AC.CLASSES, key="asset_cls", label_visibility="collapsed",
+                     help="Asset class: drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
+    with h_mkt:
+        st.selectbox("Market", list(_AC.MARKET_TYPES), key="market_type", label_visibility="collapsed", help="Spot / Perpetual swap / dated Futures (OKX).")
     with h_main:
         links = []
         for name, url in EXTERNAL_LINKS.items():
@@ -750,6 +760,10 @@ def macro_html():
     return f"<div style='{box}'><table style='width:100%;border-collapse:collapse;font-family:monospace'>" + "".join(cells) + "</table></div>"
 
 
+from modules.asset_classes import CLASSES as ASSET_CLASSES
+if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_CLASSES:
+    st.session_state["asset_cls"] = st.query_params["cls"]
+
 with header_box:
     try:
         render_header()
@@ -759,8 +773,6 @@ with header_box:
 
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
-if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_CLASSES:
-    st.session_state["asset_cls"] = st.query_params["cls"]
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
 market_type = st.session_state.get("market_type", "Spot")
 SCAN_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
@@ -770,15 +782,14 @@ ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Wo
 
 
 def render_universe_controls():
-    c1, c2, c3 = st.columns([1, 1, 4])
-    c1.selectbox("Asset class", ASSET_CLASSES, key="asset_cls", help="Drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
-    c2.selectbox("Market", list(MARKET_TYPES), key="market_type", help="Spot / Perpetual swap / dated Futures (OKX).")
+    """The Asset class / Market dropdowns are in the top row (render_header); this keeps the URL in sync and shows the warning."""
     if st.session_state.get("asset_cls", "Crypto") != "Crypto":
         st.query_params["cls"] = st.session_state["asset_cls"]
     elif "cls" in st.query_params:
         del st.query_params["cls"]
+    st.caption(f"Asset class: **{st.session_state.get('asset_cls', 'Crypto')}** · Market: **{st.session_state.get('market_type', 'Spot')}** (change them in the top row)")
     if _ac_msg:
-        c3.warning(_ac_msg + " - showing Crypto instead.")
+        st.warning(_ac_msg + " - showing Crypto instead.")
 
 
 # ---- Tabs -------------------------------------------------------------------------

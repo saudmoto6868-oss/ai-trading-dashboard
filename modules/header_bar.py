@@ -17,7 +17,7 @@ def build_header_html(logo: str, links: list, news: list, no_news: str = "No new
     return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
 
 
-def render_header_bar(logo: str, links: list, news: list, height: int = 54, cal: list | None = None):
+def render_header_bar(logo: str, links: list, news: list, height: int = 46, cal: list | None = None):
     import streamlit.components.v1 as components
 
     components.html(build_header_html(logo, links, news, cal=cal), height=height, scrolling=False)

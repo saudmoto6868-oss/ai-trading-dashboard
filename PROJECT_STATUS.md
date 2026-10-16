@@ -64,6 +64,7 @@ Last updated: 2026-10-16 (after commit 66dc7ea). **Update this file after every 
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-16 Chart default view: the latest candle now opens in the MIDDLE of the chart always (was 6% from the right edge unless the order-flow column was on). Order-flow column: root cause of 'uniform blue until I zoom' = the column shares the chart's price scale (all visible candles, several %) while the exchange book lists only a thin band around the price; fix = `_bookFit`: on Fit / first load with the column on, the price scale is framed once around the book band (x1.3, min 0.4% of price) and centred on the price; any manual Y zoom/pan cancels it. Tested in Playwright with a synthetic +-0.4% book (the mock book is not realistic); NOT checked on the live OKX book. Heat-map TIME history still starts empty (OKX gives none): it fills as the chart stays open / from the browser-saved history.
 - 2026-10-16 Item 11: buy/sell pressure gauge in the order-flow column.
 - 2026-10-16 Item 10: auto-scrolling Live setups belt.
 - 2026-10-16 Item 9 (partly): themes Dark/Midnight/Day + Settings widget + candle colours.

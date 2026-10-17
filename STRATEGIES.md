@@ -77,6 +77,20 @@ win rate is NOT the goal - expectancy (avg R) is; a higher win rate from a small
 Sustainable loop: weekly lab -> tiers (primary / confirmation / off) -> journal + signal log on live trades -> monthly review of the
 tiers; a detector moves up only on lab + live evidence, down when its live avg R stays below 0 for 50+ trades.
 
+## Schools ranked (2026-10-17): outside evidence x our lab -> the playbook
+| rank | school | outside evidence | our lab (avg R, real candles) | role in the system |
+|---|---|---|---|---|
+| 1 | Trend-following / time-series momentum (daily+) | strong, peer-reviewed (MOP 2012; crypto TSMOM) | daily detectors positive (sma1040 1d +0.43R) | FRAME: trade on the daily-trend side; size by volatility |
+| 2 | Price action - daily levels / breakouts | mixed (Bulkowski: patterns fail 2-4x more than in the 1990s) | ohl_break 1d +0.50R, breakout 1d +0.41R | primary setups, daily |
+| 3 | Momentum / divergence (RSI, MACD) | weak-moderate | best school pooled +0.063R; macd_div 1d +0.31R | timing / confirmation |
+| 4 | Time & liquidity (sessions, kill zones, sweeps) - the useful part of ICT | no independent study | +0.043 / +0.034R | intraday timing only, with the daily frame |
+| 5 | Fibonacci / OTE | Fib ratios ~random (Batchelor & Ramyar 2005, second-hand) | ~0 | levels for targets, not a reason to trade |
+| 6 | SMC / ICT zones (OB, breaker, unicorn, FVG) | none independent; mechanical tests 38-48 % win | -0.034R pooled; OB, unicorn, msb_ob OFF; FVG only 1d +0.19R | confirmation at most |
+| 7 | Elliott wave | no predictive power found (forex thesis), subjective | worst school -0.079R; ew3 OFF | visual only |
+Playbook (sustainable, re-checked weekly by the lab): daily trend side (radar) -> daily level / breakout / trend setup -> timing from
+momentum divergence or a session liquidity sweep on 4h / 1h -> no opposing signal -> stop 1.5 ATR, size by volatility -> journal.
+Every weekly lab run can move a detector up or down; the tables in STRATEGY_LAB.md are the source of truth, this table the summary.
+
 ## Lab results 2026-10-17 (first real run: 6 crypto + gold + S&P 500, 1m-1d, ~40k signals; full tables in STRATEGY_LAB.md)
 - No detector beats the random baseline with statistical confidence on its own (most average R within +-0.07, no costs).
 - Higher timeframes are better: pooled avg R 1d +0.043, 4h +0.019, 1h -0.009, 15m -0.025, 1m -0.019.

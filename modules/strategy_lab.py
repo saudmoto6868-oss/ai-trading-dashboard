@@ -148,6 +148,11 @@ def report(rows, conflicts, cfl, meta):
          "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ok, 1):
         L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
+    sch = {}
+    for r in ok:
+        a = sch.setdefault(r["school"], [0, 0.0]); a[0] += r["n"]; a[1] += r["n"] * (r.get("avgR") or 0)
+    L += ["", "## Schools of analysis (all their detectors pooled)", "", "| rank | school | n | avg R |", "|---|---|---|---|"]
+    L += [f"| {i} | {k} | {v[0]} | {round(v[1] / v[0], 3)} |" for i, (k, v) in enumerate(sorted(sch.items(), key=lambda kv: -kv[1][1] / max(kv[1][0], 1)), 1)]
     L += ["", "## Best timeframe per detector (n >= %d)" % MIN_N, "", "| key | tf | n | win % | avg R |", "|---|---|---|---|---|"]
     for k in sorted({r["key"] for r in rows}):
         c = [r for r in rows if r["key"] == k and r["tf"] != "all" and r["side"] == "all" and r["n"] >= MIN_N]

@@ -32,6 +32,7 @@ TFS = ("1m", "15m", "1h", "4h", "1d")
 HORIZON = {"1m": 60, "15m": 64, "1h": 48, "4h": 30, "1d": 20}
 BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
+TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
 SYMBOLS = ("BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "DOGE-USDT", "HL:xyz:GOLD", "HL:xyz:SP500")
 # analysis school of each detector key (fundamental / macro is a context filter here, not a signal)
 SCHOOL = {
@@ -84,11 +85,13 @@ def walk(df, tf, stride=4, seed=0):
         if here:
             bars.append({k: v[0] for k, v in here.items()} | {"_fam": {v[1] + ("+" if v[0] > 0 else "-") for v in here.values()},
                                                               "_r": {d: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H) for d in (1, -1)}})
+        tr = int(np.sign(cl[i] - cl[i - TREND_N])) if i >= TREND_N else 0
         for k, (d, fam) in here.items():
             if i - last.get(k, -10**9) < COOLDOWN:
                 continue
             last[k] = i
-            events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb})
+            events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
+                           "trend": "with" if tr == d else "against" if tr else "flat"})
     return events, bars
 
 
@@ -104,7 +107,8 @@ def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
-            for g in ((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short")):
+            for g in ((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short"), (e["key"], "all", "trend-" + e["trend"]),
+                      ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"])):
                 per[g].append(e["r"]); base[g].append(e["base"])
     rows = []
     for (k, tf, side), rs in per.items():
@@ -136,7 +140,7 @@ def summarize(all_events, all_bars):
 
 
 def report(rows, conflicts, cfl, meta):
-    ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all"]
+    ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
          f"Symbols: {', '.join(meta['symbols'])} · timeframes: {', '.join(meta['tfs'])} · stop {STOP_ATR} ATR, target {RR}R, "
@@ -153,6 +157,10 @@ def report(rows, conflicts, cfl, meta):
     for k in sorted({r["key"] for r in rows}):
         lo_ = next((r for r in rows if r["key"] == k and r["side"] == "long"), {}); sh = next((r for r in rows if r["key"] == k and r["side"] == "short"), {})
         L.append(f"| {k} | {lo_.get('n', 0)} | {lo_.get('avgR')} | {sh.get('n', 0)} | {sh.get('avgR')} |")
+    L += ["", "## Trend filter: signal WITH vs AGAINST the 100-bar trend (time-series momentum)", "", "| key | with n | with win % | with avg R | against n | against win % | against avg R |", "|---|---|---|---|---|---|---|"]
+    for k in ["*ALL*"] + sorted({r["key"] for r in rows if r["key"] != "*ALL*"}):
+        w = next((r for r in rows if r["key"] == k and r["tf"] == "all" and r["side"] == "trend-with"), {}); a = next((r for r in rows if r["key"] == k and r["tf"] == "all" and r["side"] == "trend-against"), {})
+        L.append(f"| {k} | {w.get('n', 0)} | {w.get('win')} | {w.get('avgR')} | {a.get('n', 0)} | {a.get('win')} | {a.get('avgR')} |")
     L += ["", "## Conflicts (pointing opposite ways on the same bar)", "", "| a | b | together | opposite | % |", "|---|---|---|---|---|"]
     L += [f"| {c['a']} | {c['b']} | {c['together']} | {c['opposite']} | {c['rate']} |" for c in conflicts]
     L += ["", "## Confluence: more agreeing families = better?", "", "| agreeing families | n | win % | avg R |", "|---|---|---|---|"]

@@ -62,6 +62,21 @@ Daily or weekly bars only (they return nothing on intraday frames). Family MA, s
 | Cross-sector momentum | `momentum.rank` (Stocks tab expander) | 12-1 month return / 63-day volatility, ranked; LONG candidate = top third + positive 12-1 + above SMA 200; AVOID = bottom third + negative + below SMA 200. Universes: 11 US sector SPDR ETFs (Yahoo), 10 crypto majors (OKX; 252 bars = ~8 calendar months there) |
 Evidence: none yet in this project - tested on hand-made candles only (`tests/test_hedge.py`). Both detectors were added to `backtest_filters.KEYS`, so the pending real-data run (item 1) will measure them.
 
+## Operating model (2026-10-17) - how trade quality is raised and kept honest
+Evidence ranking used for decisions (strongest first):
+1. **Own real results** - journal / signal log (owner, Oct 2026: 1110 trades; 1m = -147R of -150R -> 1m alerts off) and the weekly
+   strategy lab (`STRATEGY_LAB.md`, every detector vs a random baseline on real candles).
+2. **Peer-reviewed research** - time-series momentum / trend-following works across asset classes (Moskowitz, Ooi, Pedersen 2012;
+   in crypto TSMOM strong, cross-sectional weak - Han, Kang, Ryu); volatility-scaled position size is a main source of better
+   risk-adjusted returns (Kim, Tse, Wald 2016). -> trade WITH the higher-timeframe trend; size by volatility (already in the plan).
+3. **Practitioner / YouTube claims** (SMC / ICT win rates 60-80 %) - no independent, out-of-sample, cost-aware test found; a
+   1000-trade mechanical test reported 38-48 %; order blocks only helped with a displacement leg + FVG. -> SMC detectors stay,
+   but only enter as "primary" when the lab shows an edge; strict-structure / displacement filters stay on.
+Rules for every change: walk-forward only (no look-ahead), random baseline, n >= 50 before ranking, costs make it worse,
+win rate is NOT the goal - expectancy (avg R) is; a higher win rate from a smaller target is not an improvement by itself.
+Sustainable loop: weekly lab -> tiers (primary / confirmation / off) -> journal + signal log on live trades -> monthly review of the
+tiers; a detector moves up only on lab + live evidence, down when its live avg R stays below 0 for 50+ trades.
+
 ## Group C + confirmation-only
 - **Elliott OTE boxes** (Workspace, `Elliott waves` indicator): yellow 62-79% retracement boxes of each impulse leg (where wave 2 / 4 / A ends); the newest runs to the right edge. Visual only - no stars.
 - **Harmonics** were already built from scratch in the Workspace (`harmFind`, XABCD + PRZ box); unchanged.

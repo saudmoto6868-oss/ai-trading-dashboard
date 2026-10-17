@@ -145,6 +145,26 @@ const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
+/* Live CFD quotes for forex / metals / indices / commodities: Finnhub's websocket with OANDA symbols. Runs only when the owner set
+   FINNHUB_WS_TOKEN in Streamlit Secrets (the browser sees that key, so use a separate free key for it). [id, label, category, Yahoo twin]
+   Whether every symbol streams on Finnhub's FREE plan is not verified - rows without ticks stay at "…". */
+const FH_LIST = [["EUR_USD","EUR/USD","Forex","EURUSD=X"],["GBP_USD","GBP/USD","Forex","GBPUSD=X"],["USD_JPY","USD/JPY","Forex","USDJPY=X"],["AUD_USD","AUD/USD","Forex","AUDUSD=X"],["USD_CAD","USD/CAD","Forex","USDCAD=X"],["USD_CHF","USD/CHF","Forex","USDCHF=X"],["NZD_USD","NZD/USD","Forex","NZDUSD=X"],["EUR_GBP","EUR/GBP","Forex","EURGBP=X"],["EUR_JPY","EUR/JPY","Forex","EURJPY=X"],["GBP_JPY","GBP/JPY","Forex","GBPJPY=X"],
+  ["XAU_USD","Gold XAU/USD","Metals","GC=F"],["XAG_USD","Silver XAG/USD","Metals","SI=F"],["XPT_USD","Platinum","Metals",""],["XCU_USD","Copper","Metals","HG=F"],
+  ["SPX500_USD","S&P 500","Indices","^GSPC"],["NAS100_USD","Nasdaq 100","Indices","^NDX"],["US30_USD","Dow 30","Indices","^DJI"],["DE30_EUR","DAX","Indices","^GDAXI"],["UK100_GBP","FTSE 100","Indices","^FTSE"],["JP225_USD","Nikkei 225","Indices","^N225"],["HK33_HKD","Hang Seng","Indices","^HSI"],
+  ["WTICO_USD","WTI crude","Oil & Gas","CL=F"],["BCO_USD","Brent crude","Oil & Gas","BZ=F"],["NATGAS_USD","Natural gas","Oil & Gas","NG=F"],["WHEAT_USD","Wheat","Commodities","ZW=F"],["CORN_USD","Corn","Commodities","ZC=F"],["SUGAR_USD","Sugar","Commodities","SB=F"]]
+  .map(([id, label, cat, y]) => ({id:"FH:"+id, sym:"OANDA:"+id, label, cat, y:y ? "Y:"+y : ""}));
+const FH_MAP = Object.fromEntries(FH_LIST.map(x => [x.id, x]));
+const FH = {q:{}, state:"off", ws:null, wait:5000,
+  start(){ if (!CFG.fhToken || this.ws) return; let ws; try { ws = new WebSocket("wss://ws.finnhub.io?token="+encodeURIComponent(CFG.fhToken)); } catch(e){ this.state = "error"; return; }
+    this.ws = ws; this.state = "connecting";
+    ws.onopen = () => { this.state = "live"; this.wait = 5000; FH_LIST.forEach(x => ws.send(JSON.stringify({type:"subscribe", symbol:x.sym}))); };
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } if (m.type === "error"){ this.state = "error: "+(m.msg || ""); return; } if (m.type !== "trade" || !Array.isArray(m.data)) return;
+      m.data.forEach(t => { const id = "FH:"+String(t.s || "").replace(/^OANDA:/, ""); if (FH_MAP[id] && +t.p > 0) this.q[id] = {last:+t.p, t:+t.t || Date.now()}; }); };
+    ws.onclose = () => { this.ws = null; if (this.state !== "off"){ this.state = "reconnecting"; setTimeout(() => this.start(), this.wait); this.wait = Math.min(60000, this.wait*2); } };
+    ws.onerror = () => { try { ws.close(); } catch(e){} }; },
+  // change % reference = the previous daily close of the Yahoo twin when the page embedded it, otherwise unknown (no fake 0%)
+  ref(x){ const D = x.y && YF[x.y] && YF[x.y]["1d"]; return D && D.length > 1 ? D[D.length-2][4] : 0; }
+};
 const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"13m":780,"1H":3600,"2H":7200,"3H":10800,"4H":14400,"6H":21600,"7H":25200,"8H":28800,"12H":43200,"1D":86400,"3D":259200,"1W":604800,"1M":2592000};
 /* OKX bar sizes: 2H is native; 6H / 12H / 3D / 1M use its UTC variants; 13m, 3H, 7H and 8H do not exist on OKX, so they are built from 1m / 1H candles (buckets aligned to the UTC epoch) */
 const TF_OKX = {"2H":"2H","6H":"6Hutc","12H":"12Hutc","3D":"3Dutc","1M":"1Mutc"}, TF_AGG = {"13m":["1m",13],"3H":["1H",3],"7H":["1H",7],"8H":["1H",8]};
@@ -640,7 +660,7 @@ const Hub = {
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
-          const m = {}; (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
+          const m = {}; FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
         }
         this.last[key] = payload; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
@@ -2260,6 +2280,8 @@ class Panel {
       if (U.cat.startsWith("__")){ this.uTitle = ""; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
       const yfCat = y => /\.CA$|^Y:\^CASE30$/.test(y) ? "Egypt (EGX)" : /\.SR$/.test(y) ? "Saudi (Tadawul)" : /=X$/.test(y) ? "Forex" : /^Y:\^/.test(y) ? "Indices" : "", yfRows = Object.keys(YF).filter(y => yfCat(y) === U.cat).map(y => ({id:y, vol:1e18, cat:U.cat}));   // Yahoo markets (not in OKX): candles were embedded for the page-level Asset class
       if (/^(Egypt|Saudi)/.test(U.cat) && !yfRows.length){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "السوق ده بييجي من Yahoo: اختار \""+U.cat+"\" من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "This market comes from Yahoo: pick \""+U.cat+"\" in the Asset class dropdown (Chart Scanner tab), then come back.")+'</div>'; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
+      const fhRows = CFG.fhToken ? FH_LIST.filter(x => x.cat === U.cat || (U.cat === "All" && 0)).map(x => ({id:x.id, vol:2e18, cat:x.cat})) : [];
+      yfRows.unshift(...fhRows.filter(f => !yfRows.some(y => y.id === f.id)));
       const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, Math.max(U.top, yfRows.length));
       if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
       this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");
@@ -2273,7 +2295,7 @@ class Panel {
         const meta = {}; ins.forEach(i => meta[i.instId] = i);
         rowsU = tk.filter(x => (isO || U.quote === "ALL" || x.instId.split("-")[1] === U.quote) && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
           return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:isO ? (+x.vol24h || 0) : (+x.volCcy24h || 0) * (U.type !== "SPOT" ? last : 1), cat:isO ? "Options" : catOf(meta[x.instId], base)}; });
-        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Indices","Stocks","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
+        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
         if (CFG.cls && U.ucls !== CFG.cls){   // the page-level Asset class dropdown sets the default once; the selectors here stay usable
           U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = CFG.cls === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
@@ -2285,7 +2307,8 @@ class Panel {
     go.onclick = add; inp.onkeydown = e => { if (e.key === "Enter") add(); };
     const favB = el("button",null,"★"), tfS = el("select"); favB.title = lang === "ar" ? "المفضلة فقط" : "Favorites only"; favB.onclick = () => { if (U.cat === "__fav"){ U.cat = this.state.prevCat || "__mine"; } else { this.state.prevCat = U.cat; U.cat = "__fav"; } catSel.value = U.cat; favB.style.color = U.cat === "__fav" ? "#f0b90b" : ""; Ws.save(); loadU(); }; favB.style.color = U.cat === "__fav" ? "#f0b90b" : "";
     ["1H","4H"].forEach(v => tfS.append(Object.assign(el("option"), {value:v, textContent:"AMD "+v}))); tfS.value = this.state.wtf || "1H"; tfS.title = "Accumulation / Manipulation / Distribution"; tfS.onchange = () => { this.state.wtf = tfS.value; this.amd = {}; Ws.save(); this.wDraw && this.wDraw(); };
-    tb.append(inp, go, favB, tfS, ub); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
+    const fhS = el("span","m"); fhS.style.cssText = "font-size:10px;white-space:nowrap"; if (CFG.fhToken){ FH.start(); const upd = () => { const n = Object.keys(FH.q).length; fhS.textContent = "FH "+(FH.state === "live" ? "● "+n+"/"+FH_LIST.length : FH.state); fhS.title = Lg("Finnhub live CFD feed: symbols with at least one tick / total","مصدر Finnhub اللحظي: الرموز اللي وصلها سعر / الإجمالي"); }; upd(); this.fhUpd = upd; }   // refreshed with every ticker snapshot (wRender), so it survives resub()
+    tb.append(inp, go, favB, tfS, ub, fhS); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
   }
   /* ---- links bar ---- */
   build_links(){
@@ -2909,17 +2932,18 @@ Panel.prototype.resub = function(){
       groups.forEach(([title, list]) => { if (!list.length) return; h += '<tr class="wh"><td colspan="5">'+esc(title)+'</td></tr>';
         list.forEach(s => { shown.push(s); const x = M[s], p = this.pv[s] || {}, fav = F.includes(s), fl = this.flash.has(s) ? (p.dir > 0 ? " fu" : " fd") : "", col = p.dir > 0 ? "g" : p.dir < 0 ? "rd" : "";
           const st = '<td class="stc"><span class="st'+(fav ? " on" : "")+'" data-st="'+esc(s)+'">'+(fav ? "★" : "☆")+'</span></td>';
-          if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+esc(s)+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
-          const ch = x.open ? (x.last-x.open)/x.open*100 : 0;
-          h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+esc(s)+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td><td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td><td>'+amdChip(s)+'</td></tr>'; }); });
+          const nm = FH_MAP[s] ? esc(FH_MAP[s].label)+' <span class="m" title="Finnhub / OANDA CFD, live">●</span>' : esc(s);
+          if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
+          const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';
+          h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });
       if (!shown.length) h += '<tr><td colspan="5" class="m">'+esc(only ? L_("No favorites yet — tap ☆ next to a symbol","لا توجد مفضلة — اضغط ☆ بجانب أي رمز") : T("uniNone"))+'</td></tr>';
       this.wBox.innerHTML = h+'</table>'; this.flash.clear();
-      this.wBox.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s));
+      this.wBox.querySelectorAll(".wr").forEach(r => r.onclick = () => { const f = FH_MAP[r.dataset.s]; if (!f) return Ws.broadcast(this, r.dataset.s); if (f.y && YF[f.y]) Ws.broadcast(this, f.y); else r.title = L_("Chart: pick this market's Asset class in the Chart Scanner tab first (Yahoo candles)","الشارت: اختار فئة السوق ده من Asset class في تاب Chart Scanner الأول"); });
       this.wBox.querySelectorAll(".st").forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.st, f = favs(), i = f.indexOf(k); i < 0 ? f.push(k) : f.splice(i, 1); store.set(LS+"_fav", f); this.wDraw(); });
       Hub.extra = new Set(); Ws.panels.forEach(p => { if (p.type === "watch") favs().concat(p.uSyms || []).forEach(z => Hub.extra.add(z)); });
       amdLoad(shown);
     };
-    this.wRender = m => { if (!m) return; M = m; if (!m.error){ const seen = new Set(SYMS.concat(favs(), this.uSyms || []));
+    this.wRender = m => { if (!m) return; M = m; this.fhUpd && this.fhUpd(); if (!m.error){ const seen = new Set(SYMS.concat(favs(), this.uSyms || []));
         seen.forEach(s => { const x = m[s]; if (!x) return; const p = this.pv[s] = this.pv[s] || {last:x.last, dir:0}; if (x.last !== p.last){ p.dir = x.last > p.last ? 1 : -1; p.last = x.last; this.flash.add(s); } }); }
       this.wDraw(); };
     this.unsubs.push(Hub.sub("tickers", "all", m => this.wRender(m)));

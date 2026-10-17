@@ -1072,6 +1072,31 @@ with tab_stocks:
         st.caption("Ranking by the 12-1 month return divided by volatility (the latest month is skipped). LONG candidate = top third with a positive "
                    "12-1 return and price above SMA 200; AVOID = bottom third, negative and below SMA 200. Crypto trades 7 days a week, so its "
                    "'12 months' are 252 daily bars (~8 calendar months). A ranking, not a forecast - not backtested in this project.")
+    with st.expander("US options chain (Cboe, ~15 min delayed)", expanded=False):
+        from modules import cboe_options as _cb
+
+        @st.cache_data(ttl=300, show_spinner=False)
+        def _cb_chain(sym):
+            return _cb.fetch(sym)
+
+        oc1, oc2 = st.columns([1, 2])
+        osym = oc1.text_input("Underlying (stock / ETF / index)", "SPY", key="cboe_sym").strip().upper()
+        try:
+            px, chain = _cb_chain(osym)
+            exps = sorted(chain.expiry.unique())
+            ex = oc2.selectbox("Expiry", exps, format_func=lambda d: pd.Timestamp(d).strftime("%Y-%m-%d"), key="cboe_exp")
+            sm = _cb.summary(chain, px, ex)
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Underlying", f"{px:,.2f}" if px else "-")
+            m2.metric("Put/Call volume", f"{sm['pc_vol']:.2f}" if sm["pc_vol"] else "-")
+            m3.metric("Put/Call open interest", f"{sm['pc_oi']:.2f}" if sm["pc_oi"] else "-")
+            m4.metric("Max pain (this expiry)", f"{sm['max_pain']:,.2f}" if sm["max_pain"] else "-")
+            st.dataframe(_cb.near_money(chain, px, ex, n=12), hide_index=True, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Option chain not available: {e}")
+        st.caption("Source: Cboe's public delayed-quotes JSON (free, no key, ~15 min delayed, unofficial - it can change without notice). "
+                   "Indices: SPX, NDX, RUT, VIX. Max pain and put/call ratios describe positioning; they are not a forecast. "
+                   "Crypto options (BTC / ETH) stay live in the Workspace watchlist (OKX, category Options).")
     with st.expander("News sentiment + movers (Alpha Vantage)", expanded=False):
         from modules import alphavantage as _av
 

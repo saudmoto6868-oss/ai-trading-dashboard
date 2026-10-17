@@ -1096,12 +1096,16 @@ class CandleChart {
       // (or from the event candle when "Start at event" is chosen); repeats = small ticks, target = dashed path + small arrow.
       const F = this.st.flow, al = this.pulse ? 1 : .45, xNow = this.x(n-1) + this.bw/2, now = (this.data[n-1] || {}).t || Date.now();
       const len = (F.len|0) > 0 ? (F.len|0)*this.bw : PR, ageMs = (F.age|0) > 0 ? (F.age|0)*60000 : Infinity;
-      this.marks.filter(m => now - m.t <= ageMs).slice(-Math.max(1, F.max|0 || 6)).forEach(m => {
+      this.marks.filter(m => now - m.t <= ageMs).slice(0, Math.max(1, F.max|0 || 6)).forEach(m => {   // marks are newest first
         let k = -1; for (let i = n-1; i >= 0; i--) if (this.data[i].t <= m.t){ k = i; break; } if (k < 0) k = 0;
         const y = py(m.p); if (y < 0 || y > PB) return;
-        const xe = this.x(k), x0 = F.anchor ? xNow : xe, x1 = Math.min(PR, x0 + len), ab = m.kind === "absorb", col = ab ? F.color2 : F.color, up = m.dir > 0;
+        const xe = this.x(k), ab = m.kind === "absorb", col = (ab ? F.color2 : F.color) || (ab ? "#b57cff" : "#f0b90b"), up = m.dir > 0;
+        // the marker sits on the current candle but never closer than 70 px to the price axis (latest candle at the right edge = the old line was a few px long, i.e. invisible)
+        const x0 = Math.max(0, Math.min(F.anchor ? xNow : xe, PR - 70)), x1 = Math.min(PR, Math.max(x0 + 60, x0 + len)), xs = Math.min(x0, Math.max(0, xe));
         c.globalAlpha = al; c.strokeStyle = c.fillStyle = col; c.lineWidth = F.w || 1.5; c.setLineDash(F.dash ? F.dash.split(",").map(Number) : []);
         c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); c.setLineDash([]);
+        if (xs < x0 - 4){ c.globalAlpha = .3; c.lineWidth = 1; c.setLineDash([2,3]); c.beginPath(); c.moveTo(xs, y); c.lineTo(x0, y); c.stroke(); c.setLineDash([]); c.lineWidth = F.w || 1.5; }   // faint trail back to the event candle
+        c.globalAlpha = .9; c.fillRect(PR + 1, y - 2, 6, 4);   // small tag on the price axis so the level is found even when zoomed out
         if (F.anchor && xe < x0 - 4){ c.globalAlpha = .55; c.fillRect(xe - 1, y - 1, 3, 3); }   // tiny tick where the event actually happened
         c.globalAlpha = 1;
         if (ab){ c.strokeRect(x0 - 3.5, y - 3.5, 7, 7); } else { c.beginPath(); c.arc(x0, y, 3.5, 0, 6.3); c.fill(); }   // marker on the current candle
@@ -1303,7 +1307,7 @@ Object.assign(CandleChart.prototype, {
     this.marks.forEach(m => { let i = d.length-1; while (i > 0 && d[i].t > m.t) i--; if (i < i0 || i > i1) return;
       const x = this.x(i), y = py(m.p), side = m.dir > 0 ? OF.color : OF.color2, col = OF.sidec ? side : (m.kind === "sweep" ? OF.sweepC : OF.absC); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2;
       if (m.kind === "sweep"){ c.beginPath(); c.arc(x, y, 3.5, 0, 6.3); c.fill(); if (m.n > 1){ c.fillStyle = "#eaecef"; c.fillText("×"+m.n, x+7, y); } }   // sweep = a small dot only (no word)
-      else { c.beginPath(); c.arc(x, y, 8, 0, 6.3); c.stroke(); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x-4, y-4); c.lineTo(x+4, y+4); c.moveTo(x+4, y-4); c.lineTo(x-4, y+4); c.stroke(); c.fillStyle = "#eaecef"; c.fillText("ABSORB·"+(m.tf||"")+(m.n > 1 ? " ×"+m.n : ""), x+11, y);
+      else { c.beginPath(); c.arc(x, y, 8, 0, 6.3); c.stroke(); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x-4, y-4); c.lineTo(x+4, y+4); c.moveTo(x+4, y-4); c.lineTo(x-4, y+4); c.stroke(); if (m.n > 1){ c.fillStyle = "#eaecef"; c.fillText("×"+m.n, x+11, y); }
         if (m.tgt){ const ty = py(m.tgt); c.setLineDash([3,3]); c.lineWidth = 1; c.strokeStyle = col; c.beginPath(); c.moveTo(x, y); c.lineTo(x+40, ty); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.beginPath(); c.arc(x+40, ty, 3, 0, 6.3); c.fill(); } } });
     c.restore();
   },
@@ -2240,7 +2244,7 @@ class Panel {
   syncMarks(){
     const ch = this.chart, d = ch.data; if (!d.length || !this.flt) return;
     const rows = d.slice(-14), atr = rows.reduce((a,k) => a + (k.h - k.l), 0)/rows.length || 0, now = Date.now(), out = [];
-    this.flt.events.filter(e => now - e.t < 900000 && (e.ev === "ABSORB" || e.ev === "FILLED")).slice(0, 6).forEach(e => {
+    this.flt.events.filter(e => now - e.t < Math.max(15, (ch.st.flow.age|0) || 120)*60000 && (e.ev === "ABSORB" || e.ev === "FILLED")).slice(0, 12).forEach(e => {
       if (e.ev === "ABSORB"){ const dir = e.side === "ask" ? -1 : 1; out.push({t:e.t, p:e.p, kind:"absorb", dir, tgt:e.p + dir*1.5*atr}); }
       else out.push({t:e.t, p:e.p, kind:"sweep", dir:e.side === "bid" ? -1 : 1});
     });

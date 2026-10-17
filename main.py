@@ -1047,6 +1047,31 @@ with tab_metals:
 
 with tab_stocks:
     class_tab("stocks", "Stocks")
+    with st.expander("Cross-sector momentum (hedge-fund relative-strength ranking)", expanded=False):
+        from modules import momentum as _mom
+
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _mom_table(uni):
+            u = _mom.UNIVERSES[uni]
+            closes, errs = _mom.fetch_closes(u)
+            return _mom.rank(closes, u), errs
+
+        uni = st.radio("Universe", list(_mom.UNIVERSES), horizontal=True, key="mom_uni")
+        tbl, errs = _mom_table(uni)
+        if tbl.empty:
+            st.warning("No market had the 253 daily closes needed (12 months + 1 day)." + (" Errors: " + "; ".join(errs[:4]) if errs else ""))
+        else:
+            show = tbl.copy()
+            for c in ("ret_12_1", "ret_6_1", "ret_3m", "vol"):
+                show[c] = (show[c] * 100).round(1)
+            show["score"] = show["score"].round(2)
+            st.dataframe(show.rename(columns={"ret_12_1": "12-1 m %", "ret_6_1": "6-1 m %", "ret_3m": "3 m %", "vol": "vol % (ann.)",
+                                              "score": "score (12-1 / vol)", "above_200": "above SMA200"}), hide_index=True, use_container_width=True)
+            if errs:
+                st.caption("Missing: " + "; ".join(errs[:6]))
+        st.caption("Ranking by the 12-1 month return divided by volatility (the latest month is skipped). LONG candidate = top third with a positive "
+                   "12-1 return and price above SMA 200; AVOID = bottom third, negative and below SMA 200. Crypto trades 7 days a week, so its "
+                   "'12 months' are 252 daily bars (~8 calendar months). A ranking, not a forecast - not backtested in this project.")
     with st.expander("News sentiment + movers (Alpha Vantage)", expanded=False):
         from modules import alphavantage as _av
 

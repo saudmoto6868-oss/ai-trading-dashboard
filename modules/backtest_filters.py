@@ -13,7 +13,7 @@ from pathlib import Path
 from modules.backtest_signals import walk
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "filter_compare.json"
-KEYS = ("donch", "sess_amd", "orb", "ob", "breaker", "unicorn", "breakout", "liqline", "kzs", "po3")
+KEYS = ("donch", "sess_amd", "orb", "ob", "breaker", "unicorn", "breakout", "liqline", "kzs", "po3", "sma1040", "turtle55")
 FLAGS = ("SIGF_STRICT_SMC", "SIGF_OB_VOL", "SIGF_BO_VOL")
 
 

@@ -53,6 +53,15 @@ Volume filters switch themselves off for markets whose candles carry no volume (
 | Power of Three (restricted) | `power_of_three_bull` | daily open (00:00 NY); price >= 0.5 ATR below it with that low printed INSIDE a kill zone; entry only after a displacement candle closes back above the open (rebound confirmed); target = max(open + 2x depth, yesterday's high); >= 1.5R |
 SMT (BTC/ETH/SOL pairs, `modules/smt.py`) and CRT (`crt_bull`) already existed and are unchanged.
 
+## Item 15 - hedge-fund / CTA trend rules (`modules/signals.py`, `modules/momentum.py`)
+Daily or weekly bars only (they return nothing on intraday frames). Family MA, so they can confirm but never add a separate family star.
+| Signal | Detector / module | Rules |
+|---|---|---|
+| SMA 10/40 cross | `sma1040_bull` (key `sma1040`) | SMA 10 crossed SMA 40 within the last 3 bars, still on that side, close beyond SMA 40; invalidation = entry -/+ 2N (N = 20-bar ATR) |
+| Donchian 55 (Turtle System 2) | `turtle55_bull` (key `turtle55`) | first CLOSE beyond the previous 55-bar high/low within the last 3 bars (the original used an intraday touch; a close avoids repainting); stop 2N; trailing exit = close beyond the 20-bar opposite extreme |
+| Cross-sector momentum | `momentum.rank` (Stocks tab expander) | 12-1 month return / 63-day volatility, ranked; LONG candidate = top third + positive 12-1 + above SMA 200; AVOID = bottom third + negative + below SMA 200. Universes: 11 US sector SPDR ETFs (Yahoo), 10 crypto majors (OKX; 252 bars = ~8 calendar months there) |
+Evidence: none yet in this project - tested on hand-made candles only (`tests/test_hedge.py`). Both detectors were added to `backtest_filters.KEYS`, so the pending real-data run (item 1) will measure them.
+
 ## Group C + confirmation-only
 - **Elliott OTE boxes** (Workspace, `Elliott waves` indicator): yellow 62-79% retracement boxes of each impulse leg (where wave 2 / 4 / A ends); the newest runs to the right edge. Visual only - no stars.
 - **Harmonics** were already built from scratch in the Workspace (`harmFind`, XABCD + PRZ box); unchanged.

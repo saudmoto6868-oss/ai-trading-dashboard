@@ -140,7 +140,7 @@ _KEY_PATTERNS = [
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
     (r"Unicorn", "unicorn"), (r"Liquidity line break", "liqline"), (r"OHL: open", "ohl_open"),
     (r"OHL: breaks", "ohl_break"), (r"At support", "level"), (r"-bar breakout", "breakout"),
-    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"), (r"Session AMD", "sess_amd"), (r"opening-range breakout", "orb"), (r"Kill Zone Sniper", "kzs"), (r"Power of Three", "po3"),
+    (r"RSI divergence", "rsi_div"), (r"MACD divergence", "macd_div"), (r"CRT sweep", "crt"), (r"SMT divergence", "smt"), (r"Donchian ensemble", "donch"), (r"Session AMD", "sess_amd"), (r"opening-range breakout", "orb"), (r"Kill Zone Sniper", "kzs"), (r"Power of Three", "po3"), (r"SMA 10/40", "sma1040"), (r"Donchian 55", "turtle55"),
 ]
 
 
@@ -1069,6 +1069,62 @@ def donchian_bull(df, min_agree: float = 2 / 3, fresh_bars: int = 3):
 
 
 # --------------------------------------------------------------------------
+# Item 15: classic hedge-fund / CTA trend rules. Daily (or weekly) bars only - on intraday bars these periods mean nothing.
+# N = 20-bar average true range (the Turtle "N"); the stop / invalidation is entry - 2N, as in the Turtle rules.
+# Same MA family as the other trend followers, so they never add a star on their own family count.
+# --------------------------------------------------------------------------
+def _daily_plus(df) -> bool:
+    step = _bar_minutes(df)
+    return bool(step) and step >= 1440 * 0.9
+
+
+def sma1040_bull(df, fresh: int = 3):
+    """Dual moving-average trend rule (managed-futures classic): SMA 10 crossed above SMA 40 within the last `fresh`
+    bars, is still above it, and the close is above SMA 40. Invalidation = entry - 2N."""
+    if not _daily_plus(df) or len(df) < 60:
+        return []
+    c = df["close"]
+    f, s = c.rolling(10).mean().values, c.rolling(40).mean().values
+    n = len(df)
+    for j in range(n - 1, n - 1 - fresh, -1):
+        if f[j - 1] <= s[j - 1] and f[j] > s[j]:
+            break
+    else:
+        return []
+    if not (f[-1] > s[-1] and c.iloc[-1] > s[-1]):
+        return []
+    N = float(atr_series(df, 20).iloc[-1]); px = float(c.iloc[-1])
+    return [_mk("MA", "SMA 10/40 trend cross (hedge-fund rule)",
+                "SMA 10 {s10} crossed above SMA 40 {s40} " + str(n - 1 - j) + " bar(s) ago and the close is above both: managed-futures dual-MA "
+                "trend rule; stop 2N (2 x 20-bar ATR) at {inv}", prices={"s10": float(f[-1]), "s40": float(s[-1]), "inv": px - 2 * N},
+                vals={"ago": n - 1 - j, "N": round(N, 6)})]
+
+
+def turtle55_bull(df, fresh: int = 3):
+    """Turtle System 2 entry: a CLOSE above the highest high of the previous 55 bars (the original used an intraday touch;
+    a close is used here so the signal does not repaint), first time within the last `fresh` bars.
+    Stop = entry - 2N, exit = a close below the 20-bar low (shown as the trailing exit level)."""
+    if not _daily_plus(df) or len(df) < 80:
+        return []
+    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    n = len(df)
+    brk = [j for j in range(n - fresh, n) if c[j] > h[j - 55:j].max()]
+    if not brk:
+        return []
+    j = brk[0]
+    if j > 0 and c[j - 1] > h[j - 56:j - 1].max():
+        return []                                    # already in a breakout before the window - not a fresh entry
+    N = float(atr_series(df, 20).iloc[-1]); px = float(c[-1])
+    hi55, ex20 = float(h[j - 55:j].max()), float(l[n - 20:].min())
+    if px <= ex20:
+        return []
+    return [_mk("MA", "Donchian 55 breakout (Turtle System 2)",
+                "a close above the 55-bar high {lvl} (" + str(n - 1 - j) + " bar(s) ago): Turtle System 2 entry; stop 2N at {inv}, "
+                "trailing exit on a close below the 20-bar low {x}", prices={"lvl": hi55, "inv": px - 2 * N, "x": ex20},
+                vals={"ago": n - 1 - j, "N": round(N, 6)})]
+
+
+# --------------------------------------------------------------------------
 # ICT session model (UTC, fixed approximations - ICT quotes New York times, which shift with daylight saving):
 #   Asia range (accumulation) 00:00-07:00, London window (manipulation) 07:00-12:00, New York window 12:00-17:00 (distribution)
 #   Opening range = first 15 minutes after the London open (07:00) and the New York open (13:30)
@@ -1239,7 +1295,7 @@ DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 
 DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, model2022_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
-             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, session_amd_bull, session_orb_bull, killzone_sniper_bull, power_of_three_bull)
+             rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, sma1040_bull, turtle55_bull, session_amd_bull, session_orb_bull, killzone_sniper_bull, power_of_three_bull)
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

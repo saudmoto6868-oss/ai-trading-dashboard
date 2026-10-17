@@ -55,6 +55,8 @@ STRATEGY_FILTERS = {
     "st_kzs": ("Kill Zone Sniper (sweep + displacement inside London / NY kill zone, volume-confirmed)", ("key", "kzs")),
     "st_po3": ("ICT Power of Three (kill-zone manipulation below the daily open + confirmed rebound)", ("key", "po3")),
     "st_donch": ("Donchian ensemble trend (several lookbacks, vol-sized)", ("key", "donch")),
+    "st_sma1040": ("SMA 10/40 trend cross (hedge-fund rule, daily / weekly bars)", ("key", "sma1040")),
+    "st_turtle55": ("Donchian 55 breakout - Turtle System 2 (daily / weekly bars)", ("key", "turtle55")),
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_m2022": ("ICT Model 2022 (raid + MSS + FVG, in a NY killzone)", ("key", "m2022")), "st_cisd": ("Sweep + CISD (liquidity grab, body close through the open of the down-candle run, before the structure break)", ("key", "cisd")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
 }

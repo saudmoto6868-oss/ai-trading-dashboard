@@ -449,13 +449,17 @@ def render_limit_tracking(sym, book, trades):
 @st.cache_resource
 def _scan_store():
     import threading
-    return {"lock": threading.Lock(), "running": False, "key": None, "payload": None, "built": 0.0}
+    return {"lock": threading.Lock(), "running": False, "key": None, "payload": None, "built": 0.0, "t0": time.time()}
 
 
 def _scan_worker(store, ws_tf, ws_key):
     """Heavy OKX scan, run in a background thread so the page renders immediately.
     The chosen timeframe goes first and partial results are published as they arrive."""
     try:
+        # just after a (re)start let the first page render before the heavy scan takes the CPU (Streamlit Cloud gives little CPU)
+        wait = 45 - (time.time() - store.get("t0", 0))
+        if wait > 0:
+            time.sleep(wait)
         ws_alerts, ws_scan, ws_seed, ws_mini, ws_errs = [], {}, None, [], []
         syms_ = list(ws_key[2])
 

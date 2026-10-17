@@ -58,9 +58,13 @@ def fp(x: float) -> str:
 
 
 def atr_series(df: pd.DataFrame, n: int = 14) -> pd.Series:
-    pc = df["close"].shift(1)
-    tr = pd.concat([df["high"] - df["low"], (df["high"] - pc).abs(), (df["low"] - pc).abs()], axis=1).max(axis=1)
-    return tr.rolling(n, min_periods=1).mean()
+    # true range in numpy (the pandas concat + max was the hottest line of a scan); same values, rolling mean unchanged
+    h, l, c = df["high"].to_numpy(float), df["low"].to_numpy(float), df["close"].to_numpy(float)
+    tr = h - l
+    if len(c) > 1:
+        pc = c[:-1]
+        tr[1:] = np.fmax(tr[1:], np.fmax(np.abs(h[1:] - pc), np.abs(l[1:] - pc)))
+    return pd.Series(tr, index=df.index).rolling(n, min_periods=1).mean()
 
 
 def invert(df: pd.DataFrame) -> pd.DataFrame:
@@ -71,16 +75,17 @@ def invert(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fractal_pivots(df: pd.DataFrame, n: int = 3):
-    """[(bar_index, price, 'H'|'L')], confirmed n bars after the pivot bar."""
-    h, l = df["high"].values, df["low"].values
-    out = []
-    for i in range(n, len(df) - n):
-        wh, wl = h[i - n:i + n + 1], l[i - n:i + n + 1]
-        if int(np.argmax(wh)) == n:
-            out.append((i, float(h[i]), "H"))
-        if int(np.argmin(wl)) == n:
-            out.append((i, float(l[i]), "L"))
-    out.sort(key=lambda x: x[0])
+    """[(bar_index, price, 'H'|'L')], confirmed n bars after the pivot bar.
+    Vectorised (sliding windows; argmax / argmin = first occurrence, same as the old loop): it is called dozens of times per scan."""
+    h, l = df["high"].to_numpy(float), df["low"].to_numpy(float)
+    w = 2 * n + 1
+    if len(h) < w:
+        return []
+    sw = np.lib.stride_tricks.sliding_window_view
+    ih = np.flatnonzero(sw(h, w).argmax(axis=1) == n) + n
+    il = np.flatnonzero(sw(l, w).argmin(axis=1) == n) + n
+    out = [(int(i), float(h[i]), "H") for i in ih] + [(int(i), float(l[i]), "L") for i in il]
+    out.sort(key=lambda x: (x[0], x[2] != "H"))   # same order as before: by bar, H before L on the same bar
     return out
 
 

@@ -42,7 +42,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .panel.focus{border-color:#4a525c}
 .ph{height:26px;flex:none;display:flex;align-items:center;gap:5px;padding:0 6px;background:var(--panel2);cursor:move;user-select:none;touch-action:none}
 .ph .ttl{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dt{position:absolute;left:3px;top:20px;z-index:3;display:flex;flex-direction:column;gap:2px;background:rgba(22,26,30,.85);border:1px solid var(--line);border-radius:5px;padding:2px}
+.dt{position:absolute;left:3px;top:20px;z-index:3;display:flex;flex-direction:column;gap:2px;background:var(--panel);opacity:.92;border:1px solid var(--line);border-radius:5px;padding:2px}
 .dt button{width:26px;height:22px;padding:0;font-size:11px;line-height:20px}
 .dt{max-height:calc(100% - 40px);overflow-y:auto;scrollbar-width:none}
 .fibpop{position:absolute;left:36px;top:20px;z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:3px;max-height:70%;overflow-y:auto;min-width:190px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
@@ -258,6 +258,15 @@ const IND_HELP = {
   dom:["Depth heat-map: resting limit orders (bid/ask) over time. Bright bands = big walls; vanishing walls = spoofing or filled orders.","خريطة العمق: الأوامر المعلقة بمرور الوقت. أشرطة ساطعة = جدران كبيرة؛ اختفاؤها = سحب أو تنفيذ."],
   dot3:["Depth of Trade: one switch for bubbles + depth heat-map + dots + BUY/SELL markers. ⚙ opens colours and sizes.","Depth of Trade: مفتاح واحد للفقاعات + خريطة العمق + النقط + علامات الشراء/البيع. ⚙ للألوان والأحجام."],
 };
+/* Chart modes = indicator bundles (ids of the Indicators menu). Everything not listed is switched off, except display options. */
+const CHART_MODES = [
+  {id:"clean", en:"Clean", ar:"نظيف", on:["e9","e21","volume","sig"], tipEn:"Candles, EMA 9/21, volume and scanner signals only.", tipAr:"شموع + EMA 9/21 + فوليوم + إشارات السكانر بس."},
+  {id:"kzs", en:"Kill Zone Sniper", ar:"قناص الكيل زون", on:["e9","e21","kz","kzs","volume","sig"], tipEn:"Sessions + kill zones, the Kill Zone Sniper overlay, EMA 9/21 (the REJ filter), volume, signals. Intraday (1H and lower).", tipAr:"الجلسات + الكيل زون + قناص الكيل زون + EMA 9/21 + فوليوم + إشارات. للانترادي (ساعة وأقل)."},
+  {id:"smc", en:"ICT / SMC", ar:"ICT / SMC", on:["e9","e21","kz","lv","ll","smt","sig","volume"], tipEn:"Liquidity view: sessions, open levels, XPIX MTF liquidity levels, SMT, signals.", tipAr:"عرض السيولة: الجلسات، مستويات الفتح، مستويات XPIX، SMT، الإشارات."},
+  {id:"flow", en:"Order flow", ar:"أوردر فلو", on:["vwap","dcol","bub","dot","dom","mk","delta","vp","volume","sig"], tipEn:"Order-flow column, bubbles, dots, depth, delta, volume profile, VWAP.", tipAr:"عمود الأوردر فلو، الفقاعات، النقط، العمق، الدلتا، بروفايل الفوليوم، VWAP."},
+  {id:"swing", en:"Swing", ar:"سوينج", on:["e21","e50","don","lv","ll","rsi","sig","volume"], tipEn:"EMA 21/50, Donchian ensemble, open levels, XPIX levels, RSI. Best on 4H / 1D.", tipAr:"EMA 21/50، Donchian، مستويات الفتح، مستويات XPIX، RSI. أحسن على 4 ساعات / يومي."},
+  {id:"mt5", en:"MT5", ar:"MT5", on:["mt5","r2","volume","sig"], tipEn:"The MT5 phone layout: MA ribbon + SAR + fractals and the RSI(2) + OsMA window.", tipAr:"شكل شارت MT5: ريبون المتوسطات + SAR + فراكتال ونافذة RSI(2) + OsMA."},
+];
 const indHelp = id => { const v = IND_HELP[id]; return v ? v[lang === "ar" ? 1 : 0] : ""; };
 const VP_TFS = [["5m","5m"],["15m","15m"],["1H","1H"],["4H","4H"],["1D","1D"]];
 const FIB_PRESETS = {
@@ -317,9 +326,9 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
                 set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
 /* ---- THEMES: presets + per-user overrides (saved in the browser). CSS variables colour the page, TH colours the canvas charts ---- */
 const THEMES = {
-  dark:     {name:"Dark",     css:{bg:"#0b0e11",panel:"#161a1e",panel2:"#1e2329",line:"#2b3139",txt:"#eaecef",mut:"#848e9c",panel0:"#0e1114",dot:"#1b2027"}, ch:{bg:"#0b0e11",grid:"#1f252b",mut:"#848e9c",line:"#2b3139",pane:"#0e1217",up:"#0ecb81",dn:"#f6465d"}},
-  midnight: {name:"Midnight", css:{bg:"#05070d",panel:"#0b1020",panel2:"#131a30",line:"#1f2a48",txt:"#e6ebff",mut:"#7f8db3",panel0:"#080c18",dot:"#101830"}, ch:{bg:"#05070d",grid:"#121a30",mut:"#7f8db3",line:"#1f2a48",pane:"#080c18",up:"#19d3a2",dn:"#ff5d7a"}},
-  day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645"}}
+  dark:     {name:"Dark",     css:{bg:"#0b0e11",panel:"#161a1e",panel2:"#1e2329",line:"#2b3139",txt:"#eaecef",mut:"#848e9c",panel0:"#0e1114",dot:"#1b2027"}, ch:{bg:"#0b0e11",grid:"#1f252b",mut:"#848e9c",line:"#2b3139",pane:"#0e1217",up:"#0ecb81",dn:"#f6465d",txt:"#eaecef"}},
+  midnight: {name:"Midnight", css:{bg:"#05070d",panel:"#0b1020",panel2:"#131a30",line:"#1f2a48",txt:"#e6ebff",mut:"#7f8db3",panel0:"#080c18",dot:"#101830"}, ch:{bg:"#05070d",grid:"#121a30",mut:"#7f8db3",line:"#1f2a48",pane:"#080c18",up:"#19d3a2",dn:"#ff5d7a",txt:"#e6ebff"}},
+  day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645",txt:"#1a2230"}}
 };
 const TH = Object.assign({}, THEMES.dark.ch);   // live canvas colours (read by CandleChart.paint)
 const ThemeCfg = Object.assign({name:"dark", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
@@ -685,7 +694,7 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","zn","bso","rm","r2"]; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false;
+    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","zn","bso","rm","r2"]; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, mt5:{color:"#ffeb3b",w:1.4,dash:"",step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
@@ -849,6 +858,7 @@ class CandleChart {
     // clip plot
     c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
     if (this.kz) this.paintKZ(c, py, i0, i1, PB);
+    if (this.kzsOn) this.paintKZS(c, py, i0, i1, PB);
     if (this.domOn && !this.colOn) this.paintDom(c, py, i0, i1, PB);
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
     const bwp = Math.max(1, this.bw*0.7);
@@ -1630,6 +1640,70 @@ Object.assign(CandleChart.prototype, {
     c.beginPath(); c.moveTo(x, yy + (dir > 0 ? -8 : 8)); c.lineTo(x-5, yy + (dir > 0 ? 3 : -3)); c.lineTo(x+5, yy + (dir > 0 ? 3 : -3)); c.closePath(); c.fill();
     c.font = "bold 9px sans-serif"; c.textAlign = "center"; c.fillText("REJ", x, yy + (dir > 0 ? 8 : -12)); c.textAlign = "left"; c.font = "bold 10px sans-serif";
   },
+  /* Kill Zone Sniper overlay (JOAT-style look): same rules as killzone_sniper_bull in modules/signals.py, mirrored for shorts.
+     Inside the London (02-05) or NY AM (07-10) kill zone (New York time) a candle sweeps the 20-bar low (high), closes back
+     inside with a displacement body >= 0.9 ATR14 and, with real volume, >= 1.5x its 20-bar average volume. Entry = that close,
+     stop = the sweep wick, target = the 30-bar swing high (low), kept only when target >= 1.5R. Outcome = first of stop / target
+     within 48 bars (stop counts first when both are in one candle). Drawn history only - not a backtest. */
+  kzsCalc(){
+    const d = this.data, n = d.length, key = n ? n+":"+d[n-1].t+":"+d[n-1].c+":"+this.tf : "";
+    if (this._kzs && this._kzs.key === key) return this._kzs.list;
+    const list = [];
+    if (n > 60 && this.secMs() <= 3600*1000){
+      const atr = new Array(n); let sum = 0; const tr = d.map((k, i) => i ? Math.max(k.h - k.l, Math.abs(k.h - d[i-1].c), Math.abs(k.l - d[i-1].c)) : k.h - k.l);
+      for (let i = 0; i < n; i++){ sum += tr[i]; if (i >= 14) sum -= tr[i-14]; atr[i] = sum / Math.min(i+1, 14); }
+      const volOk = d.filter(k => k.v > 0).length >= 0.9*n;
+      const kzOf = t => { const m = this.nyMin(t); return m >= 120 && m < 300 ? "London" : m >= 420 && m < 600 ? "NY AM" : null; };
+      for (let j = 30; j < n; j++){
+        const k = d[j], kz = kzOf(k.t); if (!kz) continue;
+        let lo = Infinity, hi = -Infinity, va = 0; for (let q = j-20; q < j; q++){ lo = Math.min(lo, d[q].l); hi = Math.max(hi, d[q].h); va += d[q].v; } va /= 20;
+        const vr = volOk && va > 0 ? k.v / va : null; if (volOk && !(vr >= 1.5)) continue;
+        let side = 0, lvl = 0;
+        if (k.l < lo && k.c > lo && k.c > k.o && k.c - k.o >= 0.9*atr[j]){ side = 1; lvl = lo; }
+        else if (k.h > hi && k.c < hi && k.c < k.o && k.o - k.c >= 0.9*atr[j]){ side = -1; lvl = hi; }
+        if (!side) continue;
+        const sl = side > 0 ? k.l : k.h; let tp = side > 0 ? -Infinity : Infinity;
+        for (let q = Math.max(0, j-29); q <= j; q++) tp = side > 0 ? Math.max(tp, d[q].h) : Math.min(tp, d[q].l);
+        const risk = (k.c - sl)*side, rr = risk > 0 ? (tp - k.c)*side / risk : 0; if (rr < 1.5) continue;
+        let res = "open", end = Math.min(n-1, j+48);
+        for (let q = j+1; q <= Math.min(n-1, j+48); q++){ if ((side > 0 ? d[q].l <= sl : d[q].h >= sl)){ res = "sl"; end = q; break; } if ((side > 0 ? d[q].h >= tp : d[q].l <= tp)){ res = "tp"; end = q; break; } }
+        if (res === "open" && j+48 < n) res = "exp";
+        list.push({j, side, kz, lvl, en:k.c, sl, tp, rr, vr, res, end});
+      }
+    }
+    this._kzs = {key, list}; return list;
+  },
+  paintKZS(c, py, i0, i1, PB){
+    if (this.secMs() > 3600*1000){ c.globalAlpha = .8; c.fillStyle = TH.mut; c.font = "10px sans-serif"; c.textBaseline = "top"; c.fillText(Lg("Kill Zone Sniper: 1H and lower only","Kill Zone Sniper: فريم ساعة وأقل بس"), 40, PB - 16); c.globalAlpha = 1; return; }
+    const L = this.kzsCalc(), step = this.bw, up = TH.up, dn = TH.dn, gold = "#f0b90b";
+    c.save(); c.textBaseline = "middle";
+    L.forEach(s => {
+      if (s.end < i0 - 1 || s.j > i1 + 1) return;
+      const xs = this.x(s.j), xe = this.x(s.res === "open" ? Math.min(this.data.length-1, s.j + 24) : s.end) + step/2, w = Math.max(step, xe - xs), ye = py(s.en), ys = py(s.sl), yt = py(s.tp);
+      // projection: green box entry->target, red box entry->stop (JOAT-style), faded once the trade is finished
+      const live = s.res === "open"; c.globalAlpha = live ? .2 : .1;
+      c.fillStyle = up; c.fillRect(xs, Math.min(ye, yt), w, Math.abs(yt - ye)); c.fillStyle = dn; c.fillRect(xs, Math.min(ye, ys), w, Math.abs(ys - ye));
+      c.globalAlpha = live ? .9 : .45; c.lineWidth = 1;
+      [[ye, "#4aa3ff"], [ys, dn], [yt, up]].forEach(([y, col]) => { c.strokeStyle = col; c.beginPath(); c.moveTo(xs, Math.round(y)+.5); c.lineTo(xs + w, Math.round(y)+.5); c.stroke(); });
+      // the swept pool: dashed gold line from 20 bars back to the sweep candle
+      c.strokeStyle = gold; c.setLineDash([4,3]); c.beginPath(); const yl = Math.round(py(s.lvl))+.5; c.moveTo(this.x(Math.max(0, s.j-20)), yl); c.lineTo(xs, yl); c.stroke(); c.setLineDash([]);
+      // sniper mark: crosshair on the sweep wick + label
+      const wy = py(s.side > 0 ? this.data[s.j].l : this.data[s.j].h) + (s.side > 0 ? 10 : -10), col = s.side > 0 ? up : dn; c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(xs, wy, 5, 0, Math.PI*2); c.moveTo(xs-8, wy); c.lineTo(xs+8, wy); c.moveTo(xs, wy-8); c.lineTo(xs, wy+8); c.stroke(); c.lineWidth = 1;
+      c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "center"; c.fillText("KZS "+(s.side > 0 ? "▲" : "▼"), xs, wy + (s.side > 0 ? 15 : -15)); c.textAlign = "left";
+      if (w > 40){ c.font = "9px sans-serif"; c.fillStyle = TH.mut;
+        const tag = {tp:"TP ✓", sl:"SL ✗", exp:Lg("expired","انتهت"), open:Lg("open","مفتوحة")}[s.res];
+        c.fillText(s.kz+" · "+s.rr.toFixed(1)+"R · "+tag, xs + 3, yt + (s.side > 0 ? -7 : 7)); }
+    });
+    // dashboard: counts of what is drawn on this chart - not a win rate claim (small n, one symbol, one timeframe)
+    const tp = L.filter(s => s.res === "tp").length, sl = L.filter(s => s.res === "sl").length, op = L.filter(s => s.res === "open" || s.res === "exp").length;
+    const rows = [["Kill Zone Sniper", ""], [Lg("signals in history","إشارات في التاريخ"), L.length+""], ["TP / SL", tp+" / "+sl], [Lg("open / expired","مفتوحة / انتهت"), op+""]];
+    if (L.length && L.length < 30) rows.push([Lg("n < 30: not evidence","أقل من 30: مش دليل"), ""]);
+    c.font = "10px sans-serif"; const bw = 168, bh = rows.length*14 + 6, bx = 40, by = PB - bh - 22;   // x 40 = right of the drawing toolbar
+    c.globalAlpha = .85; c.fillStyle = TH.pane; c.fillRect(bx, by, bw, bh); c.globalAlpha = 1; c.strokeStyle = gold; c.strokeRect(bx+.5, by+.5, bw, bh);
+    rows.forEach(([a, b], i) => { c.fillStyle = i ? TH.mut : gold; c.font = i ? "10px sans-serif" : "bold 10px sans-serif"; c.fillText(a, bx+6, by+10+i*14); c.textAlign = "right"; c.fillStyle = i ? TH.txt : gold; c.fillText(b, bx+bw-6, by+10+i*14); c.textAlign = "left"; });
+    c.restore(); c.globalAlpha = 1; c.textBaseline = "middle"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
+  },
   paintEW(c, py, ew, dec){   // Elliott signal: yellow box + wave polyline, same visual treatment as the session / kill-zone boxes
     if (!ew || !ew.pts || ew.pts.length < 2 || !this.data.length) return;
     const pts = ew.pts.map(([t,p]) => [this.tx(t), py(p), p]), n = this.data.length, xe = this.x(n-1) + this.bw/2, PR = this.PR, PB = this.PB;
@@ -1818,7 +1892,7 @@ class Panel {
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
-    this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; kzb.classList.toggle("on", this.chart.kz);
+    this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
     [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
@@ -1863,7 +1937,8 @@ class Panel {
       {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
       {id:"sbox", label:Lg("Trade box (setup as a box, not lines)","صندوق الصفقة (الخطة كصندوق بدل خطوط)"), tip:Lg("Draws the signal's trade plan (entry / stop / targets) as a risk-reward box on the chart instead of plain lines.","بيرسم خطة الصفقة (دخول / وقف / أهداف) كصندوق ربح/خسارة على الشارت بدل الخطوط."), get:() => ch().setupMode === "box", set:v => { ch().setupMode = v ? "box" : "lines"; this.state.smode = v ? "box" : "lines"; }},
-      {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; }},
+      {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; this.kzb && this.kzb.classList.toggle("on", v); }},
+      {id:"kzs", label:Lg("Kill Zone Sniper (JOAT style)","Kill Zone Sniper (ستايل JOAT)"), tip:Lg("Sweep-and-reverse inside the London (02-05) / NY AM (07-10) kill zones, New York time: a candle takes the 20-bar low (high), closes back with a body >= 0.9 ATR (and >= 1.5x average volume when the feed has volume). Draws the swept pool, a sniper mark, and the projected entry / stop (sweep wick) / target (30-bar swing, >= 1.5R) as a green/red box, plus a small table counting what is drawn. Same rules as the scanner's Kill Zone Sniper detector. 1H and lower. Idea from the open-source 'ICT Kill Zone Sniper [JOAT]' description; not a copy of its code.","سحب سيولة وانعكاس جوه كيل زون لندن (02-05) / نيويورك الصبح (07-10) بتوقيت نيويورك: شمعة تكسر أقل قاع لآخر 20 شمعة (أو أعلى قمة) وتقفل راجعة بجسم >= 0.9 ATR (و>= 1.5 ضعف متوسط الفوليوم لو فيه فوليوم). بيرسم المستوى المسحوب، علامة القناص، وصندوق الدخول / الوقف (طرف الذيل) / الهدف (قمة/قاع آخر 30 شمعة، >= 1.5R)، وجدول صغير بعدد اللي اترسم. نفس قواعد كاشف Kill Zone Sniper في السكانر. فريم ساعة وأقل. الفكرة من وصف مؤشر JOAT المفتوح، مش نسخة من الكود."), get:() => ch().kzsOn, set:v => { ch().kzsOn = v; this.state.kzs = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},
       {id:"dot", label:T("indDot"), tip:T("dotTip"), get:() => ch().dotOn, set:v => { ch().dotOn = v; this.state.dot = v; }},
@@ -1895,11 +1970,18 @@ class Panel {
       {id:"macd", label:"MACD", get:() => ch().macdOn, set:v => { ch().macdOn = v; this.state.macd = v; }, sty:"macd", params:[P("fast","Fast",2,100,1), P("slow","Slow",2,200,1), P("sig","Signal",1,100,1), P("hp","Height %",8,45,1)], col2:true},
     ];
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
+    // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
+    const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];
     const render = () => {
       pop.innerHTML = "";
+      { const mr = el("div","irow"); mr.style.cssText = "gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px"; const ml = el("span","m",Lg("Mode","الوضع")); ml.style.flex = "0 0 100%"; mr.append(ml);
+        CHART_MODES.forEach(md => { const b = el("button", null, esc(Lg(md.en, md.ar))); b.title = Lg(md.tipEn, md.tipAr); if (this.state.mode === md.id) b.classList.add("on");
+          b.onclick = e => { e.stopPropagation(); items.forEach(it => { if (!KEEP.includes(it.id)) it.set(md.on.includes(it.id)); }); this.state.mode = md.id; save(); render(); };
+          mr.append(b); });
+        pop.append(mr); }
       items.forEach(it => {
         const row = el("div","irow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!it.get();
-        cb.onchange = () => { it.set(cb.checked); save(); if (it.refresh) render(); }; const lb = el("label",null,esc(it.label)); if (it.tip) lb.title = it.tip; lb.onclick = () => { cb.checked = !cb.checked; cb.onchange(); };
+        cb.onchange = () => { it.set(cb.checked); if (!KEEP.includes(it.id)) this.state.mode = ""; save(); render(); }; const lb = el("label",null,esc(it.label)); if (it.tip) lb.title = it.tip; lb.onclick = () => { cb.checked = !cb.checked; cb.onchange(); };
         row.append(cb, lb);
         if (it.id === "dot3"){ const g = el("button",null,"⚙"); g.title = T("ofSet"); g.onclick = e => { e.stopPropagation(); Ws.ofPanel(g, this.chart, () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); this.chart.draw(); }); }; row.append(g); }
         { const note = indHelp(it.id) || it.tip; if (note){ const q = el("button",null,"ⓘ"); q.title = lang === "ar" ? "شرح المؤشر" : "What is this?"; q.className = "ihelp"; const nb = el("div","inote"); nb.textContent = note; nb.style.display = it.hOpen ? "block" : "none";

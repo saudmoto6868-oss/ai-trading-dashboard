@@ -2130,21 +2130,27 @@ Object.assign(CandleChart.prototype, {
     ps = [...new Set(ps.filter(p => p > 0).map(p => +p.toPrecision(10)))].sort((a, b) => a - b);
     const above = (p, minD) => ps.find(q => q > p + minD), below = (p, minD) => [...ps].reverse().find(q => q < p - minD);
     const list = []; const kMin = Math.ceil((sd[0].t - t1st)/step), kMax = Math.floor((sd[n-1].t - t1st)/step);
-    const wins = ovr && ovr.times ? ovr.times.filter(w => w.t <= sd[n-1].t + w.half) : []; if (!(ovr && ovr.times)) for (let k = kMin; k <= kMax; k++) wins.push({t:t1st + k*step, half:zw*src.ms});
+    const allW = ovr && ovr.times ? ovr.times.slice() : []; if (!(ovr && ovr.times)) for (let k = kMin; k <= kMax + 12; k++) allW.push({t:t1st + k*step, half:zw*src.ms});
+    allW.sort((a, b) => a.t - b.t); const wins = allW.filter(w => w.t <= sd[n-1].t + w.half);
+    const nextW = (t, skip) => { const f = allW.filter(w => w.t - w.half > t); return f[skip] || null; };   // Gann: time windows after the entry = when the move is due / over
     for (const W of wins){ const tk = W.t; let done = false;
       for (let i = 0; i < n && !done; i++){ if (Math.abs(sd[i].t - tk) > W.half) continue; const b = sd[i];
         for (const L of ps){ if (b.l > L + tol || b.h < L - tol) continue;
           let dir = 0; if (b.c > L + .1*atr && b.c > b.o && b.l <= L + tol) dir = 1; else if (b.c < L - .1*atr && b.c < b.o && b.h >= L - tol) dir = -1; if (!dir) continue;
           const en = b.c, sl = dir > 0 ? Math.min(b.l, L) - tol : Math.max(b.h, L) + tol, rk = Math.abs(en - sl); if (rk <= 0) continue;
           const tp1 = dir > 0 ? (above(en, rk) ?? en + 1.5*rk) : (below(en, rk) ?? en - 1.5*rk), tp2 = dir > 0 ? above(tp1, 0) : below(tp1, 0);
-          let res = null, tx = null; const hor = Math.max(10, 2*F.tsp);
-          for (let j = i + 1; j < n && j <= i + hor; j++){ const q = sd[j]; if (dir > 0 ? q.l <= sl : q.h >= sl){ res = -1; tx = q.t; break; } if (dir > 0 ? q.h >= tp1 : q.l <= tp1){ res = Math.round(100*Math.abs(tp1 - en)/rk)/100; tx = q.t; break; } }
-          if (res == null && n - 1 - i > hor){ res = Math.round(100*(sd[Math.min(n - 1, i + hor)].c - en)*dir/rk)/100; tx = sd[Math.min(n - 1, i + hor)].t; }
-          list.push({t:b.t, dir, en, sl, tp1, tp2, res, tx, lo:b.l, hi:b.h, L}); done = true; break; } } }
+          // time: the next window after the entry = time target, the one after it = time stop (exit at the close if TP1 / stop not hit by then)
+          const w1 = nextW(b.t, 0), w2 = nextW(b.t, 1), tT = w1 ? w1.t : b.t + step, tS = w2 ? w2.t + w2.half : b.t + 2*step;
+          let res = null, tx = null, how = "";
+          for (let j = i + 1; j < n; j++){ const q = sd[j]; if (q.t > tS){ res = Math.round(100*(sd[j - 1].c - en)*dir/rk)/100; tx = sd[j - 1].t; how = "time"; break; }
+            if (dir > 0 ? q.l <= sl : q.h >= sl){ res = -1; tx = q.t; how = "stop"; break; } if (dir > 0 ? q.h >= tp1 : q.l <= tp1){ res = Math.round(100*Math.abs(tp1 - en)/rk)/100; tx = q.t; how = "tp"; break; } }
+          list.push({t:b.t, dir, en, sl, tp1, tp2, res, tx, how, tT, tS, onTime:how === "tp" && w1 ? tx <= w1.t + w1.half : false, bars:tx ? Math.round((tx - b.t)/src.ms) : null, lo:b.l, hi:b.h, L}); done = true; break; } } }
     const closed = list.filter(x => x.res != null), nC = closed.length;
     const last = sd[n-1].c, kN = Math.max(kMax + 1, Math.ceil((sd[n-1].t - t1st)/step)), nw = ovr && ovr.times ? ovr.times.find(w => w.t > sd[n-1].t) : null;
     const next = {t:nw ? nw.t : t1st + kN*step, half:nw ? nw.half : zw*src.ms, lo:below(last, tol), hi:above(last, tol)};
-    const v = {list, n:nC, win:nC ? Math.round(100*closed.filter(x => x.res > 0).length/nC) : 0, avg:nC ? Math.round(100*closed.reduce((a, x) => a + x.res, 0)/nC)/100 : 0, next, tol};
+    const tps = closed.filter(x => x.how === "tp");
+    const v = {list, n:nC, win:nC ? Math.round(100*closed.filter(x => x.res > 0).length/nC) : 0, avg:nC ? Math.round(100*closed.reduce((a, x) => a + x.res, 0)/nC)/100 : 0, next, tol,
+      onTime:tps.length ? Math.round(100*tps.filter(x => x.onTime).length/tps.length) : null, timeExits:closed.filter(x => x.how === "time").length, bars:nC ? Math.round(closed.reduce((a, x) => a + (x.bars || 0), 0)/nC) : null};
     this._gT = {key, v}; return v;
   },
   gannFitFor(src, G){ if (!src || !src.d || src.d.length < 60) return null; const key = JSON.stringify([this.sym, src.tf, src.d.length, src.d[src.d.length-1].t, G.mode, G.start, G.spacing, G.dir, G.shape, G.calc, G.cycles, G.sec, G.tsp, G.tback, G.anc]);
@@ -2218,22 +2224,25 @@ Object.assign(CandleChart.prototype, {
       const T = this.gannTrades(src, F, G, t1st, step, ovr); T.cl = ovr ? CL.PC : null; const tf = src.tf || this.tf, ttype = sec <= 9e5 ? Lg("scalp","سكالب") : sec < 864e5 ? Lg("day trade","داي تريد") : Lg("swing","سوينج");
       T.list.forEach(tr => { const x = xT(tr.t), y = py(tr.en); if (x < -10 || x > PR + 10) return; const up = tr.dir > 0, col = up ? "#0ecb81" : "#f6465d", live = tr.res == null;
         c.globalAlpha = live ? 1 : .8; c.fillStyle = col; c.beginPath(); const ay = up ? py(tr.lo) + 14 : py(tr.hi) - 14; c.moveTo(x, ay + (up ? -8 : 8)); c.lineTo(x - 6, ay + (up ? 3 : -3)); c.lineTo(x + 6, ay + (up ? 3 : -3)); c.closePath(); c.fill();
-        if (!live){ c.font = "bold 10px sans-serif"; c.fillStyle = tr.res > 0 ? "#0ecb81" : "#f6465d"; c.fillText(tr.res > 0 ? "✓" : "✗", x - 3, ay + (up ? 14 : -12)); c.font = "10px sans-serif"; } });
+        if (!live){ c.font = "bold 10px sans-serif"; c.fillStyle = tr.res > 0 ? "#0ecb81" : "#f6465d"; c.fillText((tr.res > 0 ? "✓" : "✗")+(tr.how === "time" ? "⌛" : tr.onTime ? "⏱" : ""), x - 3, ay + (up ? 14 : -12)); c.font = "10px sans-serif"; } });
       const L_ = T.list[T.list.length - 1];
       if (L_ && L_.res == null && d[n-1].t - L_.t <= 3*src.ms){ const id = "gann|"+this.sym+"|"+tf+"|"+L_.t, up = L_.dir > 0; this._gannLive = {dir:L_.dir, t:L_.t, en:L_.en};
-        if (!(this._gAl || (this._gAl = new Set())).has(id)){ this._gAl.add(id); try { Alerts.add(id, "gann", this.sym, this.sym+" · Gann "+(up ? "BUY" : "SELL")+" · "+tf+" · "+Lg("entry ","دخول ")+fmtP(L_.en)+" · SL "+fmtP(L_.sl)+" · TP1 "+fmtP(L_.tp1), up ? "#0ecb81" : "#f6465d"); } catch(e){} } }
+        if (!(this._gAl || (this._gAl = new Set())).has(id)){ this._gAl.add(id); try { Alerts.add(id, "gann", this.sym, this.sym+" · Gann "+(up ? "BUY" : "SELL")+" · "+tf+" · "+Lg("entry ","دخول ")+fmtP(L_.en)+" · SL "+fmtP(L_.sl)+" · TP1 "+fmtP(L_.tp1)+" · ⏱ "+new Date(L_.tT).toISOString().slice(5, 16).replace("T"," ")+" · ⌛ "+new Date(L_.tS).toISOString().slice(5, 16).replace("T"," "), up ? "#0ecb81" : "#f6465d"); } catch(e){} } }
       else this._gannLive = null;
       if (L_ && L_.res == null){ const x = xT(L_.t), xe = PR - 4, up = L_.dir > 0, rk = Math.abs(L_.en - L_.sl);
         [[L_.en, "#4aa3ff", Lg("entry ","دخول ")], [L_.sl, "#f6465d", Lg("stop ","ستوب ")], [L_.tp1, "#0ecb81", "TP1 "], [L_.tp2, "#0ecb81", "TP2 "]].forEach(([p, col, lb]) => { if (p == null) return; const y = py(p); if (y < 0 || y > PB) return;
           c.strokeStyle = col; c.globalAlpha = .9; c.lineWidth = 1.4; c.setLineDash(lb === "TP2 " ? [5,4] : []); c.beginPath(); c.moveTo(x, y); c.lineTo(xe, y); c.stroke(); c.setLineDash([]);
           c.fillStyle = col; c.font = "bold 10px sans-serif"; c.textAlign = "right"; c.fillText(lb+fmtP(p)+(lb === "TP1 " || lb === "TP2 " ? "  "+(Math.abs(p - L_.en)/rk).toFixed(1)+"R" : ""), xe - 60, y - 7); c.textAlign = "left"; });
+        [[L_.tT, "#4aa3ff", Lg("⏱ target time ","⏱ وقت الهدف ")], [L_.tS, "#f6465d", Lg("⌛ time stop ","⌛ ستوب زمني ")]].forEach(([t, col, lb]) => { if (!t) return; const xt = xT(t); if (xt < 0 || xt > PR) return;
+          c.strokeStyle = col; c.globalAlpha = .85; c.lineWidth = 1.3; c.setLineDash([6,4]); c.beginPath(); c.moveTo(xt, py(Math.max(L_.tp1, L_.sl, L_.en)) - 20); c.lineTo(xt, py(Math.min(L_.tp1, L_.sl, L_.en)) + 20); c.stroke(); c.setLineDash([]);
+          c.fillStyle = col; c.font = "bold 9px sans-serif"; c.fillText(lb+new Date(t).toISOString().slice(5, 16).replace("T"," "), xt + 3, py(Math.max(L_.tp1, L_.sl, L_.en)) - 24); });
         c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.font = "bold 11px sans-serif"; c.fillText((up ? "▲ " : "▼ ")+Lg("Gann ","جان ")+(up ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" · "+ttype+" · "+tf, x + 8, py(L_.en) + (up ? 16 : -14)); c.font = "10px sans-serif"; }
       // the next zones (not yet confirmed): thin boxes on the nearest level below (buy) and above (sell), +- zw source bars around the next time level
       const zw = Math.max(1, G.zw|0 || 2), nx = T.next; if (nx){ [[nx.lo, 1], [nx.hi, -1]].forEach(([p, dir]) => { if (p == null) return; const half = nx.half || zw*src.ms, cl = T.cl && T.cl.find(g => Math.abs(g.c - p) < 1e-9), xa = xT(nx.t - half), xb = xT(nx.t + half), ya = py((cl ? cl.hi : p) + T.tol), yb = py((cl ? cl.lo : p) - T.tol);
           const col = dir > 0 ? "#0ecb81" : "#f6465d"; c.globalAlpha = .16; c.fillStyle = col; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.globalAlpha = .9; c.strokeStyle = col; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.setLineDash([]);
           c.fillStyle = col; c.font = "bold 9px sans-serif"; c.fillText((dir > 0 ? Lg("buy zone ","منطقة شراء ") : Lg("sell zone ","منطقة بيع "))+fmtP(p)+" · "+new Date(nx.t).toISOString().slice(5, 16).replace("T"," "), Math.min(xa, xb), dir > 0 ? yb + 10 : ya - 8); c.font = "10px sans-serif"; }); }
       c.globalAlpha = .95; c.fillStyle = T.n >= 30 ? "#c3c9d1" : "#f0b90b"; c.font = "9px sans-serif";
-      c.fillText(Lg("Gann zone trades on this history: ","صفقات مناطق جان على التاريخ ده: ")+(T.n ? "n "+T.n+" · "+Lg("win ","فوز ")+T.win+"% · "+Lg("avg ","متوسط ")+(T.avg > 0 ? "+" : "")+T.avg+"R" : Lg("none yet","لسه مفيش"))+(T.n < 30 ? Lg(" · under 30 = not evidence"," · أقل من 30 = مش دليل") : "")+Lg(" · in-sample (the grid was fitted on the same data)"," · على نفس البيانات اللي الشبكة اتظبطت عليها"), 40, 50); c.font = "10px sans-serif"; }
+      c.fillText(Lg("Gann zone trades on this history: ","صفقات مناطق جان على التاريخ ده: ")+(T.n ? "n "+T.n+" · "+Lg("win ","فوز ")+T.win+"% · "+Lg("avg ","متوسط ")+(T.avg > 0 ? "+" : "")+T.avg+"R" : Lg("none yet","لسه مفيش"))+(T.n ? (T.onTime != null ? Lg(" · TP on time ","· الهدف في وقته ")+T.onTime+"%" : "")+" · "+Lg("time exits ","خروج بالزمن ")+T.timeExits+" · "+Lg("avg ","متوسط ")+T.bars+Lg(" bars"," شمعة") : "")+(T.n < 30 ? Lg(" · under 30 = not evidence"," · أقل من 30 = مش دليل") : "")+Lg(" · in-sample (the grid was fitted on the same data)"," · على نفس البيانات اللي الشبكة اتظبطت عليها"), 40, 50); c.font = "10px sans-serif"; }
     const HT = {"1m":"15m","3m":"1H","5m":"1H","15m":"4H","30m":"4H","1h":"1D","1H":"1D","2h":"1D","2H":"1D","4h":"1D","4H":"1D","6H":"1W","12H":"1W","1d":"1W","1D":"1W","1w":"1M","1W":"1M"};
     const cycT = (+G.shape || 4)*tsp*src.ms;   // one full 360-degree cycle in time = shape x time spacing
     // cycle boxes: where each 360-degree price cycle starts and ends, in price and in time

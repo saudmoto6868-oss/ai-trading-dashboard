@@ -38,6 +38,13 @@ def quality(r: dict, e: dict) -> tuple[int, list[str]]:
     """r = scanner result, e = scan_entry -> (0-100 evidence score, short reasons)."""
     mx = max(1, int(r.get("max_score") or e.get("max") or 1))
     q, why = 60.0 * int(r.get("score", 0)) / mx, []
+    try:   # evidence from the weekly strategy lab replaces the star count when it exists (the journal showed stars were inverted)
+        from modules.lab_tiers import evidence
+        ev = evidence(r, r.get("timeframe") or e.get("tfk") or "1h")
+    except Exception:
+        ev = None
+    if ev is not None:
+        q = max(0.0, min(60.0, 30.0 + 150.0 * ev)); why.append(f"معمل: {ev:+.2f}R")
     ag = ((r.get("context") or {}).get("agree")) or {}
     for key, good, bad, label in (("bias", 10, -12, "اتجاه اليوم"), ("pd", 8, -10, "بريميوم/ديسكاونت")):
         v = ag.get(key)

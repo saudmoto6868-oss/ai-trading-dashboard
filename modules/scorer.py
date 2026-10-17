@@ -53,7 +53,14 @@ CONFIRM_ONLY_KEYS = ("msb_ob",)
 def aggregate(signals: list) -> dict:
     fams = {BULL: set(), BEAR: set()}
     held = {BULL: set(), BEAR: set()}                  # families that only a confirm-only signal supports
+    try:
+        from modules.lab_tiers import off_keys
+        off = off_keys()          # detectors the weekly lab found clearly negative: shown, but they do not decide a trade
+    except Exception:
+        off = frozenset()
     for s in signals:
+        if s.get("key") in off:
+            continue
         if s.get("key") in CONFIRM_ONLY_KEYS:
             held[s["direction"]].add(s["family"])
         else:

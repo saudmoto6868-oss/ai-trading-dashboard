@@ -1,7 +1,10 @@
 """Run: python tests/test_confirm_only.py"""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from modules import lab_tiers
 from modules.scorer import aggregate
+
+lab_tiers.off_keys = lambda: frozenset()   # test the confirm-only rule on its own, whatever the weekly lab switched off
 
 S = lambda fam, key, d="bullish": {"family": fam, "key": key, "direction": d, "name": key}
 

@@ -77,6 +77,17 @@ win rate is NOT the goal - expectancy (avg R) is; a higher win rate from a small
 Sustainable loop: weekly lab -> tiers (primary / confirmation / off) -> journal + signal log on live trades -> monthly review of the
 tiers; a detector moves up only on lab + live evidence, down when its live avg R stays below 0 for 50+ trades.
 
+## Lab results 2026-10-17 (first real run: 6 crypto + gold + S&P 500, 1m-1d, ~40k signals; full tables in STRATEGY_LAB.md)
+- No detector beats the random baseline with statistical confidence on its own (most average R within +-0.07, no costs).
+- Higher timeframes are better: pooled avg R 1d +0.043, 4h +0.019, 1h -0.009, 15m -0.025, 1m -0.019.
+- Best detector x timeframe (n >= 50): ohl_break 1d +0.50R (54%), sma1040 1d +0.43R, breakout 1d +0.41R, macd_div 1d +0.31R,
+  ma_cross 1d +0.27R, m2022 1d +0.24R, fvg 1d +0.19R - all daily, none significant alone yet.
+- Schools (pooled avg R): momentum/divergence +0.063, time/sessions +0.043, liquidity +0.034, Fibonacci +0.005, levels -0.004,
+  trend MA -0.018, SMC/ICT -0.034, hedge-fund trend -0.037 (intraday dilutes it; daily is positive), Elliott -0.079.
+- Confluence: more agreeing families did NOT help; setups with an OPPOSING family lost about -280R in total -> alerts now
+  require no opposing signal. Strength = lab evidence (`modules/lab_tiers.py`), not family count.
+- OFF (n >= 300 and avg R <= -0.06, recomputed weekly): donch, ew3, msb_ob, ob, unicorn - still drawn, no longer decide a trade.
+
 ## Group C + confirmation-only
 - **Elliott OTE boxes** (Workspace, `Elliott waves` indicator): yellow 62-79% retracement boxes of each impulse leg (where wave 2 / 4 / A ends); the newest runs to the right edge. Visual only - no stars.
 - **Harmonics** were already built from scratch in the Workspace (`harmFind`, XABCD + PRZ box); unchanged.

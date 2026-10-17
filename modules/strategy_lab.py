@@ -202,7 +202,7 @@ def lunar_split(times, closes):
     return out
 
 
-def report(rows, conflicts, cfl, meta, gann=None, lunar=None):
+def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
@@ -249,6 +249,15 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None):
                 (h2, n2), (h3, n3) = g["shapes"], g["shapes_ctrl"]; q2, q3 = h2 / n2, h3 / n3; se2 = np.sqrt(q3 * (1 - q3) / n2) or 1
                 L.append(f"| {tf} shapes 120/180/240/360 deg | {100 * q2:.1f} | {n2} | {100 * q3:.1f} | {n3} | {(q2 - q3) / se2:+.1f} |")
         L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
+    if gzone:
+        L += ["", "## Gann zone trades OUT OF SAMPLE (grid fitted on the first 60 % of each series, traded on the last 40 %; Workspace rule incl. time stop)", "",
+              "| tf | trades | win % | avg R | random-direction avg R | difference (t) |", "|---|---|---|---|---|---|"]
+        for tf, rs in sorted(gzone.items()):
+            if not rs:
+                continue
+            a = np.asarray(rs, float); r1, r0 = a[:, 0], a[:, 1]; dlt = r1 - r0; t = dlt.mean() / (dlt.std(ddof=1) / np.sqrt(len(dlt))) if len(dlt) > 1 and dlt.std() > 0 else 0.0
+            L.append(f"| {tf} | {len(a)} | {100 * (r1 > 0).mean():.1f} | {r1.mean():+.3f} | {r0.mean():+.3f} | {t:+.2f} |")
+        L.append("Random-walk self-test: rule +0.16R (1.6 standard errors, 265 trades) - so only t > +3 with n >= 100 on several timeframes counts as evidence. No costs.")
     if lunar and lunar.get("new", [0, 0, 0])[2] and lunar.get("full", [0, 0, 0])[2]:
         (s1, q1, n1), (s2, q2, n2) = lunar["new"], lunar["full"]; m1, m2 = s1 / n1, s2 / n2
         v1, v2 = max(q1 / n1 - m1 ** 2, 1e-18), max(q2 / n2 - m2 ** 2, 1e-18); t = (m1 - m2) / np.sqrt(v1 / n1 + v2 / n2)
@@ -260,7 +269,9 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None):
 
 
 def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
-    evs, brs, done, gann, lunar = [], [], [], {}, {"new": [0.0, 0.0, 0], "full": [0.0, 0.0, 0]}
+    evs, brs, done, gann, lunar, gzone = [], [], [], {}, {"new": [0.0, 0.0, 0], "full": [0.0, 0.0, 0]}, {}
+    from modules.gann_lab import trade_test
+    grng = np.random.default_rng(11)
     for sym in symbols:
         for tf in tfs:
             t0 = time.time()
@@ -276,6 +287,11 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
             g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]})
             for k in acc:
                 acc[k][0] += g[k][0]; acc[k][1] += g[k][1]
+            if tf in ("1h", "4h", "1d"):
+                try:
+                    gzone.setdefault(tf, []).extend(trade_test(df.reset_index(drop=True), grng))
+                except Exception as e:
+                    log(f"gann zone {sym} {tf}: {type(e).__name__} {e}")
             if tf == "1d":
                 lu = lunar_split(list(df["time"]), df["close"].values)
                 for k in lunar:
@@ -283,7 +299,7 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
-    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar}
+    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone}
 
 
 if __name__ == "__main__":
@@ -291,5 +307,5 @@ if __name__ == "__main__":
     res = run(syms, stride=int(os.environ.get("LAB_STRIDE", "4")))
     OUT_JSON.parent.mkdir(exist_ok=True)
     OUT_JSON.write_text(json.dumps(res, indent=1))
-    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann"), res.get("lunar")))
+    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann"), res.get("lunar"), res.get("gzone")))
     print(OUT_MD.read_text()[:3000])

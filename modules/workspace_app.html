@@ -646,6 +646,21 @@ const WSX = {
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
 const SIG_IND = ["zn", "bso", "rm", "r2"];   // indicators that draw BUY/SELL marks today (more join this list as the new indicators are added)
 const Lg = (a, b) => lang === "ar" ? b : a;
+/* Item 23 (phase 1): read a trade explanation aloud with the browser's own speech engine (Web Speech API) - free, no key,
+   nothing leaves the device. Arabic text uses an Arabic voice when the device has one (ar-EG preferred, then any ar-*). */
+const Voice = {
+  ok: typeof window !== "undefined" && "speechSynthesis" in window,
+  voice(isAr){ const v = this.ok ? speechSynthesis.getVoices() : []; return isAr ? (v.find(x => /^ar-EG/i.test(x.lang)) || v.find(x => /^ar/i.test(x.lang))) : (v.find(x => /^en-US/i.test(x.lang)) || v.find(x => /^en/i.test(x.lang))); },
+  clean(t){ return String(t || "").replace(/[★☆▲▼●◐✓✗↗⚡•·🔊⏹]/gu, " ").replace(/\bTP(\d)/g, "T P $1").replace(/\bSL\b/g, "S L").replace(/\s+/g, " ").trim(); },
+  speak(text, btn){ if (!this.ok) return false; if (speechSynthesis.speaking){ speechSynthesis.cancel(); if (btn) btn.textContent = "🔊"; return true; }
+    const t = this.clean(text), isAr = /[\u0600-\u06FF]/.test(t), u = new SpeechSynthesisUtterance(t), v = this.voice(isAr);
+    u.lang = v ? v.lang : (isAr ? "ar-EG" : "en-US"); if (v) u.voice = v; u.rate = isAr ? 0.95 : 1;
+    if (btn){ btn.textContent = "⏹"; u.onend = u.onerror = () => { btn.textContent = "🔊"; }; }
+    speechSynthesis.speak(u); return true; },
+  button(getText){ const b = el("button", null, "🔊"); b.title = this.ok ? Lg("Read this aloud (tap again to stop)", "اقرا الكلام ده بصوت (اضغط تاني للإيقاف)") : Lg("This browser has no speech engine", "المتصفح ده مفيهوش قارئ صوتي");
+    b.disabled = !this.ok; b.onpointerdown = e => e.stopPropagation(); b.onclick = e => { e.stopPropagation(); this.speak(getText(), b); }; return b; }
+};
+if (Voice.ok) try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); } catch(e){}
 const smtPeers = sym => { const b = sym.split("-SWAP")[0].split("-").slice(0,2).join("-"), o = []; (CFG.smt || []).forEach(([a, c, inv]) => { if (a === b) o.push([c, !!inv]); else if (c === b) o.push([a, !!inv]); }); return o; };
 function smtFind(A, B, inv){   // swing-by-swing divergence between two aligned candle arrays; returns [{i1,i2,side,j1,j2}] (side up = bullish)
   const n = A.length, out = []; if (n < 40) return out; const rg = A.slice(-14).reduce((a, x) => a + (x.h - x.l), 0)/14 || 1e-9, rgB = B.slice(-14).reduce((a, x) => a + (x.h - x.l), 0)/14 || 1e-9;
@@ -2923,7 +2938,7 @@ class Panel {
   }
   /* ---- Setup Card: the full "what's going on" for one setup (conditions that fired, plan, context). Follows the setup you click (chip / ready row), jumps to a brand-new alert, else shows the best live one ---- */
   build_setup(){
-    const bar = el("div","tb"), btn = el("button", null, Lg("Show on chart","اعرضها على الشارت")), box = el("div"); box.style.cssText = "overflow:auto;height:calc(100% - 28px)"; bar.append(btn); this.body.append(bar, box);
+    const bar = el("div","tb"), btn = el("button", null, Lg("Show on chart","اعرضها على الشارت")), box = el("div"); box.style.cssText = "overflow:auto;height:calc(100% - 28px)"; bar.append(btn, Voice.button(() => box.innerText)); this.body.append(bar, box);
     let cur = null, first = true, lastId = null; const key = e => e.symbol+"|"+e.direction+"|"+e.ttype;
     btn.onpointerdown = ev => ev.stopPropagation(); btn.onclick = () => { if (cur) Ws.showOnChart(Object.assign({tfc: TFC_ALL[cur.tfk] || "1H"}, cur)); };
     const draw = () => {
@@ -3182,7 +3197,7 @@ Ws.anaPop = (anchor, e) => {
     + (e.vol && e.vol.weight ? '<div style="margin-top:6px"><b style="color:#f0b90b">حجم المركز المقترح</b> — '+Math.round(e.vol.weight*100)+'% من رأس المال المخصص للصفقة (تذبذب سنوي حالي '+Math.round(e.vol.ann_vol*100)+'%، الهدف '+Math.round(e.vol.target*100)+'%) — كل ما زاد التذبذب قلّ الحجم</div>' : "")
     + (pl ? '<div style="margin-top:6px"><b style="color:#f0b90b">الخطة</b> — دخول '+fmtP(pl.entry)+' · وقف '+fmtP(pl.stop)+' · '+pl.tps.map((v,i) => 'هدف '+(i+1)+' '+fmtP(v)).join(' · ')+'</div>' : "")
     + sec("لماذا الإشارة", a.sig) + (a.against ? '<div style="margin-top:6px;color:#f6465d">'+esc(a.against)+'</div>' : "") + sec("الفريمات الأعلى", a.htf) + sec("إطار الأسبوعي / اليومي / 4س", a.mtf) + sec("السياق (تحيز اليوم / النطاق / التوقيت)", a.ctx) + sec("السيناريوهات", a.scen) + '</div>'; }
-  pop.innerHTML = h; document.body.append(pop);
+  pop.innerHTML = h; { const vb = Voice.button(() => pop.innerText); vb.style.cssText = "position:sticky;top:0;float:left;font-size:13px;padding:1px 6px"; pop.prepend(vb); } document.body.append(pop);
   setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
 /* strategy picker popup (shared by the Ready-trades header) */

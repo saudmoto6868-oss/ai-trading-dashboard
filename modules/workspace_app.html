@@ -935,7 +935,7 @@ class CandleChart {
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
-      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
+      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -2021,6 +2021,8 @@ Object.assign(CandleChart.prototype, {
       if (o || fu != null){ const of = side ? Ctx.oiFlag(cx, side > 0 ? "bullish" : "bearish") : {k:"na", txt:o ? Ctx.oiFlag(cx, "bullish").txt : ""}, ff = side ? Ctx.fundFlag(cx, side > 0 ? "bullish" : "bearish") : null;
         c.fillStyle = of.k === "bad" || ff ? "#f0b90b" : "#9aa4b2"; c.fillText((of.k === "bad" || ff ? "⚠ " : "")+(o ? "4h "+of.txt : "")+(fu != null ? " · "+Lg("fund ","تمويل ")+(fu*100).toFixed(3)+"%" : "")+(ff ? " · "+ff : ""), x0 + 7, y0 + 64); }
       else { c.fillStyle = "#4a525c"; c.fillText(Lg("OI / funding: loading or n/a","OI / تمويل: بيحمّل أو مش متاح"), x0 + 7, y0 + 64); } }
+    if (this.gannOn && this._gannLive){ const gl = this._gannLive, agree = sy && sy.dir === gl.dir; c.font = "bold 9px sans-serif"; c.fillStyle = gl.dir > 0 ? S.color : S.color2;
+      c.fillText((gl.dir > 0 ? "▲" : "▼")+" Gann "+(gl.dir > 0 ? "BUY" : "SELL")+" "+fmtP(gl.en)+(agree ? Lg("  ✓ order flow agrees","  ✓ الأوردر فلو متفق") : sy && sy.dir ? Lg("  ✗ order flow against","  ✗ الأوردر فلو عكسه") : ""), x0 + 7 + Math.min(150, w/2), y0 + 50); }
     const st = this.syncStats(); c.fillStyle = "#c3c9d1"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
     c.fillText(st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : Lg("no closed setups yet","مفيش صفقات مقفولة لسه"), x0 + 7, y0 + 80);
     c.fillStyle = st.n >= 30 ? "#9aa4b2" : "#f0b90b"; c.font = "8px sans-serif"; c.fillText(st.n >= 30 ? Lg("live forward test in this browser · stop 1 ATR · target "+S.rr+"R","اختبار حي في المتصفح ده · ستوب 1 ATR · هدف "+S.rr+"R") : Lg("under 30 setups = not evidence yet","أقل من 30 صفقة = مش دليل لسه"), x0 + 7, y0 + 95);
@@ -2097,16 +2099,40 @@ Object.assign(CandleChart.prototype, {
     return c && c.d ? {d:c.d, ms:c.ms, tf:src} : null;
   },
   gannSrc(){ return this.gannCandles(this.st.gann.src || "auto"); },
-  gannTrades(src, F, G, t1st, step){   // replay of the zone rule over the source candles + the next zone; cached per data / settings
-    const sd = src.d, n = sd.length, key = JSON.stringify([F.P, F.s, F.dir, F.tsp, sd.length, sd[n-1].t, sd[n-1].c, G.zw, G.sqr, G.shape, G.sec, t1st, step]);
+  gannClusters(G, curSrc, curF, tEnd){   // Gann grids of this timeframe + up to 3 higher ones; price levels / time levels that several timeframes share = clusters (weighted)
+    const UP = {"1m":["5m","15m","1H"],"3m":["15m","1H","4H"],"5m":["15m","1H","4H"],"15m":["1H","4H","1D"],"30m":["1H","4H","1D"],"1H":["4H","1D","1W"],"2H":["4H","1D","1W"],"4H":["1D","1W","1M"],"6H":["1D","1W","1M"],"12H":["1D","1W","1M"],"1D":["1W","1M"],"1W":["1M"]};
+    const cur = String(curSrc.tf || this.tf), curK = /^\d+[mhdw]$/i.test(cur) && !/m$/.test(cur) ? cur.toUpperCase() : cur, tfs = [[curK, curSrc, curF]];
+    (UP[curK] || []).slice(0, Math.max(0, Math.min(3, G.mtfn|0 || 3))).forEach(tf => { const sr = this.gannCandles(tf), f = sr ? this.gannFitFor(sr, G) : null; if (f) tfs.push([tf, sr, f]); });
+    const key = tfs.map(([tf, sr, f]) => tf + ":" + f.P + ":" + f.s + ":" + f.tsp + ":" + sr.d.length + ":" + sr.d[sr.d.length-1].t).join("|") + "|" + Math.round(tEnd/36e5);
+    if (this._gCl && this._gCl.key === key) return this._gCl.v;
+    const atr = curF.atr || 1, tolP = (+G.ctol || .35)*atr, P = [], T = [], ms0 = curSrc.ms;
+    tfs.forEach(([tf, sr, f], ti) => { const wTF = 1 + .5*ti, sd = sr.d;
+      f.levels.forEach(L => { const ring = L.a >= 360 && Math.abs(L.a % 360) < 1e-6; P.push({p:L.p, w:(L.main ? 2 : 1)*(ring ? 2 : 1)*wTF, tf}); });
+      let H_ = -Infinity, L0 = Infinity; sd.forEach(k => { if (k.h > H_) H_ = k.h; if (k.l < L0) L0 = k.l; }); [[.5,2],[1/3,1],[2/3,1],[.25,1],[.75,1],[0,1.5],[1,1.5]].forEach(([fr, w]) => P.push({p:L0 + fr*(H_ - L0), w:w*wTF, tf}));
+      const st = f.tsp*sr.ms, t1 = f.t0 + (G.toff|0)*sr.ms; for (let k = Math.ceil((sd[0].t - t1)/st); k < 600; k++){ if (!k) continue; const t = t1 + k*st; if (t > tEnd) break; T.push({t, h:Math.max((+G.ctolT || 3)*ms0, .5*sr.ms), w:(Math.abs(k*f.tsp) % 90 === 0 ? 2 : 1)*wTF, tf}); } });
+    const group = (arr, val, tol) => { arr.sort((a, b) => val(a) - val(b)); const out = []; let g = null;
+      arr.forEach(x => { if (g && val(x) - g.lo <= tol){ g.items.push(x); g.hi = val(x); } else { g = {lo:val(x), hi:val(x), items:[x]}; out.push(g); } });
+      return out.map(g => { const w = g.items.reduce((a, x) => a + x.w, 0), tfsS = [...new Set(g.items.map(x => x.tf))]; return {lo:g.lo, hi:g.hi, c:g.items.reduce((a, x) => a + val(x)*x.w, 0)/w, score:Math.round(w*10)/10, tfs:tfsS}; }); };
+    const minTF = Math.min(2, tfs.length), PC = group(P, x => x.p, tolP).filter(g => g.tfs.length >= minTF && g.score >= 4).sort((a, b) => b.score - a.score).slice(0, 8);
+    // time: every level is a window (+- tolerance on this chart, at least half a bar of its own timeframe); overlapping windows of different timeframes merge
+    T.sort((a, b) => (a.t - a.h) - (b.t - b.h)); const TC0 = []; let gT = null;
+    T.forEach(x => { if (gT && x.t - x.h <= gT.hi){ gT.items.push(x); gT.hi = Math.max(gT.hi, x.t + x.h); } else { gT = {lo:x.t - x.h, hi:x.t + x.h, items:[x]}; TC0.push(gT); } });
+    const TC = TC0.map(g => { const w = g.items.reduce((a, x) => a + x.w, 0); return {lo:g.lo, hi:g.hi, c:g.items.reduce((a, x) => a + x.t*x.w, 0)/w, score:Math.round(w*10)/10, tfs:[...new Set(g.items.map(x => x.tf))]}; })
+      .filter(g => g.tfs.length >= minTF).sort((a, b) => a.c - b.c);
+    const v = {PC, TC, tfs:tfs.map(x => x[0]), tolP}; this._gCl = {key, v}; return v;
+  },
+  gannTrades(src, F, G, t1st, step, ovr){   // replay of the zone rule over the source candles + the next zone; cached per data / settings
+    const sd = src.d, n = sd.length, key = JSON.stringify([F.P, F.s, F.dir, F.tsp, sd.length, sd[n-1].t, sd[n-1].c, G.zw, G.sqr, G.shape, G.sec, t1st, step, ovr ? ovr.key : 0]);
     if (this._gT && this._gT.key === key) return this._gT.v;
     const atr = F.atr || (sd[n-1].h - sd[n-1].l), tol = .25*atr, zw = Math.max(1, G.zw|0 || 2);
     let ps = F.levels.map(L => L.p); if (G.sqr){ let H_ = -Infinity, L0 = Infinity; sd.forEach(k => { if (k.h > H_) H_ = k.h; if (k.l < L0) L0 = k.l; }); [0,.125,.25,1/3,.375,.5,.625,2/3,.75,.875,1].forEach(f => ps.push(L0 + f*(H_ - L0))); }
+    if (ovr) ps = ovr.ps.slice();
     ps = [...new Set(ps.filter(p => p > 0).map(p => +p.toPrecision(10)))].sort((a, b) => a - b);
     const above = (p, minD) => ps.find(q => q > p + minD), below = (p, minD) => [...ps].reverse().find(q => q < p - minD);
     const list = []; const kMin = Math.ceil((sd[0].t - t1st)/step), kMax = Math.floor((sd[n-1].t - t1st)/step);
-    for (let k = kMin; k <= kMax; k++){ const tk = t1st + k*step; let done = false;
-      for (let i = 0; i < n && !done; i++){ if (Math.abs(sd[i].t - tk) > zw*src.ms) continue; const b = sd[i];
+    const wins = ovr && ovr.times ? ovr.times.filter(w => w.t <= sd[n-1].t + w.half) : []; if (!(ovr && ovr.times)) for (let k = kMin; k <= kMax; k++) wins.push({t:t1st + k*step, half:zw*src.ms});
+    for (const W of wins){ const tk = W.t; let done = false;
+      for (let i = 0; i < n && !done; i++){ if (Math.abs(sd[i].t - tk) > W.half) continue; const b = sd[i];
         for (const L of ps){ if (b.l > L + tol || b.h < L - tol) continue;
           let dir = 0; if (b.c > L + .1*atr && b.c > b.o && b.l <= L + tol) dir = 1; else if (b.c < L - .1*atr && b.c < b.o && b.h >= L - tol) dir = -1; if (!dir) continue;
           const en = b.c, sl = dir > 0 ? Math.min(b.l, L) - tol : Math.max(b.h, L) + tol, rk = Math.abs(en - sl); if (rk <= 0) continue;
@@ -2116,7 +2142,8 @@ Object.assign(CandleChart.prototype, {
           if (res == null && n - 1 - i > hor){ res = Math.round(100*(sd[Math.min(n - 1, i + hor)].c - en)*dir/rk)/100; tx = sd[Math.min(n - 1, i + hor)].t; }
           list.push({t:b.t, dir, en, sl, tp1, tp2, res, tx, lo:b.l, hi:b.h, L}); done = true; break; } } }
     const closed = list.filter(x => x.res != null), nC = closed.length;
-    const last = sd[n-1].c, kN = Math.max(kMax + 1, Math.ceil((sd[n-1].t - t1st)/step)), next = {t:t1st + kN*step, lo:below(last, tol), hi:above(last, tol)};
+    const last = sd[n-1].c, kN = Math.max(kMax + 1, Math.ceil((sd[n-1].t - t1st)/step)), nw = ovr && ovr.times ? ovr.times.find(w => w.t > sd[n-1].t) : null;
+    const next = {t:nw ? nw.t : t1st + kN*step, half:nw ? nw.half : zw*src.ms, lo:below(last, tol), hi:above(last, tol)};
     const v = {list, n:nC, win:nC ? Math.round(100*closed.filter(x => x.res > 0).length/nC) : 0, avg:nC ? Math.round(100*closed.reduce((a, x) => a + x.res, 0)/nC)/100 : 0, next, tol};
     this._gT = {key, v}; return v;
   },
@@ -2179,18 +2206,30 @@ Object.assign(CandleChart.prototype, {
     // GANN ZONE TRADES: at every time level (+- zw source bars) a candle that touches a price level and closes back away from it = confirmation (arrow);
     // entry = that close, stop = beyond the touch (0.25 ATR), TP1 / TP2 = the next Gann levels in the trade direction (min 1R). Replayed over the whole history
     // (ticks / crosses = past outcomes, stats on the chart) and followed live; the next zone is a thin box on the nearest level above (sell) and below (buy).
-    if (G.zone){ const T = this.gannTrades(src, F, G, t1st, step), tf = src.tf || this.tf, ttype = sec <= 9e5 ? Lg("scalp","سكالب") : sec < 864e5 ? Lg("day trade","داي تريد") : Lg("swing","سوينج");
+    let CL = null; if (G.mtf !== "off"){ CL = this.gannClusters(G, src, F, tEnd);
+      CL.PC.forEach(g => { const ya = py(g.hi + CL.tolP*.3), yb = py(g.lo - CL.tolP*.3); if (yb < 0 || ya > PB) return; const a = Math.min(.35, .08 + g.score/60);
+        c.globalAlpha = a; c.fillStyle = "#f0b90b"; c.fillRect(0, ya, PR, Math.max(2, yb - ya)); c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif";
+        c.fillText("★ "+g.tfs.length+" TF ("+g.tfs.join("·")+") "+fmtP(g.c)+" · "+Lg("score ","قوة ")+g.score, PR*.6, ya - 4); });
+      CL.TC.forEach(g => { const xa = xT(g.lo), xb = xT(g.hi); if (xb < 0 || xa > PR) return; c.globalAlpha = Math.min(.3, .06 + g.score/50); c.fillStyle = "#f0b90b"; c.fillRect(xa, 0, Math.max(3, xb - xa), PB);
+        c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.fillText("★ "+g.tfs.join("·"), xa + 2, PB - 40); });
+      c.font = "10px sans-serif"; }
+    if (G.zone){ const ovr = CL && G.zsrc === "clusters" && CL.PC.length ? {key:CL.PC.map(g => g.c.toFixed(6)).join(",")+"|"+CL.TC.map(g => g.c).join(","), ps:CL.PC.map(g => g.c),
+        times:CL.TC.length ? CL.TC.map(g => ({t:(g.lo + g.hi)/2, half:Math.max((Math.max(1, G.zw|0 || 2))*src.ms, (g.hi - g.lo)/2)})) : null} : null;
+      const T = this.gannTrades(src, F, G, t1st, step, ovr); T.cl = ovr ? CL.PC : null; const tf = src.tf || this.tf, ttype = sec <= 9e5 ? Lg("scalp","سكالب") : sec < 864e5 ? Lg("day trade","داي تريد") : Lg("swing","سوينج");
       T.list.forEach(tr => { const x = xT(tr.t), y = py(tr.en); if (x < -10 || x > PR + 10) return; const up = tr.dir > 0, col = up ? "#0ecb81" : "#f6465d", live = tr.res == null;
         c.globalAlpha = live ? 1 : .8; c.fillStyle = col; c.beginPath(); const ay = up ? py(tr.lo) + 14 : py(tr.hi) - 14; c.moveTo(x, ay + (up ? -8 : 8)); c.lineTo(x - 6, ay + (up ? 3 : -3)); c.lineTo(x + 6, ay + (up ? 3 : -3)); c.closePath(); c.fill();
         if (!live){ c.font = "bold 10px sans-serif"; c.fillStyle = tr.res > 0 ? "#0ecb81" : "#f6465d"; c.fillText(tr.res > 0 ? "✓" : "✗", x - 3, ay + (up ? 14 : -12)); c.font = "10px sans-serif"; } });
       const L_ = T.list[T.list.length - 1];
+      if (L_ && L_.res == null && d[n-1].t - L_.t <= 3*src.ms){ const id = "gann|"+this.sym+"|"+tf+"|"+L_.t, up = L_.dir > 0; this._gannLive = {dir:L_.dir, t:L_.t, en:L_.en};
+        if (!(this._gAl || (this._gAl = new Set())).has(id)){ this._gAl.add(id); try { Alerts.add(id, "gann", this.sym, this.sym+" · Gann "+(up ? "BUY" : "SELL")+" · "+tf+" · "+Lg("entry ","دخول ")+fmtP(L_.en)+" · SL "+fmtP(L_.sl)+" · TP1 "+fmtP(L_.tp1), up ? "#0ecb81" : "#f6465d"); } catch(e){} } }
+      else this._gannLive = null;
       if (L_ && L_.res == null){ const x = xT(L_.t), xe = PR - 4, up = L_.dir > 0, rk = Math.abs(L_.en - L_.sl);
         [[L_.en, "#4aa3ff", Lg("entry ","دخول ")], [L_.sl, "#f6465d", Lg("stop ","ستوب ")], [L_.tp1, "#0ecb81", "TP1 "], [L_.tp2, "#0ecb81", "TP2 "]].forEach(([p, col, lb]) => { if (p == null) return; const y = py(p); if (y < 0 || y > PB) return;
           c.strokeStyle = col; c.globalAlpha = .9; c.lineWidth = 1.4; c.setLineDash(lb === "TP2 " ? [5,4] : []); c.beginPath(); c.moveTo(x, y); c.lineTo(xe, y); c.stroke(); c.setLineDash([]);
           c.fillStyle = col; c.font = "bold 10px sans-serif"; c.textAlign = "right"; c.fillText(lb+fmtP(p)+(lb === "TP1 " || lb === "TP2 " ? "  "+(Math.abs(p - L_.en)/rk).toFixed(1)+"R" : ""), xe - 60, y - 7); c.textAlign = "left"; });
         c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.font = "bold 11px sans-serif"; c.fillText((up ? "▲ " : "▼ ")+Lg("Gann ","جان ")+(up ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" · "+ttype+" · "+tf, x + 8, py(L_.en) + (up ? 16 : -14)); c.font = "10px sans-serif"; }
       // the next zones (not yet confirmed): thin boxes on the nearest level below (buy) and above (sell), +- zw source bars around the next time level
-      const zw = Math.max(1, G.zw|0 || 2), nx = T.next; if (nx){ [[nx.lo, 1], [nx.hi, -1]].forEach(([p, dir]) => { if (p == null) return; const xa = xT(nx.t - zw*src.ms), xb = xT(nx.t + zw*src.ms), ya = py(p + T.tol), yb = py(p - T.tol);
+      const zw = Math.max(1, G.zw|0 || 2), nx = T.next; if (nx){ [[nx.lo, 1], [nx.hi, -1]].forEach(([p, dir]) => { if (p == null) return; const half = nx.half || zw*src.ms, cl = T.cl && T.cl.find(g => Math.abs(g.c - p) < 1e-9), xa = xT(nx.t - half), xb = xT(nx.t + half), ya = py((cl ? cl.hi : p) + T.tol), yb = py((cl ? cl.lo : p) - T.tol);
           const col = dir > 0 ? "#0ecb81" : "#f6465d"; c.globalAlpha = .16; c.fillStyle = col; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.globalAlpha = .9; c.strokeStyle = col; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.setLineDash([]);
           c.fillStyle = col; c.font = "bold 9px sans-serif"; c.fillText((dir > 0 ? Lg("buy zone ","منطقة شراء ") : Lg("sell zone ","منطقة بيع "))+fmtP(p)+" · "+new Date(nx.t).toISOString().slice(5, 16).replace("T"," "), Math.min(xa, xb), dir > 0 ? yb + 10 : ya - 8); c.font = "10px sans-serif"; }); }
       c.globalAlpha = .95; c.fillStyle = T.n >= 30 ? "#c3c9d1" : "#f0b90b"; c.font = "9px sans-serif";
@@ -2513,7 +2552,10 @@ class Panel {
         PS("calc", Lg("Angles","الزوايا"), [["avg", Lg("By averages (Se7s)","بالمتوسطات (Se7s)")], ["formula", Lg("By formula (Square of 9)","بالمعادلة (مربع التسعة)")]]), P("cycles", Lg("Rings of 360° (min; more are added to cover the price)","حلقات 360° (أقل عدد؛ بيزيد لوحده لحد ما يغطي السعر)"), 1, 12, 1),
         PB("sec", Lg("Secondary angles","زوايا ثانوية")), PB("lbl", Lg("Labels","الليبلز")), PB("ext", Lg("Extend lines to the left","مد الخطوط للشمال")),
         PH(Lg("Time","الزمن")), PB("tlv", Lg("Time levels","مستويات الزمن")), PS("tq", Lg("Time quarters","أرباع الزمن"), [["q", Lg("Quarters of the cycle","أرباع الدورة")],["e", Lg("Eighths of the cycle","أثمان الدورة")],["t", Lg("Thirds of the cycle","أثلاث الدورة")],["cal", Lg("Calendar 90/180/270/360 days","تقويم 90/180/270/360 يوم")],["off", Lg("Off","مقفول")]]), PB("cbox", Lg("Cycle start / end boxes","بداية ونهاية الدورات")), PS("lcyc", Lg("Long cycles (49d .. 30y)","الدورات الطويلة (49 يوم .. 30 سنة)"), [["auto", Lg("Auto: 5y+ and H/L confluences (daily and bigger)","أوتو: 5 سنين+ وتقاطعات القمة/القاع (اليومي وأكبر)")],["on", Lg("All cycles and multiples","كل الدورات ومضاعفاتها")],["off", Lg("Off","مقفول")]]), PN("tsp", Lg("Time spacing in source bars (0 = auto)","تباعد الزمن بشموع المصدر (0 = أوتو)")), P("toff", Lg("Bar offset (<-left 0 right->)","إزاحة الشموع (<-شمال 0 يمين->)"), -500, 500, 1), PT("tdate", Lg("Manual start date","تاريخ البداية اليدوي"), "YYYY-MM-DD"),
-        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), P("zw", Lg("Zone width (source bars each side)","عرض المنطقة (شموع على كل جنب)"), 1, 10, 1), PB("zone", Lg("Zone trades: arrows, entry / stop / TP1 / TP2, history stats","صفقات المناطق: أسهم ودخول/ستوب/أهداف وإحصائيات")), PB("star", Lg("Gann star (in the range box)","نجمة جان (جوه صندوق الرينج)")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Gann box on the range (1x1, 1x2, 2x1)","صندوق جان على الرينج (1x1، 1x2، 2x1)"))]},
+        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), P("zw", Lg("Zone width (source bars each side)","عرض المنطقة (شموع على كل جنب)"), 1, 10, 1),
+        PH(Lg("Multi-timeframe clusters","تجمعات الفريمات")), PS("mtf", Lg("Clusters","التجمعات"), [["auto", Lg("On (this + higher timeframes)","شغال (الفريم ده + الأعلى)")],["off", Lg("Off","مقفول")]]), P("mtfn", Lg("Higher timeframes used","عدد الفريمات الأعلى"), 1, 3, 1),
+        P("ctol", Lg("Price cluster tolerance (x ATR)","سماحية تجمع السعر (× ATR)"), .1, 2, .05), P("ctolT", Lg("Time cluster tolerance (bars)","سماحية تجمع الزمن (شموع)"), 1, 20, 1),
+        PS("zsrc", Lg("Zone trades use","صفقات المناطق على"), [["clusters", Lg("Clusters (strongest)","التجمعات (الأقوى)")],["grid", Lg("This timeframe's grid","شبكة الفريم ده")]]), PB("zone", Lg("Zone trades: arrows, entry / stop / TP1 / TP2, history stats","صفقات المناطق: أسهم ودخول/ستوب/أهداف وإحصائيات")), PB("star", Lg("Gann star (in the range box)","نجمة جان (جوه صندوق الرينج)")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Gann box on the range (1x1, 1x2, 2x1)","صندوق جان على الرينج (1x1، 1x2، 2x1)"))]},
       {id:"kzs", label:Lg("Kill Zone Sniper (JOAT style)","Kill Zone Sniper (ستايل JOAT)"), tip:Lg("Sweep-and-reverse inside the London (02-05) / NY AM (07-10) kill zones, New York time: a candle takes the 20-bar low (high), closes back with a body >= 0.9 ATR (and >= 1.5x average volume when the feed has volume). Draws the swept pool, a sniper mark, and the projected entry / stop (sweep wick) / target (30-bar swing, >= 1.5R) as a green/red box, plus a small table counting what is drawn. Same rules as the scanner's Kill Zone Sniper detector. 1H and lower. Idea from the open-source 'ICT Kill Zone Sniper [JOAT]' description; not a copy of its code.","سحب سيولة وانعكاس جوه كيل زون لندن (02-05) / نيويورك الصبح (07-10) بتوقيت نيويورك: شمعة تكسر أقل قاع لآخر 20 شمعة (أو أعلى قمة) وتقفل راجعة بجسم >= 0.9 ATR (و>= 1.5 ضعف متوسط الفوليوم لو فيه فوليوم). بيرسم المستوى المسحوب، علامة القناص، وصندوق الدخول / الوقف (طرف الذيل) / الهدف (قمة/قاع آخر 30 شمعة، >= 1.5R)، وجدول صغير بعدد اللي اترسم. نفس قواعد كاشف Kill Zone Sniper في السكانر. فريم ساعة وأقل. الفكرة من وصف مؤشر JOAT المفتوح، مش نسخة من الكود."), get:() => ch().kzsOn, set:v => { ch().kzsOn = v; this.state.kzs = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},

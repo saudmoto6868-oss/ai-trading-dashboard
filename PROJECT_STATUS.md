@@ -66,6 +66,7 @@ Last updated: 2026-10-17. **Update this file after every finished item (status +
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FINNHUB_WS_TOKEN` (a separate free Finnhub key for the browser live feed), `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-17 Workspace reorganised (owner OK): widget menu grouped Decision / Execution / Markets / Context / Review / Settings; Ready trades merged into Signals, News ticker / Video / Links retired (saved layouts migrate silently); Scanner rebuilt as **Market radar** (daily trend 20/60/100d + ADX, ATR%, 20-day range, RSI, momentum/vol, live setup on the trend side, ranked |trend| x ADX, crypto + Hyperliquid TradFi). Playwright-tested with mocked OKX + Hyperliquid.
 - 2026-10-17 Item 23 phase 1: read-aloud button for trade explanations (browser speech, Arabic voice).
 - 2026-10-17 Item 22: optional password login (APP_PASSWORD / APP_USERS).
 - 2026-10-17 Item 21: Arabic for the Streamlit pages (i18n.py, RTL, stable widget keys).

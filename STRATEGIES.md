@@ -104,6 +104,9 @@ Every weekly lab run can move a detector up or down; the tables in STRATEGY_LAB.
   trend MA -0.018, SMC/ICT -0.034, hedge-fund trend -0.037 (intraday dilutes it; daily is positive), Elliott -0.079.
 - Confluence: more agreeing families did NOT help; setups with an OPPOSING family lost about -280R in total -> alerts now
   require no opposing signal. Strength = lab evidence (`modules/lab_tiers.py`), not family count.
+- Trend filter (lab run 2026-10-17, 100-bar trend, 1.5R bracket trades): WITH trend -0.030R (n 24369) vs AGAINST +0.006R (n 16488);
+  daily: with -0.063 vs against +0.183. So for our short bracket trades the trend side does NOT help -> NOT added as an alert rule.
+  (TSMOM is a months-long holding effect; it says nothing about 1.5R trades closed in <= 20 bars.) Re-checked every weekly run.
 - OFF (n >= 300 and avg R <= -0.06, recomputed weekly): donch, ew3, msb_ob, ob, unicorn - still drawn, no longer decide a trade.
 
 ## Group C + confirmation-only

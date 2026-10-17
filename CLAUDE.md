@@ -15,7 +15,7 @@ Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, n
   The deployed app cannot use MCP tools - only public APIs.
 
 ## Map
-- `main.py` Streamlit (tabs, sidebar); `modules/i18n.py` `L()` Arabic; `modules/auth.py` optional login (APP_PASSWORD / APP_USERS).
+- `main.py` Streamlit (tabs, sidebar); `modules/i18n.py` `L()` Arabic; `modules/auth.py` login, READY BUT OFF until launch (owner: do not set APP_PASSWORD / APP_USERS before publishing).
 - `modules/workspace_app.html` single-file JS app (chart, watchlist, DOM, order flow, Setup Card); built by `modules/workspace.py`.
   Data: `okx()` -> OKX REST; `Y:` symbols -> embedded Yahoo (`yfOkx`); `HL:xyz:*` -> Hyperliquid (`hlOkx`); `FH:*` -> Finnhub ws.
 - Signals `modules/signals.py` (+ `sig_filters`, `scorer`, `mtf`), patterns `modules/patterns.py`, scanner `modules/chart_scan.py`.

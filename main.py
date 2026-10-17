@@ -931,13 +931,6 @@ def render_chart_scanner():
                         st.caption(f"Analysis unavailable: {e_}")
 
 
-with tab_cscan:
-    try:
-        render_universe_controls()
-        render_chart_scanner()
-    except Exception as _e:
-        st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
-
 with tab_workspace:
     try:
         ws_lang = st.session_state.get("ws_lang", "en")
@@ -979,6 +972,15 @@ with tab_workspace:
                    "Data comes straight from OKX in your browser, no refresh needed."))
     except Exception as _e:
         st.error(f"Workspace error: {type(_e).__name__}: {_e}")
+
+# the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
+# otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
+with tab_cscan:
+    try:
+        render_universe_controls()
+        render_chart_scanner()
+    except Exception as _e:
+        st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 
 with tab_crypto:
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])

@@ -860,7 +860,7 @@ PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PA
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 14px;border-bottom:1px solid #2b3139;padding-bottom:4px}}
-.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page label>div:first-child,.st-key-page [data-baseweb="radio"]>div:first-child,.st-key-page input[type="radio"]+div{{display:none!important}}
+.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
 

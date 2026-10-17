@@ -187,7 +187,22 @@ def gann_cycles(hi, lo):
     return out
 
 
-def report(rows, conflicts, cfl, meta, gann=None):
+SYNODIC, NEW_MOON_REF = 29.530588853, 947182440.0   # mean synodic month (days); a new moon on 2000-01-06 18:14 UTC (unix seconds)
+
+
+def lunar_split(times, closes):
+    """Dichev & Janes (2001) style: daily close-to-close returns of the 15 days around new moons vs the 15 days around full moons.
+    -> {"new": [sum, sumsq, n], "full": [...]} (log returns). Phase from the mean synodic month (error < ~0.6 day, fine for 15-day windows)."""
+    t = np.asarray([pd_ts.timestamp() for pd_ts in times], float); c = np.asarray(closes, float)
+    r = np.diff(np.log(c)); age = ((t[1:] - NEW_MOON_REF) / 86400.0) % SYNODIC
+    near_new = (age < SYNODIC / 4) | (age >= 3 * SYNODIC / 4)
+    out = {}
+    for k, m in (("new", near_new), ("full", ~near_new)):
+        x = r[m]; out[k] = [float(x.sum()), float((x ** 2).sum()), int(len(x))]
+    return out
+
+
+def report(rows, conflicts, cfl, meta, gann=None, lunar=None):
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
@@ -234,11 +249,18 @@ def report(rows, conflicts, cfl, meta, gann=None):
                 (h2, n2), (h3, n3) = g["shapes"], g["shapes_ctrl"]; q2, q3 = h2 / n2, h3 / n3; se2 = np.sqrt(q3 * (1 - q3) / n2) or 1
                 L.append(f"| {tf} shapes 120/180/240/360 deg | {100 * q2:.1f} | {n2} | {100 * q3:.1f} | {n3} | {(q2 - q3) / se2:+.1f} |")
         L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
+    if lunar and lunar.get("new", [0, 0, 0])[2] and lunar.get("full", [0, 0, 0])[2]:
+        (s1, q1, n1), (s2, q2, n2) = lunar["new"], lunar["full"]; m1, m2 = s1 / n1, s2 / n2
+        v1, v2 = max(q1 / n1 - m1 ** 2, 1e-18), max(q2 / n2 - m2 ** 2, 1e-18); t = (m1 - m2) / np.sqrt(v1 / n1 + v2 / n2)
+        L += ["", "## Gann astro: lunar phase (daily bars, all symbols pooled; Dichev & Janes 2001 found new-moon days about twice the full-moon days)", "",
+              "| window | days | mean daily return % |", "|---|---|---|",
+              f"| 15 days around new moon | {n1} | {100 * m1:.3f} |", f"| 15 days around full moon | {n2} | {100 * m2:.3f} |",
+              f"Difference t = {t:+.2f} (|t| > 2 would be a hint, > 3 evidence; overlapping symbols are correlated, so this is generous)."]
     return "\n".join(L) + "\n"
 
 
 def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
-    evs, brs, done, gann = [], [], [], {}
+    evs, brs, done, gann, lunar = [], [], [], {}, {"new": [0.0, 0.0, 0], "full": [0.0, 0.0, 0]}
     for sym in symbols:
         for tf in tfs:
             t0 = time.time()
@@ -254,10 +276,14 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
             g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]})
             for k in acc:
                 acc[k][0] += g[k][0]; acc[k][1] += g[k][1]
+            if tf == "1d":
+                lu = lunar_split(list(df["time"]), df["close"].values)
+                for k in lunar:
+                    lunar[k] = [lunar[k][j] + lu[k][j] for j in range(3)]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
-    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann}
+    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar}
 
 
 if __name__ == "__main__":
@@ -265,5 +291,5 @@ if __name__ == "__main__":
     res = run(syms, stride=int(os.environ.get("LAB_STRIDE", "4")))
     OUT_JSON.parent.mkdir(exist_ok=True)
     OUT_JSON.write_text(json.dumps(res, indent=1))
-    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann")))
+    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann"), res.get("lunar")))
     print(OUT_MD.read_text()[:3000])

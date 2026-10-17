@@ -860,7 +860,7 @@ PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PA
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 14px;border-bottom:1px solid #2b3139;padding-bottom:4px}}
-.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page label>div:first-child{{display:none}}
+.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page label>div:first-child,.st-key-page [data-baseweb="radio"]>div:first-child,.st-key-page input[type="radio"]+div{{display:none!important}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
 
@@ -1244,11 +1244,9 @@ if PAGE == 6:   # meme
         st.info(L("Enter a token name or contract address above to search live DEXScreener pairs."))
 
 
-# ---- While the background scan is still running, poll until it finishes ---------------
-_store_now = _scan_store()
-if _store_now["running"] or (_store_now["payload"] or {}).get("loading"):
-    time.sleep(5)
-    st.rerun()
+# (removed 2026-10-17) a "sleep 5 s + st.rerun()" loop used to run here while the background scan was busy: every rerun rebuilt and
+# re-sent the Workspace, so its frame reloaded every 5 s (blank page) and the CPU never rested (the app got throttled).
+# The Workspace shows "scanning..." and picks the results up on the next normal run.
 
 
 if PAGE == 7:   # perf

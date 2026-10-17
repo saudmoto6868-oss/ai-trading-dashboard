@@ -12,6 +12,7 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 
 import base64
 import html
+import os
 import time
 from pathlib import Path
 from datetime import datetime
@@ -82,8 +83,11 @@ if not _auth_gate(L):
 
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))
-auto_on = st.sidebar.checkbox(L("Auto-refresh (live data)"), value=True, key="w_auto_refresh_live_data")
-refresh_secs = st.sidebar.slider(L("Refresh every (seconds)"), 10, 60, AUTO_REFRESH_SECONDS, step=5, key="w_refresh_every_seconds")
+# OFF by default: every refresh re-runs the whole app on the server (Streamlit Cloud throttled the app's CPU on 2026-10-17).
+# The Workspace is live on its own (prices / book / tape stream in the browser), so it does not need this.
+auto_on = st.sidebar.checkbox(L("Auto-refresh (live data)"), value=False, key="w_auto_refresh_live_data",
+                              help=L("Re-runs the whole page on the server. The Workspace is already live without it."))
+refresh_secs = st.sidebar.slider(L("Refresh every (seconds)"), 60, 600, max(120, AUTO_REFRESH_SECONDS), step=30, key="w_refresh_every_seconds_v2")
 play_sound = st.sidebar.checkbox(L("Play sound on NEW strong signals"), value=True, key="w_play_sound_on_new_strong_signals")
 with st.sidebar.expander(L("Order Book / Time & Sales"), expanded=False):
     smart_mult = st.slider(
@@ -177,6 +181,11 @@ def _peer_frames(symbols, tf):
 def _peers_for(sym, tf, pframes):
     from modules.smt import peers_of
     return {p: (inv, pframes[p]) for p, inv in peers_of(sym) if p in pframes}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _scan_cached(symbols: tuple, tf: str):
+    return scan_crypto_group(list(symbols), tf)
 
 
 def scan_crypto_group(symbols, tf):
@@ -535,10 +544,11 @@ def get_tf_stats():
     import threading
     from modules import backtest_tf as B
     store = _tfstats_store()
-    d, stale = B.load(max_age=86400)
+    d, stale = B.load(max_age=86400*8)
     if d:
         store["data"] = d
-    if (stale or not store["data"]) and not store["running"] and time.time() - store["t"] > 1800:
+    # the walk-forward rebuild is heavy: it runs in GitHub Actions (weekly) and is only READ here, unless TF_STATS_BUILD=1
+    if os.environ.get("TF_STATS_BUILD") == "1" and (stale or not store["data"]) and not store["running"] and time.time() - store["t"] > 1800:
         store["running"], store["t"] = True, time.time()
         threading.Thread(target=_tf_worker, args=(store,), daemon=True).start()
     d = store["data"]
@@ -553,10 +563,10 @@ def _world_news():
 
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
-    background refresh when the 10-minute bucket changes or an empty result is older than 60 s."""
+    background refresh when the 30-minute bucket changes or an empty result is older than 60 s."""
     import threading
     ws_tf = st.session_state.get("scan_tf", "1h")
-    ws_key = (ws_tf, str(int(time.time() // 600)), tuple(symbols or CRYPTO_SYMBOLS))
+    ws_key = (ws_tf, str(int(time.time() // 1800)), tuple(symbols or CRYPTO_SYMBOLS))
     store = _scan_store()
     pl = store["payload"]
     stale_empty = bool(pl) and not pl.get("mini") and not pl.get("loading") and time.time() - pl.get("built", 0) > 60
@@ -811,7 +821,7 @@ tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_mem
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260)
@@ -988,7 +998,7 @@ with tab_crypto:
         st.markdown(L("**Scanner**"))
         scan_tf = st.radio(L("Scan timeframe"), ALL_SCAN_TFS, index=2, horizontal=True, key="scan_tf",
                            format_func=lambda t: TF_LABEL.get(t, t).replace("minute", "min").replace("hour", "h").replace("day", "d").replace("week", "w").replace("month", "mo").replace(" ", ""))
-        results, notice = scan_crypto_group(CRYPTO_SYMBOLS, scan_tf)
+        results, notice = _scan_cached(tuple(CRYPTO_SYMBOLS), scan_tf)
         filtered = render_scanner(results, notice, "crypto")
     with col_chart:
         c_sym, c_top, c_bot = st.columns([1.3, 1, 1])
@@ -1050,7 +1060,7 @@ def class_tab(key, cls):
             st.warning(note or f"No {cls} instruments from OKX right now.")
         else:
             tf = st.radio(L("Scan timeframe"), ["1h", "4h", "1d"] if "4h" in ALL_SCAN_TFS else ["1h", "1d"], index=0, horizontal=True, key=f"scan_tf_{key}")
-            results, notice = scan_crypto_group(syms, tf)
+            results, notice = _scan_cached(tuple(syms), tf)
             render_scanner(results, notice, key)
     with col_chart:
         if syms:

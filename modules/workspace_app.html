@@ -155,6 +155,11 @@ const FH_LIST = [["EUR_USD","EUR/USD","Forex","EURUSD=X"],["GBP_USD","GBP/USD","
   ["WTICO_USD","WTI crude","Oil & Gas","CL=F"],["BCO_USD","Brent crude","Oil & Gas","BZ=F"],["NATGAS_USD","Natural gas","Oil & Gas","NG=F"],["WHEAT_USD","Wheat","Commodities","ZW=F"],["CORN_USD","Corn","Commodities","ZC=F"],["SUGAR_USD","Sugar","Commodities","SB=F"]]
   .map(([id, label, cat, y]) => ({id:"FH:"+id, sym:"OANDA:"+id, label, cat, y:y ? "Y:"+y : ""}));
 const FH_MAP = Object.fromEntries(FH_LIST.map(x => [x.id, x]));
+const FH_HL = {"FH:EUR_USD":"EUR","FH:GBP_USD":"GBP","FH:USD_JPY":"JPY","FH:XAU_USD":"GOLD","FH:XAG_USD":"SILVER","FH:XPT_USD":"PLATINUM","FH:XCU_USD":"COPPER","FH:SPX500_USD":"SP500","FH:NAS100_USD":"XYZ100","FH:JP225_USD":"JP225","FH:WTICO_USD":"CL","FH:BCO_USD":"BRENTOIL","FH:NATGAS_USD":"NATGAS"};
+const fhDup = id => FH_HL[id] && HL.q["HL:xyz:"+FH_HL[id]];   // same market already listed from Hyperliquid
+// forex / CFD weekend: Friday 17:00 -> Sunday 17:00 New York time, OANDA sends no ticks
+const fxClosed = () => { const p = new Intl.DateTimeFormat("en-US", {timeZone:"America/New_York", weekday:"short", hour:"numeric", hour12:false}).formatToParts(new Date()), d = p.find(x => x.type === "weekday").value, h = +p.find(x => x.type === "hour").value % 24;
+  return d === "Sat" || (d === "Fri" && h >= 17) || (d === "Sun" && h < 17); };
 const FH = {q:{}, state:"off", ws:null, wait:5000,
   start(){ if (!CFG.fhToken || this.ws) return; let ws; try { ws = new WebSocket("wss://ws.finnhub.io?token="+encodeURIComponent(CFG.fhToken)); } catch(e){ this.state = "error"; return; }
     this.ws = ws; this.state = "connecting";
@@ -2335,9 +2340,9 @@ class Panel {
       const hlRows = HL.list.filter(x => x.cat === U.cat).sort((a, b) => b.vol - a.vol).map(x => ({id:x.id, vol:3e18 + x.vol, cat:x.cat}));
       if (!HL.t && !/^error/.test(HL.state) && /^(Forex|Metals|Oil & Gas|Indices|Stocks|Bonds|Commodities)$/.test(U.cat)) setTimeout(() => renderU(), 1500);   // Hyperliquid list still loading
       yfRows.unshift(...hlRows);
-      const fhRows = CFG.fhToken ? FH_LIST.filter(x => x.cat === U.cat || (U.cat === "All" && 0)).map(x => ({id:x.id, vol:2e18, cat:x.cat})) : [];
+      const fhRows = CFG.fhToken ? FH_LIST.filter(x => x.cat === U.cat && !fhDup(x.id)).map(x => ({id:x.id, vol:2e18, cat:x.cat})) : [];
       yfRows.unshift(...fhRows.filter(f => !yfRows.some(y => y.id === f.id)));
-      const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, Math.max(U.top, yfRows.length));
+      const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, U.top);
       if (!r.length && /^error/.test(HL.state) && /^(Forex|Metals|Oil & Gas|Indices|Stocks|Bonds)$/.test(U.cat)){ uBox.innerHTML = '<div class="err">'+esc(Lg("Hyperliquid (live gold / oil / indices / FX) is not reachable right now: ", "Hyperliquid (ذهب / بترول / مؤشرات / فوركس لحظي) مش متاح دلوقتي: ")+HL.state.replace(/^error: /, "")+Lg(" - retrying every 4 s.", " - بيحاول تاني كل 4 ثواني."))+'</div>'; }
       else if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
       this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");
@@ -2995,6 +3000,7 @@ Panel.prototype.resub = function(){
           const nm = /^HL:/.test(s) ? esc(hlLabel(s))+' <span class="hlb" title="'+esc(L_("Hyperliquid perpetual "+hlCoin(s)+" - live, 24/7, can differ slightly from spot / futures", "عقد دائم على Hyperliquid "+hlCoin(s)+" - لحظي 24/7، ممكن يختلف شوية عن السبوت / الفيوتشرز"))+'">HL</span>'
             : FH_MAP[s] ? esc(FH_MAP[s].label)+' <span class="m" title="Finnhub / OANDA CFD, live">●</span>'
             : /^Y:/.test(s) ? esc(s.slice(2).replace(/^([A-Z]{3})([A-Z]{3})=X$/, "$1/$2").replace(/=F$/, " fut"))+' <span class="m" title="'+esc(L_("Yahoo Finance, delayed - refreshed when the page reloads","Yahoo Finance متأخر - بيتحدث مع تحديث الصفحة"))+'">Y</span>' : esc(s);
+          if (!x && FH_MAP[s]){ const cl = fxClosed(); h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m" title="'+esc(cl ? L_("Forex / CFD market closed (Fri 17:00 - Sun 17:00 New York); Finnhub sends no ticks until it reopens", "سوق الفوركس قافل (الجمعة 5 م - الأحد 5 م بتوقيت نيويورك)؛ Finnhub مش بيبعت أسعار لحد ما يفتح") : L_("waiting for the first tick (or this symbol is not on Finnhub's free plan)", "مستني أول سعر (أو الرمز ده مش في خطة Finnhub المجانية)"))+'">'+esc(cl ? L_("closed", "قافل") : "…")+'</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';
           h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });

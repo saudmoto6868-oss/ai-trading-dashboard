@@ -66,6 +66,7 @@ Last updated: 2026-10-17. **Update this file after every finished item (status +
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FINNHUB_WS_TOKEN` (a separate free Finnhub key for the browser live feed), `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-17 Watchlist after the owner's live screenshot (Hyperliquid confirmed working in the real browser: EUR/USD, USD/JPY, GBP/USD live, 'HL ● 115'; Finnhub token connected, 0/27 ticks on a Saturday): Finnhub rows that duplicate a Hyperliquid market are hidden, 'Top N' now applies to every source (it was ignored when Hyperliquid / Finnhub / Yahoo rows were present), Finnhub rows without ticks show 'closed' during the forex weekend (Fri 17:00 - Sun 17:00 New York) instead of '…'. Playwright with mocked feeds and a faked weekend / weekday clock.
 - 2026-10-17 Item 15c: watchlist review; Hyperliquid TradFi markets live in the watchlist, charts, DOM, scanner; instant category switch.
 - 2026-10-17 Item 20: Finviz-style pattern browser (14 patterns, lines on mini charts) in the Chart Scanner.
 - 2026-10-17 Item 15b: Finnhub/OANDA live CFD rows in the watchlist (needs FINNHUB_WS_TOKEN), Cboe delayed US option chain (Stocks tab).

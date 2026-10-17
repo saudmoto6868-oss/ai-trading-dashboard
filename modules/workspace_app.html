@@ -155,6 +155,10 @@ const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
+/* ?ws_reset=1 on the page link = clear this browser's saved Workspace (layout, widget settings, drawings); the journal is kept */
+try { const q = new URLSearchParams(window.parent.location.search); if (q.get("ws_reset") === "1"){
+  Object.keys(localStorage).filter(k => k.startsWith(LS) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
+  q.delete("ws_reset"); const u = window.parent.location.pathname + (q.toString() ? "?" + q : ""); window.parent.history.replaceState(null, "", u); } } catch(e){}
 /* Live CFD quotes for forex / metals / indices / commodities: Finnhub's websocket with OANDA symbols. Runs only when the owner set
    FINNHUB_WS_TOKEN in Streamlit Secrets (the browser sees that key, so use a separate free key for it). [id, label, category, Yahoo twin]
    Whether every symbol streams on Finnhub's FREE plan is not verified - rows without ticks stay at "…". */

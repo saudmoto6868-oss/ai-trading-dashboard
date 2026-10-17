@@ -486,6 +486,36 @@ const tagTxt = x => lang === "ar" ? x : (TAG_EN[x] || x);
 const etaTxt = x => lang === "ar" || !x ? (x || "-") : String(x).replace("دقيقة","min").replace("ساعة","h").replace("يوم","d").replace("أسبوع","w");
 const TT_AR = {"Scalp":"سكالب","Day Trade":"داي تريد","Swing":"سوينج","Position":"بوزشن"};
 const ttTxt = x => lang === "ar" ? (TT_AR[x] || x) : x;
+
+/* Live context checklist (the schools that cannot be backtested here): order book + time & sales (live), time of day,
+   fundamental (high-impact news, funding). One snapshot per symbol, cached 60 s. Journal stores the snapshot with every logged
+   trade, so the journal measures over time whether "order flow agreed" / session / news actually change the result. */
+const Ctx = {
+  cache:{}, busy:{},
+  session(t){ const f = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false}).formatToParts(new Date(t || Date.now())),
+      m = (+f.find(x => x.type === "hour").value % 24)*60 + +f.find(x => x.type === "minute").value;
+    return m >= 120 && m < 300 ? "London KZ" : m >= 420 && m < 600 ? "NY AM KZ" : m >= 810 && m < 960 ? "NY PM KZ" : m >= 1200 || m < 120 ? "Asia" : "off-KZ"; },
+  news(sym, t){ const now = t || Date.now(), cur = ["USD"].concat((/^(?:FH:|Y:)?([A-Z]{3})_?([A-Z]{3})/.exec(String(sym).replace("HL:xyz:","")) || []).slice(1));
+    const hit = (CFG.cal || []).filter(e => e.impact === "High" && e.ts >= now - 30*60e3 && e.ts <= now + 60*60e3 && cur.includes(e.country)); return hit.length ? hit[0] : null; },
+  async get(sym){
+    const c = this.cache[sym]; if ((c && Date.now() - c.t < 60000) || this.busy[sym] || /^(Y|FH):/.test(sym)) return c; this.busy[sym] = true;
+    const out = {t:Date.now(), of:null, fund:null};
+    try {
+      const [bk, tr] = await Promise.all([okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400").catch(() => null), okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100").catch(() => null)]);
+      let bi = null, de = null;
+      if (bk && bk[0] && bk[0].bids && bk[0].bids.length && bk[0].asks.length){ const b0 = +bk[0].bids[0][0], a0 = +bk[0].asks[0][0], mid = (b0 + a0)/2; let bd = 0, ad = 0;
+        bk[0].bids.forEach(x => { if ((mid - +x[0])/mid <= .005) bd += +x[1]; }); bk[0].asks.forEach(x => { if ((+x[0] - mid)/mid <= .005) ad += +x[1]; }); if (bd + ad > 0) bi = (bd - ad)/(bd + ad); }
+      if (tr && tr.length){ const t0 = Math.max(...tr.map(x => +x.ts)) - 120000; let b = 0, s_ = 0; tr.forEach(x => { if (+x.ts < t0) return; x.side === "buy" ? b += +x.sz : s_ += +x.sz; }); if (b + s_ > 0) de = (b - s_)/(b + s_); }
+      out.of = {book:bi, delta:de};
+      if (!/^HL:/.test(sym)){ const base = sym.split("-")[0]; const f = await okx("/public/funding-rate?instId="+base+"-USDT-SWAP").catch(() => null); if (f && f[0]) out.fund = +f[0].fundingRate; }
+    } catch(e){}
+    this.cache[sym] = out; this.busy[sym] = false; return out; },
+  // verdicts for one side: "agree" / "against" / "mixed" / "n/a"
+  ofVerdict(c, dir){ const o = c && c.of; if (!o || (o.book == null && o.delta == null)) return "n/a"; const d = dir === "bullish" ? 1 : -1, v = [o.book, o.delta].filter(x => x != null).map(x => Math.sign(x)*(Math.abs(x) >= .1 ? 1 : 0)*d);
+    return v.every(x => x > 0) ? "agree" : v.every(x => x < 0) ? "against" : "mixed"; },
+  fundFlag(c, dir){ const f = c && c.fund; if (f == null) return null; return dir === "bullish" && f > .0005 ? "crowded longs" : dir === "bearish" && f < -.0005 ? "crowded shorts" : null; },
+  snapshot(sym, dir){ const c = this.cache[sym]; return {of:this.ofVerdict(c, dir), ses:this.session(), news:!!this.news(sym), fund:this.fundFlag(c, dir)}; }
+};
 const Alerts = {
   list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),
   add(id, kind, sym, text, color, card){
@@ -544,6 +574,7 @@ const Journal = {
   ingest(){
     let added = 0; const pool = [];
     (CFG.ready || []).forEach(e => pool.push(e)); Alerts.list.forEach(a => a.card && pool.push(a.card));
+    pool.slice(0, 12).forEach(e => e && e.symbol && Ctx.get(e.symbol));   // warm the live-context cache for the newest setups
     pool.forEach(e => {
       if (!e || !e.plan || !planOk(e.plan, e.direction)) return;
       const key = e.symbol+"|"+e.direction+"|"+e.ttype, en = e.plan.entry;
@@ -551,7 +582,7 @@ const Journal = {
       const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       this.list.push({id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
-        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()});   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()});   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
       added++;
     });
     if (added) this.save();
@@ -599,6 +630,16 @@ function setupHtml(e){
   const H = t => '<div style="margin-top:9px;font-weight:700;color:#f0b90b">'+esc(t)+'</div>', li = arr => '<ul dir="rtl" style="margin:3px 0;padding-inline-start:16px;text-align:right;line-height:1.55">'+arr.map(x => '<li>'+esc(x)+'</li>').join("")+'</ul>';
   let h = '<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b><span style="color:'+col+';font-weight:700">'+(long_ ? "▲ "+Lg("BUY","شراء") : "▼ "+Lg("SELL","بيع"))+'</span><span class="m">'+esc(ttTxt(e.ttype))+' · '+esc(e.tfk || "")+'</span><span style="margin-inline-start:auto;font-weight:700;color:'+(pct >= 70 ? col : "#eaecef")+'">'+e.score+'/'+e.max+' · '+pct+'%</span></div>';
   if (e.q != null && e.q > 0) h += '<div class="m" style="margin-top:2px">'+esc(Lg("Evidence quality","جودة الأدلة"))+': <b style="color:#eaecef">'+e.q+'/100</b>'+((e.qwhy || []).length ? ' · '+esc(e.qwhy.join(" · ")) : "")+'</div>';
+  { const c = Ctx.cache[e.symbol]; if (!c || Date.now() - c.t > 60000) Ctx.get(e.symbol).then(() => Setup.subs.forEach(f => f()));
+    const R = (Ws.radar && Ws.radar.d[e.symbol]) || null, fr = R && !R.err ? (R.verdict === "up" ? (long_ ? "ok" : "bad") : R.verdict === "down" ? (long_ ? "bad" : "ok") : "mid") : "na";
+    const ofv = Ctx.ofVerdict(c, e.direction), ses = Ctx.session(), nw = Ctx.news(e.symbol), fu = Ctx.fundFlag(c, e.direction), ic = k => ({ok:'<b class="g">✓</b>', bad:'<b class="rd">✗</b>', mid:'<b class="m">~</b>', na:'<b class="m">–</b>'})[k];
+    const rows = [[fr, Lg("Daily trend (radar)","الترند اليومي (الرادار)"), R && !R.err ? R.verdict : Lg("open the radar","افتح الرادار")],
+      [e.q >= 50 ? "ok" : e.q ? "mid" : "na", Lg("Lab evidence","أدلة المعمل"), e.q ? e.q+"/100" : "–"],
+      [ofv === "agree" ? "ok" : ofv === "against" ? "bad" : ofv === "mixed" ? "mid" : "na", Lg("Order book + tape now","الأوردر بوك والصفقات دلوقتي"), c && c.of ? "book "+(c.of.book == null ? "–" : Math.round(c.of.book*100)+"%")+" · Δ2m "+(c.of.delta == null ? "–" : Math.round(c.of.delta*100)+"%") : "…"],
+      [/KZ/.test(ses) ? "ok" : "mid", Lg("Time (NY session)","الوقت (جلسة نيويورك)"), ses],
+      [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
+      [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"]];
+    h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
   if (pl) h += H(Lg("Trade plan","خطة الصفقة"))+'<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px"><span class="m">'+Lg("Entry","دخول")+'</span><b>'+fmtP(pl.entry)+'</b><span class="m">'+Lg("Stop","وقف")+'</span><b style="color:#f6465d">'+fmtP(pl.stop)+'</b>'+pl.tps.map((v, i) => '<span class="m">'+Lg("Target ","هدف ")+(i+1)+'</span><b style="color:#0ecb81">'+fmtP(v)+'</b>').join("")+(rr ? '<span class="m">R:R</span><b>1 : '+rr.toFixed(1)+'</b>' : "")+'</div>';
   if (e.eta) h += '<div class="m" style="margin-top:3px">'+esc(typeof e.eta === "string" ? e.eta : "")+'</div>';
@@ -2686,8 +2727,10 @@ class Panel {
       const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
       const mkRows = f => { const o = {}; st.closed.forEach(t => { const k = f(t); (o[k] = o[k] || {w:0,n:0,r:0}).n++; o[k].r += t.r; if (t.status === "tp") o[k].w++; }); return Object.entries(o).sort((a,b) => b[1].n - a[1].n).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td><td style="color:'+(v.r >= 0 ? "#0ecb81" : "#f6465d")+'">'+f2(v.r/v.n)+'</td></tr>').join("") || '<tr><td class="m">–</td></tr>'; };
       const rowsF = mkRows(t => t.tfk || "?"), rowsP = mkRows(t => t.pct >= 70 ? "≥70%" : t.pct >= 50 ? "50-69%" : "<50%");
+      const rowsO = mkRows(t => (t.ctx && t.ctx.of) || "not recorded"), rowsN = mkRows(t => !t.ctx ? "not recorded" : t.ctx.news ? Lg("news ±1h","خبر قريب") : Lg("no news","مفيش خبر")), rowsK = mkRows(t => (t.ctx && t.ctx.ses) || "not recorded");
       const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table>'
-        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Timeframe (n · win · avg R)","الفريم (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsF+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Strength (n · win · avg R)","القوة (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsP+'</table></div>';
+        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Timeframe (n · win · avg R)","الفريم (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsF+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Strength (n · win · avg R)","القوة (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsP+'</table>'
+        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Order flow at entry","الأوردر فلو وقت الدخول"))+'</div><table class="rdt">'+rowsO+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Session","الجلسة"))+'</div><table class="rdt">'+rowsK+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("High-impact news","الأخبار القوية"))+'</div><table class="rdt">'+rowsN+'</table></div>';
       h += '<div class="jrow">'+cal+side+'</div>';
       // trades table
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);

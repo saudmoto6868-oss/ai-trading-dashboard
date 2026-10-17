@@ -87,8 +87,11 @@ tiers; a detector moves up only on lab + live evidence, down when its live avg R
 | 5 | Fibonacci / OTE | Fib ratios ~random (Batchelor & Ramyar 2005, second-hand) | ~0 | levels for targets, not a reason to trade |
 | 6 | SMC / ICT zones (OB, breaker, unicorn, FVG) | none independent; mechanical tests 38-48 % win | -0.034R pooled; OB, unicorn, msb_ob OFF; FVG only 1d +0.19R | confirmation at most |
 | 7 | Elliott wave | no predictive power found (forex thesis), subjective | worst school -0.079R; ew3 OFF | visual only |
+| live | Order book + time & sales (order flow) | no free history -> cannot be backtested here | forward-tested: every journal trade stores the book imbalance (+-0.5 %) and 2-min aggressor delta verdict | execution check in the Setup Card; journal table 'Order flow at entry' measures it |
+| context | Fundamental (high-impact news, funding crowding, macro) | news-driven volatility is well documented; funding extremes = crowded side | journal tables 'High-impact news'; lab cannot test (no history) | checklist warning; no entry +-1h around high-impact news for that currency |
+| timing | Time analysis (sessions, kill zones, weekday) | intraday seasonality is documented in FX / crypto | lab table 'Time of day' (from the next lab run) + journal 'Session' | timing filter |
 Playbook (sustainable, re-checked weekly by the lab): daily trend side (radar) -> daily level / breakout / trend setup -> timing from
-momentum divergence or a session liquidity sweep on 4h / 1h -> no opposing signal -> stop 1.5 ATR, size by volatility -> journal.
+momentum divergence or a session liquidity sweep on 4h / 1h -> no opposing signal -> checklist (order book + tape agree, no high-impact news +-1h, funding not crowded on our side) -> stop 1.5 ATR, size by volatility -> journal (stores the checklist).
 Every weekly lab run can move a detector up or down; the tables in STRATEGY_LAB.md are the source of truth, this table the summary.
 
 ## Lab results 2026-10-17 (first real run: 6 crypto + gold + S&P 500, 1m-1d, ~40k signals; full tables in STRATEGY_LAB.md)

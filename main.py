@@ -963,7 +963,11 @@ with tab_workspace:
                 _yf = _yf_embed(tuple(ACTIVE_SYMBOLS))
             except Exception:
                 _yf = {}
-        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, yf=_yf, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+        try:
+            _cal = _calendar_rows()
+        except Exception:
+            _cal = []
+        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, yf=_yf, cal=_cal, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()), world_errs=world_errs)
         if world_errs:

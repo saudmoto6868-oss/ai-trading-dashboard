@@ -86,12 +86,15 @@ def walk(df, tf, stride=4, seed=0):
             bars.append({k: v[0] for k, v in here.items()} | {"_fam": {v[1] + ("+" if v[0] > 0 else "-") for v in here.values()},
                                                               "_r": {d: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H) for d in (1, -1)}})
         tr = int(np.sign(cl[i] - cl[i - TREND_N])) if i >= TREND_N else 0
+        ts = df["time"].iloc[i]; hr = ts.hour
+        ses = None if tf == "1d" else "Asia 00-07" if hr < 7 else "London 07-12" if hr < 12 else "New York 12-20" if hr < 20 else "Late 20-24"
+        dow = ts.strftime("%a")
         for k, (d, fam) in here.items():
             if i - last.get(k, -10**9) < COOLDOWN:
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
-                           "trend": "with" if tr == d else "against" if tr else "flat"})
+                           "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow})
     return events, bars
 
 
@@ -107,8 +110,9 @@ def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
-            for g in ((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short"), (e["key"], "all", "trend-" + e["trend"]),
-                      ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"])):
+            for g in (((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short"), (e["key"], "all", "trend-" + e["trend"]),
+                      ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"]))
+                      + ((("*ALL*", "all", "ses-" + e["ses"]), (e["key"], "all", "ses-" + e["ses"])) if e.get("ses") else ()) + ((("*ALL*", "all", "dow-" + e["dow"]),) if e.get("dow") else ())):
                 per[g].append(e["r"]); base[g].append(e["base"])
     rows = []
     for (k, tf, side), rs in per.items():
@@ -166,6 +170,9 @@ def report(rows, conflicts, cfl, meta):
     for k in ["*ALL*"] + sorted({r["key"] for r in rows if r["key"] != "*ALL*"}):
         w = next((r for r in rows if r["key"] == k and r["tf"] == "all" and r["side"] == "trend-with"), {}); a = next((r for r in rows if r["key"] == k and r["tf"] == "all" and r["side"] == "trend-against"), {})
         L.append(f"| {k} | {w.get('n', 0)} | {w.get('win')} | {w.get('avgR')} | {a.get('n', 0)} | {a.get('win')} | {a.get('avgR')} |")
+    L += ["", "## Time of day (UTC session, intraday bars) and weekday - every detector pooled", "", "| when | n | win % | avg R |", "|---|---|---|---|"]
+    for r in sorted((r for r in rows if r["key"] == "*ALL*" and r["side"].startswith(("ses-", "dow-"))), key=lambda r: r["side"]):
+        L.append(f"| {r['side'][4:]} | {r['n']} | {r.get('win')} | {r.get('avgR')} |")
     L += ["", "## Conflicts (pointing opposite ways on the same bar)", "", "| a | b | together | opposite | % |", "|---|---|---|---|---|"]
     L += [f"| {c['a']} | {c['b']} | {c['together']} | {c['opposite']} | {c['rate']} |" for c in conflicts]
     L += ["", "## Confluence: more agreeing families = better?", "", "| agreeing families | n | win % | avg R |", "|---|---|---|---|"]

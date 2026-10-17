@@ -27,6 +27,32 @@ def _smt_pairs():
         return []
 
 
+def _gann_oos() -> dict:
+    """Out-of-sample Gann zone result per timeframe from the weekly lab (data/strategy_lab.json); {} if missing."""
+    import numpy as np
+    path = Path(__file__).resolve().parent.parent / "data" / "strategy_lab.json"
+    try:
+        mt = path.stat().st_mtime
+        if _OOS_CACHE.get("mt") == mt:
+            return _OOS_CACHE["v"]
+        gz = json.loads(path.read_text()).get("gzone") or {}
+    except Exception:
+        return {}
+    out = {}
+    for tf, rs in gz.items():
+        a = np.asarray(rs, float)
+        if a.ndim != 2 or len(a) < 2:
+            continue
+        d = a[:, 0] - a[:, 1]; sd = d.std(ddof=1)
+        out[str(tf).lower()] = {"n": int(len(a)), "win": round(100 * float((a[:, 0] > 0).mean()), 1), "avg": round(float(a[:, 0].mean()), 3),
+                                "rnd": round(float(a[:, 1].mean()), 3), "t": round(float(d.mean() / (sd / np.sqrt(len(d)))), 2) if sd > 0 else 0.0}
+    _OOS_CACHE.update(mt=mt, v=out)
+    return out
+
+
+_OOS_CACHE: dict = {}
+
+
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
@@ -70,6 +96,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "stockf": stockf or {},
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
+        "gannoos": _gann_oos(),
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early

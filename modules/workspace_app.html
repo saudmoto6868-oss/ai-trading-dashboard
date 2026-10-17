@@ -902,7 +902,7 @@ class CandleChart {
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
-      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,htf:"auto",anc:"best",tq:"q",sqr:1,cbox:1,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"auto",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:0,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:0,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
+      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -2014,6 +2014,7 @@ Object.assign(CandleChart.prototype, {
     const later = piv.filter(q => q.i > best.i0 + 5).map(q => q.i), tc = (+G.tsp > 0) ? [+G.tsp] : [30, 36, 40, 45, 60, 72, 90, 120, 144, 180];
     const hitsT = (tsp, off) => { let h = 0, m = 0; for (let t = best.i0 + tsp + off; t < n - 2; t += tsp){ m++; if (later.some(i => Math.abs(i - t) <= 2)) h++; } return [h, m]; };
     let bt = null; tc.forEach(tsp => { const [h, m] = hitsT(tsp, 0); if (m < 2) return; let mu = 0; [.25, .5, .75].forEach(f => mu += hitsT(tsp, Math.round(f*tsp))[0]); mu /= 3; const z = (h - mu)/Math.sqrt(mu + 1); if (!bt || z > bt.z) bt = {tsp, z, h, m}; });
+    best.piv = piv; best.tolP = tol;
     best.tsp = bt ? bt.tsp : 90; best.tz = bt ? bt.z : 0; best.th = bt ? bt.h : 0; best.tm = bt ? bt.m : 0; best.atr = atr;
     const hiA = Math.max(...d.slice(best.i0).map(x => x.h)), loA = Math.min(...d.slice(best.i0).map(x => x.l)), Gc = Object.assign({}, G, {cycles:this.gannCycles(best.P, best.s, best.dir, loA, hiA, +G.cycles || 1)});
     best.levels = this.gannGrid(best.P, best.s, best.dir, Gc).map(L => Object.assign(L, {hits:piv.filter(q => q.i > best.i0 + 5 && Math.abs(q.p - L.p) <= tol).length}));
@@ -2034,33 +2035,43 @@ Object.assign(CandleChart.prototype, {
     const C = this._gF = this._gF || {}; if (!C[key]){ const ks = Object.keys(C); if (ks.length > 6) delete C[ks[0]]; C[key] = {f:this.gannFit(src.d, G)}; } return C[key].f; },
   paintGann(c, py, i0, i1, PB){
     const d = this.data, n = d.length, G = this.st.gann; if (n < 2) return;
-    if (!G.v4){ Object.assign(G, {v4:1, src:"auto", htf:"auto", anc:"best", tq:"q", sqr:1, cbox:1, star:0, fan:0}); }   // v3 -> v4: fit every timeframe by itself
+    if (!G.v4){ Object.assign(G, {v4:1, src:"auto", htf:"auto", anc:"best", tq:"q", sqr:1, cbox:1, star:0, fan:0}); }
+    if (!G.v5){ Object.assign(G, {v5:1, dir:"both", ext:1, cbox:0, tq:"off", fan:1}); }   // v5: grid both ways and across the whole history (past touches marked), geometry on the major range   // v3 -> v4: fit every timeframe by itself
     const src = this.gannSrc(), PR = this.PR;
     if (!src || !src.d){ c.save(); c.fillStyle = G.color; c.font = "10px sans-serif"; c.textBaseline = "top"; c.fillText(Lg("Gann: loading "+(G.src || "auto")+" candles…","جان: بيحمّل شموع "+(G.src || "auto")+"…"), 40, 4); c.restore(); return; }
     const F = this.gannFitFor(src, G); this._gFit = {f:F}; if (!F){ c.save(); c.fillStyle = G.color; c.font = "10px sans-serif"; c.textBaseline = "top"; c.fillText(Lg("Gann: not enough swings on "+(src.tf || "this chart")+" - load more history or pick a lower timeframe","جان: مفيش قمم وقيعان كفاية على "+(src.tf || "الشارت")+" - حمّل تاريخ أكتر أو اختار فريم أصغر"), 40, 4); c.restore(); return; }
     const sec = this.secMs(), xT = t => this.x((t - d[0].t)/sec), x0 = Math.max(0, Math.min(PR, xT(F.t0)));
     let t0 = F.t0; if (G.mode === "manual" && /^\d{4}-\d\d-\d\d$/.test(G.tdate || "")) t0 = Date.parse(G.tdate + "T00:00:00Z");
     c.save(); c.textBaseline = "middle"; c.font = "10px sans-serif";
-    // price levels
-    F.levels.forEach(L => { const y = py(L.p); if (y < -2 || y > PB + 2) return; const strong = L.hits >= 2, col = L.main ? G.color : (G.color2 || "#f6465d");
-      c.strokeStyle = col; c.globalAlpha = L.main ? (strong ? .95 : .7) : (strong ? .75 : .45); c.lineWidth = (L.main ? 1.4 : 1)*(G.w || 1)*(strong ? 1.4 : 1); c.setLineDash(L.main ? [] : [5,4]);
+    // the major range (highest high / lowest low on the source) - the frame for the square of the range, the Gann box geometry and the star
+    const sd = src.d; let iH = 0, iL = 0; for (let i = 1; i < sd.length; i++){ if (sd[i].h > sd[iH].h) iH = i; if (sd[i].l < sd[iL].l) iL = i; }
+    const RH = sd[iH].h, RL = sd[iL].l, RR = RH - RL, tA = Math.min(sd[iH].t, sd[iL].t), tB = Math.max(sd[iH].t, sd[iL].t), dur = Math.max(src.ms, tB - tA), upR = sd[iL].t < sd[iH].t;
+    const tolP = F.tolP || (RR*.01), piv = F.piv || [];
+    // price levels, drawn across the whole history; every past swing that reacted on a level gets a small ring (the check that the level worked)
+    F.levels.forEach(L => { const y = py(L.p); if (y < -2 || y > PB + 2) return; const touch = piv.filter(q => Math.abs(q.p - L.p) <= tolP), strong = touch.length >= 2, col = L.main ? G.color : (G.color2 || "#f6465d");
+      c.strokeStyle = col; c.globalAlpha = L.main ? (strong ? .95 : .65) : (strong ? .75 : .4); c.lineWidth = (L.main ? 1.4 : 1)*(G.w || 1)*(strong ? 1.4 : 1); c.setLineDash(L.main ? [] : [5,4]);
       c.beginPath(); c.moveTo(G.ext ? 0 : x0, y); c.lineTo(PR, y); c.stroke(); c.setLineDash([]);
-      if (G.lbl){ c.globalAlpha = .95; c.fillStyle = col; c.textAlign = "right"; c.fillText((L.d < 0 ? "-" : "")+Math.round(L.a)+"° = "+fmtP(L.p)+(L.hits ? "  ×"+L.hits : ""), PR - 6, y - 7); } });
+      c.globalAlpha = .9; c.lineWidth = 1.2; touch.forEach(q => { const x = xT(sd[q.i].t); if (x < 0 || x > PR) return; c.beginPath(); c.arc(x, py(q.p), 3.5, 0, 6.3); c.stroke(); });
+      if (G.lbl){ c.globalAlpha = .95; c.fillStyle = col; c.textAlign = "right"; c.fillText((L.d < 0 ? "-" : "")+Math.round(L.a)+"° = "+fmtP(L.p)+(touch.length ? "  ×"+touch.length : ""), PR - 6, y - 7); } });
     c.textAlign = "left";
-    // time levels (from the start bar on the source timeframe, mapped by date onto this chart)
-    const tsp = F.tsp, toff = G.toff|0, step = tsp*src.ms, tEnd = d[n-1].t + Math.max(60, (PR - this.x(n-1))/this.bw)*sec;
-    if (G.tlv){ let k = 1; for (let t = t0 + (tsp + toff)*src.ms; t <= tEnd && k < 400; t += step, k++){ const x = xT(t); if (x < 0 || x > PR) continue; const big = (k*tsp) % 90 === 0;
-        c.strokeStyle = G.color; c.globalAlpha = big ? .7 : .35; c.lineWidth = big ? 1.3 : 1; c.setLineDash(big ? [] : [2,4]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
-        if (G.lbl){ c.globalAlpha = .9; c.fillStyle = G.color; c.fillText(k*tsp+"", x + 2, 8); } } }
-    // star: one full cycle box (time = shape x tsp bars, price = start .. 360 deg level), {n/2} star polygon
-    const L360 = F.levels.filter(L => L.cyc === 0 && Math.abs(L.a - 360) < 1e-6)[0];
-    if (G.star && L360){ const sp = Math.max(3, Math.min(12, G.spts|0 || 8)), tw = (+G.shape || 4)*tsp*src.ms, cx = t0 + tw/2, cp = (F.P + L360.p)/2, V = [];
-      for (let k = 0; k < sp; k++){ const a = Math.PI + k*2*Math.PI/sp; V.push([xT(cx + tw/2*Math.cos(a)), py(cp + (L360.p - F.P)/2*Math.sin(a))]); }
-      c.strokeStyle = G.starc || "#f0b90b"; c.globalAlpha = .6; c.lineWidth = 1; c.beginPath(); c.ellipse(xT(cx), py(cp), Math.abs(xT(cx + tw/2) - xT(cx)), Math.abs(py(L360.p) - py(cp)), 0, 0, 6.3); c.stroke();
-      const jump = sp >= 5 ? Math.floor((sp - 1)/2) : 1, seen = new Set(); for (let s0 = 0; s0 < sp; s0++){ if (seen.has(s0)) continue; c.beginPath(); let k = s0; c.moveTo(V[k][0], V[k][1]); do { seen.add(k); k = (k + jump) % sp; c.lineTo(V[k][0], V[k][1]); } while (k !== s0); c.stroke(); } }
-    // fan 1x1 = the price-time square (one 360 deg price turn per shape x tsp bars)
-    if (G.fan && L360){ const slope = (L360.p - F.P)/((+G.shape || 4)*tsp*src.ms); [[1,"1x1",.9],[2,"2x1",.45],[.5,"1x2",.45]].forEach(([m, lb, al]) => { const t1 = tEnd, p1 = F.P + slope*m*(t1 - t0);
-        c.strokeStyle = G.color; c.globalAlpha = al; c.beginPath(); c.moveTo(xT(t0), py(F.P)); c.lineTo(xT(t1), py(p1)); c.stroke(); }); }
+    // time levels every tsp source bars from the start, forward AND backward over the history; a swing within +-2 bars of a level gets a small triangle
+    const tsp = F.tsp, toff = G.toff|0, step = tsp*src.ms, tEnd = d[n-1].t + Math.max(60, (PR - this.x(n-1))/this.bw)*sec, t1st = t0 + toff*src.ms;
+    if (G.tlv){ const kMin = Math.ceil((sd[0].t - t1st)/step); for (let k = kMin; k < 400; k++){ if (!k) continue; const t = t1st + k*step; if (t > tEnd) break; const x = xT(t); if (x < 0 || x > PR) continue; const big = Math.abs(k*tsp) % 90 === 0;
+        const hit = piv.some(q => Math.abs(sd[q.i].t - t) <= 2*src.ms);
+        c.strokeStyle = G.color; c.globalAlpha = big ? .6 : .28; c.lineWidth = big ? 1.3 : 1; c.setLineDash(big ? [] : [2,4]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
+        if (hit){ c.globalAlpha = .95; c.fillStyle = G.color; c.beginPath(); c.moveTo(x, PB - 2); c.lineTo(x - 4, PB - 9); c.lineTo(x + 4, PB - 9); c.closePath(); c.fill(); }
+        if (G.lbl){ c.globalAlpha = .9; c.fillStyle = G.color; c.fillText((k > 0 ? "" : "-")+Math.abs(k*tsp)+"", x + 2, 8); } } }
+    // Gann box on the major range (price high-low x its duration), repeated forward: diagonals 1x1 + 1x2 / 2x1 and the star inside it - so the geometry sits on the price
+    const boxes = []; for (let k = 0; k < 6; k++){ const ta = tA + k*dur; if (ta > tEnd) break; boxes.push([ta, ta + dur]); }
+    if (G.fan) boxes.forEach(([ta, tb], k) => { const xa = xT(ta), xb = xT(tb), yH = py(RH), yL = py(RL); if (xb < 0 || xa > PR) return;
+      c.strokeStyle = G.color; c.globalAlpha = k ? .35 : .55; c.lineWidth = 1; c.strokeRect(xa, yH, xb - xa, yL - yH);
+      [[0, 1, .8], [0, .5, .45], [0, 2, .45]].forEach(([_, m, al]) => { c.globalAlpha = al*(k ? .7 : 1); c.beginPath(); c.moveTo(xa, yL); c.lineTo(xa + (xb - xa)*Math.min(1, 1/m), yL - (yL - yH)*Math.min(1, m)); c.stroke();
+        c.beginPath(); c.moveTo(xa, yH); c.lineTo(xa + (xb - xa)*Math.min(1, 1/m), yH + (yL - yH)*Math.min(1, m)); c.stroke(); });
+      c.globalAlpha = .35; c.setLineDash([3,3]); c.beginPath(); c.moveTo((xa + xb)/2, yH); c.lineTo((xa + xb)/2, yL); c.moveTo(xa, (yH + yL)/2); c.lineTo(xb, (yH + yL)/2); c.stroke(); c.setLineDash([]); });
+    if (G.star) boxes.slice(0, 3).forEach(([ta, tb], k) => { const sp = Math.max(3, Math.min(12, G.spts|0 || 8)), cxT = (ta + tb)/2, cp = (RH + RL)/2, V = [];
+      for (let j = 0; j < sp; j++){ const a = Math.PI + j*2*Math.PI/sp; V.push([xT(cxT + dur/2*Math.cos(a)), py(cp + RR/2*Math.sin(a))]); }
+      c.strokeStyle = G.starc || "#f0b90b"; c.globalAlpha = k ? .3 : .55; c.lineWidth = 1; c.beginPath(); c.ellipse(xT(cxT), py(cp), Math.abs(xT(tb) - xT(ta))/2, Math.abs(py(RL) - py(RH))/2, 0, 0, 6.3); c.stroke();
+      const jump = sp >= 5 ? Math.floor((sp - 1)/2) : 1, seen = new Set(); for (let s0 = 0; s0 < sp; s0++){ if (seen.has(s0)) continue; c.beginPath(); let j = s0; c.moveTo(V[j][0], V[j][1]); do { seen.add(j); j = (j + jump) % sp; c.lineTo(V[j][0], V[j][1]); } while (j !== s0); c.stroke(); } });
     // next time-price zone: the next time level after now x the two price levels around the last price
     if (G.zone){ const last = d[n-1].c, kN = Math.ceil((d[n-1].t - t0 - (tsp + toff)*src.ms)/step), tN = t0 + (tsp + toff)*src.ms + Math.max(0, kN)*step;
       const ps = F.levels.map(L => L.p).sort((a, b) => a - b), lo = [...ps].reverse().find(p => p <= last), hi = ps.find(p => p > last);
@@ -2081,13 +2092,12 @@ Object.assign(CandleChart.prototype, {
       else for (let cyc = 0; cyc < 6; cyc++) fr.forEach(f => marks.push({t:t0 + (cyc + f)*cycT, lb:(cyc ? (cyc + 1)+"·" : "")+(G.tq === "t" ? Math.round(f*3)+"/3" : G.tq === "e" ? Math.round(f*8)+"/8" : Math.round(f*4)+"/4"), big:Math.abs(f - .5) < 1e-6 || f === 1}));
       marks.forEach(m => { if (m.t > tEnd) return; const x = xT(m.t); if (x < 0 || x > PR) return; c.strokeStyle = "#e056fd"; c.globalAlpha = m.big ? .8 : .45; c.lineWidth = m.big ? 1.5 : 1; c.setLineDash(m.big ? [] : [3,3]);
         c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); c.setLineDash([]); c.globalAlpha = .9; c.fillStyle = "#e056fd"; c.fillText(m.lb, x + 2, PB - 10); }); }
-    // square of the range: the major high-low range divided into eighths and thirds in PRICE, and its duration divided the same way in TIME (projected forward)
-    if (G.sqr){ const sd = src.d; let iH = 0, iL = 0; for (let i = 1; i < sd.length; i++){ if (sd[i].h > sd[iH].h) iH = i; if (sd[i].l < sd[iL].l) iL = i; }
-      const H_ = sd[iH].h, L_ = sd[iL].l, R = H_ - L_, tA = Math.min(sd[iH].t, sd[iL].t), tB = Math.max(sd[iH].t, sd[iL].t), dur = tB - tA;
-      [[0,1],[.125,0],[.25,1],[1/3,1],[.375,0],[.5,2],[.625,0],[2/3,1],[.75,1],[.875,0],[1,1]].forEach(([f, w]) => { const p = L_ + f*R, y = py(p); if (y < 0 || y > PB) return;
-        c.strokeStyle = "#b57cff"; c.globalAlpha = w === 2 ? .85 : w ? .55 : .3; c.lineWidth = w === 2 ? 1.6 : 1; c.setLineDash(w ? [8,3] : [2,4]); c.beginPath(); c.moveTo(xT(tA), y); c.lineTo(PR, y); c.stroke(); c.setLineDash([]);
-        if (w){ c.globalAlpha = .9; c.fillStyle = "#b57cff"; c.fillText((f*100).toFixed(f === 1/3 || f === 2/3 ? 1 : 1).replace(".0","")+"% "+fmtP(p), Math.max(PR*.45, xT(tA) + 4), y - 7); } });
-      if (dur > 0) for (let k = 1; k <= 16; k++){ const t = tB + k*dur/8; if (t > tEnd) break; const x = xT(t); if (x < 0 || x > PR) continue; const q = k % 2 === 0;
+    // square of the range: eighths and thirds of the major range in price (50 % strongest), and its duration in eighths projected forward in time
+    if (G.sqr){ [[0,1],[.125,0],[.25,1],[1/3,1],[.375,0],[.5,2],[.625,0],[2/3,1],[.75,1],[.875,0],[1,1]].forEach(([f, w]) => { const p = RL + f*RR, y = py(p); if (y < 0 || y > PB) return;
+        const touch = piv.filter(q => Math.abs(q.p - p) <= tolP).length;
+        c.strokeStyle = "#b57cff"; c.globalAlpha = w === 2 ? .85 : w ? .55 : .3; c.lineWidth = w === 2 ? 1.6 : 1; c.setLineDash(w ? [8,3] : [2,4]); c.beginPath(); c.moveTo(0, y); c.lineTo(PR, y); c.stroke(); c.setLineDash([]);
+        if (w){ c.globalAlpha = .9; c.fillStyle = "#b57cff"; c.fillText((Math.round(f*1000)/10)+"% "+fmtP(p)+(touch ? " ×"+touch : ""), PR*.45, y - 7); } });
+      for (let k = 1; k <= 16; k++){ const t = tB + k*dur/8; if (t > tEnd) break; const x = xT(t); if (x < 0 || x > PR) continue; const q = k % 2 === 0;
         c.strokeStyle = "#b57cff"; c.globalAlpha = k % 8 === 0 ? .8 : q ? .5 : .25; c.setLineDash(q ? [8,3] : [2,4]); c.beginPath(); c.moveTo(x, PB*.55); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
         if (q){ c.globalAlpha = .9; c.fillStyle = "#b57cff"; c.fillText((k/8)+"R", x + 2, PB - 22); } } }
     // higher-timeframe grid (same rules, its own fit) so the timeframes line up: thick faint lines tagged with the timeframe
@@ -2380,7 +2390,7 @@ class Panel {
         PS("calc", Lg("Angles","الزوايا"), [["avg", Lg("By averages (Se7s)","بالمتوسطات (Se7s)")], ["formula", Lg("By formula (Square of 9)","بالمعادلة (مربع التسعة)")]]), P("cycles", Lg("360° cycles","عدد دورات 360°"), 1, 3, 1),
         PB("sec", Lg("Secondary angles","زوايا ثانوية")), PB("lbl", Lg("Labels","الليبلز")), PB("ext", Lg("Extend lines to the left","مد الخطوط للشمال")),
         PH(Lg("Time","الزمن")), PB("tlv", Lg("Time levels","مستويات الزمن")), PS("tq", Lg("Time quarters","أرباع الزمن"), [["q", Lg("Quarters of the cycle","أرباع الدورة")],["e", Lg("Eighths of the cycle","أثمان الدورة")],["t", Lg("Thirds of the cycle","أثلاث الدورة")],["cal", Lg("Calendar 90/180/270/360 days","تقويم 90/180/270/360 يوم")],["off", Lg("Off","مقفول")]]), PB("cbox", Lg("Cycle start / end boxes","بداية ونهاية الدورات")), PN("tsp", Lg("Time spacing in source bars (0 = auto)","تباعد الزمن بشموع المصدر (0 = أوتو)")), P("toff", Lg("Bar offset (<-left 0 right->)","إزاحة الشموع (<-شمال 0 يمين->)"), -500, 500, 1), PT("tdate", Lg("Manual start date","تاريخ البداية اليدوي"), "YYYY-MM-DD"),
-        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), PB("zone", Lg("Next time-price zone","منطقة الزمن والسعر الجاية")), PB("star", Lg("Gann star","نجمة جان")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Fan (price-time square)","المروحة (تربيع السعر والزمن)"))]},
+        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), PB("zone", Lg("Next time-price zone","منطقة الزمن والسعر الجاية")), PB("star", Lg("Gann star (in the range box)","نجمة جان (جوه صندوق الرينج)")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Gann box on the range (1x1, 1x2, 2x1)","صندوق جان على الرينج (1x1، 1x2، 2x1)"))]},
       {id:"kzs", label:Lg("Kill Zone Sniper (JOAT style)","Kill Zone Sniper (ستايل JOAT)"), tip:Lg("Sweep-and-reverse inside the London (02-05) / NY AM (07-10) kill zones, New York time: a candle takes the 20-bar low (high), closes back with a body >= 0.9 ATR (and >= 1.5x average volume when the feed has volume). Draws the swept pool, a sniper mark, and the projected entry / stop (sweep wick) / target (30-bar swing, >= 1.5R) as a green/red box, plus a small table counting what is drawn. Same rules as the scanner's Kill Zone Sniper detector. 1H and lower. Idea from the open-source 'ICT Kill Zone Sniper [JOAT]' description; not a copy of its code.","سحب سيولة وانعكاس جوه كيل زون لندن (02-05) / نيويورك الصبح (07-10) بتوقيت نيويورك: شمعة تكسر أقل قاع لآخر 20 شمعة (أو أعلى قمة) وتقفل راجعة بجسم >= 0.9 ATR (و>= 1.5 ضعف متوسط الفوليوم لو فيه فوليوم). بيرسم المستوى المسحوب، علامة القناص، وصندوق الدخول / الوقف (طرف الذيل) / الهدف (قمة/قاع آخر 30 شمعة، >= 1.5R)، وجدول صغير بعدد اللي اترسم. نفس قواعد كاشف Kill Zone Sniper في السكانر. فريم ساعة وأقل. الفكرة من وصف مؤشر JOAT المفتوح، مش نسخة من الكود."), get:() => ch().kzsOn, set:v => { ch().kzsOn = v; this.state.kzs = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},

@@ -988,7 +988,9 @@ def render_chart_scanner():
 
 
 if PAGE == 0:   # workspace
+    _ws_stat = st.empty()   # loading steps shown while the server builds the Workspace (cleared once it is sent)
     try:
+        _ws_stat.caption("⏳ Workspace: scan state...")
         ws_lang = st.session_state.get("ws_lang", "en")
         cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
         if tg_on and not cached_ws.get("loading"):
@@ -998,6 +1000,7 @@ if PAGE == 0:   # workspace
                 st.sidebar.warning("Telegram: " + _err)
             elif _n:
                 st.sidebar.caption(f"Telegram: sent {_n} alert(s).")
+        _ws_stat.caption("⏳ Workspace: news / calendar / macro feeds...")
         world_items, world_errs = _bg("world", _world_news, ([], ["world news loading..."]))
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
@@ -1014,9 +1017,12 @@ if PAGE == 0:   # workspace
         _mac = _bg("macro", _macro_fund, None)
         _stk_t = _stock_tickers()
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
+        _ws_stat.caption("⏳ Workspace: building the page...")
+        _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
+                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs)
+        _ws_stat.empty()
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):

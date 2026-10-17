@@ -140,6 +140,15 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 <div id="strip"></div>
 <div id="ws"><div id="empty"></div></div>
 <script>
+/* any uncaught error is shown on screen (a dark frame with no toolbar otherwise looks like "the page does not open") */
+(function(){ const show = m => { try { let b = document.getElementById("wsErrBox"); if (!b){ b = document.createElement("div"); b.id = "wsErrBox";
+  b.style.cssText = "position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#3a0d12;color:#ffd7dc;border:1px solid #f6465d;border-radius:6px;padding:8px 10px;font:12px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto";
+  (document.body || document.documentElement).appendChild(b); } b.textContent += (b.textContent ? "\n" : "Workspace error (send a screenshot of this box):\n") + m; } catch(_){} };
+  window.addEventListener("error", e => show((e.message || "error") + (e.filename ? " @ line " + e.lineno + ":" + e.colno : "") + (e.error && e.error.stack ? "\n" + String(e.error.stack).split("\n").slice(0, 4).join("\n") : "")));
+  window.addEventListener("unhandledrejection", e => { const r = e.reason; if (r && /fetch|network|HTTP|Failed|abort/i.test(String(r.message || r))) return; show("promise: " + String((r && (r.stack || r.message)) || r).slice(0, 500)); });
+})();
+</script>
+<script>
 "use strict";
 const CFG = __CONFIG__;
 const API = CFG.apiBase || "https://www.okx.com";

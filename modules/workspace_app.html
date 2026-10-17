@@ -1299,11 +1299,19 @@ Object.assign(CandleChart.prototype, {
     try { const j = pack(); let txt = JSON.stringify(j); if (txt.length > 1.6e6){ const ks = Object.keys(j.b).map(Number).sort((a, b) => a - b); for (let i = 0; i < ks.length*0.4; i++) delete j.b[ks[i]]; } localStorage.setItem(LS+"_hm_"+this.sym, JSON.stringify(j)); }
     catch(e){ try { Object.keys(localStorage).filter(k => k.indexOf(LS+"_hm_") === 0 && k !== LS+"_hm_"+this.sym).forEach(k => localStorage.removeItem(k)); } catch(e2){} }
   },
-  paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, up to 7 days); the column only chooses how much time it shows
+  paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, last 24 h); the column only chooses how much time it shows
     const H = this.hm; if (!H || !H.step || !H.b.size) return null; const OF = this.st.of, scheme = OF.hm || "book", lo = this._lo, hi = this._hi, mult = Math.max(1, Math.ceil((hi - lo)/Math.max(1, PB/5)/H.step)), sR = mult*H.step, rowH = Math.max(1.5, Math.abs(py(0) - py(sR)));
     const bs = []; H.b.forEach((o, t) => { if (t + o.w >= tL && t <= tR) bs.push([t, o]); }); if (!bs.length) return null; bs.sort((a, b) => a[0] - b[0]);
     let mx = 0; bs.forEach(([t, o]) => { if (o._mu !== mult){ const r = new Map(); o.c.forEach((q, k) => { const kr = Math.floor(k/mult), v = r.get(kr); if (v == null || q > v) r.set(kr, q); }); o._r = r; o._mu = mult; let m = 0; r.forEach(q => { if (q > m) m = q; }); o._mx = m; } if (o._mx > mx) mx = o._mx; });
-    bs.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
+    // more time buckets than ~2 px columns (a long window): merge them per pixel column (max per row), cached while the window stands still.
+    // Drawing every 1-minute bucket of a day was ~140k rectangles every 300 ms and froze the page (owner, 2026-10-17).
+    let cols = bs; const maxC = Math.max(20, Math.floor((gx1 - gx0)/2));
+    if (bs.length > maxC){ const key = [bs.length, bs[0][0], bs[bs.length-1][0], mult, Math.round(gx0), Math.round(gx1), Math.round(tL/1000)].join("|");
+      if (this._hmMerge && this._hmMerge.key === key) cols = this._hmMerge.cols;
+      else { const by = new Map(); bs.forEach(([t, o]) => { const ci = Math.floor((tx(t) - gx0)/2); let m = by.get(ci); if (!m){ m = {t, w:0, m:o.m, _r:new Map()}; by.set(ci, m); }
+          m.w = Math.max(m.w, t + o.w - m.t); m.m = o.m; o._r.forEach((q, kr) => { const v = m._r.get(kr); if (v == null || q > v) m._r.set(kr, q); }); });
+        cols = [...by.values()].map(m => [m.t, m]); this._hmMerge = {key, cols}; } }
+    cols.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
       o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const u = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)); if (u < .04) return;
         c.fillStyle = scheme === "side" ? hexA(pr <= o.m ? OF.color : OF.color2, .1 + .85*u) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*u*u)+","+Math.round(30 + 210*u*u*u)+","+(.1 + .85*u).toFixed(2)+")" : hmRamp(u); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     return bs[0][0];

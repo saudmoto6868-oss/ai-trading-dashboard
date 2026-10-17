@@ -2097,6 +2097,29 @@ Object.assign(CandleChart.prototype, {
     return c && c.d ? {d:c.d, ms:c.ms, tf:src} : null;
   },
   gannSrc(){ return this.gannCandles(this.st.gann.src || "auto"); },
+  gannTrades(src, F, G, t1st, step){   // replay of the zone rule over the source candles + the next zone; cached per data / settings
+    const sd = src.d, n = sd.length, key = JSON.stringify([F.P, F.s, F.dir, F.tsp, sd.length, sd[n-1].t, sd[n-1].c, G.zw, G.sqr, G.shape, G.sec, t1st, step]);
+    if (this._gT && this._gT.key === key) return this._gT.v;
+    const atr = F.atr || (sd[n-1].h - sd[n-1].l), tol = .25*atr, zw = Math.max(1, G.zw|0 || 2);
+    let ps = F.levels.map(L => L.p); if (G.sqr){ let H_ = -Infinity, L0 = Infinity; sd.forEach(k => { if (k.h > H_) H_ = k.h; if (k.l < L0) L0 = k.l; }); [0,.125,.25,1/3,.375,.5,.625,2/3,.75,.875,1].forEach(f => ps.push(L0 + f*(H_ - L0))); }
+    ps = [...new Set(ps.filter(p => p > 0).map(p => +p.toPrecision(10)))].sort((a, b) => a - b);
+    const above = (p, minD) => ps.find(q => q > p + minD), below = (p, minD) => [...ps].reverse().find(q => q < p - minD);
+    const list = []; const kMin = Math.ceil((sd[0].t - t1st)/step), kMax = Math.floor((sd[n-1].t - t1st)/step);
+    for (let k = kMin; k <= kMax; k++){ const tk = t1st + k*step; let done = false;
+      for (let i = 0; i < n && !done; i++){ if (Math.abs(sd[i].t - tk) > zw*src.ms) continue; const b = sd[i];
+        for (const L of ps){ if (b.l > L + tol || b.h < L - tol) continue;
+          let dir = 0; if (b.c > L + .1*atr && b.c > b.o && b.l <= L + tol) dir = 1; else if (b.c < L - .1*atr && b.c < b.o && b.h >= L - tol) dir = -1; if (!dir) continue;
+          const en = b.c, sl = dir > 0 ? Math.min(b.l, L) - tol : Math.max(b.h, L) + tol, rk = Math.abs(en - sl); if (rk <= 0) continue;
+          const tp1 = dir > 0 ? (above(en, rk) ?? en + 1.5*rk) : (below(en, rk) ?? en - 1.5*rk), tp2 = dir > 0 ? above(tp1, 0) : below(tp1, 0);
+          let res = null, tx = null; const hor = Math.max(10, 2*F.tsp);
+          for (let j = i + 1; j < n && j <= i + hor; j++){ const q = sd[j]; if (dir > 0 ? q.l <= sl : q.h >= sl){ res = -1; tx = q.t; break; } if (dir > 0 ? q.h >= tp1 : q.l <= tp1){ res = Math.round(100*Math.abs(tp1 - en)/rk)/100; tx = q.t; break; } }
+          if (res == null && n - 1 - i > hor){ res = Math.round(100*(sd[Math.min(n - 1, i + hor)].c - en)*dir/rk)/100; tx = sd[Math.min(n - 1, i + hor)].t; }
+          list.push({t:b.t, dir, en, sl, tp1, tp2, res, tx, lo:b.l, hi:b.h, L}); done = true; break; } } }
+    const closed = list.filter(x => x.res != null), nC = closed.length;
+    const last = sd[n-1].c, kN = Math.max(kMax + 1, Math.ceil((sd[n-1].t - t1st)/step)), next = {t:t1st + kN*step, lo:below(last, tol), hi:above(last, tol)};
+    const v = {list, n:nC, win:nC ? Math.round(100*closed.filter(x => x.res > 0).length/nC) : 0, avg:nC ? Math.round(100*closed.reduce((a, x) => a + x.res, 0)/nC)/100 : 0, next, tol};
+    this._gT = {key, v}; return v;
+  },
   gannFitFor(src, G){ if (!src || !src.d || src.d.length < 60) return null; const key = JSON.stringify([this.sym, src.tf, src.d.length, src.d[src.d.length-1].t, G.mode, G.start, G.spacing, G.dir, G.shape, G.calc, G.cycles, G.sec, G.tsp, G.tback, G.anc]);
     const C = this._gF = this._gF || {}; if (!C[key]){ const ks = Object.keys(C); if (ks.length > 6) delete C[ks[0]]; C[key] = {f:this.gannFit(src.d, G)}; } return C[key].f; },
   paintGann(c, py, i0, i1, PB){
@@ -2153,12 +2176,25 @@ Object.assign(CandleChart.prototype, {
       for (let j = 0; j < sp; j++){ const a = Math.PI + j*2*Math.PI/sp; V.push([xT(cxT + dur/2*Math.cos(a)), py(cp + RR/2*Math.sin(a))]); }
       c.strokeStyle = G.starc || "#f0b90b"; c.globalAlpha = k ? .3 : .55; c.lineWidth = 1; c.beginPath(); c.ellipse(xT(cxT), py(cp), Math.abs(xT(tb) - xT(ta))/2, Math.abs(py(RL) - py(RH))/2, 0, 0, 6.3); c.stroke();
       const jump = sp >= 5 ? Math.floor((sp - 1)/2) : 1, seen = new Set(); for (let s0 = 0; s0 < sp; s0++){ if (seen.has(s0)) continue; c.beginPath(); let j = s0; c.moveTo(V[j][0], V[j][1]); do { seen.add(j); j = (j + jump) % sp; c.lineTo(V[j][0], V[j][1]); } while (j !== s0); c.stroke(); } });
-    // next time-price zone: the next time level after now x the two price levels around the last price
-    if (G.zone){ const last = d[n-1].c, kN = Math.ceil((d[n-1].t - t0 - (tsp + toff)*src.ms)/step), tN = t0 + (tsp + toff)*src.ms + Math.max(0, kN)*step;
-      const ps = F.levels.map(L => L.p).sort((a, b) => a - b), lo = [...ps].reverse().find(p => p <= last), hi = ps.find(p => p > last);
-      if (lo != null && hi != null){ const xa = xT(tN - 2*src.ms), xb = xT(tN + 2*src.ms), ya = py(hi), yb = py(lo);
-        c.globalAlpha = .13; c.fillStyle = "#f0b90b"; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), yb - ya); c.globalAlpha = .8; c.strokeStyle = "#f0b90b"; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), yb - ya); c.setLineDash([]);
-        c.fillStyle = "#f0b90b"; c.globalAlpha = 1; c.fillText(Lg("next Gann zone ","منطقة جان الجاية ")+new Date(tN).toISOString().slice(0, 10), Math.min(xa, xb), ya - 8); } }
+    // GANN ZONE TRADES: at every time level (+- zw source bars) a candle that touches a price level and closes back away from it = confirmation (arrow);
+    // entry = that close, stop = beyond the touch (0.25 ATR), TP1 / TP2 = the next Gann levels in the trade direction (min 1R). Replayed over the whole history
+    // (ticks / crosses = past outcomes, stats on the chart) and followed live; the next zone is a thin box on the nearest level above (sell) and below (buy).
+    if (G.zone){ const T = this.gannTrades(src, F, G, t1st, step), tf = src.tf || this.tf, ttype = sec <= 9e5 ? Lg("scalp","سكالب") : sec < 864e5 ? Lg("day trade","داي تريد") : Lg("swing","سوينج");
+      T.list.forEach(tr => { const x = xT(tr.t), y = py(tr.en); if (x < -10 || x > PR + 10) return; const up = tr.dir > 0, col = up ? "#0ecb81" : "#f6465d", live = tr.res == null;
+        c.globalAlpha = live ? 1 : .8; c.fillStyle = col; c.beginPath(); const ay = up ? py(tr.lo) + 14 : py(tr.hi) - 14; c.moveTo(x, ay + (up ? -8 : 8)); c.lineTo(x - 6, ay + (up ? 3 : -3)); c.lineTo(x + 6, ay + (up ? 3 : -3)); c.closePath(); c.fill();
+        if (!live){ c.font = "bold 10px sans-serif"; c.fillStyle = tr.res > 0 ? "#0ecb81" : "#f6465d"; c.fillText(tr.res > 0 ? "✓" : "✗", x - 3, ay + (up ? 14 : -12)); c.font = "10px sans-serif"; } });
+      const L_ = T.list[T.list.length - 1];
+      if (L_ && L_.res == null){ const x = xT(L_.t), xe = PR - 4, up = L_.dir > 0, rk = Math.abs(L_.en - L_.sl);
+        [[L_.en, "#4aa3ff", Lg("entry ","دخول ")], [L_.sl, "#f6465d", Lg("stop ","ستوب ")], [L_.tp1, "#0ecb81", "TP1 "], [L_.tp2, "#0ecb81", "TP2 "]].forEach(([p, col, lb]) => { if (p == null) return; const y = py(p); if (y < 0 || y > PB) return;
+          c.strokeStyle = col; c.globalAlpha = .9; c.lineWidth = 1.4; c.setLineDash(lb === "TP2 " ? [5,4] : []); c.beginPath(); c.moveTo(x, y); c.lineTo(xe, y); c.stroke(); c.setLineDash([]);
+          c.fillStyle = col; c.font = "bold 10px sans-serif"; c.textAlign = "right"; c.fillText(lb+fmtP(p)+(lb === "TP1 " || lb === "TP2 " ? "  "+(Math.abs(p - L_.en)/rk).toFixed(1)+"R" : ""), xe - 60, y - 7); c.textAlign = "left"; });
+        c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.font = "bold 11px sans-serif"; c.fillText((up ? "▲ " : "▼ ")+Lg("Gann ","جان ")+(up ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" · "+ttype+" · "+tf, x + 8, py(L_.en) + (up ? 16 : -14)); c.font = "10px sans-serif"; }
+      // the next zones (not yet confirmed): thin boxes on the nearest level below (buy) and above (sell), +- zw source bars around the next time level
+      const zw = Math.max(1, G.zw|0 || 2), nx = T.next; if (nx){ [[nx.lo, 1], [nx.hi, -1]].forEach(([p, dir]) => { if (p == null) return; const xa = xT(nx.t - zw*src.ms), xb = xT(nx.t + zw*src.ms), ya = py(p + T.tol), yb = py(p - T.tol);
+          const col = dir > 0 ? "#0ecb81" : "#f6465d"; c.globalAlpha = .16; c.fillStyle = col; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.globalAlpha = .9; c.strokeStyle = col; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.setLineDash([]);
+          c.fillStyle = col; c.font = "bold 9px sans-serif"; c.fillText((dir > 0 ? Lg("buy zone ","منطقة شراء ") : Lg("sell zone ","منطقة بيع "))+fmtP(p)+" · "+new Date(nx.t).toISOString().slice(5, 16).replace("T"," "), Math.min(xa, xb), dir > 0 ? yb + 10 : ya - 8); c.font = "10px sans-serif"; }); }
+      c.globalAlpha = .95; c.fillStyle = T.n >= 30 ? "#c3c9d1" : "#f0b90b"; c.font = "9px sans-serif";
+      c.fillText(Lg("Gann zone trades on this history: ","صفقات مناطق جان على التاريخ ده: ")+(T.n ? "n "+T.n+" · "+Lg("win ","فوز ")+T.win+"% · "+Lg("avg ","متوسط ")+(T.avg > 0 ? "+" : "")+T.avg+"R" : Lg("none yet","لسه مفيش"))+(T.n < 30 ? Lg(" · under 30 = not evidence"," · أقل من 30 = مش دليل") : "")+Lg(" · in-sample (the grid was fitted on the same data)"," · على نفس البيانات اللي الشبكة اتظبطت عليها"), 40, 50); c.font = "10px sans-serif"; }
     const HT = {"1m":"15m","3m":"1H","5m":"1H","15m":"4H","30m":"4H","1h":"1D","1H":"1D","2h":"1D","2H":"1D","4h":"1D","4H":"1D","6H":"1W","12H":"1W","1d":"1W","1D":"1W","1w":"1M","1W":"1M"};
     const cycT = (+G.shape || 4)*tsp*src.ms;   // one full 360-degree cycle in time = shape x time spacing
     // cycle boxes: where each 360-degree price cycle starts and ends, in price and in time
@@ -2184,7 +2220,7 @@ Object.assign(CandleChart.prototype, {
     // higher-timeframe grid (same rules, its own fit) so the timeframes line up: thick faint lines tagged with the timeframe
     if (G.htf && G.htf !== "off"){ const htf = G.htf === "auto" ? (HT[this.tf] || HT[String(this.tf).toUpperCase()] || "1D") : G.htf, hs = htf !== src.tf ? this.gannCandles(htf) : null, HF = hs ? this.gannFitFor(hs, G) : null;
       if (HF) HF.levels.forEach(L => { if (!L.main) return; const y = py(L.p); if (y < 0 || y > PB) return; c.strokeStyle = G.color; c.globalAlpha = .22; c.lineWidth = 4; c.beginPath(); c.moveTo(0, y); c.lineTo(PR, y); c.stroke();
-        c.globalAlpha = .85; c.fillStyle = G.color; c.font = "bold 9px sans-serif"; c.fillText("["+htf+"] "+Math.round(L.a)+"°", 40, y - 7); c.font = "10px sans-serif"; }); }
+        c.globalAlpha = .85; c.fillStyle = G.color; c.font = "bold 9px sans-serif"; c.fillText("["+htf+"] "+Math.round(L.a)+"°", PR*.28, y - 7); c.font = "10px sans-serif"; }); }
     // start mark + summary
     c.globalAlpha = 1; c.fillStyle = G.color; c.beginPath(); c.arc(xT(t0), py(F.P), 4, 0, 6.3); c.fill();
     c.font = "bold 10px sans-serif"; c.textBaseline = "top"; const auto = G.mode !== "manual";
@@ -2477,7 +2513,7 @@ class Panel {
         PS("calc", Lg("Angles","الزوايا"), [["avg", Lg("By averages (Se7s)","بالمتوسطات (Se7s)")], ["formula", Lg("By formula (Square of 9)","بالمعادلة (مربع التسعة)")]]), P("cycles", Lg("Rings of 360° (min; more are added to cover the price)","حلقات 360° (أقل عدد؛ بيزيد لوحده لحد ما يغطي السعر)"), 1, 12, 1),
         PB("sec", Lg("Secondary angles","زوايا ثانوية")), PB("lbl", Lg("Labels","الليبلز")), PB("ext", Lg("Extend lines to the left","مد الخطوط للشمال")),
         PH(Lg("Time","الزمن")), PB("tlv", Lg("Time levels","مستويات الزمن")), PS("tq", Lg("Time quarters","أرباع الزمن"), [["q", Lg("Quarters of the cycle","أرباع الدورة")],["e", Lg("Eighths of the cycle","أثمان الدورة")],["t", Lg("Thirds of the cycle","أثلاث الدورة")],["cal", Lg("Calendar 90/180/270/360 days","تقويم 90/180/270/360 يوم")],["off", Lg("Off","مقفول")]]), PB("cbox", Lg("Cycle start / end boxes","بداية ونهاية الدورات")), PS("lcyc", Lg("Long cycles (49d .. 30y)","الدورات الطويلة (49 يوم .. 30 سنة)"), [["auto", Lg("Auto: 5y+ and H/L confluences (daily and bigger)","أوتو: 5 سنين+ وتقاطعات القمة/القاع (اليومي وأكبر)")],["on", Lg("All cycles and multiples","كل الدورات ومضاعفاتها")],["off", Lg("Off","مقفول")]]), PN("tsp", Lg("Time spacing in source bars (0 = auto)","تباعد الزمن بشموع المصدر (0 = أوتو)")), P("toff", Lg("Bar offset (<-left 0 right->)","إزاحة الشموع (<-شمال 0 يمين->)"), -500, 500, 1), PT("tdate", Lg("Manual start date","تاريخ البداية اليدوي"), "YYYY-MM-DD"),
-        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), PB("zone", Lg("Next time-price zone","منطقة الزمن والسعر الجاية")), PB("star", Lg("Gann star (in the range box)","نجمة جان (جوه صندوق الرينج)")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Gann box on the range (1x1, 1x2, 2x1)","صندوق جان على الرينج (1x1، 1x2، 2x1)"))]},
+        PH(Lg("Geometry","الأشكال")), PB("sqr", Lg("Square of the range (1/8 & 1/3, price + time)","مربع الرينج (أثمان وأثلاث، سعر وزمن)")), P("zw", Lg("Zone width (source bars each side)","عرض المنطقة (شموع على كل جنب)"), 1, 10, 1), PB("zone", Lg("Zone trades: arrows, entry / stop / TP1 / TP2, history stats","صفقات المناطق: أسهم ودخول/ستوب/أهداف وإحصائيات")), PB("star", Lg("Gann star (in the range box)","نجمة جان (جوه صندوق الرينج)")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Gann box on the range (1x1, 1x2, 2x1)","صندوق جان على الرينج (1x1، 1x2، 2x1)"))]},
       {id:"kzs", label:Lg("Kill Zone Sniper (JOAT style)","Kill Zone Sniper (ستايل JOAT)"), tip:Lg("Sweep-and-reverse inside the London (02-05) / NY AM (07-10) kill zones, New York time: a candle takes the 20-bar low (high), closes back with a body >= 0.9 ATR (and >= 1.5x average volume when the feed has volume). Draws the swept pool, a sniper mark, and the projected entry / stop (sweep wick) / target (30-bar swing, >= 1.5R) as a green/red box, plus a small table counting what is drawn. Same rules as the scanner's Kill Zone Sniper detector. 1H and lower. Idea from the open-source 'ICT Kill Zone Sniper [JOAT]' description; not a copy of its code.","سحب سيولة وانعكاس جوه كيل زون لندن (02-05) / نيويورك الصبح (07-10) بتوقيت نيويورك: شمعة تكسر أقل قاع لآخر 20 شمعة (أو أعلى قمة) وتقفل راجعة بجسم >= 0.9 ATR (و>= 1.5 ضعف متوسط الفوليوم لو فيه فوليوم). بيرسم المستوى المسحوب، علامة القناص، وصندوق الدخول / الوقف (طرف الذيل) / الهدف (قمة/قاع آخر 30 شمعة، >= 1.5R)، وجدول صغير بعدد اللي اترسم. نفس قواعد كاشف Kill Zone Sniper في السكانر. فريم ساعة وأقل. الفكرة من وصف مؤشر JOAT المفتوح، مش نسخة من الكود."), get:() => ch().kzsOn, set:v => { ch().kzsOn = v; this.state.kzs = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},

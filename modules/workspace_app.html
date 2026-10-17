@@ -527,14 +527,23 @@ const Ctx = {
         bk[0].bids.forEach(x => { if ((mid - +x[0])/mid <= .005) bd += +x[1]; }); bk[0].asks.forEach(x => { if ((+x[0] - mid)/mid <= .005) ad += +x[1]; }); if (bd + ad > 0) bi = (bd - ad)/(bd + ad); }
       if (tr && tr.length){ const t0 = Math.max(...tr.map(x => +x.ts)) - 120000; let b = 0, s_ = 0; tr.forEach(x => { if (+x.ts < t0) return; x.side === "buy" ? b += +x.sz : s_ += +x.sz; }); if (b + s_ > 0) de = (b - s_)/(b + s_); }
       out.of = {book:bi, delta:de};
-      if (!/^HL:/.test(sym)){ const base = sym.split("-")[0]; const f = await okx("/public/funding-rate?instId="+base+"-USDT-SWAP").catch(() => null); if (f && f[0]) out.fund = +f[0].fundingRate; }
+      if (!/^HL:/.test(sym)){ const base = sym.split("-")[0];
+        const [f, oiH, cd] = await Promise.all([okx("/public/funding-rate?instId="+base+"-USDT-SWAP").catch(() => null),
+          okx("/rubik/stat/contracts/open-interest-volume?ccy="+base+"&period=1H").catch(() => null), okx("/market/candles?instId="+base+"-USDT-SWAP&bar=1H&limit=6").catch(() => null)]);
+        if (f && f[0]) out.fund = +f[0].fundingRate;
+        if (oiH && oiH.length > 4 && cd && cd.length > 4){ const oi4 = (+oiH[0][1]/+oiH[4][1] - 1)*100, p4 = (+cd[0][4]/+cd[4][4] - 1)*100;
+          out.oi = {oi4, p4, read: p4 >= 0 && oi4 >= 0 ? "longs" : p4 >= 0 ? "cover" : oi4 >= 0 ? "shorts" : "closing"}; } }
     } catch(e){}
     this.cache[sym] = out; this.busy[sym] = false; return out; },
   // verdicts for one side: "agree" / "against" / "mixed" / "n/a"
   ofVerdict(c, dir){ const o = c && c.of; if (!o || (o.book == null && o.delta == null)) return "n/a"; const d = dir === "bullish" ? 1 : -1, v = [o.book, o.delta].filter(x => x != null).map(x => Math.sign(x)*(Math.abs(x) >= .1 ? 1 : 0)*d);
     return v.every(x => x > 0) ? "agree" : v.every(x => x < 0) ? "against" : "mixed"; },
   fundFlag(c, dir){ const f = c && c.fund; if (f == null) return null; return dir === "bullish" && f > .0005 ? "crowded longs" : dir === "bearish" && f < -.0005 ? "crowded shorts" : null; },
-  snapshot(sym, dir){ const c = this.cache[sym]; return {of:this.ofVerdict(c, dir), ses:this.session(), news:!!this.news(sym), fund:this.fundFlag(c, dir)}; }
+  // price x open interest over 4 h vs the trade side: new longs back a long, short covering is a weak rise, new shorts / longs closing push down
+  oiFlag(c, dir){ const o = c && c.oi; if (!o) return {k:"na", txt:"–"}; const L_ = dir === "bullish", r = o.read;
+    const txt = (o.oi4 > 0 ? "+" : "")+o.oi4.toFixed(1)+"% OI · "+({longs:Lg("new longs","لونجات جديدة"), cover:Lg("short covering","تغطية شورت"), shorts:Lg("new shorts","شورتات جديدة"), closing:Lg("longs closing","لونجات بتقفل")})[r];
+    const k = L_ ? (r === "longs" ? "ok" : r === "cover" ? "mid" : "bad") : (r === "shorts" ? "ok" : r === "closing" ? "mid" : "bad"); return {k, txt, read:r}; },
+  snapshot(sym, dir){ const c = this.cache[sym]; return {of:this.ofVerdict(c, dir), ses:this.session(), news:!!this.news(sym), fund:this.fundFlag(c, dir), oi:this.oiFlag(c, dir).read || null}; }
 };
 const Alerts = {
   list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),
@@ -670,7 +679,8 @@ function setupHtml(e){
       [ofv === "agree" ? "ok" : ofv === "against" ? "bad" : ofv === "mixed" ? "mid" : "na", Lg("Order book + tape now","الأوردر بوك والصفقات دلوقتي"), c && c.of ? "book "+(c.of.book == null ? "–" : Math.round(c.of.book*100)+"%")+" · Δ2m "+(c.of.delta == null ? "–" : Math.round(c.of.delta*100)+"%") : "…"],
       [/KZ/.test(ses) ? "ok" : "mid", Lg("Time (NY session)","الوقت (جلسة نيويورك)"), ses],
       [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
-      [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"]];
+      [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"],
+      (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })()];
     h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
   if (pl) h += H(Lg("Trade plan","خطة الصفقة"))+'<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px"><span class="m">'+Lg("Entry","دخول")+'</span><b>'+fmtP(pl.entry)+'</b><span class="m">'+Lg("Stop","وقف")+'</span><b style="color:#f6465d">'+fmtP(pl.stop)+'</b>'+pl.tps.map((v, i) => '<span class="m">'+Lg("Target ","هدف ")+(i+1)+'</span><b style="color:#0ecb81">'+fmtP(v)+'</b>').join("")+(rr ? '<span class="m">R:R</span><b>1 : '+rr.toFixed(1)+'</b>' : "")+'</div>';
@@ -1926,9 +1936,9 @@ Object.assign(CandleChart.prototype, {
       if (t.res != null){ c.globalAlpha = t.res > 0 ? .95 : .45; c.fill(); } else { c.globalAlpha = 1; c.stroke(); } c.globalAlpha = 1; });
   },
   paintSyncCard(c, x0, x1, PB){   // the three lights + last setup + live forward-test stats; sits in the empty bottom-left corner of the order-flow column
-    const sy = this.sync, S = this.st.sync, w = x1 - x0, h = 92, y0 = PB - h - 8; if (w < 110) return;
+    const sy = this.sync, S = this.st.sync, w = x1 - x0, h = 106, y0 = PB - h - 8; if (w < 110) return;
     c.save(); c.fillStyle = "rgba(8,12,18,.82)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(x0, y0, w, h); c.strokeRect(x0 + .5, y0 + .5, w - 1, h - 1);
-    c.textBaseline = "middle"; c.textAlign = "left"; c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; c.fillText(Lg("ORDER-FLOW SYNC", "تزامن الأوردر فلو"), x0 + 7, y0 + 10);
+    c.beginPath(); c.rect(x0 + 1, y0 + 1, w - 2, h - 2); c.clip(); c.textBaseline = "middle"; c.textAlign = "left"; c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; c.fillText(Lg("ORDER-FLOW SYNC", "تزامن الأوردر فلو"), x0 + 7, y0 + 10);
     const lab = [Lg("Book","الدفتر"), Lg("Tape","الصفقات"), Lg("Limits","الليمت")], val = sy ? [sy.book, sy.tape, sy.lim] : [null, null, null];
     lab.forEach((l, i) => { const lx = x0 + 7 + i*Math.min(70, (w - 14)/3), st = sy ? sy.L[i] : 0, col = st > 0 ? S.color : st < 0 ? S.color2 : "#4a525c";
       c.fillStyle = col; c.beginPath(); c.arc(lx + 4, y0 + 27, 4, 0, 6.3); c.fill(); if (st){ c.globalAlpha = .25; c.beginPath(); c.arc(lx + 4, y0 + 27, 7, 0, 6.3); c.fill(); c.globalAlpha = 1; }
@@ -1938,9 +1948,13 @@ Object.assign(CandleChart.prototype, {
     if (sy && sy.dir){ c.fillStyle = sy.dir > 0 ? S.color : S.color2; c.font = "bold 10px sans-serif"; c.fillText(sy.dir > 0 ? Lg("▲ ALL 3 BUY","▲ التلاتة شراء") : Lg("▼ ALL 3 SELL","▼ التلاتة بيع"), x0 + 7, y0 + 50); }
     else if (last){ const m = Math.round((Date.now() - last.t)/60000); c.fillStyle = last.dir > 0 ? S.color : S.color2; c.fillText((last.dir > 0 ? "▲ " : "▼ ")+last.en.toFixed(last.en < 10 ? 4 : 2)+" · "+m+Lg("m ago"," د")+(last.res != null ? " · "+(last.res > 0 ? "+" : "")+last.res+"R" : " · "+Lg("open","مفتوحة")), x0 + 7, y0 + 50); }
     else { c.fillStyle = "#6b7684"; c.fillText(Lg("waiting for all three to agree","مستني التلاتة يتفقوا"), x0 + 7, y0 + 50); }
+    { const cx = sy && sy.cx, side = sy && sy.dir ? sy.dir : last ? last.dir : 0, o = cx && cx.oi, fu = cx && cx.fund != null ? cx.fund : null; c.font = "9px sans-serif";
+      if (o || fu != null){ const of = side ? Ctx.oiFlag(cx, side > 0 ? "bullish" : "bearish") : {k:"na", txt:o ? Ctx.oiFlag(cx, "bullish").txt : ""}, ff = side ? Ctx.fundFlag(cx, side > 0 ? "bullish" : "bearish") : null;
+        c.fillStyle = of.k === "bad" || ff ? "#f0b90b" : "#9aa4b2"; c.fillText((of.k === "bad" || ff ? "⚠ " : "")+(o ? "4h "+of.txt : "")+(fu != null ? " · "+Lg("fund ","تمويل ")+(fu*100).toFixed(3)+"%" : "")+(ff ? " · "+ff : ""), x0 + 7, y0 + 64); }
+      else { c.fillStyle = "#4a525c"; c.fillText(Lg("OI / funding: loading or n/a","OI / تمويل: بيحمّل أو مش متاح"), x0 + 7, y0 + 64); } }
     const st = this.syncStats(); c.fillStyle = "#c3c9d1"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
-    c.fillText(st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : Lg("no closed setups yet","مفيش صفقات مقفولة لسه"), x0 + 7, y0 + 66);
-    c.fillStyle = st.n >= 30 ? "#9aa4b2" : "#f0b90b"; c.font = "8px sans-serif"; c.fillText(st.n >= 30 ? Lg("live forward test in this browser · stop 1 ATR · target "+S.rr+"R","اختبار حي في المتصفح ده · ستوب 1 ATR · هدف "+S.rr+"R") : Lg("under 30 setups = not evidence yet","أقل من 30 صفقة = مش دليل لسه"), x0 + 7, y0 + 81);
+    c.fillText(st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : Lg("no closed setups yet","مفيش صفقات مقفولة لسه"), x0 + 7, y0 + 80);
+    c.fillStyle = st.n >= 30 ? "#9aa4b2" : "#f0b90b"; c.font = "8px sans-serif"; c.fillText(st.n >= 30 ? Lg("live forward test in this browser · stop 1 ATR · target "+S.rr+"R","اختبار حي في المتصفح ده · ستوب 1 ATR · هدف "+S.rr+"R") : Lg("under 30 setups = not evidence yet","أقل من 30 صفقة = مش دليل لسه"), x0 + 7, y0 + 95);
     c.restore();
   },
   paintLiq(c, py, i0, i1, PB){   // OKX liquidations: one bubble per candle and side at the size-weighted bankruptcy price; red = longs liquidated, green = shorts liquidated
@@ -2384,6 +2398,7 @@ class Panel {
   syncTick(){
     const ch = this.chart, d = ch.data; if (!ch.syncOn || !d.length || !this.flt) return;
     const now = Date.now(), S = ch.st.sync, G = ch.gaugeData(nowS()), sym = this.state.sym, px = d[d.length-1].c;
+    { const cx = Ctx.cache[sym]; if (!cx || now - cx.t > 60000) Ctx.get(sym); }
     const book = G.bk ? G.bk.v : null, tape = G.tr ? G.tr.v : null; let lim = 0, nl = 0;
     this.flt.events.forEach(e => { if (now - e.t > (S.win || 60)*1000) return; const v = e.ev === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.ev === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.ev === "FILLED" ? (e.side === "ask" ? 1 : -1) : e.ev === "ABSORB" ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
     const sg = (v, th) => v == null ? 0 : v >= th ? 1 : v <= -th ? -1 : 0, L = [sg(book, +S.book || .15), sg(tape, +S.tape || .2), nl ? sg(lim, +S.lim || 1) : 0];
@@ -2397,10 +2412,10 @@ class Panel {
     if (dir && (now - (this._syncLast || 0) > (S.cool || 3)*60000 || this._syncDir !== dir)){
       const rows = d.slice(-15); let atr = 0; for (let i = 1; i < rows.length; i++) atr += Math.max(rows[i].h - rows[i].l, Math.abs(rows[i].h - rows[i-1].c), Math.abs(rows[i].l - rows[i-1].c)); atr /= Math.max(1, rows.length - 1);
       const risk = Math.max(px*.0005, (TFSEC[this.state.tf] || 60) <= 300 ? atr : px*.0025);
-      log.push({t:now, dir, en:px, sl:px - dir*risk, tp:px + dir*risk*(+S.rr || 1.5), tf:this.state.tf, k:[book, tape, lim].map(v => v == null ? null : Math.round(v*100)/100)});
+      log.push({t:now, dir, en:px, sl:px - dir*risk, tp:px + dir*risk*(+S.rr || 1.5), tf:this.state.tf, k:[book, tape, lim].map(v => v == null ? null : Math.round(v*100)/100), ctx:Ctx.snapshot(sym, dir > 0 ? "bullish" : "bearish")});
       if (log.length > 300) log.splice(0, log.length - 300); this._syncLast = now; this._syncDir = dir; dirty = true; }
     if (dirty) store.set(LS+"_sync_"+sym, log);
-    ch.sync = {book, tape, lim, nl, L, dir, t:now}; ch.syncLog = log;
+    ch.sync = {book, tape, lim, nl, L, dir, t:now, cx:Ctx.cache[sym] || null}; ch.syncLog = log;
   }
   setOverlay(o){ if (o && o.plan && !planOk(o.plan, o.dir)){ console.warn("plan direction mismatch - not drawn", o.dir, o.plan); o = null; } this.chart.overlay = o; this.chart.showSig = true; this.state.sig = true; this.chart.draw(); }
   showPx(price, src){
@@ -2915,10 +2930,11 @@ class Panel {
       const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
       const mkRows = f => { const o = {}; st.closed.forEach(t => { const k = f(t); (o[k] = o[k] || {w:0,n:0,r:0}).n++; o[k].r += t.r; if (t.status === "tp") o[k].w++; }); return Object.entries(o).sort((a,b) => b[1].n - a[1].n).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td><td style="color:'+(v.r >= 0 ? "#0ecb81" : "#f6465d")+'">'+f2(v.r/v.n)+'</td></tr>').join("") || '<tr><td class="m">–</td></tr>'; };
       const rowsF = mkRows(t => t.tfk || "?"), rowsP = mkRows(t => t.pct >= 70 ? "≥70%" : t.pct >= 50 ? "50-69%" : "<50%");
-      const rowsO = mkRows(t => (t.ctx && t.ctx.of) || "not recorded"), rowsN = mkRows(t => !t.ctx ? "not recorded" : t.ctx.news ? Lg("news ±1h","خبر قريب") : Lg("no news","مفيش خبر")), rowsK = mkRows(t => (t.ctx && t.ctx.ses) || "not recorded");
+      const rowsO = mkRows(t => (t.ctx && t.ctx.of) || "not recorded"), rowsN = mkRows(t => !t.ctx ? "not recorded" : t.ctx.news ? Lg("news ±1h","خبر قريب") : Lg("no news","مفيش خبر")), rowsK = mkRows(t => (t.ctx && t.ctx.ses) || "not recorded"),
+        rowsI = mkRows(t => !t.ctx || !t.ctx.oi ? "not recorded" : ({longs:Lg("new longs","لونجات جديدة"), cover:Lg("short covering","تغطية شورت"), shorts:Lg("new shorts","شورتات جديدة"), closing:Lg("longs closing","لونجات بتقفل")})[t.ctx.oi] + " · " + (t.dir > 0 || t.dir === "bullish" ? "long" : "short"));
       const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table>'
         +'<div class="jl" style="margin-top:6px">'+esc(Lg("Timeframe (n · win · avg R)","الفريم (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsF+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Strength (n · win · avg R)","القوة (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsP+'</table>'
-        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Order flow at entry","الأوردر فلو وقت الدخول"))+'</div><table class="rdt">'+rowsO+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Session","الجلسة"))+'</div><table class="rdt">'+rowsK+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("High-impact news","الأخبار القوية"))+'</div><table class="rdt">'+rowsN+'</table></div>';
+        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Order flow at entry","الأوردر فلو وقت الدخول"))+'</div><table class="rdt">'+rowsO+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Session","الجلسة"))+'</div><table class="rdt">'+rowsK+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("High-impact news","الأخبار القوية"))+'</div><table class="rdt">'+rowsN+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Open interest at entry (4h)","العقود المفتوحة وقت الدخول (4س)"))+'</div><table class="rdt">'+rowsI+'</table></div>';
       h += '<div class="jrow">'+cal+side+'</div>';
       // trades table
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);

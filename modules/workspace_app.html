@@ -86,7 +86,10 @@ td{padding:1px 4px;white-space:nowrap}
 .tb button,.tb select{white-space:nowrap;flex:none}.indpop{position:absolute;top:32px;left:6px;z-index:30;min-width:230px;max-height:80%;overflow:auto;background:var(--panel2);border:1px solid #3a424b;border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .hlb{font-size:9px;padding:0 3px;border-radius:3px;background:#1f3b2f;color:#7fe3b5;margin-left:3px}
 .irow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 4px;border-radius:4px}.irow:hover{background:rgba(255,255,255,.04)}.irow label{cursor:pointer}.irow>label{flex:1}
-.iset{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0 2px 22px}.iset input[type=color]{width:26px;height:22px;padding:0}
+.iset{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0 2px 22px}
+.ihead{display:flex;align-items:center;gap:4px;padding:2px 2px 5px;margin-bottom:3px;border-bottom:1px solid var(--line);cursor:move;user-select:none;position:sticky;top:-4px;background:var(--panel2);z-index:2}
+.ihead span{flex:1;font-size:11px;color:var(--mut)} .ihead button{padding:0 7px;line-height:18px}
+.indpop.pin{box-shadow:0 8px 26px rgba(0,0,0,.65);border-color:#f0b90b55;resize:both} .isep{flex-basis:100%;font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.04em;margin-top:4px}.iset input[type=color]{width:26px;height:22px;padding:0}
 .jr{padding:4px}.jcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.jc{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
 .jl{color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.4px}.jv{font-size:16px;font-weight:700;font-family:ui-monospace,Menlo,monospace}
 .jrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}.jcal{flex:1 1 260px}.jside{flex:1 1 160px}.jgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}
@@ -899,7 +902,7 @@ class CandleChart {
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
-      gann:{color:"#26c6da",w:1,dash:"",look:200,deg:45,unit:1,cyc:0,sq9:1,sq4:1,fan:1,fmode:1,card:1,shp:1,smin:3,smax:9,clen:0,c720:1,star:1,spts:8},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
+      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,mode:"auto",src:"1D",start:0,spacing:0,tback:0,dir:"auto",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:0,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:0,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -1968,61 +1971,100 @@ Object.assign(CandleChart.prototype, {
       if (o.usd >= 1e6){ c.beginPath(); c.arc(x, y, r + 3, 0, 6.3); c.stroke(); } });   // $1M+ = double ring
     c.restore(); c.globalAlpha = 1;
   },
-  gannCycle(){   // anchor + 360-degree cycle in price (Square of 9: one turn of sqrt(price)) and in time (price-time squaring: bars = price of one turn / ATR per bar, or set by hand)
-    const d = this.data, n = d.length, G = this.st.gann; if (n < 30) return null;
-    const look = Math.min(n - 1, Math.max(20, G.look|0 || 200)); let hi = -Infinity, lo = Infinity, ih = n-1, il = n-1;
-    for (let i = n - look; i < n; i++){ if (d[i].h > hi){ hi = d[i].h; ih = i; } if (d[i].l < lo){ lo = d[i].l; il = i; } }
-    const top = ih > il, ia = top ? ih : il, pa = top ? hi : lo, dir = top ? -1 : 1;
-    let atr = 0; for (let i = Math.max(1, n - 14); i < n; i++) atr += Math.max(d[i].h - d[i].l, Math.abs(d[i].h - d[i-1].c), Math.abs(d[i].l - d[i-1].c)); atr /= Math.min(14, n - 1);
-    const r0 = Math.sqrt(pa), turn = dir > 0 ? (r0 + 2)**2 - pa : pa - Math.max(0, r0 - 2)**2;
-    const bars = (G.clen|0) > 0 ? (G.clen|0) : Math.max(30, Math.min(720, Math.round(turn/(atr || pa*.01))));
-    return {ia, pa, dir, top, atr, r0, turn, bars, cycles:Math.max(1, Math.min(2, G.c720|0 || 1))};
+  /* ===== GANN v3 (Se7s-style rules, own code) =====
+     360 deg level = (sqrt(P/s) +- 2)^2 x s  (P = start price, s = spacing; Square of 9: one turn = +2 on the square root of the scaled price).
+     Angles between 0 and 360: "averages" = equal steps (Se7s default; gold 3215.2 / s 100 -> 45 deg 3548.71 ... 360 deg 5883.31), "formula" = (sqrt(P/s) +- 2a/360)^2 x s.
+     Shape n (1 circle .. 10 decagon) = main angles every 360/n deg, secondary angles halfway. Time levels every tsp bars from the start bar (+ offset).
+     AUTO: on the source timeframe (1D by default, so every chart timeframe shows the same levels) it tries the major swing highs / lows as the start and
+     spacings 1/2/2.5/5 x 10^k, counts later swing pivots that land on a level (+-0.25 ATR) and compares with the SAME grid shifted (chance);
+     the best excess (z) wins; time spacing is chosen the same way. In-sample fit: it shows what price respected, it does not prove the future. */
+  gannCycles(P, s, dir, lo, hi, min){ let base = P, c = 0; while (c < 8){ c++; const r = Math.sqrt(base/s); base = (dir > 0 ? (r + 2)**2 : Math.max(0, r - 2)**2)*s; if (dir > 0 ? base >= hi : base <= lo) break; } return Math.max(min || 1, c); },
+  gannGrid(P, s, dir, G){   // -> [{p, a, main, cyc}]
+    const n = Math.max(1, Math.min(10, +G.shape || 4)), stepM = 360/n, stepS = stepM/2, out = [{p:P, a:0, main:true, cyc:0, d:dir}], cyc = Math.max(1, Math.min(8, +G.cycles || 1));
+    let base = P;
+    for (let c = 0; c < cyc; c++){ const r = Math.sqrt(base/s), L = (dir > 0 ? (r + 2)**2 : Math.max(0, r - 2)**2)*s;
+      for (let a = (G.sec ? stepS : stepM); a <= 360 + 1e-9; a += (G.sec ? stepS : stepM)){ const main = Math.abs(a/stepM - Math.round(a/stepM)) < 1e-6;
+        const p = (G.calc === "formula") ? (Math.max(0, r + dir*2*a/360))**2*s : base + (L - base)*a/360; out.push({p, a:a + 360*c, main, cyc:c, d:dir}); }
+      base = L; }
+    return out;
   },
-  gannShapes(K){   // time / price points of the shapes with 2..10 sides on the cycle; points shared by several shapes = confluence (count)
-    const G = this.st.gann, a = Math.max(2, Math.min(10, G.smin|0 || 3)), b = Math.max(a, Math.min(10, G.smax|0 || 9)), m = new Map();
-    for (let sides = a; sides <= b; sides++) for (let k = 1; k <= sides*K.cycles; k++){ const f = Math.round(k/sides*7560)/7560; const o = m.get(f) || (m.set(f, {f, n:0, sh:[]}), m.get(f)); o.n++; o.sh.push(sides); }
-    return [...m.values()].sort((x, y) => x.f - y.f);   // f = fraction of one 360-degree cycle (7560 = lcm of 2..10 x 3 for exact matches)
+  gannPivots(d, K){ const out = []; for (let i = K; i < d.length - K; i++){ let h = true, l = true; for (let j = i - K; j <= i + K; j++){ if (d[j].h > d[i].h) h = false; if (d[j].l < d[i].l) l = false; } if (h) out.push({i, p:d[i].h, k:1}); if (l) out.push({i, p:d[i].l, k:-1}); } return out; },
+  gannFit(d, G){
+    const n = d.length; if (n < 60) return null; const piv = this.gannPivots(d, 5); if (piv.length < 8) return null;
+    let atr = 0; for (let i = 1; i < n; i++) atr += Math.max(d[i].h - d[i].l, Math.abs(d[i].h - d[i-1].c), Math.abs(d[i].l - d[i-1].c)); atr /= n - 1; const tol = .25*atr;
+    // major swings = pivot that is the extreme of +-20 bars, in the first 85 % of the data (so later reactions can be counted)
+    const major = piv.filter(q => { if (q.i > n*.85) return false; for (let j = Math.max(0, q.i - 20); j <= Math.min(n - 1, q.i + 20); j++){ if (q.k > 0 ? d[j].h > q.p : d[j].l < q.p) return false; } return true; }).slice(-14);
+    const manualP = G.mode === "manual" && +G.start > 0, manualS = G.mode === "manual" && +G.spacing > 0;
+    const starts = manualP ? [{i:Math.max(0, n - 1 - (G.tback|0)), p:+G.start, k:G.dir === "down" ? 1 : -1}] : major;
+    if (!starts.length) return null; let best = null;
+    const score = (lv, q0) => { const later = piv.filter(q => q.i > q0.i + 5); let h = 0; later.forEach(q => { if (lv.some(L => Math.abs(L.p - q.p) <= tol)) h++; }); return [h, later.length]; };
+    starts.forEach(q0 => { const P = q0.p; (G.dir === "up" ? [1] : G.dir === "down" ? [-1] : [1, -1]).forEach(dir => {
+      const sp = []; if (manualS) sp.push(+G.spacing); else { for (let k = -4; k <= 6; k++) [1, 2, 2.5, 5].forEach(m => { const s_ = m*10**k, R = 4*Math.sqrt(P*s_) + 4*s_; if (R >= .04*P && R <= 1.2*P) sp.push(s_); }); }
+      const hiP = Math.max(...d.slice(q0.i).map(x => x.h)), loP = Math.min(...d.slice(q0.i).map(x => x.l));
+      sp.forEach(s_ => { const lv = this.gannGrid(P, s_, dir, Object.assign({}, G, {sec:1, cycles:this.gannCycles(P, s_, dir, loP, hiP, 1)})); const [h, m] = score(lv, q0); if (m < 6) return;
+        const gap = Math.abs(lv[lv.length - 1].p - P)/Math.max(1, lv.length - 1); let mu = 0; [.2, .4, .6, .8].forEach(f => { mu += score(lv.map(L => ({p:L.p + f*gap})), q0)[0]; }); mu /= 4;
+        if (h < 4) return; const z = (h - mu)/Math.sqrt(mu + 1); if (!best || z > best.z) best = {i0:q0.i, t0:d[q0.i].t, P, s:s_, dir, z, hits:h, mu, m, gap}; }); }); });
+    if (!best) return null;
+    // time spacing: pivots within +-2 bars of start + k x tsp, against the same comb shifted
+    const later = piv.filter(q => q.i > best.i0 + 5).map(q => q.i), tc = (+G.tsp > 0) ? [+G.tsp] : [30, 36, 40, 45, 60, 72, 90, 120, 144, 180];
+    const hitsT = (tsp, off) => { let h = 0, m = 0; for (let t = best.i0 + tsp + off; t < n - 2; t += tsp){ m++; if (later.some(i => Math.abs(i - t) <= 2)) h++; } return [h, m]; };
+    let bt = null; tc.forEach(tsp => { const [h, m] = hitsT(tsp, 0); if (m < 2) return; let mu = 0; [.25, .5, .75].forEach(f => mu += hitsT(tsp, Math.round(f*tsp))[0]); mu /= 3; const z = (h - mu)/Math.sqrt(mu + 1); if (!bt || z > bt.z) bt = {tsp, z, h, m}; });
+    best.tsp = bt ? bt.tsp : 90; best.tz = bt ? bt.z : 0; best.th = bt ? bt.h : 0; best.tm = bt ? bt.m : 0; best.atr = atr;
+    const hiA = Math.max(...d.slice(best.i0).map(x => x.h)), loA = Math.min(...d.slice(best.i0).map(x => x.l)), Gc = Object.assign({}, G, {cycles:this.gannCycles(best.P, best.s, best.dir, loA, hiA, +G.cycles || 1)});
+    best.levels = this.gannGrid(best.P, best.s, best.dir, Gc).map(L => Object.assign(L, {hits:piv.filter(q => q.i > best.i0 + 5 && Math.abs(q.p - L.p) <= tol).length}));
+    if (G.dir === "both") best.levels = best.levels.concat(this.gannGrid(best.P, best.s, -best.dir, Object.assign({}, G, {cycles:this.gannCycles(best.P, best.s, -best.dir, loA, hiA, +G.cycles || 1)})).slice(1).map(L => Object.assign(L, {hits:piv.filter(q => q.i > best.i0 + 5 && Math.abs(q.p - L.p) <= tol).length})));
+    return best;
+  },
+  gannSrc(){   // candles of the source timeframe (1D by default) - fetched once per symbol / timeframe for 15 min; "chart" = the chart's own candles
+    const G = this.st.gann, src = G.src || "1D"; if (src === "chart") return {d:this.data, ms:this.secMs()};
+    const key = this.sym + "|" + src, c = this._gSrc; if (c && c.key === key && Date.now() - c.t < 900000) return c.d ? {d:c.d, ms:c.ms} : null;
+    if (!this._gBusy){ this._gBusy = true; const ms = {"4H":144e5, "1D":864e5, "1W":6048e5}[src] || 864e5;
+      okx("/market/candles?instId="+encodeURIComponent(this.sym)+"&bar="+src+"&limit=300").then(r => { this._gSrc = {key, t:Date.now(), ms, d:r.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse()}; this._gFit = null; this.draw(); })
+        .catch(() => { this._gSrc = {key, t:Date.now(), ms, d:null}; }).finally(() => { this._gBusy = false; }); }
+    return c && c.key === key && c.d ? {d:c.d, ms:c.ms} : null;
   },
   paintGann(c, py, i0, i1, PB){
-    const d = this.data, n = d.length, G = this.st.gann, K = this.gannCycle(); if (!K) return;
-    const {ia, pa, dir, r0, turn, bars, cycles} = K, col = G.color, PR = this.PR, SC = ["#ffffff","#ff6b6b","#f0b90b","#7bd88f","#4aa3ff","#b57cff","#ff9f43","#26c6da","#e056fd"];
-    c.save(); c.font = "9px sans-serif"; c.textBaseline = "top"; c.lineWidth = G.w || 1;
-    c.fillStyle = col; c.beginPath(); c.arc(this.x(ia), py(pa), 4, 0, 6.3); c.fill();
-    c.globalAlpha = .9; c.fillText((dir > 0 ? "▲ " : "▼ ")+Lg("Gann cycle ","دورة جان ")+bars+Lg(" bars / 360°"," شمعة / 360°"), this.x(ia) + 6, py(pa) + (dir > 0 ? 6 : -16));
-    // 1) shapes 2..10: time verticals + price levels, thicker / brighter where several shapes meet
-    if (G.shp){ const pts = this.gannShapes(K);
-      pts.forEach(o => { const x = this.x(ia + o.f*bars); if (x < 0 || x > PR) return; const strong = o.n >= 3 || o.sh.includes(4);
-        c.strokeStyle = SC[Math.min(o.sh[0], 10) - 2] || col; c.globalAlpha = Math.min(.9, .18 + .14*o.n); c.lineWidth = o.n >= 3 ? 1.6 : 1; c.setLineDash(strong ? [] : [2,4]);
-        c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); if (o.n >= 2){ c.globalAlpha = .9; c.fillStyle = c.strokeStyle; c.fillText(Math.round(o.f*360)+"°"+(o.n >= 3 ? " ×"+o.n : ""), x + 2, 12); } });
-      c.setLineDash([]);
-      pts.forEach(o => { const v = r0 + dir*2*o.f; if (v <= 0) return; const p = v*v, y = py(p); if (y < 0 || y > PB) return;
-        c.strokeStyle = SC[Math.min(o.sh[0], 10) - 2] || col; c.globalAlpha = Math.min(.8, .12 + .12*o.n); c.lineWidth = o.n >= 3 ? 1.4 : 1; c.setLineDash(o.n >= 3 ? [] : [4,4]);
-        c.beginPath(); c.moveTo(this.x(ia), y); c.lineTo(PR, y); c.stroke(); if (o.n >= 3){ c.globalAlpha = .9; c.fillStyle = c.strokeStyle; c.fillText(Math.round(o.f*360)+"° ×"+o.n, Math.max(4, this.x(ia)) + 4, y - 11); } });
-      c.setLineDash([]); }
-    // 2) fixed Gann counts (30/45/60/90/120/144/180/360 bars)
-    if (G.cyc){ c.strokeStyle = col; c.setLineDash([3,4]); [30,45,60,90,120,144,180,360].forEach(k => { const x = this.x(ia + k); if (x < 0 || x > PR) return;
-        c.globalAlpha = k === 90 || k === 180 || k === 360 ? .7 : .35; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); c.fillStyle = col; c.fillText(String(k), x + 2, 2); }); c.setLineDash([]); }
-    // 3) Square of 9 (step = deg, 45 = ordinal cross) and Square of 4 (the cardinal cross, 90 degrees, gold)
-    if (G.sq9 || G.sq4){ const st = 2*(G.deg || 45)/360;
-      for (let k = -8; k <= 8; k++){ if (!k) continue; const card = Math.abs(k*(G.deg || 45)) % 90 === 0; if (!G.sq9 && !card) continue; if (!G.sq4 && card && !G.sq9) continue;
-        const v = r0 + k*st; if (v <= 0) continue; const y = py(v*v); if (y < 0 || y > PB) continue;
-        c.strokeStyle = card && G.sq4 ? "#f0b90b" : col; c.globalAlpha = card ? .75 : .4; c.lineWidth = card && G.sq4 ? 1.5 : 1; c.setLineDash(card ? [] : [6,3]);
-        c.beginPath(); c.moveTo(this.x(ia), y); c.lineTo(PR, y); c.stroke(); c.fillStyle = c.strokeStyle; c.globalAlpha = .9; c.fillText((k > 0 ? "+" : "")+k*(G.deg || 45)+"°", PR - 34, y - 10); }
-      c.setLineDash([]); c.lineWidth = G.w || 1; }
-    // 4) fan: 1 unit = ATR per bar, or (fmode 1) the price-time square: one 360-degree price turn per cycle
-    if (G.fan){ const u = ((G.fmode|0) === 1 ? turn/bars : (K.atr || pa*.01))*(G.unit || 1); [[1,1,.9,"1x1"],[1,2,.5,"1x2"],[2,1,.5,"2x1"],[1,4,.3,"1x4"],[4,1,.3,"4x1"]].forEach(([pr, tm, al, lb]) => {
-        const x0 = this.x(ia), x1 = this.x(n + 60), p1 = pa + dir*u*pr/tm*(n + 60 - ia); c.globalAlpha = al; c.strokeStyle = col; c.beginPath(); c.moveTo(x0, py(pa)); c.lineTo(x1, py(p1)); c.stroke();
-        const xl = Math.min(PR - 28, x1), pl = pa + dir*u*pr/tm*((xl - x0)/this.bw), yl = py(pl); if (yl > 4 && yl < PB - 4){ c.fillStyle = col; c.fillText(lb, xl, yl); } }); }
-    // 5) Gann star on the cycle box (time = bars, price = one turn): {n/2} star polygon (n = star points, 3 = triangle, 4 = square)
-    if (G.star){ const sp = Math.max(3, Math.min(12, G.spts|0 || 8)), cx = ia + bars/2, cp = pa + dir*turn/2, rx = bars/2, rp = turn/2, V = [];
-      for (let k = 0; k < sp; k++){ const a = Math.PI + k*2*Math.PI/sp; V.push([this.x(cx + rx*Math.cos(a)), py(cp + dir*rp*Math.sin(a))]); }
-      const jump = sp >= 5 ? Math.floor((sp - 1)/2) : 1; c.strokeStyle = "#e056fd"; c.globalAlpha = .55; c.lineWidth = 1;
-      c.beginPath(); c.ellipse(this.x(cx), py(cp), Math.abs(this.x(cx + rx) - this.x(cx)), Math.abs(py(cp + rp) - py(cp)), 0, 0, 6.3); c.stroke();
-      const seen = new Set(); for (let s0 = 0; s0 < sp; s0++){ if (seen.has(s0)) continue; c.beginPath(); let k = s0; c.moveTo(V[k][0], V[k][1]); do { seen.add(k); k = (k + jump) % sp; c.lineTo(V[k][0], V[k][1]); } while (k !== s0); c.stroke(); } }
-    // 6) cardinal dates (equinoxes / solstices) on daily and higher bars
-    if (G.card && this.secMs() >= 86400000){ const yrs = new Set([new Date(d[0].t).getUTCFullYear(), new Date(d[n-1].t).getUTCFullYear(), new Date(d[n-1].t).getUTCFullYear() + 1]);
-      c.strokeStyle = "#ff9800"; c.setLineDash([1,3]); yrs.forEach(y => [[2,21],[5,21],[8,23],[11,21]].forEach(([m, dd]) => { const t = Date.UTC(y, m, dd), i = d[0].t <= t ? (t - d[0].t)/this.secMs() : -1; const x = this.x(i); if (i < 0 || x < 0 || x > PR) return;
-        c.globalAlpha = .6; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); })); c.setLineDash([]); }
+    const d = this.data, n = d.length, G = this.st.gann; if (n < 2) return;
+    const src = this.gannSrc(), PR = this.PR;
+    if (!src || !src.d){ c.save(); c.fillStyle = G.color; c.font = "10px sans-serif"; c.textBaseline = "top"; c.fillText(Lg("Gann: loading "+(G.src || "1D")+" candles…","جان: بيحمّل شموع "+(G.src || "1D")+"…"), 40, 4); c.restore(); return; }
+    const fkey = JSON.stringify([this.sym, G.src, src.d.length, src.d[src.d.length-1].t, G.mode, G.start, G.spacing, G.dir, G.shape, G.calc, G.cycles, G.sec, G.tsp, G.tback]);
+    if (!this._gFit || this._gFit.key !== fkey){ this._gFit = {key:fkey, f:this.gannFit(src.d, G)}; }
+    const F = this._gFit.f; if (!F){ c.save(); c.fillStyle = G.color; c.font = "10px sans-serif"; c.textBaseline = "top"; c.fillText(Lg("Gann: not enough swings on "+(G.src || "1D"),"جان: مفيش قمم وقيعان كفاية على "+(G.src || "1D")), 40, 4); c.restore(); return; }
+    const sec = this.secMs(), xT = t => this.x((t - d[0].t)/sec), x0 = Math.max(0, Math.min(PR, xT(F.t0)));
+    let t0 = F.t0; if (G.mode === "manual" && /^\d{4}-\d\d-\d\d$/.test(G.tdate || "")) t0 = Date.parse(G.tdate + "T00:00:00Z");
+    c.save(); c.textBaseline = "middle"; c.font = "10px sans-serif";
+    // price levels
+    F.levels.forEach(L => { const y = py(L.p); if (y < -2 || y > PB + 2) return; const strong = L.hits >= 2, col = L.main ? G.color : (G.color2 || "#f6465d");
+      c.strokeStyle = col; c.globalAlpha = L.main ? (strong ? .95 : .7) : (strong ? .75 : .45); c.lineWidth = (L.main ? 1.4 : 1)*(G.w || 1)*(strong ? 1.4 : 1); c.setLineDash(L.main ? [] : [5,4]);
+      c.beginPath(); c.moveTo(G.ext ? 0 : x0, y); c.lineTo(PR, y); c.stroke(); c.setLineDash([]);
+      if (G.lbl){ c.globalAlpha = .95; c.fillStyle = col; c.textAlign = "right"; c.fillText((L.d < 0 ? "-" : "")+Math.round(L.a)+"° = "+fmtP(L.p)+(L.hits ? "  ×"+L.hits : ""), PR - 6, y - 7); } });
+    c.textAlign = "left";
+    // time levels (from the start bar on the source timeframe, mapped by date onto this chart)
+    const tsp = F.tsp, toff = G.toff|0, step = tsp*src.ms, tEnd = d[n-1].t + Math.max(60, (PR - this.x(n-1))/this.bw)*sec;
+    if (G.tlv){ let k = 1; for (let t = t0 + (tsp + toff)*src.ms; t <= tEnd && k < 400; t += step, k++){ const x = xT(t); if (x < 0 || x > PR) continue; const big = (k*tsp) % 90 === 0;
+        c.strokeStyle = G.color; c.globalAlpha = big ? .7 : .35; c.lineWidth = big ? 1.3 : 1; c.setLineDash(big ? [] : [2,4]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
+        if (G.lbl){ c.globalAlpha = .9; c.fillStyle = G.color; c.fillText(k*tsp+"", x + 2, 8); } } }
+    // star: one full cycle box (time = shape x tsp bars, price = start .. 360 deg level), {n/2} star polygon
+    const L360 = F.levels.filter(L => L.cyc === 0 && Math.abs(L.a - 360) < 1e-6)[0];
+    if (G.star && L360){ const sp = Math.max(3, Math.min(12, G.spts|0 || 8)), tw = (+G.shape || 4)*tsp*src.ms, cx = t0 + tw/2, cp = (F.P + L360.p)/2, V = [];
+      for (let k = 0; k < sp; k++){ const a = Math.PI + k*2*Math.PI/sp; V.push([xT(cx + tw/2*Math.cos(a)), py(cp + (L360.p - F.P)/2*Math.sin(a))]); }
+      c.strokeStyle = G.starc || "#f0b90b"; c.globalAlpha = .6; c.lineWidth = 1; c.beginPath(); c.ellipse(xT(cx), py(cp), Math.abs(xT(cx + tw/2) - xT(cx)), Math.abs(py(L360.p) - py(cp)), 0, 0, 6.3); c.stroke();
+      const jump = sp >= 5 ? Math.floor((sp - 1)/2) : 1, seen = new Set(); for (let s0 = 0; s0 < sp; s0++){ if (seen.has(s0)) continue; c.beginPath(); let k = s0; c.moveTo(V[k][0], V[k][1]); do { seen.add(k); k = (k + jump) % sp; c.lineTo(V[k][0], V[k][1]); } while (k !== s0); c.stroke(); } }
+    // fan 1x1 = the price-time square (one 360 deg price turn per shape x tsp bars)
+    if (G.fan && L360){ const slope = (L360.p - F.P)/((+G.shape || 4)*tsp*src.ms); [[1,"1x1",.9],[2,"2x1",.45],[.5,"1x2",.45]].forEach(([m, lb, al]) => { const t1 = tEnd, p1 = F.P + slope*m*(t1 - t0);
+        c.strokeStyle = G.color; c.globalAlpha = al; c.beginPath(); c.moveTo(xT(t0), py(F.P)); c.lineTo(xT(t1), py(p1)); c.stroke(); }); }
+    // next time-price zone: the next time level after now x the two price levels around the last price
+    if (G.zone){ const last = d[n-1].c, kN = Math.ceil((d[n-1].t - t0 - (tsp + toff)*src.ms)/step), tN = t0 + (tsp + toff)*src.ms + Math.max(0, kN)*step;
+      const ps = F.levels.map(L => L.p).sort((a, b) => a - b), lo = [...ps].reverse().find(p => p <= last), hi = ps.find(p => p > last);
+      if (lo != null && hi != null){ const xa = xT(tN - 2*src.ms), xb = xT(tN + 2*src.ms), ya = py(hi), yb = py(lo);
+        c.globalAlpha = .13; c.fillStyle = "#f0b90b"; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), yb - ya); c.globalAlpha = .8; c.strokeStyle = "#f0b90b"; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), yb - ya); c.setLineDash([]);
+        c.fillStyle = "#f0b90b"; c.globalAlpha = 1; c.fillText(Lg("next Gann zone ","منطقة جان الجاية ")+new Date(tN).toISOString().slice(0, 10), Math.min(xa, xb), ya - 8); } }
+    // start mark + summary
+    c.globalAlpha = 1; c.fillStyle = G.color; c.beginPath(); c.arc(xT(t0), py(F.P), 4, 0, 6.3); c.fill();
+    c.font = "bold 10px sans-serif"; c.textBaseline = "top"; const auto = G.mode !== "manual";
+    c.fillText("Gann "+(auto ? "AUTO" : "MANUAL")+" ("+(G.src || "1D")+") · "+Lg("start ","بداية ")+fmtP(F.P)+(F.dir > 0 ? " ▲" : " ▼")+" "+new Date(t0).toISOString().slice(0, 10)+" · "+Lg("spacing ","تباعد ")+F.s+" · "+["","circle","line","triangle","square","pentagon","hexagon","heptagon","octagon","nonagon","decagon"][+G.shape || 4], 40, 24);
+    c.font = "9px sans-serif"; c.fillStyle = "#9aa4b2";
+    c.fillText(Lg("price: ","السعر: ")+F.hits+"/"+F.m+Lg(" later swings on a level (chance ~"," قمة/قاع لاحقة على مستوى (الصدفة ~")+F.mu.toFixed(1)+", z "+F.z.toFixed(1)+") · "+Lg("time every ","الوقت كل ")+tsp+Lg(" bars: "," شمعة: ")+F.th+"/"+F.tm+" (z "+F.tz.toFixed(1)+")"+Lg(" · in-sample fit, not a forecast"," · مطابقة على الماضي، مش توقع"), 40, 37);
     c.restore(); c.globalAlpha = 1; c.textBaseline = "middle"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
   paintKZS(c, py, i0, i1, PB){
@@ -2281,7 +2323,8 @@ class Panel {
   buildIndMenu(){
     const btn = el("button", null, "ƒx "+T("ind")+" ▾"), pop = el("div","indpop"); pop.style.display = "none";
     const DASH = [["","—"],["6,3","- -"],["2,3","···"]];
-    const P = (key, label, min, max, step) => ({key, label, min, max, step});
+    const P = (key, label, min, max, step) => ({key, label, min, max, step}), PS = (key, label, opts, tip) => ({key, label, opts, tip}), PB = (key, label, tip) => ({key, label, bool:true, tip}),
+      PC = (key, label) => ({key, label, color:true}), PN = (key, label, tip) => ({key, label, free:true, tip}), PT = (key, label, ph, tip) => ({key, label, text:true, ph, tip}), PH = label => ({sep:true, label});
     const ch = () => this.chart;
     const items = [
       {id:"e9", label:"EMA 9", get:() => ch().ema[9], set:v => { ch().ema[9] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"9", params:[P("len","Length",1,500,1)]},
@@ -2292,7 +2335,15 @@ class Panel {
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; this.kzb && this.kzb.classList.toggle("on", v); }},
       {id:"sync", label:Lg("Order-flow sync (book + tape + limits)","تزامن الأوردر فلو (الدفتر + الصفقات + الليمت)"), tip:Lg("Fires only when the order book imbalance, the aggressor tape and the big-limit events all point the same way at the same moment. Each setup is followed live (stop 1 ATR, target in R) and the card under the order-flow column shows the forward-test stats. Diamonds on the chart = setups (hollow = open). Needs the live book and tape (OKX symbols).","بيطلع بس لما الدفتر والصفقات وأحداث الليمت الكبيرة يتفقوا على نفس الاتجاه في نفس اللحظة. كل صفقة بتتتابع لايف (ستوب 1 ATR، هدف بالـ R) والكارت تحت الأوردر فلو بيعرض نتايج الاختبار الحي. المعينات على الشارت = الصفقات (فاضي = مفتوحة). محتاج دفتر وصفقات لايف (عملات OKX)."), get:() => ch().syncOn, set:v => { ch().syncOn = v; this.state.sync = v; }, sty:"sync", col2:true, params:[P("book","Book imbalance (0.05-0.6)",0.05,0.6,0.05), P("tape","Tape delta (0.05-0.6)",0.05,0.6,0.05), P("lim","Net limit events",1,6,1), P("win","Limit window (s)",15,300,15), P("rr","Target (R)",0.5,4,0.25), P("cool","Cool-down (min)",1,30,1), P("exp","Expiry (min)",5,240,5)]},
       {id:"liqm", label:Lg("Liquidations (OKX)","التصفيات (OKX)"), tip:Lg("OKX public liquidation orders for this perpetual: one bubble per candle, size = USD liquidated. Red = longs liquidated (forced sells), green = shorts liquidated. A big cluster after a sweep often marks the turn. One exchange only; OKX returns only the latest 100, so it fills in while the chart is open.","أوامر التصفية العامة من OKX للعقد ده: فقاعة لكل شمعة وحجمها = الدولارات المصفّاة. أحمر = تصفية لونج، أخضر = تصفية شورت. تجمع كبير بعد سويب غالباً بيعلّم الانعكاس. بورصة واحدة بس؛ OKX بيدي آخر 100 بس، فبتتملي وانت فاتح الشارت."), get:() => ch().liqOn, set:v => { ch().liqOn = v; this.state.liq = v; this.liqKick && this.liqKick(); }, sty:"liq", col2:true, params:[P("min","Min USD per bubble",1000,1000000,1000), P("size","Bubble size",0.5,3,0.25)]},
-      {id:"gann", label:Lg("Gann time & price (cycles, Square of 9, fan)","جان: الزمن والسعر (دورات، مربع التسعة، المروحة)"), tip:Lg("From the latest major high / low of the last N bars: Gann time cycles (30-360 bars, also into the future), Square of 9 price levels, 1x1 / 1x2 / 2x1 fan (1 unit = ATR per bar) and cardinal dates on daily bars. Visual tool: Gann has no peer-reviewed evidence; the weekly strategy lab tests whether his time cycles hit reversals more often than random.","من آخر قمة / قاع كبير في آخر N شمعة: دورات جان الزمنية (30 لـ 360 شمعة، وبتمتد للمستقبل)، مستويات مربع التسعة، مروحة 1×1 و1×2 و2×1 (الوحدة = ATR لكل شمعة)، والتواريخ الكاردينالية على اليومي. أداة بصرية: جان مالوش دليل علمي محكّم، والمعمل الأسبوعي بيختبر هل دوراته بتصيب الانعكاسات أكتر من الصدفة."), get:() => ch().gannOn, set:v => { ch().gannOn = v; this.state.gann = v; }, sty:"gann", params:[P("look","Anchor look-back (bars)",20,1000,10), P("clen","Cycle length in bars (0 = auto: price-time square)",0,2000,10), P("c720","Cycles: 1 = 360°, 2 = 720°",1,2,1), P("shp","Shapes 2-10 sides (1/0)",0,1,1), P("smin","Fewest sides",2,10,1), P("smax","Most sides",2,10,1), P("sq4","Square of 4: cardinal cross (1/0)",0,1,1), P("sq9","Square of 9 (1/0)",0,1,1), P("deg","Square of 9 step (°)",15,180,15), P("star","Gann star (1/0)",0,1,1), P("spts","Star points (3-12)",3,12,1), P("fan","Fan (1/0)",0,1,1), P("fmode","Fan unit: 0 = ATR, 1 = price-time square",0,1,1), P("unit","Fan unit multiplier",0.25,4,0.25), P("cyc","Fixed counts 30-360 (1/0)",0,1,1), P("card","Cardinal dates (1/0)",0,1,1)]},
+      {id:"gann", label:Lg("Gann: price angles, time levels, star (Se7s rules)","جان: زوايا السعر، مستويات الزمن، النجمة (قواعد Se7s)"), tip:Lg("360 deg = (sqrt(start/spacing) +- 2)^2 x spacing; angles by averages (Se7s) or by formula; shape 1-10 = main angles every 360/n deg, secondary halfway. AUTO picks the start swing and spacing on 1D (or 1W / 4H) that later swings respected most versus the same grid shifted, and the time spacing the same way - so all timeframes show the same levels. Labels: angle = price, xN = later swings that touched it. The yellow box = next time level x the price levels around the last price. In-sample fit: it describes the past, it does not prove the future.","360° = (جذر(البداية÷التباعد) ± 2)² × التباعد؛ الزوايا بالمتوسطات (Se7s) أو بالمعادلة؛ الشكل 1-10 = زوايا أساسية كل 360/ن وثانوية في النص. الأوتوماتيك بيختار نقطة البداية والتباعد على اليومي (أو الأسبوعي / 4س) اللي السعر احترمها أكتر من نفس الشبكة متزحزحة، ونفس الشيء للزمن - فكل الفريمات بتبين نفس المستويات. الليبل: الزاوية = السعر، ×ن = عدد القمم/القيعان اللي لمسته. المربع الأصفر = مستوى الزمن الجاي × مستويات السعر حوالين آخر سعر. مطابقة على الماضي، مش ضمان للمستقبل."), get:() => ch().gannOn, set:v => { ch().gannOn = v; this.state.gann = v; }, sty:"gann", col2:true, params:[
+        PH(Lg("Mode","الوضع")), PS("mode", Lg("Mode","الوضع"), [["auto", Lg("Auto (best fit)","أوتوماتيك (أفضل مطابقة)")], ["manual", Lg("Manual","يدوي")]]), PS("src", Lg("Levels from","المستويات من"), [["1D","1D"],["1W","1W"],["4H","4H"],["chart", Lg("this chart","الشارت ده")]]),
+        PH(Lg("Price angles","زوايا السعر")), PN("start", Lg("Start price (0 = auto)","سعر البداية (0 = أوتو)")), PN("spacing", Lg("Spacing (0 = auto)","التباعد (0 = أوتو)")), P("tback", Lg("Manual start: bars ago on the source","البداية اليدوي: شمعة لورا"), 0, 2000, 1),
+        PS("dir", Lg("Up or down","طالع ولا نازل"), [["auto", Lg("Auto (low = up)","أوتو (قاع = طالع)")], ["up", Lg("Up","طالع")], ["down", Lg("Down","نازل")], ["both", Lg("Both","الاتنين")]]),
+        PS("shape", Lg("Shape type","نوع الشكل"), [[1,"01-Circle"],[2,"02-StraightLine"],[3,"03-Triangle"],[4,"04-Square"],[5,"05-Pentagon"],[6,"06-Hexagon"],[7,"07-Heptagon"],[8,"08-Octagon"],[9,"09-Nonagon"],[10,"10-Decagon"]]),
+        PS("calc", Lg("Angles","الزوايا"), [["avg", Lg("By averages (Se7s)","بالمتوسطات (Se7s)")], ["formula", Lg("By formula (Square of 9)","بالمعادلة (مربع التسعة)")]]), P("cycles", Lg("360° cycles","عدد دورات 360°"), 1, 3, 1),
+        PB("sec", Lg("Secondary angles","زوايا ثانوية")), PB("lbl", Lg("Labels","الليبلز")), PB("ext", Lg("Extend lines to the left","مد الخطوط للشمال")),
+        PH(Lg("Time","الزمن")), PB("tlv", Lg("Time levels","مستويات الزمن")), PN("tsp", Lg("Time spacing in source bars (0 = auto)","تباعد الزمن بشموع المصدر (0 = أوتو)")), P("toff", Lg("Bar offset (<-left 0 right->)","إزاحة الشموع (<-شمال 0 يمين->)"), -500, 500, 1), PT("tdate", Lg("Manual start date","تاريخ البداية اليدوي"), "YYYY-MM-DD"),
+        PH(Lg("Geometry","الأشكال")), PB("zone", Lg("Next time-price zone","منطقة الزمن والسعر الجاية")), PB("star", Lg("Gann star","نجمة جان")), PC("starc", Lg("Star colour","لون النجمة")), P("spts", Lg("Star points","نقط النجمة"), 3, 12, 1), PB("fan", Lg("Fan (price-time square)","المروحة (تربيع السعر والزمن)"))]},
       {id:"kzs", label:Lg("Kill Zone Sniper (JOAT style)","Kill Zone Sniper (ستايل JOAT)"), tip:Lg("Sweep-and-reverse inside the London (02-05) / NY AM (07-10) kill zones, New York time: a candle takes the 20-bar low (high), closes back with a body >= 0.9 ATR (and >= 1.5x average volume when the feed has volume). Draws the swept pool, a sniper mark, and the projected entry / stop (sweep wick) / target (30-bar swing, >= 1.5R) as a green/red box, plus a small table counting what is drawn. Same rules as the scanner's Kill Zone Sniper detector. 1H and lower. Idea from the open-source 'ICT Kill Zone Sniper [JOAT]' description; not a copy of its code.","سحب سيولة وانعكاس جوه كيل زون لندن (02-05) / نيويورك الصبح (07-10) بتوقيت نيويورك: شمعة تكسر أقل قاع لآخر 20 شمعة (أو أعلى قمة) وتقفل راجعة بجسم >= 0.9 ATR (و>= 1.5 ضعف متوسط الفوليوم لو فيه فوليوم). بيرسم المستوى المسحوب، علامة القناص، وصندوق الدخول / الوقف (طرف الذيل) / الهدف (قمة/قاع آخر 30 شمعة، >= 1.5R)، وجدول صغير بعدد اللي اترسم. نفس قواعد كاشف Kill Zone Sniper في السكانر. فريم ساعة وأقل. الفكرة من وصف مؤشر JOAT المفتوح، مش نسخة من الكود."), get:() => ch().kzsOn, set:v => { ch().kzsOn = v; this.state.kzs = v; }},
       {id:"dot3", refresh:true, label:T("indDot3"), tip:T("dot3Tip"), get:() => ch().bubOn && ch().dotOn && ch().domOn && ch().mkOn, set:v => { const c_ = ch(); c_.bubOn = c_.dotOn = c_.domOn = c_.mkOn = v; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v}); }},
       {id:"bub", label:T("indBub"), tip:T("bubTip"), get:() => ch().bubOn, set:v => { ch().bubOn = v; this.state.bub = v; }, sty:"of", col2:true, params:[P("min","Min size 0=all 1=smart 2=whale",0,2,1), P("bsz","Bubble ×",0.3,3,0.1), P("dom","Heat ×",0.3,3,0.1)]},
@@ -2330,14 +2381,23 @@ class Panel {
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];
+    const UI = this.indUI = this.indUI || {x:null, y:null, min:false, pin:false};
+    const place = () => { if (UI.x != null){ pop.style.left = UI.x + "px"; pop.style.top = UI.y + "px"; } pop.classList.toggle("pin", UI.pin); };
+    const head = () => { const h = el("div","ihead"), t = el("span", null, "⠿ ƒx " + Lg("Indicators","المؤشرات")), mn = el("button", null, UI.min ? "▢" : "–"), cl = el("button", null, "×");
+      mn.title = Lg("Fold / unfold (the window stays open while you watch the chart)","تصغير / تكبير (النافذة بتفضل مفتوحة وانت بتتابع الشارت)"); cl.title = Lg("Close","إغلاق");
+      mn.onclick = e => { e.stopPropagation(); UI.min = !UI.min; UI.pin = true; render(); }; cl.onclick = e => { e.stopPropagation(); UI.pin = false; UI.min = false; pop.style.display = "none"; place(); };
+      h.onpointerdown = e => { if (e.target.tagName === "BUTTON") return; e.preventDefault(); e.stopPropagation(); const r0 = pop.getBoundingClientRect(), pr = pop.offsetParent ? pop.offsetParent.getBoundingClientRect() : {left:0, top:0}, dx = e.clientX - r0.left, dy = e.clientY - r0.top;
+        const mv = ev => { UI.x = Math.max(0, ev.clientX - pr.left - dx); UI.y = Math.max(0, ev.clientY - pr.top - dy); UI.pin = true; place(); }, up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); };
+      h.append(t, mn, cl); return h; };
     const render = () => {
-      pop.innerHTML = "";
-      { const mr = el("div","irow"); mr.style.cssText = "gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px"; const ml = el("span","m",Lg("Mode","الوضع")); ml.style.flex = "0 0 100%"; mr.append(ml);
+      pop.innerHTML = ""; pop.append(head()); place(); if (UI.min){ const open = items.filter(it => it.open && it.get()); if (!open.length) return; }
+      if (!UI.min){ const mr = el("div","irow"); mr.style.cssText = "gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px"; const ml = el("span","m",Lg("Mode","الوضع")); ml.style.flex = "0 0 100%"; mr.append(ml);
         CHART_MODES.forEach(md => { const b = el("button", null, esc(Lg(md.en, md.ar))); b.title = Lg(md.tipEn, md.tipAr); if (this.state.mode === md.id) b.classList.add("on");
           b.onclick = e => { e.stopPropagation(); items.forEach(it => { if (!KEEP.includes(it.id)) it.set(md.on.includes(it.id)); }); this.state.mode = md.id; save(); render(); };
           mr.append(b); });
         pop.append(mr); }
-      items.forEach(it => {
+      (UI.min ? items.filter(it => it.open && it.get()) : items).forEach(it => {   // folded: only the indicators whose settings are open
         const row = el("div","irow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!it.get();
         cb.onchange = () => { it.set(cb.checked); if (!KEEP.includes(it.id)) this.state.mode = ""; save(); render(); }; const lb = el("label",null,esc(it.label)); if (it.tip) lb.title = it.tip; lb.onclick = () => { cb.checked = !cb.checked; cb.onchange(); };
         row.append(cb, lb);
@@ -2353,8 +2413,15 @@ class Panel {
           if (it.col2){ const c2 = el("input"); c2.type = "color"; c2.value = st().color2; c2.title = T("indColor")+" 2"; c2.oninput = () => { st().color2 = c2.value; save(); }; box.append(c2); }
           const w = el("select"); [1,1.5,2,3,4].forEach(v => w.append(Object.assign(el("option"), {value:v, textContent:v+"px"}))); w.value = st().w; w.title = T("indWidth"); w.onchange = () => { st().w = +w.value; save(); }; box.append(w);
           const d = el("select"); DASH.forEach(([v,l]) => d.append(Object.assign(el("option"), {value:v, textContent:l}))); d.value = st().dash || ""; d.title = T("indStyle"); d.onchange = () => { st().dash = d.value; save(); }; box.append(d);
-          (it.params || []).forEach(pp => { const l = el("label",null,esc(pp.label)), n = el("input"); n.type = "number"; n.min = pp.min; n.max = pp.max; n.step = pp.step; n.value = st()[pp.key]; n.style.width = "52px";
-            n.onchange = () => { const v = Math.max(pp.min, Math.min(pp.max, +n.value || st()[pp.key])); n.value = v; st()[pp.key] = v; save(); }; l.append(n); box.append(l); });
+          (it.params || []).forEach(pp => { if (pp.sep){ const h = el("div","isep",esc(pp.label)); box.append(h); return; }
+            const l = el("label",null,esc(pp.label)); let n;
+            if (pp.opts){ n = el("select"); pp.opts.forEach(([v, t]) => n.append(Object.assign(el("option"), {value:v, textContent:t}))); n.value = String(st()[pp.key]); n.onchange = () => { st()[pp.key] = isNaN(+n.value) || n.value === "" ? n.value : +n.value; save(); }; }
+            else if (pp.bool){ n = el("input"); n.type = "checkbox"; n.checked = !!st()[pp.key]; n.onchange = () => { st()[pp.key] = n.checked ? 1 : 0; save(); }; }
+            else if (pp.color){ n = el("input"); n.type = "color"; n.value = st()[pp.key] || "#ffffff"; n.oninput = () => { st()[pp.key] = n.value; save(); }; }
+            else if (pp.text){ n = el("input"); n.type = "text"; n.value = st()[pp.key] || ""; n.placeholder = pp.ph || ""; n.style.width = "92px"; n.onchange = () => { st()[pp.key] = n.value.trim(); save(); }; }
+            else { n = el("input"); n.type = "number"; n.step = pp.free ? "any" : pp.step; if (!pp.free){ n.min = pp.min; n.max = pp.max; } n.value = st()[pp.key]; n.style.width = pp.free ? "80px" : "52px";
+              n.onchange = () => { const v = pp.free ? Math.max(0, +n.value || 0) : Math.max(pp.min, Math.min(pp.max, +n.value || st()[pp.key])); n.value = v; st()[pp.key] = v; save(); }; }
+            n.onpointerdown = e => e.stopPropagation(); l.append(n); if (pp.tip) l.title = pp.tip; box.append(l); });
           g.onclick = () => { it.open = !it.open; box.style.display = it.open ? "flex" : "none"; };
           [col, w, d].forEach(x => x.onpointerdown = e => e.stopPropagation());
           row.append(box);
@@ -2363,7 +2430,7 @@ class Panel {
       });
     };
     btn.onclick = e => { e.stopPropagation(); if (pop.style.display === "none"){ render(); pop.style.display = "block"; } else pop.style.display = "none"; };
-    document.addEventListener("pointerdown", e => { if (pop.style.display !== "none" && !pop.contains(e.target) && e.target !== btn) pop.style.display = "none"; });
+    document.addEventListener("pointerdown", e => { if (pop.style.display !== "none" && !(this.indUI && this.indUI.pin) && !pop.contains(e.target) && e.target !== btn) pop.style.display = "none"; });
     pop.onpointerdown = e => e.stopPropagation(); this.body.append(pop); this.indPop = pop;
     return btn;
   }

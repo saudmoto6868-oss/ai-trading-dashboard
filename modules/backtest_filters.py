@@ -13,6 +13,7 @@ from pathlib import Path
 from modules.backtest_signals import walk
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "filter_compare.json"
+OUT_MD = Path(__file__).resolve().parent.parent / "FILTER_COMPARE.md"
 KEYS = ("donch", "sess_amd", "orb", "ob", "breaker", "unicorn", "breakout", "liqline", "kzs", "po3", "sma1040", "turtle55")
 FLAGS = ("SIGF_STRICT_SMC", "SIGF_OB_VOL", "SIGF_BO_VOL")
 
@@ -46,18 +47,18 @@ def table(res: dict, H=10) -> str:
     lines = [f"| series | signal | filters | n | win % | avg % (H={H}) | base win % |", "|---|---|---|---|---|---|---|"]
     for series, per in res.items():
         if "error" in per:
-            lines.append(f"| {series} | - | - | - | - | error: {per['error'][:60]} | - |")
+            lines.append(f"| {series.replace('|', ' ')} | - | - | - | - | error: {per['error'][:60]} | - |")
             continue
         for k, row in per.items():
             for name in ("off", "on"):
                 s = row[name]
-                lines.append(f"| {series} | {k} | {name} | {s['n']} | {s['win']} | {s['avg']} | {s['base_win']} |")
+                lines.append(f"| {series.replace('|', ' ')} | {k} | {name} | {s['n']} | {s['win']} | {s['avg']} | {s['base_win']} |")
     return "\n".join(lines)
 
 
-def main(symbols=("BTC-USDT", "ETH-USDT", "SOL-USDT"), tfs=("15m", "1h")):
+def main(symbols=("BTC-USDT", "ETH-USDT", "SOL-USDT"), tfs=("15m", "1h", "4h", "1d")):
     from modules.backtest_tf import _BAR, fetch_long
-    _BAR.setdefault("15m", "15m")
+    _BAR.setdefault("15m", "15m"); _BAR.setdefault("4h", "4H")
     res = {}
     for s in symbols:
         for tf in tfs:
@@ -71,7 +72,10 @@ def main(symbols=("BTC-USDT", "ETH-USDT", "SOL-USDT"), tfs=("15m", "1h")):
             res[f"{s}|{tf}"] = compare(df)
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(res, indent=1))
-    print(table(res))
+    md = ("# Group-A filters ON vs OFF (item 1) - real OKX candles, run by GitHub Actions\n\n"
+          "Direction hit-rate over the next 10 bars vs a random-direction baseline; no costs / stops. n < 30 = not evidence.\n\n" + table(res) + "\n")
+    OUT_MD.write_text(md)
+    print(md)
 
 
 if __name__ == "__main__":

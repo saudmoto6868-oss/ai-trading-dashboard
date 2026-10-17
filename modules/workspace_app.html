@@ -610,7 +610,9 @@ const Astro = (() => {
     let lon = Math.atan2(y, x)/R; const S = sun(d), Ms = S.M, Ls = rev(Ms + S.w), Lm = rev(M + w + N), D = Lm - Ls, F = Lm - N, s = a => Math.sin(a*R);
     lon += -1.274*s(M - 2*D) + .658*s(2*D) - .186*s(Ms) - .059*s(2*M - 2*D) - .057*s(M - 2*D + Ms) + .053*s(M + 2*D) + .046*s(2*D - Ms) + .041*s(M - Ms) - .035*s(D) - .031*s(M + Ms) - .015*s(2*F - 2*D) + .011*s(M - 4*D);
     return rev(lon); };
-  const lon = (b, ms, h) => { const d = (ms - DAY0)/864e5; if (b === "moon") return moon(d); const S = sun(d); if (b === "sun") return h ? rev(S.lon + 180) : S.lon;   // helio "sun" = Earth
+  const memo = new Map();   // the chart redraws often with the same times: remember each body / time / frame (capped)
+  const lon = (b, ms, h) => { const k = b + (h ? "h" : "g") + Math.round(ms/6e4); let v = memo.get(k); if (v === undefined){ if (memo.size > 200000) memo.clear(); v = lon0(b, ms, h); memo.set(k, v); } return v; };
+  const lon0 = (b, ms, h) => { const d = (ms - DAY0)/864e5; if (b === "moon") return moon(d); const S = sun(d); if (b === "sun") return h ? rev(S.lon + 180) : S.lon;   // helio "sun" = Earth
     const P = helio(b, d); return h ? P.lon : rev(Math.atan2(P.y + S.y, P.x + S.x)/R); };
   return {lon, rev, BODIES:["sun","moon","mercury","venus","mars","jupiter","saturn","uranus","neptune"], GLYPH:{sun:"☉",moon:"☽",mercury:"☿",venus:"♀",mars:"♂",jupiter:"♃",saturn:"♄",uranus:"♅",neptune:"♆"}};
 })();
@@ -1966,27 +1968,27 @@ Object.assign(CandleChart.prototype, {
   paintAstro(c, py, i0, i1, PB){   // moon phases, planetary aspects, retrograde shading, planetary price lines (Gann: 1 degree = 1 price unit x scale, repeating every 360)
     const d = this.data, n = d.length, A = this.st.astro, PR = this.PR, sec = this.secMs(); if (n < 2) return;
     const tL = d[Math.max(0, i0)].t, tR = d[n-1].t + Math.max(0, (PR - this.x(n-1))/this.bw)*sec, xT = t => this.x((t - d[0].t)/sec), G = Astro.GLYPH, span = tR - tL;
-    const step = Math.max(3600e3, span/2500), dv = (a, b) => ((a - b + 540) % 360) - 180;
+    const step0 = Math.max(3600e3, span/2500), step = 3600e3*2**Math.ceil(Math.log2(step0/3600e3)), dv = (a, b) => ((a - b + 540) % 360) - 180;   // power-of-two hours: the sample grid stays put while the chart redraws
     c.save(); c.textBaseline = "middle"; c.font = "11px sans-serif";
     // retrograde (geocentric longitude going backwards) shaded at the top
-    if (A.retro && A.rp !== "sun" && A.rp !== "moon"){ let st = null, prev = Astro.lon(A.rp, tL - step); for (let t = tL; t <= tR + step; t += step){ const v = Astro.lon(A.rp, t), r = dv(v, prev) < 0; prev = v;
+    if (A.retro && A.rp !== "sun" && A.rp !== "moon"){ let st = null, prev = Astro.lon(A.rp, tL - step); for (let t = Math.floor(tL/step)*step; t <= tR + step; t += step){ const v = Astro.lon(A.rp, t), r = dv(v, prev) < 0; prev = v;
         if (r && st == null) st = t; if ((!r || t > tR) && st != null){ const xa = xT(st), xb = xT(t); c.globalAlpha = .12; c.fillStyle = "#e056fd"; c.fillRect(xa, 0, Math.max(2, xb - xa), PB); c.globalAlpha = .9; c.fillStyle = "#e056fd"; c.font = "10px sans-serif"; c.fillText(G[A.rp]+" R", Math.max(2, xa + 2), PB - 30); st = null; } } }
     // moon phases: new = dark disc, full = bright disc (quarters optional)
-    if (A.moon){ const targets = A.mq ? [0, 90, 180, 270] : [0, 180]; let prev = Astro.rev(Astro.lon("moon", tL - step) - Astro.lon("sun", tL - step)), ms = Math.min(step, 6*3600e3), ph = [];
-      for (let t = tL; t <= tR; t += ms){ const e = Astro.rev(Astro.lon("moon", t) - Astro.lon("sun", t)); targets.forEach(a => { const p0 = dv(prev, a), p1 = dv(e, a); if (p0 < 0 && p1 >= 0 && Math.abs(p1 - p0) < 90) ph.push([t, a]); }); prev = e; }
+    if (A.moon){ const targets = A.mq ? [0, 90, 180, 270] : [0, 180]; let prev = Astro.rev(Astro.lon("moon", tL - step) - Astro.lon("sun", tL - step)), ms = Math.min(step, 4*3600e3), ph = [];
+      for (let t = Math.floor(tL/step)*step; t <= tR; t += ms){ const e = Astro.rev(Astro.lon("moon", t) - Astro.lon("sun", t)); targets.forEach(a => { const p0 = dv(prev, a), p1 = dv(e, a); if (p0 < 0 && p1 >= 0 && Math.abs(p1 - p0) < 90) ph.push([t, a]); }); prev = e; }
       const gapPx = ph.length > 1 ? Math.abs(xT(ph[1][0]) - xT(ph[0][0])) : 999, showLine = gapPx >= 25;
       ph.forEach(([t, a]) => { const x = xT(t); if (x < 0 || x > PR) return; if (gapPx < 9 && a !== 0) return; if (!showLine){ c.globalAlpha = 1; c.beginPath(); c.arc(x, 8, 4, 0, 6.3); if (a === 0){ c.fillStyle = "#0b0e11"; c.fill(); c.strokeStyle = "#c3c9d1"; c.stroke(); } else { c.fillStyle = "#f5f3d0"; c.fill(); } return; } c.globalAlpha = .25; c.strokeStyle = A.color2; c.setLineDash([2,4]); c.beginPath(); c.moveTo(x, 14); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
         c.globalAlpha = 1; c.beginPath(); c.arc(x, 8, 5, 0, 6.3); if (a === 0){ c.fillStyle = "#0b0e11"; c.fill(); c.strokeStyle = "#c3c9d1"; c.stroke(); } else if (a === 180){ c.fillStyle = "#f5f3d0"; c.fill(); } else { c.strokeStyle = "#c3c9d1"; c.stroke(); c.fillStyle = "#c3c9d1"; c.beginPath(); c.arc(x, 8, 5, a === 90 ? -Math.PI/2 : Math.PI/2, a === 90 ? Math.PI/2 : 1.5*Math.PI); c.fill(); } }); }
     // aspects between two bodies (geocentric or heliocentric): conjunction 0, sextile 60, square 90, trine 120, opposition 180
     if (A.asp && A.p1 !== A.p2){ const AS = A.aset === "all" ? [[0,"☌"],[60,"⚹"],[90,"□"],[120,"△"],[180,"☍"],[30,"⚺"],[45,"∠"],[135,"⚼"],[150,"⚻"]] : A.aset === "hard" ? [[0,"☌"],[90,"□"],[180,"☍"]] : [[0,"☌"],[60,"⚹"],[90,"□"],[120,"△"],[180,"☍"]];
-      const sepAt = t => Math.abs(dv(Astro.lon(A.p1, t, A.ahel && A.p1 !== "moon"), Astro.lon(A.p2, t, A.ahel && A.p2 !== "moon"))), fast = A.p1 === "moon" || A.p2 === "moon", st2 = fast ? Math.min(step, 3*3600e3) : step;
-      let prev = sepAt(tL - st2), k = 0; for (let t = tL; t <= tR && k < 4000; t += st2, k++){ const v = sepAt(t);
+      const sepAt = t => Math.abs(dv(Astro.lon(A.p1, t, A.ahel && A.p1 !== "moon"), Astro.lon(A.p2, t, A.ahel && A.p2 !== "moon"))), fast = A.p1 === "moon" || A.p2 === "moon", st2 = fast ? Math.min(step, 2*3600e3) : step;
+      let prev = sepAt(tL - st2), k = 0; for (let t = Math.floor(tL/step)*step; t <= tR && k < 4000; t += st2, k++){ const v = sepAt(t);
         AS.forEach(([a, gl]) => { if ((prev - a)*(v - a) <= 0 && prev !== v){ const x = xT(t); if (x < 0 || x > PR) return; const hard = a % 90 === 0;
           c.globalAlpha = hard ? .7 : .45; c.strokeStyle = A.color; c.lineWidth = hard ? 1.4 : 1; c.setLineDash(hard ? [] : [4,3]); c.beginPath(); c.moveTo(x, 18); c.lineTo(x, PB); c.stroke(); c.setLineDash([]);
           c.globalAlpha = 1; c.fillStyle = A.color; c.font = "bold 11px sans-serif"; c.fillText(G[A.p1]+gl+G[A.p2], x + 3, 24); } }); prev = v; } }
     // planetary price lines: price = (longitude + 360 k) x scale (auto scale puts one 360 cycle near the price), plus harmonics (every 360/harm degrees)
     if (A.pl){ const last = d[n-1].c, scale = +A.scale > 0 ? +A.scale : 10**Math.round(Math.log10(Math.max(1e-9, last/720))), cyc = 360*scale, hm = Math.max(1, Math.min(12, A.harm|0 || 1)), lo = this._lo, hi = this._hi;
-      const pts = []; for (let t = tL; t <= tR; t += Math.max(step, span/300)) pts.push([t, Astro.lon(A.plp, t, A.plhel && A.plp !== "moon")]);
+      const pts = []; for (let t = Math.floor(tL/step)*step; t <= tR; t += step*2**Math.max(0, Math.ceil(Math.log2(span/300/step)))) pts.push([t, Astro.lon(A.plp, t, A.plhel && A.plp !== "moon")]);
       for (let h = 0; h < hm; h++){ const off = h*360/hm*scale; for (let k = Math.floor((lo - off)/cyc) - 1; k <= Math.ceil((hi - off)/cyc) + 1; k++){
         c.strokeStyle = A.color; c.globalAlpha = h ? .35 : .75; c.lineWidth = h ? 1 : 1.5; c.setLineDash(h ? [5,4] : []); c.beginPath(); let started = false, lastLon = null;
         pts.forEach(([t, L]) => { const p = (L + 360*k)*scale + off, x = xT(t), y = py(p); if (lastLon != null && Math.abs(L - lastLon) > 180){ started = false; } lastLon = L; if (!started){ c.moveTo(x, y); started = true; } else c.lineTo(x, y); });

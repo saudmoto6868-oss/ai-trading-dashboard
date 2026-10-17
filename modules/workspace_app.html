@@ -84,6 +84,7 @@ td{padding:1px 4px;white-space:nowrap}
 .card .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.card .grow{flex:1}
 .logo{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex:none}
 .tb button,.tb select{white-space:nowrap;flex:none}.indpop{position:absolute;top:32px;left:6px;z-index:30;min-width:230px;max-height:80%;overflow:auto;background:var(--panel2);border:1px solid #3a424b;border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.hlb{font-size:9px;padding:0 3px;border-radius:3px;background:#1f3b2f;color:#7fe3b5;margin-left:3px}
 .irow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 4px;border-radius:4px}.irow:hover{background:rgba(255,255,255,.04)}.irow label{cursor:pointer}.irow>label{flex:1}
 .iset{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0 2px 22px}.iset input[type=color]{width:26px;height:22px;padding:0}
 .jr{padding:4px}.jcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.jc{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
@@ -165,6 +166,50 @@ const FH = {q:{}, state:"off", ws:null, wait:5000,
   // change % reference = the previous daily close of the Yahoo twin when the page embedded it, otherwise unknown (no fake 0%)
   ref(x){ const D = x.y && YF[x.y] && YF[x.y]["1d"]; return D && D.length > 1 ? D[D.length-2][4] : 0; }
 };
+/* Hyperliquid (public API, no key, real time): the "xyz" builder dex lists TradFi perps - gold / silver / platinum / palladium /
+   copper, WTI / Brent / gas / heating oil, S&P 500 / Nasdaq 100 / Nikkei / KOSPI, EUR / GBP / JPY, TLT and ~100 stocks.
+   Ids are "HL:xyz:GOLD". These are PERPETUAL prices (track the market via an oracle; can differ slightly from spot / futures,
+   and they trade 24/7 including when the underlying market is closed). Live mids from the allMids websocket; prev-day price,
+   volume and the market list from metaAndAssetCtxs every 30 s (also the fallback when the socket is down). */
+const HL_API = CFG.hlApi || "https://api.hyperliquid.xyz", HL_DEX = "xyz";
+const HL_CAT = {GOLD:"Metals",SILVER:"Metals",PLATINUM:"Metals",PALLADIUM:"Metals",COPPER:"Metals",CL:"Oil & Gas",BRENTOIL:"Oil & Gas",NATGAS:"Oil & Gas",HO:"Oil & Gas",
+  SP500:"Indices",XYZ100:"Indices",JP225:"Indices",KR200:"Indices",EUR:"Forex",GBP:"Forex",JPY:"Forex",AUD:"Forex",CAD:"Forex",CHF:"Forex",TLT:"Bonds"};
+const HL_LBL = {GOLD:"Gold",SILVER:"Silver",PLATINUM:"Platinum",PALLADIUM:"Palladium",COPPER:"Copper",CL:"WTI crude",BRENTOIL:"Brent crude",NATGAS:"Natural gas",HO:"Heating oil",
+  SP500:"S&P 500",XYZ100:"Nasdaq 100 (XYZ100)",JP225:"Nikkei 225",KR200:"KOSPI 200",EUR:"EUR/USD",GBP:"GBP/USD",JPY:"USD/JPY",AUD:"AUD/USD",CAD:"USD/CAD",CHF:"USD/CHF",TLT:"US 20Y+ bonds (TLT)"};
+const hlBase = id => String(id).replace(/^HL:/, "").split(":").pop(), hlCoin = id => String(id).replace(/^HL:/, "");
+const hlCat = id => HL_CAT[hlBase(id)] || "Stocks", hlLabel = id => HL_LBL[hlBase(id)] || hlBase(id);
+const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0,
+  async post(body){ const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}); if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status); return r.json(); },
+  async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
+    (meta.universe || []).forEach((u, i) => { const c = ctxs[i] || {}, id = "HL:"+u.name, px = +(c.midPx || c.markPx), vol = +c.dayNtlVlm || 0, oi = +c.openInterest || 0;
+      if (u.isDelisted || !(px > 0) || (!vol && !oi)) return;
+      const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
+    this.list = L; this.t = Date.now(); },
+  start(){ if (this.on) return; this.on = true; this.state = "connecting";
+    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 4000); };
+    poll(); this.sock(); },
+  sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
+    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
+      Object.entries(mids).forEach(([k, v]) => { const id = "HL:"+k; if (this.q[id] && +v > 0) this.q[id].last = +v; }); };
+    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait); this.wait = Math.min(60000, this.wait*2); };
+    ws.onerror = () => { try { ws.close(); } catch(e){} }; }
+};
+// OKX timeframe -> Hyperliquid candle interval (bars Hyperliquid does not have -> clear error)
+const HL_IV = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1H":"1h","2H":"2h","4H":"4h","8H":"8h","12Hutc":"12h","1D":"1d","1Dutc":"1d","3Dutc":"3d","1W":"1w","1Wutc":"1w","1M":"1M","1Mutc":"1M"};
+const HL_MS = {"1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":72e5,"4h":144e5,"8h":288e5,"12h":432e5,"1d":864e5,"3d":2592e5,"1w":6048e5,"1M":2592e6};
+async function hlOkx(path){   // answers the OKX REST paths the widgets use, in OKX's shape, from Hyperliquid
+  const q = new URLSearchParams(path.split("?")[1] || ""), id = q.get("instId"), coin = hlCoin(id);
+  if (/\/market\/(history-)?candles/.test(path)){ const iv = HL_IV[q.get("bar")]; if (!iv) throw new Error("timeframe "+q.get("bar")+" not available on Hyperliquid");
+    const lim = Math.min(+q.get("limit") || 100, 1000), end = q.get("after") ? +q.get("after") - 1 : Date.now(), start = end - lim*HL_MS[iv];
+    const rows = await HL.post({type:"candleSnapshot", req:{coin, interval:iv, startTime:start, endTime:end}});
+    return (rows || []).map(k => [String(k.t), String(k.o), String(k.h), String(k.l), String(k.c), String(k.v), "0", "0", "1"]).reverse(); }
+  if (/\/market\/ticker/.test(path)){ if (!HL.t) await HL.ctx(); const x = HL.q[id]; if (!x) throw new Error("unknown Hyperliquid market "+coin); return [{instId:id, last:String(x.last), open24h:String(x.open || x.last), vol24h:String(x.vol || 0)}]; }
+  if (/\/market\/books/.test(path)){ const b = await HL.post({type:"l2Book", coin}), lv = (b && b.levels) || [[], []], f = a => a.map(x => [String(x.px), String(x.sz), "0", String(x.n || 0)]);
+    return [{bids:f(lv[0] || []), asks:f(lv[1] || []), ts:String(b.time || Date.now())}]; }
+  if (/\/market\/trades/.test(path)){ const t = await HL.post({type:"recentTrades", coin}); return (t || []).slice().reverse().map(x => ({tradeId:String(x.tid || x.hash || x.time), ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"})); }
+  throw new Error("not available for Hyperliquid markets");
+}
 const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"13m":780,"1H":3600,"2H":7200,"3H":10800,"4H":14400,"6H":21600,"7H":25200,"8H":28800,"12H":43200,"1D":86400,"3D":259200,"1W":604800,"1M":2592000};
 /* OKX bar sizes: 2H is native; 6H / 12H / 3D / 1M use its UTC variants; 13m, 3H, 7H and 8H do not exist on OKX, so they are built from 1m / 1H candles (buckets aligned to the UTC epoch) */
 const TF_OKX = {"2H":"2H","6H":"6Hutc","12H":"12Hutc","3D":"3Dutc","1M":"1Mutc"}, TF_AGG = {"13m":["1m",13],"3H":["1H",3],"7H":["1H",7],"8H":["1H",8]};
@@ -377,7 +422,7 @@ const worldItems = (wm = {eco:1, pol:1, geo:1, ar:1, en:1}) => {
     .filter(n => wm[tp[n.topic] || "eco"] && wm[n.lang === "ar" ? "ar" : "en"]).sort((a,b) => (b.ts || 0) - (a.ts || 0));
 };
 const SYM_RE = /^[A-Z0-9]{2,12}-[A-Z0-9]{2,6}(-SWAP|-\d{6}(-\d+(\.\d+)?-[CP])?)?$/;
-const extraSyms = store.get(LS+"_syms", []).filter(x => SYM_RE.test(x));
+const extraSyms = store.get(LS+"_syms", []).filter(x => SYM_RE.test(x) || /^HL:[a-z]+:[A-Z0-9]+$/.test(x));
 extraSyms.forEach(x => { if (!SYMS.includes(x)) SYMS.push(x); });
 // Long/Short + trade-type filters chosen above the scanner table (Streamlit side) apply to chart overlays and alert cards too
 const FILT = Object.assign({side:"All", tt:"All", st:[], tf:"All"}, store.get(LS+"_filt", {}));
@@ -462,6 +507,7 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
 }
 async function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
+  if (/instId=HL%3A/i.test(path)) return hlOkx(path);
   const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
   if (!r.ok) throw new Error("HTTP "+r.status);
   const j = await r.json();
@@ -644,10 +690,12 @@ const Hub = {
     if (!this.timers[key]) this.start(key, kind, sym);
     return () => { const s = this.subs[key]; s.delete(cb); if (!s.size){ clearTimeout(this.timers[key]); delete this.timers[key]; delete this.last[key]; if (kind === "trades") delete this.an[sym]; } };
   },
+  kick(key){ if (this.busy && this.busy[key]) return; clearTimeout(this.timers[key]); this.tickFns && this.tickFns[key] && this.tickFns[key](); },
   start(key, kind, sym){
     const every = kind === "tickers" ? 3000 : 1500;
     const tick = async () => {
       if (!this.subs[key] || !this.subs[key].size) return;
+      (this.busy = this.busy || {})[key] = true;
       try {
         let payload;
         if (/^Y:/.test(sym) && (kind === "book" || kind === "trades")){ payload = {error:"no order book / tape for this market (Yahoo feed)"}; }
@@ -660,13 +708,15 @@ const Hub = {
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
-          const m = {}; FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
+          const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
         }
         this.last[key] = payload; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
       } catch(e){ setStatus(false); this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e)}); }catch(_){} }); }
+      this.busy[key] = false; clearTimeout(this.timers[key]);
       if (this.subs[key] && this.subs[key].size) this.timers[key] = setTimeout(tick, every);
     };
+    (this.tickFns = this.tickFns || {})[key] = tick;
     this.timers[key] = setTimeout(tick, 0);
   },
   /* tape analysis: new-print flags, SMART/WHALE tiers, absorption, stats */
@@ -2262,6 +2312,8 @@ class Panel {
     inp.placeholder = T("addsym"); inp.style.flex = "1"; inp.style.minWidth = "0";
     const add = () => {
       const v = inp.value.trim().toUpperCase().replace("/","-");
+      const hl = "HL:xyz:"+v.replace(/^(HL:)?XYZ:/, "");   // "GOLD", "xyz:GOLD", "SP500" -> Hyperliquid market when it exists
+      if (HL.q[hl]){ addSym(hl); inp.value = ""; return; }
       if (!SYM_RE.test(v)) return; addSym(v); inp.value = "";
     };
     const addSym = v => { if (!SYMS.includes(v)){ SYMS.push(v); extraSyms.push(v); store.set(LS+"_syms", extraSyms); } Ws.panels.forEach(p => p.type === "watch" && p.resub()); };
@@ -2280,12 +2332,17 @@ class Panel {
       if (U.cat.startsWith("__")){ this.uTitle = ""; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
       const yfCat = y => /\.CA$|^Y:\^CASE30$/.test(y) ? "Egypt (EGX)" : /\.SR$/.test(y) ? "Saudi (Tadawul)" : /=X$/.test(y) ? "Forex" : /^Y:\^/.test(y) ? "Indices" : "", yfRows = Object.keys(YF).filter(y => yfCat(y) === U.cat).map(y => ({id:y, vol:1e18, cat:U.cat}));   // Yahoo markets (not in OKX): candles were embedded for the page-level Asset class
       if (/^(Egypt|Saudi)/.test(U.cat) && !yfRows.length){ uBox.innerHTML = '<div class="err" style="color:#f0b90b">'+esc(lang === "ar" ? "السوق ده بييجي من Yahoo: اختار \""+U.cat+"\" من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "This market comes from Yahoo: pick \""+U.cat+"\" in the Asset class dropdown (Chart Scanner tab), then come back.")+'</div>'; this.wRender && this.wRender(Hub.last["tickers|all"]); return; }
+      const hlRows = HL.list.filter(x => x.cat === U.cat).sort((a, b) => b.vol - a.vol).map(x => ({id:x.id, vol:3e18 + x.vol, cat:x.cat}));
+      if (!HL.t && !/^error/.test(HL.state) && /^(Forex|Metals|Oil & Gas|Indices|Stocks|Bonds|Commodities)$/.test(U.cat)) setTimeout(() => renderU(), 1500);   // Hyperliquid list still loading
+      yfRows.unshift(...hlRows);
       const fhRows = CFG.fhToken ? FH_LIST.filter(x => x.cat === U.cat || (U.cat === "All" && 0)).map(x => ({id:x.id, vol:2e18, cat:x.cat})) : [];
       yfRows.unshift(...fhRows.filter(f => !yfRows.some(y => y.id === f.id)));
       const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, Math.max(U.top, yfRows.length));
-      if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
+      if (!r.length && /^error/.test(HL.state) && /^(Forex|Metals|Oil & Gas|Indices|Stocks|Bonds)$/.test(U.cat)){ uBox.innerHTML = '<div class="err">'+esc(Lg("Hyperliquid (live gold / oil / indices / FX) is not reachable right now: ", "Hyperliquid (ذهب / بترول / مؤشرات / فوركس لحظي) مش متاح دلوقتي: ")+HL.state.replace(/^error: /, "")+Lg(" - retrying every 4 s.", " - بيحاول تاني كل 4 ثواني."))+'</div>'; }
+      else if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
       this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");
       this.wRender && this.wRender(Hub.last["tickers|all"]);   // the symbols simply load into the live list below
+      Hub.extra = new Set([...(Hub.extra || []), ...this.uSyms]); Hub.kick("tickers|all");   // fetch the new category now, not in 3 s
     };
     const loadU = async () => {
       uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc(T("loading"))+'</div>';
@@ -2295,7 +2352,7 @@ class Panel {
         const meta = {}; ins.forEach(i => meta[i.instId] = i);
         rowsU = tk.filter(x => (isO || U.quote === "ALL" || x.instId.split("-")[1] === U.quote) && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
           return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:isO ? (+x.vol24h || 0) : (+x.volCcy24h || 0) * (U.type !== "SPOT" ? last : 1), cat:isO ? "Options" : catOf(meta[x.instId], base)}; });
-        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
+        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Bonds","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
         if (CFG.cls && U.ucls !== CFG.cls){   // the page-level Asset class dropdown sets the default once; the selectors here stay usable
           U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = CFG.cls === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
@@ -2307,8 +2364,11 @@ class Panel {
     go.onclick = add; inp.onkeydown = e => { if (e.key === "Enter") add(); };
     const favB = el("button",null,"★"), tfS = el("select"); favB.title = lang === "ar" ? "المفضلة فقط" : "Favorites only"; favB.onclick = () => { if (U.cat === "__fav"){ U.cat = this.state.prevCat || "__mine"; } else { this.state.prevCat = U.cat; U.cat = "__fav"; } catSel.value = U.cat; favB.style.color = U.cat === "__fav" ? "#f0b90b" : ""; Ws.save(); loadU(); }; favB.style.color = U.cat === "__fav" ? "#f0b90b" : "";
     ["1H","4H"].forEach(v => tfS.append(Object.assign(el("option"), {value:v, textContent:"AMD "+v}))); tfS.value = this.state.wtf || "1H"; tfS.title = "Accumulation / Manipulation / Distribution"; tfS.onchange = () => { this.state.wtf = tfS.value; this.amd = {}; Ws.save(); this.wDraw && this.wDraw(); };
+    HL.start();
     const fhS = el("span","m"); fhS.style.cssText = "font-size:10px;white-space:nowrap"; if (CFG.fhToken){ FH.start(); const upd = () => { const n = Object.keys(FH.q).length; fhS.textContent = "FH "+(FH.state === "live" ? "● "+n+"/"+FH_LIST.length : FH.state); fhS.title = Lg("Finnhub live CFD feed: symbols with at least one tick / total","مصدر Finnhub اللحظي: الرموز اللي وصلها سعر / الإجمالي"); }; upd(); this.fhUpd = upd; }   // refreshed with every ticker snapshot (wRender), so it survives resub()
-    tb.append(inp, go, favB, tfS, ub, fhS); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
+    const hlS = el("span","m"); hlS.style.cssText = "font-size:10px;white-space:nowrap"; const hlUpd = () => { hlS.textContent = "HL "+(HL.state === "live" ? "● "+HL.list.length : HL.state === "rest" ? "◐ "+HL.list.length : HL.state); hlS.title = Lg("Hyperliquid TradFi feed: ● websocket live, ◐ REST every 4 s; number = markets listed","مصدر Hyperliquid: ● لحظي websocket، ◐ كل 4 ثواني؛ الرقم = عدد الأسواق"); };
+    hlUpd(); const fu0 = this.fhUpd; this.fhUpd = () => { hlUpd(); fu0 && fu0(); };
+    tb.append(inp, go, favB, tfS, ub, fhS, hlS); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();
   }
   /* ---- links bar ---- */
   build_links(){
@@ -2932,7 +2992,9 @@ Panel.prototype.resub = function(){
       groups.forEach(([title, list]) => { if (!list.length) return; h += '<tr class="wh"><td colspan="5">'+esc(title)+'</td></tr>';
         list.forEach(s => { shown.push(s); const x = M[s], p = this.pv[s] || {}, fav = F.includes(s), fl = this.flash.has(s) ? (p.dir > 0 ? " fu" : " fd") : "", col = p.dir > 0 ? "g" : p.dir < 0 ? "rd" : "";
           const st = '<td class="stc"><span class="st'+(fav ? " on" : "")+'" data-st="'+esc(s)+'">'+(fav ? "★" : "☆")+'</span></td>';
-          const nm = FH_MAP[s] ? esc(FH_MAP[s].label)+' <span class="m" title="Finnhub / OANDA CFD, live">●</span>' : esc(s);
+          const nm = /^HL:/.test(s) ? esc(hlLabel(s))+' <span class="hlb" title="'+esc(L_("Hyperliquid perpetual "+hlCoin(s)+" - live, 24/7, can differ slightly from spot / futures", "عقد دائم على Hyperliquid "+hlCoin(s)+" - لحظي 24/7، ممكن يختلف شوية عن السبوت / الفيوتشرز"))+'">HL</span>'
+            : FH_MAP[s] ? esc(FH_MAP[s].label)+' <span class="m" title="Finnhub / OANDA CFD, live">●</span>'
+            : /^Y:/.test(s) ? esc(s.slice(2).replace(/^([A-Z]{3})([A-Z]{3})=X$/, "$1/$2").replace(/=F$/, " fut"))+' <span class="m" title="'+esc(L_("Yahoo Finance, delayed - refreshed when the page reloads","Yahoo Finance متأخر - بيتحدث مع تحديث الصفحة"))+'">Y</span>' : esc(s);
           if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';
           h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });

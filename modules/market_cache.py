@@ -31,7 +31,10 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
     if hit and now - hit[0] < ttl:
         return hit[1]
     try:
-        if symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
+        if symbol.startswith("HL:"):   # Hyperliquid TradFi perps (gold, oil, S&P 500, EUR ...): public API, no key
+            from modules.hl_feed import get_klines as _hl
+            df = _hl(symbol, tf, limit)
+        elif symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
             from modules.yahoo_feed import get_yahoo_klines
             try:
                 df = get_yahoo_klines(symbol, tf, limit)

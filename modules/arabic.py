@@ -365,6 +365,9 @@ def analysis_ar(res: dict) -> dict:
 # --------------------------------------------------------------------------
 
 def tv_link(symbol: str, tf: str) -> str:
+    if symbol.startswith("HL:"):
+        from modules.hl_feed import tv_symbol
+        return f"https://www.tradingview.com/chart/?symbol={tv_symbol(symbol)}&interval={TV_INTERVAL.get(tf, '60')}"
     sym = TV_SYMBOL_MAP.get(symbol) or ("BINANCE:" + symbol.replace("-", "") if symbol.endswith("-USDT") else symbol.replace("-", ""))
     return f"https://www.tradingview.com/chart/?symbol={sym}&interval={TV_INTERVAL.get(tf, '60')}"
 

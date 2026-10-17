@@ -8,7 +8,7 @@ import time
 
 import requests
 
-CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
+CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds", "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
 MARKET_TYPES = {"Spot": "SPOT", "Perp (swap)": "SWAP", "Futures": "FUTURES"}
 NO_FEED = {"Egypt (EGX)", "Saudi (Tadawul)"}   # no verified free live feed yet (needs an API key); never show invented numbers
 MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", "MEME", "BOME", "POPCAT", "MEW", "PNUT", "ACT", "GOAT", "TRUMP", "FARTCOIN", "MOODENG", "PENGU", "1000SATS"]
@@ -72,7 +72,7 @@ def _load_options(base_url=OKX):
 def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
-    from modules import yahoo_feed
+    from modules import hl_feed, yahoo_feed
     if cls in NO_FEED:   # EGX / Tadawul: Yahoo only (unofficial, delayed)
         return yahoo_feed.symbols(cls)[:top], ""
     if cls == "Options":
@@ -84,12 +84,14 @@ def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
     if cls == "Crypto" and mtype == "SPOT":
         return list(crypto_symbols), ""
     inst = mtype if (cls in ("Crypto", "Meme coins") or mtype != "SPOT") else "SWAP"
+    hl = hl_feed.symbols(cls, top) if cls in ("Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds") else []   # Hyperliquid TradFi perps (live, no key)
     try:
         rows = _load(inst, base_url)
     except Exception as e:
-        ys = yahoo_feed.symbols(cls)
+        ys = hl + yahoo_feed.symbols(cls)
         return (ys, "") if ys else ([], f"OKX list unavailable ({type(e).__name__})")
     sel = [r for r in rows if r["cls"] == cls or (cls == "Metals" and r["cls"] == "Commodities")]
     sel.sort(key=lambda r: r["vol"], reverse=True)
-    syms = [r["id"] for r in sel[:top]] + yahoo_feed.symbols(cls)   # Forex / Indices: OKX contracts plus Yahoo majors
+    okx_ids = [r["id"] for r in sel[:top]]
+    syms = hl + [s for s in okx_ids if s not in hl] + yahoo_feed.symbols(cls)   # Hyperliquid first (widest TradFi coverage), then OKX, then Yahoo majors
     return syms, ("" if syms else f"OKX lists no {cls} {inst} instruments right now")

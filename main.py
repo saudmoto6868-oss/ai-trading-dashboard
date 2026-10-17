@@ -1008,6 +1008,9 @@ def _tv_symbol_for(cls, inst):
     if inst.startswith("Y:"):
         from modules.yahoo_feed import tv_symbol
         return tv_symbol(inst)
+    if inst.startswith("HL:"):
+        from modules.hl_feed import tv_symbol as _hl_tv
+        return _hl_tv(inst)
     parts = inst.split("-"); base = parts[0]; quote = parts[1] if len(parts) > 1 else "USD"
     q = "USD" if quote in ("USDT", "USDC") else quote
     if cls == "Metals" and base in ("XAU", "XAG", "XPT", "XPD"):

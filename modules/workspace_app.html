@@ -1105,7 +1105,7 @@ class CandleChart {
     if (this.gannOn) this.paintGann(c, py, i0, i1, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);
-    if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); if (!this.colOn) this.paintSyncCard(c, 8, Math.min(PR - 8, 250), PB); }
+    if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); }   // the card lives under the order-flow column (paintCol)
     if (this.psarOn && this.psarV){ const S = this.psarV, st = this.st.psar, r = Math.max(1.5, Math.min(3, this.bw*0.22)) * (st.w || 1);
       for (let i = i0; i <= i1; i++){ if (S.v[i] == null) continue; c.fillStyle = S.up[i] ? st.color : st.color2; c.beginPath(); c.arc(this.x(i), py(S.v[i]), r, 0, Math.PI*2); c.fill(); } }
     if (this.domOn && !this.colOn) this.paintDom(c, py, i0, i1, PB);
@@ -2004,28 +2004,55 @@ Object.assign(CandleChart.prototype, {
       c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath(); c.lineWidth = 1.5; c.strokeStyle = col; c.fillStyle = col;
       if (t.res != null){ c.globalAlpha = t.res > 0 ? .95 : .45; c.fill(); } else { c.globalAlpha = 1; c.stroke(); } c.globalAlpha = 1; });
   },
-  paintSyncCard(c, x0, x1, PB){   // the three lights + last setup + live forward-test stats; sits in the empty bottom-left corner of the order-flow column
-    const sy = this.sync, S = this.st.sync, w = x1 - x0, h = 106, y0 = PB - h - 8; if (w < 110) return;
-    c.save(); c.fillStyle = "rgba(8,12,18,.82)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(x0, y0, w, h); c.strokeRect(x0 + .5, y0 + .5, w - 1, h - 1);
-    c.beginPath(); c.rect(x0 + 1, y0 + 1, w - 2, h - 2); c.clip(); c.textBaseline = "middle"; c.textAlign = "left"; c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; c.fillText(Lg("ORDER-FLOW SYNC", "تزامن الأوردر فلو"), x0 + 7, y0 + 10);
-    const lab = [Lg("Book","الدفتر"), Lg("Tape","الصفقات"), Lg("Limits","الليمت")], val = sy ? [sy.book, sy.tape, sy.lim] : [null, null, null];
-    lab.forEach((l, i) => { const lx = x0 + 7 + i*Math.min(70, (w - 14)/3), st = sy ? sy.L[i] : 0, col = st > 0 ? S.color : st < 0 ? S.color2 : "#4a525c";
-      c.fillStyle = col; c.beginPath(); c.arc(lx + 4, y0 + 27, 4, 0, 6.3); c.fill(); if (st){ c.globalAlpha = .25; c.beginPath(); c.arc(lx + 4, y0 + 27, 7, 0, 6.3); c.fill(); c.globalAlpha = 1; }
-      c.font = "9px sans-serif"; c.fillStyle = "#9aa4b2"; c.fillText(l, lx + 11, y0 + 24); c.fillStyle = "#c3c9d1"; const v = val[i];
-      c.fillText(v == null ? "–" : i < 2 ? (v > 0 ? "+" : "")+Math.round(v*100)+"%" : (v > 0 ? "+" : "")+v, lx + 11, y0 + 34); });
-    const last = (this.syncLog || [])[(this.syncLog || []).length - 1]; c.font = "9px sans-serif";
-    if (sy && sy.dir){ c.fillStyle = sy.dir > 0 ? S.color : S.color2; c.font = "bold 10px sans-serif"; c.fillText(sy.dir > 0 ? Lg("▲ ALL 3 BUY","▲ التلاتة شراء") : Lg("▼ ALL 3 SELL","▼ التلاتة بيع"), x0 + 7, y0 + 50); }
-    else if (last){ const m = Math.round((Date.now() - last.t)/60000); c.fillStyle = last.dir > 0 ? S.color : S.color2; c.fillText((last.dir > 0 ? "▲ " : "▼ ")+last.en.toFixed(last.en < 10 ? 4 : 2)+" · "+m+Lg("m ago"," د")+(last.res != null ? " · "+(last.res > 0 ? "+" : "")+last.res+"R" : " · "+Lg("open","مفتوحة")), x0 + 7, y0 + 50); }
-    else { c.fillStyle = "#6b7684"; c.fillText(Lg("waiting for all three to agree","مستني التلاتة يتفقوا"), x0 + 7, y0 + 50); }
-    { const cx = sy && sy.cx, side = sy && sy.dir ? sy.dir : last ? last.dir : 0, o = cx && cx.oi, fu = cx && cx.fund != null ? cx.fund : null; c.font = "9px sans-serif";
-      if (o || fu != null){ const of = side ? Ctx.oiFlag(cx, side > 0 ? "bullish" : "bearish") : {k:"na", txt:o ? Ctx.oiFlag(cx, "bullish").txt : ""}, ff = side ? Ctx.fundFlag(cx, side > 0 ? "bullish" : "bearish") : null;
-        c.fillStyle = of.k === "bad" || ff ? "#f0b90b" : "#9aa4b2"; c.fillText((of.k === "bad" || ff ? "⚠ " : "")+(o ? "4h "+of.txt : "")+(fu != null ? " · "+Lg("fund ","تمويل ")+(fu*100).toFixed(3)+"%" : "")+(ff ? " · "+ff : ""), x0 + 7, y0 + 64); }
-      else { c.fillStyle = "#4a525c"; c.fillText(Lg("OI / funding: loading or n/a","OI / تمويل: بيحمّل أو مش متاح"), x0 + 7, y0 + 64); } }
-    if (this.gannOn && this._gannLive){ const gl = this._gannLive, agree = sy && sy.dir === gl.dir; c.font = "bold 9px sans-serif"; c.fillStyle = gl.dir > 0 ? S.color : S.color2;
-      c.fillText((gl.dir > 0 ? "▲" : "▼")+" Gann "+(gl.dir > 0 ? "BUY" : "SELL")+" "+fmtP(gl.en)+(agree ? Lg("  ✓ order flow agrees","  ✓ الأوردر فلو متفق") : sy && sy.dir ? Lg("  ✗ order flow against","  ✗ الأوردر فلو عكسه") : ""), x0 + 7 + Math.min(150, w/2), y0 + 50); }
-    const st = this.syncStats(); c.fillStyle = "#c3c9d1"; c.font = "9px ui-monospace,Menlo,Consolas,monospace";
-    c.fillText(st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : Lg("no closed setups yet","مفيش صفقات مقفولة لسه"), x0 + 7, y0 + 80);
-    c.fillStyle = st.n >= 30 ? "#9aa4b2" : "#f0b90b"; c.font = "8px sans-serif"; c.fillText(st.n >= 30 ? Lg("live forward test in this browser · stop 1 ATR · target "+S.rr+"R","اختبار حي في المتصفح ده · ستوب 1 ATR · هدف "+S.rr+"R") : Lg("under 30 setups = not evidence yet","أقل من 30 صفقة = مش دليل لسه"), x0 + 7, y0 + 95);
+  paintSyncCard(c, x0, x1, PB){   // card in the empty bottom corner of the order-flow column: the three lights, OI / funding, Gann agreement, recent setups + live forward-test stats
+    const sy = this.sync, S = this.st.sync, w = x1 - x0; if (w < 120) return;
+    const log = this.syncLog || [], st = this.syncStats(), px = this.data.length ? this.data[this.data.length - 1].c : null, G = S.color, R = S.color2, mono = "9px ui-monospace,Menlo,Consolas,monospace";
+    const rows = [];   // [kind, ...] drawn top to bottom; height follows the content
+    const stx = st.n ? "n "+st.n+" · "+st.win+"% · "+(st.avg > 0 ? "+" : "")+st.avg+"R" : Lg("no closed setups","مفيش صفقات مقفولة"), stc = !st.n ? "#6b7684" : st.n < 30 ? "#f0b90b" : st.avg > 0 ? "#0ecb81" : "#f6465d";
+    c.save(); c.font = mono; const stw = c.measureText(stx).width + 10; c.restore(); const chip = w - stw - 12 > 110;   // stats chip in the header if it fits, else its own row
+    rows.push(["lights"]); if (!chip) rows.push(["txt", stc, st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : stx, "bold "]);
+    if (sy && sy.dir) rows.push(["big", sy.dir > 0 ? G : R, sy.dir > 0 ? Lg("▲ ALL 3 BUY","▲ التلاتة شراء") : Lg("▼ ALL 3 SELL","▼ التلاتة بيع")]);
+    else rows.push(["txt", "#6b7684", Lg("waiting for all three to agree","مستني التلاتة يتفقوا")]);
+    if (this.gannOn && this._gannLive){ const gl = this._gannLive, ag = sy && sy.dir === gl.dir, ag2 = sy && sy.dir && !ag;
+      rows.push(["txt", gl.dir > 0 ? G : R, (gl.dir > 0 ? "▲" : "▼")+" Gann "+(gl.dir > 0 ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" "+fmtP(gl.en)+(ag ? Lg("  ✓ order flow agrees","  ✓ الأوردر فلو متفق") : ag2 ? Lg("  ✗ order flow against","  ✗ الأوردر فلو عكسه") : ""), "bold "]); }
+    { const last = log[log.length - 1], cx = sy && sy.cx, side = sy && sy.dir ? sy.dir : last ? last.dir : 0, o = cx && cx.oi, fu = cx && cx.fund != null ? cx.fund : null;
+      if (o || fu != null){ const of = side ? Ctx.oiFlag(cx, side > 0 ? "bullish" : "bearish") : {k:"na", txt:o ? Ctx.oiFlag(cx, "bullish").txt : ""}, ff = side ? Ctx.fundFlag(cx, side > 0 ? "bullish" : "bearish") : null, warn = of.k === "bad" || ff, col = warn ? "#f0b90b" : "#9aa4b2";
+        if (o) rows.push(["txt", col, (warn ? "⚠ " : "")+"4h "+of.txt]);
+        if (fu != null) rows.push(["txt", col, Lg("funding ","تمويل ")+(fu*100).toFixed(3)+"%"+(ff ? " · "+Lg(ff, ff === "crowded longs" ? "زحمة لونج" : "زحمة شورت") : "")]); }
+      else rows.push(["txt", "#4a525c", Lg("OI / funding: loading or n/a","OI / تمويل: بيحمّل أو مش متاح")]); }
+    const maxH = Math.max(110, Math.min(PB*.55, 240)), base = 18 + 30 + 14 + 12;   // header + lights + recent title + footer
+    let used = base + (rows.length - 1)*13; const room = Math.max(0, Math.min(5, Math.floor((maxH - used)/12)));
+    const recent = room ? log.slice().sort((a, b) => b.t - a.t).slice(0, room) : []; used += recent.length ? 14 + recent.length*12 : 14;
+    const h = Math.round(used), y0 = PB - h - 30;   // above the heat-map legend + feed status line
+    c.save(); c.fillStyle = "rgba(8,12,18,.9)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(x0, y0, w, h); c.strokeRect(x0 + .5, y0 + .5, w - 1, h - 1);
+    c.beginPath(); c.rect(x0 + 1, y0 + 1, w - 2, h - 2); c.clip(); c.textBaseline = "middle"; c.textAlign = "left";
+    // Arabic lines: right-aligned rtl, every Latin / number token isolated so "+0.88R" or "4h" stay in one piece
+    const tx = (t, x, y) => { if (lang !== "ar" || !/[\u0600-\u06FF]/.test(t)){ c.fillText(t, x, y); return; }
+      c.save(); c.direction = "rtl"; c.textAlign = "right"; c.fillText(t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "\u2066"+m+"\u2069"), x1 - 7, y); c.restore(); };
+    // header: title left, live stats chip right
+    c.fillStyle = "rgba(255,255,255,.04)"; c.fillRect(x0 + 1, y0 + 1, w - 2, 17); c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; tx(Lg("ORDER-FLOW SYNC","تزامن الأوردر فلو"), x0 + 7, y0 + 10);
+    if (chip){ const cx0 = lang === "ar" ? x0 + 5 : x1 - stw - 5; c.font = mono; c.fillStyle = !st.n ? "#2b3139" : st.n < 30 ? "rgba(240,185,11,.18)" : st.avg > 0 ? "rgba(14,203,129,.2)" : "rgba(246,70,93,.2)"; c.fillRect(cx0, y0 + 3, stw, 13);
+      c.fillStyle = stc; c.fillText(stx, cx0 + 5, y0 + 10); }
+    let y = y0 + 18;
+    rows.forEach(r => {
+      if (r[0] === "lights"){ const lab = [Lg("Book","الدفتر"), Lg("Tape","الصفقات"), Lg("Limits","الليمت")], val = sy ? [sy.book, sy.tape, sy.lim] : [null, null, null], cw = (w - 14)/3;
+        lab.forEach((l, i) => { const lx = x0 + 7 + i*cw, s_ = sy ? sy.L[i] : 0, col = s_ > 0 ? G : s_ < 0 ? R : "#4a525c", v = val[i];
+          c.fillStyle = col; c.beginPath(); c.arc(lx + 5, y + 14, 4.5, 0, 6.3); c.fill(); if (s_){ c.globalAlpha = .25; c.beginPath(); c.arc(lx + 5, y + 14, 8, 0, 6.3); c.fill(); c.globalAlpha = 1; }
+          c.font = "9px sans-serif"; c.fillStyle = "#9aa4b2"; c.fillText(l, lx + 14, y + 9); c.font = "bold 10px sans-serif"; c.fillStyle = s_ ? col : "#c3c9d1";
+          c.fillText(v == null ? "–" : i < 2 ? (v > 0 ? "+" : "")+Math.round(v*100)+"%" : (v > 0 ? "+" : "")+v, lx + 14, y + 21); });
+        y += 30; return; }
+      c.fillStyle = r[1]; c.font = r[0] === "big" ? "bold 11px sans-serif" : (r[3] || "")+"9px sans-serif"; tx(r[2], x0 + 7, y + 6); y += 13; });
+    // recent setups: time · side · entry · result (closed: R + tick, open: live R)
+    c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(x0 + 6, y + 2); c.lineTo(x1 - 6, y + 2); c.stroke();
+    c.font = "8px sans-serif"; c.fillStyle = "#6b7684"; tx(Lg("RECENT SETUPS  ·  stop 1 ATR · target "+S.rr+"R","آخر الصفقات  ·  ستوب 1 ATR · هدف "+S.rr+"R"), x0 + 7, y + 9); y += 14;
+    if (!recent.length && room){ c.font = "9px sans-serif"; c.fillStyle = "#4a525c"; tx(Lg("none yet - needs a live OKX book + tape","لسه مفيش - محتاج دفتر وصفقات OKX لايف"), x0 + 7, y + 5); }
+    c.font = mono; recent.forEach(t => { const tm = new Date(t.t), hh = String(tm.getHours()).padStart(2, "0")+":"+String(tm.getMinutes()).padStart(2, "0"), up = t.dir > 0;
+      c.fillStyle = "#6b7684"; c.fillText(hh, x0 + 7, y + 5); c.fillStyle = up ? G : R; c.fillText((up ? "▲ " : "▼ ")+fmtP(t.en), x0 + 42, y + 5);
+      let rt, col; if (t.res != null){ rt = (t.res > 0 ? "+" : "")+t.res+"R "+(t.res > 0 ? "✓" : "✗"); col = t.res > 0 ? "#0ecb81" : "#f6465d"; }
+      else { const r1 = Math.abs(t.en - t.sl) || 1e-9, lr = px == null ? null : Math.round((px - t.en)*t.dir/r1*100)/100; rt = "⏳ "+(lr == null ? "" : (lr > 0 ? "+" : "")+lr+"R"); col = "#f0b90b"; }
+      c.textAlign = "right"; c.fillStyle = col; c.fillText(rt, x1 - 7, y + 5); c.textAlign = "left"; y += 12; });
+    c.fillStyle = st.n >= 30 ? "#6b7684" : "#f0b90b"; c.font = "8px sans-serif";
+    tx(st.n >= 30 ? Lg("live forward test in this browser, no costs","اختبار حي في المتصفح ده، من غير تكاليف") : Lg("under 30 setups = not evidence yet","أقل من 30 صفقة = مش دليل لسه"), x0 + 7, y0 + h - 7);
     c.restore();
   },
   paintLiq(c, py, i0, i1, PB){   // OKX liquidations: one bubble per candle and side at the size-weighted bankruptcy price; red = longs liquidated, green = shorts liquidated
@@ -2500,7 +2527,7 @@ class Panel {
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
-    this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = !!this.state.sync; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
+    this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
     [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {

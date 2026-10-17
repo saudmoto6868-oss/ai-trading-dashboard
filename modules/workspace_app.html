@@ -2752,7 +2752,7 @@ Panel.prototype.resub = function(){
     this.lt = {prev:null, events:[], sym, abs:new Set()}; let book = null;
     this.rerender = () => { this.evBox.innerHTML = renderEvents(this, this.lt.events); };
     const run = () => { const tp = Hub.last["trades|"+sym]; if (book && !book.error) limitUpdate(this.lt, book, tp && !tp.error ? tp.rows : null); this.rerender(); };
-    this.unsubs.push(Hub.sub("book", sym, b => { book = b; run(); }));
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b && !b.error && b.deep && b.deep.bids && b.deep.bids.length ? Object.assign({}, b, {bids:b.deep.bids, asks:b.deep.asks}) : b; run(); }));   // same deep book (up to 400 levels per side) the order-flow heat map uses, so big orders far from the price are tracked too (before: only the nearest 50 levels)
     this.unsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.lt, p.rows); this.rerender(); } }));
   } else if (this.type === "watch"){
     this.amd = this.amd || {}; this.pv = this.pv || {}; this.flash = new Set(); let M = null;

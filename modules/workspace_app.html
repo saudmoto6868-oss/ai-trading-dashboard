@@ -141,6 +141,13 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 <div id="ws"><div id="empty"></div></div>
 <script>
 /* any uncaught error is shown on screen (a dark frame with no toolbar otherwise looks like "the page does not open") */
+/* safe boot: a flag is set now and cleared the moment the start-up finishes. If it is still there on the next load, the last load hung or crashed
+   (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
+(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", prev = localStorage.getItem(BOOT);
+  if (prev && Date.now() - +prev < 6 * 3600e3){
+    Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
+    window.__wsSafeBoot = true; }
+  localStorage.setItem(BOOT, String(Date.now())); } catch(e){} })();
 (function(){ const show = m => { try { let b = document.getElementById("wsErrBox"); if (!b){ b = document.createElement("div"); b.id = "wsErrBox";
   b.style.cssText = "position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#3a0d12;color:#ffd7dc;border:1px solid #f6465d;border-radius:6px;padding:8px 10px;font:12px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto";
   (document.body || document.documentElement).appendChild(b); } b.textContent += (b.textContent ? "\n" : "Workspace error (send a screenshot of this box):\n") + m; } catch(_){} };
@@ -3563,7 +3570,10 @@ function applyLang(rebuild){
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
-  window.__ws = Ws; Ws.histPush();
+  window.__ws = Ws; Ws.histPush(); try { localStorage.removeItem(LS + "_boot"); } catch(e){}
+  if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
+    n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");
+    document.body.appendChild(n); setTimeout(() => n.remove(), 12000); }
 })();
 </script>
 </body>

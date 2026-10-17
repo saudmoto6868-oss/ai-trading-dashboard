@@ -71,6 +71,15 @@ Evidence: none yet in this project - tested on hand-made candles only (`tests/te
 IFVG, Mitigation block, MSS/CHoCH, Premium-Discount (outer 30%), Silver Bullet (FVG in a window), Breakout+volume-delta, Harmonics, channel breaks, double top/bottom.
 These are candidates for promotion once a walk-forward test on real candles shows they beat the baseline.
 
+## Item 20 - Finviz-style chart patterns (`modules/patterns.py`, Chart Scanner -> Patterns filter)
+14 patterns detected on our own candles for any market / timeframe: channel up / down / horizontal, wedge up / down, triangle
+ascending / descending / symmetrical, head & shoulders + inverse, multiple top / bottom (3+ equal zigzag swings), trendline
+support / resistance (price on a valid line). Finviz does not publish its rules - these are our own geometric rules (see the
+module header). The pattern lines are drawn gold on each mini chart; the Buy / Sell switch uses the textbook bias.
+**Honest check:** on 400 random-walk charts (no edge by construction) at least one pattern appeared in **41%** of them
+(trendline support/resistance 7-8%, H&S 6-7%, multi top/bottom 4%, channels / wedges / triangles 0-4%). So a pattern alone is
+NOT evidence; it only becomes useful if a walk-forward test on real candles shows it beats this chance rate.
+
 ## Not built yet
 - 5 daily candle types (up / up-reversal / down / down-reversal / accumulation around the 00:00 NY open).
 - Order-block respect rate (how often each OB held) - needs real history.

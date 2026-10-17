@@ -12,6 +12,7 @@ import html
 import numpy as np
 import pandas as pd
 
+from modules import patterns as _pat
 from modules.signals import atr_series, fractal_pivots, invert, zigzag
 
 # filter id -> label (shown in the UI)
@@ -36,6 +37,7 @@ PATTERN_FILTERS = {
     "tl_up": "Trendline break (down-trend line broken up)", "tl_dn": "Trendline break (up-trend line broken down)",
     "dbl_top": "Double top", "dbl_bottom": "Double bottom",
 }
+PATTERN_FILTERS.update({k: "Pattern · " + v[0] for k, v in _pat.PATTERNS.items()})   # Finviz-style chart patterns (modules/patterns.py)
 # strategy filters: id -> (label, matcher on the scanner's signals: family or key)
 STRATEGY_FILTERS = {
     "st_elliott": ("Elliott Wave (3 / 5)", ("family", "Elliott")), "st_ew3": ("Elliott · Wave 3 start", ("key", "ew3")),
@@ -65,6 +67,8 @@ ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k
 
 def flag_side(k: str):
     """'buy' / 'sell' / None: which side a plain filter id points to (used by the Buy-only / Sell-only switch)."""
+    if k in _pat.PATTERNS:
+        return _pat.PATTERNS[k][1]
     if k.startswith(("rsi_lt", "px_above", "px_xup", "ma_above", "ma_xup")) or k in ("stack_bull", "above_all", "chan_up", "tl_up", "dbl_bottom"):
         return "buy"
     if k.startswith(("rsi_gt", "px_below", "px_xdn", "ma_below", "ma_xdn")) or k in ("stack_bear", "below_all", "chan_dn", "tl_dn", "dbl_top"):
@@ -255,6 +259,7 @@ SHORT = {
     "dbl_top": "Double Top", "dbl_bottom": "Double Bottom",
 }
 SHORT.update({k: v[0].split(" (")[0] for k, v in STRATEGY_FILTERS.items()})
+SHORT.update(_pat.SHORT)
 CROSS_LOOKBACK = 3  # a cross counts if it happened within the last N candles
 
 
@@ -364,11 +369,19 @@ def features(df: pd.DataFrame, look: int = CROSS_LOOKBACK) -> dict:
     if td: f.add("tl_dn")
     if _double_top(df): f.add("dbl_top")
     if _double_top(invert(df)): f.add("dbl_bottom")
-    return {"rsi": r, "flags": f}
+    try:
+        pl = _pat.find(df)
+    except Exception:   # a pattern-maths problem must never break the screener
+        pl = {}
+    f |= set(pl)
+    return {"rsi": r, "flags": f, "lines": [ln for v in pl.values() for ln in v]}
 
 
-def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150) -> str:
-    """Candles + EMA 9/21/50 + VWAP as an <img> data URI (Streamlit-safe)."""
+def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150, lines=None) -> str:
+    """Candles + EMA 9/21/50 + VWAP as an <img> data URI (Streamlit-safe). lines = [(i0, p0, i1, p1)] in df's bar indices
+    (chart-pattern lines, drawn gold; the visible window widens to show where a pattern starts, up to 120 bars)."""
+    if lines:
+        bars = max(bars, min(120, len(df) - min(int(a) for a, _, _, _ in lines) + 2))
     d = df.tail(bars).reset_index(drop=True)
     if len(d) < 10:
         return ""
@@ -394,6 +407,12 @@ def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150)
     for arr, col, dash in ((em[9], "#f0b90b", ""), (em[21], "#4aa3ff", ""), (em[50], "#b57cff", ""), (vw, "#e6e6e6", "3 2")):
         pts = " ".join(f"{x(i)},{y(v)}" for i, v in enumerate(arr))
         parts.append(f"<polyline fill='none' stroke='{col}' stroke-width='1.1' {'stroke-dasharray=' + chr(39) + dash + chr(39) if dash else ''} points='{pts}'/>")
+    off = len(df) - n
+    for i0, p0, i1, p1 in (lines or []):
+        if i1 - off < 0:
+            continue
+        a = max(i0, off); pa = p0 + (p1 - p0) * (a - i0) / ((i1 - i0) or 1)
+        parts.append(f"<line x1='{x(a - off)}' y1='{y(pa)}' x2='{x(i1 - off)}' y2='{y(p1)}' stroke='#ffd54f' stroke-width='1.6'/>")
     parts.append("</svg>")
     return "data:image/svg+xml;base64," + base64.b64encode("".join(parts).encode()).decode()
 

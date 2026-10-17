@@ -812,7 +812,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             continue
         f = cs_features(df, look)
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
-        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df), "price": float(df["close"].iloc[-1])}
+        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1])}
     return out
 
 

@@ -56,7 +56,7 @@ Last updated: 2026-10-17. **Update this file after every finished item (status +
 | 17 | ChartLabs link | undefined |
 | 18 | TradingView browser-control session | on hold (owner's personal account: only what he explicitly allows) |
 | 19 | MT5 / Exness integration (never touch credentials) | on hold |
-| 20 | Finviz-style pattern browser | todo |
+| 20 | Finviz-style pattern browser | **done 2026-10-17** (synthetic-path tests only; not checked on live candles; Streamlit page not opened in a running app). `modules/patterns.py`: 14 Finviz patterns (channels, wedges, triangles, H&S + inverse, multiple top / bottom, trendline support / resistance) with our own rules; added to the Chart Scanner 'Patterns' filter (`cp_*` ids, short badges, buy/sell bias for the side switch); pattern lines drawn gold on the mini charts (window widens up to 120 bars to show the start). Random-walk check: 41% of random charts show at least one pattern -> documented in STRATEGIES.md as 'not evidence on its own'. The old Finviz link-out stays. Tests: `tests/test_patterns.py`. |
 | 21 | Full Arabic translation of the dashboard | later |
 | 22 | Login system | later |
 | 23 | AI voice agent explaining trades | later |
@@ -65,6 +65,7 @@ Last updated: 2026-10-17. **Update this file after every finished item (status +
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FINNHUB_WS_TOKEN` (a separate free Finnhub key for the browser live feed), `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-17 Item 20: Finviz-style pattern browser (14 patterns, lines on mini charts) in the Chart Scanner.
 - 2026-10-17 Item 15b: Finnhub/OANDA live CFD rows in the watchlist (needs FINNHUB_WS_TOKEN), Cboe delayed US option chain (Stocks tab).
 - 2026-10-17 Item 15: SMA 10/40 + Turtle 55 detectors, cross-sector momentum ranking (Stocks tab).
 - 2026-10-17 Items 9 / 14 closed: hidden-until-hover widget scrollbars, MT5 ribbon SMA/EMA switch, MT5 fractal rule, one SAR rule everywhere.

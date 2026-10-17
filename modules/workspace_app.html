@@ -141,10 +141,10 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 <div id="ws"><div id="empty"></div></div>
 <script>
 /* any uncaught error is shown on screen (a dark frame with no toolbar otherwise looks like "the page does not open") */
-/* safe boot: a flag is set now and cleared the moment the start-up finishes. If it is still there on the next load, the last load hung or crashed
+/* safe boot: a flag is set now and cleared 5 s after start-up (a freeze blocks that timer). If it is still there on the next load, the last load hung or crashed
    (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
 (function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", prev = localStorage.getItem(BOOT);
-  if (prev && Date.now() - +prev < 6 * 3600e3){
+  if (prev && Date.now() - +prev > 8000 && Date.now() - +prev < 6 * 3600e3){
     Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
     window.__wsSafeBoot = true; }
   localStorage.setItem(BOOT, String(Date.now())); } catch(e){} })();
@@ -1278,7 +1278,11 @@ Object.assign(CandleChart.prototype, {
   },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
-    const s = store.get(LS+"_hm_"+this.sym, null); if (s && s.step && s.b){ this.hm.step = s.step; Object.keys(s.b).forEach(k => { const o = s.b[k]; this.hm.b.set(+k, {w:o.w, m:o.m, c:new Map(o.c)}); }); }
+    // saved history: skipped when too big (it froze the page for the owner, 2026-10-17); only the last 24 h is loaded
+    let raw = null; try { raw = localStorage.getItem(LS+"_hm_"+this.sym); } catch(e){}
+    if (raw && raw.length > 1500000){ try { localStorage.removeItem(LS+"_hm_"+this.sym); } catch(e){} raw = null; }
+    const s = raw ? (() => { try { return JSON.parse(raw); } catch(e){ return null; } })() : null, cut = nowS() - 86400e3;
+    if (s && s.step && s.b){ this.hm.step = s.step; Object.keys(s.b).forEach(k => { if (+k < cut) return; const o = s.b[k]; this.hm.b.set(+k, {w:o.w, m:o.m, c:new Map(o.c)}); }); }
   },
   hmAdd(sn){
     this.hmInit(); const H = this.hm, mid = (sn.bb + sn.ba)/2; if (!sn.lv.length || !mid) return;
@@ -1289,7 +1293,7 @@ Object.assign(CandleChart.prototype, {
   },
   hmSave(now){   // compact (older than 3 h -> 5 min buckets, keep the biggest walls only), keep 7 days, write to localStorage
     this._hmSv = now; const H = this.hm; if (!H) return; const nb = new Map();
-    [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 7*86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
+    [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
     nb.forEach(o => { const lim = o.w > 60000 ? 40 : 150; if (o.c.size > lim){ const top = [...o.c.entries()].sort((a, b) => b[1] - a[1]).slice(0, lim); o.c = new Map(top); } }); H.b = nb;
     const pack = () => { const b = {}; nb.forEach((o, t) => { if (o.w > 60000 || t >= now - 3600e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };
     try { const j = pack(); let txt = JSON.stringify(j); if (txt.length > 1.6e6){ const ks = Object.keys(j.b).map(Number).sort((a, b) => a - b); for (let i = 0; i < ks.length*0.4; i++) delete j.b[ks[i]]; } localStorage.setItem(LS+"_hm_"+this.sym, JSON.stringify(j)); }
@@ -3570,7 +3574,7 @@ function applyLang(rebuild){
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); buildBar();
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
-  window.__ws = Ws; Ws.histPush(); try { localStorage.removeItem(LS + "_boot"); } catch(e){}
+  window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");
     document.body.appendChild(n); setTimeout(() => n.remove(), 12000); }

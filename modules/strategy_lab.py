@@ -157,9 +157,28 @@ def gann_cycles(hi, lo):
         piv[i] = hi[i] == w_h.max() or lo[i] == w_l.min()
     cum = np.concatenate([[0], np.cumsum(piv)])
     ctrl = [o for o in range(25, 186) if all(abs(o - g) > 2 * GANN_TOL for g in GANN_CYC)]
-    out = {"gann": [0, 0], "control": [0, 0]}
-    for a in np.flatnonzero(piv):
-        for grp, offs in (("gann", GANN_CYC), ("control", ctrl)):
+    rng = np.convolve(hi - lo, np.ones(14) / 14, mode="same")   # ATR proxy (mean range of 14 bars)
+    # shapes with 3..9 sides on the 360-degree cycle: points where >= 3 shapes meet (120 / 180 / 240 / 360 degrees);
+    # cycle length = price of one Square-of-9 turn / ATR (the indicator's auto mode), clamped 30..720 bars
+    frac = {}
+    for sides in range(3, 10):
+        for k in range(1, sides + 1):
+            f = round(k / sides, 6); frac[f] = frac.get(f, 0) + 1
+    strong = [f for f, c in frac.items() if c >= 3]
+    out = {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]}
+    anchors = np.flatnonzero(piv)
+    cyc = []
+    for a in anchors:
+        pa = hi[a] if hi[a] == hi[max(0, a - K):a + K + 1].max() else lo[a]
+        turn = abs((np.sqrt(pa) + 2) ** 2 - pa); cyc.append(int(min(720, max(30, round(turn / max(rng[a], 1e-12))))))
+    # control = the SAME shape points but with the cycle length of another (random) swing: identical spread of distances,
+    # so it only tests whether THIS swing's price-time square matters (a fixed set of other offsets was biased: self-test +2 sigma)
+    perm = np.random.default_rng(7).permutation(len(cyc)) if cyc else []
+    for ai, a in enumerate(anchors):
+        bars, bars_c = cyc[ai], cyc[perm[ai]]
+        sh = sorted({int(round(f * bars)) for f in strong})
+        sh_ctrl = sorted({int(round(f * bars_c)) for f in strong})
+        for grp, offs in (("gann", GANN_CYC), ("control", ctrl), ("shapes", sh), ("shapes_ctrl", sh_ctrl)):
             for o in offs:
                 j0, j1 = a + o - GANN_TOL, a + o + GANN_TOL
                 if j1 >= n - K:
@@ -211,7 +230,10 @@ def report(rows, conflicts, cfl, meta, gann=None):
                 continue
             p1, p0 = h1 / n1, h0 / n0; se = np.sqrt(p0 * (1 - p0) / n1) or 1
             L.append(f"| {tf} | {100 * p1:.1f} | {n1} | {100 * p0:.1f} | {n0} | {(p1 - p0) / se:+.1f} |")
-        L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = the Gann numbers are ordinary offsets (random-walk self-test: -1.2).")
+            if g.get("shapes") and g["shapes"][1] and g.get("shapes_ctrl") and g["shapes_ctrl"][1]:
+                (h2, n2), (h3, n3) = g["shapes"], g["shapes_ctrl"]; q2, q3 = h2 / n2, h3 / n3; se2 = np.sqrt(q3 * (1 - q3) / n2) or 1
+                L.append(f"| {tf} shapes 120/180/240/360 deg | {100 * q2:.1f} | {n2} | {100 * q3:.1f} | {n3} | {(q2 - q3) / se2:+.1f} |")
+        L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
     return "\n".join(L) + "\n"
 
 
@@ -229,7 +251,7 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                 log(f"skip {sym} {tf}: too few candles"); continue
             ev, br = walk(df.reset_index(drop=True), tf, stride)
             evs.append((tf, sym, ev)); brs.append((tf, sym, br)); done.append(f"{sym} {tf}")
-            g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0]})
+            g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]})
             for k in acc:
                 acc[k][0] += g[k][0]; acc[k][1] += g[k][1]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")

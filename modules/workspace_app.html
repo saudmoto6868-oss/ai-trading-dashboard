@@ -256,6 +256,9 @@ const IND_HELP = {
   bub:["Bubbles: big prints (smart/whale) sized by volume, green buy / red sell. Clusters at a level = real interest there.","فقاعات: صفقات كبيرة (سمارت/حوت) بحجم الحجم، أخضر شراء/أحمر بيع. تجمّع عند مستوى = اهتمام حقيقي."],
   dot:["Dots: ◆ sweep (liquidity grabbed) and ⊗ absorption (heavy volume, price barely moves). Number ×n = repeats collapsed into one.","نقط: ◆ سحب سيولة و⊗ امتصاص. ×n = تكرارات اتجمعت في علامة واحدة."],
   dom:["Depth heat-map: resting limit orders (bid/ask) over time. Bright bands = big walls; vanishing walls = spoofing or filled orders.","خريطة العمق: الأوامر المعلقة بمرور الوقت. أشرطة ساطعة = جدران كبيرة؛ اختفاؤها = سحب أو تنفيذ."],
+  adx:["ADX / DMI (Wilder, 14): ADX (gold) measures trend STRENGTH, not direction: above 25 = trending, below 20 = range. +DI (green) above -DI (red) = buyers lead, below = sellers lead. A rising ADX with +DI on top = strong up-trend.","ADX / DMI (وايلدر 14): الـ ADX (دهبي) بيقيس قوة الترند مش اتجاهه: فوق 25 = فيه ترند، تحت 20 = رينج. +DI (أخضر) فوق -DI (أحمر) = المشترين ماسكين، تحته = البايعين. ADX طالع و+DI فوق = ترند صاعد قوي."],
+  cci:["CCI (20): how far the typical price is from its average, in units of mean deviation. Above +100 = unusually strong (momentum or overbought), below -100 = unusually weak. Crossing back inside ±100 often marks the end of the push.","CCI (20): السعر بعيد قد إيه عن متوسطه. فوق +100 = قوة غير عادية (زخم أو تشبع شراء)، تحت -100 = ضعف غير عادي. الرجوع جوه ±100 غالباً نهاية الموجة."],
+  psar:["Parabolic SAR (0.02 / 0.2): dots under the candles = up-trend (green), above = down-trend (red). When price touches the dots they flip sides - a trailing-stop and trend-flip tool. Weak in sideways markets.","Parabolic SAR (0.02 / 0.2): نقط تحت الشموع = ترند صاعد (أخضر)، فوق = هابط (أحمر). لما السعر يلمس النقط بتقلب الناحية التانية - أداة وقف متحرك وتغيّر ترند. ضعيف في السوق العرضي."],
   dot3:["Depth of Trade: one switch for bubbles + depth heat-map + dots + BUY/SELL markers. ⚙ opens colours and sizes.","Depth of Trade: مفتاح واحد للفقاعات + خريطة العمق + النقط + علامات الشراء/البيع. ⚙ للألوان والأحجام."],
 };
 /* Chart modes = indicator bundles (ids of the Indicators menu). Everything not listed is switched off, except display options. */
@@ -264,7 +267,7 @@ const CHART_MODES = [
   {id:"kzs", en:"Kill Zone Sniper", ar:"قناص الكيل زون", on:["e9","e21","kz","kzs","volume","sig"], tipEn:"Sessions + kill zones, the Kill Zone Sniper overlay, EMA 9/21 (the REJ filter), volume, signals. Intraday (1H and lower).", tipAr:"الجلسات + الكيل زون + قناص الكيل زون + EMA 9/21 + فوليوم + إشارات. للانترادي (ساعة وأقل)."},
   {id:"smc", en:"ICT / SMC", ar:"ICT / SMC", on:["e9","e21","kz","lv","ll","smt","sig","volume"], tipEn:"Liquidity view: sessions, open levels, XPIX MTF liquidity levels, SMT, signals.", tipAr:"عرض السيولة: الجلسات، مستويات الفتح، مستويات XPIX، SMT، الإشارات."},
   {id:"flow", en:"Order flow", ar:"أوردر فلو", on:["vwap","dcol","bub","dot","dom","mk","delta","vp","volume","sig"], tipEn:"Order-flow column, bubbles, dots, depth, delta, volume profile, VWAP.", tipAr:"عمود الأوردر فلو، الفقاعات، النقط، العمق، الدلتا، بروفايل الفوليوم، VWAP."},
-  {id:"swing", en:"Swing", ar:"سوينج", on:["e21","e50","don","lv","ll","rsi","sig","volume"], tipEn:"EMA 21/50, Donchian ensemble, open levels, XPIX levels, RSI. Best on 4H / 1D.", tipAr:"EMA 21/50، Donchian، مستويات الفتح، مستويات XPIX، RSI. أحسن على 4 ساعات / يومي."},
+  {id:"swing", en:"Swing", ar:"سوينج", on:["e21","e50","don","lv","ll","rsi","adx","sig","volume"], tipEn:"EMA 21/50, Donchian ensemble, open levels, XPIX levels, RSI, ADX (trend strength). Best on 4H / 1D.", tipAr:"EMA 21/50، Donchian، مستويات الفتح، مستويات XPIX، RSI، ADX (قوة الترند). أحسن على 4 ساعات / يومي."},
   {id:"mt5", en:"MT5", ar:"MT5", on:["mt5","r2","volume","sig"], tipEn:"The MT5 phone layout: MA ribbon + SAR + fractals and the RSI(2) + OsMA window.", tipAr:"شكل شارت MT5: ريبون المتوسطات + SAR + فراكتال ونافذة RSI(2) + OsMA."},
 ];
 const indHelp = id => { const v = IND_HELP[id]; return v ? v[lang === "ar" ? 1 : 0] : ""; };
@@ -680,6 +683,29 @@ const Hub = {
   }
 };
 
+/* Wilder ADX / DMI (TradingView ta.dmi): TR, +DM, -DM smoothed with RMA(len); DX = 100*|+DI - -DI| / (+DI + -DI); ADX = RMA(DX, len) */
+const adxOf = (d, L) => { const n = d.length, rma = a => { const o = new Array(a.length).fill(null); let r = 0; for (let i = 0; i < a.length; i++){ if (i < L){ r += a[i]; if (i === L-1) o[i] = r = r/L; } else o[i] = r = (r*(L-1) + a[i])/L; } return o; };
+  const tr = [], pd = [], md = []; d.forEach((k, i) => { if (!i){ tr.push(k.h - k.l); pd.push(0); md.push(0); return; } const p = d[i-1], up = k.h - p.h, dn = p.l - k.l;
+    tr.push(Math.max(k.h - k.l, Math.abs(k.h - p.c), Math.abs(k.l - p.c))); pd.push(up > dn && up > 0 ? up : 0); md.push(dn > up && dn > 0 ? dn : 0); });
+  const at = rma(tr), sp = rma(pd), sm = rma(md), pdi = at.map((a, i) => a ? 100*sp[i]/a : null), mdi = at.map((a, i) => a ? 100*sm[i]/a : null);
+  const dx = pdi.map((v, i) => v == null ? null : (v + mdi[i]) ? 100*Math.abs(v - mdi[i])/(v + mdi[i]) : 0), f = dx.findIndex(v => v != null), adx = new Array(n).fill(null);
+  if (f >= 0){ let r = 0; for (let i = f; i < n; i++){ const j = i - f; if (j < L){ r += dx[i]; if (j === L-1) adx[i] = r = r/L; } else adx[i] = r = (r*(L-1) + dx[i])/L; } }
+  return {adx, pdi, mdi}; };
+/* CCI (Lambert): (typical price - SMA(tp, n)) / (0.015 * mean absolute deviation) */
+const cciOf = (d, L) => { const tp = d.map(k => (k.h + k.l + k.c)/3); return tp.map((v, i) => { if (i < L-1) return null; let s = 0; for (let j = i-L+1; j <= i; j++) s += tp[j]; const m = s/L; let md = 0; for (let j = i-L+1; j <= i; j++) md += Math.abs(tp[j] - m); md /= L; return md ? (v - m)/(0.015*md) : 0; }); };
+/* Parabolic SAR, port of TradingView's ta.sar (Pine reference implementation): on a flip the SAR starts at the
+   prior extreme point or this bar's own high/low, whichever is further, so a fresh dot never sits inside the candle. */
+const psarOf = (d, start, inc, max) => { const n = d.length, v = new Array(n).fill(null), u = new Array(n).fill(null); if (n < 2) return {v, up:u};
+  let res, mm, acc, below;
+  for (let i = 1; i < n; i++){ let first = false;
+    if (i === 1){ below = d[1].c > d[0].c; mm = below ? d[1].h : d[1].l; res = below ? d[0].l : d[0].h; first = true; acc = start; }
+    res = res + acc*(mm - res);
+    if (below){ if (res > d[i].l){ first = true; below = false; res = Math.max(d[i].h, mm); mm = d[i].l; acc = start; } }
+    else if (res < d[i].h){ first = true; below = true; res = Math.min(d[i].l, mm); mm = d[i].h; acc = start; }
+    if (!first){ if (below){ if (d[i].h > mm){ mm = d[i].h; acc = Math.min(acc + inc, max); } } else if (d[i].l < mm){ mm = d[i].l; acc = Math.min(acc + inc, max); } }
+    if (below){ res = Math.min(res, d[i-1].l); if (i > 1) res = Math.min(res, d[i-2].l); } else { res = Math.max(res, d[i-1].h); if (i > 1) res = Math.max(res, d[i-2].h); }
+    v[i] = res; u[i] = below; }
+  return {v, up:u}; };
 const smaOf = (a, n) => { let s = 0; return a.map((v, i) => { s += v; if (i >= n) s -= a[i-n]; return i >= n-1 ? s/n : s/(i+1); }); };
 const stochK = (d, k, slow) => smaOf(d.map((x, i) => { if (i < k-1) return 50; let hh = -Infinity, ll = Infinity; for (let j = i-k+1; j <= i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return hh > ll ? (x.c - ll)/(hh - ll)*100 : 50; }), slow);
 const rsiOf = (cl, L) => { let ag = 0, al = 0; return cl.map((v, i) => { if (!i) return 50; const d = v - cl[i-1], g = Math.max(d, 0), l = Math.max(-d, 0); if (i <= L){ ag += g/L; al += l/L; } else { ag = (ag*(L-1) + g)/L; al = (al*(L-1) + l)/L; } return i < L ? 50 : al === 0 ? 100 : 100 - 100/(1 + ag/al); }); };
@@ -694,10 +720,11 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","zn","bso","rm","r2"]; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false;
+    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
-      zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, mt5:{color:"#ffeb3b",w:1.4,dash:"",step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
+      mt5:{color:"#ffeb3b",w:1.4,dash:"",step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -745,6 +772,9 @@ class CandleChart {
     if (this.bsoOn){ const b = this.st.bso, K = stochK(this.data, b.k|0 || 5, b.s|0 || 3), n = b.bb|0 || 20, mid = smaOf(cl, n), sd = cl.map((v,i) => { const a = cl.slice(Math.max(0, i-n+1), i+1), mu = mid[i]; return Math.sqrt(a.reduce((x,y) => x + (y-mu)*(y-mu), 0)/a.length); });
       const ef = emaOf(cl, b.fast|0 || 12), es = emaOf(cl, b.slow|0 || 26), ml = ef.map((v,i) => v - es[i]), sg = emaOf(ml, b.sig|0 || 9);
       this.bsoV = {k:K, d:smaOf(K, b.d|0 || 3), osma:ml.map((v,i) => v - sg[i]), mid, up:mid.map((v,i) => v + (b.dev||2)*sd[i]), lo:mid.map((v,i) => v - (b.dev||2)*sd[i])}; }
+    if (this.adxOn) this.adxV = adxOf(this.data, Math.max(2, this.st.adx.len|0 || 14));
+    if (this.cciOn) this.cciV = cciOf(this.data, Math.max(2, this.st.cci.len|0 || 20));
+    if (this.psarOn) this.psarV = psarOf(this.data, +this.st.psar.step || .02, +this.st.psar.step || .02, +this.st.psar.max || .2);
     const sec = TFSEC[this.tf] || 3600; let pv = 0, vv = 0, day = null;
     this.vwV = this.data.map(c => { const d = Math.floor(c.t/86400000); if (sec < 86400 && d !== day){ pv = 0; vv = 0; day = d; } const tp = (c.h+c.l+c.c)/3; pv += tp*c.v; vv += c.v; return vv ? pv/vv : c.c; });
   }
@@ -859,6 +889,8 @@ class CandleChart {
     c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip();
     if (this.kz) this.paintKZ(c, py, i0, i1, PB);
     if (this.kzsOn) this.paintKZS(c, py, i0, i1, PB);
+    if (this.psarOn && this.psarV){ const S = this.psarV, st = this.st.psar, r = Math.max(1.5, Math.min(3, this.bw*0.22)) * (st.w || 1);
+      for (let i = i0; i <= i1; i++){ if (S.v[i] == null) continue; c.fillStyle = S.up[i] ? st.color : st.color2; c.beginPath(); c.arc(this.x(i), py(S.v[i]), r, 0, Math.PI*2); c.fill(); } }
     if (this.domOn && !this.colOn) this.paintDom(c, py, i0, i1, PB);
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
     const bwp = Math.max(1, this.bw*0.7);
@@ -983,7 +1015,25 @@ class CandleChart {
       c.fillStyle = TH.pane; c.fillRect(0, y0, PR, h); c.strokeStyle = TH.grid; c.lineWidth = 1; c.strokeRect(.5, y0+.5, PR-1, h-1);
       if (!this[k+"V"]){ c.restore(); return; }
       c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace";
-      if (k === "rsi"){
+      const line = (arr, col, w, ds, y) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(ds); c.beginPath(); let on = false;
+        for (let i = i0; i <= i1; i++){ const v = arr[i]; if (v == null){ on = false; continue; } const x = this.x(i), yy = y(v); on ? c.lineTo(x, yy) : c.moveTo(x, yy); on = true; } c.stroke(); c.setLineDash([]); };
+      const lvl = (v, y, dsh) => { c.strokeStyle = "#3a424b"; c.lineWidth = 1; c.setLineDash(dsh ? [3,3] : []); c.beginPath(); c.moveTo(0, Math.round(y(v))+.5); c.lineTo(PR, Math.round(y(v))+.5); c.stroke(); c.setLineDash([]); };
+      const last = a => { for (let i = Math.min(i1, a.length-1); i >= 0; i--) if (a[i] != null) return a[i]; return null; };
+      if (k === "adx"){
+        const st = this.st.adx, A = this.adxV; let mx = 50; for (let i = i0; i <= i1; i++) mx = Math.max(mx, A.adx[i] || 0, A.pdi[i] || 0, A.mdi[i] || 0); mx = Math.min(100, Math.ceil(mx/10)*10);
+        const y = v => y0 + h - 2 - v/mx*(h-4); lvl(st.lvl || 25, y, true); lvl(20, y, true);
+        line(A.pdi, TH.up, 1, [], y); line(A.mdi, TH.dn, 1, [], y); line(A.adx, st.color, st.w + .4, dash(st.dash), y);
+        c.restore(); const a = last(A.adx), pp = last(A.pdi), mm = last(A.mdi);
+        c.fillStyle = "#848e9c"; c.fillText("ADX "+st.len+"  "+(a == null ? "—" : a.toFixed(1))+"  +DI "+(pp == null ? "—" : pp.toFixed(1))+"  -DI "+(mm == null ? "—" : mm.toFixed(1))+"  "+(a == null ? "" : a >= (st.lvl || 25) ? Lg("trend","ترند") + (pp > mm ? " ▲" : " ▼") : a < 20 ? Lg("no trend / range","مفيش ترند / رينج") : Lg("weak","ضعيف")), 6, y0+8);
+        c.fillText(String(st.lvl || 25), (this.W-this.axw)+5, y(st.lvl || 25));
+      } else if (k === "cci"){
+        const st = this.st.cci, V = this.cciV; let mx = 220; for (let i = i0; i <= i1; i++) mx = Math.max(mx, Math.abs(V[i] || 0)); mx *= 1.05;
+        const y = v => y0 + h/2 - v/mx*(h/2-3); lvl(0, y, false); [100, -100].forEach(v => lvl(v, y, true)); if (mx > 230) [200, -200].forEach(v => lvl(v, y, true));
+        c.globalAlpha = .12; c.fillStyle = "#848e9c"; c.fillRect(0, y(100), PR, y(-100) - y(100)); c.globalAlpha = 1;
+        line(V, st.color, st.w, dash(st.dash), y);
+        c.restore(); const v = last(V); c.fillStyle = "#848e9c"; c.fillText("CCI "+st.len+"  "+(v == null ? "—" : v.toFixed(0))+(v == null ? "" : v > 100 ? "  "+Lg("above +100","فوق +100") : v < -100 ? "  "+Lg("below -100","تحت -100") : ""), 6, y0+8);
+        [100, -100].forEach(q => c.fillText(String(q), (this.W-this.axw)+5, y(q)));
+      } else if (k === "rsi"){
         const st = this.st.rsi, y = v => y0 + h - 2 - v/100*(h-4);
         [st.os, 50, st.ob].forEach((v,q) => { c.strokeStyle = q === 1 ? "#1f252b" : "#3a424b"; c.setLineDash(q === 1 ? [] : [3,3]); c.beginPath(); c.moveTo(0,y(v)+.5); c.lineTo(PR,y(v)+.5); c.stroke(); }); c.setLineDash([]);
         c.strokeStyle = st.color; c.lineWidth = st.w; c.setLineDash(dash(st.dash)); c.beginPath();
@@ -1891,7 +1941,7 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.calcEma();
+    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -1968,6 +2018,9 @@ class Panel {
       {id:"r2", label:Lg("RSI(2) + OsMA (MT5 window 1)","RSI(2) + OsMA (نافذة MT5 رقم 1)"), tip:Lg("Copied from the MT5 phone chart, indicator window 1: RSI period 2 with levels 30 / 20 / 10 / 5 plus 'Moving Average of Oscillator' (Fast EMA 1000, Slow EMA 2, MACD SMA 2000) applied to the RSI data, drawn as green/red bars. With fewer than 2000 bars the signal average runs over the bars available. buy/sell marks when RSI(2) drops under 10 / rises over 90.","منقولة من شارت MT5 على الموبايل، نافذة المؤشر رقم 1: RSI فترة 2 بمستويات 30 / 20 / 10 / 5 مع 'Moving Average of Oscillator' (Fast EMA 1000 وSlow EMA 2 وMACD SMA 2000) مطبّق على بيانات الـ RSI، مرسوم أعمدة خضرا/حمرا. لو الشموع أقل من 2000 المتوسط بيتحسب على المتاح. علامات buy/sell لما RSI(2) ينزل تحت 10 / يطلع فوق 90."), get:() => ch().r2On, set:v => { ch().r2On = v; this.state.r2 = v; }, sty:"r2", params:[P("len","RSI period",2,50,1), P("fast","OsMA Fast EMA",1,3000,1), P("slow","OsMA Slow EMA",1,3000,1), P("sig","MACD SMA",1,3000,1), P("hp","Height %",8,45,1)], col2:true},
       {id:"rm", label:Lg("RSI + MA extremes (92/8)","RSI + MA مع مستويات 92/8"), tip:Lg("RSI 14 with an 8-period MA of the RSI and extreme levels 92 / 8 (also 70/30). SELL/BUY marks when RSI comes back inside from an extreme.","RSI 14 مع متوسط 8 على الـ RSI ومستويات متطرفة 92 / 8 (و70/30). علامات SELL/BUY لما الـ RSI يرجع للداخل من المستوى المتطرف."), get:() => ch().rmOn, set:v => { ch().rmOn = v; this.state.rm = v; }, sty:"rm", params:[P("len","RSI length",2,100,1), P("ma","MA length",1,100,1), P("m1","Extra MA 1 (0 = off)",0,200,1), P("m2","Extra MA 2 (0 = off)",0,200,1), P("m3","Extra MA 3 (0 = off)",0,200,1), P("hi","Upper extreme",70,99,1), P("lo","Lower extreme",1,30,1), P("hp","Height %",8,45,1)], col2:true},
       {id:"macd", label:"MACD", get:() => ch().macdOn, set:v => { ch().macdOn = v; this.state.macd = v; }, sty:"macd", params:[P("fast","Fast",2,100,1), P("slow","Slow",2,200,1), P("sig","Signal",1,100,1), P("hp","Height %",8,45,1)], col2:true},
+      {id:"adx", label:"ADX / DMI", get:() => ch().adxOn, set:v => { ch().adxOn = v; this.state.adx = v; }, sty:"adx", params:[P("len","Length",2,100,1), P("lvl","Trend level",10,50,1), P("hp","Height %",8,45,1)]},
+      {id:"cci", label:"CCI", get:() => ch().cciOn, set:v => { ch().cciOn = v; this.state.cci = v; }, sty:"cci", params:[P("len","Length",2,200,1), P("hp","Height %",8,45,1)]},
+      {id:"psar", label:"Parabolic SAR", get:() => ch().psarOn, set:v => { ch().psarOn = v; this.state.psar = v; }, sty:"psar", col2:true, params:[P("step","Step",0.005,0.1,0.005), P("max","Max",0.05,1,0.05)]},
     ];
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone

@@ -447,6 +447,36 @@ def render_limit_tracking(sym, book, trades):
 
 
 @st.cache_resource
+def _bg_store():
+    import threading
+    return {"lock": threading.Lock(), "val": {}, "busy": set(), "t": {}}
+
+
+def _bg(name, fn, default, ttl=300, wait=1.5):
+    """Never let an outside feed hold up the page: run fn() in a thread, wait at most `wait` s, else draw with the last value
+    (or `default`) and pick the fresh one up on the next run. Errors keep the last value."""
+    import threading
+    S = _bg_store()
+    have = name in S["val"]
+    if (not have or time.time() - S["t"].get(name, 0) > ttl) and name not in S["busy"]:
+        with S["lock"]:
+            S["busy"].add(name)
+
+        def job():
+            try:
+                S["val"][name] = fn()
+                S["t"][name] = time.time()
+            except Exception:
+                S["t"][name] = time.time() - ttl + 60   # retry in a minute
+            finally:
+                S["busy"].discard(name)
+        th = threading.Thread(target=job, daemon=True)
+        th.start()
+        th.join(wait if not have else 0)
+    return S["val"].get(name, default)
+
+
+@st.cache_resource
 def _scan_store():
     import threading
     return {"lock": threading.Lock(), "running": False, "key": None, "payload": None, "built": 0.0, "t0": time.time()}
@@ -818,9 +848,21 @@ def render_universe_controls():
 
 
 # ---- Tabs -------------------------------------------------------------------------
-tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme, tab_perf = st.tabs(
-    [L(t) for t in ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]]
-)
+# Page selector instead of st.tabs: st.tabs runs EVERY tab's code on every run (~1100 candle downloads + scans per run, which got
+# the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
+_PAGES = ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]
+if "page" not in st.session_state:
+    try:
+        st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
+    except (TypeError, ValueError):
+        st.session_state["page"] = 0
+PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+if str(st.query_params.get("page", "")) != str(PAGE):
+    st.query_params["page"] = str(PAGE)
+st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 14px;border-bottom:1px solid #2b3139;padding-bottom:4px}}
+.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page label>div:first-child{{display:none}}
+.st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
+            unsafe_allow_html=True)
 
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
@@ -945,7 +987,7 @@ def render_chart_scanner():
                         st.caption(f"Analysis unavailable: {e_}")
 
 
-with tab_workspace:
+if PAGE == 0:   # workspace
     try:
         ws_lang = st.session_state.get("ws_lang", "en")
         cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
@@ -956,27 +998,25 @@ with tab_workspace:
                 st.sidebar.warning("Telegram: " + _err)
             elif _n:
                 st.sidebar.caption(f"Telegram: sent {_n} alert(s).")
-        try:
-            world_items, world_errs = _world_news()
-        except Exception:
-            world_items, world_errs = [], ["world news unavailable"]
+        world_items, world_errs = _bg("world", _world_news, ([], ["world news loading..."]))
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
                          "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         _yf = {}
         if any(x.startswith("Y:") for x in ACTIVE_SYMBOLS):
-            try:
+            def _yf_job(syms=tuple(ACTIVE_SYMBOLS)):
                 from modules.yahoo_feed import embed as _yf_embed
-                _yf = _yf_embed(tuple(ACTIVE_SYMBOLS))
-            except Exception:
-                _yf = {}
-        try:
-            _cal = _calendar_rows()
-        except Exception:
-            _cal = []
-        render_workspace(ACTIVE_SYMBOLS, get_latest_news("general", 15), ws_lang, yf=_yf, cal=_cal, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+                return _yf_embed(syms)
+            _yf = _bg("yf|" + ",".join(ACTIVE_SYMBOLS), _yf_job, {}, ttl=120)
+        _cal = _bg("cal", _calendar_rows, [])
+        _news = _bg("news", lambda: get_latest_news("general", 15), [])
+        _cmc = _bg("cmc", _cmc_data, None)
+        _mac = _bg("macro", _macro_fund, None)
+        _stk_t = _stock_tickers()
+        _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
+        render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=get_tf_stats(),
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc_data(), macrof=_macro_fund(), stockf=_stock_fund(_stock_tickers()), world_errs=world_errs)
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs)
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
@@ -989,14 +1029,14 @@ with tab_workspace:
 
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
-with tab_cscan:
+if PAGE == 1:   # cscan
     try:
         render_universe_controls()
         render_chart_scanner()
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 
-with tab_crypto:
+if PAGE == 2:   # crypto
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])
     with col_watch:
         st.markdown(L("**Scanner**"))
@@ -1073,13 +1113,13 @@ def class_tab(key, cls):
         st.caption(f"{L(cls)}: " + L("live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace."))
 
 
-with tab_forex:
+if PAGE == 3:   # forex
     class_tab("forex", "Forex")
 
-with tab_metals:
+if PAGE == 4:   # metals
     class_tab("metals", "Metals")
 
-with tab_stocks:
+if PAGE == 5:   # stocks
     class_tab("stocks", "Stocks")
     with st.expander(L("Cross-sector momentum (hedge-fund relative-strength ranking)"), expanded=False):
         from modules import momentum as _mom
@@ -1182,7 +1222,7 @@ with tab_stocks:
             elif res["rows"]:
                 st.info("Nothing passes the filter now. If this looks wrong, check field names: " + _of.diagnose(res["rows"]))
 
-with tab_meme:
+if PAGE == 6:   # meme
     st.subheader(L("Meme coin / whale tracking (DEXScreener)"))
     query = st.text_input(L("Search token (name or contract address)"), value="", key="w_search_token_name_or_contract_address")
     if query:
@@ -1211,7 +1251,7 @@ if _store_now["running"] or (_store_now["payload"] or {}).get("loading"):
     st.rerun()
 
 
-with tab_perf:
+if PAGE == 7:   # perf
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
                  "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge."))

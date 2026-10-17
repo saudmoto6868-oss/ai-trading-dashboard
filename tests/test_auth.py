@@ -27,7 +27,8 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 os.environ.pop("APP_USERS"); os.environ["APP_PASSWORD"] = "s3cret"
 at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "main.py"), default_timeout=280)
 at.run()
-assert not at.exception and not at.tabs and len(at.text_input) == 1, (at.exception, len(at.tabs))
+pages = lambda: [r for r in at.radio if r.key == "page"]   # the page selector (replaced st.tabs)
+assert not at.exception and not pages() and len(at.text_input) == 1, (at.exception, len(pages()))
 for i in range(5):
     at.text_input(key="auth_pw").input("wrong"); at.button[0].click(); at.run()
 assert at.session_state["auth_lock"] > time.time()
@@ -36,5 +37,5 @@ assert any("wait" in e.value for e in at.error) and not at.text_input, [e.value 
 at.session_state["auth_lock"] = 0
 at.run()
 at.text_input(key="auth_pw").input("s3cret"); at.button[0].click(); at.run()
-assert at.session_state["auth_ok"] and len(at.tabs) == 8 and not at.exception, (at.exception,)
+assert at.session_state["auth_ok"] and len(pages()) == 1 and len(pages()[0].options) == 8 and not at.exception, (at.exception,)
 print("test_auth: all passed")

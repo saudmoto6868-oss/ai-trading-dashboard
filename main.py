@@ -75,6 +75,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---- Login gate (item 22): only active when APP_PASSWORD / APP_USERS is set in Secrets -----------------
+from modules.auth import gate as _auth_gate
+if not _auth_gate(L):
+    st.stop()
+
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))
 auto_on = st.sidebar.checkbox(L("Auto-refresh (live data)"), value=True, key="w_auto_refresh_live_data")

@@ -1,0 +1,40 @@
+"""Item 22: login gate - off by default, shared password, named users, lock-out. Run: python tests/test_auth.py"""
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from modules import auth  # noqa: E402
+
+for k in ("APP_PASSWORD", "APP_USERS"):
+    os.environ.pop(k, None)
+assert auth.users() == {}                                    # nothing set -> gate off
+os.environ["APP_PASSWORD"] = "s3cret"
+t = auth.users()
+assert t == {"": "s3cret"} and auth.check("", "s3cret", t) and not auth.check("", "nope", t) and auth.check("anyone", "s3cret", t)
+os.environ["APP_USERS"] = "Saud:abc, ali:xyz ,bad"
+t = auth.users()
+assert t["saud"] == "abc" and t["ali"] == "xyz" and "bad" not in t
+assert auth.check("SAUD", "abc", t) and not auth.check("saud", "xyz", t) and auth.check("", "s3cret", t)
+os.environ.pop("APP_PASSWORD")
+assert not auth.check("", "abc", auth.users()) and not auth.check("ghost", "abc", auth.users())
+
+# the real app: locked page shows only the form; right password opens it; 5 wrong tries lock for 60 s
+import requests  # noqa: E402
+requests.get = requests.post = requests.request = lambda *a, **k: (_ for _ in ()).throw(requests.ConnectionError("offline test"))
+requests.Session.request = lambda self, *a, **k: (_ for _ in ()).throw(requests.ConnectionError("offline test"))
+from streamlit.testing.v1 import AppTest  # noqa: E402
+os.environ.pop("APP_USERS"); os.environ["APP_PASSWORD"] = "s3cret"
+at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "main.py"), default_timeout=280)
+at.run()
+assert not at.exception and not at.tabs and len(at.text_input) == 1, (at.exception, len(at.tabs))
+for i in range(5):
+    at.text_input(key="auth_pw").input("wrong"); at.button[0].click(); at.run()
+assert at.session_state["auth_lock"] > time.time()
+at.run()
+assert any("wait" in e.value for e in at.error) and not at.text_input, [e.value for e in at.error]
+at.session_state["auth_lock"] = 0
+at.run()
+at.text_input(key="auth_pw").input("s3cret"); at.button[0].click(); at.run()
+assert at.session_state["auth_ok"] and len(at.tabs) == 8 and not at.exception, (at.exception,)
+print("test_auth: all passed")

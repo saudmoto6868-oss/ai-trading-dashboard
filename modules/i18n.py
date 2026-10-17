@@ -82,7 +82,8 @@ AR = {
     "Total return": "إجمالي العائد", "Trades": "الصفقات", "Max drawdown": "أقصى تراجع", "Win rate": "نسبة النجاح", "Stats source": "مصدر الإحصائيات",
     "QuantStats is not installed here, so only the built-in statistics are shown.": "QuantStats مش متسطّب هنا، فبيظهر الإحصائيات الأساسية بس.",
     "Upload the Workspace journal CSV": "ارفع ملف الجورنال CSV من مساحة العمل",
-    "Trade type filter": "فلتر نوع الصفقة", "**Scanner**": "**السكانر**", "**Watchlist**": "**قائمة المتابعة**", "(change them in the top row)": "(غيّرهم من الصف اللي فوق)",
+    "Trade type filter": "فلتر نوع الصفقة", "User name": "اسم المستخدم", "Password": "كلمة السر", "Log in": "دخول",
+    "Wrong user name or password.": "اسم المستخدم أو كلمة السر غلط.", "Too many wrong tries - wait": "محاولات غلط كتير - استنى", "**Scanner**": "**السكانر**", "**Watchlist**": "**قائمة المتابعة**", "(change them in the top row)": "(غيّرهم من الصف اللي فوق)",
     "live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace.":
         "عقود OKX الدائمة اللحظية (من غير MetaTrader). الأخبار والأجندة الاقتصادية في الهيدر وفي مساحة العمل.",
     "Journal CSV (columns: time, r)": "ملف الجورنال CSV (الأعمدة: time, r)",

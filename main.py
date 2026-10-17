@@ -37,6 +37,7 @@ from modules.signals import FAMILY_ICONS
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
+from modules.i18n import L, RTL_CSS, lang as _ui_lang
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
@@ -75,46 +76,48 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- Settings (sidebar) -----------------------------------------------------
-st.sidebar.header("Settings")
-auto_on = st.sidebar.checkbox("Auto-refresh (live data)", value=True)
-refresh_secs = st.sidebar.slider("Refresh every (seconds)", 10, 60, AUTO_REFRESH_SECONDS, step=5)
-play_sound = st.sidebar.checkbox("Play sound on NEW strong signals", value=True)
-with st.sidebar.expander("Order Book / Time & Sales", expanded=False):
+st.sidebar.header(L("Settings"))
+auto_on = st.sidebar.checkbox(L("Auto-refresh (live data)"), value=True, key="w_auto_refresh_live_data")
+refresh_secs = st.sidebar.slider(L("Refresh every (seconds)"), 10, 60, AUTO_REFRESH_SECONDS, step=5, key="w_refresh_every_seconds")
+play_sound = st.sidebar.checkbox(L("Play sound on NEW strong signals"), value=True, key="w_play_sound_on_new_strong_signals")
+with st.sidebar.expander(L("Order Book / Time & Sales"), expanded=False):
     smart_mult = st.slider(
-        "Smart trade = size >= N x median print", 2.0, 10.0, 4.0, step=0.5,
-        help="Prints this many times larger than the median trade in the window are flagged SMART; 2.5x that is WHALE.",
-    )
+        L("Smart trade = size >= N x median print"), 2.0, 10.0, 4.0, step=0.5,
+        help=L("Prints this many times larger than the median trade in the window are flagged SMART; 2.5x that is WHALE."),
+        key="w_smart_trade_size_n_x_median_print")
     big_order_mult = st.slider(
-        "Big limit order = N x median level", 3.0, 15.0, 5.0, step=0.5,
-        help="Used by the DOM highlight and by Limit Tracking.",
-    )
-    fast_secs = st.slider("DOM / Time&Sales refresh (seconds)", 1, 10, 3,
-                          help="How often the two order-flow panels update by themselves (flashes appear on each update).")
+        L("Big limit order = N x median level"), 3.0, 15.0, 5.0, step=0.5,
+        help=L("Used by the DOM highlight and by Limit Tracking."),
+        key="w_big_limit_order_n_x_median_level")
+    fast_secs = st.slider(L("DOM / Time&Sales refresh (seconds)"), 1, 10, 3,
+                          help=L("How often the two order-flow panels update by themselves (flashes appear on each update)."), key="w_dom_time_sales_refresh_seconds")
     absorb_mult = st.slider(
-        "Absorption = level volume >= N x median level", 2.0, 8.0, 3.0, step=0.5,
-        help="Heavy volume trading at one price while the price barely moves.",
-    )
-with st.sidebar.expander("Telegram alerts (optional)", expanded=False):
-    tg_on = st.checkbox("Send the best alerts to Telegram", value=False, key="tg_on",
-                        help="Only the top-ranked alerts (evidence score, not a proven win rate). Needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Secrets.")
-    tg_top = st.number_input("Max alerts per scan", 1, 10, 3, key="tg_top")
-    tg_min = st.slider("Minimum quality (0-100)", 30, 95, 60, key="tg_min")
-    if st.button("Send test message", key="tg_test"):
+        L("Absorption = level volume >= N x median level"), 2.0, 8.0, 3.0, step=0.5,
+        help=L("Heavy volume trading at one price while the price barely moves."),
+        key="w_absorption_level_volume_n_x_median_level")
+with st.sidebar.expander(L("Telegram alerts (optional)"), expanded=False):
+    tg_on = st.checkbox(L("Send the best alerts to Telegram"), value=False, key="tg_on",
+                        help=L("Only the top-ranked alerts (evidence score, not a proven win rate). Needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Secrets."))
+    tg_top = st.number_input(L("Max alerts per scan"), 1, 10, 3, key="tg_top")
+    tg_min = st.slider(L("Minimum quality (0-100)"), 30, 95, 60, key="tg_min")
+    if st.button(L("Send test message"), key="tg_test"):
         from modules import telegram_alerts as _tga
         _err = _tga.send("✅ 6868 X: Telegram connected.")
-        st.success("Sent.") if not _err else st.error(_err)
-    st.caption("Quality = strategy families agreeing + daily bias / premium-discount / killzone + reward:risk. It ranks the evidence; it does not predict success.")
-with st.sidebar.expander("Chart / Layout", expanded=False):
-    ws_height = st.slider("Workspace height (px)", 500, 6000, 3400, step=20)
-    ui_bg = st.color_picker("Page background", "#0b0e11")
-    ui_accent = st.color_picker("Accent colour (tabs, highlights)", "#f0b90b")
-    st.caption("Per-widget colours: use the two colour dots in each Workspace widget's title bar.")
+        st.success(L("Sent.")) if not _err else st.error(_err)
+    st.caption(L("Quality = strategy families agreeing + daily bias / premium-discount / killzone + reward:risk. It ranks the evidence; it does not predict success."))
+with st.sidebar.expander(L("Chart / Layout"), expanded=False):
+    ws_height = st.slider(L("Workspace height (px)"), 500, 6000, 3400, step=20, key="w_workspace_height_px")
+    ui_bg = st.color_picker(L("Page background"), "#0b0e11", key="w_page_background")
+    ui_accent = st.color_picker(L("Accent colour (tabs, highlights)"), "#f0b90b", key="w_accent_colour_tabs_highlights")
+    st.caption(L("Per-widget colours: use the two colour dots in each Workspace widget's title bar."))
 st.markdown(f"<style>.stApp{{background-color:{ui_bg}}} .stTabs [aria-selected='true']{{color:{ui_accent};border-bottom-color:{ui_accent}}}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
+if _ui_lang() == "ar":   # Arabic: labels, captions and alerts right-to-left (charts, tables and numbers keep their own direction)
+    st.markdown(RTL_CSS, unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
     st_autorefresh(interval=refresh_secs * 1000, key="auto_refresh")
 elif auto_on:
-    st.sidebar.warning("streamlit-autorefresh is not installed - add it to requirements.txt.")
+    st.sidebar.warning(L("streamlit-autorefresh is not installed - add it to requirements.txt."))
 
 # ---- Header (filled in below once the scanner helpers exist) ----------------------
 header_box = st.container()
@@ -231,12 +234,12 @@ def watchlist_html(rows):
 
 def render_watchlist(results, notice, key):
     """Trade-type filter sits right above the list it filters."""
-    selected = st.multiselect("Trade type", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
+    selected = st.multiselect(L("Trade type"), TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
     filtered = [r for r in results if r["trade_type"] in selected]
     if notice:
         st.caption(notice)
     elif not filtered:
-        st.info("No symbols match the current filter.")
+        st.info(L("No symbols match the current filter."))
     else:
         st.markdown(watchlist_html(filtered), unsafe_allow_html=True)
     return filtered
@@ -275,7 +278,7 @@ def render_scanner(results, notice, key):
         )
         with st.expander("التحليل"):
             explain_symbol(r)
-    with st.expander("فلتر نوع الصفقة"):
+    with st.expander(L("Trade type filter")):
         st.multiselect("نوع الصفقة", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
     st.caption("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.")
     return filtered
@@ -392,14 +395,14 @@ def render_dom(sym):
                     changes=mem.changes(ladder), absorb_prices=absorb_prices),
         unsafe_allow_html=True,
     )
-    st.caption("★ glowing = big resting order (blinks white when trades hit it). "
-               "Level flash = just traded. Blue outline = size grew.")
+    st.caption(L("★ glowing = big resting order (blinks white when trades hit it). "
+               "Level flash = just traded. Blue outline = size grew."))
     return bids, asks
 
 
 @live_fragment
 def render_trades(sym):
-    st.markdown("**Time & Sales** &middot; Smart / Whale / Absorb", unsafe_allow_html=True)
+    st.markdown(L("**Time & Sales** &middot; Smart / Whale / Absorb"), unsafe_allow_html=True)
     try:
         trades = get_tape(sym)
         ab = ""
@@ -416,7 +419,7 @@ def render_trades(sym):
 
 
 def render_limit_tracking(sym, book, trades):
-    st.markdown("**Limit Tracking** &middot; big limit orders placed / pulled / filled", unsafe_allow_html=True)
+    st.markdown(L("**Limit Tracking** &middot; big limit orders placed / pulled / filled"), unsafe_allow_html=True)
     if book is None:
         return
     trackers = st.session_state.setdefault("limit_trackers", {})
@@ -425,8 +428,8 @@ def render_limit_tracking(sym, book, trades):
         tracker = trackers[sym] = LimitTracker(big_mult=big_order_mult)
     tracker.update(book[0], book[1], trades)
     st.markdown(limit_events_html(tracker.events_df()), unsafe_allow_html=True)
-    st.caption("Snapshot based (compares each refresh), so quick spoof-and-cancel "
-               "inside one refresh is not seen. PULLED = vanished without trading.")
+    st.caption(L("Snapshot based (compares each refresh), so quick spoof-and-cancel "
+               "inside one refresh is not seen. PULLED = vanished without trading."))
 
 
 @st.cache_resource
@@ -666,10 +669,10 @@ def render_header():
     Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
     h_cls, h_mkt, h_main, h_lang = st.columns([1.35, 1.0, 8.4, 0.8], vertical_alignment="center")
     with h_cls:   # the asset-class / market dropdowns live in the top row now (they drive the scanner, ready trades and the watchlist together)
-        st.selectbox("Asset class", _AC.CLASSES, key="asset_cls", label_visibility="collapsed",
-                     help="Asset class: drives the Chart Scanner, Ready trades and the Workspace watchlist together.")
+        st.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", label_visibility="collapsed", format_func=L,
+                     help=L("Asset class: drives the Chart Scanner, Ready trades and the Workspace watchlist together."))
     with h_mkt:
-        st.selectbox("Market", list(_AC.MARKET_TYPES), key="market_type", label_visibility="collapsed", help="Spot / Perpetual swap / dated Futures (OKX).")
+        st.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", label_visibility="collapsed", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     with h_main:
         links = []
         for name, url in EXTERNAL_LINKS.items():
@@ -689,13 +692,13 @@ def render_header():
             cal = []   # the strip then tries to fetch the calendar itself in the browser
         render_header_bar(_logo_data_uri(), links, news, cal=cal)
     with h_lang:
-        st.radio("Language", ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
+        st.radio(L("Language"), ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
     # the ready-trades table now lives inside the Workspace (movable widget); macro watchlist is in the sidebar
-    with st.sidebar.expander("Macro watchlist", expanded=False):
+    with st.sidebar.expander(L("Macro watchlist"), expanded=False):
         st.markdown(macro_html(), unsafe_allow_html=True)
-    with st.sidebar.expander("US economy (FRED)", expanded=False):
-        st.caption("Monthly/daily official data, not live prices. Needs FRED_API_KEY in Secrets.")
+    with st.sidebar.expander(L("US economy (FRED)"), expanded=False):
+        st.caption(L("Monthly/daily official data, not live prices. Needs FRED_API_KEY in Secrets."))
         for r_ in _fred_rows():
             st.write(f"**{r_['label']}**: {r_['value'] if r_['value'] is not None else 'n/a'}  {r_['date']} {('- ' + r_['note']) if r_['note'] else ''}")
 
@@ -787,14 +790,14 @@ def render_universe_controls():
         st.query_params["cls"] = st.session_state["asset_cls"]
     elif "cls" in st.query_params:
         del st.query_params["cls"]
-    st.caption(f"Asset class: **{st.session_state.get('asset_cls', 'Crypto')}** · Market: **{st.session_state.get('market_type', 'Spot')}** (change them in the top row)")
+    st.caption(L("Asset class") + f": **{L(st.session_state.get('asset_cls', 'Crypto'))}** · " + L("Market") + f": **{L(st.session_state.get('market_type', 'Spot'))}** " + L("(change them in the top row)"))
     if _ac_msg:
         st.warning(_ac_msg + " - showing Crypto instead.")
 
 
 # ---- Tabs -------------------------------------------------------------------------
 tab_workspace, tab_cscan, tab_crypto, tab_forex, tab_metals, tab_stocks, tab_meme, tab_perf = st.tabs(
-    ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]
+    [L(t) for t in ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]]
 )
 
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
@@ -851,22 +854,22 @@ def render_chart_scanner():
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    with st.expander("Filters", expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
+    with st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
-        tf = r1[0].selectbox("Timeframe", ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"], index=5, key="cs_tf")
-        n_show = r1[1].number_input("Charts", min_value=1, max_value=30, value=10, step=1, key="cs_n")
-        side_pick = r1[2].selectbox("Side", ["Both", "Buy only", "Sell only"], key="cs_side")
-        mode = r1[3].selectbox("Match", ["All selected", "Any selected"], key="cs_mode")
-        look = r1[4].selectbox("Cross window", [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
-        stack = r1[5].selectbox("Trend stack", ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack")
+        tf = r1[0].selectbox(L("Timeframe"), ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"], index=5, key="cs_tf")
+        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=10, step=1, key="cs_n")
+        side_pick = r1[2].selectbox(L("Side"), ["Both", "Buy only", "Sell only"], key="cs_side", format_func=L)
+        mode = r1[3].selectbox(L("Match"), ["All selected", "Any selected"], key="cs_mode", format_func=L)
+        look = r1[4].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+        stack = r1[5].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
         r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
-        rel_px = r2[0].selectbox("Price vs EMA", rels, key="cs_px_rel")
+        rel_px = r2[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
         len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
-        rel_ma = r2[2].selectbox("EMA vs EMA", rels, key="cs_ma_rel")
-        pair = r2[3].selectbox("Pair", ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+        rel_ma = r2[2].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
+        pair = r2[3].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
         sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
-        sel_pat = r2[5].multiselect("Patterns", list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-        sel_strat = st.multiselect("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)", list(STRATEGY_FILTERS),
+        sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
+        sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
                                    format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
@@ -892,7 +895,7 @@ def render_chart_scanner():
     st.caption(f"{len(shown)} of {len(data)} symbols match" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
-        st.info("No symbols match the selected conditions right now.")
+        st.info(L("No symbols match the selected conditions right now."))
         return
     shown = shown[:int(n_show)]
     per_row = 5
@@ -911,7 +914,7 @@ def render_chart_scanner():
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
                     f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d['svg']}'/>"
                     f"<div style='min-height:18px;margin-top:2px'>{badges}</div>", unsafe_allow_html=True)
-                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf}", help="Plain-language Arabic analysis of this setup (same as the Crypto tab)"):
+                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf)
                         if r_:
@@ -959,26 +962,26 @@ with tab_workspace:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
             st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))
-        st.caption("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
+        st.caption(L("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                    "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
-                   "Data comes straight from OKX in your browser, no refresh needed.")
+                   "Data comes straight from OKX in your browser, no refresh needed."))
     except Exception as _e:
         st.error(f"Workspace error: {type(_e).__name__}: {_e}")
 
 with tab_crypto:
     col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])
     with col_watch:
-        st.markdown("**Scanner**")
-        scan_tf = st.radio("Scan timeframe", ALL_SCAN_TFS, index=2, horizontal=True, key="scan_tf",
+        st.markdown(L("**Scanner**"))
+        scan_tf = st.radio(L("Scan timeframe"), ALL_SCAN_TFS, index=2, horizontal=True, key="scan_tf",
                            format_func=lambda t: TF_LABEL.get(t, t).replace("minute", "min").replace("hour", "h").replace("day", "d").replace("week", "w").replace("month", "mo").replace(" ", ""))
         results, notice = scan_crypto_group(CRYPTO_SYMBOLS, scan_tf)
         filtered = render_scanner(results, notice, "crypto")
     with col_chart:
         c_sym, c_top, c_bot = st.columns([1.3, 1, 1])
-        pick = c_sym.selectbox("Symbol", CRYPTO_SYMBOLS, key="crypto_chart_pick")
-        tf_top = c_top.selectbox("Top chart", list(TV_INTERVALS), index=3, key="tv_top",
+        pick = c_sym.selectbox(L("Symbol"), CRYPTO_SYMBOLS, key="crypto_chart_pick")
+        tf_top = c_top.selectbox(L("Top chart"), list(TV_INTERVALS), index=3, key="tv_top",
                                  format_func=lambda k: TV_INTERVALS[k])
-        tf_bot = c_bot.selectbox("Bottom chart", list(TV_INTERVALS), index=2, key="tv_bot",
+        tf_bot = c_bot.selectbox(L("Bottom chart"), list(TV_INTERVALS), index=2, key="tv_bot",
                                  format_func=lambda k: TV_INTERVALS[k])
         render_tv_chart(pick, height=CHART_H, interval=tf_top, key="top")
         render_tv_chart(pick, height=CHART_H, interval=tf_bot, key="bottom")
@@ -995,10 +998,10 @@ def simple_tab(key, symbols):
     col_watch, col_chart = st.columns([1.1, 3.4])
     results, notice = score_mt5_group(symbols)
     with col_watch:
-        st.markdown("**Watchlist**")
+        st.markdown(L("**Watchlist**"))
         filtered = render_watchlist(results, notice, key)
     with col_chart:
-        pick = st.selectbox("Chart symbol", symbols, key=f"{key}_chart_pick")
+        pick = st.selectbox(L("Chart symbol"), symbols, key=f"{key}_chart_pick")
         render_tv_chart(pick)
     fire_alerts(filtered)
 
@@ -1028,18 +1031,18 @@ def class_tab(key, cls):
     syms, note = class_symbols(cls, CRYPTO_SYMBOLS, top=12, mtype="SWAP")
     col_watch, col_chart = st.columns([1.25, 3.4])
     with col_watch:
-        st.markdown("**Scanner**")
+        st.markdown(L("**Scanner**"))
         if not syms:
             st.warning(note or f"No {cls} instruments from OKX right now.")
         else:
-            tf = st.radio("Scan timeframe", ["1h", "4h", "1d"] if "4h" in ALL_SCAN_TFS else ["1h", "1d"], index=0, horizontal=True, key=f"scan_tf_{key}")
+            tf = st.radio(L("Scan timeframe"), ["1h", "4h", "1d"] if "4h" in ALL_SCAN_TFS else ["1h", "1d"], index=0, horizontal=True, key=f"scan_tf_{key}")
             results, notice = scan_crypto_group(syms, tf)
             render_scanner(results, notice, key)
     with col_chart:
         if syms:
-            pick = st.selectbox("Chart symbol", syms, key=f"{key}_chart_pick")
+            pick = st.selectbox(L("Chart symbol"), syms, key=f"{key}_chart_pick")
             render_tv_chart(_tv_symbol_for(cls, pick), key=key)
-        st.caption(f"{cls}: live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace.")
+        st.caption(f"{L(cls)}: " + L("live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace."))
 
 
 with tab_forex:
@@ -1050,7 +1053,7 @@ with tab_metals:
 
 with tab_stocks:
     class_tab("stocks", "Stocks")
-    with st.expander("Cross-sector momentum (hedge-fund relative-strength ranking)", expanded=False):
+    with st.expander(L("Cross-sector momentum (hedge-fund relative-strength ranking)"), expanded=False):
         from modules import momentum as _mom
 
         @st.cache_data(ttl=3600, show_spinner=False)
@@ -1059,7 +1062,7 @@ with tab_stocks:
             closes, errs = _mom.fetch_closes(u)
             return _mom.rank(closes, u), errs
 
-        uni = st.radio("Universe", list(_mom.UNIVERSES), horizontal=True, key="mom_uni")
+        uni = st.radio(L("Universe"), list(_mom.UNIVERSES), horizontal=True, key="mom_uni", format_func=L)
         tbl, errs = _mom_table(uni)
         if tbl.empty:
             st.warning("No market had the 253 daily closes needed (12 months + 1 day)." + (" Errors: " + "; ".join(errs[:4]) if errs else ""))
@@ -1072,10 +1075,10 @@ with tab_stocks:
                                               "score": "score (12-1 / vol)", "above_200": "above SMA200"}), hide_index=True, use_container_width=True)
             if errs:
                 st.caption("Missing: " + "; ".join(errs[:6]))
-        st.caption("Ranking by the 12-1 month return divided by volatility (the latest month is skipped). LONG candidate = top third with a positive "
+        st.caption(L("Ranking by the 12-1 month return divided by volatility (the latest month is skipped). LONG candidate = top third with a positive "
                    "12-1 return and price above SMA 200; AVOID = bottom third, negative and below SMA 200. Crypto trades 7 days a week, so its "
-                   "'12 months' are 252 daily bars (~8 calendar months). A ranking, not a forecast - not backtested in this project.")
-    with st.expander("US options chain (Cboe, ~15 min delayed)", expanded=False):
+                   "'12 months' are 252 daily bars (~8 calendar months). A ranking, not a forecast - not backtested in this project."))
+    with st.expander(L("US options chain (Cboe, ~15 min delayed)"), expanded=False):
         from modules import cboe_options as _cb
 
         @st.cache_data(ttl=300, show_spinner=False)
@@ -1083,24 +1086,24 @@ with tab_stocks:
             return _cb.fetch(sym)
 
         oc1, oc2 = st.columns([1, 2])
-        osym = oc1.text_input("Underlying (stock / ETF / index)", "SPY", key="cboe_sym").strip().upper()
+        osym = oc1.text_input(L("Underlying (stock / ETF / index)"), "SPY", key="cboe_sym").strip().upper()
         try:
             px, chain = _cb_chain(osym)
             exps = sorted(chain.expiry.unique())
-            ex = oc2.selectbox("Expiry", exps, format_func=lambda d: pd.Timestamp(d).strftime("%Y-%m-%d"), key="cboe_exp")
+            ex = oc2.selectbox(L("Expiry"), exps, format_func=lambda d: pd.Timestamp(d).strftime("%Y-%m-%d"), key="cboe_exp")
             sm = _cb.summary(chain, px, ex)
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Underlying", f"{px:,.2f}" if px else "-")
-            m2.metric("Put/Call volume", f"{sm['pc_vol']:.2f}" if sm["pc_vol"] else "-")
-            m3.metric("Put/Call open interest", f"{sm['pc_oi']:.2f}" if sm["pc_oi"] else "-")
-            m4.metric("Max pain (this expiry)", f"{sm['max_pain']:,.2f}" if sm["max_pain"] else "-")
+            m1.metric(L("Underlying"), f"{px:,.2f}" if px else "-")
+            m2.metric(L("Put/Call volume"), f"{sm['pc_vol']:.2f}" if sm["pc_vol"] else "-")
+            m3.metric(L("Put/Call open interest"), f"{sm['pc_oi']:.2f}" if sm["pc_oi"] else "-")
+            m4.metric(L("Max pain (this expiry)"), f"{sm['max_pain']:,.2f}" if sm["max_pain"] else "-")
             st.dataframe(_cb.near_money(chain, px, ex, n=12), hide_index=True, use_container_width=True)
         except Exception as e:
             st.warning(f"Option chain not available: {e}")
-        st.caption("Source: Cboe's public delayed-quotes JSON (free, no key, ~15 min delayed, unofficial - it can change without notice). "
+        st.caption(L("Source: Cboe's public delayed-quotes JSON (free, no key, ~15 min delayed, unofficial - it can change without notice). "
                    "Indices: SPX, NDX, RUT, VIX. Max pain and put/call ratios describe positioning; they are not a forecast. "
-                   "Crypto options (BTC / ETH) stay live in the Workspace watchlist (OKX, category Options).")
-    with st.expander("News sentiment + movers (Alpha Vantage)", expanded=False):
+                   "Crypto options (BTC / ETH) stay live in the Workspace watchlist (OKX, category Options)."))
+    with st.expander(L("News sentiment + movers (Alpha Vantage)"), expanded=False):
         from modules import alphavantage as _av
 
         @st.cache_data(ttl=600, show_spinner=False)
@@ -1111,7 +1114,7 @@ with tab_stocks:
         def _av_movers():
             return _av.movers()
 
-        _t = st.text_input("Tickers (optional, e.g. AAPL,NVDA)", key="av_t")
+        _t = st.text_input(L("Tickers (optional, e.g. AAPL,NVDA)"), key="av_t")
         _n = _av_news(_t.strip().upper())
         if _n["error"]:
             st.warning(_n["error"])
@@ -1125,14 +1128,14 @@ with tab_stocks:
                 st.caption(k)
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-    with st.expander("Options flow (Unusual Whales) - ask-side, OTM, single-leg, premium >= $45k, vol > OI", expanded=False):
+    with st.expander(L("Options flow (Unusual Whales) - ask-side, OTM, single-leg, premium >= $45k, vol > OI"), expanded=False):
         from modules import options_flow as _of
 
         @st.cache_data(ttl=60, show_spinner=False)
         def _flow():
             return _of.fetch()
 
-        if st.button("Refresh flow", key="uw_refresh"):
+        if st.button(L("Refresh flow"), key="uw_refresh"):
             _flow.clear()
         res = _flow()
         if res["error"]:
@@ -1152,12 +1155,12 @@ with tab_stocks:
                 st.info("Nothing passes the filter now. If this looks wrong, check field names: " + _of.diagnose(res["rows"]))
 
 with tab_meme:
-    st.subheader("Meme coin / whale tracking (DEXScreener)")
-    query = st.text_input("Search token (name or contract address)", value="")
+    st.subheader(L("Meme coin / whale tracking (DEXScreener)"))
+    query = st.text_input(L("Search token (name or contract address)"), value="", key="w_search_token_name_or_contract_address")
     if query:
         pairs = search_dexscreener_pairs(query)
         if not pairs:
-            st.info("No pairs found, or DEXScreener rate limit hit — try again shortly.")
+            st.info(L("No pairs found, or DEXScreener rate limit hit — try again shortly."))
         for p in pairs[:10]:
             with st.container(border=True):
                 # "\$" so the two dollar signs are not read as a LaTeX formula
@@ -1170,7 +1173,7 @@ with tab_meme:
                 )
                 st.markdown(f"[View on DEXScreener]({p.get('url', '#')})")
     else:
-        st.info("Enter a token name or contract address above to search live DEXScreener pairs.")
+        st.info(L("Enter a token name or contract address above to search live DEXScreener pairs."))
 
 
 # ---- While the background scan is still running, poll until it finishes ---------------
@@ -1181,31 +1184,31 @@ if _store_now["running"] or (_store_now["payload"] or {}).get("loading"):
 
 
 with tab_perf:
-    st.subheader("Performance report (QuantStats)")
-    st.caption("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
-               "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge.")
+    st.subheader(L("Performance report (QuantStats)"))
+    st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
+                 "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge."))
     import pandas as _pd
     from modules.perf_report import perf_stats, quantstats_html, returns_from_trades
-    _up = st.file_uploader("Journal CSV (columns: time, r)", type=["csv"], key="perf_csv")
-    _risk = st.number_input("Risk per trade (% of account)", min_value=0.1, max_value=10.0, value=1.0, step=0.1, key="perf_risk")
+    _up = st.file_uploader(L("Journal CSV (columns: time, r)"), type=["csv"], key="perf_csv")
+    _risk = st.number_input(L("Risk per trade (% of account)"), min_value=0.1, max_value=10.0, value=1.0, step=0.1, key="perf_risk")
     if _up is not None:
         try:
             _ret = returns_from_trades(_pd.read_csv(_up), float(_risk))
             if len(_ret) < 5:
-                st.warning("Need at least 5 closed trades for meaningful statistics.")
+                st.warning(L("Need at least 5 closed trades for meaningful statistics."))
             else:
                 _st = perf_stats(_ret)
                 _c = st.columns(4)
-                _c[0].metric("Trades", _st["n"]); _c[1].metric("Total return", f"{_st['total_return']*100:.1f}%")
-                _c[2].metric("Max drawdown", f"{_st['max_drawdown']*100:.1f}%"); _c[3].metric("Win rate", f"{_st['win_rate']*100:.0f}%")
+                _c[0].metric(L("Trades"), _st["n"]); _c[1].metric(L("Total return"), f"{_st['total_return']*100:.1f}%")
+                _c[2].metric(L("Max drawdown"), f"{_st['max_drawdown']*100:.1f}%"); _c[3].metric(L("Win rate"), f"{_st['win_rate']*100:.0f}%")
                 _c = st.columns(3)
-                _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric("Stats source", _st["source"])
+                _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric(L("Stats source"), _st["source"])
                 st.line_chart((1 + _ret).cumprod().rename("equity"))
                 import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
                     _components.html(_html, height=900, scrolling=True)
                 else:
-                    st.info("QuantStats is not installed here, so only the built-in statistics are shown.")
+                    st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:
             st.error(f"Could not read the file: {type(_e).__name__}: {_e}")

@@ -26,7 +26,11 @@ from modules.signals import (
 
 MAX_STARS = len(ALL_FAMILIES)  # 7
 
-SCAN_TFS = ["1m", "1h", "1d", "1w"]   # the four horizons scanned in the background for the workspace
+import os as _os
+# horizons scanned in the background (alerts + journal). 1m is OFF by default: in the owner's journal (Oct 2026, 1110 trades)
+# 735 one-minute trades lost about -147R of the -150R total. Set SCAN_1M=1 in env / Secrets to bring it back.
+SCAN_TFS = ["1h", "1d", "1w"] + (["1m"] if _os.environ.get("SCAN_1M") == "1" else [])
+MAX_SAME_SIDE = 3   # per scan timeframe: at most this many alerts in the same direction (they are mostly one market-wide bet)
 # every timeframe the user can pick for a scan (13m/3h/7h/8h are built from 1m/1h candles, the rest are OKX bar sizes)
 ALL_SCAN_TFS = ["1m", "13m", "1h", "2h", "3h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"]
 CONTEXT_TFS = {"1m": ["1h", "1d", "1w"], "13m": ["1h", "1d", "1w"], "1h": ["1d", "1w"], "2h": ["1d", "1w"], "3h": ["1d", "1w"],
@@ -148,10 +152,12 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
     against = [s for s in sigs if direction != "neutral" and s["direction"] != direction]
 
     htf = [htf_view(frames.get(tf), tf, direction) for tf in CONTEXT_TFS.get(trigger_tf, [])]
-    trade_type = BASE_TRADE_TYPE[trigger_tf]
+    # the type follows the TRIGGER timeframe (its stop / target / holding time); a higher timeframe that agrees is shown as
+    # htf_type, it no longer relabels a 1-minute trade as "Position" (the journal showed those still behave like scalps)
+    trade_type, htf_type = BASE_TRADE_TYPE[trigger_tf], None
     for h in reversed(htf):  # highest timeframe first
         if h["confirms"]:
-            trade_type = CONFIRM_TRADE_TYPE[h["tf"]]
+            htf_type = CONFIRM_TRADE_TYPE[h["tf"]]
             break
 
     mtf = None
@@ -186,6 +192,7 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
         "htf": htf,
         "mtf": mtf,
         "trade_type": trade_type,
+        "htf_type": htf_type,
         "timeframe": trigger_tf,
         "price": price,
         "supports": sup, "resistances": res,

@@ -143,7 +143,32 @@ def summarize(all_events, all_bars):
     return rows, conflicts, {k: _stat(v) for k, v in sorted(cfl.items())}
 
 
-def report(rows, conflicts, cfl, meta):
+GANN_CYC, GANN_TOL, PIV_K = (30, 45, 60, 90, 120, 144, 180), 2, 5
+
+
+def gann_cycles(hi, lo):
+    """Gann time cycles: from every swing pivot (extreme of +-PIV_K bars), is there another pivot within +-GANN_TOL bars of
+    pivot + 30/45/60/90/120/144/180 bars MORE often than at ordinary offsets (25..185 bars, away from the Gann numbers)?
+    Returns hit counts {gann: [hits, tries], control: [hits, tries]}."""
+    hi, lo = np.asarray(hi, float), np.asarray(lo, float); n = len(hi); K = PIV_K
+    piv = np.zeros(n, bool)
+    for i in range(K, n - K):
+        w_h, w_l = hi[i - K:i + K + 1], lo[i - K:i + K + 1]
+        piv[i] = hi[i] == w_h.max() or lo[i] == w_l.min()
+    cum = np.concatenate([[0], np.cumsum(piv)])
+    ctrl = [o for o in range(25, 186) if all(abs(o - g) > 2 * GANN_TOL for g in GANN_CYC)]
+    out = {"gann": [0, 0], "control": [0, 0]}
+    for a in np.flatnonzero(piv):
+        for grp, offs in (("gann", GANN_CYC), ("control", ctrl)):
+            for o in offs:
+                j0, j1 = a + o - GANN_TOL, a + o + GANN_TOL
+                if j1 >= n - K:
+                    continue
+                out[grp][0] += int(cum[j1 + 1] - cum[j0] > 0); out[grp][1] += 1
+    return out
+
+
+def report(rows, conflicts, cfl, meta, gann=None):
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
@@ -177,11 +202,21 @@ def report(rows, conflicts, cfl, meta):
     L += [f"| {c['a']} | {c['b']} | {c['together']} | {c['opposite']} | {c['rate']} |" for c in conflicts]
     L += ["", "## Confluence: more agreeing families = better?", "", "| agreeing families | n | win % | avg R |", "|---|---|---|---|"]
     L += [f"| {k} | {v['n']} | {v.get('win')} | {v.get('avgR')} |" for k, v in cfl.items()]
+    if gann:
+        L += ["", f"## Gann time cycles: another swing pivot within +-{GANN_TOL} bars of pivot + {'/'.join(map(str, GANN_CYC))} bars vs ordinary offsets", "",
+              "| tf | Gann hit % | Gann tries | ordinary hit % | ordinary tries | difference (sigma) |", "|---|---|---|---|---|---|"]
+        for tf, g in gann.items():
+            (h1, n1), (h0, n0) = g["gann"], g["control"]
+            if not n1 or not n0:
+                continue
+            p1, p0 = h1 / n1, h0 / n0; se = np.sqrt(p0 * (1 - p0) / n1) or 1
+            L.append(f"| {tf} | {100 * p1:.1f} | {n1} | {100 * p0:.1f} | {n0} | {(p1 - p0) / se:+.1f} |")
+        L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = the Gann numbers are ordinary offsets (random-walk self-test: -1.2).")
     return "\n".join(L) + "\n"
 
 
 def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
-    evs, brs, done = [], [], []
+    evs, brs, done, gann = [], [], [], {}
     for sym in symbols:
         for tf in tfs:
             t0 = time.time()
@@ -194,10 +229,13 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                 log(f"skip {sym} {tf}: too few candles"); continue
             ev, br = walk(df.reset_index(drop=True), tf, stride)
             evs.append((tf, sym, ev)); brs.append((tf, sym, br)); done.append(f"{sym} {tf}")
+            g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0]})
+            for k in acc:
+                acc[k][0] += g[k][0]; acc[k][1] += g[k][1]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
-    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl}
+    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann}
 
 
 if __name__ == "__main__":
@@ -205,5 +243,5 @@ if __name__ == "__main__":
     res = run(syms, stride=int(os.environ.get("LAB_STRIDE", "4")))
     OUT_JSON.parent.mkdir(exist_ok=True)
     OUT_JSON.write_text(json.dumps(res, indent=1))
-    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"]))
+    OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann")))
     print(OUT_MD.read_text()[:3000])

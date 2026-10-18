@@ -1,31 +1,34 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-:root{--bg:#0b0e11;--panel:#161a1e;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--acc:#f0b90b}
+:root{--bg:#05070a;--panel:#0b0f14;--line:#1c232b;--txt:#e6e9ee;--mut:#7d8794;--acc:#f0b90b}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;color:var(--txt);font:12px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
-#strip{height:54px;display:flex;align-items:center;gap:8px;padding:0 4px;position:relative}
+#strip{height:46px;display:flex;align-items:center;gap:10px;padding:0 6px;position:relative;background:linear-gradient(180deg,#07090c,#05070a);border:1px solid var(--line);border-radius:8px}
 #logo{flex:none;display:flex;align-items:center;height:40px;margin-inline-end:6px}
-#logo img{height:38px;max-width:170px;object-fit:contain}
+#logo img{height:38px;max-width:170px;object-fit:contain}#logo svg{height:40px;width:auto;display:block}
+.sep{flex:none;width:1px;height:22px;background:var(--line)}
+.cap{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
 #logo .wm{display:flex;align-items:baseline;gap:5px;line-height:1;white-space:nowrap}
 /* golden-ratio wordmark: 6868 is 1.618x the size of X PIX (26px / 16px) */
 #logo .wm b{font-size:26px;font-weight:800;letter-spacing:.5px;background:linear-gradient(180deg,#ffe58a,#f0b90b 55%,#b98400);-webkit-background-clip:text;background-clip:text;color:transparent}
 #logo .wm i{font-style:normal;font-size:16px;font-weight:700;letter-spacing:2px;color:#eaecef}
-.lk{flex:none;display:flex;align-items:center;gap:4px;color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:2px 7px;background:#1e2329;white-space:nowrap;cursor:pointer;font-size:11px}
+.lk{flex:none;display:flex;align-items:center;gap:5px;color:var(--txt);text-decoration:none;border:1px solid transparent;border-radius:5px;padding:3px 8px;background:transparent;white-space:nowrap;cursor:pointer;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
 .lk:hover{border-color:var(--acc);color:var(--acc)}.lk img{width:14px;height:14px}.lk .ch{width:14px;height:14px;border-radius:3px;background:#2b3139;text-align:center;line-height:14px;font-size:9px}
-#tick{flex:1;min-width:60px;height:30px;border:1px solid var(--line);border-radius:5px;background:var(--panel);overflow:hidden;white-space:nowrap;cursor:pointer;position:relative}
-#tick .track{display:inline-block;white-space:nowrap;line-height:28px;animation:sc var(--dur,90s) linear infinite}
+#tick{flex:1;min-width:60px;height:28px;border:1px solid var(--line);border-radius:5px;background:var(--panel);overflow:hidden;white-space:nowrap;cursor:pointer;position:relative}
+#tick .track{display:inline-block;white-space:nowrap;line-height:26px;color:#c3c9d1;animation:sc var(--dur,90s) linear infinite}
 #tick:hover .track{animation-play-state:paused}@keyframes sc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-#tick .tag{position:absolute;left:0;top:0;bottom:0;padding:0 8px;background:var(--panel);z-index:2;line-height:28px;color:var(--acc);font-weight:700;border-right:1px solid var(--line)}
+#tick .tag{position:absolute;left:0;top:0;bottom:0;padding:0 9px;background:var(--panel);z-index:2;line-height:26px;color:var(--acc);font-weight:700;font-size:10px;letter-spacing:.16em;border-right:1px solid var(--line)}
 #tick .track{padding-left:70px}
-.clk{flex:none;text-align:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:1px 8px;min-width:86px}
-.clk small{display:block;font-size:9px;color:var(--mut);letter-spacing:.6px}.clk b{font:700 15px ui-monospace,Menlo,Consolas,monospace;color:var(--txt)}
+.clk{flex:none;display:flex;align-items:baseline;gap:5px;padding:0 2px}
+.clk small{font-size:9px;color:var(--mut);letter-spacing:.16em}.clk b{font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--txt)}
 #wm{flex:none;cursor:pointer}
-#rt{flex:none;width:26%;min-width:440px;display:flex;align-items:center;justify-content:flex-end;gap:6px}
-.pop{position:absolute;top:56px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
+#rt{flex:none;display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.pop{position:absolute;top:50px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
 .pop.on{display:block}
 #newsPop{left:70px;right:260px;max-height:360px;overflow:auto;padding:4px}
 #newsPop a{display:block;color:var(--txt);text-decoration:none;padding:5px 8px;border-bottom:1px solid #20262c}#newsPop a:hover{background:#1e2329;color:var(--acc)}
 #newsPop .m{color:var(--mut);font-size:10px}
-#fvPop{padding:4px;min-width:150px}#fvPop a{display:block;color:var(--txt);text-decoration:none;padding:3px 8px}#fvPop a:hover{color:var(--acc)}
+#fvPop{padding:6px;min-width:230px;max-height:420px;overflow:auto}#fvPop a{display:flex;align-items:center;gap:7px;color:var(--txt);text-decoration:none;padding:4px 8px;border-radius:4px}#fvPop a:hover{color:var(--acc);background:#11161c}
+#fvPop a img{width:14px;height:14px}#fvPop .h{font-size:9px;letter-spacing:.16em;color:var(--mut);padding:6px 8px 2px;text-transform:uppercase}#fvPop .sub a{padding-inline-start:28px;font-size:11px;color:#c3c9d1}
 #wmPop{right:4px;width:min(880px,calc(100% - 8px));padding:6px}
 #wmPop .row{display:flex;gap:8px}#mapc{flex:1;min-width:0;background:#0d1217;border:1px solid var(--line);border-radius:6px;position:relative}
 #mapc canvas{width:100%;display:block;cursor:pointer}
@@ -35,7 +38,7 @@
 #det{margin-top:4px;padding:6px;border:1px solid var(--line);border-radius:6px;background:#10151a;font-size:11px;min-height:38px}
 #det a{color:#4aa3ff}
 .leg{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0;font-size:10px;color:var(--mut)}.leg label{cursor:pointer;display:flex;align-items:center;gap:3px}
-#bell{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:2px 8px;cursor:pointer;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bell{flex:none;max-width:230px;min-width:0;border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:3px 8px;cursor:pointer;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #bell.hot{border-color:#f6465d;color:#f6465d}#bell.blink{animation:bl .8s infinite}@keyframes bl{50%{background:#3a1218}}
 #evpop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92%);max-height:92%;overflow:auto;background:#10151a;border:1px solid var(--acc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.8);padding:10px 12px;z-index:5;display:none}
 #evpop h4{margin:0 0 4px;font-size:13px}#evpop .x{position:absolute;right:8px;top:6px;cursor:pointer;color:var(--mut)}
@@ -44,12 +47,12 @@
 </style></head><body>
 <div id="strip">
   <div id="logo"></div>
-  <div id="links" style="display:flex;gap:4px;align-items:center;flex:none"></div>
+  <div class="sep"></div><div id="links" style="display:flex;gap:4px;align-items:center;flex:none"></div>
   <div id="tick" title="Click for the news list"><span class="tag">NEWS ▾</span><div class="track" id="track"></div></div>
   <div id="rt"><div id="bell" title="Next high-impact news (click for the calendar)">🔔 …</div>
-  <div class="clk"><small>CAIRO</small><b id="tc">--:--:--</b></div>
-  <div class="clk"><small>NEW YORK</small><b id="tn">--:--:--</b></div>
-  <div class="lk" id="wm" title="World map: events">🌐 World</div></div>
+  <div class="sep"></div><div class="clk"><small>CAI</small><b id="tc">--:--:--</b></div>
+  <div class="clk"><small>NY</small><b id="tn">--:--:--</b></div>
+  <div class="sep"></div><div class="lk" id="wm" title="World map: events">🌐</div></div>
   <div class="pop" id="fvPop"></div>
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
@@ -62,8 +65,10 @@
 const CFG = __CONFIG__;
 const $ = id => document.getElementById(id), esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const safe = u => /^https?:\/\//i.test(u || "") ? u : "";
+/* XPiX: X = price crossing time, "Pi" in gold = the circle / the 360 degrees, the i-dot = the golden point (the pixel), 6868 under the letters, gold rule = 1/phi of the width */
+const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 50" aria-label="XPiX 6868">  <defs>    <linearGradient id="gd" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".618" stop-color="#f0b90b"/><stop offset="1" stop-color="#a87800"/></linearGradient>    <linearGradient id="sv" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9aa4b2"/></linearGradient>    <radialGradient id="glow"><stop offset="0" stop-color="#fff3c4"/><stop offset=".38" stop-color="#f0b90b"/><stop offset="1" stop-color="#f0b90b" stop-opacity="0"/></radialGradient>  </defs>  <!-- cap height 26 (y 6..32); digits 26/phi^2 ~ 10; gaps 26/phi^3 ~ 6 -->  <g fill="none" stroke-linecap="square">    <!-- X : price axis crossing the time axis -->    <path d="M4 6 L28 32 M28 6 L4 32" stroke="url(#sv)" stroke-width="4.2"/>    <!-- P : stem + bowl (bowl height = cap / phi) -->    <path d="M42 32 V6 H52 A8.03 8.03 0 0 1 52 22.07 H42" stroke="url(#gd)" stroke-width="4.2"/>    <!-- i : stem = cap / phi tall; the dot = the golden point (the pixel) -->    <path d="M75 15.93 V32" stroke="url(#gd)" stroke-width="4.2"/>    <!-- X -->    <path d="M90 6 L114 32 M114 6 L90 32" stroke="url(#sv)" stroke-width="4.2"/>  </g>  <circle cx="75" cy="8.5" r="6" fill="url(#glow)"/><circle cx="75" cy="8.5" r="2.6" fill="#fff6d6"/>  <!-- 6868 under the letters, small and half-hidden -->  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" font-weight="700" fill="#c9a227" opacity=".42" text-anchor="middle" letter-spacing="0">    <text x="16" y="45">6</text><text x="50" y="45">8</text><text x="75" y="45">6</text><text x="102" y="45">8</text>  </g>  <!-- thin golden-section rule: the gold part is 1/phi of the width -->  <path d="M4 38.5 H72.6" stroke="#f0b90b" stroke-width=".7" opacity=".55"/><path d="M72.6 38.5 H114" stroke="#9aa4b2" stroke-width=".7" opacity=".35"/></svg>';
 /* ---- frame resizing so popups can overlay the page below ---- */
-const BASE_H = 54;
+const BASE_H = 48;
 function setFrame(h){
   try {
     const f = window.frameElement; if (!f) return;
@@ -77,18 +82,14 @@ function closeAll(){ ["newsPop","fvPop","wmPop"].forEach(i => $(i).classList.rem
 function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
 document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv")) closeAll(); });
 /* ---- logo + links ---- */
-$("logo").innerHTML = CFG.logo ? '<img alt="6868 X" src="'+esc(CFG.logo)+'">' : '<span class="wm"><b>6868</b><i>X PIX</i></span>';   // no assets/logo.* file: the text wordmark
-CFG.links.forEach(l => {
-  if (l.patterns){
-    const d = document.createElement("div"); d.className = "lk fv"; d.innerHTML = (l.icon ? '<img src="'+esc(l.icon)+'">' : '<span class="ch">F</span>')+esc(l.name)+" ▾";
-    $("fvPop").innerHTML = l.patterns.map(p => '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(p.url))+'">'+esc(p.name)+'</a>').join("") + '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(l.url))+'">All charts ↗</a>';
-    d.onclick = () => { if (openId === "fvPop") closeAll(); else { openPop("fvPop", BASE_H + $("fvPop").offsetHeight + 40); const r = d.getBoundingClientRect(); $("fvPop").style.left = r.left+"px"; setFrame(BASE_H + 260); } };
-    $("links").append(d);
-  } else {
-    const a = document.createElement("a"); a.className = "lk"; a.target = "_blank"; a.rel = "noopener noreferrer"; a.href = safe(l.url) || "#";
-    a.innerHTML = (l.icon ? '<img src="'+esc(l.icon)+'">' : '<span class="ch">'+esc(l.name[0])+'</span>')+esc(l.name.split(" ")[0]); $("links").append(a);
-  }
-});
+$("logo").innerHTML = CFG.logo ? '<img alt="XPiX" src="'+esc(CFG.logo)+'">' : LOGO;   // XPiX mark (see LOGO below); an assets/logo.* file still wins
+{ // every outside site in ONE menu ("Resources"); Finviz chart patterns as a sub-list
+  const d = document.createElement("div"); d.className = "lk fv"; d.innerHTML = (CFG.ar ? "المصادر" : "Resources")+" ▾"; let h = "";
+  CFG.links.forEach(l => { h += '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(l.url) || "#")+'">'+(l.icon ? '<img src="'+esc(l.icon)+'">' : '')+esc(l.name)+' ↗</a>';
+    if (l.patterns) h += '<div class="sub">'+l.patterns.map(p => '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(p.url))+'">'+esc(p.name)+'</a>').join("")+'</div>'; });
+  $("fvPop").innerHTML = '<div class="h">'+(CFG.ar ? "مواقع خارجية" : "Outside sites")+'</div>'+h;
+  d.onclick = () => { if (openId === "fvPop") closeAll(); else { openPop("fvPop", 50 + 440); const r = d.getBoundingClientRect(); $("fvPop").style.left = r.left+"px"; } };
+  $("links").append(d); }
 /* ---- news ---- */
 const news = CFG.news || [];
 const line = news.length ? news.map(n => '<span style="margin-right:26px">'+esc(n.headline)+(n.source ? ' <span style="color:var(--mut)">— '+esc(n.source)+'</span>' : '')+'</span>').join("") : '<span style="color:var(--mut)">'+esc(CFG.noNews)+'</span>';

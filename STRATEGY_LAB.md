@@ -247,6 +247,7 @@ Symbols: BTC-USDT, ETH-USDT, SOL-USDT, XRP-USDT, BNB-USDT, DOGE-USDT, HL:xyz:GOL
 | 4h shapes 120/180/240/360 deg | 56.4 | 4418 | 57.0 | 4414 | -0.8 |
 | 1d | 57.9 | 4438 | 58.3 | 60852 | -0.5 |
 | 1d shapes 120/180/240/360 deg | 59.3 | 2604 | 58.6 | 2606 | +0.7 |
+
 Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.
 
 ## Gann zone trades OUT OF SAMPLE (grid fitted on the first 60 % of each series, traded on the last 40 %; Workspace rule incl. time stop)
@@ -256,6 +257,7 @@ Rough sigma (overlapping tries). Above +3 on several timeframes would be evidenc
 | 1d | 30 | 20.0 | -0.452 | -0.281 | -0.54 |
 | 1h | 52 | 32.7 | +0.022 | -0.195 | +0.89 |
 | 4h | 56 | 30.4 | +0.122 | -0.108 | +1.08 |
+
 Random-walk self-test: rule +0.16R (1.6 standard errors, 265 trades) - so only t > +3 with n >= 100 on several timeframes counts as evidence. No costs.
 
 ## Gann astro: lunar phase (daily bars, all symbols pooled; Dichev & Janes 2001 found new-moon days about twice the full-moon days)
@@ -264,4 +266,5 @@ Random-walk self-test: rule +0.16R (1.6 standard errors, 265 trades) - so only t
 |---|---|---|
 | 15 days around new moon | 2882 | -0.133 |
 | 15 days around full moon | 2811 | 0.149 |
+
 Difference t = -3.11 (|t| > 2 would be a hint, > 3 evidence; overlapping symbols are correlated, so this is generous).

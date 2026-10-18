@@ -717,35 +717,40 @@ from modules import asset_classes as _AC   # the dropdown options (also used by 
 
 
 def render_header():
-    """ONE thin strip (a single iframe): logo | links | news (click = dropdown) | Cairo + New York clocks | World map.
-    Next to it: language, side and trade-type controls. The ready-trades table sits under it."""
-    h_cls, h_mkt, h_main, h_lang = st.columns([1.35, 1.0, 8.4, 0.8], vertical_alignment="center")
-    with h_cls:   # the asset-class / market dropdowns live in the top row now (they drive the scanner, ready trades and the watchlist together)
-        st.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", label_visibility="collapsed", format_func=L,
-                     help=L("Asset class: drives the Chart Scanner, Ready trades and the Workspace watchlist together."))
-    with h_mkt:
-        st.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", label_visibility="collapsed", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
+    """ONE header row: XPiX strip (logo | resources menu | news | next event | Cairo + New York clocks | world map) | page tabs |
+    language | focus. Focus mode folds the strip away so the Workspace gets the whole screen. Returns the container for the page tabs."""
+    focus = bool(st.session_state.get("focus_ws"))
+    with st.container(key="hdr"):
+        h_main, h_nav, h_lang, h_foc = st.columns([5.6, 4.1, 0.75, 0.3], vertical_alignment="center")
     with h_main:
-        links = []
-        for name, url in EXTERNAL_LINKS.items():
-            dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
-            if name == "Finviz Patterns":
-                links.append({"name": "Finviz", "url": url, "icon": site_icon_b64_uri("finviz.com"),
-                              "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
-            else:
-                links.append({"name": name, "url": url, "icon": site_icon_b64_uri(dom)})
-        try:
-            news = get_latest_news(category="general", limit=15)
-        except Exception:
-            news = []
-        try:
-            cal = _calendar_rows()
-        except Exception:
-            cal = []   # the strip then tries to fetch the calendar itself in the browser
-        render_header_bar(_logo_data_uri(), links, news, cal=cal)
+        if focus:   # folded: only a small mark
+            st.markdown("<div class='xpix-mini'><b>X</b><i>Pi</i><b>X</b></div>", unsafe_allow_html=True)
+        else:
+            links = []
+            for name, url in EXTERNAL_LINKS.items():
+                dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
+                if name == "Finviz Patterns":
+                    links.append({"name": "Finviz", "url": url, "icon": site_icon_b64_uri("finviz.com"),
+                                  "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+                else:
+                    links.append({"name": name, "url": url, "icon": site_icon_b64_uri(dom)})
+            try:
+                news = get_latest_news(category="general", limit=15)
+            except Exception:
+                news = []
+            try:
+                cal = _calendar_rows()
+            except Exception:
+                cal = []   # the strip then tries to fetch the calendar itself in the browser
+            render_header_bar(_logo_data_uri(), links, news, cal=cal, ar=_ui_lang() == "ar")
     with h_lang:
         st.radio(L("Language"), ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
+    with h_foc:
+        if st.button("⤡" if focus else "⤢", key="focus_btn", help=L("Fold the header away: the Workspace gets the whole screen (click again to bring it back).")):
+            st.session_state["focus_ws"] = not focus
+            st.rerun()
+    return h_nav
     # the ready-trades table now lives inside the Workspace (movable widget); macro watchlist is in the sidebar
     with st.sidebar.expander(L("Macro watchlist"), expanded=False):
         st.markdown(macro_html(), unsafe_allow_html=True)
@@ -821,8 +826,9 @@ if "asset_cls" not in st.session_state and st.query_params.get("cls") in ASSET_C
 
 with header_box:
     try:
-        render_header()
+        NAV_BOX = render_header()
     except Exception as _e:   # never let a header problem hide the rest of the page
+        NAV_BOX = None
         st.error(f"Header error: {type(_e).__name__}: {_e}")
 
 
@@ -837,12 +843,14 @@ ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Wo
 
 
 def render_universe_controls():
-    """The Asset class / Market dropdowns are in the top row (render_header); this keeps the URL in sync and shows the warning."""
+    """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
+    _u1, _u2, _u3 = st.columns([1.3, 1.0, 6])
+    _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
+    _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     if st.session_state.get("asset_cls", "Crypto") != "Crypto":
         st.query_params["cls"] = st.session_state["asset_cls"]
     elif "cls" in st.query_params:
         del st.query_params["cls"]
-    st.caption(L("Asset class") + f": **{L(st.session_state.get('asset_cls', 'Crypto'))}** · " + L("Market") + f": **{L(st.session_state.get('market_type', 'Spot'))}** " + L("(change them in the top row)"))
     if _ac_msg:
         st.warning(_ac_msg + " - showing Crypto instead.")
 
@@ -850,19 +858,102 @@ def render_universe_controls():
 # ---- Tabs -------------------------------------------------------------------------
 # Page selector instead of st.tabs: st.tabs runs EVERY tab's code on every run (~1100 candle downloads + scans per run, which got
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
-_PAGES = ["\U0001F9E9 Workspace", "\U0001F4CA Chart Scanner", "\U0001FA99 Crypto", "\U0001F4B1 Forex", "\U0001F947 Metals", "\U0001F4C8 Stocks", "\U0001F438 Meme Coins", "\U0001F4C8 Performance"]
+# 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
+# new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
+_PAGES = ["Workspace", "Scanner", "Lab", "Playbook", "Performance", "AI Analyst", "Alerts"]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
     except (TypeError, ValueError):
         st.session_state["page"] = 0
-PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+with (NAV_BOX if NAV_BOX is not None else st.container()):
+    PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
-st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 14px;border-bottom:1px solid #2b3139;padding-bottom:4px}}
-.st-key-page label{{padding:2px 2px 4px;margin:0}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
+_focus = bool(st.session_state.get("focus_ws"))
+st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
+.st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.14em;text-transform:uppercase}}
+.block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
+.st-key-hdr{{padding:0 2.8rem 0 2.6rem;border-bottom:1px solid #1c232b;margin-bottom:2px}}
+.xpix-mini{{font:800 18px/1 sans-serif;letter-spacing:.06em;color:#d7dce2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
+.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:1px solid #1c232b;background:transparent}}
+.st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}} .st-key-ws_lang p{{font-size:11px}}
+[data-testid="stExpander"] summary{{background:#0b0f14!important;color:#e6e9ee!important}} [data-testid="stExpander"] summary p{{color:#e6e9ee!important}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
+
+def _md_sections(path):
+    """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
+    try:
+        txt = Path(path).read_text(encoding="utf-8")
+    except Exception:
+        return {}
+    out, cur = {}, None
+    for line in txt.splitlines():
+        if line.startswith("## "):
+            cur = line[3:].strip(); out[cur] = []
+        elif cur:
+            out[cur].append(line)
+    return {k: "\n".join(v).strip() for k, v in out.items()}
+
+
+def render_lab_page():
+    """Strategy lab: weekly walk-forward on real candles (GitHub Actions), random baseline; shows what passed the evidence bar."""
+    st.subheader(L("Strategy lab - what the numbers say"))
+    st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
+                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. No costs, so real results are worse."))
+    lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
+    if not lab:
+        st.info(L("No lab results yet - they appear after the first weekly run."))
+        return
+    first = [k for k in lab if k.startswith("Gann zone trades OUT OF SAMPLE")] + [k for k in lab if k.startswith("Gann time cycles")] + \
+            [k for k in lab if k.startswith("Gann astro")] + [k for k in lab if k.startswith("Trend filter")]
+    filt = [k for k in flt if k.startswith("Filter on/off backtest")]
+    for k in first[:1]:
+        with st.expander(k, expanded=True):
+            st.markdown(lab[k])
+    for k in filt:
+        with st.expander(L("Group-A filters ON vs OFF (item 1)"), expanded=True):
+            st.markdown(flt[k])
+    for k in first[1:]:
+        with st.expander(k, expanded=False):
+            st.markdown(lab[k])
+    rest = [k for k in lab if k not in first]
+    if rest:
+        pick = st.selectbox(L("More tables"), rest, key="lab_more")
+        st.markdown(lab[pick])
+
+
+def render_playbook_page():
+    """The playbook: which schools / rules are used, how quality is kept honest (STRATEGIES.md)."""
+    st.subheader(L("Playbook"))
+    pb = _md_sections("STRATEGIES.md")
+    if not pb:
+        st.info(L("STRATEGIES.md not found."))
+        return
+    keys = list(pb)
+    top = [k for k in keys if k.startswith("Schools ranked")] + [k for k in keys if k.startswith("Operating model")] + [k for k in keys if k.startswith("Lab results")]
+    for i, k in enumerate(top):
+        with st.expander(k, expanded=i == 0):
+            st.markdown(pb[k])
+    pick = st.selectbox(L("Section"), [k for k in keys if k not in top], key="pb_more")
+    if pick:
+        st.markdown(pb[pick])
+
+
+def render_soon_page(i):
+    if i == 5:
+        st.subheader(L("AI Analyst (planned)"))
+        st.markdown(L("- Explains each setup in plain words (why, risk, what cancels it), reads it aloud - phase 1 (read-aloud) is already in the Workspace.\n"
+                      "- Answers questions about the open chart using the stored short analysis, not raw candles (token budget: cached per setup, daily cap).\n"
+                      "- Weekly summary of your journal: what works for YOU, by school / timeframe / session."))
+    else:
+        st.subheader(L("Alerts & Bots (planned)"))
+        st.markdown(L("- One place for every alert rule: scanner, order-flow sync, Gann zones, liquidations - with on/off and minimum quality.\n"
+                      "- Delivery: Telegram (already working from the sidebar), browser push, e-mail.\n"
+                      "- Paper-trading bot that follows only the rules that passed the lab, with its own honest track record."))
+    st.caption(L("Not built yet - this page shows the plan. Tell me which part to build first."))
+
 
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
@@ -1042,220 +1133,21 @@ if PAGE == 1:   # cscan
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 
-if PAGE == 2:   # crypto
-    col_watch, col_chart, col_dom, col_ts = st.columns([1.25, 2.3, 1.05, 1.4])
-    with col_watch:
-        st.markdown(L("**Scanner**"))
-        scan_tf = st.radio(L("Scan timeframe"), ALL_SCAN_TFS, index=2, horizontal=True, key="scan_tf",
-                           format_func=lambda t: TF_LABEL.get(t, t).replace("minute", "min").replace("hour", "h").replace("day", "d").replace("week", "w").replace("month", "mo").replace(" ", ""))
-        results, notice = _scan_cached(tuple(CRYPTO_SYMBOLS), scan_tf)
-        filtered = render_scanner(results, notice, "crypto")
-    with col_chart:
-        c_sym, c_top, c_bot = st.columns([1.3, 1, 1])
-        pick = c_sym.selectbox(L("Symbol"), CRYPTO_SYMBOLS, key="crypto_chart_pick")
-        tf_top = c_top.selectbox(L("Top chart"), list(TV_INTERVALS), index=3, key="tv_top",
-                                 format_func=lambda k: TV_INTERVALS[k])
-        tf_bot = c_bot.selectbox(L("Bottom chart"), list(TV_INTERVALS), index=2, key="tv_bot",
-                                 format_func=lambda k: TV_INTERVALS[k])
-        render_tv_chart(pick, height=CHART_H, interval=tf_top, key="top")
-        render_tv_chart(pick, height=CHART_H, interval=tf_bot, key="bottom")
-    with col_dom:
-        book = render_dom(pick)
-    with col_ts:
-        trades = render_trades(pick)
-    st.markdown("---")
-    render_limit_tracking(pick, book, trades)
-    fire_alerts(filtered)
-
-
-def simple_tab(key, symbols):
-    col_watch, col_chart = st.columns([1.1, 3.4])
-    results, notice = score_mt5_group(symbols)
-    with col_watch:
-        st.markdown(L("**Watchlist**"))
-        filtered = render_watchlist(results, notice, key)
-    with col_chart:
-        pick = st.selectbox(L("Chart symbol"), symbols, key=f"{key}_chart_pick")
-        render_tv_chart(pick)
-    fire_alerts(filtered)
-
-
-def _tv_symbol_for(cls, inst):
-    """OKX instrument id -> TradingView symbol for the embedded chart."""
-    if inst.startswith("Y:"):
-        from modules.yahoo_feed import tv_symbol
-        return tv_symbol(inst)
-    if inst.startswith("HL:"):
-        from modules.hl_feed import tv_symbol as _hl_tv
-        return _hl_tv(inst)
-    parts = inst.split("-"); base = parts[0]; quote = parts[1] if len(parts) > 1 else "USD"
-    q = "USD" if quote in ("USDT", "USDC") else quote
-    if cls == "Metals" and base in ("XAU", "XAG", "XPT", "XPD"):
-        return "OANDA:" + base + "USD"
-    if cls == "Forex":
-        return "OANDA:" + base + q
-    if cls == "Stocks":
-        return base
-    return TV_SYMBOL_MAP.get(inst, inst)
-
-
-def class_tab(key, cls):
-    """Forex / Metals / Stocks tab. These used to read MetaTrader 5 (Windows only, so empty on the cloud server);
-    they now use the live OKX instruments of that class (OKX lists FX, metals and tokenised stocks as swaps), like the Chart Scanner does."""
-    syms, note = class_symbols(cls, CRYPTO_SYMBOLS, top=12, mtype="SWAP")
-    col_watch, col_chart = st.columns([1.25, 3.4])
-    with col_watch:
-        st.markdown(L("**Scanner**"))
-        if not syms:
-            st.warning(note or f"No {cls} instruments from OKX right now.")
-        else:
-            tf = st.radio(L("Scan timeframe"), ["1h", "4h", "1d"] if "4h" in ALL_SCAN_TFS else ["1h", "1d"], index=0, horizontal=True, key=f"scan_tf_{key}")
-            results, notice = _scan_cached(tuple(syms), tf)
-            render_scanner(results, notice, key)
-    with col_chart:
-        if syms:
-            pick = st.selectbox(L("Chart symbol"), syms, key=f"{key}_chart_pick")
-            render_tv_chart(_tv_symbol_for(cls, pick), key=key)
-        st.caption(f"{L(cls)}: " + L("live OKX perpetual instruments (no MetaTrader needed). News and the economic calendar are in the header and the Workspace."))
-
-
-if PAGE == 3:   # forex
-    class_tab("forex", "Forex")
-
-if PAGE == 4:   # metals
-    class_tab("metals", "Metals")
-
-if PAGE == 5:   # stocks
-    class_tab("stocks", "Stocks")
-    with st.expander(L("Cross-sector momentum (hedge-fund relative-strength ranking)"), expanded=False):
-        from modules import momentum as _mom
-
-        @st.cache_data(ttl=3600, show_spinner=False)
-        def _mom_table(uni):
-            u = _mom.UNIVERSES[uni]
-            closes, errs = _mom.fetch_closes(u)
-            return _mom.rank(closes, u), errs
-
-        uni = st.radio(L("Universe"), list(_mom.UNIVERSES), horizontal=True, key="mom_uni", format_func=L)
-        tbl, errs = _mom_table(uni)
-        if tbl.empty:
-            st.warning("No market had the 253 daily closes needed (12 months + 1 day)." + (" Errors: " + "; ".join(errs[:4]) if errs else ""))
-        else:
-            show = tbl.copy()
-            for c in ("ret_12_1", "ret_6_1", "ret_3m", "vol"):
-                show[c] = (show[c] * 100).round(1)
-            show["score"] = show["score"].round(2)
-            st.dataframe(show.rename(columns={"ret_12_1": "12-1 m %", "ret_6_1": "6-1 m %", "ret_3m": "3 m %", "vol": "vol % (ann.)",
-                                              "score": "score (12-1 / vol)", "above_200": "above SMA200"}), hide_index=True, use_container_width=True)
-            if errs:
-                st.caption("Missing: " + "; ".join(errs[:6]))
-        st.caption(L("Ranking by the 12-1 month return divided by volatility (the latest month is skipped). LONG candidate = top third with a positive "
-                   "12-1 return and price above SMA 200; AVOID = bottom third, negative and below SMA 200. Crypto trades 7 days a week, so its "
-                   "'12 months' are 252 daily bars (~8 calendar months). A ranking, not a forecast - not backtested in this project."))
-    with st.expander(L("US options chain (Cboe, ~15 min delayed)"), expanded=False):
-        from modules import cboe_options as _cb
-
-        @st.cache_data(ttl=300, show_spinner=False)
-        def _cb_chain(sym):
-            return _cb.fetch(sym)
-
-        oc1, oc2 = st.columns([1, 2])
-        osym = oc1.text_input(L("Underlying (stock / ETF / index)"), "SPY", key="cboe_sym").strip().upper()
-        try:
-            px, chain = _cb_chain(osym)
-            exps = sorted(chain.expiry.unique())
-            ex = oc2.selectbox(L("Expiry"), exps, format_func=lambda d: pd.Timestamp(d).strftime("%Y-%m-%d"), key="cboe_exp")
-            sm = _cb.summary(chain, px, ex)
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric(L("Underlying"), f"{px:,.2f}" if px else "-")
-            m2.metric(L("Put/Call volume"), f"{sm['pc_vol']:.2f}" if sm["pc_vol"] else "-")
-            m3.metric(L("Put/Call open interest"), f"{sm['pc_oi']:.2f}" if sm["pc_oi"] else "-")
-            m4.metric(L("Max pain (this expiry)"), f"{sm['max_pain']:,.2f}" if sm["max_pain"] else "-")
-            st.dataframe(_cb.near_money(chain, px, ex, n=12), hide_index=True, use_container_width=True)
-        except Exception as e:
-            st.warning(f"Option chain not available: {e}")
-        st.caption(L("Source: Cboe's public delayed-quotes JSON (free, no key, ~15 min delayed, unofficial - it can change without notice). "
-                   "Indices: SPX, NDX, RUT, VIX. Max pain and put/call ratios describe positioning; they are not a forecast. "
-                   "Crypto options (BTC / ETH) stay live in the Workspace watchlist (OKX, category Options)."))
-    with st.expander(L("News sentiment + movers (Alpha Vantage)"), expanded=False):
-        from modules import alphavantage as _av
-
-        @st.cache_data(ttl=600, show_spinner=False)
-        def _av_news(t):
-            return _av.news(tickers=t)
-
-        @st.cache_data(ttl=600, show_spinner=False)
-        def _av_movers():
-            return _av.movers()
-
-        _t = st.text_input(L("Tickers (optional, e.g. AAPL,NVDA)"), key="av_t")
-        _n = _av_news(_t.strip().upper())
-        if _n["error"]:
-            st.warning(_n["error"])
-        for a in _n["rows"][:15]:
-            st.markdown(f"**{a['score']:+.2f}** {a['label']} - [{a['title']}]({a['url']}) - {a['source']} {a['tickers']}")
-        _m = _av_movers()
-        if _m["error"]:
-            st.warning(_m["error"])
-        else:
-            for k, rows in _m["data"].items():
-                st.caption(k)
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-    with st.expander(L("Options flow (Unusual Whales) - ask-side, OTM, single-leg, premium >= $45k, vol > OI"), expanded=False):
-        from modules import options_flow as _of
-
-        @st.cache_data(ttl=60, show_spinner=False)
-        def _flow():
-            return _of.fetch()
-
-        if st.button(L("Refresh flow"), key="uw_refresh"):
-            _flow.clear()
-        res = _flow()
-        if res["error"]:
-            st.warning(res["error"])
-        else:
-            kept, why = _of.filter_alerts(res["rows"])
-            st.caption(f"{len(res['rows'])} alerts fetched, {len(kept)} pass. API usage {res['used']}/{res['cap']}. "
-                       f"Rejected: {why or 'none'}")
-            if kept:
-                st.dataframe(pd.DataFrame([{
-                    "Ticker": a.get("ticker") or a.get("ticker_symbol"), "Type": a.get("type"), "Strike": a.get("strike"),
-                    "Expiry": a.get("expiry"), "Underlying": a.get("underlying_price"),
-                    "Premium": a.get("total_premium"), "Ask prem": a.get("total_ask_side_prem"),
-                    "Vol": a.get("volume"), "OI": a.get("open_interest"), "Time": a.get("created_at")} for a in kept]),
-                    use_container_width=True, hide_index=True)
-            elif res["rows"]:
-                st.info("Nothing passes the filter now. If this looks wrong, check field names: " + _of.diagnose(res["rows"]))
-
-if PAGE == 6:   # meme
-    st.subheader(L("Meme coin / whale tracking (DEXScreener)"))
-    query = st.text_input(L("Search token (name or contract address)"), value="", key="w_search_token_name_or_contract_address")
-    if query:
-        pairs = search_dexscreener_pairs(query)
-        if not pairs:
-            st.info(L("No pairs found, or DEXScreener rate limit hit — try again shortly."))
-        for p in pairs[:10]:
-            with st.container(border=True):
-                # "\$" so the two dollar signs are not read as a LaTeX formula
-                st.markdown(
-                    f"**{p.get('baseToken', {}).get('symbol', '?')}/"
-                    f"{p.get('quoteToken', {}).get('symbol', '?')}** "
-                    f"on {p.get('chainId', '?')} — "
-                    f"Price: \\${p.get('priceUsd', '?')} — "
-                    f"24h volume: \\${p.get('volume', {}).get('h24', '?')}"
-                )
-                st.markdown(f"[View on DEXScreener]({p.get('url', '#')})")
-    else:
-        st.info(L("Enter a token name or contract address above to search live DEXScreener pairs."))
-
-
 # (removed 2026-10-17) a "sleep 5 s + st.rerun()" loop used to run here while the background scan was busy: every rerun rebuilt and
 # re-sent the Workspace, so its frame reloaded every 5 s (blank page) and the CPU never rested (the app got throttled).
 # The Workspace shows "scanning..." and picks the results up on the next normal run.
 
 
-if PAGE == 7:   # perf
+if PAGE == 2:   # lab
+    render_lab_page()
+
+if PAGE == 3:   # playbook
+    render_playbook_page()
+
+if PAGE in (5, 6):   # soon
+    render_soon_page(PAGE)
+
+if PAGE == 4:   # perf
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
                  "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge."))

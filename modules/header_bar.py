@@ -7,9 +7,9 @@ from pathlib import Path
 _TEMPLATE = Path(__file__).with_name("header_bar.html")
 
 
-def build_header_html(logo: str, links: list, news: list, no_news: str = "No news yet", cal: list | None = None) -> str:
+def build_header_html(logo: str, links: list, news: list, no_news: str = "No news yet", cal: list | None = None, ar: bool = False) -> str:
     cfg = {
-        "logo": logo, "links": links, "noNews": no_news, "cal": cal or [],
+        "logo": logo, "links": links, "noNews": no_news, "cal": cal or [], "ar": bool(ar),
         "news": [{"headline": str(n.get("headline", "")), "source": str(n.get("source", "")), "url": str(n.get("url", "")),
                   "datetime": str(n.get("datetime", ""))} for n in (news or []) if n.get("headline")],
     }
@@ -17,7 +17,7 @@ def build_header_html(logo: str, links: list, news: list, no_news: str = "No new
     return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
 
 
-def render_header_bar(logo: str, links: list, news: list, height: int = 46, cal: list | None = None):
+def render_header_bar(logo: str, links: list, news: list, height: int = 48, cal: list | None = None, ar: bool = False):
     import streamlit.components.v1 as components
 
-    components.html(build_header_html(logo, links, news, cal=cal), height=height, scrolling=False)
+    components.html(build_header_html(logo, links, news, cal=cal, ar=ar), height=height, scrolling=False)

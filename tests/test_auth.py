@@ -37,5 +37,5 @@ assert any("wait" in e.value for e in at.error) and not at.text_input, [e.value 
 at.session_state["auth_lock"] = 0
 at.run()
 at.text_input(key="auth_pw").input("s3cret"); at.button[0].click(); at.run()
-assert at.session_state["auth_ok"] and len(pages()) == 1 and len(pages()[0].options) == 8 and not at.exception, (at.exception,)
+assert at.session_state["auth_ok"] and len(pages()) == 1 and len(pages()[0].options) == 7 and not at.exception, (at.exception,)
 print("test_auth: all passed")

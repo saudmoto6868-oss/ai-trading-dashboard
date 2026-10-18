@@ -249,7 +249,7 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
             if g.get("shapes") and g["shapes"][1] and g.get("shapes_ctrl") and g["shapes_ctrl"][1]:
                 (h2, n2), (h3, n3) = g["shapes"], g["shapes_ctrl"]; q2, q3 = h2 / n2, h3 / n3; se2 = np.sqrt(q3 * (1 - q3) / n2) or 1
                 L.append(f"| {tf} shapes 120/180/240/360 deg | {100 * q2:.1f} | {n2} | {100 * q3:.1f} | {n3} | {(q2 - q3) / se2:+.1f} |")
-        L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
+        L.append(""); L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
     if gzone:
         L += ["", "## Gann zone trades OUT OF SAMPLE (walk-forward: grid refitted on everything before each 10 % slice of the last half, traded only in that slice; Workspace rule incl. time stop)", "",
               "| tf | trades | win % | avg R | random-direction avg R | difference (t) |", "|---|---|---|---|---|---|"]
@@ -258,6 +258,7 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
                 continue
             a = np.asarray(rs, float); r1, r0 = a[:, 0], a[:, 1]; dlt = r1 - r0; t = dlt.mean() / (dlt.std(ddof=1) / np.sqrt(len(dlt))) if len(dlt) > 1 and dlt.std() > 0 else 0.0
             L.append(f"| {tf} | {len(a)} | {100 * (r1 > 0).mean():.1f} | {r1.mean():+.3f} | {r0.mean():+.3f} | {t:+.2f} |")
+        L.append("")
         L.append("Random-walk self-test (walk-forward, 6 x 5000 bars): +0.07R vs random -0.02R, t +0.65 (198 trades) - so only t > +3 with n >= 100 on several timeframes counts as evidence. No costs.")
     if lunar and lunar.get("new", [0, 0, 0])[2] and lunar.get("full", [0, 0, 0])[2]:
         (s1, q1, n1), (s2, q2, n2) = lunar["new"], lunar["full"]; m1, m2 = s1 / n1, s2 / n2
@@ -265,7 +266,7 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
         L += ["", "## Gann astro: lunar phase (daily bars, all symbols pooled; Dichev & Janes 2001 found new-moon days about twice the full-moon days)", "",
               "| window | days | mean daily return % |", "|---|---|---|",
               f"| 15 days around new moon | {n1} | {100 * m1:.3f} |", f"| 15 days around full moon | {n2} | {100 * m2:.3f} |",
-              f"Difference t = {t:+.2f} (|t| > 2 would be a hint, > 3 evidence; overlapping symbols are correlated, so this is generous)."]
+              "", f"Difference t = {t:+.2f} (|t| > 2 would be a hint, > 3 evidence; overlapping symbols are correlated, so this is generous)."]
     return "\n".join(L) + "\n"
 
 

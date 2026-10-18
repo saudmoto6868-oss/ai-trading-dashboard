@@ -26,7 +26,22 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      # quick key check: prints only the HTTP status + error type (never the key), so a bad key / no credit is obvious in the log
+      - name: Check Anthropic key
+        env:
+          K: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -n "$K" ] || { echo "::error::secret ANTHROPIC_API_KEY is empty / missing"; exit 1; }
+          code=$(curl -s -o r.json -w '%{http_code}' https://api.anthropic.com/v1/messages -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" -d '{"model":"claude-haiku-5-5","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}')
+          echo "Anthropic API status: $code"; python3 -c "import json;d=json.load(open('r.json'));print('error:', (d.get('error') or {}).get('type'), (d.get('error') or {}).get('message'))" || true
+          rm -f r.json; [ "$code" = "200" ] || { echo "::error::Anthropic key check failed ($code) - see the error line above"; exit 1; }
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r requirements.txt
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--max-turns 40"
+          # Sonnet: good for code work and much cheaper than the default; python allowed so it can run the tests
+          claude_args: '--max-turns 40 --model claude-sonnet-5-5 --allowedTools "Bash(python3:*),Bash(python:*),Bash(pip install:*),Edit,Write"'

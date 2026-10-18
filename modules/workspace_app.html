@@ -153,7 +153,17 @@ body.mob .rz{display:none!important}
 body.mob #bar{height:auto;min-height:40px;flex-wrap:wrap;padding:4px 6px;gap:6px}
 body.mob button,body.mob select,body.mob input{min-height:32px;font-size:13px}
 body.mob .tb{flex-wrap:wrap;gap:4px}
-body.mob canvas{touch-action:pan-y}
+body.mob canvas{touch-action:none}
+body.mob #ws{overflow:hidden!important;padding:0 0 58px!important}
+body.mob .panel{display:none!important}
+body.mob .panel.mact{display:flex!important;height:100%!important;margin:0;border-radius:0;border-left:0;border-right:0}
+body.mob .panel.mact.min{height:100%!important}body.mob .panel.mact.min .pb{display:block}
+#mnav{display:none}
+body.mob .dt:not(.open)>*:not(:first-child){display:none}   /* phones: drawing tools folded to one button, tap it to open / close */
+body.mob #mnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:56px;z-index:60;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+body.mob #mnav button{flex:1 0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-radius:0;background:transparent;color:var(--mut);font-size:10px;min-height:56px;padding:2px 4px}
+body.mob #mnav button b{font-size:18px;line-height:1;font-weight:400}
+body.mob #mnav button.on{color:var(--gold);background:transparent;box-shadow:inset 0 2px 0 var(--gold)}
 #mjump{display:none}
 /* ---- dashboard theme 1 "Less is More": blurred photo behind everything, rounded glass cards, amber glow ---- */
 body.ui-lux{background:#0d0c0a var(--uibg) center/cover fixed no-repeat}
@@ -1081,10 +1091,12 @@ class CandleChart {
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.draw(); this.checkMore();
   }
   down(e){
+    if (e.pointerType === "touch"){ clearTimeout(this._lpT); this._lp = false; const sx = e.clientX, sy = e.clientY;
+      this._lpT = setTimeout(() => { if (this.drag && Math.hypot(this.drag.x - sx, this.drag.y - sy) < 8 && !this.pinch){ this._lp = true; this.drag = null; const rc = this.cv.getBoundingClientRect(); this.mouse = {x:sx - rc.left, y:sy - rc.top}; this.draw(); } }, 450); }   // long press = crosshair
     if (e.pointerType === "touch"){ const tp = this.tp = this.tp || new Map(); tp.set(e.pointerId, {x:e.clientX, y:e.clientY});
       if (tp.size === 2){ const [a, b] = [...tp.values()], rect = this.cv.getBoundingClientRect(), mid = (a.x + b.x)/2 - rect.left;   // two fingers = pinch zoom on time
         this.pinch = {d0:Math.max(20, Math.abs(a.x - b.x)), bw0:this.bw, mid, anchor:this.idx(mid)}; this.drag = null; return; } }
-    this.cv.setPointerCapture(e.pointerId); this.cv.focus();
+    try { this.cv.setPointerCapture(e.pointerId); } catch(_){} this.cv.focus({preventScroll:true});
     { const r0 = this.cv.getBoundingClientRect(), mx0 = e.clientX - r0.left, my = e.clientY - r0.top, hit = this.layoutHit(mx0, my);
       if (hit){
         if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
@@ -1101,6 +1113,7 @@ class CandleChart {
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
       const P = this.pinch, f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.draw(); this.checkMore(); return; }
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top};
+    if (this._lp){ this.draw(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(44, Math.min(200, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)))); this.draw(); return; }
     if (this.colDrag){ this.colW = Math.max(80, Math.min(Math.round(this.W*0.5), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)))); this.draw(); return; }
     if (this.subDrag){ const dh = (this.subDrag.y - e.clientY)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(8, Math.min(45, Math.round(this.subDrag.hp + dh))); this.resize(); this.draw(); return; }
@@ -1115,7 +1128,8 @@ class CandleChart {
     }
     this.draw();
   }
-  up(e){ if (this.tp){ this.tp.delete(e.pointerId); if (this.tp.size < 2) this.pinch = null; } this.axDrag = null; if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
+  up(e){ if (e && e.pointerType === "touch"){ clearTimeout(this._lpT); if (this._lp){ this._lp = false; this.mouse = null; this.draw(); } }
+    if (this.tp){ this.tp.delete(e.pointerId); if (this.tp.size < 2) this.pinch = null; } this.axDrag = null; if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
   swapSub(k, dir){ const act = this.subActive(), i = act.indexOf(k), j = i + dir; if (i < 0 || j < 0 || j >= act.length) return; const a = this.subOrd.indexOf(k), b = this.subOrd.indexOf(act[j]); [this.subOrd[a], this.subOrd[b]] = [this.subOrd[b], this.subOrd[a]]; this.onLayout && this.onLayout(); this.draw(); }
   layoutHit(mx, my){
     if (Math.abs(mx - (this.W - this.axw)) <= 3 && my >= 0 && my < this.H) return {kind:"axw"};   // what the pointer is on: the order-flow column's left edge, a sub-pane's top edge (resize), its title (drag to reorder) or its up/down buttons
@@ -2543,10 +2557,10 @@ class Panel {
   paint(){ const c = this.state.col, b = this.state.bg;
     this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
-  apply(){ const r = this.rect, s = this.root.style; if (MOB){ s.height = (this.max ? Math.round(mobH("chart")*1.25) : mobH(this.type))+"px"; return; }   // mobile: stacked, own height (desktop rects kept for the desktop)
+  apply(){ const r = this.rect, s = this.root.style; if (MOB){ s.height = ""; return; }   // phones: one widget fills the screen (CSS .mact)   // mobile: stacked, own height (desktop rects kept for the desktop)
     s.left = r.x+"px"; s.top = r.y+"px"; s.width = r.w+"px"; s.height = r.h+"px"; }
   toggleMax(){
-    if (MOB){ this.max = !this.max; this.min = false; this.root.classList.remove("min"); this.apply(); this.root.scrollIntoView({block:"start"}); return; }
+    if (MOB) return;   // phones: the widget is already full screen
     if (!this.max){ this.prev = Object.assign({}, this.rect); this.rect = {x:0,y:0,w:Ws.el.clientWidth,h:Ws.el.clientHeight}; this.max = true; this.min = false; this.root.classList.remove("min"); }
     else { this.rect = this.prev; this.max = false; }
     this.apply(); this.front(); Ws.save();
@@ -4172,9 +4186,13 @@ Ws.broadcast = (from, sym) => {
   const g = from.state.group;
   Ws.panels.forEach(p => { if (p !== from && SYMW.includes(p.type) && (g ? p.state.group === g : from.type === "watch")) p.setSymbol(sym); });
 };
-Ws.mjump = () => {   // mobile: one chip per widget, tap = scroll to it
-  if (!MOB) return; let j = document.getElementById("mjump"); if (!j){ j = el("div"); j.id = "mjump"; Ws.el.prepend(j); }
-  j.innerHTML = ""; Ws.panels.forEach(p => { const b = el("button", null, T(p.type)); b.onclick = () => { if (p.min){ p.min = false; p.root.classList.remove("min"); } p.root.scrollIntoView({behavior:"smooth", block:"start"}); }; j.append(b); }); };
+const MICON = {chart:"📈", tvc:"📊", watch:"☰", dom:"≣", tape:"⇅", limits:"▤", signals:"⚡", alerts:"🔔", setup:"🎯", scanner:"⌕", journal:"✎", news:"✉", risk:"⚖"};
+Ws.mshow = p => { if (!MOB || !p) return; Ws.panels.forEach(q => q.root.classList.toggle("mact", q === p)); Ws.mcur = p; p.min = false; p.root.classList.remove("min");
+  document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", b._p === p)); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };
+Ws.mjump = () => {   // phones (MT5 style): bottom tab bar, one widget at a time
+  if (!MOB) return; let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
+  j.innerHTML = ""; Ws.panels.forEach(p => { const b = el("button"); b.innerHTML = "<b>"+(MICON[p.type] || "▢")+"</b>"+esc(T(p.type)); b._p = p; b.onclick = () => Ws.mshow(p); j.append(b); });
+  if (!Ws.mcur || !Ws.panels.includes(Ws.mcur)) Ws.mshow(Ws.panels.find(p => p.type === "chart") || Ws.panels[0]); else Ws.mshow(Ws.mcur); };
 Ws.checkEmpty = () => { Ws.mjump && Ws.mjump(); const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
 Ws.save = () => {
   store.set(LS, { lang, v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) });
@@ -4242,6 +4260,7 @@ function applyLang(rebuild){
   const saved = store.get(LS, null);
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); buildBar();
+  if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset

@@ -307,6 +307,59 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-spot{position:fixed;border:2px solid #f0b90b;border-radius:6px;box-shadow:0 0 0 9999px #0006,0 0 18px #f0b90b;animation:gSpot 2.6s ease forwards;pointer-events:none}
 @keyframes gSpot{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
 body.rtl #guide .g-bub{direction:rtl;text-align:right}
+
+:root{--vt:0px;--vb:100vh}
+body.mob.mt5 #bar,body.mob.mt5 #strip,body.mob.mt5 #mnav,body.mob.mt5 #mmore{display:none!important}
+body.mob.mt5 .panel .ph{display:none!important}
+body.mob.mt5 .p-chart .tb,body.mob.mt5 .p-chart .mtf,body.mob.mt5 .p-chart .dt{display:none!important}
+body.mob.mt5 .panel.mact{position:fixed!important;left:0!important;right:0!important;width:100%!important;top:calc(var(--vt) + 48px)!important;height:calc(var(--vb) - var(--vt) - 104px)!important;z-index:5;border:0!important;background:#000}
+body.mob.mt5{background:#000}
+#m5,#m5nav,#m5ctop,#m5rad,#m5sheet,#m5drw,.m5toast{font-family:Roboto,"Segoe UI",-apple-system,sans-serif;color:#fff}
+#m5{position:fixed;left:0;right:0;top:var(--vt);height:calc(var(--vb) - var(--vt) - 56px);overflow:auto;background:#000;z-index:55;-webkit-overflow-scrolling:touch}
+#m5nav{position:fixed;left:0;right:0;top:calc(var(--vb) - 56px);height:56px;display:flex;background:#1c1c1e;border-top:1px solid #2c2c2e;z-index:60}
+#m5nav button{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-radius:0;background:transparent;color:#8e8e93;padding:0;font-size:10.5px;min-height:0}
+#m5nav button.on{color:#2f7df6}
+.m5top,#m5ctop{display:flex;align-items:center;height:48px;background:#1c1c1e;padding:0 2px;position:sticky;top:0;z-index:2}
+#m5ctop{position:fixed;left:0;right:0;top:var(--vt);z-index:60}
+.m5top b,.m5pt{font-weight:500;font-size:18px;margin-inline-start:6px}.m5top .sp,#m5ctop .sp{flex:1}
+.m5ib{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border:0!important;background:transparent!important;color:#fff;padding:0;border-radius:50%}.m5ib.on{color:#2f7df6}
+.m5tf{border:0!important;background:transparent!important;color:#fff;font:500 15px Roboto,sans-serif;padding:0 8px;height:42px}
+.m5cap{position:fixed;left:10px;top:calc(var(--vt) + 70px);pointer-events:none;font-size:12px;color:#e5e5ea;text-shadow:0 1px 2px #000}
+.m5list{padding-bottom:10px}
+.m5row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid #1f1f22}
+.m5row.m5tr{grid-template-columns:1fr auto}
+.m5l b{font-weight:600;font-size:15px;display:block}.m5l small,.m5p small{display:block;color:#8e8e93;font-size:11px;margin-top:2px}.m5l i{font-style:normal}
+.m5p{text-align:end;min-width:92px}.m5p>span{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}.m5p big,.m5bq big{font-size:22px;font-weight:600}.m5p sup,.m5bq sup{font-size:11px}
+#m5 .up,#m5sheet .up,.m5ord .up{color:#2f7df6}#m5 .dn,#m5sheet .dn,.m5ord .dn{color:#ef5350}
+.m5pr{font-size:16px;font-weight:600}
+.m5acc{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #1f1f22}.m5acc div{flex:1}.m5acc span{display:block;color:#8e8e93;font-size:11px}.m5acc b{font-size:16px;font-weight:600}
+.m5sec{padding:10px 12px 4px;color:#8e8e93;font-size:12px}.m5empty{padding:30px 12px;color:#8e8e93;text-align:center}.m5warn{margin:8px 12px;padding:6px 8px;border-radius:6px;background:#2a2410;color:#f0b90b;font-size:12px}
+.m5msg{padding:10px 12px;border-bottom:1px solid #1f1f22}.m5msg small{color:#8e8e93;margin-inline-start:8px;font-size:11px}.m5msg p{margin:4px 0 0;font-size:13px;color:#d1d1d6}
+#m5rad{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.25)}
+.m5rc{position:fixed;width:0;height:0}.m5rc::before{content:"";position:absolute;left:-124px;top:-124px;width:248px;height:248px;border-radius:50%;background:rgba(28,28,30,.94);box-shadow:0 10px 40px #000c;border:1px solid #3a3a3c;animation:m5pop .18s ease-out}
+.m5rt{position:absolute;left:-23px;top:-16px;width:46px;height:32px;padding:0;border-radius:16px!important;border:0!important;background:#2c2c2e!important;color:#fff;font:600 12.5px Roboto,sans-serif}.m5rt.on{background:#2f7df6!important}
+.m5ri{position:absolute;left:-21px;top:-21px;width:42px;height:42px;padding:0;border-radius:50%!important;border:0!important;background:#3a3a3c!important;color:#fff;display:flex;align-items:center;justify-content:center}
+.m5rx{position:absolute;left:-18px;top:-18px;width:36px;height:36px;padding:0;border-radius:50%!important;border:0!important;background:#48484a!important;color:#fff;display:flex;align-items:center;justify-content:center}
+@keyframes m5pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+#m5sheet{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.45)}
+.m5sh{position:absolute;left:8px;right:8px;bottom:calc(100vh - var(--vb) + 8px);max-height:calc(var(--vb) - var(--vt) - 40px);overflow:auto;display:flex;flex-direction:column;gap:1px;border-radius:12px;animation:m5up .2s ease-out}
+.m5shh{background:#2c2c2e;color:#8e8e93;text-align:center;padding:10px;font-size:13px;border-radius:12px 12px 0 0}
+.m5si{background:#2c2c2e!important;border:0!important;border-radius:0!important;color:#2f7df6;font-size:17px;padding:13px;min-height:0}.m5si.ro{color:#e5e5ea;font-size:14px}.m5cancel{margin-top:8px;border-radius:12px!important;font-weight:600}
+@keyframes m5up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.m5ord{position:absolute;left:0;right:0;top:var(--vt);height:calc(var(--vb) - var(--vt));background:#000;overflow:auto}
+.m5ot{text-align:center;color:#8e8e93;padding:8px;font-size:13px}
+.m5vol{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px}.m5vol button{border:0;background:transparent;color:#2f7df6;font-size:14px;padding:6px}.m5vol b{font-size:22px;min-width:80px;text-align:center}
+.m5bq{display:flex;justify-content:space-around;padding:12px 0}.m5bq span{font-size:16px}
+.m5ord label{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1f1f22;color:#8e8e93}.m5ord input{width:45%;background:#1c1c1e;border:1px solid #2c2c2e;color:#fff;text-align:end;padding:6px}
+.m5ob{display:flex;gap:10px;padding:14px}.m5ob button{flex:1;border:0;color:#fff;font-weight:600;padding:14px 4px;border-radius:6px}.m5ob .sell{background:#ef5350}.m5ob .buy{background:#2f7df6}
+.m5note{color:#8e8e93;font-size:12px;padding:0 14px 20px;line-height:1.5}
+#m5drw{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.5)}
+.m5dp{position:absolute;left:0;top:var(--vt);height:calc(var(--vb) - var(--vt));width:78%;max-width:320px;background:#1c1c1e;overflow:auto;animation:m5in .2s ease-out}
+.m5dh{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:18px 14px;border-bottom:1px solid #2c2c2e}.m5dh svg{width:30px;height:30px}.m5dh b{font-size:18px}.m5dh small{flex-basis:100%;color:#8e8e93}
+.m5dp button{display:block;width:100%;text-align:start;border:0;border-radius:0;background:transparent;color:#fff;padding:14px 16px;font-size:15px;border-bottom:1px solid #26262a}
+@keyframes m5in{from{transform:translateX(-100%)}to{transform:none}}
+.m5toast{position:fixed;left:50%;top:calc(var(--vb) - 130px);transform:translateX(-50%);z-index:90;background:#2c2c2e;padding:10px 14px;border-radius:20px;font-size:13px;max-width:86%;text-align:center;box-shadow:0 6px 20px #000a}
+body.rtl .m5row,body.rtl .m5top{direction:rtl}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -1048,7 +1101,7 @@ const Hub = {
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
-          const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
+          const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h, bid:+x.bidPx || 0, ask:+x.askPx || 0, hi:+x.high24h || 0, lo:+x.low24h || 0})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
         }
         this.last[key] = payload; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
@@ -1215,6 +1268,8 @@ class CandleChart {
     { const X = this._llX, r0 = this.cv.getBoundingClientRect(), mx0 = e.clientX - r0.left, my0 = e.clientY - r0.top;   // ✕ on the targets table
       if (X && this.llOn && this.llTbl !== false && mx0 >= X.x && mx0 <= X.x + X.w && my0 >= X.y && my0 <= X.y + X.h){ this.llTbl = false; this._llX = null; this.onLLTbl && this.onLLTbl(); this.draw(); return; }
       const K = this._kzsX; if (K && this.kzsOn && this.kzsTbl !== false && mx0 >= K.x && mx0 <= K.x + K.w && my0 >= K.y && my0 <= K.y + K.h){ this.kzsTbl = false; this._kzsX = null; this.onKzsTbl && this.onKzsTbl(); this.draw(); return; } }
+    if (e.pointerType === "touch"){ this._tap0 = (this.tp && this.tp.size) ? null : {x:e.clientX, y:e.clientY, t:Date.now()};
+      if (this.xMode){ const rc = this.cv.getBoundingClientRect(); this._lp = true; this.drag = null; this.mouse = {x:e.clientX - rc.left, y:e.clientY - rc.top}; this.draw(); return; } }   // MT5 crosshair button: one finger moves the cross
     if (e.pointerType === "touch"){ clearTimeout(this._lpT); this._lp = false; const sx = e.clientX, sy = e.clientY;
       this._lpT = setTimeout(() => { if (this.drag && Math.hypot(this.drag.x - sx, this.drag.y - sy) < 8 && !this.pinch){ this._lp = true; this.drag = null; const rc = this.cv.getBoundingClientRect(); this.mouse = {x:sx - rc.left, y:sy - rc.top}; this.draw(); } }, 450); }   // long press = crosshair
     if (e.pointerType === "touch"){ const tp = this.tp = this.tp || new Map(); tp.set(e.pointerId, {x:e.clientX, y:e.clientY});
@@ -1238,6 +1293,7 @@ class CandleChart {
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
       const P = this.pinch, f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.draw(); this.checkMore(); return; }
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top};
+    if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.draw(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)))); this.draw(); return; }
     if (this.colDrag){ this.colW = Math.max(60, Math.min(Math.round(this.W*0.85), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)))); /* order-flow column: 60 px .. 85 % */ this.draw(); return; }
@@ -1253,7 +1309,8 @@ class CandleChart {
     }
     this.draw();
   }
-  up(e){ if (e && e.pointerType === "touch"){ clearTimeout(this._lpT); if (this._lp){ this._lp = false; this.mouse = null; this.draw(); } }
+  up(e){ if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
+      if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap(t0.x - rc.left, t0.y - rc.top); } }   // a quick tap = MT5 round menu
     if (this.tp){ this.tp.delete(e.pointerId); if (this.tp.size < 2) this.pinch = null; } this.axDrag = null; if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
   swapSub(k, dir){ const act = this.subActive(), i = act.indexOf(k), j = i + dir; if (i < 0 || j < 0 || j >= act.length) return; const a = this.subOrd.indexOf(k), b = this.subOrd.indexOf(act[j]); [this.subOrd[a], this.subOrd[b]] = [this.subOrd[b], this.subOrd[a]]; this.onLayout && this.onLayout(); this.draw(); }
   layoutHit(mx, my){
@@ -4364,11 +4421,12 @@ Ws.broadcast = (from, sym) => {
 // phones, MT5 layout: MetaTrader's bottom tabs (text only). A tab shows the first widget of its kinds and creates one if missing; the rest are under "More".
 const MTABS = [[["Quotes","الأسعار"], ["watch"], "watch"], [["Chart","الرسم البياني"], ["chart","tvc"], "chart"], [["Trade","التداول"], ["setup","dom","signals"], "setup"],
                [["History","السجل"], ["journal","alerts"], "journal"], [["Messages","الرسائل"], ["news","alerts"], "news"]];   // labels picked at build time (the language is known then)
-Ws.mshow = p => { if (!MOB || !p) return; Ws.panels.forEach(q => q.root.classList.toggle("mact", q === p)); Ws.mcur = p; p.min = false; p.root.classList.remove("min");
+Ws.mshow = p => { if (!MOB || !p) return; p.root.classList.add("p-"+p.type); Ws.panels.forEach(q => q.root.classList.toggle("mact", q === p)); Ws.mcur = p; p.min = false; p.root.classList.remove("min");
   const mm = document.getElementById("mmore"); if (mm) mm.classList.remove("on");
   document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", !!b._match && b._match(p))); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };
 Ws.mjump = () => {
-  if (!MT5){ ["mnav","mmore"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); Ws.panels.forEach(q => q.root.classList.remove("mact")); return; }
+  if (!MT5){ ["mnav","mmore"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); Ws.panels.forEach(q => q.root.classList.remove("mact")); if (typeof M5 !== "undefined") M5.destroy(); return; }
+  if (MOB && typeof M5 !== "undefined"){ ["mnav","mmore"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); if (!document.getElementById("m5nav")) M5.build(); return; }   // phones: the MetaTrader 5 copy
   let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
   let mm = document.getElementById("mmore"); if (!mm){ mm = el("div"); mm.id = "mmore"; document.body.append(mm); }
   j.innerHTML = ""; const used = new Set();
@@ -4692,6 +4750,126 @@ const Guide = {
   async tour(){ const seen = new Set(), stops = Ws.panels.filter(p => !p.min && !seen.has(p.type) && seen.add(p.type)).slice(0, 6);
     for (const p of stops){ if (!this.on) return; const k = this.KB.find(e => e.to === p.type); if (!k) continue; await this.goTo(() => p.root.getBoundingClientRect()); this.speak(this.G(k.en, k.ar)); await this.wait(Math.min(9000, 2500 + 45*k.en.length)); }
     if (this.on){ this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
+};
+
+/* ---- phones, MetaTrader 5 layout: a copy of MT5 mobile (dark): Quotes / Chart / Trade / History / Messages tabs, ☰ side menu, chart top bar
+   (symbol, crosshair, indicators, objects, timeframe, new order) and the round menu that opens when you tap the chart (9 timeframes around it).
+   XPiX is not connected to a broker: the order screen shows prices and sizes but sends nothing; Trade / History list the journal's tracked setups. ---- */
+const M5TF = [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]];
+const M5TH = {bg:"#000000", grid:"#151515", pane:"#000000", mut:"#8e8e93", line:"#2c2c2e", up:"#26a69a", dn:"#ef5350", txt:"#e5e5ea"};
+const M5I = {   // line icons (no emoji), MT5 style
+  quotes:'<path d="M7 4v14M7 4l-3 3M7 4l3 3M17 20V6M17 20l-3-3M17 20l3-3"/>', chart:'<path d="M5 6v12M5 9h0M9 4v10M13 8v12M17 5v9M20 20H3"/><rect x="3.5" y="9" width="3" height="5"/><rect x="11.5" y="11" width="3" height="5"/>',
+  trade:'<path d="M3 17l5-6 4 3 8-9M15 5h5v5"/>', history:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>',
+  menu:'<path d="M3 6h18M3 12h18M3 18h18"/>', plus:'<path d="M12 4v16M4 12h16"/>', cross:'<path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/>', fx:'<path d="M14 4c-3 0-3 3-3.5 6S9 20 6 20M7 10h7M14 13l5 6M19 13l-5 6"/>',
+  obj:'<path d="M4 20L20 4"/><rect x="13" y="13" width="7" height="7"/><circle cx="7" cy="7" r="3"/>', sym:'<path d="M12 3v18M16.5 7.5C16 5.5 14.3 5 12 5s-4.5 1-4.5 3 2 2.6 4.5 3 4.5 1 4.5 3.3-2 3-4.5 3-4.3-.8-4.8-2.8"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>', close:'<path d="M6 6l12 12M18 6L6 18"/>', edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>'};
+const m5i = (k, s) => '<svg viewBox="0 0 24 24" width="'+(s || 22)+'" height="'+(s || 22)+'" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+M5I[k]+'</svg>';
+const M5 = {
+  scr:"quotes", prev:{}, th0:null,
+  on(){ return MOB && MT5; },
+  vis(){ const v = (typeof Guide !== "undefined" && Guide.view) ? Guide.view() : {t:0, b:innerHeight}; document.documentElement.style.setProperty("--vt", v.t+"px"); document.documentElement.style.setProperty("--vb", v.b+"px"); },
+  build(){
+    if (!this.th0) this.th0 = Object.assign({}, TH); Object.assign(TH, M5TH);
+    let r = document.getElementById("m5"); if (!r){ r = el("div"); r.id = "m5"; document.body.append(r); }
+    let n = document.getElementById("m5nav"); if (!n){ n = el("div"); n.id = "m5nav"; document.body.append(n); }
+    n.innerHTML = ""; [["quotes","quotes",["Quotes","الأسعار"]], ["chart","chart",["Chart","الرسم البياني"]], ["trade","trade",["Trade","التداول"]], ["history","history",["History","السجل"]], ["messages","msg",["Messages","الرسائل"]]]
+      .forEach(([k, ic, lb]) => { const b = el("button", null, m5i(ic)+'<span>'+Lg(lb[0], lb[1])+'</span>'); b.dataset.k = k; b.onclick = () => this.show(k); n.append(b); });
+    if (!this._sc){ this._sc = 1; let q = 0; const f = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.vis(); }); }; try { window.parent.addEventListener("scroll", f, true); window.parent.addEventListener("resize", f); } catch(e){} addEventListener("resize", f); }
+    if (!this._tk){ this._tk = Hub.sub("tickers", "all", () => { if (this.on() && this.scr === "quotes") this.quotes(); }); }
+    this.vis(); this.show(store.get(LS+"_m5scr", "chart"));
+  },
+  destroy(){ ["m5","m5nav","m5ctop","m5rad","m5sheet","m5drw"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); if (this.th0) Object.assign(TH, this.th0); this.th0 = null;
+    document.body.classList.remove("m5chart"); Ws.panels.forEach(p => { p.root.classList.remove("mact"); p.chart && (p.chart.onTap = null, p.chart.xMode = false); }); },
+  show(k, panel){ this.scr = k; if (k !== "panel") store.set(LS+"_m5scr", k); this.closeAll(); document.querySelectorAll("#m5nav button").forEach(b => b.classList.toggle("on", b.dataset.k === (k === "panel" ? "" : k)));
+    const r = document.getElementById("m5"), isPanel = k === "chart" || k === "panel"; document.body.classList.toggle("m5chart", isPanel); r.style.display = isPanel ? "none" : "";
+    if (k === "chart"){ let p = Ws.panels.find(q => q.type === "chart"); if (!p){ Ws.add("chart"); p = Ws.panels[Ws.panels.length - 1]; } this.cp = p; Ws.mshow(p); this.chartTop(p); this.hook(p); return; }
+    if (k === "panel"){ Ws.mshow(panel); this.panelTop(panel); return; }
+    const t = document.getElementById("m5ctop"); if (t) t.remove(); Ws.panels.forEach(q => q.root.classList.remove("mact"));
+    this[k](); },
+  top(title, left, right){ return '<div class="m5top"><button class="m5ib" data-a="'+(left || "menu")+'">'+m5i(left || "menu")+'</button><b>'+title+'</b><span class="sp"></span>'+(right || []).map(a => '<button class="m5ib" data-a="'+a+'">'+m5i(a)+'</button>').join("")+'</div>'; },
+  wire(root, acts){ root.querySelectorAll("[data-a]").forEach(b => b.onclick = e => { e.stopPropagation(); const a = b.dataset.a; (acts[a] || (a === "menu" ? () => this.drawer() : () => {}))(b); }); },
+  tick(){ const t = Hub.last["tickers|all"]; return t && !t.error ? t : {}; },
+  syms(){ return [...new Set(SYMS.concat([...(Hub.extra || [])]))]; },
+  px(v, cls){ if (v == null || !isFinite(v)) return '<span class="'+(cls || "")+'">—</span>'; const s = fmtP(v); if (s.length < 4) return '<span class="'+(cls || "")+'">'+s+'</span>';
+    return '<span class="'+(cls || "")+'">'+s.slice(0, -3)+'<big>'+s.slice(-3, -1)+'</big><sup>'+s.slice(-1)+'</sup></span>'; },
+  quotes(){ const r = document.getElementById("m5"), T_ = this.tick(), now = new Date(nowS()), hh = now.toTimeString().slice(0, 8);
+    let h = this.top(Lg("Quotes","الأسعار"), "menu", ["plus","edit"]) + '<div class="m5list">';
+    this.syms().forEach(s => { const q = T_[s] || {}, bid = q.bid || q.last, ask = q.ask || q.last, pv = this.prev[s], dir = pv == null || bid == null ? "" : bid > pv ? "up" : bid < pv ? "dn" : (this["d_"+s] || "");
+      if (bid != null) { this["d_"+s] = dir; this.prev[s] = bid; }
+      const dec = ((fmtP(bid || 0).split(".")[1]) || "").length, sp = q.bid && q.ask ? Math.round((q.ask - q.bid)*Math.pow(10, dec)) : null, ch = q.open ? (100*(q.last/q.open - 1)) : null;
+      h += '<div class="m5row" data-s="'+esc(s)+'"><div class="m5l"><b>'+esc(s.replace(/-SWAP$/, "").replace(/-/g, ""))+'</b><small>'+hh+(sp != null ? '  ↔ '+sp : "")+(ch != null ? '  <i class="'+(ch >= 0 ? "up" : "dn")+'">'+(ch >= 0 ? "+" : "")+ch.toFixed(2)+'%</i>' : "")+'</small></div>'
+        + '<div class="m5p">'+this.px(bid, dir)+'<small>L: '+(q.lo ? fmtP(q.lo) : "—")+'</small></div><div class="m5p">'+this.px(ask, dir)+'<small>H: '+(q.hi ? fmtP(q.hi) : "—")+'</small></div></div>'; });
+    r.innerHTML = h + '</div>'; this.wire(r, {plus:() => this.symSheet(s => { Hub.extra = Hub.extra || new Set(); Hub.extra.add(s); this.quotes(); }), edit:() => this.toast(Lg("Edit the list from the Watchlist widget (☰ > Watchlist).", "عدّل القايمة من ويدجت قايمة المتابعة (☰ ← قايمة المتابعة)."))});
+    r.querySelectorAll(".m5row").forEach(x => x.onclick = () => { const s = x.dataset.s; this.sheet(s.replace(/-/g, ""), [[Lg("Trade","تداول"), () => this.order(s)], [Lg("Chart","الرسم البياني"), () => { this.show("chart"); this.cp && this.cp.setSymbol(s); }],
+      [Lg("Depth of Market","عمق السوق"), () => { let p = Ws.panels.find(q => q.type === "dom"); if (!p){ Ws.add("dom"); p = Ws.panels[Ws.panels.length - 1]; } p.setSymbol && p.setSymbol(s); this.show("panel", p); }],
+      [Lg("Properties","الخصائص"), () => this.props(s)]]); }); },
+  props(s){ const q = this.tick()[s] || {}; this.sheet(s, [[Lg("Last","آخر سعر")+": "+(q.last != null ? fmtP(q.last) : "—")], ["Bid: "+(q.bid ? fmtP(q.bid) : "—")+"   Ask: "+(q.ask ? fmtP(q.ask) : "—")], [Lg("24h high / low","أعلى / أقل 24س")+": "+(q.hi ? fmtP(q.hi) : "—")+" / "+(q.lo ? fmtP(q.lo) : "—")], [Lg("24h change","تغيير 24س")+": "+(q.open ? (100*(q.last/q.open - 1)).toFixed(2)+"%" : "—")]]); },
+  chartTop(p){ let t = document.getElementById("m5ctop"); if (!t){ t = el("div"); t.id = "m5ctop"; document.body.append(t); }
+    const tf = (M5TF.find(x => x[0] === p.state.tf) || [0, p.state.tf])[1];
+    t.innerHTML = '<button class="m5ib" data-a="menu">'+m5i("menu")+'</button><button class="m5ib" data-a="sym">'+m5i("sym")+'</button><button class="m5ib'+(p.chart.xMode ? " on" : "")+'" data-a="cross">'+m5i("cross")+'</button><button class="m5ib" data-a="fx">'+m5i("fx")+'</button><button class="m5ib" data-a="obj">'+m5i("obj")+'</button><button class="m5tf" data-a="tf">'+tf+'</button><span class="sp"></span><button class="m5ib" data-a="plus">'+m5i("plus")+'</button>'
+      + '<div class="m5cap"><b>'+esc(String(p.state.sym || "").replace(/-/g, ""))+', '+tf+'</b></div>';
+    this.wire(t, {sym:() => this.symSheet(s => { p.setSymbol(s); this.chartTop(p); }), cross:() => this.cross(p), fx:() => this.ind(p), obj:() => this.objects(p), tf:b => { const r = b.getBoundingClientRect(); this.radial(r.left + r.width/2, r.bottom + 120, p); }, plus:() => this.order(p.state.sym)}); },
+  panelTop(p){ let t = document.getElementById("m5ctop"); if (!t){ t = el("div"); t.id = "m5ctop"; document.body.append(t); }
+    t.innerHTML = '<button class="m5ib" data-a="back">'+m5i("back")+'</button><b class="m5pt">'+esc(T(p.type))+'</b><span class="sp"></span>'; this.wire(t, {back:() => this.show(store.get(LS+"_m5scr", "quotes"))}); },
+  hook(p){ const c = p.chart; if (!c) return; c.onTap = (x, y) => { const r = c.cv.getBoundingClientRect(); this.radial(r.left + x, r.top + y, p); }; },
+  cross(p){ const c = p.chart; c.xMode = !c.xMode; if (!c.xMode){ c.mouse = null; c.draw(); } else this.toast(Lg("Crosshair: drag on the chart", "الكروس هير: اسحب على الشارت")); this.chartTop(p); },
+  ind(p){ if (p.indBtn) p.indBtn.onclick({stopPropagation(){}}); },
+  objects(p){ const k = {cur:Lg("Cursor","المؤشر"), trend:Lg("Trendline","خط ترند"), hline:Lg("Horizontal Line","خط أفقي"), rect:Lg("Rectangle","مستطيل"), channel:Lg("Equidistant Channel","قناة متوازية"), text:Lg("Text","نص"), fib:Lg("Fibonacci Retracement","فيبوناتشي"), wave:Lg("Elliott Wave","موجات إليوت"), long:Lg("Long position","صفقة شراء"), short:Lg("Short position","صفقة بيع")};
+    this.sheet(Lg("Objects","الكائنات"), Object.keys(p.toolBtns || {}).map(t => [k[t] || t, () => p.toolBtns[t].click()]).concat([[Lg("Delete all objects","حذف كل الكائنات"), () => { const b = [...p.root.querySelectorAll(".dt button")].find(x => x.textContent === "🗑"); b && b.click(); }]])); },
+  radial(x, y, p){ this.closeAll(); const R = 92, w = el("div"); w.id = "m5rad"; const cx = Math.max(R + 34, Math.min(innerWidth - R - 34, x)), v = this.vt(), cy = Math.max(v.t + R + 60, Math.min(v.b - R - 70, y));
+    let h = '<div class="m5rc" style="left:'+cx+'px;top:'+cy+'px">'; const cur = p.state.tf;
+    M5TF.forEach(([tf, l], i) => { const a = -Math.PI/2 + i*2*Math.PI/M5TF.length; h += '<button class="m5rt'+(tf === cur ? " on" : "")+'" data-tf="'+tf+'" style="transform:translate('+(Math.cos(a)*R)+'px,'+(Math.sin(a)*R)+'px)">'+l+'</button>'; });
+    [["cross", -135], ["fx", -45], ["obj", 45], ["plus", 135]].forEach(([k, d]) => { const a = d*Math.PI/180; h += '<button class="m5ri" data-a="'+k+'" style="transform:translate('+(Math.cos(a)*44)+'px,'+(Math.sin(a)*44)+'px)">'+m5i(k, 20)+'</button>'; });
+    w.innerHTML = h + '<button class="m5rx" data-a="close">'+m5i("close", 18)+'</button></div>'; document.body.append(w);
+    w.style.pointerEvents = "none"; setTimeout(() => { w.style.pointerEvents = ""; }, 420);   // the tap that opened it also fires a late click (it would hit the centre ✕): ignore it
+    w.onclick = e => { if (e.target === w) this.closeAll(); };
+    w.querySelectorAll("[data-tf]").forEach(b => b.onclick = e => { e.stopPropagation(); p.setTf(b.dataset.tf); this.closeAll(); this.chartTop(p); });
+    this.wire(w, {cross:() => { this.closeAll(); this.cross(p); }, fx:() => { this.closeAll(); this.ind(p); }, obj:() => { this.closeAll(); this.objects(p); }, plus:() => { this.closeAll(); this.order(p.state.sym); }, close:() => this.closeAll()}); },
+  vt(){ return (typeof Guide !== "undefined" && Guide.view) ? Guide.view() : {t:0, b:innerHeight}; },
+  sheet(title, items){ this.closeAll(); const s = el("div"); s.id = "m5sheet"; let h = '<div class="m5sh"><div class="m5shh">'+esc(title)+'</div>';
+    items.forEach((it, i) => { h += '<button class="m5si'+(it[1] ? "" : " ro")+'" data-i="'+i+'">'+esc(it[0])+'</button>'; }); s.innerHTML = h + '<button class="m5si m5cancel">'+Lg("Cancel","إلغاء")+'</button></div>'; document.body.append(s);
+    s.style.pointerEvents = "none"; setTimeout(() => { s.style.pointerEvents = ""; }, 420); s.onclick = e => { if (e.target === s || e.target.classList.contains("m5cancel")) this.closeAll(); };
+    s.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const f = items[+b.dataset.i][1]; if (!f) return; this.closeAll(); f(); }); },
+  symSheet(cb){ this.sheet(Lg("Symbols","الرموز"), this.syms().map(s => [s, () => cb(s)])); },
+  closeAll(){ ["m5rad","m5sheet","m5drw"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); },
+  toast(t){ const x = el("div", "m5toast", esc(t)); document.body.append(x); setTimeout(() => x.remove(), 3200); },
+  order(sym){ const q = this.tick()[sym] || {}, s = el("div"); this.closeAll(); s.id = "m5sheet"; let vol = +store.get(LS+"_m5vol", 0.01) || 0.01;
+    const draw = () => { s.innerHTML = '<div class="m5ord">'+this.top(esc(String(sym).replace(/-/g, "")), "back", [])+'<div class="m5ot">'+Lg("Market Execution","تنفيذ فوري")+'</div>'
+      + '<div class="m5vol"><button data-v="-0.1">-0.1</button><button data-v="-0.01">-0.01</button><b>'+vol.toFixed(2)+'</b><button data-v="0.01">+0.01</button><button data-v="0.1">+0.1</button></div>'
+      + '<div class="m5bq">'+this.px(q.bid || q.last, "dn")+this.px(q.ask || q.last, "up")+'</div><label>Stop Loss<input inputmode="decimal" placeholder="—"></label><label>Take Profit<input inputmode="decimal" placeholder="—"></label>'
+      + '<div class="m5ob"><button class="sell">'+Lg("SELL BY MARKET","بيع بسعر السوق")+'</button><button class="buy">'+Lg("BUY BY MARKET","شراء بسعر السوق")+'</button></div>'
+      + '<p class="m5note">'+Lg("XPiX is not connected to a broker: no order is sent. Use this screen to plan, then place the trade in your MetaTrader.", "XPiX مش متوصل بحساب عند وسيط: مفيش أمر بيتبعت. استخدم الشاشة دي للتخطيط، ونفّذ الصفقة من الميتاتريدر بتاعك.")+'</p></div>';
+      s.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { vol = Math.max(0.01, Math.round((vol + +b.dataset.v)*100)/100); store.set(LS+"_m5vol", vol); draw(); });
+      s.querySelectorAll(".m5ob button").forEach(b => b.onclick = () => this.toast(Lg("Not sent - XPiX has no broker connection.", "متبعتش - XPiX مش متوصل بوسيط.")));
+      this.wire(s, {back:() => this.closeAll()}); };
+    draw(); document.body.append(s); },
+  trades(st){ return Journal.list.filter(t => st === "open" ? t.status === "open" : t.status !== "open").slice().reverse(); },
+  trade(){ const r = document.getElementById("m5"), op = this.trades("open"), T_ = this.tick();
+    let h = this.top(Lg("Trade","التداول"), "menu", ["plus"]) + '<div class="m5acc"><div><span>'+Lg("Tracked setups","صفقات متابَعة")+'</span><b>'+op.length+'</b></div><div><span>'+Lg("Account","الحساب")+'</span><b>'+Lg("not connected","غير متصل")+'</b></div></div>'
+      + '<div class="m5sec">'+Lg("Positions (journal, not real orders)","الصفقات (من الجورنال، مش أوامر حقيقية)")+'</div><div class="m5list">';
+    if (!op.length) h += '<div class="m5empty">'+Lg("No open tracked setups.","مفيش صفقات مفتوحة بتتابَع.")+'</div>';
+    op.forEach(t => { const px = (T_[t.symbol] || {}).last || t.last, L = t.dir === "bullish", rr = px != null ? ((L ? px - t.entry : t.entry - px)/Math.max(1e-12, Math.abs(t.entry - t.sl))) : null;
+      h += '<div class="m5row m5tr"><div class="m5l"><b>'+esc(t.symbol.replace(/-/g, ""))+', <i class="'+(L ? "up" : "dn")+'">'+(L ? "buy" : "sell")+'</i></b><small>'+fmtP(t.entry)+' → '+(px != null ? fmtP(px) : "—")+'</small><small>S/L '+fmtP(t.sl)+'  T/P '+fmtP(t.tp1)+'</small></div><div class="m5pr '+(rr == null ? "" : rr >= 0 ? "up" : "dn")+'">'+(rr == null ? "—" : (rr >= 0 ? "+" : "")+rr.toFixed(2)+" R")+'</div></div>'; });
+    r.innerHTML = h + '</div>'; this.wire(r, {plus:() => this.order((this.cp && this.cp.state.sym) || SYMS[0])}); },
+  history(){ const r = document.getElementById("m5"), cl = this.trades("closed").filter(t => t.status === "tp" || t.status === "sl"), n = cl.length, sumR = cl.reduce((a, t) => a + (t.r || 0), 0), w = cl.filter(t => t.r > 0).length;
+    let h = this.top(Lg("History","السجل"), "menu", []) + '<div class="m5acc"><div><span>'+Lg("Profit","الربح")+'</span><b class="'+(sumR >= 0 ? "up" : "dn")+'">'+(sumR >= 0 ? "+" : "")+sumR.toFixed(2)+' R</b></div><div><span>'+Lg("Trades","الصفقات")+'</span><b>'+n+'</b></div><div><span>'+Lg("Win rate","نسبة الكسب")+'</span><b>'+(n ? Math.round(100*w/n)+"%" : "—")+'</b></div></div>'
+      + (n < 30 ? '<div class="m5warn">'+Lg("Under 30 trades: not evidence yet.","أقل من 30 صفقة: لسه مش دليل.")+'</div>' : "") + '<div class="m5list">';
+    if (!n) h += '<div class="m5empty">'+Lg("No closed tracked setups yet.","لسه مفيش صفقات مقفولة.")+'</div>';
+    cl.slice(0, 200).forEach(t => { const L = t.dir === "bullish"; h += '<div class="m5row m5tr"><div class="m5l"><b>'+esc(t.symbol.replace(/-/g, ""))+', <i class="'+(L ? "up" : "dn")+'">'+(L ? "buy" : "sell")+'</i></b><small>'+fmtP(t.entry)+' → '+(t.status === "tp" ? fmtP(t.tp1) : fmtP(t.sl))+'</small><small>'+new Date(t.t1 || t.t0).toLocaleString()+'</small></div><div class="m5pr '+(t.r >= 0 ? "up" : "dn")+'">'+(t.r >= 0 ? "+" : "")+(t.r || 0).toFixed(2)+' R</div></div>'; });
+    r.innerHTML = h + '</div>'; this.wire(r, {}); },
+  messages(){ const r = document.getElementById("m5"), al = (Alerts.list || []).slice(0, 60), nw = (CFG.news || []).slice(0, 30);
+    let h = this.top(Lg("Messages","الرسائل"), "menu", []) + '<div class="m5list">';
+    if (!al.length && !nw.length) h += '<div class="m5empty">'+Lg("No messages.","مفيش رسايل.")+'</div>';
+    al.forEach(a => { const c = a.card || {}; h += '<div class="m5msg"><b>XPiX '+Lg("Alert","تنبيه")+'</b><small>'+(a.t ? new Date(a.t).toLocaleString() : "")+'</small><p>'+esc((c.symbol || a.symbol || "")+" "+(c.direction || a.dir || "")+" "+(a.text || a.msg || c.ttype || ""))+'</p></div>'; });
+    nw.forEach(x => { h += '<div class="m5msg"><b>'+esc(x.source || "News")+'</b><small>'+esc(x.time || x.published || "")+'</small><p>'+esc(x.title || x.headline || "")+'</p></div>'; });
+    r.innerHTML = h + '</div>'; this.wire(r, {}); },
+  drawer(){ this.closeAll(); const d = el("div"); d.id = "m5drw"; const used = ["chart","watch"]; let h = '<div class="m5dp"><div class="m5dh"><span class="gbi">'+(typeof GUIDE_ICON !== "undefined" ? GUIDE_ICON : "")+'</span><b>XPiX</b><small>MetaTrader 5 '+Lg("layout","واجهة")+'</small></div>';
+    Ws.panels.filter(p => !used.includes(p.type)).forEach((p, i) => { h += '<button data-p="'+Ws.panels.indexOf(p)+'">'+esc(T(p.type))+'</button>'; });
+    h += '<button data-a="add">+ '+Lg("Add widget","إضافة ويدجت")+'</button><button data-a="guide">Mr X</button><button data-a="exit">'+Lg("Leave MetaTrader layout","الخروج من واجهة الميتاتريدر")+'</button></div>';
+    d.innerHTML = h; document.body.append(d); d.onclick = e => { if (e.target === d) this.closeAll(); };
+    d.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const p = Ws.panels[+b.dataset.p]; this.closeAll(); this.show("panel", p); });
+    this.wire(d, {add:() => { this.closeAll(); const kinds = ["setup","signals","alerts","dom","tape","limits","risk","tvc","scanner","news"]; this.sheet(Lg("Add widget","إضافة ويدجت"), kinds.map(k => [T(k), () => { Ws.add(k); this.show("panel", Ws.panels[Ws.panels.length - 1]); }])); },
+      guide:() => { this.closeAll(); Guide.on ? Guide.close() : Guide.open(); }, exit:() => { this.closeAll(); MT5 = false; store.set(LS+"_mt5", false); document.body.classList.remove("mt5"); this.destroy(); Ws.mjump(); Ws.panels.forEach(p => p.apply()); setTimeout(() => Ws.panels.forEach(p => { try { p.chart && (p.chart.resize(), p.chart.draw()); } catch(_){} }), 60); buildBar(); }}); }
 };
 
 /* welcome: widgets materialise one after another with a gold scan line (once per page load; skipped for reduced motion) */

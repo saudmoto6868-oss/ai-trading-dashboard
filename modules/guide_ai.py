@@ -1,6 +1,7 @@
 """Guide AI: the workspace guide character asks Claude through a hidden Streamlit component (the key never reaches the browser).
 
-Key: ANTHROPIC_API_KEY in Streamlit secrets or env var. Without it the guide keeps its built-in offline answers.
+Key: ANTHROPIC_API_KEY in Streamlit secrets or env var (Claude, paid). Free stop-gap: GEMINI_API_KEY (Google AI Studio free tier,
+rate-limited, free-tier prompts may be used by Google) - used only when there is no Claude key. Without either the guide keeps its offline answers.
 Token budget (owner rule): smallest model that works (GUIDE_MODEL, default Haiku), low effort, only a short context
 from the browser (symbol, timeframe, price, open widgets, a few numbers - never raw candles), last 4 turns only,
 answers cached 5 min per question+symbol, hard per-day cap for the whole app (GUIDE_DAILY_CAP) and per browser session.
@@ -51,6 +52,14 @@ def api_key() -> str:
     return key
 
 
+def gemini_key() -> str:
+    return _cfg("GEMINI_API_KEY", "")
+
+
+def provider() -> str:
+    return "claude" if api_key() else "gemini" if gemini_key() else ""
+
+
 def _cfg(name: str, default: str) -> str:
     v = os.environ.get(name, "")
     if not v:
@@ -71,7 +80,34 @@ def _cached(key: str, model: str, _q: str, _ctx_txt: str) -> dict:   # underscor
     return _call(_q, _ctx_txt, [], model)
 
 
+def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (free tier); same JSON answer shape as Claude
+    import requests
+    model = _cfg("GEMINI_MODEL", "gemini-flash-latest")
+    contents = []
+    for h in hist[-4:]:
+        contents.append({"role": "user", "parts": [{"text": h["q"]}]})
+        contents.append({"role": "model", "parts": [{"text": h["a"]}]})
+    contents.append({"role": "user", "parts": [{"text": "Screen context (data): " + ctx_txt + "\n\nQuestion: " + q}]})
+    sch = {"type": "OBJECT", "required": ["say", "go", "page"], "properties": {"say": {"type": "STRING"},
+           "go": {"type": "STRING", "enum": TARGETS}, "page": {"type": "STRING", "enum": PAGES}}}
+    r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
+                      headers={"x-goog-api-key": gemini_key(), "Content-Type": "application/json"}, timeout=25,
+                      json={"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
+                            "generationConfig": {"responseMimeType": "application/json", "responseSchema": sch, "maxOutputTokens": 2048}})
+    r.raise_for_status()
+    parts = ((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+    out = json.loads("".join(p.get("text", "") for p in parts if not p.get("thought")) or "{}")
+    if out.get("go") not in TARGETS:
+        out["go"] = "none"
+    if out.get("page") not in PAGES:
+        out["page"] = "none"
+    out["say"] = str(out.get("say", ""))[:900]
+    return out
+
+
 def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
+    if model == "gemini":
+        return _gemini(q, ctx_txt, hist)
     import anthropic
     client = anthropic.Anthropic(api_key=api_key(), timeout=25.0, max_retries=1)
     msgs = []
@@ -95,7 +131,7 @@ def answer(req: dict, hist: list) -> dict:
     q = str(req.get("q", ""))[:500].strip()
     if not q:
         return {"id": rid, "err": "empty"}
-    if not api_key():
+    if not provider():
         return {"id": rid, "err": "nokey"}
     cnt = _day_counter()
     today = _dt.date.today().isoformat()
@@ -105,7 +141,7 @@ def answer(req: dict, hist: list) -> dict:
         return {"id": rid, "err": "cap"}
     ctx = req.get("ctx") or {}
     ctx_txt = json.dumps({k: ctx[k] for k in sorted(ctx)}, ensure_ascii=False)[:1200]
-    model = _cfg("GUIDE_MODEL", "claude-haiku-5-5")
+    model = _cfg("GUIDE_MODEL", "claude-haiku-5-5") if provider() == "claude" else "gemini"
     try:
         if hist:   # follow-up questions depend on the chat, so they are not cached
             out = _call(q, ctx_txt, hist, model)
@@ -129,7 +165,7 @@ def render_bridge():
     ss = st.session_state
     hist = ss.setdefault("guide_hist", [])
     with st.container(key="gbridge"):
-        req = _bridge(ai=bool(api_key()), ans=ss.get("guide_ans"), key="guide_bridge", default=None)
+        req = _bridge(ai=bool(provider()), ans=ss.get("guide_ans"), key="guide_bridge", default=None)
     if isinstance(req, dict) and req.get("id") and req.get("id") != ss.get("guide_last"):
         ss["guide_last"] = req["id"]
         ss["guide_ans"] = answer(req, hist)

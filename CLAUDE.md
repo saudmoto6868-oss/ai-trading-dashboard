@@ -18,7 +18,7 @@ Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, n
 - `main.py` Streamlit (header row + page tabs: Workspace, Scanner, Lab, Playbook, Performance, AI Analyst, Alerts; sidebar); `modules/i18n.py` `L()` Arabic; `modules/auth.py` login, READY BUT OFF until launch (owner: do not set APP_PASSWORD / APP_USERS before publishing).
 - `modules/workspace_app.html` single-file JS app (chart, watchlist, DOM, order flow, Setup Card); built by `modules/workspace.py`.
   Data: `okx()` -> OKX REST; `Y:` symbols -> embedded Yahoo (`yfOkx`); `HL:xyz:*` -> Hyperliquid (`hlOkx`); `FH:*` -> Finnhub ws.
-- Guide character (`Guide` in workspace_app.html) -> AI via `modules/guide_ai.py` + hidden component `modules/guide_bridge/` (key `ANTHROPIC_API_KEY`, `GUIDE_MODEL`, `GUIDE_DAILY_CAP`).
+- Guide character (`Guide` in workspace_app.html) -> AI via `modules/guide_ai.py` + hidden component `modules/guide_bridge/` (key `ANTHROPIC_API_KEY`, or free `GEMINI_API_KEY`; `GUIDE_MODEL`, `GEMINI_MODEL`, `GUIDE_DAILY_CAP`).
 - Signals `modules/signals.py` (+ `sig_filters`, `scorer`, `mtf`), patterns `modules/patterns.py`, scanner `modules/chart_scan.py`.
 - Server data: `market_cache.get_klines` routes OKX / `Y:` Yahoo / `HL:` `hl_feed.py`; asset classes `asset_classes.py`.
 - Tests: `for t in tests/test_*.py; do python3 $t; done` (plain scripts). App smoke test: Streamlit AppTest with `requests` patched to fail fast.

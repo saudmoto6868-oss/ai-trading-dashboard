@@ -52,9 +52,35 @@ def _gann_oos() -> dict:
 
 _OOS_CACHE: dict = {}
 
-UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("t3", "3 · soon"), ("t4", "4 · soon"),
-             ("t5", "5 · soon"), ("t6", "6 · soon"), ("t7", "7 · soon")]   # dashboard themes (top bar); "soon" slots wait for the owner's pictures
-_UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg"}
+UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("ember", "3 · Ember"), ("sunset", "4 · Sunset"),
+             ("emerald", "5 · Emerald"), ("neon", "6 · Neon"), ("mono", "7 · Mono Data"), ("grafana", "8 · Grafana"), ("blueprint", "9 · Blueprint")]
+# themes 3-9 (owner pictures 2026-10-18) share one engine: a palette -> CSS variables for the page, the top bar and the Workspace (+ chart colours).
+# keys: bg page, panel/panel2 cards (see-through over the blurred picture), solid = card in front, line, txt, mut, acc accent, ink text on accent,
+# up/dn candles, rad corner radius px, font, tt text-transform of titles, ls letter-spacing, glow card shadow
+UI_PALETTES = {
+    "ember":     dict(bg="#0f0f10", panel="rgba(28,28,30,.84)", panel2="rgba(44,44,47,.88)", solid="rgba(24,24,26,.97)", line="rgba(255,255,255,.08)", txt="#ececec", mut="#8e8e93",
+                      acc="#ff5a36", ink="#1a0b06", up="#d9d9d9", dn="#ff5a36", rad=16, font="", tt="none", ls="0", glow="0 10px 30px rgba(0,0,0,.45)"),
+    "sunset":    dict(bg="#22252b", panel="rgba(36,39,46,.84)", panel2="rgba(48,52,61,.88)", solid="rgba(32,35,41,.97)", line="rgba(255,255,255,.07)", txt="#ece8e2", mut="#9a958e",
+                      acc="#f08a4b", ink="#1d0f06", up="#3fd0c9", dn="#f0784b", rad=14, font="", tt="none", ls="0", glow="0 12px 32px rgba(0,0,0,.4)"),
+    "emerald":   dict(bg="#131516", panel="rgba(24,27,28,.82)", panel2="rgba(34,38,39,.86)", solid="rgba(20,22,23,.97)", line="rgba(45,224,185,.16)", txt="#dfe7e5", mut="#7d8a87",
+                      acc="#2de0b9", ink="#03201a", up="#2de0b9", dn="#ff5c6c", rad=4, font="", tt="uppercase", ls=".08em", glow="0 0 18px rgba(45,224,185,.10)"),
+    "neon":      dict(bg="#050505", panel="rgba(9,9,9,.9)", panel2="rgba(18,18,18,.92)", solid="rgba(6,6,6,.98)", line="rgba(255,255,255,.06)", txt="#f2f2f2", mut="#8a8a8a",
+                      acc="#39ff7a", ink="#022b10", up="#39ff7a", dn="#ff3b3b", rad=18, font="", tt="none", ls="0", glow="0 0 24px rgba(57,255,122,.10)"),
+    "mono":      dict(bg="#0a0a0a", panel="rgba(10,10,10,.9)", panel2="rgba(18,18,18,.92)", solid="rgba(8,8,8,.98)", line="rgba(255,255,255,.26)", txt="#e6e6e6", mut="#8c8c8c",
+                      acc="#ffffff", ink="#000000", up="#e6e6e6", dn="#6f6f6f", rad=0, font="ui-monospace,Menlo,Consolas,monospace", tt="uppercase", ls=".1em", glow="none"),
+    "grafana":   dict(bg="#111217", panel="rgba(24,27,31,.96)", panel2="rgba(32,36,41,.98)", solid="#181b1f", line="#2c3235", txt="#d8d9da", mut="#8e8e8e",
+                      acc="#5794f2", ink="#ffffff", up="#73bf69", dn="#f2495c", rad=3, font="Inter,Roboto,'Segoe UI',sans-serif", tt="none", ls="0", glow="none"),
+    "blueprint": dict(bg="#000000", panel="rgba(3,4,8,.86)", panel2="rgba(10,12,20,.9)", solid="rgba(2,3,6,.98)", line="rgba(150,175,255,.20)", txt="#e8ecff", mut="#8790b0",
+                      acc="#9db8ff", ink="#05081a", up="#8fd3ff", dn="#c08fff", rad=2, font="", tt="uppercase", ls=".12em", glow="none"),
+}
+
+
+def ui_vars(theme: str) -> dict:
+    """Palette of an engine theme (themes 3-9), {} for Classic / 1 / 2 (they have their own hand-made CSS)."""
+    return dict(UI_PALETTES.get(theme, {}))
+
+
+_UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint")}}
 
 
 def ui_theme_bg(theme: str) -> str:
@@ -113,7 +139,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
         "gannoos": _gann_oos(),
-        "ui": ui_theme or "", "uiBg": ui_bg or "",   # dashboard theme from the top bar (+ its blurred background image as a data URI)
+        "ui": ui_theme or "", "uiBg": ui_bg or "", "uiVars": ui_vars(ui_theme or ""),   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early

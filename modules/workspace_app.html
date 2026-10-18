@@ -44,6 +44,7 @@ body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the b
 #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mut);font-size:14px;pointer-events:none}
 .panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.45)}
 .panel.focus{border-color:#4a525c}
+.locked .rzh{display:none}.locked .ph{cursor:default}.ph button.on{color:#f0b90b}
 .ph{height:calc(26px*var(--us));flex:none;display:flex;align-items:center;gap:5px;padding:0 6px;background:var(--panel2);cursor:move;user-select:none;touch-action:none}
 .ph .ttl{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dt{position:absolute;left:3px;top:20px;z-index:3;display:flex;flex-direction:column;gap:2px;background:var(--panel);opacity:.92;border:1px solid var(--line);border-radius:5px;padding:2px}
@@ -2777,16 +2778,19 @@ class Panel {
     ["—",1,2,3].forEach((g,i) => { const o = el("option"); o.value = i; o.textContent = i ? "#"+i : "—"; this.grp.append(o); });
     this.grp.value = this.state.group; this.grp.onchange = () => { this.state.group = +this.grp.value; Ws.save(); };
     this.grp.onpointerdown = e => e.stopPropagation();
+    const bLock = el("button",null,"🔓"); bLock.title = Lg("Lock: freeze this widget in place (no move, resize or close) until you unlock it","قفل: تثبيت الويدجت في مكانه (ما يتحركش، ما يتكبرش، ما يتقفلش) لحد ما تفك القفل");
+    this.locked = !!this.state.lock2; this.applyLock = () => { this.root.classList.toggle("locked", this.locked); bLock.textContent = this.locked ? "🔒" : "🔓"; bLock.classList.toggle("on", this.locked); };
+    bLock.onpointerdown = e => e.stopPropagation(); bLock.onclick = () => { this.locked = !this.locked; this.state.lock2 = this.locked || undefined; this.applyLock(); Ws.save(); };
     const bMin = el("button",null,"–"), bMax = el("button",null,"▢"), bX = el("button",null,"✕");
     [bMin,bMax,bX].forEach(b => b.onpointerdown = e => e.stopPropagation());
     bMin.onclick = () => { this.min = !this.min; this.state.min = this.min; this.root.classList.toggle("min", this.min); Ws.save(); };
-    bMax.onclick = () => this.toggleMax(); bX.onclick = () => this.close();
+    bMax.onclick = () => this.toggleMax(); bX.onclick = () => { if (!this.locked) this.close(); };
     // per-widget colours: header/border accent + body tint (saved with the layout)
     const mkCol = (title, key) => { const i = el("input"); i.type = "color"; i.title = title; i.className = "pc"; i.value = this.state[key] || (key === "col" ? "#1e2329" : "#0b0e11");
       i.onpointerdown = e => e.stopPropagation(); i.oninput = () => { this.state[key] = i.value; this.paint(); }; i.onchange = () => Ws.save(); return i; };
     const rc = el("button",null,"↺"); rc.title = "reset colours"; rc.onpointerdown = e => e.stopPropagation();
     rc.onclick = () => { delete this.state.col; delete this.state.bg; this.paint(); Ws.save(); };
-    this.head.append(mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX);
+    this.head.append(bLock, mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX); this.applyLock();
     this.body = el("div","pb"); this.rz = el("div","rz");
     this.root.append(this.head, this.body, this.rz);
     // resize from every side and corner (thin invisible grips on the border; the old corner grip stays)
@@ -2812,7 +2816,7 @@ class Panel {
   bindDrag(){
     const snap = v => Math.round(v/10)*10;
     this.head.addEventListener("pointerdown", e => {
-      if (this.max || MOB) return;   // mobile: no dragging (stacked layout; a finger on the title bar scrolls the page)
+      if (this.max || MOB || this.locked) return;   // mobile: no dragging (stacked layout; a finger on the title bar scrolls the page)
       this.head.setPointerCapture(e.pointerId); this.root.classList.add("drag");
       const sx = e.clientX, sy = e.clientY, ox = this.rect.x, oy = this.rect.y;
       const mv = ev => {
@@ -2834,7 +2838,7 @@ class Panel {
         this.apply(); };
       const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
       g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up); }));
-    this.rz.addEventListener("pointerdown", e => {
+    this.rz.addEventListener("pointerdown", e => { if (this.locked) return;
       e.stopPropagation(); this.rz.setPointerCapture(e.pointerId); this.root.classList.add("drag");
       const sx = e.clientX, sy = e.clientY, ow = this.rect.w, oh = this.rect.h;
       const mv = ev => { this.rect.w = Math.max(160, snap(ow+ev.clientX-sx)); this.rect.h = Math.max(90, snap(oh+ev.clientY-sy)); this.apply(); };

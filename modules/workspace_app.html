@@ -4498,6 +4498,8 @@ const Guide = {
     this.speak(this.G("Thinking…", "ثانية بفكر…")); this.man.classList.add("think");
     const ans = await new Promise(res => { const to = setTimeout(() => { window.__xpixGuideAnswer = null; res(null); }, 35000); window.__xpixGuideAnswer = a => { if (a.id !== id) return; clearTimeout(to); window.__xpixGuideAnswer = null; res(a); }; b.ask({id, q, ctx:this.ctx()}); });
     this.man.classList.remove("think");
+    if (ans && ans.err && ans.err !== "cap" && ans.err !== "nokey"){ const c = (ans.err.match(/\d{3}/) || [""])[0];   // say why the AI did not answer instead of failing silently
+      this._aiErr = c === "429" ? this.G("AI daily limit reached (provider).", "حد الذكاء المجاني خلص النهارده.") : c === "400" || c === "401" || c === "403" ? this.G("The AI key was rejected - check it in Secrets.", "مفتاح الذكاء مرفوض، راجعه في Secrets.") : this.G("AI not answering right now ("+ans.err+").", "الذكاء مش بيرد دلوقتي ("+ans.err+")."); } else this._aiErr = "";
     if (!ans || ans.err){ if (ans && ans.err === "cap") { this.speak(this.G("I've hit today's question limit. Built-in answers still work.", "خلّصت عدد أسئلة النهارده. الإجابات الجاهزة لسه شغالة.")); return true; } return false; }
     const pg = {scanner:1, lab:2, playbook:3, stats:4, alerts_page:6}[ans.page];
     if (pg){ await this.walk(innerWidth/2 - 30, 4); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
@@ -4505,6 +4507,7 @@ const Guide = {
     this.speak(ans.say); return true; },
   async ask(q){ const k = this.KB.find(e => e.kw.test(q)), short = q.trim().split(/\s+/).length <= 3;
     if (!(k && short) && await this.askAI(q)) return;   // Claude answers real questions; one or two keywords stay on the free built-in guide
+    if (!k && this._aiErr){ this.speak(this._aiErr); this._aiErr = ""; return; }
     if (!k){ this.speak(this.G("I don't know that one yet. Try: profile, delta, order flow, DOM, tape, limits, setup, alerts, chart, lab, scanner.", "لسه معرفش دي. جرّب: البروفيل، الدلتا، الأوردر فلو، الدوم، التايب، الليميت، السيتاب، التنبيهات، الشارت، اللاب، السكانر.")); return; }
     const txt = this.G(k.en, k.ar);
     if (k.page != null){ await this.walk(innerWidth/2 - 30, 4); this.speak(txt); await this.wait(1400); this.page(k.page); return; }

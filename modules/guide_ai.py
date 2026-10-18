@@ -149,7 +149,8 @@ def answer(req: dict, hist: list) -> dict:
             key = hashlib.sha1((q.lower() + "|" + str(ctx.get("lang")) + "|" + str(ctx.get("sym")) + "|" + str(ctx.get("tf"))).encode()).hexdigest()
             out = _cached(key, model, q, ctx_txt)
     except Exception as e:   # network / key / rate limit: the browser falls back to the offline guide
-        return {"id": rid, "err": type(e).__name__}
+        code = getattr(getattr(e, "response", None), "status_code", None) or getattr(e, "status_code", None)
+        return {"id": rid, "err": type(e).__name__ + (" " + str(code) if code else "")}   # e.g. "HTTPError 400" = key rejected, 429 = free limit hit
     cnt["n"] += 1
     st.session_state["guide_n"] = st.session_state.get("guide_n", 0) + 1
     if out.get("say"):

@@ -1235,7 +1235,11 @@ if PAGE == 2:   # lab
 if PAGE == 3:   # playbook
     render_playbook_page()
 
-if PAGE in (5, 6):   # soon
+if PAGE == 5:   # AI: chat with Mr X
+    from modules.ai_page import render_ai_page
+    render_ai_page(ACTIVE_SYMBOLS, L)
+
+if PAGE == 6:   # soon
     render_soon_page(PAGE)
 
 if PAGE == 4:   # perf

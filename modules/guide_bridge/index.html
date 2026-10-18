@@ -5,10 +5,10 @@
 (function(){
   const send = (type, extra) => window.parent.postMessage(Object.assign({isStreamlitMessage:true, type}, extra || {}), "*");
   let lastAns = null;
-  window.__xpixBridge = { ai:false, ask(req){ send("streamlit:setComponentValue", {value:req, dataType:"json"}); return true; } };
+  window.__xpixBridge = { ai:false, live:false, ask(req){ send("streamlit:setComponentValue", {value:req, dataType:"json"}); return true; } };
   window.addEventListener("message", ev => {
     const d = ev.data || {}; if (d.type !== "streamlit:render") return;
-    const a = (d.args || {}); window.__xpixBridge.ai = !!a.ai;
+    const a = (d.args || {}); window.__xpixBridge.ai = !!a.ai; window.__xpixBridge.live = !!a.live;
     const ans = a.ans; if (!ans || !ans.id || ans.id === lastAns) return; lastAns = ans.id;
     let fs = []; try { fs = Array.from(window.parent.frames); } catch(e){}
     fs.forEach(f => { try { if (f.__xpixGuideAnswer) f.__xpixGuideAnswer(ans); } catch(e){} });

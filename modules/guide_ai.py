@@ -135,9 +135,54 @@ def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
     return out
 
 
+LIVE_SYSTEM = SYSTEM.replace("This is a spoken, back-and-forth conversation", "This is a live voice call (Gemini Live)") + """
+Speak like a real Egyptian person on a call: warm, quick, natural Cairo slang, short turns, let the user interrupt.
+When your answer is about a part of the screen, call point_at with that part so the presenter points at it; call open_page to change page.
+Messages that start with "Screen context" are live data from the user's screen (prices, indicators): use them, never read them out in full."""
+LIVE_TOOLS = [{"function_declarations": [
+    {"name": "point_at", "description": "Point at a part of the XPiX screen while explaining it.",
+     "parameters": {"type": "OBJECT", "properties": {"target": {"type": "STRING", "enum": TARGETS[1:]}}, "required": ["target"]}},
+    {"name": "open_page", "description": "Switch the app to another page.",
+     "parameters": {"type": "OBJECT", "properties": {"page": {"type": "STRING", "enum": PAGES[1:]}}, "required": ["page"]}}]}]
+
+
+def live_token(rid) -> dict:
+    """Gemini Live voice call: a one-use token (1 min to connect, 30 min of talk) locked to our model, persona and tools - the key stays here."""
+    if not gemini_key():
+        return {"id": rid, "err": "nokey-live"}
+    cnt = _day_counter()
+    today = _dt.date.today().isoformat()
+    if cnt["day"] != today:
+        cnt["day"], cnt["n"] = today, 0
+    live_n = cnt.setdefault("live", {})
+    if live_n.get(today, 0) >= int(_cfg("GUIDE_LIVE_CAP", "40")) or st.session_state.get("guide_live_n", 0) >= 15:
+        return {"id": rid, "err": "cap"}
+    model = _cfg("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
+    try:
+        from google import genai
+        now = _dt.datetime.now(_dt.timezone.utc)
+        client = genai.Client(api_key=gemini_key(), http_options={"api_version": "v1alpha"})
+        from google.genai import types as gt   # typed objects: the SDK turns them into the API's camelCase JSON (plain nested dicts are sent as-is)
+        cfg = gt.LiveConnectConfig(response_modalities=["AUDIO"], system_instruction=LIVE_SYSTEM,
+                                   tools=[gt.Tool(function_declarations=[gt.FunctionDeclaration(**f) for f in LIVE_TOOLS[0]["function_declarations"]])],
+                                   input_audio_transcription=gt.AudioTranscriptionConfig(), output_audio_transcription=gt.AudioTranscriptionConfig(),
+                                   speech_config=gt.SpeechConfig(voice_config=gt.VoiceConfig(prebuilt_voice_config=gt.PrebuiltVoiceConfig(voice_name=_cfg("GEMINI_VOICE", "Charon")))))
+        tok = client.auth_tokens.create(config={"uses": 1, "expire_time": now + _dt.timedelta(minutes=30),
+                                                "new_session_expire_time": now + _dt.timedelta(minutes=1),
+                                                "live_connect_constraints": {"model": model, "config": cfg}})
+    except Exception as e:
+        code = getattr(e, "code", None) or getattr(e, "status_code", None)
+        return {"id": rid, "err": type(e).__name__ + (" " + str(code) if code else ""), "msg": str(e)[:200]}
+    live_n[today] = live_n.get(today, 0) + 1
+    st.session_state["guide_live_n"] = st.session_state.get("guide_live_n", 0) + 1
+    return {"id": rid, "token": tok.name, "model": model}
+
+
 def answer(req: dict, hist: list) -> dict:
     """req = {id, q, ctx}; returns {id, say, go, page} or {id, err}."""
     rid = req.get("id")
+    if req.get("live"):
+        return live_token(rid)
     if req.get("reset"):   # "New chat": forget the conversation
         hist.clear()
         return {"id": rid, "reset": True}
@@ -179,7 +224,7 @@ def render_bridge():
     ss = st.session_state
     hist = ss.setdefault("guide_hist", [])
     with st.container(key="gbridge"):
-        req = _bridge(ai=bool(provider()), ans=ss.get("guide_ans"), key="guide_bridge", default=None)
+        req = _bridge(ai=bool(provider()), live=bool(gemini_key()), ans=ss.get("guide_ans"), key="guide_bridge", default=None)
     if isinstance(req, dict) and req.get("id") and req.get("id") != ss.get("guide_last"):
         ss["guide_last"] = req["id"]
         ss["guide_ans"] = answer(req, hist)

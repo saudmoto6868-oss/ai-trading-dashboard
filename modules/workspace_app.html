@@ -2532,7 +2532,7 @@ const Ws = { panels:[], z:10, el:null, seq:1 };
 
 // phones / small tablets (the Streamlit iframe is as wide as the screen): stacked layout + touch gestures
 const MOB = (() => { try { return window.innerWidth < 820 || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();
-const MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
+let MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
 const mobH = type => { const sh = Math.min((window.screen && screen.availHeight) || 800, 1000); return Math.round(sh*(type === "chart" || type === "tvc" ? .72 : type === "dom" || type === "tape" || type === "limits" ? .6 : .5)); };
 class Panel {
   constructor(type, rect, state){
@@ -2626,7 +2626,7 @@ class Panel {
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
     this.tfSel = el("select"); this.tfSel.title = "Timeframe"; TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     this.tfSel.onchange = () => this.setTf(this.tfSel.value); tb.append(this.tfSel);
-    if (MT5){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
+    if (MOB){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
         const b = el("button", null, l); b.dataset.tf = v; b.onclick = () => this.setTf(v); row.append(b); }); this._mtfPending = row; }   // MetaTrader's timeframe strip (phones)
     const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
     const vw = el("button",null,T("vwap")); vw.onclick = () => { this.chart.ema.vwap = !this.chart.ema.vwap; this.state.ema = Object.assign({}, this.chart.ema); vw.classList.toggle("on", !!this.chart.ema.vwap); this.chart.draw(); Ws.save(); };
@@ -4207,7 +4207,8 @@ Ws.mshow = p => { if (!MOB || !p) return; Ws.panels.forEach(q => q.root.classLis
   const mm = document.getElementById("mmore"); if (mm) mm.classList.remove("on");
   document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", !!b._match && b._match(p))); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };
 Ws.mjump = () => {
-  if (!MT5) return; let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
+  if (!MT5){ ["mnav","mmore"].forEach(id => { const x = document.getElementById(id); if (x) x.remove(); }); Ws.panels.forEach(q => q.root.classList.remove("mact")); return; }
+  let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
   let mm = document.getElementById("mmore"); if (!mm){ mm = el("div"); mm.id = "mmore"; document.body.append(mm); }
   j.innerHTML = ""; const used = new Set();
   MTABS.forEach(([lab, kinds, make]) => { const b = el("button", null, Lg(lab[0], lab[1])); const pick = () => kinds.map(k => Ws.panels.find(p => p.type === k && !used.has(p))).find(Boolean);
@@ -4275,7 +4276,11 @@ function buildBar(){
 if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
-    const mt = el("button", null, (MT5 ? "✓ " : "")+Lg("MetaTrader layout","واجهة ميتاتريدر")); mt.onclick = () => { store.set(LS+"_mt5", !MT5); location.reload(); };
+    const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };
+    mt.onclick = () => { MT5 = !MT5; store.set(LS+"_mt5", MT5); document.body.classList.toggle("mt5", MT5); mtLbl(); menu.classList.remove("on");   // switch live, no reload
+      Ws.panels.forEach(p => p.apply()); Ws.mjump(); if (!MT5 && Ws.panels[0]) Ws.el.scrollTop = 0;
+      setTimeout(() => Ws.panels.forEach(p => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(_){} }), 60); };
+    mtLbl();
     const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
     menu.append(mt, zr); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
     bar.append(sel, ub, rb, el("span","sp"), gear); document.body.append(menu); }

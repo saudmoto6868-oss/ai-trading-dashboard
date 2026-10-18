@@ -128,6 +128,26 @@ if auto_on and st_autorefresh is not None:
 elif auto_on:
     st.sidebar.warning(L("streamlit-autorefresh is not installed - add it to requirements.txt."))
 
+# ---- Dashboard theme (top bar) ------------------------------------------------------
+from modules.workspace import UI_THEMES as _UI_THEMES, ui_theme_bg as _ui_theme_bg
+if "ui_theme" not in st.session_state:
+    st.session_state["ui_theme"] = st.query_params.get("theme", "classic") if st.query_params.get("theme") in dict(_UI_THEMES) else "classic"
+if st.session_state["ui_theme"] not in ("classic", "lux"):   # an empty slot: say so and stay on Classic
+    st.toast(L("That theme slot is still empty - send the picture for it and it gets built."))
+    st.session_state["ui_theme"] = "classic"
+UI_THEME = st.session_state["ui_theme"]
+if UI_THEME != "classic":
+    st.query_params["theme"] = UI_THEME
+elif "theme" in st.query_params:
+    del st.query_params["theme"]
+UI_BG = _ui_theme_bg(UI_THEME)
+if UI_THEME == "lux":   # theme 1 "Less is More": blurred photo behind the page, warm charcoal + amber, rounded glass
+    st.markdown(f"""<style>.stApp{{background:#0d0c0a url({UI_BG}) center/cover fixed no-repeat!important}}
+[data-testid="stSidebar"]>div{{background:rgba(18,16,13,.86)}} .stApp p,.stApp label,.stApp span{{color:#efe6d6}}
+.st-key-page label:has(input:checked){{border-bottom-color:#e0a95a!important}} .st-key-page label:has(input:checked) p{{color:#e0a95a!important}}
+[data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:rgba(24,21,18,.72);border-radius:14px}}
+.st-key-hdr{{border-bottom-color:rgba(224,169,90,.18)!important}} .xpix-mini i{{color:#e0a95a!important}}</style>""", unsafe_allow_html=True)
+
 # ---- Header (filled in below once the scanner helpers exist) ----------------------
 header_box = st.container()
 
@@ -721,7 +741,7 @@ def render_header():
     language | focus. Focus mode folds the strip away so the Workspace gets the whole screen. Returns the container for the page tabs."""
     focus = bool(st.session_state.get("focus_ws"))
     with st.container(key="hdr"):
-        h_main, h_nav, h_lang, h_foc = st.columns([5.6, 4.1, 0.75, 0.3], vertical_alignment="center")
+        h_main, h_nav, h_thm, h_lang, h_foc = st.columns([5.3, 3.9, 0.9, 0.75, 0.3], vertical_alignment="center")
     with h_main:
         if focus:   # folded: only a small mark
             st.markdown("<div class='xpix-mini'>XP<i>i</i>X</div>", unsafe_allow_html=True)
@@ -742,7 +762,10 @@ def render_header():
                 cal = _calendar_rows()
             except Exception:
                 cal = []   # the strip then tries to fetch the calendar itself in the browser
-            render_header_bar(_logo_data_uri(), links, news, cal=cal, ar=_ui_lang() == "ar")
+            render_header_bar(_logo_data_uri(), links, news, cal=cal, ar=_ui_lang() == "ar", theme=UI_THEME)
+    with h_thm:   # dashboard theme (Classic + 7 slots; slot 1 built, the rest wait for the owner's pictures)
+        st.selectbox(L("Theme"), [k for k, _ in _UI_THEMES], key="ui_theme", format_func=lambda k: L(dict(_UI_THEMES)[k]), label_visibility="collapsed",
+                     help=L("Dashboard theme: changes the whole page and the Workspace."))
     with h_lang:
         st.radio(L("Language"), ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
                  format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
@@ -876,12 +899,13 @@ try:   # phones: the Workspace frame = about one screen (its widgets scroll insi
 except Exception:
     _IS_MOBILE = False
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
-.st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.14em;text-transform:uppercase}}
+.st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.1em;text-transform:uppercase}}
 .block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
 .st-key-hdr{{padding:0 2.8rem 0 2.6rem;border-bottom:1px solid #1c232b;margin-bottom:2px}}
 .xpix-mini{{font:900 19px/1 'Arial Black',Arial,sans-serif;letter-spacing:.02em;color:#f2f2f2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
 .st-key-focus_btn button{{padding:0 6px;min-height:28px;border:1px solid #1c232b;background:transparent}}
 .st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}}
+.st-key-ui_theme [data-baseweb="select"]>div{{background:transparent!important;border:1px solid #2b3139!important;min-height:30px}} .st-key-ui_theme [data-baseweb="select"] *{{color:#c3c9d1!important;font-size:11px}}
 @media (max-width:640px){{.st-key-hdr{{padding:0 .2rem 0 2.4rem}} .st-key-hdr [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important;gap:4px!important}}
   .st-key-hdr [data-testid="stColumn"]:nth-child(1),.st-key-hdr [data-testid="stColumn"]:nth-child(2){{flex:1 1 100%!important;width:100%!important;min-width:100%!important}}
   .st-key-hdr [data-testid="stColumn"]:nth-child(3),.st-key-hdr [data-testid="stColumn"]:nth-child(4){{flex:0 0 auto!important;width:auto!important;min-width:0!important}}
@@ -1120,7 +1144,8 @@ if PAGE == 0:   # workspace
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs)
+                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
+                         ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG)
         _ws_stat.empty()
         if world_errs:
             st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))

@@ -52,13 +52,29 @@ def _gann_oos() -> dict:
 
 _OOS_CACHE: dict = {}
 
+UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("t2", "2 · soon"), ("t3", "3 · soon"), ("t4", "4 · soon"),
+             ("t5", "5 · soon"), ("t6", "6 · soon"), ("t7", "7 · soon")]   # dashboard themes (top bar); "soon" slots wait for the owner's pictures
+_UI_BG = {"lux": "lux_bg.jpg"}
+
+
+def ui_theme_bg(theme: str) -> str:
+    """Pre-blurred background picture of a dashboard theme as a data URI ('' if none)."""
+    import base64
+    f = _UI_BG.get(theme)
+    if not f:
+        return ""
+    try:
+        return "data:image/jpeg;base64," + base64.b64encode((Path(__file__).resolve().parent / "themes" / f).read_bytes()).decode()
+    except Exception:
+        return ""
+
 
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
-                         fh_token: str = "", cal: list | None = None) -> str:
+                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "") -> str:
     news = list(news or [])
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
@@ -97,6 +113,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
         "gannoos": _gann_oos(),
+        "ui": ui_theme or "", "uiBg": ui_bg or "",   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early
@@ -133,7 +150,7 @@ def _fh_token() -> str:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None):
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = ""):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg), height=height, scrolling=False)

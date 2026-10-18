@@ -148,6 +148,15 @@ body.mob button,body.mob select,body.mob input{min-height:32px;font-size:13px}
 body.mob .tb{flex-wrap:wrap;gap:4px}
 body.mob canvas{touch-action:pan-y}
 #mjump{display:none}
+/* ---- dashboard theme 1 "Less is More": blurred photo behind everything, rounded glass cards, amber glow ---- */
+body.ui-lux{background:#0d0c0a var(--uibg) center/cover fixed no-repeat}
+body.ui-lux #ws{background:transparent}
+body.ui-lux #bar,body.ui-lux #strip{background:rgba(14,12,10,.55);border-color:rgba(224,169,90,.14)}
+body.ui-lux .panel{border-radius:14px;border-color:rgba(224,169,90,.14);box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,225,170,.05)}
+body.ui-lux .panel.focus{border-color:rgba(224,169,90,.45);box-shadow:0 10px 34px rgba(0,0,0,.5),0 0 18px rgba(224,169,90,.12)}
+body.ui-lux .ph{background:linear-gradient(180deg,rgba(48,41,33,.85),rgba(30,26,22,.85));border-radius:14px 14px 0 0}
+body.ui-lux button,body.ui-lux select,body.ui-lux input,body.ui-lux textarea{background:rgba(40,35,29,.75);border-color:rgba(224,169,90,.18);border-radius:8px}
+body.ui-lux button.on{background:#e0a95a;border-color:#e0a95a;color:#1a140c}
 body.mob #mjump{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:30px;font-size:12px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
@@ -441,12 +450,16 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
 const THEMES = {
   dark:     {name:"Dark",     css:{bg:"#0b0e11",panel:"#161a1e",panel2:"#1e2329",line:"#2b3139",txt:"#eaecef",mut:"#848e9c",panel0:"#0e1114",dot:"#1b2027"}, ch:{bg:"#0b0e11",grid:"#1f252b",mut:"#848e9c",line:"#2b3139",pane:"#0e1217",up:"#0ecb81",dn:"#f6465d",txt:"#eaecef"}},
   midnight: {name:"Midnight", css:{bg:"#05070d",panel:"#0b1020",panel2:"#131a30",line:"#1f2a48",txt:"#e6ebff",mut:"#7f8db3",panel0:"#080c18",dot:"#101830"}, ch:{bg:"#05070d",grid:"#121a30",mut:"#7f8db3",line:"#1f2a48",pane:"#080c18",up:"#19d3a2",dn:"#ff5d7a",txt:"#e6ebff"}},
+  // dashboard themes (picked in the Streamlit top bar, CFG.ui): "lux" = theme 1 "Less is More" - warm charcoal + amber gold, glass cards over a blurred photo
+  lux:      {name:"Less is More", css:{bg:"#0d0c0a",panel:"rgba(24,21,18,.80)",panel2:"rgba(40,35,29,.86)",line:"rgba(224,169,90,.18)",txt:"#efe6d6",mut:"#a8997f",panel0:"rgba(16,14,12,.62)",dot:"rgba(224,169,90,.10)",gold:"#e0a95a"},
+             ch:{bg:"rgba(14,12,10,.58)",grid:"rgba(224,169,90,.07)",mut:"#a8997f",line:"rgba(224,169,90,.20)",pane:"rgba(16,14,12,.52)",up:"#e0a95a",dn:"#c0665a",txt:"#efe6d6"}},
   day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645",txt:"#1a2230"}}
 };
 const TH = Object.assign({}, THEMES.dark.ch);   // live canvas colours (read by CandleChart.paint)
 const ThemeCfg = Object.assign({name:"dark", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
 function applyTheme(){
-  const t = THEMES[ThemeCfg.name] || THEMES.dark, r = document.documentElement.style;
+  const ui = CFG.ui && THEMES[CFG.ui] ? CFG.ui : "", t = THEMES[ui || ThemeCfg.name] || THEMES.dark, r = document.documentElement.style;   // a dashboard theme wins over the Workspace's own pick
+  document.body && document.body.classList.toggle("ui-"+(ui || "none"), true); if (ui && CFG.uiBg && document.body) document.body.style.setProperty("--uibg", "url("+CFG.uiBg+")");
   Object.entries(t.css).forEach(([k, v]) => r.setProperty("--"+k, v)); Object.assign(TH, t.ch);
   if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.up)) TH.up = ThemeCfg.up; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.dn)) TH.dn = ThemeCfg.dn; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.bg)){ TH.bg = ThemeCfg.bg; r.setProperty("--bg", ThemeCfg.bg); }
   r.setProperty("color-scheme", ThemeCfg.name === "day" ? "light" : "dark"); r.setProperty("--grn", TH.up); r.setProperty("--red", TH.dn);
@@ -1095,7 +1108,7 @@ class CandleChart {
   }
   paint(){
     const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length;
-    c.fillStyle = TH.bg; c.fillRect(0,0,W,H);
+    c.clearRect(0,0,W,H); c.fillStyle = TH.bg; c.fillRect(0,0,W,H);   // clear first: a dashboard theme may use a see-through background
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textBaseline = "middle";
     if (!n){ c.fillStyle = TH.mut; c.fillText(T("loading"), 12, 20); return; }
     const i0 = Math.max(0, Math.floor(this.idx(0)) - 1), i1 = Math.min(n-1, Math.ceil(this.r));

@@ -153,17 +153,21 @@ body.mob .rz{display:none!important}
 body.mob #bar{height:auto;min-height:40px;flex-wrap:wrap;padding:4px 6px;gap:6px}
 body.mob button,body.mob select,body.mob input{min-height:32px;font-size:13px}
 body.mob .tb{flex-wrap:wrap;gap:4px}
-body.mob canvas{touch-action:none}
-body.mob #ws{overflow:hidden!important;padding:0 0 58px!important}
-body.mob .panel{display:none!important}
-body.mob .panel.mact{display:flex!important;height:100%!important;margin:0;border-radius:0;border-left:0;border-right:0}
-body.mob .panel.mact.min{height:100%!important}body.mob .panel.mact.min .pb{display:block}
+body.mob canvas{touch-action:pan-y}body.mob.mt5 canvas{touch-action:none}
+body.mob.mt5 #ws{overflow:hidden!important;padding:0 0 50px!important}
+body.mob.mt5 .panel{display:none!important}
+body.mob.mt5 .panel.mact{display:flex!important;height:100%!important;margin:0;border-radius:0;border-left:0;border-right:0}
+body.mob.mt5 .panel.mact.min{height:100%!important}body.mob.mt5 .panel.mact.min .pb{display:block}
 #mnav{display:none}
-body.mob .dt:not(.open)>*:not(:first-child){display:none}   /* phones: drawing tools folded to one button, tap it to open / close */
-body.mob #mnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:56px;z-index:60;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
-body.mob #mnav button{flex:1 0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-radius:0;background:transparent;color:var(--mut);font-size:10px;min-height:56px;padding:2px 4px}
-body.mob #mnav button b{font-size:18px;line-height:1;font-weight:400}
-body.mob #mnav button.on{color:var(--gold);background:transparent;box-shadow:inset 0 2px 0 var(--gold)}
+body.mob.mt5 #mnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:50px;z-index:60;background:#0f1114;border-top:1px solid #23262b}
+body.mob.mt5 #mnav button{flex:1 1 0;border:0;border-radius:0;background:transparent;color:#8a9099;font:500 11px/1.2 Roboto,-apple-system,"Segoe UI",sans-serif;min-height:50px;padding:0 2px;white-space:nowrap}
+body.mob.mt5 #mnav button.on{color:#3d8ef7;background:transparent}
+#mmore{display:none}body.mob.mt5 #mmore.on{display:block;position:fixed;right:6px;bottom:56px;z-index:61;background:#15181c;border:1px solid #2a2e34;min-width:180px;max-height:60%;overflow:auto}
+#mmore button{display:block;width:100%;text-align:start;border:0;border-bottom:1px solid #22262b;border-radius:0;background:transparent;padding:10px 14px;font-size:13px}
+.mtf{display:none}body.mob.mt5 .mtf{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+body.mob.mt5 .mtf button{flex:1 0 auto;border:0;border-radius:0;background:transparent;color:#8a9099;font:500 12px Roboto,-apple-system,sans-serif;min-height:34px;padding:0 9px}
+body.mob.mt5 .mtf button.on{color:#3d8ef7;box-shadow:inset 0 -2px 0 #3d8ef7}
+body.mob.mt5 .dt:not(.open)>*:not(:first-child){display:none}   /* phones: drawing tools folded to one button, tap it to open / close */
 #mjump{display:none}
 /* ---- dashboard theme 1 "Less is More": blurred photo behind everything, rounded glass cards, amber glow ---- */
 body.ui-lux{background:#0d0c0a var(--uibg) center/cover fixed no-repeat}
@@ -2523,6 +2527,7 @@ const Ws = { panels:[], z:10, el:null, seq:1 };
 
 // phones / small tablets (the Streamlit iframe is as wide as the screen): stacked layout + touch gestures
 const MOB = (() => { try { return window.innerWidth < 820 || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();
+const MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
 const mobH = type => { const sh = Math.min((window.screen && screen.availHeight) || 800, 1000); return Math.round(sh*(type === "chart" || type === "tvc" ? .72 : type === "dom" || type === "tape" || type === "limits" ? .6 : .5)); };
 class Panel {
   constructor(type, rect, state){
@@ -2557,10 +2562,11 @@ class Panel {
   paint(){ const c = this.state.col, b = this.state.bg;
     this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
-  apply(){ const r = this.rect, s = this.root.style; if (MOB){ s.height = ""; return; }   // phones: one widget fills the screen (CSS .mact)   // mobile: stacked, own height (desktop rects kept for the desktop)
+  apply(){ const r = this.rect, s = this.root.style; if (MOB){ s.height = MT5 ? "" : (this.max ? Math.round(mobH("chart")*1.25) : mobH(this.type))+"px"; return; }   // phones: MT5 = one widget fills the screen (CSS .mact); else stacked   // mobile: stacked, own height (desktop rects kept for the desktop)
     s.left = r.x+"px"; s.top = r.y+"px"; s.width = r.w+"px"; s.height = r.h+"px"; }
   toggleMax(){
-    if (MOB) return;   // phones: the widget is already full screen
+    if (MOB && MT5) return;   // phones, MT5 layout: the widget is already full screen
+    if (MOB){ this.max = !this.max; this.apply(); this.root.scrollIntoView({block:"start"}); return; }
     if (!this.max){ this.prev = Object.assign({}, this.rect); this.rect = {x:0,y:0,w:Ws.el.clientWidth,h:Ws.el.clientHeight}; this.max = true; this.min = false; this.root.classList.remove("min"); }
     else { this.rect = this.prev; this.max = false; }
     this.apply(); this.front(); Ws.save();
@@ -2615,6 +2621,8 @@ class Panel {
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
     this.tfSel = el("select"); this.tfSel.title = "Timeframe"; TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     this.tfSel.onchange = () => this.setTf(this.tfSel.value); tb.append(this.tfSel);
+    if (MT5){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
+        const b = el("button", null, l); b.dataset.tf = v; b.onclick = () => this.setTf(v); row.append(b); }); this._mtfPending = row; }   // MetaTrader's timeframe strip (phones)
     const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
     const vw = el("button",null,T("vwap")); vw.onclick = () => { this.chart.ema.vwap = !this.chart.ema.vwap; this.state.ema = Object.assign({}, this.chart.ema); vw.classList.toggle("on", !!this.chart.ema.vwap); this.chart.draw(); Ws.save(); };
     const sg = el("button",null,T("sig")); sg.onclick = () => { this.chart.showSig = !this.chart.showSig; this.state.sig = this.chart.showSig; sg.classList.toggle("on", this.chart.showSig); this.chart.draw(); Ws.save(); };
@@ -2632,7 +2640,7 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb);
+    tb.append(this.indBtn, lockBtn, rf, fit, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
@@ -2798,7 +2806,7 @@ class Panel {
     return btn;
   }
   setTf(tf){
-    this.tfSel.value = tf;
+    this.tfSel.value = tf; if (this.mtfRow) this.mtfRow.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
     this.state.tf = tf; this.chart.tf = tf; this.chart.data = []; this.chart.draw(); this.resub(); Ws.save();
   }
   tickCd(){
@@ -4186,12 +4194,23 @@ Ws.broadcast = (from, sym) => {
   const g = from.state.group;
   Ws.panels.forEach(p => { if (p !== from && SYMW.includes(p.type) && (g ? p.state.group === g : from.type === "watch")) p.setSymbol(sym); });
 };
-const MICON = {chart:"📈", tvc:"📊", watch:"☰", dom:"≣", tape:"⇅", limits:"▤", signals:"⚡", alerts:"🔔", setup:"🎯", scanner:"⌕", journal:"✎", news:"✉", risk:"⚖"};
+// phones, MT5 layout: MetaTrader's bottom tabs (text only). A tab shows the first widget of its kinds and creates one if missing; the rest are under "More".
+const MTABS = [[["Quotes","الأسعار"], ["watch"], "watch"], [["Chart","الرسم البياني"], ["chart","tvc"], "chart"], [["Trade","التداول"], ["setup","dom","signals"], "setup"],
+               [["History","السجل"], ["journal","alerts"], "journal"], [["Messages","الرسائل"], ["news","alerts"], "news"]];   // labels picked at build time (the language is known then)
 Ws.mshow = p => { if (!MOB || !p) return; Ws.panels.forEach(q => q.root.classList.toggle("mact", q === p)); Ws.mcur = p; p.min = false; p.root.classList.remove("min");
-  document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", b._p === p)); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };
-Ws.mjump = () => {   // phones (MT5 style): bottom tab bar, one widget at a time
-  if (!MOB) return; let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
-  j.innerHTML = ""; Ws.panels.forEach(p => { const b = el("button"); b.innerHTML = "<b>"+(MICON[p.type] || "▢")+"</b>"+esc(T(p.type)); b._p = p; b.onclick = () => Ws.mshow(p); j.append(b); });
+  const mm = document.getElementById("mmore"); if (mm) mm.classList.remove("on");
+  document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", !!b._match && b._match(p))); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };
+Ws.mjump = () => {
+  if (!MT5) return; let j = document.getElementById("mnav"); if (!j){ j = el("div"); j.id = "mnav"; document.body.append(j); }
+  let mm = document.getElementById("mmore"); if (!mm){ mm = el("div"); mm.id = "mmore"; document.body.append(mm); }
+  j.innerHTML = ""; const used = new Set();
+  MTABS.forEach(([lab, kinds, make]) => { const b = el("button", null, Lg(lab[0], lab[1])); const pick = () => kinds.map(k => Ws.panels.find(p => p.type === k && !used.has(p))).find(Boolean);
+    const p0 = pick(); if (p0) used.add(p0); b._match = p => p === p0 || (!p0 && kinds.includes(p.type));
+    b.onclick = () => { let p = p0 && Ws.panels.includes(p0) ? p0 : null; if (!p){ Ws.add(make); p = Ws.panels[Ws.panels.length - 1]; } Ws.mshow(p); }; j.append(b); });
+  const rest = Ws.panels.filter(p => !used.has(p)), more = el("button", null, Lg("More","المزيد"));
+  more._match = p => rest.includes(p); more.onclick = () => { mm.innerHTML = ""; rest.forEach(p => { const x = el("button", null, T(p.type)); x.onclick = () => Ws.mshow(p); mm.append(x); });
+    const add = el("button", null, "+ "+Lg("Add widget","إضافة ويدجت")); add.onclick = () => { mm.classList.remove("on"); const sel = document.querySelector("#bar select"); sel && sel.focus(); }; mm.append(add); mm.classList.toggle("on"); };
+  j.append(more);
   if (!Ws.mcur || !Ws.panels.includes(Ws.mcur)) Ws.mshow(Ws.panels.find(p => p.type === "chart") || Ws.panels[0]); else Ws.mshow(Ws.mcur); };
 Ws.checkEmpty = () => { Ws.mjump && Ws.mjump(); const e = document.getElementById("empty"); e.textContent = T("emptyMsg"); e.style.display = Ws.panels.length ? "none" : "flex"; };
 Ws.save = () => {
@@ -4247,7 +4266,9 @@ function buildBar(){
   const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.8, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
-bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); zSet(+store.get(zKey, zDef)); Ws.histUI();
+bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); zSet(+store.get(zKey, zDef));
+  if (MOB){ const mt = el("button", null, "MT5"); mt.classList.toggle("on", MT5); mt.title = Lg("MetaTrader-style phone layout on / off","واجهة ميتاتريدر للموبايل: تشغيل / إيقاف");
+    mt.onclick = () => { store.set(LS+"_mt5", !MT5); location.reload(); }; bar.append(mt); } Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }
 function applyLang(rebuild){
@@ -4259,7 +4280,7 @@ function applyLang(rebuild){
 (function init(){
   const saved = store.get(LS, null);
   lang = CFG.lang || (saved && saved.lang) || "en";
-  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); buildBar();
+  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen

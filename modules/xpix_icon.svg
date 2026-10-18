@@ -1,13 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="XPiX">
-  <defs>
-    <linearGradient id="gi" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#b07d00"/><stop offset=".618" stop-color="#f0b90b"/><stop offset="1" stop-color="#ffe9a3"/></linearGradient>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10151c"/><stop offset="1" stop-color="#05070a"/></linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <!-- golden-ratio construction: the two strokes cross at the golden point (x = 64 / phi ... mirrored), not the centre -->
-  <path d="M15 15 L49 49" stroke="#c3cad3" stroke-width="7" stroke-linecap="round"/>
-  <path d="M15 49 L49 15" stroke="url(#gi)" stroke-width="7" stroke-linecap="round"/>
-  <!-- the pixel: a dark square cut out at the crossing (negative space) -->
-  <rect x="28.3" y="28.3" width="7.4" height="7.4" fill="#05070a" transform="rotate(45 32 32)"/>
-  <rect x="30.3" y="30.3" width="3.4" height="3.4" fill="#fff3c4" transform="rotate(45 32 32)"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect x="0" y="0" width="200" height="200" rx="46" fill="#0a0a0a"/><g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)"><rect x="80.00" y="52" width="8.5" height="68" fill="#f2f2f2"/><rect x="69.00" y="78" width="8.5" height="42" fill="#f2f2f2"/><rect x="58.00" y="94" width="8.5" height="26" fill="#f2f2f2"/><rect x="47.00" y="104" width="8.5" height="16" fill="#f2f2f2"/><rect x="36.00" y="110" width="8.5" height="10" fill="#f2f2f2"/><rect x="25.00" y="114" width="8.5" height="6" fill="#f2f2f2"/><rect x="111.50" y="120" width="8.5" height="52" fill="#f2f2f2"/><rect x="122.50" y="120" width="8.5" height="32" fill="#f2f2f2"/><rect x="133.50" y="120" width="8.5" height="20" fill="#f2f2f2"/><rect x="144.50" y="120" width="8.5" height="12" fill="#f2f2f2"/><rect x="155.50" y="120" width="8.5" height="8" fill="#f2f2f2"/><rect x="92" y="38" width="8" height="160" fill="#f2f2f2"/><rect x="101.5" y="15" width="8" height="160" fill="#d4a537"/></g></svg>

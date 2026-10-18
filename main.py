@@ -724,7 +724,7 @@ def render_header():
         h_main, h_nav, h_lang, h_foc = st.columns([5.6, 4.1, 0.75, 0.3], vertical_alignment="center")
     with h_main:
         if focus:   # folded: only a small mark
-            st.markdown("<div class='xpix-mini'><b>X</b><i>Pi</i><b>X</b></div>", unsafe_allow_html=True)
+            st.markdown("<div class='xpix-mini'>XP<i>i</i>X</div>", unsafe_allow_html=True)
         else:
             links = []
             for name, url in EXTERNAL_LINKS.items():

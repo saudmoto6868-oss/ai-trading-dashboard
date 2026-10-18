@@ -4634,11 +4634,16 @@ const Guide = {
   },
   async media(c){   // real presenter: static/<id>/idle.mp4 + talk.mp4 (or photo.jpg) served by Streamlit (enableStaticServing); checked once per presenter
     if (!c.video) return null; this._media = this._media || {}; if (c.video in this._media) return this._media[c.video];
-    let base = ""; try { base = window.parent.location.origin + "/app/static/" + c.video + "/"; } catch(e){ return this._media[c.video] = null; }
-    const has = async f => { try { const r = await fetch(base + f, {method:"HEAD"}); return r.ok && !/text\/html/.test(r.headers.get("content-type") || ""); } catch(e){ return false; } };
-    const [idle, talk, photo, mid, open, blink] = await Promise.all(["idle.mp4", "talk.mp4", "photo.jpg", "mid.jpg", "open.jpg", "blink.jpg"].map(has));
-    return this._media[c.video] = idle ? {idle:base+"idle.mp4", talk:talk ? base+"talk.mp4" : base+"idle.mp4"}
-      : photo ? {photo:base+"photo.jpg", mid:mid ? base+"mid.jpg" : "", open:open ? base+"open.jpg" : "", blink:blink ? base+"blink.jpg" : ""} : null; },
+    const bases = []; try { const L = window.parent.location; bases.push(new URL("app/static/" + c.video + "/", L.href).href, L.origin + "/app/static/" + c.video + "/", L.origin + "/~/+/app/static/" + c.video + "/"); } catch(e){ return this._media[c.video] = null; }
+    const img = u => new Promise(res => { const i = new Image(), to = setTimeout(() => res(false), 8000); i.onload = () => { clearTimeout(to); res(i.naturalWidth > 10); }; i.onerror = () => { clearTimeout(to); res(false); }; i.src = u; });   // a real picture loads; an HTML error page does not
+    const vid = async u => { try { const r = await fetch(u, {cache:"no-store"}); const ok = r.ok && /^video\//.test(r.headers.get("content-type") || ""); try { r.body && r.body.cancel(); } catch(e){} return ok; } catch(e){ return false; } };
+    for (const base of [...new Set(bases)]){   // Streamlit Cloud serves the app under another path than a local run: try each address
+      const [idle, photo] = await Promise.all([vid(base + "idle.mp4"), img(base + "photo.jpg")]);
+      if (idle){ const talk = await vid(base + "talk.mp4"); return this._media[c.video] = {idle:base+"idle.mp4", talk:talk ? base+"talk.mp4" : base+"idle.mp4"}; }
+      if (photo){ const [mid, open, blink] = await Promise.all(["mid.jpg", "open.jpg", "blink.jpg"].map(f => img(base + f)));
+        return this._media[c.video] = {photo:base+"photo.jpg", mid:mid ? base+"mid.jpg" : "", open:open ? base+"open.jpg" : "", blink:blink ? base+"blink.jpg" : ""}; } }
+    const E = CFG.mrx || {}; if (c.video === "mrx" && E.photo) return this._media[c.video] = {photo:E.photo, mid:E.mid || "", open:E.open || "", blink:E.blink || ""};   // fallback: small copies sent inside the page
+    return this._media[c.video] = null; },
   mouth(lvl){   // real photo + mouth frames: closed / mid / open picked from the live voice level (0..1), or -1 = idle
     const f = this.man.querySelector(".g-face"); if (!f) return; const k = lvl < 0 ? "photo" : lvl < .1 ? "photo" : lvl < .32 ? "mid" : "open";
     if (f.dataset.k !== k && !f.classList.contains("blinking")){ f.dataset.k = k; f.querySelectorAll("img").forEach(i => i.classList.toggle("on", i.dataset.k === k || (i.dataset.k === "photo" && !f.querySelector('img[data-k="'+k+'"]')))); } },

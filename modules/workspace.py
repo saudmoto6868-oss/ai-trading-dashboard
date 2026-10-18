@@ -12,6 +12,8 @@ stored on a server (layout is kept in the browser's localStorage).
 """
 
 from __future__ import annotations
+import functools
+import os
 
 import json
 from pathlib import Path
@@ -83,6 +85,28 @@ def ui_vars(theme: str) -> dict:
 _UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint")}}
 
 
+@functools.lru_cache(maxsize=1)
+def presenter_faces() -> dict:
+    """Small copies of static/mrx/*.jpg as data URIs: a fallback when the browser cannot reach Streamlit's static files (cloud paths)."""
+    import base64, io
+    out = {}
+    d = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "mrx")
+    for k in ("photo", "mid", "open", "blink"):
+        f = os.path.join(d, k + ".jpg")
+        if not os.path.exists(f):
+            continue
+        try:
+            from PIL import Image
+            im = Image.open(f).convert("RGB")
+            im = im.resize((round(im.width * 620 / im.height), 620))
+            buf = io.BytesIO()
+            im.save(buf, "JPEG", quality=78, optimize=True)
+            out[k] = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        except Exception:
+            pass
+    return out if "photo" in out else {}
+
+
 def ui_theme_bg(theme: str) -> str:
     """Pre-blurred background picture of a dashboard theme as a data URI ('' if none)."""
     import base64
@@ -139,7 +163,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
         "gannoos": _gann_oos(),
-        "ui": ui_theme or "", "uiBg": ui_bg or "", "uiVars": ui_vars(ui_theme or ""),   # dashboard theme from the top bar (+ its blurred background image as a data URI)
+        "ui": ui_theme or "", "uiBg": ui_bg or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces(),   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early

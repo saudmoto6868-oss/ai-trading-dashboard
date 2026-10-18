@@ -3,7 +3,7 @@
 Key: ANTHROPIC_API_KEY in Streamlit secrets or env var (Claude, paid). Free stop-gap: GEMINI_API_KEY (Google AI Studio free tier,
 rate-limited, free-tier prompts may be used by Google) - used only when there is no Claude key. Without either the guide keeps its offline answers.
 Token budget (owner rule): smallest model that works (GUIDE_MODEL, default Haiku), low effort, only a short context
-from the browser (symbol, timeframe, price, open widgets, a few numbers - never raw candles), last 4 turns only,
+from the browser (symbol, timeframe, price, open widgets, a few numbers - never raw candles), last 6 turns only,
 answers cached 5 min per question+symbol, hard per-day cap for the whole app (GUIDE_DAILY_CAP) and per browser session.
 """
 import datetime as _dt
@@ -26,7 +26,9 @@ Speak like a friendly, sharp trading buddy from Cairo. Default language: casual 
 say "ده / دي / إيه / ليه / عشان / دلوقتي / كده / هنا / يعني / خلّي بالك / بص / يا معلم", not "هذا / ماذا / لماذا / الآن / لكي".
 Keep trading terms as traders say them in Egypt (POC, الدلتا, الأوردر بوك, الستوب, التارجت, الدخول, سبوف, حيتان).
 Answer in English only when the context says lang "en".
-Keep answers short: 1-4 sentences, no markdown, no lists.
+This is a spoken, back-and-forth conversation (your words are read aloud): talk naturally like a person, 1-4 short sentences,
+no markdown, no lists, no emojis. Chat freely about trading, markets, the dashboard, or small talk; remember what was said earlier in the chat;
+when it helps, end with one short question back to the user to keep the conversation going.
 The dashboard: candle chart with indicators; volume profile column on the chart's right edge (length = traded volume per price,
 colour = delta: green buyers won, red sellers, darker = more one-sided; thin strip on its edge = resting limit orders from the order book;
 gold POC = most traded price, VAH/VAL = 70% value area); order-flow column (order-book heat map over time, big-trade bubbles, sync card when
@@ -84,7 +86,7 @@ def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (f
     import requests
     model = _cfg("GEMINI_MODEL", "gemini-flash-latest")
     contents = []
-    for h in hist[-4:]:
+    for h in hist[-6:]:
         contents.append({"role": "user", "parts": [{"text": h["q"]}]})
         contents.append({"role": "model", "parts": [{"text": h["a"]}]})
     contents.append({"role": "user", "parts": [{"text": "Screen context (data): " + ctx_txt + "\n\nQuestion: " + q}]})
@@ -119,7 +121,7 @@ def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
     import anthropic
     client = anthropic.Anthropic(api_key=api_key(), timeout=25.0, max_retries=1)
     msgs = []
-    for h in hist[-4:]:
+    for h in hist[-6:]:
         msgs.append({"role": "user", "content": h["q"]})
         msgs.append({"role": "assistant", "content": h["a"]})
     msgs.append({"role": "user", "content": "Screen context (data): " + ctx_txt + "\n\nQuestion: " + q})
@@ -163,7 +165,7 @@ def answer(req: dict, hist: list) -> dict:
     st.session_state["guide_n"] = st.session_state.get("guide_n", 0) + 1
     if out.get("say"):
         hist.append({"q": q, "a": out["say"]})
-        del hist[:-4]
+        del hist[:-6]
     out["id"] = rid
     return out
 

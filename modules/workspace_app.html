@@ -259,6 +259,10 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-lid{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(0);animation:gBlink 5s infinite}
 #guide .g-man.think .g-head{animation:gThink 1.4s ease-in-out infinite alternate}
 #guide .g-man.think .g-iris{transform:translate(1.5px,-1.5px)}
+#guide .g-mic{white-space:nowrap}#guide .g-mic.on,#guide .g-bot button.on{color:#0b0e11;background:#f0b90b;border-color:#f0b90b}
+#guide .g-man.listen .g-head{animation:gListen 1.2s ease-in-out infinite alternate}
+#guide .g-man.listen{filter:drop-shadow(0 0 14px rgba(240,185,11,.55)) drop-shadow(0 10px 14px #000a)}
+@keyframes gListen{from{transform:rotate(-4deg)}to{transform:rotate(-1deg)}}
 #guide .g-beam{position:fixed;left:0;top:0;pointer-events:none;opacity:0;transition:opacity .3s}
 #guide .g-beam.on{opacity:1}
 @keyframes gLight{from{opacity:.75}to{opacity:1}}
@@ -4461,8 +4465,8 @@ const Guide = {
   init(){
     if (this.root) return; const r = this.root = el("div"); r.id = "guide";
     r.innerHTML = '<div class="g-tab"></div><div class="g-stage"><div class="g-light"></div><div class="g-floor"></div><div class="g-man"></div><div class="g-tag"></div><button class="g-x" type="button">✕</button></div>'
-      + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
-    document.body.append(r); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
+      + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><button type="button" class="g-mic"></button><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
+    document.body.append(r); this.mic = r.querySelector(".g-mic"); this.mic.onclick = () => this.listening ? this.stopListen(true) : this.listen(); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
     this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
     this.man.onclick = () => this.bub.classList.toggle("hide"); this.tab.onclick = () => this.open(); r.querySelector(".g-x").onclick = () => this.close();
     this.paint(); this.bot(); window.addEventListener("resize", () => this.dock());
@@ -4471,14 +4475,30 @@ const Guide = {
     document.addEventListener("pointerdown", () => { if (this._pending){ const t = this._pending; this._pending = ""; this.voice(t); } }, true);   // browsers only allow speech after the first tap: say the greeting then
   },
   paint(){ const c = this.chr(); this.man.innerHTML = presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
-    this.tab.textContent = this.G("Guide", "المساعد"); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
+    this.tab.textContent = this.G("Guide", "المساعد"); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
     const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Presenter", "المذيع");
     cs.onchange = () => { store.set(LS+"_gchar", cs.value); this.paint(); this.hi(); };
     const lb = el("button", null, this.talkAr() ? "EN" : "ع"); lb.title = this.G("Answer language", "لغة الرد"); lb.onclick = () => { store.set(LS+"_glang", this.talkAr() ? "en" : "ar"); this.paint(); this.bot(); this.hi(); };
     const vb = el("button", null, this.voiceOn() ? this.G("Voice on", "الصوت شغال") : this.G("Voice off", "الصوت مقفول")); vb.onclick = () => { store.set(LS+"_gvoice2", !this.voiceOn()); GVoice.stop(); this.bot(); };
     const tb = el("button", null, this.G("Tour", "جولة")); tb.onclick = () => this.tour();
-    b.append(cs, lb, vb, tb); },
+    const cb = el("button", this.chat ? "on" : null, this.chat ? this.G("Chat mode: on", "وضع الدردشة: شغال") : this.G("Chat mode", "وضع الدردشة")); cb.title = this.G("Hands-free: after each answer he listens again", "من غير إيدك: بعد كل رد يسمعك تاني");
+    cb.onclick = () => { this.chat = !this.chat; this.bot(); if (this.chat){ if (!this.voiceOn()) store.set(LS+"_gvoice2", true); this.bot(); this.listen(); } else this.stopListen(true); };
+    b.append(cs, lb, vb, cb, tb); },
+  SR(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; },
+  micLbl(){ if (!this.mic) return; const ok = !!this.SR(); this.mic.disabled = !ok; this.mic.textContent = this.listening ? this.G("● Listening", "● بسمعك") : this.G("Talk", "اتكلم");
+    this.mic.classList.toggle("on", !!this.listening); this.mic.title = ok ? this.G("Speak your question (Chrome / Edge; the browser sends the audio to its speech service)", "قول سؤالك بصوتك (كروم أو إيدج؛ المتصفح بيبعت الصوت لخدمة التعرّف بتاعته)") : this.G("This browser can't listen - use Chrome or Edge", "المتصفح ده مش بيسمع - استخدم كروم أو إيدج"); },
+  listen(){ const SR = this.SR(); if (!SR || this.listening) return; GVoice.stop(); this.man.classList.remove("talk");
+    const r = this._rec = new SR(); r.lang = this.talkAr() ? "ar-EG" : "en-US"; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1; let fin = "";
+    r.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++){ const x = e.results[i]; if (x.isFinal) fin += x[0].transcript; else t += x[0].transcript; } this.inp.value = (fin + t).trim(); };
+    r.onerror = e => { this._recErr = e.error; };
+    r.onend = () => { this.listening = false; this.man.classList.remove("listen"); this.micLbl(); const q = (fin || this.inp.value).trim();
+      if (q){ this.inp.value = ""; this._quiet = 0; this.ask(q); }
+      else if (this._recErr === "not-allowed" || this._recErr === "service-not-allowed"){ this.chat = false; this.bot(); this.speak(this.G("I can't hear you: allow the microphone for this site (the lock icon next to the address).", "مش سامعك: اسمح للميكروفون للموقع ده (من القفل اللي جنب العنوان)."), null, true); }
+      else if (this.chat && ++this._quiet < 3 && this.on) setTimeout(() => this.listen(), 400);   // silence: keep listening a couple of times, then rest
+      else if (this.chat){ this.chat = false; this.bot(); } this._recErr = ""; };
+    try { r.start(); this.listening = true; this.man.classList.add("listen"); this.micLbl(); this.bub.classList.remove("hide"); this.placeBub(); this.bub.classList.add("show"); } catch(e){ this.listening = false; this.micLbl(); } },
+  stopListen(manual){ if (manual) this.chat = false; try { this._rec && this._rec.abort(); } catch(e){} this.listening = false; this.man.classList.remove("listen"); this.micLbl(); if (manual) this.bot(); },
   wait(ms){ return new Promise(r => setTimeout(r, ms)); },
   view(){ try { const fe = window.frameElement; if (fe){ const r = fe.getBoundingClientRect(), H = window.parent.innerHeight; return {t:Math.max(0, -r.top), b:Math.max(160, Math.min(innerHeight, H - r.top))}; } } catch(e){} return {t:0, b:innerHeight}; },   // the workspace frame is very tall (3400 px): only this slice is on screen
   scroller(){ try { let e = window.frameElement; while (e && (e = e.parentElement)){ const o = window.parent.getComputedStyle(e).overflowY; if (/(auto|scroll)/.test(o) && e.scrollHeight > e.clientHeight + 20) return e; } } catch(e){} return null; },
@@ -4491,10 +4511,10 @@ const Guide = {
     else { Object.assign(this.bub.style, {left:"6px", top:"", bottom:(innerHeight - d.top + 4)+"px"}); this.bub.classList.remove("side"); } },
   async open(){ this.init(); if (this.on) return; this.on = true; store.set(LS+"_gon", true); this.dock(); this.root.classList.add("on"); this.man.classList.add("walk");
     await this.wait(1500); this.man.classList.remove("walk"); this.hi(); },
-  async close(){ if (!this.on) return; this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop(); this.root.classList.add("leaving"); await this.wait(900);
+  async close(){ if (!this.on) return; this.stopListen(true); this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop(); this.root.classList.add("leaving"); await this.wait(900);
     this.root.classList.remove("on", "leaving"); this.on = false; store.set(LS+"_gon", false); },
   voice(text){ if (!this.voiceOn()) return; const c = this.chr();
-    GVoice.say(text, c.female, () => this.man.classList.add("talk"), err => { this.man.classList.remove("talk"); if (err === "not-allowed") this._pending = text; }); },
+    GVoice.say(text, c.female, () => this.man.classList.add("talk"), err => { this.man.classList.remove("talk"); if (err === "not-allowed") this._pending = text; else if (this.chat && this.on && !this._busyAsk) setTimeout(() => this.listen(), 350); }); },
   speak(text, acts, quiet){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
     this.placeBub(); this.bub.classList.remove("hide"); this.bub.classList.add("show");
     if (!quiet && this.voiceOn() && Voice.ok) this.voice(text);
@@ -4568,8 +4588,9 @@ const Guide = {
     if (pg){ this.up(); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
     if (ans.go && ans.go !== "none"){ const r = this.target(ans.go); if (r) await this.goTo(() => this.target(ans.go), ans.go === "vp" ? "left" : null); }
     this.speak(ans.say); return true; },
-  async ask(q){ const k = this.KB.find(e => e.kw.test(q)), short = q.trim().split(/\s+/).length <= 3;
-    if (!(k && short) && await this.askAI(q)) return;   // Claude answers real questions; one or two keywords stay on the free built-in guide
+  async ask(q){ const k = this.KB.find(e => e.kw.test(q)); this._busyAsk = 1; let used = false;
+    try { used = await this.askAI(q); } finally { this._busyAsk = 0; }
+    if (used){ if (this.chat && !this.voiceOn()) setTimeout(() => this.listen(), 600); return; }   // the AI answers everything when it is on (a real conversation); the built-in guide is the fallback   // Claude answers real questions; one or two keywords stay on the free built-in guide
     if (!k && this._aiErr){ this.speak(this._aiErr); this._aiErr = ""; return; }
     if (!k){ this.speak(this.G("I don't know that one yet. Try: profile, delta, order flow, DOM, tape, limits, setup, alerts, chart, lab, scanner.", "لسه معرفش دي. جرّب: البروفيل، الدلتا، الأوردر فلو، الدوم، التايب، الليميت، السيتاب، التنبيهات، الشارت، اللاب، السكانر.")); return; }
     const txt = this.G(k.en, k.ar);

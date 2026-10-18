@@ -60,7 +60,7 @@ except ImportError:  # package missing: dashboard still works, just not live
     st_autorefresh = None
 
 st.set_page_config(
-    page_title="6868 X", layout="wide", page_icon="\U0001F4CA",
+    page_title="XPiX", layout="wide", page_icon=str(Path(__file__).with_name("modules") / "xpix_icon.png"),
     initial_sidebar_state="collapsed",
 )
 

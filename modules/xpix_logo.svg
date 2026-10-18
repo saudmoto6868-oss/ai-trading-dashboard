@@ -1,25 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 50" height="50" aria-label="XPiX 6868">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 50" aria-label="XPiX 6868">
   <defs>
-    <linearGradient id="gd" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".618" stop-color="#f0b90b"/><stop offset="1" stop-color="#a87800"/></linearGradient>
-    <linearGradient id="sv" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9aa4b2"/></linearGradient>
-    <radialGradient id="glow"><stop offset="0" stop-color="#fff3c4"/><stop offset=".38" stop-color="#f0b90b"/><stop offset="1" stop-color="#f0b90b" stop-opacity="0"/></radialGradient>
+    <linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".618" stop-color="#f0b90b"/><stop offset="1" stop-color="#b07d00"/></linearGradient>
+    <linearGradient id="s2" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="32"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#8d97a5"/></linearGradient>
   </defs>
-  <!-- cap height 26 (y 6..32); digits 26/phi^2 ~ 10; gaps 26/phi^3 ~ 6 -->
-  <g fill="none" stroke-linecap="square">
-    <!-- X : price axis crossing the time axis -->
-    <path d="M4 6 L28 32 M28 6 L4 32" stroke="url(#sv)" stroke-width="4.2"/>
-    <!-- P : stem + bowl (bowl height = cap / phi) -->
-    <path d="M42 32 V6 H52 A8.03 8.03 0 0 1 52 22.07 H42" stroke="url(#gd)" stroke-width="4.2"/>
-    <!-- i : stem = cap / phi tall; the dot = the golden point (the pixel) -->
-    <path d="M75 15.93 V32" stroke="url(#gd)" stroke-width="4.2"/>
-    <!-- X -->
-    <path d="M90 6 L114 32 M114 6 L90 32" stroke="url(#sv)" stroke-width="4.2"/>
+  <!-- X: the market before the trade - price crossing time (both strokes silver) -->
+  <path d="M4 6 L28 32 M28 6 L4 32" stroke="url(#s2)" stroke-width="4.2" stroke-linecap="square" fill="none"/>
+  <!-- P = a candlestick: the stem is the wick (runs past the body like a real wick), the bowl is a solid body (height = cap / phi) -->
+  <path d="M42 3.5 V34.5" stroke="url(#g2)" stroke-width="2.6"/>
+  <path d="M40.7 6 H51.9 A8.03 8.03 0 0 1 51.9 22.07 H40.7 Z" fill="url(#g2)"/>
+  <path d="M40.7 6 V32" stroke="url(#g2)" stroke-width="4.2"/>
+  <!-- i: the stem (cap / phi tall) and a SQUARE dot = the pixel, the exact entry point -->
+  <path d="M70 15.93 V32" stroke="url(#g2)" stroke-width="4.2"/>
+  <rect x="67.4" y="6" width="5.2" height="5.2" fill="#fff3c4"/><rect x="66.2" y="4.8" width="7.6" height="7.6" fill="none" stroke="#f0b90b" stroke-width=".8" opacity=".55"/>
+  <!-- X: the trade - the rising stroke turns gold (the plan worked: from X to X) -->
+  <path d="M84 6 L108 32" stroke="url(#s2)" stroke-width="4.2" stroke-linecap="square" fill="none"/>
+  <path d="M84 32 L108 6" stroke="url(#g2)" stroke-width="4.2" stroke-linecap="square" fill="none"/>
+  <!-- 6868 under the four letters, small and half hidden -->
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" font-weight="700" fill="#c9a227" opacity=".45" text-anchor="middle">
+    <text x="16" y="46">6</text><text x="47" y="46">8</text><text x="70" y="46">6</text><text x="96" y="46">8</text>
   </g>
-  <circle cx="75" cy="8.5" r="6" fill="url(#glow)"/><circle cx="75" cy="8.5" r="2.6" fill="#fff6d6"/>
-  <!-- 6868 under the letters, small and half-hidden -->
-  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" font-weight="700" fill="#c9a227" opacity=".42" text-anchor="middle" letter-spacing="0">
-    <text x="16" y="45">6</text><text x="50" y="45">8</text><text x="75" y="45">6</text><text x="102" y="45">8</text>
-  </g>
-  <!-- thin golden-section rule: the gold part is 1/phi of the width -->
-  <path d="M4 38.5 H72.6" stroke="#f0b90b" stroke-width=".7" opacity=".55"/><path d="M72.6 38.5 H114" stroke="#9aa4b2" stroke-width=".7" opacity=".35"/>
+  <!-- golden-section rule: gold part = 1/phi of the width -->
+  <path d="M4 38.5 H70.6" stroke="#f0b90b" stroke-width=".7" opacity=".55"/><path d="M70.6 38.5 H108" stroke="#9aa4b2" stroke-width=".7" opacity=".3"/>
 </svg>

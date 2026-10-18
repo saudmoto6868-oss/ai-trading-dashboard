@@ -88,8 +88,18 @@ AR = {
         "عقود OKX الدائمة اللحظية (من غير MetaTrader). الأخبار والأجندة الاقتصادية في الهيدر وفي مساحة العمل.",
     "Journal CSV (columns: time, r)": "ملف الجورنال CSV (الأعمدة: time, r)",
     "The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge.":
-        "الجورنال متخزن في المتصفح، فصدّره الأول: widget الجورنال > زرار CSV. وارفع الملف هنا. العائد = R × نسبة الحساب اللي بتخاطر بيها في الصفقة. دي أدلة من إشارات الداشبورد بس - مش ميزة مثبتة."
+        "الجورنال متخزن في المتصفح، فصدّره الأول: widget الجورنال > زرار CSV. وارفع الملف هنا. العائد = R × نسبة الحساب اللي بتخاطر بيها في الصفقة. دي أدلة من إشارات الداشبورد بس - مش ميزة مثبتة.",
+    "Theme": "الثيم", "Language": "اللغة", "Coming": "قريباً", "Classic": "كلاسيك",
+    "Slots 3-7: send a picture and the theme gets built.": "الخانات من ٣ لـ ٧: ابعت صورة والثيم يتعمل.",
+    "Theme and language (Alt+T / Alt+L)": "الثيم واللغة (Alt+T / Alt+L)",
+    "Lab": "المعمل", "Playbook": "الدليل", "Stats": "الأداء", "AI": "الذكي", "Alerts": "التنبيهات", "Scanner": "السكانر", "Workspace": "الوورك سبيس"
 }
+
+
+# Languages offered in the top bar. To add one: put its code here and give L() its table (like the Arabic one above);
+# until it has a table it is listed as "soon" and cannot be picked.
+LANGS = {"en": ("English", "EN", True), "ar": ("العربية", "ع", True), "fr": ("Français", "FR", False), "es": ("Español", "ES", False),
+         "tr": ("Türkçe", "TR", False), "ru": ("Русский", "RU", False), "zh": ("中文", "中", False)}
 
 
 def lang() -> str:

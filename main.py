@@ -63,6 +63,8 @@ st.set_page_config(
     page_title="XPiX", layout="wide", page_icon=str(Path(__file__).with_name("modules") / "xpix_icon.png"),
     initial_sidebar_state="collapsed",
 )
+if "ws_lang" not in st.session_state and st.query_params.get("lang") in ("en", "ar"):   # Alt+L / the language list keep the choice in the URL
+    st.session_state["ws_lang"] = st.query_params["lang"]
 
 st.markdown("""
 <style>
@@ -132,7 +134,8 @@ elif auto_on:
 from modules.workspace import UI_THEMES as _UI_THEMES, ui_theme_bg as _ui_theme_bg
 if "ui_theme" not in st.session_state:
     st.session_state["ui_theme"] = st.query_params.get("theme", "classic") if st.query_params.get("theme") in dict(_UI_THEMES) else "classic"
-if st.session_state["ui_theme"] not in ("classic", "lux", "hud"):   # an empty slot: say so and stay on Classic
+_BUILT_THEMES = ("classic", "lux", "hud")   # theme slots that are built (the rest wait for pictures)
+if st.session_state["ui_theme"] not in _BUILT_THEMES:   # an empty slot: say so and stay on Classic
     st.toast(L("That theme slot is still empty - send the picture for it and it gets built."))
     st.session_state["ui_theme"] = "classic"
 UI_THEME = st.session_state["ui_theme"]
@@ -749,7 +752,7 @@ def render_header():
     language | focus. Focus mode folds the strip away so the Workspace gets the whole screen. Returns the container for the page tabs."""
     focus = bool(st.session_state.get("focus_ws"))
     with st.container(key="hdr"):
-        h_main, h_nav, h_thm, h_lang, h_foc = st.columns([5.3, 4.0, 1.0, 0.36, 0.36], vertical_alignment="center", gap="small")
+        h_main, h_nav, h_set, h_foc = st.columns([5.4, 4.2, 0.62, 0.32], vertical_alignment="center", gap="small")
     with h_main:
         if focus:   # folded: only a small mark
             st.markdown("<div class='xpix-mini'>XP<i>i</i>X</div>", unsafe_allow_html=True)
@@ -771,14 +774,22 @@ def render_header():
             except Exception:
                 cal = []   # the strip then tries to fetch the calendar itself in the browser
             render_header_bar(_logo_data_uri(), links, news, cal=cal, ar=_ui_lang() == "ar", theme=UI_THEME)
-    with h_thm:   # dashboard theme (Classic + 7 slots; slot 1 built, the rest wait for the owner's pictures)
-        st.selectbox(L("Theme"), [k for k, _ in _UI_THEMES], key="ui_theme", format_func=lambda k: L(dict(_UI_THEMES)[k]), label_visibility="collapsed",
-                     help=L("Dashboard theme: changes the whole page and the Workspace (Alt+T = next theme)."))
-    with h_lang:
+    with h_set:   # ONE small button for theme + language (a popover); Alt+T / Alt+L cycle them
+        from modules.i18n import LANGS as _LANGS
         _lng = st.session_state.get("ws_lang", "en")
-        if st.button("ع" if _lng == "en" else "EN", key="lang_btn", help=L("Language (Alt+L)")):
-            st.session_state["ws_lang"] = "ar" if _lng == "en" else "en"
-            st.rerun()
+        _dot = {"classic": "◐", "lux": "◑", "hud": "◒"}.get(UI_THEME, "◐")
+        with st.popover(f"{_dot} {_LANGS.get(_lng, ('', 'EN'))[1]}", help=L("Theme and language (Alt+T / Alt+L)")):
+            st.caption(L("Theme"))
+            st.radio(L("Theme"), [k for k in _BUILT_THEMES], key="ui_theme", format_func=lambda k: L(dict(_UI_THEMES)[k]), label_visibility="collapsed")
+            st.caption(L("Slots 3-7: send a picture and the theme gets built."))
+            st.caption(L("Language"))
+            _ok = [k for k, v in _LANGS.items() if v[2]]
+            _pick = st.radio(L("Language"), _ok, index=_ok.index(_lng) if _lng in _ok else 0, format_func=lambda k: _LANGS[k][0], label_visibility="collapsed", key="lang_pick")
+            if _pick != _lng:
+                st.session_state["ws_lang"] = _pick
+                st.query_params["lang"] = _pick
+                st.rerun()
+            st.caption(L("Coming") + ": " + " · ".join(v[0] for v in _LANGS.values() if not v[2]))
     with h_foc:
         if st.button("⤡" if focus else "⤢", key="focus_btn", help=L("Fold the header away: the Workspace gets the whole screen (Alt+F)")):
             st.session_state["focus_ws"] = not focus
@@ -914,7 +925,8 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 [data-testid="stMainBlockContainer"]>div>[data-testid="stVerticalBlock"]{{gap:.2rem!important}} [data-testid="stMainBlockContainer"] iframe{{display:block}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
 .st-key-hdr{{margin:0 0 0 2.6rem;width:calc(100% - 5.4rem)!important;box-sizing:border-box;padding:0 6px;background:var(--hdr-bg,linear-gradient(180deg,#0a0d11,#06080b));border:1px solid var(--hdr-line,#1c232b);border-radius:var(--hdr-r,10px)}}
 .st-key-hdr [data-testid="stColumn"]+[data-testid="stColumn"]{{border-inline-start:1px solid var(--hdr-line,#1c232b);padding-inline-start:8px}}
-.st-key-lang_btn button,.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:0!important;background:transparent!important;font-size:13px}}
+[data-testid="stPopover"] button{{padding:0 8px;min-height:28px;border:0!important;background:transparent!important;font-size:13px}}
+.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:0!important;background:transparent!important;font-size:13px}}
 .xpix-mini{{font:900 19px/1 'Arial Black',Arial,sans-serif;letter-spacing:.02em;color:#f2f2f2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
 
 .st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}}

@@ -106,7 +106,7 @@ function kbAct(e){
   const k = (e.code || "").replace(/^Key|^Digit/, "").toUpperCase(); let done = true;
   if (/^[1-7]$/.test(k)){ const lb = P.querySelectorAll(".st-key-page label"); lb[+k - 1] && lb[+k - 1].click(); }
   else if (k === "F"){ const b = P.querySelector(".st-key-focus_btn button"); b && b.click(); }
-  else if (k === "L"){ const b = P.querySelector(".st-key-lang_btn button"); b && b.click(); }
+  else if (k === "L"){ const u = new URL(window.parent.location.href); u.searchParams.set("lang", CFG.ar ? "en" : "ar"); window.parent.location.href = u.toString(); }
   else if (k === "T"){ const order = ["classic","lux","hud"], cur = CFG.theme || "classic", nx = order[(order.indexOf(cur) + 1) % order.length], u = new URL(window.parent.location.href); if (nx === "classic") u.searchParams.delete("theme"); else u.searchParams.set("theme", nx); window.parent.location.href = u.toString(); }
   else if (k === "R"){ const d = document.querySelector(".fv"); d && d.click(); }
   else if (k === "N"){ $("tick").click(); }

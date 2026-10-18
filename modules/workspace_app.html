@@ -259,6 +259,11 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-lid{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(0);animation:gBlink 5s infinite}
 #guide .g-man.think .g-head{animation:gThink 1.4s ease-in-out infinite alternate}
 #guide .g-man.think .g-iris{transform:translate(1.5px,-1.5px)}
+#guide .g-vid{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:radial-gradient(ellipse 58% 62% at 50% 46%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 58% 62% at 50% 46%,#000 62%,transparent 100%)}
+#guide .g-vid video,#guide .g-vid img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+#guide .g-v-talk{opacity:0;transition:opacity .25s}#guide .g-man.talk .g-v-talk{opacity:1}
+#guide .g-man.real .g-v-photo{animation:gBreathP 5s ease-in-out infinite}#guide .g-man.real.talk .g-v-photo{animation:gTalkP .5s ease-in-out infinite alternate}
+@keyframes gBreathP{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}@keyframes gTalkP{from{transform:scale(1.005) translateY(0)}to{transform:scale(1.012) translateY(-1px)}}
 #guide .g-mic{white-space:nowrap}#guide .g-mic.on,#guide .g-bot button.on{color:#0b0e11;background:#f0b90b;border-color:#f0b90b}
 #guide .g-man.listen .g-head{animation:gListen 1.2s ease-in-out infinite alternate}
 #guide .g-man.listen{filter:drop-shadow(0 0 14px rgba(240,185,11,.55)) drop-shadow(0 10px 14px #000a)}
@@ -4402,6 +4407,7 @@ Ws.add = type => {
    (✕ sends him off, the side tab brings him back), talks in Egyptian Arabic, and points at the part of the screen he is explaining.
    Answers: built-in offline guide + Claude / Gemini through modules/guide_ai.py. New presenters = one more entry in GUIDE_CHARS. */
 const GUIDE_CHARS = [
+  {id:"mrx", name:"Mr X", ar:"مستر X", female:false, video:"mrx", skin:"#c4895f", skin2:"#9c6440", hair:"#0e0c0b", suit:"#23272e", suit2:"#14171b", shirt:"#f4f5f6", tie:"#b8912e", trousers:"#1a1d22", shoe:"#0a0a0b", hairStyle:"short"},
   {id:"saad", name:"Saad", ar:"سعد", female:false, skin:"#d6a27c", skin2:"#b98060", hair:"#1f1712", suit:"#1c2633", suit2:"#121922", shirt:"#f1f3f5", tie:"#c9a227", trousers:"#161e28", shoe:"#0d0f12", hairStyle:"short"},
   {id:"noor", name:"Noor", ar:"نور", female:true, skin:"#e0b08c", skin2:"#c48f6c", hair:"#3a2418", suit:"#3d2c5c", suit2:"#2a1e40", shirt:"#ece6f5", tie:"", trousers:"#221a33", shoe:"#151018", hairStyle:"long"},
   {id:"capt", name:"Captain", ar:"الكابتن", female:false, skin:"#c58f68", skin2:"#a8734f", hair:"#121212", suit:"#123b2e", suit2:"#0b281f", shirt:"#123b2e", tie:"", trousers:"#2b2f36", shoe:"#111", hairStyle:"cap"}
@@ -4458,7 +4464,7 @@ const GVoice = {   // Egyptian voice first; long answers are spoken in short pie
 };
 const Guide = {
   on:false, busy:0,
-  chr(){ const id = store.get(LS+"_gchar", "saad"); return GUIDE_CHARS.find(c => c.id === id) || GUIDE_CHARS[0]; },
+  chr(){ const id = store.get(LS+"_gchar", "mrx"); return GUIDE_CHARS.find(c => c.id === id) || GUIDE_CHARS[0]; },
   talkAr(){ return store.get(LS+"_glang", "ar") !== "en"; },   // Egyptian Arabic first (owner), English only when picked
   voiceOn(){ return store.get(LS+"_gvoice2", true) !== false; },
   G(a, b){ return this.talkAr() ? b : a; },
@@ -4474,7 +4480,17 @@ const Guide = {
     try { window.parent.addEventListener("scroll", onSc, true); window.parent.addEventListener("resize", onSc); } catch(e){} this.dock(); setTimeout(() => this.dock(), 800);
     document.addEventListener("pointerdown", () => { if (this._pending){ const t = this._pending; this._pending = ""; this.voice(t); } }, true);   // browsers only allow speech after the first tap: say the greeting then
   },
-  paint(){ const c = this.chr(); this.man.innerHTML = presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
+  async media(c){   // real presenter: static/<id>/idle.mp4 + talk.mp4 (or photo.jpg) served by Streamlit (enableStaticServing); checked once per presenter
+    if (!c.video) return null; this._media = this._media || {}; if (c.video in this._media) return this._media[c.video];
+    let base = ""; try { base = window.parent.location.origin + "/app/static/" + c.video + "/"; } catch(e){ return this._media[c.video] = null; }
+    const has = async f => { try { const r = await fetch(base + f, {method:"HEAD"}); return r.ok && !/text\/html/.test(r.headers.get("content-type") || ""); } catch(e){ return false; } };
+    const [idle, talk, photo] = await Promise.all(["idle.mp4", "talk.mp4", "photo.jpg"].map(has));
+    return this._media[c.video] = idle ? {idle:base+"idle.mp4", talk:talk ? base+"talk.mp4" : base+"idle.mp4"} : photo ? {photo:base+"photo.jpg"} : null; },
+  setTalk(on){ this.man.classList.toggle("talk", !!on); const t = this.man.querySelector(".g-v-talk"), i = this.man.querySelector(".g-v-idle");
+    if (t && i && t.src !== i.src){ try { if (on){ t.currentTime = 0; t.play(); } else t.pause(); } catch(e){} } },
+  async paint(){ const c = this.chr(), md = await this.media(c); this.man.classList.toggle("real", !!md);
+    this.man.innerHTML = md && md.idle ? '<div class="g-vid"><video class="g-v-idle" src="'+md.idle+'" muted loop playsinline autoplay></video><video class="g-v-talk" src="'+md.talk+'" muted loop playsinline preload="auto"></video></div>'
+      : md && md.photo ? '<div class="g-vid"><img class="g-v-photo" src="'+md.photo+'" alt=""></div>' : presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
     this.tab.textContent = this.G("Guide", "المساعد"); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
     const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Presenter", "المذيع");
@@ -4488,7 +4504,7 @@ const Guide = {
   SR(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; },
   micLbl(){ if (!this.mic) return; const ok = !!this.SR(); this.mic.disabled = !ok; this.mic.textContent = this.listening ? this.G("● Listening", "● بسمعك") : this.G("Talk", "اتكلم");
     this.mic.classList.toggle("on", !!this.listening); this.mic.title = ok ? this.G("Speak your question (Chrome / Edge; the browser sends the audio to its speech service)", "قول سؤالك بصوتك (كروم أو إيدج؛ المتصفح بيبعت الصوت لخدمة التعرّف بتاعته)") : this.G("This browser can't listen - use Chrome or Edge", "المتصفح ده مش بيسمع - استخدم كروم أو إيدج"); },
-  listen(){ const SR = this.SR(); if (!SR || this.listening) return; GVoice.stop(); this.man.classList.remove("talk");
+  listen(){ const SR = this.SR(); if (!SR || this.listening) return; GVoice.stop(); this.setTalk(false);
     const r = this._rec = new SR(); r.lang = this.talkAr() ? "ar-EG" : "en-US"; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1; let fin = "";
     r.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++){ const x = e.results[i]; if (x.isFinal) fin += x[0].transcript; else t += x[0].transcript; } this.inp.value = (fin + t).trim(); };
     r.onerror = e => { this._recErr = e.error; };
@@ -4514,14 +4530,18 @@ const Guide = {
   async close(){ if (!this.on) return; this.stopListen(true); this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop(); this.root.classList.add("leaving"); await this.wait(900);
     this.root.classList.remove("on", "leaving"); this.on = false; store.set(LS+"_gon", false); },
   voice(text){ if (!this.voiceOn()) return; const c = this.chr();
-    GVoice.say(text, c.female, () => this.man.classList.add("talk"), err => { this.man.classList.remove("talk"); if (err === "not-allowed") this._pending = text; else if (this.chat && this.on && !this._busyAsk) setTimeout(() => this.listen(), 350); }); },
+    GVoice.say(text, c.female, () => this.setTalk(true), err => { this.setTalk(false); if (err === "not-allowed") this._pending = text; else if (this.chat && this.on && !this._busyAsk) setTimeout(() => this.listen(), 350); }); },
   speak(text, acts, quiet){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
     this.placeBub(); this.bub.classList.remove("hide"); this.bub.classList.add("show");
     if (!quiet && this.voiceOn() && Voice.ok) this.voice(text);
-    else { GVoice.stop(); this.man.classList.add("talk"); clearTimeout(this._tt); this._tt = setTimeout(() => this.man.classList.remove("talk"), Math.min(6000, 55*text.length)); } },
+    else { GVoice.stop(); this.setTalk(true); clearTimeout(this._tt); this._tt = setTimeout(() => this.setTalk(false), Math.min(6000, 55*text.length)); } },
   hi(){ const c = this.chr(); this.speak(this.G("Hi, I'm "+c.name+". Ask me about anything on the screen and I'll show you where it is and explain it.",
     "أهلًا، أنا "+c.ar+". اسألني عن أي حاجة في الشاشة، وأنا أوريك مكانها وأشرحهالك.") + (this.bridge() && this.bridge().ai ? this.G(" (AI on)", " (الذكاء شغال)") : "")); },
-  point(r){ if (!r || !this.on) return; const svg = this.man.querySelector("svg"); if (!svg) return; const sr = svg.getBoundingClientRect(), k = sr.height/520, ox = sr.left + (sr.width - 200*k)/2,
+  point(r){ if (!r || !this.on) return; const svg = this.man.querySelector("svg");
+    if (!svg){ const mr = this.man.getBoundingClientRect(), hx = mr.left + mr.width*.78, hy = mr.top + mr.height*.42, tx = r.left + r.width/2, ty = r.top + Math.min(r.height/2, 140);   // real presenter (video / photo): the beam starts at his side
+      this.beam.setAttribute("width", innerWidth); this.beam.setAttribute("height", innerHeight);
+      this.beam.innerHTML = '<line x1="'+hx+'" y1="'+hy+'" x2="'+tx+'" y2="'+ty+'" stroke="#f0b90b" stroke-width="2" stroke-dasharray="6 6" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="24" to="0" dur=".6s" repeatCount="indefinite"/></line><circle cx="'+tx+'" cy="'+ty+'" r="7" fill="none" stroke="#f0b90b" stroke-width="2"><animate attributeName="r" values="5;11;5" dur="1.2s" repeatCount="indefinite"/></circle>';
+      this.beam.classList.add("on"); clearTimeout(this._pt); this._pt = setTimeout(() => this.beam.classList.remove("on"), 6000); return; } const sr = svg.getBoundingClientRect(), k = sr.height/520, ox = sr.left + (sr.width - 200*k)/2,
       sx = ox + 142*k, sy = sr.top + 134*k, tx = r.left + r.width/2, ty = r.top + Math.min(r.height/2, 140), th = Math.atan2(ty - sy, tx - sx)*180/Math.PI, phi = Math.max(-172, Math.min(-12, th - 90));
     const arm = this.man.querySelector(".g-armR"); arm.style.transform = "rotate("+phi+"deg)"; this.man.classList.add("pointing");
     const a = (phi + 90)*Math.PI/180, hx = sx + Math.cos(a)*170*k, hy = sy + Math.sin(a)*170*k;   // hand tip after the arm turns

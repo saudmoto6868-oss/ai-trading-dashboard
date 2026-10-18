@@ -258,7 +258,7 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
                 continue
             a = np.asarray(rs, float); r1, r0 = a[:, 0], a[:, 1]; dlt = r1 - r0; t = dlt.mean() / (dlt.std(ddof=1) / np.sqrt(len(dlt))) if len(dlt) > 1 and dlt.std() > 0 else 0.0
             L.append(f"| {tf} | {len(a)} | {100 * (r1 > 0).mean():.1f} | {r1.mean():+.3f} | {r0.mean():+.3f} | {t:+.2f} |")
-        L.append("Random-walk self-test: rule +0.16R (1.6 standard errors, 265 trades) - so only t > +3 with n >= 100 on several timeframes counts as evidence. No costs.")
+        L.append("Random-walk self-test (walk-forward, 6 x 5000 bars): +0.07R vs random -0.02R, t +0.65 (198 trades) - so only t > +3 with n >= 100 on several timeframes counts as evidence. No costs.")
     if lunar and lunar.get("new", [0, 0, 0])[2] and lunar.get("full", [0, 0, 0])[2]:
         (s1, q1, n1), (s2, q2, n2) = lunar["new"], lunar["full"]; m1, m2 = s1 / n1, s2 / n2
         v1, v2 = max(q1 / n1 - m1 ** 2, 1e-18), max(q2 / n2 - m2 ** 2, 1e-18); t = (m1 - m2) / np.sqrt(v1 / n1 + v2 / n2)

@@ -227,6 +227,43 @@ body.ui-hud button.on{background:rgba(240,164,60,.22);border-color:#f0a43c;color
 body.ui-hud input[type=checkbox]{accent-color:#f0a43c}
 body.mob #mjump{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:30px;font-size:12px}
+#guide{position:fixed;inset:0;pointer-events:none;z-index:9000;font-family:inherit}
+#guide .g-door{position:fixed;left:6px;bottom:6px;width:46px;height:66px;pointer-events:auto;cursor:pointer;perspective:220px;opacity:.55;transition:opacity .2s}
+#guide .g-door:hover,#guide.on .g-door{opacity:1}
+#guide .g-room{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#f0b90b55,#0b0e11 70%);border:2px solid #3a3f47;border-bottom:0;border-radius:4px 4px 0 0}
+#guide .g-leaf{position:absolute;inset:0;background:linear-gradient(90deg,#2b3139,#1e2329);border:2px solid #f0b90b;border-bottom:0;border-radius:4px 4px 0 0;transform-origin:left center;transition:transform .45s ease}
+#guide .g-leaf i{position:absolute;right:6px;top:34px;width:5px;height:5px;border-radius:50%;background:#f0b90b}
+#guide .g-door.open .g-leaf{transform:rotateY(-105deg)}
+#guide .g-door b{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:8px;letter-spacing:1px;color:#f0b90b;pointer-events:none}
+#guide .g-door.open b{opacity:0}
+#guide .g-man{position:fixed;left:0;top:0;width:60px;height:96px;pointer-events:auto;cursor:pointer;opacity:0;filter:drop-shadow(0 4px 6px #0008)}
+#guide .g-man.in{opacity:1}
+#guide .g-man svg{display:block;transition:transform .2s}
+#guide .g-man.flip svg{transform:scaleX(-1)}
+#guide .g-leg,#guide .g-arm{transform-box:fill-box;transform-origin:50% 0}
+#guide .g-man.walk .g-l1,#guide .g-man.walk .g-a2{animation:gSw .42s ease-in-out infinite alternate}
+#guide .g-man.walk .g-l2,#guide .g-man.walk .g-a1{animation:gSw .42s ease-in-out infinite alternate-reverse}
+#guide .g-man.walk svg{animation:gBob .21s ease-in-out infinite alternate}
+#guide .g-man.flip.walk svg{animation:gBobF .21s ease-in-out infinite alternate}
+#guide .g-man.talk .g-mouth{transform-box:fill-box;transform-origin:center;animation:gTalk .18s infinite alternate}
+#guide .g-man.talk .g-a2{animation:gWave .6s ease-in-out infinite alternate}
+#guide .g-eye{animation:gBlink 4s infinite}
+@keyframes gSw{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+@keyframes gBob{from{transform:translateY(0)}to{transform:translateY(-3px)}}
+@keyframes gBobF{from{transform:scaleX(-1) translateY(0)}to{transform:scaleX(-1) translateY(-3px)}}
+@keyframes gTalk{from{transform:scaleY(1)}to{transform:scaleY(2.2)}}
+@keyframes gWave{from{transform:rotate(0)}to{transform:rotate(-150deg)}}
+@keyframes gBlink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+#guide .g-bub{position:fixed;width:300px;max-width:calc(100vw - 12px);background:var(--panel);color:var(--txt);border:1px solid #f0b90b;border-radius:10px;padding:10px 10px 8px;box-shadow:0 8px 28px #000a;pointer-events:auto;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;visibility:hidden;font-size:12.5px;line-height:1.55}
+#guide .g-bub.show{opacity:1;transform:none;visibility:visible}
+#guide .g-bub.hide{visibility:hidden!important;opacity:0!important}
+#guide .g-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}#guide .g-acts:empty{display:none}
+#guide .g-ask{display:flex;gap:4px;margin-top:8px}#guide .g-ask input{flex:1;min-width:0;padding:4px 6px}
+#guide .g-bot{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}#guide .g-bot button,#guide .g-bot select{font-size:11px;padding:2px 6px}
+#guide .g-spot{position:fixed;border:2px solid #f0b90b;border-radius:6px;box-shadow:0 0 0 9999px #0006,0 0 18px #f0b90b;animation:gSpot 2.6s ease forwards;pointer-events:none}
+@keyframes gSpot{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
+body.mob.mt5 #guide .g-door{bottom:64px}
+body.rtl #guide .g-bub{direction:rtl;text-align:right}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -4342,6 +4379,125 @@ Ws.add = type => {
   Ws.save();
 };
 
+/* XPiX Guide: a character that steps out of an office door in the corner, walks to the part of the screen a question is about and explains it.
+   Answers come from a built-in, offline guide (no AI service, no key, nothing leaves the browser) plus live numbers read from the open widgets.
+   New characters = one more entry in GUIDE_CHARS (skin colours + outfit), so they can be added over time. */
+const GUIDE_CHARS = [
+  {id:"saad", name:"Saad", ar:"سعد", since:"2026-10", skin:"#e0ac80", hair:"#2b1d14", top:"#1d2733", acc:"#f0b90b", leg:"#141a22", look:"tie"},
+  {id:"noor", name:"Noor", ar:"نور", since:"2026-10", skin:"#c98c62", hair:"#5b3a1e", top:"#7b4fd6", acc:"#38e1ff", leg:"#26213a", look:"hood"},
+  {id:"bit", name:"Bit", ar:"بِت", since:"2026-10", skin:"#9aa7b4", hair:"#9aa7b4", top:"#2a3542", acc:"#0ecb81", leg:"#1b232c", look:"robot"},
+  {id:"capt", name:"Captain", ar:"الكابتن", since:"2026-10", skin:"#d9a27a", hair:"#111", top:"#0f3d2e", acc:"#e0a95a", leg:"#0b1f18", look:"cap"}
+];
+function guideSvg(C){
+  const head = C.look === "robot"
+    ? '<rect x="17" y="6" width="26" height="22" rx="6" fill="'+C.skin+'"/><rect x="21" y="12" width="18" height="8" rx="3" fill="#0b0e11"/><circle class="g-eye" cx="26" cy="16" r="2" fill="'+C.acc+'"/><circle class="g-eye" cx="34" cy="16" r="2" fill="'+C.acc+'"/><line x1="30" y1="6" x2="30" y2="1" stroke="'+C.acc+'" stroke-width="2"/><circle cx="30" cy="1" r="2" fill="'+C.acc+'"/><rect class="g-mouth" x="26" y="23" width="8" height="2" rx="1" fill="#0b0e11"/>'
+    : '<circle cx="30" cy="17" r="11" fill="'+C.skin+'"/>'
+      + (C.look === "hood" ? '<path d="M17 19 Q17 3 30 3 Q43 3 43 19 L41 19 Q41 8 30 8 Q19 8 19 19 Z" fill="'+C.top+'"/>' : C.look === "cap" ? '<path d="M18 13 Q19 4 30 4 Q41 4 42 13 Z" fill="'+C.top+'"/><rect x="38" y="11" width="10" height="3" rx="1.5" fill="'+C.acc+'"/>' : '<path d="M19 14 Q20 5 30 5 Q40 5 41 14 Q35 9 30 10 Q24 9 19 14 Z" fill="'+C.hair+'"/>')
+      + '<circle class="g-eye" cx="26" cy="17" r="1.6" fill="#141414"/><circle class="g-eye" cx="34" cy="17" r="1.6" fill="#141414"/><path class="g-mouth" d="M26 22 Q30 25 34 22" stroke="#5a2a1a" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+  const chest = C.look === "tie" ? '<path d="M30 31 L27.5 35 L30 47 L32.5 35 Z" fill="'+C.acc+'"/>' : C.look === "robot" ? '<rect x="25" y="35" width="10" height="6" rx="2" fill="'+C.acc+'" opacity=".8"/>' : '<path d="M24 31 L30 37 L36 31" stroke="'+C.acc+'" stroke-width="2" fill="none"/>';
+  return '<svg viewBox="0 0 60 96" width="60" height="96"><ellipse cx="30" cy="93" rx="15" ry="3" fill="#000" opacity=".35"/>'
+    + '<g class="g-leg g-l1"><rect x="23" y="58" width="6" height="30" rx="3" fill="'+C.leg+'"/><rect x="21" y="85" width="10" height="5" rx="2.5" fill="#0b0e11"/></g>'
+    + '<g class="g-leg g-l2"><rect x="31" y="58" width="6" height="30" rx="3" fill="'+C.leg+'"/><rect x="29" y="85" width="10" height="5" rx="2.5" fill="#0b0e11"/></g>'
+    + '<g class="g-arm g-a1"><rect x="13" y="32" width="6" height="24" rx="3" fill="'+C.top+'"/><circle cx="16" cy="57" r="3.2" fill="'+C.skin+'"/></g>'
+    + '<g class="g-arm g-a2"><rect x="41" y="32" width="6" height="24" rx="3" fill="'+C.top+'"/><circle cx="44" cy="57" r="3.2" fill="'+C.skin+'"/></g>'
+    + '<rect x="18" y="29" width="24" height="31" rx="8" fill="'+C.top+'"/>'+chest+'<g class="g-head">'+head+'</g></svg>';
+}
+const Guide = {
+  on:false, busy:0, x:0, y:0,
+  chr(){ const id = store.get(LS+"_gchar", "saad"); return GUIDE_CHARS.find(c => c.id === id) || GUIDE_CHARS[0]; },
+  talkAr(){ const v = store.get(LS+"_glang", ""); return v ? v === "ar" : lang === "ar"; },
+  G(a, b){ return this.talkAr() ? b : a; },
+  init(){
+    if (this.root) return; const r = this.root = el("div"); r.id = "guide";
+    r.innerHTML = '<div class="g-door"><div class="g-room"></div><div class="g-leaf"><i></i></div><b>XPiX</b></div><div class="g-man"></div><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
+    document.body.append(r); this.door = r.querySelector(".g-door"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts");
+    this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
+    this.man.onclick = () => this.bub.classList.toggle("hide"); this.door.onclick = () => this.on ? this.close() : this.open();
+    this.paint(); this.bot(); window.addEventListener("resize", () => { if (this.on && !this.busy) this.home(true); });
+  },
+  paint(){ this.man.innerHTML = guideSvg(this.chr()); this.inp.placeholder = this.G("Ask me: what is the profile? where is the lab? ...", "اسألني: البروفيل ده إيه؟ فين اللاب؟ ..."); },
+  bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
+    const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Character", "الشخصية");
+    cs.onchange = () => { store.set(LS+"_gchar", cs.value); this.paint(); this.hi(); };
+    const lb = el("button", null, this.talkAr() ? "EN" : "ع"); lb.title = this.G("Answer language", "لغة الرد"); lb.onclick = () => { store.set(LS+"_glang", this.talkAr() ? "en" : "ar"); this.paint(); this.bot(); this.hi(); };
+    const vb = el("button", null, store.get(LS+"_gvoice", false) ? this.G("Voice on", "الصوت شغال") : this.G("Voice off", "الصوت مقفول")); vb.onclick = () => { store.set(LS+"_gvoice", !store.get(LS+"_gvoice", false)); if (Voice.ok) speechSynthesis.cancel(); this.bot(); };
+    const tb = el("button", null, this.G("Tour", "جولة")); tb.onclick = () => this.tour();
+    const xb = el("button", null, "✕"); xb.title = this.G("Back to the office", "ارجع المكتب"); xb.onclick = () => this.close();
+    b.append(cs, lb, vb, tb, xb); },
+  wait(ms){ return new Promise(r => setTimeout(r, ms)); },
+  async open(){ if (this.on) return; this.init(); this.on = true; store.set(LS+"_gon", true); this.root.classList.add("on"); this.door.classList.add("open");
+    const d = this.door.getBoundingClientRect(); this.place(d.left + d.width/2 - 30, d.bottom - 98); this.man.classList.add("in"); await this.wait(450);
+    await this.walk(d.right + 30, d.bottom - 98); this.door.classList.remove("open"); this.hi(); },
+  async close(){ if (!this.on) return; this.bub.classList.remove("show"); if (Voice.ok) speechSynthesis.cancel(); const d = this.door.getBoundingClientRect(); this.door.classList.add("open"); await this.walk(d.left + d.width/2 - 30, d.bottom - 98);
+    this.man.classList.remove("in"); await this.wait(350); this.door.classList.remove("open"); this.on = false; store.set(LS+"_gon", false); this.root.classList.remove("on"); },
+  place(x, y){ this.x = x; this.y = y; this.man.style.transition = "none"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; void this.man.offsetWidth; },
+  async walk(x, y){ const W = innerWidth, H = innerHeight; x = Math.max(4, Math.min(W - 64, x)); y = Math.max(4, Math.min(H - 100, y));
+    const dx = x - this.x, dist = Math.hypot(dx, y - this.y), ms = Math.min(2600, Math.max(250, dist/0.32)); this.busy++;
+    this.man.classList.toggle("flip", dx < -2); this.man.classList.add("walk"); this.bub.classList.remove("show");
+    this.man.style.transition = "transform "+ms+"ms cubic-bezier(.45,.05,.4,1)"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; this.x = x; this.y = y;
+    await this.wait(ms); this.man.classList.remove("walk"); this.busy--; },
+  async home(now){ const d = this.door.getBoundingClientRect(); if (now) this.place(d.right + 30, d.bottom - 98); else await this.walk(d.right + 30, d.bottom - 98); },
+  speak(text, acts){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
+    const bw = 300, x = Math.max(6, Math.min(innerWidth - bw - 6, this.x + 30 - bw/2)), above = this.y > 230;
+    this.bub.style.left = x+"px"; this.bub.style.top = above ? "" : (this.y + 100)+"px"; this.bub.style.bottom = above ? (innerHeight - this.y + 6)+"px" : "";
+    this.bub.classList.remove("hide"); this.bub.classList.add("show"); this.man.classList.add("talk"); clearTimeout(this._tt); this._tt = setTimeout(() => this.man.classList.remove("talk"), Math.min(6000, 60*text.length));
+    if (store.get(LS+"_gvoice", false)) Voice.speak(text); },
+  hi(){ const c = this.chr(); this.speak(this.G("I'm "+c.name+". Ask me about anything on the screen and I'll walk over and show you. Tap me to hide this bubble.",
+    "أنا "+c.ar+". اسألني عن أي حاجة في الشاشة وأنا أروحلها وأشرحهالك. دوس عليّا عشان تخفي الكلام.")); },
+  panel(type){ return Ws.panels.find(p => p.type === type && !p.min) || Ws.panels.find(p => p.type === type); },
+  chart(){ const p = this.panel("chart"); return p && p.chart ? p : null; },
+  async goRect(r, side){ if (!r) return; const x = side === "right" ? r.right - 64 : side === "left" ? r.left - 20 : r.left + r.width/2 - 30, y = Math.min(innerHeight - 100, Math.max(4, r.top + r.height/2 - 48)); await this.walk(x, y); },
+  flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
+  page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
+  live: {
+    chart(g){ const p = g.chart(); if (!p) return ""; const c = p.chart, d = c.data[c.data.length-1]; return d ? g.G(" Now: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" at "+d.c+".", " دلوقتي: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" على "+d.c+".") : ""; },
+    vp(g){ const p = g.chart(); if (!p || !p.chart._vp2) return g.G(" Turn it on from Indicators > Volume profile.", " شغّله من المؤشرات ← Volume profile."); const v = p.chart._vp2, tb = v.f.dl.reduce((a,b) => a+b, 0);
+      return g.G(" Right now: POC "+v.v.poc.toFixed(2)+", total delta "+(tb >= 0 ? "+" : "")+fmtV(tb)+" ("+(v.real ? "real trades" : "estimated")+").", " دلوقتي: الـPOC عند "+v.v.poc.toFixed(2)+" والدلتا الإجمالية "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+" ("+(v.real ? "من صفقات حقيقية" : "تقديرية")+")."); }
+  },
+  KB: [
+    {kw:/profile|بروف|بروفايل|فوليوم|poc|vah|val/i, to:"vp", en:"This column is the volume profile: the length of each row is how much traded at that price, the colour is who won there (green buyers, red sellers; darker = more one-sided). The thin strip on its left edge is resting limit orders from the order book. The gold mark is the POC, the most traded price.", ar:"العمود ده الفوليوم بروفيل: طول كل صف = اتداول قد إيه عند السعر ده، واللون = مين كسب هناك (أخضر الشاري، أحمر البايع، وكل ما يغمق يبقى السيطرة أكبر). الشريط الرفيع على حافته = أوامر الليميت المستنية في الأوردر بوك. العلامة الدهبي = الـPOC أكتر سعر اتداول."},
+    {kw:/delta|دلتا/i, to:"vp", en:"Delta = market buys minus market sells. Positive means buyers were more aggressive at that price.", ar:"الدلتا = الشراء بالماركت ناقص البيع بالماركت. لو موجبة يبقى الشاريين كانوا أشرس عند السعر ده."},
+    {kw:/order ?flow|اوردر ?فلو|أوردر ?فلو|heat|هيت|bookmap|بوك ?ماب/i, to:"of", en:"The order-flow column shows the order book as a heat map over time: bright = big resting orders. Bubbles are big trades, the sync card under it says when book, tape and limits agree.", ar:"عمود الأوردر فلو بيوري الأوردر بوك كخريطة حرارية مع الوقت: المنوّر = أوامر كبيرة مستنية. الفقاعات = صفقات كبيرة، وكارت الـSync تحته بيقولك امتى البوك والتايب والليميت متفقين."},
+    {kw:/\bdom\b|دوم|عمق|depth|ladder/i, to:"dom", en:"The DOM is the price ladder: bids on one side, asks on the other, with their sizes right now.", ar:"الـDOM هو سلّم الأسعار: طلبات الشراء في ناحية والبيع في ناحية، بأحجامها دلوقتي."},
+    {kw:/tape|تايب|time ?(and|&) ?sales|تايم|صفقات ?لحظ/i, to:"tape", en:"The tape (time & sales) lists every trade as it happens: green = buyer hit the ask, red = seller hit the bid. Whales and absorption are highlighted.", ar:"التايب (التايم آند سيلز) بيعرض كل صفقة لحظة ما تحصل: أخضر = شاري ضرب على البيع، أحمر = بايع ضرب على الشراء. الحيتان والامتصاص متعلّمين."},
+    {kw:/limit|ليميت|حائط|حوائط|wall|spoof|سبوف/i, to:"limits", en:"Limit tracking watches big orders in the book: PLACED, PULLED (removed before price got there, maybe spoofing) or FILLED (price traded through them).", ar:"تتبّع الليميت بيراقب الأوامر الكبيرة في البوك: اتحطت، اتسحبت (اتشالت قبل ما السعر يوصلها، ممكن سبوف) أو اتنفذت (السعر عدّى عليها)."},
+    {kw:/setup|سيتاب|كارت|card|entry|دخول|صفق/i, to:"setup", en:"The Setup Card gathers one trade idea: entry, stop, targets, the reasons for and against, and how sure the signals are. It is an idea to check, not a promise.", ar:"كارت السيتاب بيجمع فكرة صفقة واحدة: الدخول والستوب والأهداف، والأسباب مع وضد، وقد إيه الإشارات متأكدة. دي فكرة تراجعها مش وعد."},
+    {kw:/signal|اشار|إشار/i, to:"signals", en:"Signals lists what the scanner found per symbol and timeframe, with a score.", ar:"الإشارات بتعرض اللي السكانر لقاه لكل رمز وفريم، ومعاه درجة."},
+    {kw:/alert|تنبيه|منبه/i, to:"alerts", en:"Alerts shows the alarms that fired and follows each trade until target or stop.", ar:"التنبيهات بتعرض اللي ضرب، وبتتابع كل صفقة لحد الهدف أو الستوب."},
+    {kw:/watch|قائمة|ووتش|متابعة/i, to:"watch", en:"The watchlist: your symbols with last price and 24h change. Click one to load it in linked widgets.", ar:"قايمة المتابعة: رموزك بآخر سعر وتغيير 24 ساعة. دوس على أي واحد يفتح في الويدجتس المربوطة."},
+    {kw:/risk|مخاطر|لوت|lot|position size|حجم الصفقة/i, to:"risk", en:"The risk widget sizes the position from your account, risk % and stop distance.", ar:"ويدجت المخاطرة بيحسبلك حجم الصفقة من حسابك ونسبة المخاطرة ومسافة الستوب."},
+    {kw:/tradingview|تريدنج|تريدينج/i, to:"tvc", en:"This is TradingView's own live chart, it follows the linked symbol.", ar:"ده شارت تريدنج فيو نفسه لايف، وبيمشي ورا الرمز المربوط."},
+    {kw:/widget|ويدجت|اضيف|أضيف|add/i, to:"bar", en:"Use '+ Widget' up here to add any widget; drag its title to move it and any edge or corner to resize.", ar:"من '+ Widget' هنا تضيف أي ويدجت؛ اسحبه من عنوانه عشان تحركه، ومن أي حافة أو ركن عشان تكبّره."},
+    {kw:/zoom|تكبير|تصغير|حجم الواجهة/i, to:"zoom", en:"These − / + buttons scale the whole interface; click the number to reset.", ar:"زراير − و + دول بيكبّروا ويصغّروا الواجهة كلها؛ دوس على الرقم يرجع زي ما كان."},
+    {kw:/chart|شارت|شموع|candle/i, to:"chart", en:"The chart: candles, your indicators from 'Indicators', drawing tools on the left. Scroll to zoom, drag the price scale to stretch.", ar:"الشارت: الشموع، والمؤشرات من 'Indicators'، وأدوات الرسم على الشمال. اللف بالماوس يكبّر، واسحب سكيل السعر عشان تمطّه."},
+    {kw:/lab|لاب|معمل|backtest|باك ?تست/i, page:2, en:"The Lab tests strategies on history with an out-of-sample check. Taking you there.", ar:"اللاب بيختبر الاستراتيجيات على التاريخ وبيتأكد على بيانات متشافتش قبل كده. هوديك هناك."},
+    {kw:/scanner|سكانر|سكنر/i, page:1, en:"The Scanner page ranks symbols by setups. Taking you there.", ar:"صفحة السكانر بترتّب الرموز حسب الفرص. هوديك هناك."},
+    {kw:/playbook|بلاي ?بوك|خطة/i, page:3, en:"The Playbook keeps your trading rules. Taking you there.", ar:"البلاي بوك فيه قواعدك في التداول. هوديك هناك."},
+    {kw:/stats|احصائ|إحصائ|performance|أداء|اداء|journal|جورنال/i, page:4, en:"Stats shows your journal and performance. Taking you there.", ar:"الإحصائيات فيها الجورنال والأداء بتاعك. هوديك هناك."},
+    {kw:/win|اكسب|أكسب|هكسب|guarantee|مضمون|ضمان/i, en:"Nobody can promise a win. Every result here is tested and shown with its sample size; under 30 trades it is not evidence.", ar:"محدش يقدر يوعدك بمكسب. كل نتيجة هنا متجرّبة ومكتوب جنبها عدد الصفقات؛ أقل من 30 صفقة يبقى مش دليل."},
+    {kw:/^(hi|hello|hey)\b|ازيك|إزيك|سلام|اهلا|أهلا|صباح|مساء/i, en:"Hi! Ask me about any part of the screen.", ar:"أهلًا يا معلم! اسألني عن أي حتة في الشاشة."},
+    {kw:/who|انت مين|إنت مين|اسمك/i, en:"I'm your XPiX guide. For now I answer from the app's built-in guide; free-form AI chat comes later.", ar:"أنا مساعد XPiX. دلوقتي برد من دليل البرنامج المدمج، والشات الذكي المفتوح جاي بعدين."}
+  ],
+  target(to){
+    if (to === "bar"){ const s = document.querySelector("#bar select"); return s && s.getBoundingClientRect(); }
+    if (to === "zoom"){ const b = [...document.querySelectorAll("#bar button")].find(x => x.textContent === "+"); return b && b.getBoundingClientRect(); }
+    if (to === "vp" || to === "of"){ const p = this.chart(); if (!p) return null; const r = p.chart.cv.getBoundingClientRect(), PR = p.chart.PR || r.width - 60, w = to === "vp" ? Math.max(48, Math.min(170, PR*.1)) : r.width*.18;
+      return to === "vp" ? new DOMRect(r.left + PR - w, r.top + 20, w, r.height*.75) : new DOMRect(r.left + PR - w*2.2, r.top + 20, w, r.height*.75); }
+    const p = this.panel(to); return p ? p.root.getBoundingClientRect() : null;
+  },
+  async ask(q){ const k = this.KB.find(e => e.kw.test(q));
+    if (!k){ this.speak(this.G("I don't know that one yet. Try: profile, delta, order flow, DOM, tape, limits, setup, alerts, chart, lab, scanner.", "لسه معرفش دي. جرّب: البروفيل، الدلتا، الأوردر فلو، الدوم، التايب، الليميت، السيتاب، التنبيهات، الشارت، اللاب، السكانر.")); return; }
+    const txt = this.G(k.en, k.ar);
+    if (k.page != null){ await this.walk(innerWidth/2 - 30, 4); this.speak(txt); await this.wait(1400); this.page(k.page); return; }
+    if (k.to){ const ty = k.to === "vp" || k.to === "of" ? "chart" : k.to, r = this.target(k.to);
+      if (!r){ this.speak(this.G("That widget is not open. Open it?", "الويدجت ده مش مفتوح. أفتحهولك؟"), [[this.G("Open it", "افتحه"), () => { Ws.add(ty); setTimeout(() => this.ask(q), 500); }]]); return; }
+      await this.goRect(r, k.to === "vp" ? "left" : null); this.flash(r); const lf = this.live[k.to]; this.speak(txt + (lf ? lf(this) : "")); return; }
+    this.speak(txt); },
+  async tour(){ const seen = new Set(), stops = Ws.panels.filter(p => !p.min && !seen.has(p.type) && seen.add(p.type)).slice(0, 6);
+    for (const p of stops){ if (!this.on) return; const k = this.KB.find(e => e.to === p.type); if (!k) continue; await this.goRect(p.root.getBoundingClientRect()); this.flash(p.root.getBoundingClientRect()); this.speak(this.G(k.en, k.ar)); await this.wait(Math.min(9000, 2500 + 45*k.en.length)); }
+    if (this.on){ await this.home(); this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
+};
+
 /* toolbar */
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
@@ -4354,7 +4510,8 @@ function buildBar(){
   const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.8, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
-if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); }
+const gb = el("button", null, Lg("Guide","المساعد")); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
+if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
     const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };
@@ -4364,7 +4521,7 @@ if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); }
     mtLbl();
     const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
     menu.append(mt, zr); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
-    bar.append(sel, ub, rb, el("span","sp"), gear); document.body.append(menu); }
+    bar.append(sel, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
   zSet(+store.get(zKey, zDef)); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }
@@ -4382,6 +4539,7 @@ function applyLang(rebuild){
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
+  try { Guide.init(); if (store.get(LS+"_gon", false)) setTimeout(() => Guide.open(), 900); } catch(e){ console.error(e); }   // the office door sits in the corner; the guide comes back out if it was out last time
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");

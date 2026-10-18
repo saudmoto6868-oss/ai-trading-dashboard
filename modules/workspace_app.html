@@ -1056,7 +1056,7 @@ class CandleChart {
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
-      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{mode:"vd",range:"vis",rowpx:3,wpct:24,lbl:1,book:1,walls:1},
+      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -1801,8 +1801,10 @@ Object.assign(CandleChart.prototype, {
       const x = this.x(a2.i), y = py(a2[key]) + (up ? 16 : -16); c.fillStyle = "#0b0e11"; c.fillRect(x-17, y-8, 34, 14); c.strokeStyle = col; c.strokeRect(x-17, y-8, 34, 14); c.fillStyle = col; c.textAlign = "center"; c.fillText("SMT "+(up ? "▲" : "▼"), x, y+3); c.textAlign = "left"; });
     c.restore();
   },
-  paintVp(c, py, dec, PR, PB, i0, i1){   // volume profile v2: volume + delta per price row (modes: vd / delta / split), visible range or all candles
-    const G = Object.assign({mode:"vd", range:"vis", rowpx:3, wpct:24, lbl:1, book:1, walls:1}, this.st.vp || {}), n = this.data.length; if (!n) return;
+  paintVp(c, py, dec, PR, PB, i0, i1){   // volume profile v3: ONE slim column on the right. length = traded volume, colour = delta (who won, stronger = more one-sided), thin heat strip on its left edge = resting limit orders (order book)
+    const DEF = {v:3, mode:"vd", range:"vis", rowpx:3, wpct:10, lbl:0, book:1, walls:1};
+    if (!this.st.vp || this.st.vp.v !== 3) this.st.vp = Object.assign({}, DEF);   // older wide layouts reset once
+    const G = Object.assign({}, DEF, this.st.vp), n = this.data.length; if (!n) return;
     const a0 = G.range === "vis" ? Math.max(0, i0|0) : 0, a1 = G.range === "vis" ? Math.min(n-1, (i1 == null ? n-1 : i1)|0) : n-1, fpN = this.fp ? this.fp.size : 0;
     const k = [a0, a1, n, this.data[n-1].c, fpN].join(":");
     if (!this._vp2 || this._vp2.k !== k){ let real = 0;
@@ -1811,43 +1813,35 @@ Object.assign(CandleChart.prototype, {
         const rg = d.h - d.l; return {l:d.l, h:d.h, v:d.v, tp:(d.h + d.l + d.c)/3, d:rg > 0 ? (2*(d.c - d.l)/rg - 1)*(d.v || 0) : 0}; });   // no trades: delta estimated from where the candle closed
       this._vp2 = {k, v:vpCalc2(rows, 60), f:vpCalc2(rows, 1200), real, cnt:rows.length}; }
     const vp = this._vp2.v, fn = this._vp2.f; if (!vp || !fn) return;
-    const bw = Math.max(56, (PR||this.W)*(Math.max(8, Math.min(60, +G.wpct || 24))/100)), buyC = this.st.of.color, sellC = this.st.of.color2, neu = TH.mut;
-    const binPx = Math.abs(py(fn.lo) - py(fn.lo + fn.st)), g = Math.max(1, Math.ceil(Math.max(1, +G.rowpx || 3)/Math.max(.01, binPx)));
+    const bw = Math.max(48, Math.min(170, (PR||this.W)*(Math.max(5, Math.min(30, +G.wpct || 10))/100))), x0 = PR - bw, buyC = this.st.of.color, sellC = this.st.of.color2, neu = TH.mut, SW = G.book ? 5 : 0;
+    const binPx = Math.abs(py(fn.lo) - py(fn.lo + fn.st)), g = Math.max(1, Math.ceil(Math.max(1, +G.rowpx || 3)/Math.max(.01, binPx))), rs = fn.st*g;
     const rowsD = []; for (let i = 0; i < fn.bins.length; i += g){ let v = 0, dl = 0; for (let j = i; j < Math.min(fn.bins.length, i+g); j++){ v += fn.bins[j]; dl += fn.dl[j]; } rowsD.push({i, v, dl, n:Math.min(g, fn.bins.length-i)}); }
-    const mx = Math.max(...rowsD.map(r => r.v), 1e-9), mxD = Math.max(...rowsD.map(r => Math.abs(r.dl)), 1e-9), avg = rowsD.reduce((a,r) => a + r.v, 0)/rowsD.length, pocR = rowsD.reduce((m, r) => r.v > m.v ? r : m, rowsD[0]);
-    let drawn = 0; c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
-    rowsD.forEach(r => { const y1 = py(fn.lo+(r.i+r.n)*fn.st), y0 = py(fn.lo+r.i*fn.st); if (y0 < 0 || y1 > PB) return; drawn++;
-      const rh = Math.max(1, y0-y1-(y0-y1 > 3 ? 1 : 0)), mp = fn.lo+(r.i+r.n/2)*fn.st, inVA = mp >= vp.val && mp <= vp.vah, dc = r.dl >= 0 ? buyC : sellC;
-      let wLbl = 0;
-      if (G.mode === "delta"){ const w = bw*Math.abs(r.dl)/mxD; c.globalAlpha = inVA ? .85 : .6; c.fillStyle = dc; c.fillRect(PR - w, y1, w, rh); wLbl = w; }
-      else if (G.mode === "split"){ const w = bw*r.v/mx, wb = w*Math.max(0, (r.v + r.dl)/2)/Math.max(1e-9, r.v); c.globalAlpha = inVA ? .4 : .22; c.fillStyle = buyC; c.fillRect(PR-w, y1, wb, rh); c.fillStyle = sellC; c.fillRect(PR-w+wb, y1, w-wb, rh); wLbl = w; }
-      else { const w = bw*r.v/mx, wd = Math.min(w, bw*.6*Math.abs(r.dl)/mxD);   // vd: grey = volume, coloured part (own scale so it reads at a glance, from the axis) = who won at this price
-        c.globalAlpha = inVA ? .32 : .18; c.fillStyle = neu; c.fillRect(PR - w, y1, w, rh); c.globalAlpha = Math.min(1, (inVA ? .55 : .4) + .6*Math.abs(r.dl)/Math.max(1e-9, r.v)); c.fillStyle = dc; c.fillRect(PR - wd, y1, wd, rh); wLbl = w; }
-      c.globalAlpha = 1;
-      if (r === pocR){ c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.strokeRect(PR - bw*r.v/mx + .5, y1 + .5, bw*r.v/mx - 1, Math.max(1, rh - 1)); }   // POC row outlined
-      if (r.v < avg*0.25){ c.fillStyle = "rgba(240,185,11,.35)"; c.fillRect(PR-3, y1, 3, rh); }   // low-volume node (gap)
-      if (G.lbl && rh >= 8 && r.v > 0){ const t = fmtV(r.v)+" "+(r.dl >= 0 ? "+" : "−")+fmtV(Math.abs(r.dl)), tw = c.measureText(t).width;
-        if (wLbl >= tw + 6){ c.fillStyle = "rgba(234,236,239,.85)"; c.fillText(t, PR - wLbl + 3, y1 + rh/2 + 3); } else { c.fillStyle = "rgba(170,178,190,.8)"; c.textAlign = "right"; c.fillText(t, PR - wLbl - 3, y1 + rh/2 + 3); c.textAlign = "left"; } } });
-    let bkTxt = ""; if (G.book && this.bkS && this.bkS.size){   // resting limit orders (order book, smoothed): own column left of the profile; big walls that stay get a band across the whole chart
-      const rs = fn.st*g, bkW = Math.max(30, bw*.55), x1 = PR - bw - 4, B = new Map(); let pMin = Infinity, pMax = -Infinity;
+    const mx = Math.max(...rowsD.map(r => r.v), 1e-9), mxD = Math.max(...rowsD.map(r => Math.abs(r.dl)), 1e-9), pocR = rowsD.reduce((m, r) => r.v > m.v ? r : m, rowsD[0]), L = bw - SW - 2;
+    c.save(); c.globalAlpha = .55; c.fillStyle = TH.bg || "#0b0e11"; c.fillRect(x0, 0, bw, PB); c.restore();   // quiet backdrop so the column reads as one piece
+    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
+    rowsD.forEach(r => { const y1 = py(fn.lo+(r.i+r.n)*fn.st), y0 = py(fn.lo+r.i*fn.st); if (y0 < 0 || y1 > PB || !(r.v > 0)) return;
+      const rh = Math.max(1, y0-y1-(y0-y1 > 3 ? 1 : 0)), mp = fn.lo+(r.i+r.n/2)*fn.st, inVA = mp >= vp.val && mp <= vp.vah, dc = r.dl >= 0 ? buyC : sellC, imb = Math.abs(r.dl)/Math.max(1e-9, r.v);
+      if (G.mode === "delta"){ const w = L*Math.abs(r.dl)/mxD; c.globalAlpha = .35 + .6*imb; c.fillStyle = dc; c.fillRect(PR - w, y1, w, rh); }
+      else if (G.mode === "split"){ const w = L*r.v/mx, wb = w*Math.max(0, (r.v + r.dl)/2)/r.v; c.globalAlpha = inVA ? .7 : .45; c.fillStyle = buyC; c.fillRect(PR-w, y1, wb, rh); c.fillStyle = sellC; c.fillRect(PR-w+wb, y1, w-wb, rh); }
+      else { const w = L*r.v/mx; c.globalAlpha = inVA ? .3 : .16; c.fillStyle = neu; c.fillRect(PR - w, y1, w, rh);   // length = volume, colour fills the part that was one-sided
+        const wd = w*Math.min(1, .45 + imb); c.globalAlpha = Math.min(1, .5 + .6*imb); c.fillStyle = dc; c.fillRect(PR - wd, y1, wd, rh); }
+      c.globalAlpha = 1; if (r === pocR){ c.fillStyle = "#f0b90b"; c.fillRect(PR - L*r.v/mx, y1, 2, rh); }
+      if (G.lbl && rh >= 8){ const t = (r.dl >= 0 ? "+" : "−")+fmtV(Math.abs(r.dl)); c.fillStyle = "rgba(234,236,239,.85)"; c.fillText(t, x0 + SW + 3, y1 + rh/2 + 3); } });
+    let bkTxt = ""; if (G.book && this.bkS && this.bkS.size){   // resting limit orders, smoothed per poll (flicker fades, lasting walls build): heat strip, brighter = more size
+      const B = new Map(); let pMin = Infinity, pMax = -Infinity;
       this.bkS.forEach((o, p) => { const j = Math.floor((p - fn.lo)/rs); let e = B.get(j); if (!e){ e = {b:0, a:0, n:0}; B.set(j, e); } e[o.sd] += o.q; e.n = Math.max(e.n, o.n); if (p < pMin) pMin = p; if (p > pMax) pMax = p; });
-      const vis = [...B.entries()].map(([j, e]) => ({j, e, y0:py(fn.lo + j*rs), y1:py(fn.lo + (j+1)*rs)})).filter(q => q.y0 >= 0 && q.y1 <= PB), qs = vis.map(q => q.e.b + q.e.a).sort((a,b) => a-b);
+      const vis = [...B.entries()].map(([j, e]) => ({e, y0:py(fn.lo + j*rs), y1:py(fn.lo + (j+1)*rs)})).filter(q => q.y0 >= 0 && q.y1 <= PB), qs = vis.map(q => q.e.b + q.e.a).sort((a,b) => a-b);
       if (qs.length){ const mxB = qs[qs.length-1] || 1e-9, med = qs[Math.floor(qs.length/2)] || 1e-9, walls = [];
-        vis.forEach(q => { const tq = q.e.b + q.e.a, sd = q.e.b >= q.e.a ? "b" : "a", col = sd === "b" ? buyC : sellC, rh = Math.max(1, q.y0 - q.y1 - (q.y0 - q.y1 > 3 ? 1 : 0)), w = bkW*Math.sqrt(tq/mxB);
-          c.globalAlpha = .18 + .72*Math.sqrt(tq/mxB); c.fillStyle = col; c.fillRect(x1 - w, q.y1, w, rh);
+        vis.forEach(q => { const tq = q.e.b + q.e.a, col = q.e.b >= q.e.a ? buyC : sellC, rh = Math.max(1, q.y0 - q.y1); c.globalAlpha = .12 + .88*Math.sqrt(tq/mxB); c.fillStyle = col; c.fillRect(x0, q.y1, SW, rh);
           if (G.walls && tq >= 3*med && tq >= .25*mxB && q.e.n >= 5) walls.push({q, tq, col, rh}); });
-        c.globalAlpha = .5; c.strokeStyle = TH.mut; c.setLineDash([2,3]); c.beginPath(); c.moveTo(x1 + .5, 18); c.lineTo(x1 + .5, PB); c.stroke(); c.setLineDash([]);
-        walls.sort((a,b) => b.tq - a.tq).slice(0, 8).forEach(({q, tq, col, rh}) => { const k = Math.min(1, tq/mxB);
-          c.globalAlpha = .05 + .1*k; c.fillStyle = col; c.fillRect(0, q.y1, x1 - bkW, Math.max(rh, 2));   // the wall's price, across the chart
-          c.globalAlpha = .9; c.fillRect(x1 - bkW*Math.sqrt(k) - 3, q.y1, 2, Math.max(rh, 2));
-          c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = col; c.fillText((col === buyC ? Lg("bid wall ","حائط شراء ") : Lg("ask wall ","حائط بيع "))+fmtV(tq), x1 - bkW*Math.sqrt(k) - 6, q.y1 + rh/2 + 3); });
-        c.globalAlpha = 1; const lp = this.data[n-1].c; bkTxt = "  ·  "+Lg("book ","الأوردر بوك ")+"±"+(Math.max(lp - pMin, pMax - lp)/lp*100).toFixed(1)+"%"; } }
-    { const tb = fn.dl.reduce((a,b) => a+b, 0), src = this._vp2.real ? Lg("trades ","صفقات ")+this._vp2.real+"/"+this._vp2.cnt : Lg("estimated","تقديري");
-      c.font = "bold 10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = tb >= 0 ? buyC : sellC;
-      c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+"  ·  "+(G.range === "vis" ? Lg("visible","المعروض") : Lg("all","الكل"))+" "+this._vp2.cnt+Lg(" bars"," شمعة")+"  ·  "+src+bkTxt, PR-4, 12); }
-    let pocCol = vp.pi != null && fn.dl[Math.floor((vp.poc - fn.lo)/fn.st)] != null ? (fn.dl[Math.min(fn.dl.length-1, Math.max(0, Math.floor((vp.poc - fn.lo)/fn.st)))] >= 0 ? buyC : sellC) : buyC;
-    [["POC",vp.poc,pocCol],["VAH",vp.vah,"#4aa3ff"],["VAL",vp.val,"#4aa3ff"]].forEach(([nm,p,col]) => { const y = py(p); c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = nm === "POC" ? 1.2 : 1; c.setLineDash(nm === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.lineWidth = 1;
-      c.fillStyle = col; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillText(nm+" "+p.toFixed(dec), PR-bw-4-(bkTxt ? Math.max(30, bw*.55) + 6 : 0), y-4); c.globalAlpha = 1; });
+        c.globalAlpha = 1; walls.sort((a,b) => b.tq - a.tq).slice(0, 5).forEach(({q, tq, col, rh}) => { const y = q.y1 + rh/2;   // big lasting wall: short tick into the column + size, nothing across the chart
+          c.fillStyle = col; c.fillRect(x0 - 4, y - 1, SW + 10, 2); c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.fillText(fmtV(tq), x0 + SW + 8, y + 3); });
+        const lp = this.data[n-1].c; bkTxt = " · ±"+(Math.max(lp - pMin, pMax - lp)/lp*100).toFixed(1)+"%"; } }
+    [["POC",vp.poc,"#f0b90b"],["VAH",vp.vah,"#4aa3ff"],["VAL",vp.val,"#4aa3ff"]].forEach(([nm,p,col]) => { const y = py(p); if (y < 0 || y > PB) return;   // short marks on the column only
+      c.globalAlpha = .8; c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(nm === "POC" ? [] : [3,2]); c.beginPath(); c.moveTo(x0 - 6, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]);
+      c.fillStyle = col; c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillText(nm, x0 - 8, y + 3); c.globalAlpha = 1; });
+    { const tb = fn.dl.reduce((a,b) => a+b, 0); c.font = "bold 10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = tb >= 0 ? buyC : sellC;
+      c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+(this._vp2.real ? "" : " ~")+bkTxt, PR-4, 12); }   // "~" = delta estimated from candles (no trades yet)
     c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
   ewCount(){   // newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
@@ -2801,8 +2795,8 @@ class Panel {
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }, sty:"vp", params:[
         PS("mode", Lg("Show","العرض"), [["vd", Lg("Volume + delta (grey + colour)","حجم + دلتا (رمادي + لون)")], ["delta", Lg("Delta only","دلتا بس")], ["split", Lg("Buy / sell split","شراء / بيع جنب بعض")]]),
         PS("range", Lg("Candles","الشموع"), [["vis", Lg("Visible on screen","المعروضة على الشاشة")], ["all", Lg("All loaded","كل المحمّل")]]),
-        P("rowpx", Lg("Row height px (detail)","ارتفاع الصف بكسل (التفاصيل)"), 1, 12, 1), P("wpct", Lg("Width % of chart","العرض % من الشارت"), 8, 60, 1), PB("lbl", Lg("Numbers on rows","الأرقام على الصفوف")),
-        PB("book", Lg("Resting limit orders (order book)","أوامر الليميت المعلّقة (الأوردر بوك)")), PB("walls", Lg("Big walls across the chart","الحوائط الكبيرة على عرض الشارت"))]},
+        P("rowpx", Lg("Row height px (detail)","ارتفاع الصف بكسل (التفاصيل)"), 1, 12, 1), P("wpct", Lg("Width % of chart","العرض % من الشارت"), 5, 30, 1), PB("lbl", Lg("Delta numbers on rows","أرقام الدلتا على الصفوف")),
+        PB("book", Lg("Limit orders strip (order book)","شريط أوامر الليميت (الأوردر بوك)")), PB("walls", Lg("Mark big lasting walls","علّم الحوائط الكبيرة الثابتة"))]},
       {id:"ew", label:T("indEw"), get:() => ch().ewOn, set:v => { ch().ewOn = v; this.state.ew = v; }},
       {id:"bvd", label:T("indBvd"), tip:T("bvdTip"), get:() => ch().bvdOn, set:v => { ch().bvdOn = v; this.state.bvd = v; }},
       {id:"harm", label:T("indHarm"), tip:T("harmTip"), get:() => ch().harmOn, set:v => { ch().harmOn = v; this.state.harm = v; }},

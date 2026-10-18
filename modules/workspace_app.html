@@ -231,9 +231,9 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-stage{position:fixed;left:8px;pointer-events:none;opacity:0;transition:opacity .4s}
 #guide.on .g-stage{opacity:1}
 #guide .g-light{position:absolute;left:-30%;right:-30%;top:-8%;bottom:0;background:linear-gradient(180deg,rgba(255,236,190,.22),rgba(255,236,190,.03) 85%);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);filter:blur(3px);opacity:0;transition:opacity .8s}
-#guide.on .g-light{opacity:1;animation:gLight 6s ease-in-out infinite alternate}
+#guide.on .g-light{opacity:1}
 #guide .g-floor{position:absolute;left:-12%;right:-12%;bottom:-4px;height:18%;background:radial-gradient(ellipse at 50% 70%,rgba(240,185,11,.30),rgba(240,185,11,.06) 45%,transparent 70%)}
-#guide .g-man{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:auto;cursor:pointer;opacity:0;transform-origin:50% 100%;filter:drop-shadow(0 10px 14px #000a)}
+#guide .g-man{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:auto;cursor:pointer;opacity:0;transform-origin:50% 100%;will-change:transform,opacity}
 #guide .g-man svg{width:100%;height:100%;display:block}
 #guide .g-eback{position:absolute;left:13%;right:13%;top:3%;bottom:1%;background:linear-gradient(180deg,#2a2f37,#0f1216 70%);box-shadow:inset 0 0 40px #000;opacity:0;transition:opacity .4s}
 #guide .g-eback::before{content:"";position:absolute;left:10%;right:10%;top:0;height:3px;background:#fff6dd;box-shadow:0 0 22px 8px rgba(255,240,200,.35)}
@@ -286,7 +286,7 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide.nostage .g-stage{display:none}
 #guideB{display:inline-flex;align-items:center;gap:5px;padding:2px 8px}#guideB b{font-size:11px;letter-spacing:.5px;color:#f0b90b}#guide .g-mic.on,#guide .g-bot button.on{color:#0b0e11;background:#f0b90b;border-color:#f0b90b}
 #guide .g-man.listen .g-head{animation:gListen 1.2s ease-in-out infinite alternate}
-#guide .g-man.listen{filter:drop-shadow(0 0 14px rgba(240,185,11,.55)) drop-shadow(0 10px 14px #000a)}
+#guide .g-man.listen .g-floor,#guide .g-man.listen{outline:0}#guide .g-man.listen svg,#guide .g-man.listen .g-vid{filter:drop-shadow(0 0 10px rgba(240,185,11,.5))}
 @keyframes gListen{from{transform:rotate(-4deg)}to{transform:rotate(-1deg)}}
 #guide .g-beam{position:fixed;left:0;top:0;pointer-events:none;opacity:0;transition:opacity .3s}
 #guide .g-beam.on{opacity:1}
@@ -1340,6 +1340,9 @@ class CandleChart {
     if (this.tf === "1D" || this.tf === "1W") return day;
     return d.getHours() === 0 && d.getMinutes() === 0 ? day : pad2(d.getHours())+":"+pad2(d.getMinutes());
   }
+  drawData(){   // redraw asked by streaming data (book polls, trades): at most ~7 per second per chart; mouse / touch still use draw() at full speed
+    const now = performance.now(); if (now - (this._dd || 0) >= 140){ this._dd = now; this.draw(); return; }
+    if (!this._ddT) this._ddT = setTimeout(() => { this._ddT = 0; this._dd = performance.now(); this.draw(); }, 140 - (now - this._dd)); }
   draw(){
     if (this._raf) return;
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
@@ -1944,7 +1947,7 @@ Object.assign(CandleChart.prototype, {
     if (!this.st.vp || this.st.vp.v !== 3) this.st.vp = Object.assign({}, DEF);   // older wide layouts reset once
     const G = Object.assign({}, DEF, this.st.vp), n = this.data.length; if (!n) return;
     const a0 = G.range === "vis" ? Math.max(0, i0|0) : 0, a1 = G.range === "vis" ? Math.min(n-1, (i1 == null ? n-1 : i1)|0) : n-1, fpN = this.fp ? this.fp.size : 0;
-    const k = [a0, a1, n, this.data[n-1].c, fpN].join(":");
+    const k = [a0, a1, n, fpN, Math.floor(Date.now()/1500)].join(":");   // rebuild at most every 1.5 s or when the view / trades change (every tick was too heavy with several charts)
     if (!this._vp2 || this._vp2.k !== k){ let real = 0;
       const rows = this.data.slice(a0, a1 + 1).map(d => { const f = this.fp && this.fp.get(d.t);
         if (f && f.px && f.px.size){ let tb = 0; f.px.forEach(v => tb += v.b + v.s); if (tb > 0){ real++; const sc = (d.v || tb)/tb; return {l:d.l, h:d.h, pts:[...f.px].map(([p, v]) => [+p, (v.b + v.s)*sc, (v.b - v.s)*sc])}; } }
@@ -1966,8 +1969,9 @@ Object.assign(CandleChart.prototype, {
       c.globalAlpha = 1; if (r === pocR){ c.fillStyle = "#f0b90b"; c.fillRect(PR - L*r.v/mx, y1, 2, rh); }
       if (G.lbl && rh >= 8){ const t = (r.dl >= 0 ? "+" : "−")+fmtV(Math.abs(r.dl)); c.fillStyle = "rgba(234,236,239,.85)"; c.fillText(t, x0 + SW + 3, y1 + rh/2 + 3); } });
     let bkTxt = ""; if (G.book && this.bkS && this.bkS.size){   // resting limit orders, smoothed per poll (flicker fades, lasting walls build): heat strip, brighter = more size
-      const B = new Map(); let pMin = Infinity, pMax = -Infinity;
-      this.bkS.forEach((o, p) => { const j = Math.floor((p - fn.lo)/rs); let e = B.get(j); if (!e){ e = {b:0, a:0, n:0}; B.set(j, e); } e[o.sd] += o.q; e.n = Math.max(e.n, o.n); if (p < pMin) pMin = p; if (p > pMax) pMax = p; });
+      const bk = this.bkN + "|" + fn.lo + "|" + rs; if (!this._bkB || this._bkB.k !== bk){ const B = new Map(); let pMin = Infinity, pMax = -Infinity;   // buckets only change with a new book snapshot or a new row grid
+        this.bkS.forEach((o, p) => { const j = Math.floor((p - fn.lo)/rs); let e = B.get(j); if (!e){ e = {b:0, a:0, n:0}; B.set(j, e); } e[o.sd] += o.q; e.n = Math.max(e.n, o.n); if (p < pMin) pMin = p; if (p > pMax) pMax = p; });
+        this._bkB = {k:bk, B, pMin, pMax}; } const B = this._bkB.B, pMin = this._bkB.pMin, pMax = this._bkB.pMax;
       const vis = [...B.entries()].map(([j, e]) => ({e, y0:py(fn.lo + j*rs), y1:py(fn.lo + (j+1)*rs)})).filter(q => q.y0 >= 0 && q.y1 <= PB), qs = vis.map(q => q.e.b + q.e.a).sort((a,b) => a-b);
       if (qs.length){ const mxB = qs[qs.length-1] || 1e-9, med = qs[Math.floor(qs.length/2)] || 1e-9, walls = [];
         vis.forEach(q => { const tq = q.e.b + q.e.a, col = q.e.b >= q.e.a ? buyC : sellC, rh = Math.max(1, q.y0 - q.y1); c.globalAlpha = .12 + .88*Math.sqrt(tq/mxB); c.fillStyle = col; c.fillRect(x0, q.y1, SW, rh);
@@ -3099,9 +3103,9 @@ class Panel {
       const lqIv = setInterval(() => { if (tok !== this.tok){ clearInterval(lqIv); return; } if (this.chart.liqOn && Date.now() - liqT > 15000) this.liqKick(); }, 2000); this.wsUnsubs.push(() => clearInterval(lqIv)); }
     this.chart.lvD = null; const lvIv = setInterval(() => { if (tok !== this.tok){ clearInterval(lvIv); return; } if (this.chart.lvOn && Date.now() - (this.lvT || 0) > 30000){ this.lvT = Date.now(); this.lvKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(lvIv)); this.chart.llD = null; const llIv = setInterval(() => { if (tok !== this.tok){ clearInterval(llIv); return; } if (this.chart.llOn && Date.now() - (this.llT || 0) > 30000){ this.llT = Date.now(); this.llKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(llIv));
     this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); this.chart.flowB = []; this.chart.flowT = []; this.chart.sym = sym; const seenF = new Set();
-    this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn || this.chart.vpOn) this.chart.draw(); }));
+    this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn || this.chart.vpOn) this.chart.drawData(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
-      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.draw(); }));
+      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.flt, p.rows); this.syncMarks(); } }));
     if (subMin){
@@ -4642,10 +4646,17 @@ const Guide = {
     const bl = f.querySelector('img[data-k="blink"]'); if (bl){ const go = () => { this._fb = setTimeout(() => { if (!this.man.querySelector(".g-face")) return; f.classList.add("blinking"); f.querySelectorAll("img").forEach(i => i.classList.toggle("on", i === bl)); setTimeout(() => { f.classList.remove("blinking"); f.dataset.k = ""; this.mouth(-1); go(); }, 140); }, 2800 + Math.random()*3500); }; go(); }
     this._fm = setInterval(() => { if (GLive.on) return; if (this.man.classList.contains("talk")) this.mouth(Math.random()); else this.mouth(-1); }, 115); },   // no live voice level (browser voice / text): plausible mouth movement while talking
   setTalk(on){ this.man.classList.toggle("talk", !!on); const t = this.man.querySelector(".g-v-talk"), i = this.man.querySelector(".g-v-idle");
-    if (t && i && t.src !== i.src){ try { if (on){ t.currentTime = 0; t.play(); } else t.pause(); } catch(e){} } },
+    if (t && i && t.src !== i.src){ try { if (on){ t.currentTime = 0; const pr = t.play(); pr && pr.catch(() => {}); } else t.pause(); } catch(e){} } },
+  idb(mode, fn){ return new Promise(res => { try { const rq = indexedDB.open("xpix_media", 1); rq.onupgradeneeded = () => rq.result.createObjectStore("f");
+      rq.onsuccess = () => { try { const tx = rq.result.transaction("f", mode), st = tx.objectStore("f"), r = fn(st); tx.oncomplete = () => res(r && r.result !== undefined ? r.result : true); tx.onerror = () => res(null); } catch(e){ res(null); } }; rq.onerror = () => res(null); } catch(e){ res(null); } }); },
+  async myVid(){ if (!store.get(LS+"_gvid", false)) return null; if (this._myVid) return this._myVid; const idle = await this.idb("readonly", st => st.get("idle")), talk = await this.idb("readonly", st => st.get("talk"));
+    if (!(idle instanceof Blob)) return null; return this._myVid = {idle:URL.createObjectURL(idle), talk:talk instanceof Blob ? URL.createObjectURL(talk) : URL.createObjectURL(idle)}; },
   myFace(){ const f = store.get(LS+"_gface", null); return f && f.photo ? f : null; },   // photos picked with "Mr X photos" (kept in this browser only)
-  pickFace(){ const inp = el("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
-    inp.onchange = async () => { const fs = [...inp.files].slice(0, 4); if (!fs.length) return;
+  pickFace(){ const inp = el("input"); inp.type = "file"; inp.accept = "image/*,video/*"; inp.multiple = true;
+    inp.onchange = async () => { const vids = [...inp.files].filter(f => /^video\//.test(f.type)).slice(0, 2);
+      if (vids.length){ const t = vids.find(f => /talk|كلام|speak/i.test(f.name)) || vids[1], i = vids.find(f => f !== t) || vids[0];   // videos (ProMoat / Veo...): idle loop + talking loop, kept in this browser (IndexedDB)
+        await this.idb("readwrite", st => { st.put(i, "idle"); if (t) st.put(t, "talk"); else st.delete("talk"); }); store.set(LS+"_gvid", true); this._myVid = null; store.set(LS+"_gchar", "mrx"); await this.paint(); this.bot(); this.speak(this.G("Done - that's me now.", "تمام، ده شكلي دلوقتي."), null, true); return; }
+      const fs = [...inp.files].slice(0, 4); if (!fs.length) return;
       const shrink = f => new Promise(res => { const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { const k = Math.min(1, 900/Math.max(im.width, im.height)), cv = document.createElement("canvas"); cv.width = Math.round(im.width*k); cv.height = Math.round(im.height*k); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); res(cv.toDataURL("image/jpeg", .82)); }; im.onerror = () => res(""); im.src = u; });
       const named = await Promise.all(fs.map(async f => [f.name.toLowerCase(), await shrink(f)])), out = {};
       const role = n => /blink|eye|عين/.test(n) ? "blink" : /open|aa|مفتوح/.test(n) ? "open" : /mid|half|نص/.test(n) ? "mid" : "";
@@ -4653,7 +4664,7 @@ const Guide = {
       try { store.set(LS+"_gface", out); } catch(e){ this.speak(this.G("Photos too big for this browser.", "الصور كبيرة على المتصفح.")); return; }
       store.set(LS+"_gchar", "mrx"); this._media = {}; await this.paint(); this.bot(); this.speak(this.G("Done - that's me now.", "تمام، ده شكلي دلوقتي."), null, true); };
     inp.click(); },
-  async paint(){ const c = this.chr(), mf = c.video ? this.myFace() : null, md = mf ? {photo:mf.photo, mid:mf.mid || "", open:mf.open || "", blink:mf.blink || ""} : await this.media(c); this.man.classList.toggle("real", !!md);
+  async paint(){ const c = this.chr(), mv = c.video ? await this.myVid() : null, mf = !mv && c.video ? this.myFace() : null, md = mv || (mf ? {photo:mf.photo, mid:mf.mid || "", open:mf.open || "", blink:mf.blink || ""} : await this.media(c)); this.man.classList.toggle("real", !!md);
     this.man.innerHTML = md && md.idle ? '<div class="g-vid"><video class="g-v-idle" src="'+md.idle+'" muted loop playsinline autoplay></video><video class="g-v-talk" src="'+md.talk+'" muted loop playsinline preload="auto"></video></div>'
       : md && md.photo ? '<div class="g-vid g-face" data-k="photo">' + [["photo", md.photo], ["mid", md.mid], ["open", md.open], ["blink", md.blink]].filter(x => x[1]).map(([k, u], i) => '<img class="g-v-photo'+(i ? "" : " on")+'" data-k="'+k+'" src="'+u+'" alt="">').join("") + '</div>' : presenterSvg(c); this.faceLife(); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
     this.tab.textContent = this.G(c.name, c.ar); this.root.querySelector(".g-nm").textContent = this.G(c.name, c.ar); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
@@ -4675,7 +4686,7 @@ const Guide = {
     const rt = sel("_grate", "1", [[".85", this.G("Slow", "بطيء")], ["1", this.G("Normal", "عادي")], ["1.15", this.G("Fast", "سريع")]]);
     const clr = el("button", null, this.G("New chat", "محادثة جديدة")); clr.onclick = () => { const br = this.bridge(); if (br) br.ask({id:"r"+Date.now(), reset:true}); this.speak(this.G("Fresh start. What's on your mind?", "صفحة جديدة. في دماغك إيه؟")); };
     b.append(el("div", "g-btns"), row(this.G("Presenter", "المذيع"), cs), row(this.G("Presenter size", "حجم المذيع"), sz), row(this.G("Show presenter", "إظهار المذيع"), tog("_gstage", true, () => this.look())),
-      row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Mr X photos (1-4)", "صور مستر X (1-4)"), Object.assign(el("button", null, this.myFace() ? this.G("Change", "تغيير") : this.G("Upload", "رفع")), {onclick:() => this.pickFace()}), ...(this.myFace() ? [Object.assign(el("button", null, "✕"), {title:this.G("Back to the drawing", "رجوع للرسم"), onclick:() => { store.set(LS+"_gface", null); this._media = {}; this.paint(); this.bot(); }})] : [])), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
+      row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Mr X photos / videos", "صور / فيديو مستر X"), Object.assign(el("button", null, (this.myFace() || store.get(LS+"_gvid", false)) ? this.G("Change", "تغيير") : this.G("Upload", "رفع")), {onclick:() => this.pickFace()}), ...((this.myFace() || store.get(LS+"_gvid", false)) ? [Object.assign(el("button", null, "✕"), {title:this.G("Back to the drawing", "رجوع للرسم"), onclick:() => { store.set(LS+"_gface", null); store.set(LS+"_gvid", false); this._myVid = null; this.idb("readwrite", st => st.clear()); this._media = {}; this.paint(); this.bot(); }})] : [])), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
     b.firstChild.append(lb, vb, cb, tb, clr); },
   life(){ clearTimeout(this._lt); this._lt = setTimeout(() => { if (this.on && !this._fx && !this.man.classList.contains("talk") && !this.listening){ const h = this.man.querySelector(".g-head");
       if (h) h.animate([{transform:"rotate(0)"}, {transform:"rotate(" + (Math.random() < .5 ? -5 : 4) + "deg)", offset:.3}, {transform:"rotate(0)"}], {duration:2600, easing:"ease-in-out"}); } this.life(); }, 7000 + Math.random()*7000); },

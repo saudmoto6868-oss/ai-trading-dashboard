@@ -91,10 +91,15 @@ def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (f
     sch = {"type": "OBJECT", "required": ["say", "go", "page"], "properties": {"say": {"type": "STRING"},
            "go": {"type": "STRING", "enum": TARGETS}, "page": {"type": "STRING", "enum": PAGES}}}
     body = {"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
-            "generationConfig": {"responseMimeType": "application/json", "responseSchema": sch, "maxOutputTokens": 2048}}
+            "generationConfig": {"responseMimeType": "application/json", "responseSchema": sch, "maxOutputTokens": 1024,
+                                 "thinkingConfig": {"thinkingBudget": 0}}}   # no hidden thinking: short answers come back much faster
     for m in dict.fromkeys([model, "gemini-2.5-flash", "gemini-2.0-flash"]):   # a retired / unknown model name (404) tries the next one
         r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent",
                           headers={"x-goog-api-key": gemini_key(), "Content-Type": "application/json"}, timeout=25, json=body)
+        if r.status_code == 400 and "thinking" in r.text.lower():   # a model that refuses the thinking switch: ask again without it
+            body["generationConfig"].pop("thinkingConfig", None)
+            r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent",
+                              headers={"x-goog-api-key": gemini_key(), "Content-Type": "application/json"}, timeout=25, json=body)
         if r.status_code != 404:
             break
     r.raise_for_status()

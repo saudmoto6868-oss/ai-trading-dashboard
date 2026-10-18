@@ -228,35 +228,49 @@ body.ui-hud input[type=checkbox]{accent-color:#f0a43c}
 body.mob #mjump{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:30px;font-size:12px}
 #guide{position:fixed;inset:0;pointer-events:none;z-index:9000;font-family:inherit}
-#guide .g-door{position:fixed;left:6px;bottom:6px;width:46px;height:66px;pointer-events:auto;cursor:pointer;perspective:220px;opacity:.55;transition:opacity .2s}
-#guide .g-door:hover,#guide.on .g-door{opacity:1}
-#guide .g-room{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#f0b90b55,#0b0e11 70%);border:2px solid #3a3f47;border-bottom:0;border-radius:4px 4px 0 0}
-#guide .g-leaf{position:absolute;inset:0;background:linear-gradient(90deg,#2b3139,#1e2329);border:2px solid #f0b90b;border-bottom:0;border-radius:4px 4px 0 0;transform-origin:left center;transition:transform .45s ease}
-#guide .g-leaf i{position:absolute;right:6px;top:34px;width:5px;height:5px;border-radius:50%;background:#f0b90b}
-#guide .g-door.open .g-leaf{transform:rotateY(-105deg)}
-#guide .g-door b{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:8px;letter-spacing:1px;color:#f0b90b;pointer-events:none}
-#guide .g-door.open b{opacity:0}
-#guide .g-man{position:fixed;left:0;top:0;width:60px;height:96px;pointer-events:auto;cursor:pointer;opacity:0;filter:drop-shadow(0 4px 6px #0008)}
-#guide .g-man.in{opacity:1}
-#guide .g-man svg{display:block;transition:transform .2s}
-#guide .g-man.flip svg{transform:scaleX(-1)}
-#guide .g-leg,#guide .g-arm{transform-box:fill-box;transform-origin:50% 0}
-#guide .g-man.walk .g-l1,#guide .g-man.walk .g-a2{animation:gSw .42s ease-in-out infinite alternate}
-#guide .g-man.walk .g-l2,#guide .g-man.walk .g-a1{animation:gSw .42s ease-in-out infinite alternate-reverse}
-#guide .g-man.walk svg{animation:gBob .21s ease-in-out infinite alternate}
-#guide .g-man.flip.walk svg{animation:gBobF .21s ease-in-out infinite alternate}
-#guide .g-man.talk .g-mouth{transform-box:fill-box;transform-origin:center;animation:gTalk .18s infinite alternate}
-#guide .g-man.talk .g-a2{animation:gWave .6s ease-in-out infinite alternate}
-#guide .g-eye{animation:gBlink 4s infinite}
-#guide .g-man.think .g-head{transform-box:fill-box;transform-origin:50% 100%;animation:gThink 1s ease-in-out infinite alternate}
-@keyframes gThink{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
-@keyframes gSw{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
-@keyframes gBob{from{transform:translateY(0)}to{transform:translateY(-3px)}}
-@keyframes gBobF{from{transform:scaleX(-1) translateY(0)}to{transform:scaleX(-1) translateY(-3px)}}
-@keyframes gTalk{from{transform:scaleY(1)}to{transform:scaleY(2.2)}}
-@keyframes gWave{from{transform:rotate(0)}to{transform:rotate(-150deg)}}
-@keyframes gBlink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
-#guide .g-bub{position:fixed;width:300px;max-width:calc(100vw - 12px);background:var(--panel);color:var(--txt);border:1px solid #f0b90b;border-radius:10px;padding:10px 10px 8px;box-shadow:0 8px 28px #000a;pointer-events:auto;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;visibility:hidden;font-size:12.5px;line-height:1.55}
+#guide .g-stage{position:fixed;left:8px;pointer-events:none;opacity:0;transition:opacity .4s}
+#guide.on .g-stage{opacity:1}
+#guide .g-light{position:absolute;left:-30%;right:-30%;top:-8%;bottom:0;background:linear-gradient(180deg,rgba(255,236,190,.22),rgba(255,236,190,.03) 85%);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);filter:blur(3px);opacity:0;transition:opacity .8s}
+#guide.on .g-light{opacity:1;animation:gLight 6s ease-in-out infinite alternate}
+#guide .g-floor{position:absolute;left:-12%;right:-12%;bottom:-4px;height:18%;background:radial-gradient(ellipse at 50% 70%,rgba(240,185,11,.30),rgba(240,185,11,.06) 45%,transparent 70%)}
+#guide .g-man{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:auto;cursor:pointer;transform:translateX(-140%);filter:drop-shadow(0 10px 14px #000a)}
+#guide .g-man svg{width:100%;height:100%;display:block}
+#guide.on .g-man{transform:none;transition:transform 1.5s cubic-bezier(.3,.1,.3,1)}
+#guide.leaving .g-man{transform:translateX(-140%);transition:transform .9s ease-in}
+#guide .g-tag{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);font-size:10px;letter-spacing:1px;color:#f0b90b;background:rgba(10,12,16,.75);border:1px solid rgba(240,185,11,.45);border-radius:10px;padding:1px 9px;white-space:nowrap}
+#guide .g-x{position:absolute;right:-6px;top:4%;pointer-events:auto;width:22px;height:22px;padding:0;border-radius:50%;font-size:11px;line-height:20px;opacity:.55}
+#guide .g-x:hover{opacity:1}
+#guide .g-tab{position:fixed;left:0;width:22px;padding:10px 0;writing-mode:vertical-rl;text-align:center;font-size:11px;letter-spacing:1px;color:#f0b90b;background:rgba(14,17,22,.9);border:1px solid rgba(240,185,11,.5);border-left:0;border-radius:0 8px 8px 0;pointer-events:auto;cursor:pointer}
+#guide.on .g-tab{display:none}
+#guide .g-body,#guide .g-head{transform-box:view-box}
+#guide .g-body{transform-origin:100px 500px;animation:gBreath 4.2s ease-in-out infinite}
+#guide .g-head{transform-origin:100px 100px;animation:gHead 7s ease-in-out infinite}
+#guide .g-armL{transform-box:view-box;transform-origin:58px 134px;transition:transform .5s}
+#guide .g-armR{transform-box:view-box;transform-origin:142px 134px;transition:transform .55s cubic-bezier(.3,.1,.3,1.2)}
+#guide .g-legL,#guide .g-legR{transform-box:view-box}
+#guide .g-legL{transform-origin:85px 268px}#guide .g-legR{transform-origin:115px 268px}
+#guide .g-man.walk .g-legL{animation:gStep .5s ease-in-out infinite alternate}
+#guide .g-man.walk .g-legR{animation:gStep .5s ease-in-out infinite alternate-reverse}
+#guide .g-man.walk .g-armL{animation:gSwing .5s ease-in-out infinite alternate-reverse}
+#guide .g-man.walk:not(.pointing) .g-armR{animation:gSwing .5s ease-in-out infinite alternate}
+#guide .g-man.talk .g-armL{animation:gGest 1.6s ease-in-out infinite alternate}
+#guide .g-mo{transform-box:fill-box;transform-origin:center;transform:scaleY(.15)}
+#guide .g-man.talk .g-mo{animation:gTalk .26s ease-in-out infinite alternate}
+#guide .g-lid{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(0);animation:gBlink 5s infinite}
+#guide .g-man.think .g-head{animation:gThink 1.4s ease-in-out infinite alternate}
+#guide .g-man.think .g-iris{transform:translate(1.5px,-1.5px)}
+#guide .g-beam{position:fixed;left:0;top:0;pointer-events:none;opacity:0;transition:opacity .3s}
+#guide .g-beam.on{opacity:1}
+@keyframes gLight{from{opacity:.75}to{opacity:1}}
+@keyframes gBreath{0%,100%{transform:scale(1,1)}50%{transform:scale(1.006,1.012)}}
+@keyframes gHead{0%,100%{transform:rotate(0)}30%{transform:rotate(1.6deg)}70%{transform:rotate(-1.4deg)}}
+@keyframes gStep{from{transform:rotate(-10deg)}to{transform:rotate(10deg)}}
+@keyframes gSwing{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+@keyframes gGest{0%{transform:rotate(0)}40%{transform:rotate(14deg)}100%{transform:rotate(4deg)}}
+@keyframes gTalk{0%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
+@keyframes gBlink{0%,93%,100%{transform:scaleY(0)}96%{transform:scaleY(1)}}
+@keyframes gThink{from{transform:rotate(-3deg)}to{transform:rotate(4deg)}}
+#guide .g-bub{position:fixed;width:330px;max-width:calc(100vw - 12px);background:var(--panel);color:var(--txt);border:1px solid #f0b90b;border-radius:10px;padding:10px 10px 8px;box-shadow:0 8px 28px #000a;pointer-events:auto;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;visibility:hidden;font-size:12.5px;line-height:1.55}
 #guide .g-bub.show{opacity:1;transform:none;visibility:visible}
 #guide .g-bub.hide{visibility:hidden!important;opacity:0!important}
 #guide .g-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}#guide .g-acts:empty{display:none}
@@ -264,7 +278,6 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-bot{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}#guide .g-bot button,#guide .g-bot select{font-size:11px;padding:2px 6px}
 #guide .g-spot{position:fixed;border:2px solid #f0b90b;border-radius:6px;box-shadow:0 0 0 9999px #0006,0 0 18px #f0b90b;animation:gSpot 2.6s ease forwards;pointer-events:none}
 @keyframes gSpot{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
-body.mob.mt5 #guide .g-door{bottom:64px}
 body.rtl #guide .g-bub{direction:rtl;text-align:right}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -4381,83 +4394,124 @@ Ws.add = type => {
   Ws.save();
 };
 
-/* XPiX Guide: a character that steps out of an office door in the corner, walks to the part of the screen a question is about and explains it.
-   Answers come from a built-in, offline guide (no AI service, no key, nothing leaves the browser) plus live numbers read from the open widgets.
-   New characters = one more entry in GUIDE_CHARS (skin colours + outfit), so they can be added over time. */
+/* XPiX Guide: a presenter on a small stage in the bottom-left corner of the visible screen. He comes on by himself after start-up
+   (✕ sends him off, the side tab brings him back), talks in Egyptian Arabic, and points at the part of the screen he is explaining.
+   Answers: built-in offline guide + Claude / Gemini through modules/guide_ai.py. New presenters = one more entry in GUIDE_CHARS. */
 const GUIDE_CHARS = [
-  {id:"saad", name:"Saad", ar:"سعد", since:"2026-10", skin:"#e0ac80", hair:"#2b1d14", top:"#1d2733", acc:"#f0b90b", leg:"#141a22", look:"tie"},
-  {id:"noor", name:"Noor", ar:"نور", since:"2026-10", skin:"#c98c62", hair:"#5b3a1e", top:"#7b4fd6", acc:"#38e1ff", leg:"#26213a", look:"hood"},
-  {id:"bit", name:"Bit", ar:"بِت", since:"2026-10", skin:"#9aa7b4", hair:"#9aa7b4", top:"#2a3542", acc:"#0ecb81", leg:"#1b232c", look:"robot"},
-  {id:"capt", name:"Captain", ar:"الكابتن", since:"2026-10", skin:"#d9a27a", hair:"#111", top:"#0f3d2e", acc:"#e0a95a", leg:"#0b1f18", look:"cap"}
+  {id:"saad", name:"Saad", ar:"سعد", female:false, skin:"#d6a27c", skin2:"#b98060", hair:"#1f1712", suit:"#1c2633", suit2:"#121922", shirt:"#f1f3f5", tie:"#c9a227", trousers:"#161e28", shoe:"#0d0f12", hairStyle:"short"},
+  {id:"noor", name:"Noor", ar:"نور", female:true, skin:"#e0b08c", skin2:"#c48f6c", hair:"#3a2418", suit:"#3d2c5c", suit2:"#2a1e40", shirt:"#ece6f5", tie:"", trousers:"#221a33", shoe:"#151018", hairStyle:"long"},
+  {id:"capt", name:"Captain", ar:"الكابتن", female:false, skin:"#c58f68", skin2:"#a8734f", hair:"#121212", suit:"#123b2e", suit2:"#0b281f", shirt:"#123b2e", tie:"", trousers:"#2b2f36", shoe:"#111", hairStyle:"cap"}
 ];
-function guideSvg(C){
-  const head = C.look === "robot"
-    ? '<rect x="17" y="6" width="26" height="22" rx="6" fill="'+C.skin+'"/><rect x="21" y="12" width="18" height="8" rx="3" fill="#0b0e11"/><circle class="g-eye" cx="26" cy="16" r="2" fill="'+C.acc+'"/><circle class="g-eye" cx="34" cy="16" r="2" fill="'+C.acc+'"/><line x1="30" y1="6" x2="30" y2="1" stroke="'+C.acc+'" stroke-width="2"/><circle cx="30" cy="1" r="2" fill="'+C.acc+'"/><rect class="g-mouth" x="26" y="23" width="8" height="2" rx="1" fill="#0b0e11"/>'
-    : '<circle cx="30" cy="17" r="11" fill="'+C.skin+'"/>'
-      + (C.look === "hood" ? '<path d="M17 19 Q17 3 30 3 Q43 3 43 19 L41 19 Q41 8 30 8 Q19 8 19 19 Z" fill="'+C.top+'"/>' : C.look === "cap" ? '<path d="M18 13 Q19 4 30 4 Q41 4 42 13 Z" fill="'+C.top+'"/><rect x="38" y="11" width="10" height="3" rx="1.5" fill="'+C.acc+'"/>' : '<path d="M19 14 Q20 5 30 5 Q40 5 41 14 Q35 9 30 10 Q24 9 19 14 Z" fill="'+C.hair+'"/>')
-      + '<circle class="g-eye" cx="26" cy="17" r="1.6" fill="#141414"/><circle class="g-eye" cx="34" cy="17" r="1.6" fill="#141414"/><path class="g-mouth" d="M26 22 Q30 25 34 22" stroke="#5a2a1a" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
-  const chest = C.look === "tie" ? '<path d="M30 31 L27.5 35 L30 47 L32.5 35 Z" fill="'+C.acc+'"/>' : C.look === "robot" ? '<rect x="25" y="35" width="10" height="6" rx="2" fill="'+C.acc+'" opacity=".8"/>' : '<path d="M24 31 L30 37 L36 31" stroke="'+C.acc+'" stroke-width="2" fill="none"/>';
-  return '<svg viewBox="0 0 60 96" width="60" height="96"><ellipse cx="30" cy="93" rx="15" ry="3" fill="#000" opacity=".35"/>'
-    + '<g class="g-leg g-l1"><rect x="23" y="58" width="6" height="30" rx="3" fill="'+C.leg+'"/><rect x="21" y="85" width="10" height="5" rx="2.5" fill="#0b0e11"/></g>'
-    + '<g class="g-leg g-l2"><rect x="31" y="58" width="6" height="30" rx="3" fill="'+C.leg+'"/><rect x="29" y="85" width="10" height="5" rx="2.5" fill="#0b0e11"/></g>'
-    + '<g class="g-arm g-a1"><rect x="13" y="32" width="6" height="24" rx="3" fill="'+C.top+'"/><circle cx="16" cy="57" r="3.2" fill="'+C.skin+'"/></g>'
-    + '<g class="g-arm g-a2"><rect x="41" y="32" width="6" height="24" rx="3" fill="'+C.top+'"/><circle cx="44" cy="57" r="3.2" fill="'+C.skin+'"/></g>'
-    + '<rect x="18" y="29" width="24" height="31" rx="8" fill="'+C.top+'"/>'+chest+'<g class="g-head">'+head+'</g></svg>';
+function presenterSvg(C){
+  const m = x => 200 - x, armL = '<path d="M50 132 Q43 178 45 212 L60 214 Q62 180 67 142 Z" fill="url(#gSuit)"/><path d="M45 208 Q43 252 47 290 L60 290 Q61 250 60 212 Z" fill="url(#gSuit)"/><rect x="45.5" y="284" width="15" height="6" rx="2" fill="'+C.shirt+'"/><ellipse cx="53" cy="300" rx="7.5" ry="11" fill="url(#gSkin)"/>';
+  const armR = armL.replace(/M(\d+) (\d+) Q(\d+) (\d+) (\d+) (\d+) L(\d+) (\d+) Q(\d+) (\d+) (\d+) (\d+) Z/g, (s, a,b,c,d,e,f,g,h,i,j,k,l) => "M"+m(+a)+" "+b+" Q"+m(+c)+" "+d+" "+m(+e)+" "+f+" L"+m(+g)+" "+h+" Q"+m(+i)+" "+j+" "+m(+k)+" "+l+" Z")
+    .replace('x="45.5"', 'x="139.5"').replace('cx="53"', 'cx="147"');
+  const hairBack = C.hairStyle === "long" ? '<path d="M71 62 Q66 20 100 19 Q134 20 129 62 L134 128 Q124 138 116 118 L118 74 Q100 46 82 74 L84 118 Q76 138 66 128 Z" fill="'+C.hair+'"/>' : "";
+  const hairFront = C.hairStyle === "cap" ? '<path d="M72 52 Q73 22 100 21 Q127 22 128 52 Z" fill="'+C.suit+'"/><path d="M122 49 Q140 50 146 56 L124 56 Z" fill="'+C.suit2+'"/><rect x="72" y="48" width="56" height="6" rx="3" fill="'+C.tie.replace(/^$/, "#e0a95a")+'"/>'
+    : C.hairStyle === "long" ? '<path d="M73 58 Q74 26 100 25 Q126 26 127 58 Q118 40 100 42 Q84 41 73 58 Z" fill="'+C.hair+'"/>'
+    : '<path d="M73 60 Q71 27 100 25 Q129 27 127 60 Q124 43 115 39 Q100 33 85 39 Q76 45 73 60 Z" fill="'+C.hair+'"/>';
+  const neckwear = C.tie ? '<path d="M96.5 128 L103.5 128 L106 137 L102 202 L100 208 L98 202 L94 137 Z" fill="'+C.tie+'"/><path d="M96.5 128 L103.5 128 L102 136 L98 136 Z" fill="#00000033"/>'
+    : C.female ? '<path d="M90 126 Q100 146 110 126" stroke="#e0c27a" stroke-width="1.4" fill="none"/><circle cx="100" cy="146" r="2.4" fill="#e0c27a"/>' : '<path d="M90 124 L100 140 L110 124" stroke="#ffffff55" stroke-width="2" fill="none"/>';
+  return '<svg viewBox="0 0 200 520" preserveAspectRatio="xMidYMax meet"><defs>'
+    + '<radialGradient id="gSkin" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="'+C.skin+'"/><stop offset="1" stop-color="'+C.skin2+'"/></radialGradient>'
+    + '<linearGradient id="gSuit" x1="0" x2="1"><stop offset="0" stop-color="'+C.suit2+'"/><stop offset=".45" stop-color="'+C.suit+'"/><stop offset="1" stop-color="'+C.suit2+'"/></linearGradient>'
+    + '<linearGradient id="gPants" x1="0" x2="1"><stop offset="0" stop-color="'+C.trousers+'"/><stop offset=".5" stop-color="'+C.trousers+'cc"/><stop offset="1" stop-color="'+C.trousers+'"/></linearGradient></defs>'
+    + '<ellipse cx="100" cy="508" rx="48" ry="7" fill="#000" opacity=".45"/>'
+    + '<g class="g-legL"><path d="M71 266 L99 266 L96 498 L77 498 Z" fill="url(#gPants)"/><path d="M70 496 Q86 492 99 498 L99 506 L68 506 Q66 500 70 496 Z" fill="'+C.shoe+'"/></g>'
+    + '<g class="g-legR"><path d="M101 266 L129 266 L123 498 L104 498 Z" fill="url(#gPants)"/><path d="M101 498 Q114 492 130 496 Q134 500 132 506 L101 506 Z" fill="'+C.shoe+'"/></g>'
+    + '<g class="g-body">' + hairBack
+    + '<path d="M89 94 L111 94 L113 128 Q100 134 87 128 Z" fill="url(#gSkin)"/><path d="M89 104 Q100 112 111 104 L111 98 L89 98 Z" fill="#00000026"/>'
+    + '<path d="M54 130 Q100 112 146 130 L151 192 Q147 240 137 284 L63 284 Q53 240 49 192 Z" fill="url(#gSuit)"/>'
+    + '<path d="M87 121 L100 168 L113 121 Z" fill="'+C.shirt+'"/>' + neckwear
+    + '<path d="M87 121 L100 170 L83 152 L77 129 Z" fill="'+C.suit2+'"/><path d="M113 121 L100 170 L117 152 L123 129 Z" fill="'+C.suit2+'"/>'
+    + '<circle cx="100" cy="222" r="2.2" fill="'+C.suit2+'"/><circle cx="100" cy="248" r="2.2" fill="'+C.suit2+'"/>'
+    + '<g class="g-armL">'+armL+'</g><g class="g-armR">'+armR+'</g>'
+    + '<g class="g-head"><ellipse cx="74" cy="67" rx="4.5" ry="8" fill="'+C.skin2+'"/><ellipse cx="126" cy="67" rx="4.5" ry="8" fill="'+C.skin2+'"/>'
+    + '<path d="M74 58 Q73 96 100 103 Q127 96 126 58 Q126 30 100 30 Q74 30 74 58 Z" fill="url(#gSkin)"/>'
+    + '<path d="M80 84 Q100 106 120 84 Q116 100 100 103 Q84 100 80 84 Z" fill="#00000018"/>' + hairFront
+    + '<path d="M84 53 Q90 49 96 52" stroke="'+C.hair+'" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M104 52 Q110 49 116 53" stroke="'+C.hair+'" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+    + '<ellipse cx="90" cy="62" rx="5.2" ry="3.2" fill="#fbfbf8"/><ellipse cx="110" cy="62" rx="5.2" ry="3.2" fill="#fbfbf8"/>'
+    + '<circle class="g-iris" cx="90.5" cy="62" r="2.5" fill="#4a3324"/><circle class="g-iris" cx="110.5" cy="62" r="2.5" fill="#4a3324"/><circle cx="90.5" cy="62" r="1.1" fill="#111"/><circle cx="110.5" cy="62" r="1.1" fill="#111"/>'
+    + '<g class="g-lid"><rect x="84" y="57.5" width="12.5" height="9" fill="'+C.skin+'"/><rect x="103.5" y="57.5" width="12.5" height="9" fill="'+C.skin+'"/></g>'
+    + '<path d="M100 61 Q98 73 94.5 78 Q100 81.5 105.5 78" stroke="'+C.skin2+'" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+    + '<ellipse class="g-mo" cx="100" cy="89" rx="6" ry="3.2" fill="#3a1410"/><path class="g-lip" d="M92 88.5 Q100 92.5 108 88.5" stroke="#9a5040" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    + (C.female ? "" : '<path d="M80 80 Q84 98 100 102 Q116 98 120 80 Q116 96 100 99 Q84 96 80 80 Z" fill="'+C.hair+'" opacity=".16"/>')
+    + '</g></g></svg>';
 }
+const GVoice = {   // Egyptian voice first; long answers are spoken in short pieces (one long utterance gets cut off in some browsers)
+  timer:0,
+  pick(isAr, female){ if (!Voice.ok) return null; const vs = speechSynthesis.getVoices(), ar = vs.filter(v => /^ar/i.test(v.lang)), eg = ar.filter(v => /ar[-_]EG/i.test(v.lang)), pool = isAr ? (eg.length ? eg : ar) : vs.filter(v => /^en/i.test(v.lang));
+    const g = female ? /Salma|Zariyah|Hoda|Laila|Amira|Female|female/ : /Shakir|Hamed|Maged|Tarik|Naayf|Male\b|male\b/, nat = v => /Natural|Online|Neural|Google/.test(v.name);
+    return pool.find(v => g.test(v.name) && nat(v)) || pool.find(nat) || pool.find(v => g.test(v.name)) || pool[0] || null; },
+  say(text, female, onStart, onEnd){ if (!Voice.ok) { onEnd && onEnd(); return; } this.stop(); const t = Voice.clean(text); if (!t){ onEnd && onEnd(); return; }
+    const isAr = /[؀-ۿ]/.test(t), v = this.pick(isAr, female), parts = t.match(/[^.!?؟\n،,]+[.!?؟\n،,]*/g) || [t], ch = []; let cur = "";
+    parts.forEach(p => { if (cur && (cur + p).length > 150){ ch.push(cur); cur = p; } else cur += p; }); if (cur.trim()) ch.push(cur);
+    ch.forEach((c, i) => { const u = new SpeechSynthesisUtterance(c.trim()); if (v){ u.voice = v; u.lang = v.lang; } else u.lang = isAr ? "ar-EG" : "en-US"; u.rate = 1; u.pitch = female ? 1.05 : .95;
+      if (!i) u.onstart = () => onStart && onStart(); if (i === ch.length - 1) u.onend = () => { this.stop(true); onEnd && onEnd(); };
+      u.onerror = e => { this.stop(true); onEnd && onEnd(e && e.error); }; speechSynthesis.speak(u); });
+    if (v && /Google/.test(v.name)) this.timer = setInterval(() => { if (!speechSynthesis.speaking) return clearInterval(this.timer); speechSynthesis.pause(); speechSynthesis.resume(); }, 9000); },
+  stop(keep){ clearInterval(this.timer); if (!keep && Voice.ok) speechSynthesis.cancel(); }
+};
 const Guide = {
-  on:false, busy:0, x:0, y:0,
+  on:false, busy:0,
   chr(){ const id = store.get(LS+"_gchar", "saad"); return GUIDE_CHARS.find(c => c.id === id) || GUIDE_CHARS[0]; },
   talkAr(){ return store.get(LS+"_glang", "ar") !== "en"; },   // Egyptian Arabic first (owner), English only when picked
+  voiceOn(){ return store.get(LS+"_gvoice2", true) !== false; },
   G(a, b){ return this.talkAr() ? b : a; },
   init(){
     if (this.root) return; const r = this.root = el("div"); r.id = "guide";
-    r.innerHTML = '<div class="g-door"><div class="g-room"></div><div class="g-leaf"><i></i></div><b>XPiX</b></div><div class="g-man"></div><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
-    document.body.append(r); this.door = r.querySelector(".g-door"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts");
+    r.innerHTML = '<div class="g-tab"></div><div class="g-stage"><div class="g-light"></div><div class="g-floor"></div><div class="g-man"></div><div class="g-tag"></div><button class="g-x" type="button">✕</button></div>'
+      + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
+    document.body.append(r); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
     this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
-    this.man.onclick = () => this.bub.classList.toggle("hide"); this.door.onclick = () => this.on ? this.close() : this.open();
-    this.paint(); this.bot(); window.addEventListener("resize", () => { this.dock(); if (this.on && !this.busy) this.home(true); });
-    let q = 0; const onSc = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.dock(); }); };   // keep the door in the visible corner while the page scrolls
+    this.man.onclick = () => this.bub.classList.toggle("hide"); this.tab.onclick = () => this.open(); r.querySelector(".g-x").onclick = () => this.close();
+    this.paint(); this.bot(); window.addEventListener("resize", () => this.dock());
+    let q = 0; const onSc = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.dock(); }); };   // the stage stays in the visible corner while the page scrolls
     try { window.parent.addEventListener("scroll", onSc, true); window.parent.addEventListener("resize", onSc); } catch(e){} this.dock(); setTimeout(() => this.dock(), 800);
+    document.addEventListener("pointerdown", () => { if (this._pending){ const t = this._pending; this._pending = ""; this.voice(t); } }, true);   // browsers only allow speech after the first tap: say the greeting then
   },
-  paint(){ this.man.innerHTML = guideSvg(this.chr()); this.inp.placeholder = this.G("Ask me: what is the profile? where is the lab? ...", "اسألني: البروفيل ده إيه؟ فين اللاب؟ ..."); },
+  paint(){ const c = this.chr(); this.man.innerHTML = presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
+    this.tab.textContent = this.G("Guide", "المساعد"); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
-    const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Character", "الشخصية");
+    const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Presenter", "المذيع");
     cs.onchange = () => { store.set(LS+"_gchar", cs.value); this.paint(); this.hi(); };
     const lb = el("button", null, this.talkAr() ? "EN" : "ع"); lb.title = this.G("Answer language", "لغة الرد"); lb.onclick = () => { store.set(LS+"_glang", this.talkAr() ? "en" : "ar"); this.paint(); this.bot(); this.hi(); };
-    const vb = el("button", null, store.get(LS+"_gvoice", false) ? this.G("Voice on", "الصوت شغال") : this.G("Voice off", "الصوت مقفول")); vb.onclick = () => { store.set(LS+"_gvoice", !store.get(LS+"_gvoice", false)); if (Voice.ok) speechSynthesis.cancel(); this.bot(); };
+    const vb = el("button", null, this.voiceOn() ? this.G("Voice on", "الصوت شغال") : this.G("Voice off", "الصوت مقفول")); vb.onclick = () => { store.set(LS+"_gvoice2", !this.voiceOn()); GVoice.stop(); this.bot(); };
     const tb = el("button", null, this.G("Tour", "جولة")); tb.onclick = () => this.tour();
-    const xb = el("button", null, "✕"); xb.title = this.G("Back to the office", "ارجع المكتب"); xb.onclick = () => this.close();
-    b.append(cs, lb, vb, tb, xb); },
+    b.append(cs, lb, vb, tb); },
   wait(ms){ return new Promise(r => setTimeout(r, ms)); },
-  view(){ try { const fe = window.frameElement; if (fe){ const r = fe.getBoundingClientRect(), H = window.parent.innerHeight; return {t:Math.max(0, -r.top), b:Math.max(120, Math.min(innerHeight, H - r.top))}; } } catch(e){} return {t:0, b:innerHeight}; },   // the workspace frame is very tall (3400 px): only this slice is on screen
+  view(){ try { const fe = window.frameElement; if (fe){ const r = fe.getBoundingClientRect(), H = window.parent.innerHeight; return {t:Math.max(0, -r.top), b:Math.max(160, Math.min(innerHeight, H - r.top))}; } } catch(e){} return {t:0, b:innerHeight}; },   // the workspace frame is very tall (3400 px): only this slice is on screen
   scroller(){ try { let e = window.frameElement; while (e && (e = e.parentElement)){ const o = window.parent.getComputedStyle(e).overflowY; if (/(auto|scroll)/.test(o) && e.scrollHeight > e.clientHeight + 20) return e; } } catch(e){} return null; },
   async reveal(r){ const v = this.view(); if (!r || (r.top >= v.t && r.top + Math.min(r.height, 200) <= v.b)) return r; const sc = this.scroller(), dy = r.top - v.t - 90;   // bring a target below / above the fold onto the screen
-    try { sc ? sc.scrollBy({top:dy, behavior:"smooth"}) : window.parent.scrollBy({top:dy, behavior:"smooth"}); } catch(e){ return r; } await this.wait(500); this.dock(); return null; },
-  dock(){ if (!this.door) return; const v = this.view(); this.door.style.bottom = "auto"; this.door.style.top = (v.b - 72)+"px";
-    if (this.on && !this.busy && (this.y < v.t || this.y > v.b - 96)){ const d = this.door.getBoundingClientRect(); this.place(d.right + 30, d.bottom - 98); this.bub.classList.remove("show"); } },
-  async open(){ if (this.on) return; this.init(); this.dock(); this.on = true; store.set(LS+"_gon", true); this.root.classList.add("on"); this.door.classList.add("open");
-    const d = this.door.getBoundingClientRect(); this.place(d.left + d.width/2 - 30, d.bottom - 98); this.man.classList.add("in"); await this.wait(450);
-    await this.walk(d.right + 30, d.bottom - 98); this.door.classList.remove("open"); this.hi(); },
-  async close(){ if (!this.on) return; this.bub.classList.remove("show"); if (Voice.ok) speechSynthesis.cancel(); const d = this.door.getBoundingClientRect(); this.door.classList.add("open"); await this.walk(d.left + d.width/2 - 30, d.bottom - 98);
-    this.man.classList.remove("in"); await this.wait(350); this.door.classList.remove("open"); this.on = false; store.set(LS+"_gon", false); this.root.classList.remove("on"); },
-  place(x, y){ this.x = x; this.y = y; this.man.style.transition = "none"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; void this.man.offsetWidth; },
-  async walk(x, y){ const W = innerWidth, v = this.view(); x = Math.max(4, Math.min(W - 64, x)); y = Math.max(v.t + 4, Math.min(v.b - 100, y));
-    const dx = x - this.x, dist = Math.hypot(dx, y - this.y), ms = Math.min(2600, Math.max(250, dist/0.32)); this.busy++;
-    this.man.classList.toggle("flip", dx < -2); this.man.classList.add("walk"); this.bub.classList.remove("show");
-    this.man.style.transition = "transform "+ms+"ms cubic-bezier(.45,.05,.4,1)"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; this.x = x; this.y = y;
-    await this.wait(ms); this.man.classList.remove("walk"); this.busy--; },
-  async home(now){ const d = this.door.getBoundingClientRect(); if (now) this.place(d.right + 30, d.bottom - 98); else await this.walk(d.right + 30, d.bottom - 98); },
-  speak(text, acts){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
-    const bw = 300, x = Math.max(6, Math.min(innerWidth - bw - 6, this.x + 30 - bw/2)), above = this.y - this.view().t > 230;
-    this.bub.style.left = x+"px"; this.bub.style.top = above ? "" : (this.y + 100)+"px"; this.bub.style.bottom = above ? (innerHeight - this.y + 6)+"px" : "";
-    this.bub.classList.remove("hide"); this.bub.classList.add("show"); this.man.classList.add("talk"); clearTimeout(this._tt); this._tt = setTimeout(() => this.man.classList.remove("talk"), Math.min(6000, 60*text.length));
-    if (store.get(LS+"_gvoice", false)) Voice.speak(text); },
-  hi(){ const c = this.chr(); this.speak(this.G("I'm "+c.name+". Ask me about anything on the screen and I'll walk over and show you. Tap me to hide this bubble.",
-    "أنا "+c.ar+". اسألني عن أي حاجة في الشاشة وأنا أروحلها وأشرحهالك. دوس عليّا عشان تخفي الكلام.") + (this.bridge() && this.bridge().ai ? this.G(" (AI on)", " (الذكاء شغال)") : "")); },
+    try { sc ? sc.scrollBy({top:dy, behavior:"smooth"}) : window.parent.scrollBy({top:dy, behavior:"smooth"}); } catch(e){ return r; } await this.wait(550); this.dock(); return null; },
+  dims(){ const v = this.view(), vh = v.b - v.t, h = Math.round(Math.max(210, Math.min(MOB ? 260 : 400, vh*.48))); return {h, w:Math.round(h*.62), top:v.b - h - (MOB && MT5 ? 60 : 6), v}; },
+  dock(){ if (!this.stage) return; const d = this.dims(); Object.assign(this.stage.style, {top:d.top+"px", height:d.h+"px", width:d.w+"px"}); this.tab.style.top = (d.v.b - 120)+"px"; if (this.bub.classList.contains("show")) this.placeBub(); },
+  placeBub(){ const d = this.dims(), bw = Math.min(330, innerWidth - 12), side = innerWidth - (8 + d.w + 10) >= bw;
+    if (side){ Object.assign(this.bub.style, {left:(8 + d.w + 8)+"px", top:"", bottom:(innerHeight - (d.top + d.h*.55))+"px"}); this.bub.classList.add("side"); }
+    else { Object.assign(this.bub.style, {left:"6px", top:"", bottom:(innerHeight - d.top + 4)+"px"}); this.bub.classList.remove("side"); } },
+  async open(){ this.init(); if (this.on) return; this.on = true; store.set(LS+"_gon", true); this.dock(); this.root.classList.add("on"); this.man.classList.add("walk");
+    await this.wait(1500); this.man.classList.remove("walk"); this.hi(); },
+  async close(){ if (!this.on) return; this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop(); this.root.classList.add("leaving"); await this.wait(900);
+    this.root.classList.remove("on", "leaving"); this.on = false; store.set(LS+"_gon", false); },
+  voice(text){ if (!this.voiceOn()) return; const c = this.chr();
+    GVoice.say(text, c.female, () => this.man.classList.add("talk"), err => { this.man.classList.remove("talk"); if (err === "not-allowed") this._pending = text; }); },
+  speak(text, acts, quiet){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
+    this.placeBub(); this.bub.classList.remove("hide"); this.bub.classList.add("show");
+    if (!quiet && this.voiceOn() && Voice.ok) this.voice(text);
+    else { GVoice.stop(); this.man.classList.add("talk"); clearTimeout(this._tt); this._tt = setTimeout(() => this.man.classList.remove("talk"), Math.min(6000, 55*text.length)); } },
+  hi(){ const c = this.chr(); this.speak(this.G("Hi, I'm "+c.name+". Ask me about anything on the screen and I'll show you where it is and explain it.",
+    "أهلًا، أنا "+c.ar+". اسألني عن أي حاجة في الشاشة، وأنا أوريك مكانها وأشرحهالك.") + (this.bridge() && this.bridge().ai ? this.G(" (AI on)", " (الذكاء شغال)") : "")); },
+  point(r){ if (!r || !this.on) return; const svg = this.man.querySelector("svg"); if (!svg) return; const sr = svg.getBoundingClientRect(), k = sr.height/520, ox = sr.left + (sr.width - 200*k)/2,
+      sx = ox + 142*k, sy = sr.top + 134*k, tx = r.left + r.width/2, ty = r.top + Math.min(r.height/2, 140), th = Math.atan2(ty - sy, tx - sx)*180/Math.PI, phi = Math.max(-172, Math.min(-12, th - 90));
+    const arm = this.man.querySelector(".g-armR"); arm.style.transform = "rotate("+phi+"deg)"; this.man.classList.add("pointing");
+    const a = (phi + 90)*Math.PI/180, hx = sx + Math.cos(a)*170*k, hy = sy + Math.sin(a)*170*k;   // hand tip after the arm turns
+    this.beam.setAttribute("width", innerWidth); this.beam.setAttribute("height", innerHeight);
+    this.beam.innerHTML = '<line x1="'+hx+'" y1="'+hy+'" x2="'+tx+'" y2="'+ty+'" stroke="#f0b90b" stroke-width="2" stroke-dasharray="6 6" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="24" to="0" dur=".6s" repeatCount="indefinite"/></line><circle cx="'+tx+'" cy="'+ty+'" r="7" fill="none" stroke="#f0b90b" stroke-width="2"><animate attributeName="r" values="5;11;5" dur="1.2s" repeatCount="indefinite"/></circle>';
+    this.beam.classList.add("on"); clearTimeout(this._pt); this._pt = setTimeout(() => { arm.style.transform = ""; this.man.classList.remove("pointing"); this.beam.classList.remove("on"); }, 6000); },
   panel(type){ return Ws.panels.find(p => p.type === type && !p.min) || Ws.panels.find(p => p.type === type); },
   chart(){ const p = this.panel("chart"); return p && p.chart ? p : null; },
-  async goTo(get, side){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ await this.goRect(r, side); this.flash(get() || r); } return r; },   // scroll the target on screen if needed, walk there, spotlight it
-  async goRect(r, side){ if (!r) return; const x = side === "right" ? r.right - 64 : side === "left" ? r.left - 20 : r.left + r.width/2 - 30, y = r.top + Math.min(r.height/2, 160) - 48; await this.walk(x, y); },
+  async goTo(get){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ this.point(r); this.flash(r); } return r; },   // scroll the target on screen if needed, point at it, spotlight it
+  up(){ this.point(new DOMRect(innerWidth/2, this.view().t, 10, 10)); },
   flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
   page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
   live: {
@@ -4504,14 +4558,14 @@ const Guide = {
     const sp = this.panel("setup"); if (sp && !sp.min) o.setup = (sp.root.innerText || "").replace(/\s+/g, " ").slice(0, 400);   // the short Setup Card text, never raw candles
     return o; },
   async askAI(q){ const b = this.bridge(); if (!b || !b.ai) return false; const id = Date.now().toString(36)+Math.random().toString(36).slice(2, 6);
-    this.speak(this.G("Thinking…", "ثانية بفكر…")); this.man.classList.add("think");
+    this.speak(this.G("One sec, thinking…", "ثانية بفكر…"), null, true); this.man.classList.add("think");
     const ans = await new Promise(res => { const to = setTimeout(() => { window.__xpixGuideAnswer = null; res(null); }, 35000); window.__xpixGuideAnswer = a => { if (a.id !== id) return; clearTimeout(to); window.__xpixGuideAnswer = null; res(a); }; b.ask({id, q, ctx:this.ctx()}); });
     this.man.classList.remove("think");
     if (ans && ans.err && ans.err !== "cap" && ans.err !== "nokey"){ const c = (ans.err.match(/\d{3}/) || [""])[0];   // say why the AI did not answer instead of failing silently
       this._aiErr = c === "429" ? this.G("AI daily limit reached (provider).", "حد الذكاء المجاني خلص النهارده.") : c === "400" || c === "401" || c === "403" ? this.G("The AI key was rejected - check it in Secrets.", "مفتاح الذكاء مرفوض، راجعه في Secrets.") : this.G("AI not answering right now ("+ans.err+").", "الذكاء مش بيرد دلوقتي ("+ans.err+")."); } else this._aiErr = "";
     if (!ans || ans.err){ if (ans && ans.err === "cap") { this.speak(this.G("I've hit today's question limit. Built-in answers still work.", "خلّصت عدد أسئلة النهارده. الإجابات الجاهزة لسه شغالة.")); return true; } return false; }
     const pg = {scanner:1, lab:2, playbook:3, stats:4, alerts_page:6}[ans.page];
-    if (pg){ await this.walk(innerWidth/2 - 30, this.view().t + 4); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
+    if (pg){ this.up(); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
     if (ans.go && ans.go !== "none"){ const r = this.target(ans.go); if (r) await this.goTo(() => this.target(ans.go), ans.go === "vp" ? "left" : null); }
     this.speak(ans.say); return true; },
   async ask(q){ const k = this.KB.find(e => e.kw.test(q)), short = q.trim().split(/\s+/).length <= 3;
@@ -4519,14 +4573,14 @@ const Guide = {
     if (!k && this._aiErr){ this.speak(this._aiErr); this._aiErr = ""; return; }
     if (!k){ this.speak(this.G("I don't know that one yet. Try: profile, delta, order flow, DOM, tape, limits, setup, alerts, chart, lab, scanner.", "لسه معرفش دي. جرّب: البروفيل، الدلتا، الأوردر فلو، الدوم، التايب، الليميت، السيتاب، التنبيهات، الشارت، اللاب، السكانر.")); return; }
     const txt = this.G(k.en, k.ar);
-    if (k.page != null){ await this.walk(innerWidth/2 - 30, this.view().t + 4); this.speak(txt); await this.wait(1400); this.page(k.page); return; }
+    if (k.page != null){ this.up(); this.speak(txt); await this.wait(1400); this.page(k.page); return; }
     if (k.to){ const ty = k.to === "vp" || k.to === "of" ? "chart" : k.to, r = this.target(k.to);
       if (!r){ this.speak(this.G("That widget is not open. Open it?", "الويدجت ده مش مفتوح. أفتحهولك؟"), [[this.G("Open it", "افتحه"), () => { Ws.add(ty); setTimeout(() => this.ask(q), 500); }]]); return; }
       await this.goTo(() => this.target(k.to), k.to === "vp" ? "left" : null); const lf = this.live[k.to]; this.speak(txt + (lf ? lf(this) : "")); return; }
     this.speak(txt); },
   async tour(){ const seen = new Set(), stops = Ws.panels.filter(p => !p.min && !seen.has(p.type) && seen.add(p.type)).slice(0, 6);
     for (const p of stops){ if (!this.on) return; const k = this.KB.find(e => e.to === p.type); if (!k) continue; await this.goTo(() => p.root.getBoundingClientRect()); this.speak(this.G(k.en, k.ar)); await this.wait(Math.min(9000, 2500 + 45*k.en.length)); }
-    if (this.on){ await this.home(); this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
+    if (this.on){ this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
 };
 
 /* toolbar */
@@ -4570,7 +4624,7 @@ function applyLang(rebuild){
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
-  try { Guide.init(); if (store.get(LS+"_gon", false)) setTimeout(() => Guide.open(), 900); } catch(e){ console.error(e); }   // the office door sits in the corner; the guide comes back out if it was out last time
+  try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");

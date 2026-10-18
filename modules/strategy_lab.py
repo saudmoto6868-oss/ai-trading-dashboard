@@ -68,12 +68,43 @@ def _outcome(hi, lo, cl, i, d, stop_d, H):
     return float(np.clip(d * (cl[j] - e) / stop_d, -1.0, RR))
 
 
+LOC_N, VOL_N, REG_N = 50, 20, 100
+CHAIN = ("htf", "loc", "vol", "reg", "time")   # institution-style layers checked on top of each detector (docs/PIPELINE.md)
+
+
+def chain_ctx(hi, lo, cl, vol, natr, i):
+    """Context known at close i (no look-ahead): position in the last LOC_N-bar range, relative volume, volatility regime."""
+    a = max(0, i + 1 - LOC_N); h, l = hi[a:i + 1].max(), lo[a:i + 1].min()
+    pos = (cl[i] - l) / (h - l) if h > l else .5
+    v0 = vol[max(0, i - VOL_N):i]; rv = vol[i] / v0.mean() if len(v0) and v0.mean() > 0 else 0.0
+    r0 = natr[max(0, i - REG_N):i]; r0 = r0[r0 > 0]
+    reg = natr[i] / np.median(r0) if len(r0) else 1.0
+    return {"pos": float(pos), "rv": float(rv), "reg": float(reg)}
+
+
+def chain_layers(ctx, d, tr, ses):
+    """Which chain layers agree with a trade in direction d. htf = 100-bar trend on its side; loc = long in the discount third /
+    short in the premium third of the 50-bar range; vol = bar volume >= 1.2x its 20-bar mean; reg = volatility not dead
+    (ATR% >= 0.8x its 100-bar median); time = London or New York session (daily bars: always)."""
+    p = ctx["pos"]
+    return {"htf": tr == d, "loc": p <= 1 / 3 if d > 0 else p >= 2 / 3, "vol": ctx["rv"] >= 1.2, "reg": ctx["reg"] >= .8,
+            "time": ses is None or ses.startswith(("London", "New York"))}
+
+
+def grade(layers):
+    """A+++ = all 5 layers, A+ = 4, A = 3, B = 2, C = 0-1 (same letters as the Setup Card target)."""
+    n = sum(bool(layers.get(k)) for k in CHAIN)
+    return "A+++" if n == 5 else "A+" if n == 4 else "A" if n == 3 else "B" if n == 2 else "C"
+
+
 def walk(df, tf, stride=4, seed=0):
     """-> list of events {i, key, fam, d, r, base}, plus per-bar groups for conflicts / confluence."""
     rng = np.random.RandomState(seed)
     hi, lo, cl = (df[c].values for c in ("high", "low", "close"))
     atr = atr_series(df, 14).values
     H, last, events, bars = HORIZON[tf], {}, [], []
+    vol = df["volume"].values.astype(float) if "volume" in df else np.zeros(len(df))
+    natr = atr / np.where(cl > 0, cl, 1)
     for i in range(150, len(df) - 2, stride):
         sigs, _ = detect_all(df.iloc[max(0, i + 1 - WIN):i + 1].reset_index(drop=True))
         if not sigs or not atr[i] > 0:
@@ -90,12 +121,14 @@ def walk(df, tf, stride=4, seed=0):
         ts = df["time"].iloc[i]; hr = ts.hour
         ses = None if tf == "1d" else "Asia 00-07" if hr < 7 else "London 07-12" if hr < 12 else "New York 12-20" if hr < 20 else "Late 20-24"
         dow = ts.strftime("%a")
+        ctx = chain_ctx(hi, lo, cl, vol, natr, i)
         for k, (d, fam) in here.items():
             if i - last.get(k, -10**9) < COOLDOWN:
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
-                           "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow})
+                           "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
+                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2})
     return events, bars
 
 
@@ -107,6 +140,15 @@ def _stat(rs):
     return {"n": n, "win": round(100 * win, 1), "avgR": round(float(x.mean()), 3), "sumR": round(float(x.sum()), 1)}
 
 
+def chain_row(name, rs, base, ins, oos):
+    """One chain-table row: stats, random-direction baseline, paired t vs random, in-sample vs out-of-sample halves."""
+    s = _stat(rs); b = _stat(base); d = np.asarray(rs, float) - np.asarray(base, float)
+    t = float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 2 and d.std() > 0 else 0.0
+    return {"key": "*CHAIN*", "school": "Chain", "tf": "all", "side": name, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
+            "t": round(t, 2), "is_n": len(ins), "is_avgR": _stat(ins).get("avgR"), "oos_n": len(oos), "oos_avgR": _stat(oos).get("avgR"),
+            "edge": bool(s["n"] >= 100 and t > 3 and (_stat(oos).get("avgR") or 0) > 0 and (_stat(ins).get("avgR") or 0) > 0)}
+
+
 def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
@@ -115,7 +157,16 @@ def summarize(all_events, all_bars):
                       ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"]))
                       + ((("*ALL*", "all", "ses-" + e["ses"]), (e["key"], "all", "ses-" + e["ses"])) if e.get("ses") else ()) + ((("*ALL*", "all", "dow-" + e["dow"]),) if e.get("dow") else ())):
                 per[g].append(e["r"]); base[g].append(e["base"])
-    rows = []
+    chain = defaultdict(lambda: [[], [], [], []])   # r, base, r in-sample half, r out-of-sample half
+    for tf, sym, ev in all_events:
+        for e in ev:
+            if "chain" not in e:
+                continue
+            g = grade(e["chain"]); gs = ["grade " + g] + ["layer " + k for k in CHAIN if e["chain"][k]] + ["no " + k for k in CHAIN if not e["chain"][k]]
+            gs += ["grade " + g + " / " + e["key"]]
+            for name in gs + ["all signals"]:
+                c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
+    rows = [chain_row(k, *v) for k, v in chain.items()]
     for (k, tf, side), rs in per.items():
         s = _stat(rs); b = _stat(base[(k, tf, side)])
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
@@ -204,6 +255,7 @@ def lunar_split(times, closes):
 
 
 def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
+    ch = [r for r in rows if r["key"] == "*CHAIN*"]; rows = [r for r in rows if r["key"] != "*CHAIN*"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
@@ -233,6 +285,17 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
     L += ["", "## Time of day (UTC session, intraday bars) and weekday - every detector pooled", "", "| when | n | win % | avg R |", "|---|---|---|---|"]
     for r in sorted((r for r in rows if r["key"] == "*ALL*" and r["side"].startswith(("ses-", "dow-"))), key=lambda r: r["side"]):
         L.append(f"| {r['side'][4:]} | {r['n']} | {r.get('win')} | {r.get('avgR')} |")
+    if ch:
+        L += ["", "## Chain grades (docs/PIPELINE.md): every detector signal tagged with 5 context layers - htf trend, location (discount/premium), "
+              "volume, volatility regime, session", "",
+              "Gate for a grade to count: n >= 100, t > 3 vs random direction, avg R > 0 in BOTH halves (first half = in-sample, second half = out-of-sample).", "",
+              "| group | n | win % | avg R | random avg R | t | 1st half n | 1st half avg R | 2nd half n | 2nd half avg R | passes gate |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+        order = ["all signals"] + [f"grade {g}" for g in ("A+++", "A+", "A", "B", "C")] + [f"layer {k}" for k in CHAIN] + [f"no {k}" for k in CHAIN]
+        top = sorted((r for r in ch if " / " in r["side"] and r["n"] >= MIN_N), key=lambda r: -r["avgR"])[:15]
+        for r in [next((r for r in ch if r["side"] == o), None) for o in order] + top:
+            if r:
+                L.append(f"| {r['side']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {r.get('base_avgR')} | {r['t']:+.2f} | {r['is_n']} | {r['is_avgR']} | "
+                         f"{r['oos_n']} | {r['oos_avgR']} | {'YES' if r['edge'] else ''} |")
     L += ["", "## Conflicts (pointing opposite ways on the same bar)", "", "| a | b | together | opposite | % |", "|---|---|---|---|---|"]
     L += [f"| {c['a']} | {c['b']} | {c['together']} | {c['opposite']} | {c['rate']} |" for c in conflicts]
     L += ["", "## Confluence: more agreeing families = better?", "", "| agreeing families | n | win % | avg R |", "|---|---|---|---|"]

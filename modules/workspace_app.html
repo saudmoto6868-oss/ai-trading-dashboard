@@ -4407,7 +4407,7 @@ function guideSvg(C){
 const Guide = {
   on:false, busy:0, x:0, y:0,
   chr(){ const id = store.get(LS+"_gchar", "saad"); return GUIDE_CHARS.find(c => c.id === id) || GUIDE_CHARS[0]; },
-  talkAr(){ const v = store.get(LS+"_glang", ""); return v ? v === "ar" : lang === "ar"; },
+  talkAr(){ return store.get(LS+"_glang", "ar") !== "en"; },   // Egyptian Arabic first (owner), English only when picked
   G(a, b){ return this.talkAr() ? b : a; },
   init(){
     if (this.root) return; const r = this.root = el("div"); r.id = "guide";

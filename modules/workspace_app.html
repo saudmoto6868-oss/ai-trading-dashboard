@@ -233,10 +233,18 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-light{position:absolute;left:-30%;right:-30%;top:-8%;bottom:0;background:linear-gradient(180deg,rgba(255,236,190,.22),rgba(255,236,190,.03) 85%);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);filter:blur(3px);opacity:0;transition:opacity .8s}
 #guide.on .g-light{opacity:1;animation:gLight 6s ease-in-out infinite alternate}
 #guide .g-floor{position:absolute;left:-12%;right:-12%;bottom:-4px;height:18%;background:radial-gradient(ellipse at 50% 70%,rgba(240,185,11,.30),rgba(240,185,11,.06) 45%,transparent 70%)}
-#guide .g-man{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:auto;cursor:pointer;transform:translateX(-140%);filter:drop-shadow(0 10px 14px #000a)}
+#guide .g-man{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:auto;cursor:pointer;opacity:0;transform-origin:50% 100%;filter:drop-shadow(0 10px 14px #000a)}
 #guide .g-man svg{width:100%;height:100%;display:block}
-#guide.on .g-man{transform:none;transition:transform 1.5s cubic-bezier(.3,.1,.3,1)}
-#guide.leaving .g-man{transform:translateX(-140%);transition:transform .9s ease-in}
+#guide .g-eback{position:absolute;left:13%;right:13%;top:3%;bottom:1%;background:linear-gradient(180deg,#2a2f37,#0f1216 70%);box-shadow:inset 0 0 40px #000;opacity:0;transition:opacity .4s}
+#guide .g-eback::before{content:"";position:absolute;left:10%;right:10%;top:0;height:3px;background:#fff6dd;box-shadow:0 0 22px 8px rgba(255,240,200,.35)}
+#guide .g-efront{position:absolute;left:11%;right:11%;top:1%;bottom:0;opacity:0;pointer-events:none;border:5px solid #8a7340;border-bottom:0;border-radius:4px 4px 0 0;box-shadow:0 0 0 1px #000,0 0 24px rgba(240,185,11,.25);overflow:hidden}
+#guide .g-dl,#guide .g-dr{position:absolute;top:7%;bottom:0;width:50%;background:linear-gradient(90deg,#5b6068,#a7adb5 45%,#6b7078 55%,#4a4f57);box-shadow:inset 0 0 0 1px #0006}
+#guide .g-dl{left:0}#guide .g-dr{right:0}
+#guide .g-ind{position:absolute;left:0;right:0;top:0;height:7%;background:#0b0d10;display:flex;align-items:center;justify-content:center;gap:5px;font:700 11px ui-monospace,Menlo,monospace;color:#f0b90b;text-shadow:0 0 6px #f0b90b}
+#guide .g-stage.ding .g-ind{animation:gDing .25s 2}
+@keyframes gDing{50%{background:#3a2c08}}
+#guide .g-stairs{position:absolute;left:0;top:0;width:200%;height:100%;opacity:0;pointer-events:none;filter:drop-shadow(0 6px 10px #000a)}
+#guide .g-lift{position:absolute;left:10%;right:10%;bottom:-2%;height:6%;border-radius:50%;opacity:0;background:radial-gradient(ellipse at 50% 50%,rgba(255,236,190,.95),rgba(240,185,11,.55) 40%,transparent 72%);box-shadow:0 0 30px 10px rgba(240,185,11,.35)}
 #guide .g-tag{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);font-size:10px;letter-spacing:1px;color:#f0b90b;background:rgba(10,12,16,.75);border:1px solid rgba(240,185,11,.45);border-radius:10px;padding:1px 9px;white-space:nowrap}
 #guide .g-x{position:absolute;right:-6px;top:4%;pointer-events:auto;width:22px;height:22px;padding:0;border-radius:50%;font-size:11px;line-height:20px;opacity:.55}
 #guide .g-x:hover{opacity:1}
@@ -4482,7 +4490,8 @@ const Guide = {
   G(a, b){ return this.talkAr() ? b : a; },
   init(){
     if (this.root) return; const r = this.root = el("div"); r.id = "guide";
-    r.innerHTML = '<div class="g-tab"></div><div class="g-stage"><div class="g-light"></div><div class="g-floor"></div><div class="g-man"></div><div class="g-tag"></div><button class="g-x" type="button">✕</button></div>'
+    r.innerHTML = '<div class="g-tab"></div><div class="g-stage"><div class="g-light"></div><div class="g-floor"></div><div class="g-eback"></div><svg class="g-stairs" viewBox="0 0 200 100" preserveAspectRatio="none"></svg><div class="g-man"></div>'
+      + '<div class="g-efront"><div class="g-ind"><i>▼</i><b>27</b></div><div class="g-dl"></div><div class="g-dr"></div></div><div class="g-lift"></div><div class="g-tag"></div><button class="g-x" type="button">✕</button></div>'
       + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-hd"><span class="g-ic">'+GUIDE_ICON+'</span><b class="g-nm"></b><span class="g-sp"></span><button type="button" class="g-sm" data-d="-1">A−</button><button type="button" class="g-sm" data-d="1">A+</button><button type="button" class="g-opt">⚙</button><button type="button" class="g-fold">▾</button></div>'
       + '<div class="g-bd"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><button type="button" class="g-mic"></button><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div></div>';
     document.body.append(r);
@@ -4492,7 +4501,7 @@ const Guide = {
     this.mic = r.querySelector(".g-mic"); this.mic.onclick = () => this.listening ? this.stopListen(true) : this.listen(); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
     this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
     this.man.onclick = () => this.bub.classList.toggle("hide"); this.tab.onclick = () => this.open(); r.querySelector(".g-x").onclick = () => this.close();
-    this.paint(); this.bot(); this.look(); window.addEventListener("resize", () => this.dock());
+    this.paint(); this.bot(); this.look(); this.life(); window.addEventListener("resize", () => this.dock());
     let q = 0; const onSc = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.dock(); }); };   // the stage stays in the visible corner while the page scrolls
     try { window.parent.addEventListener("scroll", onSc, true); window.parent.addEventListener("resize", onSc); } catch(e){} this.dock(); setTimeout(() => this.dock(), 800);
     document.addEventListener("pointerdown", () => { if (this._pending){ const t = this._pending; this._pending = ""; this.voice(t); } }, true);   // browsers only allow speech after the first tap: say the greeting then
@@ -4526,6 +4535,8 @@ const Guide = {
     b.append(el("div", "g-btns"), row(this.G("Presenter", "المذيع"), cs), row(this.G("Presenter size", "حجم المذيع"), sz), row(this.G("Show presenter", "إظهار المذيع"), tog("_gstage", true, () => this.look())),
       row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
     b.firstChild.append(lb, vb, cb, tb, clr); },
+  life(){ clearTimeout(this._lt); this._lt = setTimeout(() => { if (this.on && !this._fx && !this.man.classList.contains("talk") && !this.listening){ const h = this.man.querySelector(".g-head");
+      if (h) h.animate([{transform:"rotate(0)"}, {transform:"rotate(" + (Math.random() < .5 ? -5 : 4) + "deg)", offset:.3}, {transform:"rotate(0)"}], {duration:2600, easing:"ease-in-out"}); } this.life(); }, 7000 + Math.random()*7000); },
   look(){ if (!this.root) return; const z = +store.get(LS+"_gbsz", 0); this.bub.dataset.sz = z; this.bub.classList.toggle("fold", !!store.get(LS+"_gfold", false));
     this.root.classList.toggle("nostage", store.get(LS+"_gstage", true) === false); this.dock(); this.placeBub(); },
   SR(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; },
@@ -4553,10 +4564,41 @@ const Guide = {
     if (ns){ Object.assign(this.bub.style, {left:"8px", top:"", bottom:(innerHeight - d.v.b + 8)+"px"}); return; } const side = innerWidth - (8 + d.w + 10) >= bw;
     if (side){ Object.assign(this.bub.style, {left:(8 + d.w + 8)+"px", top:"", bottom:(innerHeight - (d.top + d.h*.55))+"px"}); this.bub.classList.add("side"); }
     else { Object.assign(this.bub.style, {left:"6px", top:"", bottom:(innerHeight - d.top + 4)+"px"}); this.bub.classList.remove("side"); } },
-  async open(){ this.init(); if (this.on) return; this.on = true; store.set(LS+"_gon", true); this.dock(); this.root.classList.add("on"); this.man.classList.add("walk");
-    await this.wait(1500); this.man.classList.remove("walk"); this.hi(); },
-  async close(){ if (!this.on) return; this.stopListen(true); this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop(); this.root.classList.add("leaving"); await this.wait(900);
-    this.root.classList.remove("on", "leaving"); this.on = false; store.set(LS+"_gon", false); },
+  async open(){ this.init(); if (this.on || this._fx) return; this.on = true; store.set(LS+"_gon", true); this.dock(); this.root.classList.add("on");
+    await this.fx(true); this.hi(); },
+  async close(){ if (!this.on || this._fx) return; this.stopListen(true); this.bub.classList.remove("show"); this.beam.classList.remove("on"); GVoice.stop();
+    await this.fx(false); this.root.classList.remove("on"); this.on = false; store.set(LS+"_gon", false); },
+  /* entrances like an executive arriving on the trading floor: private elevator, staircase or stage lift - a different one each time */
+  async fx(enter){ const kinds = ["elev", "stairs", "lift"], n = +store.get(LS+"_gfx", 0), k = kinds[n % 3]; if (!enter) store.set(LS+"_gfx", n + 1);
+    const m = this.man, st = this.stage, reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; this._fx = 1;
+    const A = (el, kf, o) => el.animate(kf, Object.assign({duration:900, easing:"cubic-bezier(.3,.1,.25,1)", fill:"forwards"}, o)).finished.catch(() => {});
+    try {
+      if (reduce){ await A(m, enter ? [{opacity:0}, {opacity:1}] : [{opacity:1}, {opacity:0}], {duration:300}); return; }
+      if (k === "elev"){ const ind = st.querySelector(".g-ind b"), dl = st.querySelector(".g-dl"), dr = st.querySelector(".g-dr"); st.classList.add("fx-elev");
+        const floors = enter ? ["27","21","14","8","3","G"] : ["G","3","8","14","21","27"], arrow = st.querySelector(".g-ind i"); arrow.textContent = enter ? "▼" : "▲";
+        if (enter){ m.getAnimations().forEach(a => a.cancel()); m.style.opacity = 1; m.style.transform = "scale(.9) translateY(-1%)"; dl.style.transform = dr.style.transform = ""; }
+        await A(st.querySelector(".g-efront"), [{opacity:0}, {opacity:1}], {duration:450}); st.querySelector(".g-eback").style.opacity = 1;
+        if (enter){ for (const f of floors){ ind.textContent = f; await this.wait(170); } st.classList.add("ding"); await this.wait(250); }
+        await Promise.all([A(dl, [{transform:"translateX(0)"}, {transform:"translateX(-100%)"}], {duration:850}), A(dr, [{transform:"translateX(0)"}, {transform:"translateX(100%)"}], {duration:850})]);
+        m.classList.add("walk"); await A(m, enter ? [{transform:"scale(.9) translateY(-1%)"}, {transform:"scale(1) translateY(0)"}] : [{transform:"scale(1)"}, {transform:"scale(.9) translateY(-1%)"}], {duration:900}); m.classList.remove("walk");
+        await Promise.all([A(dl, [{transform:"translateX(-100%)"}, {transform:"translateX(0)"}], {duration:850}), A(dr, [{transform:"translateX(100%)"}, {transform:"translateX(0)"}], {duration:850})]);
+        if (!enter){ m.style.opacity = 0; for (const f of floors){ ind.textContent = f; await this.wait(150); } }
+        st.classList.remove("ding"); st.querySelector(".g-eback").style.opacity = 0; await A(st.querySelector(".g-efront"), [{opacity:1}, {opacity:0}], {duration:450});
+        st.classList.remove("fx-elev"); m.style.transform = ""; if (enter) m.style.opacity = 1;
+      } else if (k === "stairs"){ const sv = st.querySelector(".g-stairs"); const N = 7, R = 6.5, T = 9, X0 = 55; let d = ""; for (let i = N - 1; i >= 0; i--){ const x = X0 + i*T, y = 100 - (i+1)*R; d += '<rect x="'+x+'" y="'+y+'" width="'+(200-x)+'" height="'+((i+1)*R)+'" fill="url(#gStep)" stroke="rgba(240,185,11,.4)" stroke-width=".35"/>'; }   // units = % of the stage, so his feet land on each tread
+        sv.innerHTML = '<defs><linearGradient id="gStep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a414b"/><stop offset="1" stop-color="#14181d"/></linearGradient></defs>' + d;
+        await A(sv, [{opacity:0, transform:"translateX(12%)"}, {opacity:1, transform:"none"}], {duration:500});
+        const pos = i => i < 0 ? [0, 0, 1] : [X0 + i*T + T/2 - 50, -(i+1)*R, 1 - .025*(i+1)], tf = ([x, y, sc], lift) => ({transform:"translate("+x+"%,"+(y - (lift || 0))+"%) scale("+sc+")"}), kf = [tf(pos(N-1))];
+        for (let i = N - 2; i >= -1; i--){ const a = pos(i+1), b = pos(i), o = (N - 1 - i)/N; kf.push(Object.assign(tf([(a[0]+b[0])/2, Math.min(a[1], b[1]), (a[2]+b[2])/2], 2), {offset:o - .5/N}), Object.assign(tf(b), {offset:o})); }   // one step = lift, move, land
+        m.style.opacity = 1; m.classList.add("walk"); await A(m, enter ? kf : kf.slice().reverse().map((f, i, a) => Object.assign({}, f, f.offset != null ? {offset:1 - f.offset} : {})), {duration:2300, easing:"linear"}); m.classList.remove("walk");
+        if (!enter) m.style.opacity = 0; await A(sv, [{opacity:1}, {opacity:0}], {duration:500}); m.getAnimations().forEach(a => a.cancel()); m.style.transform = "";
+      } else {   // stage lift: a glowing platform brings him up through the floor
+        const lf = st.querySelector(".g-lift"); await A(lf, [{opacity:0}, {opacity:1}], {duration:350}); m.style.opacity = 1;
+        const dn = {transform:"translateY(100%)", clipPath:"inset(0 0 100% 0)"}, up = {transform:"translateY(0)", clipPath:"inset(0 0 0% 0)"};
+        await Promise.all([A(m, enter ? [dn, up] : [up, dn], {duration:1700, easing:"cubic-bezier(.45,.05,.35,1)"}), A(lf, enter ? [{transform:"translateY(40%)"}, {transform:"translateY(0)"}] : [{transform:"translateY(0)"}, {transform:"translateY(40%)"}], {duration:1700})]);
+        await A(lf, [{opacity:1}, {opacity:0}], {duration:450}); m.getAnimations().forEach(a => a.cancel()); m.style.transform = ""; m.style.opacity = enter ? 1 : 0;
+      }
+    } finally { this._fx = 0; } },
   voice(text){ if (!this.voiceOn()) return; const c = this.chr();
     GVoice.say(text, c.female, () => this.setTalk(true), err => { this.setTalk(false); if (err === "not-allowed") this._pending = text; else if (this.chat && this.on && !this._busyAsk) setTimeout(() => this.listen(), 350); }); },
   speak(text, acts, quiet){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
@@ -4652,6 +4694,17 @@ const Guide = {
     if (this.on){ this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
 };
 
+/* welcome: widgets materialise one after another with a gold scan line (once per page load; skipped for reduced motion) */
+function welcome(){
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; const v = (typeof Guide !== "undefined" && Guide.view) ? Guide.view() : {t:0, b:innerHeight};
+  const line = el("div"); line.style.cssText = "position:fixed;left:0;right:0;height:2px;z-index:8999;pointer-events:none;background:linear-gradient(90deg,transparent,#f0b90b 20%,#fff3c4 50%,#f0b90b 80%,transparent);box-shadow:0 0 18px 4px rgba(240,185,11,.45)";
+  document.body.append(line); line.animate([{top:v.t+"px", opacity:0}, {opacity:1, offset:.12}, {top:(v.b - 4)+"px", opacity:.9, offset:.85}, {top:(v.b - 4)+"px", opacity:0}], {duration:1500, easing:"cubic-bezier(.4,0,.2,1)"}).finished.then(() => line.remove(), () => line.remove());
+  [...document.querySelectorAll("#bar > *")].forEach((b, i) => b.animate([{opacity:0, transform:"translateY(-8px)"}, {opacity:1, transform:"none"}], {duration:450, delay:60 + i*45, easing:"cubic-bezier(.2,.7,.2,1)", fill:"backwards"}));
+  Ws.panels.slice().sort((a, b) => (a.rect.y - b.rect.y) || (a.rect.x - b.rect.x)).forEach((p, i) => p.root.animate([
+    {opacity:0, transform:"translateY(22px) scale(.97)", filter:"blur(6px) brightness(1.8)", boxShadow:"0 0 0 1px rgba(240,185,11,.9), 0 0 30px rgba(240,185,11,.5)"},
+    {opacity:1, filter:"blur(0) brightness(1.15)", boxShadow:"0 0 0 1px rgba(240,185,11,.6), 0 0 18px rgba(240,185,11,.3)", offset:.6},
+    {opacity:1, transform:"none", filter:"none", boxShadow:"0 0 0 0 transparent"}], {duration:900, delay:200 + i*110, easing:"cubic-bezier(.2,.7,.2,1)", fill:"backwards"}));
+}
 /* toolbar */
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
@@ -4693,6 +4746,7 @@ function applyLang(rebuild){
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
+  try { welcome(); } catch(e){}
   try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";

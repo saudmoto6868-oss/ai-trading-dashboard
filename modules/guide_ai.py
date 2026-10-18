@@ -59,7 +59,11 @@ def gemini_key() -> str:   # the usual names a Google AI Studio key is saved und
 
 
 def provider() -> str:
-    return "claude" if api_key() else "gemini" if gemini_key() else ""
+    """Owner rule (2026-10-18): Mr X / AI page run on Gemini only; the Anthropic key is for project work, never spent here.
+    Claude is used only if GUIDE_PROVIDER = "claude" is set on purpose."""
+    if _cfg("GUIDE_PROVIDER", "gemini").lower() == "claude" and api_key():
+        return "claude"
+    return "gemini" if gemini_key() else ""
 
 
 def _cfg(name: str, default: str) -> str:

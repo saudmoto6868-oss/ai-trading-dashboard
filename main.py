@@ -879,7 +879,7 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 .st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.14em;text-transform:uppercase}}
 .block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
 .st-key-hdr{{padding:0 2.8rem 0 2.6rem;border-bottom:1px solid #1c232b;margin-bottom:2px}}
-.xpix-mini{{font:800 18px/1 sans-serif;letter-spacing:.06em;color:#d7dce2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
+.xpix-mini{{font:900 19px/1 'Arial Black',Arial,sans-serif;letter-spacing:.02em;color:#f2f2f2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
 .st-key-focus_btn button{{padding:0 6px;min-height:28px;border:1px solid #1c232b;background:transparent}}
 .st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}}
 @media (max-width:640px){{.st-key-hdr{{padding:0 .2rem 0 2.4rem}} .st-key-hdr [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important;gap:4px!important}}

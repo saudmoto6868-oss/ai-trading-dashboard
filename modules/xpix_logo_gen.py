@@ -35,10 +35,17 @@ def svg(body, vb):
 # 1) mark alone (fine)
 open('mark.svg','w').write(svg(mark(), '20 0 160 240'))
 # 2) lockup: mark + XPiX (header)
-word = ('<g font-family="Inter,\'Helvetica Neue\',Arial,sans-serif" font-weight="400" font-size="92" letter-spacing="2">'
-        f'<text x="196" y="153" fill="{W}">XP<tspan fill="{G}">i</tspan>X</text></g>')
-open('lockup.svg','w').write(svg(mark()+[word], '22 2 420 236'))
-open('lockup_mid.svg','w').write(svg(mark("mid")+[word], '22 2 420 236'))
+# XPiX letters drawn as shapes (heavy geometric, angled cuts - same style as the barcode logo); cap height 100, stroke 22
+def letters(x0, top, cap, white=W, gold=G):
+    k = cap/100
+    X = lambda x: f'<path fill="{white}" d="M{x} 0 H{x+26} L{x+92} 100 H{x+66} Z M{x+66} 0 H{x+92} L{x+26} 100 H{x} Z"/>'
+    P = lambda x: f'<path fill="{white}" fill-rule="evenodd" d="M{x} 0 H{x+52} A30 30 0 0 1 {x+52} 60 H{x+22} V100 H{x} Z M{x+22} 20 H{x+50} A10 10 0 0 1 {x+50} 40 H{x+22} Z"/>'
+    I = lambda x: f'<path fill="{gold}" d="M{x} 32 H{x+22} V100 H{x} Z M{x} 0 H{x+22} V20 H{x} Z"/>'
+    body = X(0) + P(104) + I(198) + X(232)
+    return f'<g transform="translate({x0},{top}) scale({k})">{body}</g>'
+word = letters(198, 92, 58)
+open('lockup.svg','w').write(svg(mark()+[word], '22 2 400 236'))
+open('lockup_mid.svg','w').write(svg(mark("mid")+[word], '22 2 400 236'))
 # 3) app icon (chunky, rounded square)
 icon = [f'<rect x="0" y="0" width="200" height="200" rx="46" fill="#0a0a0a"/>', '<g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)">'] + mark(False) + ['</g>']
 open('icon.svg','w').write(svg(icon, '0 0 200 200'))

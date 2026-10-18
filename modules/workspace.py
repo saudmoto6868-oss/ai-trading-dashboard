@@ -55,7 +55,9 @@ def _gann_oos() -> dict:
 _OOS_CACHE: dict = {}
 
 UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("ember", "3 · Ember"), ("sunset", "4 · Sunset"),
-             ("emerald", "5 · Emerald"), ("neon", "6 · Neon"), ("mono", "7 · Mono Data"), ("grafana", "8 · Grafana"), ("blueprint", "9 · Blueprint")]
+             ("emerald", "5 · Emerald"), ("neon", "6 · Neon"), ("mono", "7 · Mono Data"), ("grafana", "8 · Grafana"), ("blueprint", "9 · Blueprint"),
+             ("slate", "10 · Slate Mint"), ("frost", "11 · Frost Glass"), ("gold", "12 · Black Gold"), ("amber", "13 · Amber Cockpit"), ("dusk", "14 · Dusk"),
+             ("cyber", "15 · Cyber"), ("nogray", "16 · No Gray")]
 # themes 3-9 (owner pictures 2026-10-18) share one engine: a palette -> CSS variables for the page, the top bar and the Workspace (+ chart colours).
 # keys: bg page, panel/panel2 cards (see-through over the blurred picture), solid = card in front, line, txt, mut, acc accent, ink text on accent,
 # up/dn candles, rad corner radius px, font, tt text-transform of titles, ls letter-spacing, glow card shadow
@@ -74,15 +76,31 @@ UI_PALETTES = {
                       acc="#5794f2", ink="#ffffff", up="#73bf69", dn="#f2495c", rad=3, font="Inter,Roboto,'Segoe UI',sans-serif", tt="none", ls="0", glow="none"),
     "blueprint": dict(bg="#000000", panel="rgba(3,4,8,.86)", panel2="rgba(10,12,20,.9)", solid="rgba(2,3,6,.98)", line="rgba(150,175,255,.20)", txt="#e8ecff", mut="#8790b0",
                       acc="#9db8ff", ink="#05081a", up="#8fd3ff", dn="#c08fff", rad=2, font="", tt="uppercase", ls=".12em", glow="none"),
+    # themes 10-16 (owner's second picture set, 2026-10-18)
+    "slate":     dict(bg="#1f272b", panel="rgba(44,54,58,.84)", panel2="rgba(56,68,73,.88)", solid="rgba(38,47,51,.97)", line="rgba(126,232,214,.14)", txt="#e6eeee", mut="#8fa1a3",
+                      acc="#6fe3cf", ink="#062220", up="#6fe3cf", dn="#ff7a7a", rad=10, font="", tt="uppercase", ls=".14em", glow="0 10px 28px rgba(0,0,0,.35)"),
+    "frost":     dict(bg="#1a2233", panel="rgba(255,255,255,.08)", panel2="rgba(255,255,255,.13)", solid="rgba(28,34,48,.93)", line="rgba(255,255,255,.18)", txt="#f3f5fa", mut="#aab3c5",
+                      acc="#b9a6ff", ink="#160e33", up="#4fd6b0", dn="#ff8a8a", rad=18, font="", tt="none", ls="0", glow="0 8px 32px rgba(0,0,0,.28)"),
+    "gold":      dict(bg="#0b0b0b", panel="rgba(17,16,14,.9)", panel2="rgba(26,24,20,.92)", solid="rgba(12,11,10,.98)", line="rgba(201,169,97,.24)", txt="#efe6d2", mut="#9b927f",
+                      acc="#c9a961", ink="#1c1406", up="#d8be82", dn="#e06c5a", rad=2, font="", tt="none", ls=".02em", glow="0 12px 30px rgba(0,0,0,.55)"),
+    "amber":     dict(bg="#0c0d0f", panel="rgba(20,21,24,.9)", panel2="rgba(30,31,35,.92)", solid="rgba(14,15,17,.98)", line="rgba(255,196,0,.16)", txt="#f1f1ee", mut="#8f8f8a",
+                      acc="#ffc400", ink="#241a00", up="#ffd23f", dn="#ff5a5a", rad=6, font="", tt="uppercase", ls=".06em", glow="0 0 22px rgba(255,196,0,.10)"),
+    "dusk":      dict(bg="#241c26", panel="rgba(46,34,44,.84)", panel2="rgba(60,44,56,.88)", solid="rgba(40,30,38,.97)", line="rgba(255,170,130,.14)", txt="#f5e6dc", mut="#a8928c",
+                      acc="#f4a07a", ink="#2a1208", up="#ffc29a", dn="#b97cff", rad=16, font="", tt="none", ls="0", glow="0 12px 32px rgba(0,0,0,.4)"),
+    "cyber":     dict(bg="#071216", panel="rgba(8,22,27,.88)", panel2="rgba(12,32,38,.9)", solid="rgba(6,16,20,.98)", line="rgba(0,229,255,.16)", txt="#dff9ff", mut="#6f9aa4",
+                      acc="#00e5ff", ink="#001a20", up="#00e5ff", dn="#ff9f1c", rad=2, font="", tt="uppercase", ls=".1em", glow="0 0 20px rgba(0,229,255,.10)"),
+    "nogray":    dict(bg="#000000", panel="rgba(10,10,10,.92)", panel2="rgba(20,20,20,.94)", solid="rgba(5,5,5,.98)", line="rgba(255,255,255,.14)", txt="#ffffff", mut="#9a9a9a",
+                      acc="#19e6c1", ink="#00231d", up="#19e6c1", dn="#f2f2f2", rad=0, font="", tt="uppercase", ls=".08em", glow="0 14px 30px rgba(0,0,0,.6)"),
 }
 
 
 def ui_vars(theme: str) -> dict:
-    """Palette of an engine theme (themes 3-9), {} for Classic / 1 / 2 (they have their own hand-made CSS)."""
+    """Palette of an engine theme (themes 3-16), {} for Classic / 1 / 2 (they have their own hand-made CSS)."""
     return dict(UI_PALETTES.get(theme, {}))
 
 
-_UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint")}}
+_UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint",
+                                                                                     "slate", "frost", "gold", "amber", "dusk", "cyber", "nogray")}}
 
 
 @functools.lru_cache(maxsize=1)

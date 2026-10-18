@@ -1,0 +1,19 @@
+# Manual check that the ANTHROPIC_API_KEY repo secret works (prints status + key shape only, never the key).
+name: Anthropic key check
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - env:
+          K: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -n "$K" ] || { echo "::error::secret ANTHROPIC_API_KEY is empty / missing"; exit 1; }
+          echo "key starts with: ${K:0:10}  length: ${#K}  spaces/newlines: $(printf '%s' "$K" | tr -cd ' \n\r\t' | wc -c)  quotes: $(printf '%s' "$K" | tr -cd '"\047' | wc -c)"
+          code=$(curl -s -o r.json -w '%{http_code}' https://api.anthropic.com/v1/messages -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" -d '{"model":"claude-haiku-5-5","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}')
+          echo "Anthropic API status: $code"; python3 -c "import json;d=json.load(open('r.json'));print('error:', (d.get('error') or {}).get('type'), (d.get('error') or {}).get('message'))" || true
+          rm -f r.json; [ "$code" = "200" ]

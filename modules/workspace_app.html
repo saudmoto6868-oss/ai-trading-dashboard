@@ -4643,7 +4643,17 @@ const Guide = {
     this._fm = setInterval(() => { if (GLive.on) return; if (this.man.classList.contains("talk")) this.mouth(Math.random()); else this.mouth(-1); }, 115); },   // no live voice level (browser voice / text): plausible mouth movement while talking
   setTalk(on){ this.man.classList.toggle("talk", !!on); const t = this.man.querySelector(".g-v-talk"), i = this.man.querySelector(".g-v-idle");
     if (t && i && t.src !== i.src){ try { if (on){ t.currentTime = 0; t.play(); } else t.pause(); } catch(e){} } },
-  async paint(){ const c = this.chr(), md = await this.media(c); this.man.classList.toggle("real", !!md);
+  myFace(){ const f = store.get(LS+"_gface", null); return f && f.photo ? f : null; },   // photos picked with "Mr X photos" (kept in this browser only)
+  pickFace(){ const inp = el("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
+    inp.onchange = async () => { const fs = [...inp.files].slice(0, 4); if (!fs.length) return;
+      const shrink = f => new Promise(res => { const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { const k = Math.min(1, 900/Math.max(im.width, im.height)), cv = document.createElement("canvas"); cv.width = Math.round(im.width*k); cv.height = Math.round(im.height*k); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); res(cv.toDataURL("image/jpeg", .82)); }; im.onerror = () => res(""); im.src = u; });
+      const named = await Promise.all(fs.map(async f => [f.name.toLowerCase(), await shrink(f)])), out = {};
+      const role = n => /blink|eye|عين/.test(n) ? "blink" : /open|aa|مفتوح/.test(n) ? "open" : /mid|half|نص/.test(n) ? "mid" : "";
+      named.forEach(([n, d]) => { const r = role(n); if (r && !out[r]) out[r] = d; }); named.forEach(([n, d]) => { if (!Object.values(out).includes(d)){ const r = ["photo", "mid", "open", "blink"].find(k => !out[k]); if (r) out[r] = d; } });
+      try { store.set(LS+"_gface", out); } catch(e){ this.speak(this.G("Photos too big for this browser.", "الصور كبيرة على المتصفح.")); return; }
+      store.set(LS+"_gchar", "mrx"); this._media = {}; await this.paint(); this.bot(); this.speak(this.G("Done - that's me now.", "تمام، ده شكلي دلوقتي."), null, true); };
+    inp.click(); },
+  async paint(){ const c = this.chr(), mf = c.video ? this.myFace() : null, md = mf ? {photo:mf.photo, mid:mf.mid || "", open:mf.open || "", blink:mf.blink || ""} : await this.media(c); this.man.classList.toggle("real", !!md);
     this.man.innerHTML = md && md.idle ? '<div class="g-vid"><video class="g-v-idle" src="'+md.idle+'" muted loop playsinline autoplay></video><video class="g-v-talk" src="'+md.talk+'" muted loop playsinline preload="auto"></video></div>'
       : md && md.photo ? '<div class="g-vid g-face" data-k="photo">' + [["photo", md.photo], ["mid", md.mid], ["open", md.open], ["blink", md.blink]].filter(x => x[1]).map(([k, u], i) => '<img class="g-v-photo'+(i ? "" : " on")+'" data-k="'+k+'" src="'+u+'" alt="">').join("") + '</div>' : presenterSvg(c); this.faceLife(); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
     this.tab.textContent = this.G(c.name, c.ar); this.root.querySelector(".g-nm").textContent = this.G(c.name, c.ar); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
@@ -4665,7 +4675,7 @@ const Guide = {
     const rt = sel("_grate", "1", [[".85", this.G("Slow", "بطيء")], ["1", this.G("Normal", "عادي")], ["1.15", this.G("Fast", "سريع")]]);
     const clr = el("button", null, this.G("New chat", "محادثة جديدة")); clr.onclick = () => { const br = this.bridge(); if (br) br.ask({id:"r"+Date.now(), reset:true}); this.speak(this.G("Fresh start. What's on your mind?", "صفحة جديدة. في دماغك إيه؟")); };
     b.append(el("div", "g-btns"), row(this.G("Presenter", "المذيع"), cs), row(this.G("Presenter size", "حجم المذيع"), sz), row(this.G("Show presenter", "إظهار المذيع"), tog("_gstage", true, () => this.look())),
-      row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
+      row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Mr X photos (1-4)", "صور مستر X (1-4)"), Object.assign(el("button", null, this.myFace() ? this.G("Change", "تغيير") : this.G("Upload", "رفع")), {onclick:() => this.pickFace()}), ...(this.myFace() ? [Object.assign(el("button", null, "✕"), {title:this.G("Back to the drawing", "رجوع للرسم"), onclick:() => { store.set(LS+"_gface", null); this._media = {}; this.paint(); this.bot(); }})] : [])), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
     b.firstChild.append(lb, vb, cb, tb, clr); },
   life(){ clearTimeout(this._lt); this._lt = setTimeout(() => { if (this.on && !this._fx && !this.man.classList.contains("talk") && !this.listening){ const h = this.man.querySelector(".g-head");
       if (h) h.animate([{transform:"rotate(0)"}, {transform:"rotate(" + (Math.random() < .5 ? -5 : 4) + "deg)", offset:.3}, {transform:"rotate(0)"}], {duration:2600, easing:"ease-in-out"}); } this.life(); }, 7000 + Math.random()*7000); },

@@ -52,9 +52,9 @@ def _gann_oos() -> dict:
 
 _OOS_CACHE: dict = {}
 
-UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("t2", "2 · soon"), ("t3", "3 · soon"), ("t4", "4 · soon"),
+UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("t3", "3 · soon"), ("t4", "4 · soon"),
              ("t5", "5 · soon"), ("t6", "6 · soon"), ("t7", "7 · soon")]   # dashboard themes (top bar); "soon" slots wait for the owner's pictures
-_UI_BG = {"lux": "lux_bg.jpg"}
+_UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg"}
 
 
 def ui_theme_bg(theme: str) -> str:

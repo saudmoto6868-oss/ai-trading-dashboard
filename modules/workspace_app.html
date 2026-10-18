@@ -157,6 +157,19 @@ body.ui-lux .panel.focus{border-color:rgba(224,169,90,.45);box-shadow:0 10px 34p
 body.ui-lux .ph{background:linear-gradient(180deg,rgba(48,41,33,.85),rgba(30,26,22,.85));border-radius:14px 14px 0 0}
 body.ui-lux button,body.ui-lux select,body.ui-lux input,body.ui-lux textarea{background:rgba(40,35,29,.75);border-color:rgba(224,169,90,.18);border-radius:8px}
 body.ui-lux button.on{background:#e0a95a;border-color:#e0a95a;color:#1a140c}
+/* ---- dashboard theme 2 "Orbit HUD": misty sky, square glass frames, orange accent, HUD ticks on the edges ---- */
+body.ui-hud{background:#141c22 var(--uibg) center/cover fixed no-repeat;font-family:Rajdhani,"Barlow Condensed","Segoe UI",sans-serif;letter-spacing:.02em}
+body.ui-hud::before,body.ui-hud::after{content:"";position:fixed;top:60px;bottom:20px;width:10px;pointer-events:none;z-index:1;background:repeating-linear-gradient(180deg,rgba(255,255,255,.35) 0 1px,transparent 1px 34px)}
+body.ui-hud::before{left:2px}body.ui-hud::after{right:2px}
+body.ui-hud #ws{background:transparent}
+body.ui-hud #bar,body.ui-hud #strip{background:rgba(10,15,20,.45);border-color:rgba(225,235,240,.14)}
+body.ui-hud .panel{border-radius:0;border-color:rgba(225,235,240,.22);box-shadow:none;backdrop-filter:none}
+body.ui-hud .panel.focus{border-color:#f0a43c}
+body.ui-hud .ph{background:rgba(10,15,20,.55);border-radius:0;text-transform:uppercase;letter-spacing:.14em;font-size:11px;border-left:3px solid transparent}
+body.ui-hud .panel.focus .ph{border-left-color:#f0a43c;background:linear-gradient(90deg,rgba(240,164,60,.22),rgba(10,15,20,.55) 60%)}
+body.ui-hud button,body.ui-hud select,body.ui-hud input,body.ui-hud textarea{background:rgba(10,15,20,.35);border-color:rgba(225,235,240,.28);border-radius:0;text-transform:uppercase;letter-spacing:.08em}
+body.ui-hud button.on{background:rgba(240,164,60,.22);border-color:#f0a43c;color:#f0a43c}
+body.ui-hud input[type=checkbox]{accent-color:#f0a43c}
 body.mob #mjump{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:30px;font-size:12px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
@@ -453,6 +466,9 @@ const THEMES = {
   // dashboard themes (picked in the Streamlit top bar, CFG.ui): "lux" = theme 1 "Less is More" - warm charcoal + amber gold, glass cards over a blurred photo
   lux:      {name:"Less is More", css:{bg:"#0d0c0a",panel:"rgba(24,21,18,.80)",panel2:"rgba(40,35,29,.86)",line:"rgba(224,169,90,.18)",txt:"#efe6d6",mut:"#a8997f",panel0:"rgba(16,14,12,.62)",dot:"rgba(224,169,90,.10)",gold:"#e0a95a"},
              ch:{bg:"rgba(14,12,10,.58)",grid:"rgba(224,169,90,.07)",mut:"#a8997f",line:"rgba(224,169,90,.20)",pane:"rgba(16,14,12,.52)",up:"#e0a95a",dn:"#c0665a",txt:"#efe6d6"}},
+  // theme 2 "Orbit HUD" (owner picture: sci-fi game menu): misty teal sky, square frames, orange accent, wide uppercase lettering
+  hud:      {name:"Orbit HUD", css:{bg:"#141c22",panel:"rgba(12,18,24,.58)",panel2:"rgba(22,30,38,.62)",line:"rgba(225,235,240,.20)",txt:"#e6ecef",mut:"#93a2ad",panel0:"rgba(10,15,20,.45)",dot:"rgba(255,255,255,.05)",gold:"#f0a43c"},
+             ch:{bg:"rgba(10,16,22,.42)",grid:"rgba(225,235,240,.06)",mut:"#93a2ad",line:"rgba(225,235,240,.16)",pane:"rgba(10,16,22,.40)",up:"#5fd0c2",dn:"#f08a3c",txt:"#e6ecef"}},
   day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645",txt:"#1a2230"}}
 };
 const TH = Object.assign({}, THEMES.dark.ch);   // live canvas colours (read by CandleChart.paint)

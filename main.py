@@ -132,7 +132,7 @@ elif auto_on:
 from modules.workspace import UI_THEMES as _UI_THEMES, ui_theme_bg as _ui_theme_bg
 if "ui_theme" not in st.session_state:
     st.session_state["ui_theme"] = st.query_params.get("theme", "classic") if st.query_params.get("theme") in dict(_UI_THEMES) else "classic"
-if st.session_state["ui_theme"] not in ("classic", "lux"):   # an empty slot: say so and stay on Classic
+if st.session_state["ui_theme"] not in ("classic", "lux", "hud"):   # an empty slot: say so and stay on Classic
     st.toast(L("That theme slot is still empty - send the picture for it and it gets built."))
     st.session_state["ui_theme"] = "classic"
 UI_THEME = st.session_state["ui_theme"]
@@ -147,6 +147,14 @@ if UI_THEME == "lux":   # theme 1 "Less is More": blurred photo behind the page,
 .st-key-page label:has(input:checked){{border-bottom-color:#e0a95a!important}} .st-key-page label:has(input:checked) p{{color:#e0a95a!important}}
 [data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:rgba(24,21,18,.72);border-radius:14px}}
 .st-key-hdr{{border-bottom-color:rgba(224,169,90,.18)!important}} .xpix-mini i{{color:#e0a95a!important}}</style>""", unsafe_allow_html=True)
+elif UI_THEME == "hud":   # theme 2 "Orbit HUD": misty sky behind the page, square frames, orange accent, wide uppercase lettering
+    st.markdown(f"""<style>.stApp{{background:#141c22 url({UI_BG}) center/cover fixed no-repeat!important}}
+.stApp,.stApp p,.stApp label,.stApp span{{color:#e6ecef;font-family:Rajdhani,'Barlow Condensed','Segoe UI',sans-serif}} h1,h2,h3{{text-transform:uppercase;letter-spacing:.12em;font-weight:500}}
+[data-testid="stSidebar"]>div{{background:rgba(10,15,20,.75)}} .st-key-page label:has(input:checked){{border-bottom-color:#f0a43c!important}} .st-key-page label:has(input:checked) p{{color:#f0a43c!important}}
+[data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:rgba(10,15,20,.5);border-radius:0;border:1px solid rgba(225,235,240,.2)}}
+.stButton button{{border-radius:0;text-transform:uppercase;letter-spacing:.1em}} .st-key-hdr{{border-bottom-color:rgba(225,235,240,.2)!important}} .xpix-mini i{{color:#f0a43c!important}}
+.stApp::before,.stApp::after{{content:"";position:fixed;top:80px;bottom:30px;width:12px;pointer-events:none;z-index:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.35) 0 1px,transparent 1px 38px)}}
+.stApp::before{{left:3px}} .stApp::after{{right:3px}}</style>""", unsafe_allow_html=True)
 
 # ---- Header (filled in below once the scanner helpers exist) ----------------------
 header_box = st.container()

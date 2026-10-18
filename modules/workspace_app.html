@@ -4415,7 +4415,9 @@ const Guide = {
     document.body.append(r); this.door = r.querySelector(".g-door"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts");
     this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
     this.man.onclick = () => this.bub.classList.toggle("hide"); this.door.onclick = () => this.on ? this.close() : this.open();
-    this.paint(); this.bot(); window.addEventListener("resize", () => { if (this.on && !this.busy) this.home(true); });
+    this.paint(); this.bot(); window.addEventListener("resize", () => { this.dock(); if (this.on && !this.busy) this.home(true); });
+    let q = 0; const onSc = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.dock(); }); };   // keep the door in the visible corner while the page scrolls
+    try { window.parent.addEventListener("scroll", onSc, true); window.parent.addEventListener("resize", onSc); } catch(e){} this.dock(); setTimeout(() => this.dock(), 800);
   },
   paint(){ this.man.innerHTML = guideSvg(this.chr()); this.inp.placeholder = this.G("Ask me: what is the profile? where is the lab? ...", "اسألني: البروفيل ده إيه؟ فين اللاب؟ ..."); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
@@ -4427,20 +4429,26 @@ const Guide = {
     const xb = el("button", null, "✕"); xb.title = this.G("Back to the office", "ارجع المكتب"); xb.onclick = () => this.close();
     b.append(cs, lb, vb, tb, xb); },
   wait(ms){ return new Promise(r => setTimeout(r, ms)); },
-  async open(){ if (this.on) return; this.init(); this.on = true; store.set(LS+"_gon", true); this.root.classList.add("on"); this.door.classList.add("open");
+  view(){ try { const fe = window.frameElement; if (fe){ const r = fe.getBoundingClientRect(), H = window.parent.innerHeight; return {t:Math.max(0, -r.top), b:Math.max(120, Math.min(innerHeight, H - r.top))}; } } catch(e){} return {t:0, b:innerHeight}; },   // the workspace frame is very tall (3400 px): only this slice is on screen
+  scroller(){ try { let e = window.frameElement; while (e && (e = e.parentElement)){ const o = window.parent.getComputedStyle(e).overflowY; if (/(auto|scroll)/.test(o) && e.scrollHeight > e.clientHeight + 20) return e; } } catch(e){} return null; },
+  async reveal(r){ const v = this.view(); if (!r || (r.top >= v.t && r.top + Math.min(r.height, 200) <= v.b)) return r; const sc = this.scroller(), dy = r.top - v.t - 90;   // bring a target below / above the fold onto the screen
+    try { sc ? sc.scrollBy({top:dy, behavior:"smooth"}) : window.parent.scrollBy({top:dy, behavior:"smooth"}); } catch(e){ return r; } await this.wait(500); this.dock(); return null; },
+  dock(){ if (!this.door) return; const v = this.view(); this.door.style.bottom = "auto"; this.door.style.top = (v.b - 72)+"px";
+    if (this.on && !this.busy && (this.y < v.t || this.y > v.b - 96)){ const d = this.door.getBoundingClientRect(); this.place(d.right + 30, d.bottom - 98); this.bub.classList.remove("show"); } },
+  async open(){ if (this.on) return; this.init(); this.dock(); this.on = true; store.set(LS+"_gon", true); this.root.classList.add("on"); this.door.classList.add("open");
     const d = this.door.getBoundingClientRect(); this.place(d.left + d.width/2 - 30, d.bottom - 98); this.man.classList.add("in"); await this.wait(450);
     await this.walk(d.right + 30, d.bottom - 98); this.door.classList.remove("open"); this.hi(); },
   async close(){ if (!this.on) return; this.bub.classList.remove("show"); if (Voice.ok) speechSynthesis.cancel(); const d = this.door.getBoundingClientRect(); this.door.classList.add("open"); await this.walk(d.left + d.width/2 - 30, d.bottom - 98);
     this.man.classList.remove("in"); await this.wait(350); this.door.classList.remove("open"); this.on = false; store.set(LS+"_gon", false); this.root.classList.remove("on"); },
   place(x, y){ this.x = x; this.y = y; this.man.style.transition = "none"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; void this.man.offsetWidth; },
-  async walk(x, y){ const W = innerWidth, H = innerHeight; x = Math.max(4, Math.min(W - 64, x)); y = Math.max(4, Math.min(H - 100, y));
+  async walk(x, y){ const W = innerWidth, v = this.view(); x = Math.max(4, Math.min(W - 64, x)); y = Math.max(v.t + 4, Math.min(v.b - 100, y));
     const dx = x - this.x, dist = Math.hypot(dx, y - this.y), ms = Math.min(2600, Math.max(250, dist/0.32)); this.busy++;
     this.man.classList.toggle("flip", dx < -2); this.man.classList.add("walk"); this.bub.classList.remove("show");
     this.man.style.transition = "transform "+ms+"ms cubic-bezier(.45,.05,.4,1)"; this.man.style.transform = "translate("+x+"px,"+y+"px)"; this.x = x; this.y = y;
     await this.wait(ms); this.man.classList.remove("walk"); this.busy--; },
   async home(now){ const d = this.door.getBoundingClientRect(); if (now) this.place(d.right + 30, d.bottom - 98); else await this.walk(d.right + 30, d.bottom - 98); },
   speak(text, acts){ this.say_.textContent = text; this.acts.innerHTML = ""; (acts || []).forEach(([t, f]) => { const b = el("button", null, t); b.onclick = f; this.acts.append(b); });
-    const bw = 300, x = Math.max(6, Math.min(innerWidth - bw - 6, this.x + 30 - bw/2)), above = this.y > 230;
+    const bw = 300, x = Math.max(6, Math.min(innerWidth - bw - 6, this.x + 30 - bw/2)), above = this.y - this.view().t > 230;
     this.bub.style.left = x+"px"; this.bub.style.top = above ? "" : (this.y + 100)+"px"; this.bub.style.bottom = above ? (innerHeight - this.y + 6)+"px" : "";
     this.bub.classList.remove("hide"); this.bub.classList.add("show"); this.man.classList.add("talk"); clearTimeout(this._tt); this._tt = setTimeout(() => this.man.classList.remove("talk"), Math.min(6000, 60*text.length));
     if (store.get(LS+"_gvoice", false)) Voice.speak(text); },
@@ -4448,7 +4456,8 @@ const Guide = {
     "أنا "+c.ar+". اسألني عن أي حاجة في الشاشة وأنا أروحلها وأشرحهالك. دوس عليّا عشان تخفي الكلام.") + (this.bridge() && this.bridge().ai ? this.G(" (AI on)", " (الذكاء شغال)") : "")); },
   panel(type){ return Ws.panels.find(p => p.type === type && !p.min) || Ws.panels.find(p => p.type === type); },
   chart(){ const p = this.panel("chart"); return p && p.chart ? p : null; },
-  async goRect(r, side){ if (!r) return; const x = side === "right" ? r.right - 64 : side === "left" ? r.left - 20 : r.left + r.width/2 - 30, y = Math.min(innerHeight - 100, Math.max(4, r.top + r.height/2 - 48)); await this.walk(x, y); },
+  async goTo(get, side){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ await this.goRect(r, side); this.flash(get() || r); } return r; },   // scroll the target on screen if needed, walk there, spotlight it
+  async goRect(r, side){ if (!r) return; const x = side === "right" ? r.right - 64 : side === "left" ? r.left - 20 : r.left + r.width/2 - 30, y = r.top + Math.min(r.height/2, 160) - 48; await this.walk(x, y); },
   flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
   page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
   live: {
@@ -4502,21 +4511,21 @@ const Guide = {
       this._aiErr = c === "429" ? this.G("AI daily limit reached (provider).", "حد الذكاء المجاني خلص النهارده.") : c === "400" || c === "401" || c === "403" ? this.G("The AI key was rejected - check it in Secrets.", "مفتاح الذكاء مرفوض، راجعه في Secrets.") : this.G("AI not answering right now ("+ans.err+").", "الذكاء مش بيرد دلوقتي ("+ans.err+")."); } else this._aiErr = "";
     if (!ans || ans.err){ if (ans && ans.err === "cap") { this.speak(this.G("I've hit today's question limit. Built-in answers still work.", "خلّصت عدد أسئلة النهارده. الإجابات الجاهزة لسه شغالة.")); return true; } return false; }
     const pg = {scanner:1, lab:2, playbook:3, stats:4, alerts_page:6}[ans.page];
-    if (pg){ await this.walk(innerWidth/2 - 30, 4); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
-    if (ans.go && ans.go !== "none"){ const r = this.target(ans.go); if (r){ await this.goRect(r, ans.go === "vp" ? "left" : null); this.flash(r); } }
+    if (pg){ await this.walk(innerWidth/2 - 30, this.view().t + 4); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
+    if (ans.go && ans.go !== "none"){ const r = this.target(ans.go); if (r) await this.goTo(() => this.target(ans.go), ans.go === "vp" ? "left" : null); }
     this.speak(ans.say); return true; },
   async ask(q){ const k = this.KB.find(e => e.kw.test(q)), short = q.trim().split(/\s+/).length <= 3;
     if (!(k && short) && await this.askAI(q)) return;   // Claude answers real questions; one or two keywords stay on the free built-in guide
     if (!k && this._aiErr){ this.speak(this._aiErr); this._aiErr = ""; return; }
     if (!k){ this.speak(this.G("I don't know that one yet. Try: profile, delta, order flow, DOM, tape, limits, setup, alerts, chart, lab, scanner.", "لسه معرفش دي. جرّب: البروفيل، الدلتا، الأوردر فلو، الدوم، التايب، الليميت، السيتاب، التنبيهات، الشارت، اللاب، السكانر.")); return; }
     const txt = this.G(k.en, k.ar);
-    if (k.page != null){ await this.walk(innerWidth/2 - 30, 4); this.speak(txt); await this.wait(1400); this.page(k.page); return; }
+    if (k.page != null){ await this.walk(innerWidth/2 - 30, this.view().t + 4); this.speak(txt); await this.wait(1400); this.page(k.page); return; }
     if (k.to){ const ty = k.to === "vp" || k.to === "of" ? "chart" : k.to, r = this.target(k.to);
       if (!r){ this.speak(this.G("That widget is not open. Open it?", "الويدجت ده مش مفتوح. أفتحهولك؟"), [[this.G("Open it", "افتحه"), () => { Ws.add(ty); setTimeout(() => this.ask(q), 500); }]]); return; }
-      await this.goRect(r, k.to === "vp" ? "left" : null); this.flash(r); const lf = this.live[k.to]; this.speak(txt + (lf ? lf(this) : "")); return; }
+      await this.goTo(() => this.target(k.to), k.to === "vp" ? "left" : null); const lf = this.live[k.to]; this.speak(txt + (lf ? lf(this) : "")); return; }
     this.speak(txt); },
   async tour(){ const seen = new Set(), stops = Ws.panels.filter(p => !p.min && !seen.has(p.type) && seen.add(p.type)).slice(0, 6);
-    for (const p of stops){ if (!this.on) return; const k = this.KB.find(e => e.to === p.type); if (!k) continue; await this.goRect(p.root.getBoundingClientRect()); this.flash(p.root.getBoundingClientRect()); this.speak(this.G(k.en, k.ar)); await this.wait(Math.min(9000, 2500 + 45*k.en.length)); }
+    for (const p of stops){ if (!this.on) return; const k = this.KB.find(e => e.to === p.type); if (!k) continue; await this.goTo(() => p.root.getBoundingClientRect()); this.speak(this.G(k.en, k.ar)); await this.wait(Math.min(9000, 2500 + 45*k.en.length)); }
     if (this.on){ await this.home(); this.speak(this.G("That's the tour. Ask me anything else.", "كده خلصنا الجولة. اسألني في أي حاجة تانية.")); } }
 };
 

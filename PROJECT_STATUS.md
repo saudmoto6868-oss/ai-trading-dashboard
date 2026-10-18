@@ -66,6 +66,7 @@ Last updated: 2026-10-17. **Update this file after every finished item (status +
 Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after deploy (screenshot + error if not); put `FINNHUB_WS_TOKEN` (a separate free Finnhub key for the browser live feed), `FRED_API_KEY`, `CURRENTS_API_KEY`, Telegram, Actions, UW, Finnhub, AV keys in Secrets; test the Performance tab with an exported journal CSV.
 
 ## Change log (newest first)
+- 2026-10-18 Indicator panes under the chart can be dragged all the way: from just their title strip (~18 px) up to almost the whole chart (price area keeps 70 px); setting range 1-92 %. Wider limits sideways too: order-flow column 60 px .. 85 % of the chart, price axis 36-320 px. Playwright drag test: pane 101 -> 508 px (of 582) -> 14 px.
 - 2026-10-18 Kill Zone Sniper table on the chart also has a red ✕ (hides the table, saved per widget; switching the indicator off and on brings it back). Playwright-tested.
 - 2026-10-18 The timeframe targets table (bottom right of the chart, MTF Liquidity Levels) has its own red ✕ above its top-right corner: hides the table (saved per widget; turn it back on in the indicator settings). Playwright-tested.
 - 2026-10-18 Fix (owner: the MetaTrader button changed nothing): it relied on reloading the Workspace frame, which does not reliably reload inside Streamlit on phones. Now it switches live (class + layout + bottom tabs rebuilt / removed, charts resized), the label shows ✓ / ○. Tapped on / off / on in iPhone emulation.

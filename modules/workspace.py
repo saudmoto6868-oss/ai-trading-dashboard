@@ -124,7 +124,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
-                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "") -> str:
+                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "") -> str:
     news = list(news or [])
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
@@ -163,7 +163,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
         "gannoos": _gann_oos(),
-        "ui": ui_theme or "", "uiBg": ui_bg or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces(),   # dashboard theme from the top bar (+ its blurred background image as a data URI)
+        "ui": ui_theme or "", "uiBg": ui_bg or "", "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces(),   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early
@@ -200,7 +200,7 @@ def _fh_token() -> str:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = ""):
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg), height=height, scrolling=False)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height, scrolling=False)

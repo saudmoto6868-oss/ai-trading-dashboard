@@ -95,6 +95,7 @@ AR = {
     "Mr X is thinking...": "مستر X بيفكر...", "Today's question limit is reached.": "خلصت أسئلة النهارده.", "No AI key in Secrets.": "مفيش مفتاح ذكاء في Secrets.",
     "Mr X could not answer": "مستر X معرفش يرد",
     "Add GEMINI_API_KEY (free) or ANTHROPIC_API_KEY in Streamlit Secrets to talk to Mr X.": "حط GEMINI_API_KEY (مجاني) أو ANTHROPIC_API_KEY في Secrets عشان تكلم مستر X.",
+    "Material": "الخامة", "Auto (from the theme)": "تلقائي (من الثيم)", "None": "بدون", "Brushed steel": "ستيل مصقول", "Paper": "ورق", "Wood": "خشب", "Fabric": "قماش", "Glass": "زجاج", "Carbon fibre": "كاربون",
     "Theme": "الثيم", "Language": "اللغة", "Coming": "قريباً", "Classic": "كلاسيك",
     "Slots 3-7: send a picture and the theme gets built.": "الخانات من ٣ لـ ٧: ابعت صورة والثيم يتعمل.",
     "Theme and language (Alt+T / Alt+L)": "الثيم واللغة (Alt+T / Alt+L)",

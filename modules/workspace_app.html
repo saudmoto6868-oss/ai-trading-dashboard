@@ -361,6 +361,20 @@ body.mob.mt5{background:#000}
 @keyframes m5in{from{transform:translateX(-100%)}to{transform:none}}
 .m5toast{position:fixed;left:50%;top:calc(var(--vb) - 130px);transform:translateX(-50%);z-index:90;background:#2c2c2e;padding:10px 14px;border-radius:20px;font-size:13px;max-width:86%;text-align:center;box-shadow:0 6px 20px #000a}
 body.rtl .m5row,body.rtl .m5top{direction:rtl}
+/* materials (top-bar picker / theme default): texture on panel chrome, bars, buttons - charts stay clean */
+body.mat-steel .panel,body.mat-steel #bar,body.mat-steel .ph,body.mat-steel button,body.mat-steel select,body.mat-steel .g-bub,body.mat-steel #strip{background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,rgba(0,0,0,.035) 1px 3px),linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.18))}
+body.mat-paper .panel,body.mat-paper #bar,body.mat-paper .ph,body.mat-paper button,body.mat-paper select,body.mat-paper .g-bub,body.mat-paper #strip{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),linear-gradient(180deg,rgba(255,250,235,.05),rgba(120,100,60,.05))}
+body.mat-wood .panel,body.mat-wood #bar,body.mat-wood .ph,body.mat-wood button,body.mat-wood select,body.mat-wood .g-bub,body.mat-wood #strip{background-image:repeating-linear-gradient(92deg,rgba(120,72,30,.10) 0 2px,rgba(60,32,10,.06) 2px 7px,rgba(150,95,45,.08) 7px 9px,rgba(0,0,0,0) 9px 14px),linear-gradient(180deg,rgba(150,95,40,.10),rgba(40,20,5,.18))}
+body.mat-fabric .panel,body.mat-fabric #bar,body.mat-fabric .ph,body.mat-fabric button,body.mat-fabric select,body.mat-fabric .g-bub,body.mat-fabric #strip{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),repeating-linear-gradient(-45deg,rgba(0,0,0,.08) 0 1px,transparent 1px 4px)}
+body.mat-glass .panel,body.mat-glass #bar,body.mat-glass .ph,body.mat-glass button,body.mat-glass select,body.mat-glass .g-bub,body.mat-glass #strip{background-image:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.01) 40%,rgba(255,255,255,.05))}
+body.mat-carbon .panel,body.mat-carbon #bar,body.mat-carbon .ph,body.mat-carbon button,body.mat-carbon select,body.mat-carbon .g-bub,body.mat-carbon #strip{background-image:radial-gradient(rgba(255,255,255,.05) 15%,transparent 16%) 0 0/6px 6px,radial-gradient(rgba(0,0,0,.35) 15%,transparent 16%) 3px 3px/6px 6px,linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.2))}
+body.mat-steel .ph,body.mat-steel #bar{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.4)}
+body.mat-steel .panel{border-color:#5b6068}
+body.mat-wood .panel{border-color:#6b4423;box-shadow:0 6px 18px rgba(30,15,5,.55)}body.mat-wood .ph{box-shadow:inset 0 -1px 0 rgba(0,0,0,.35)}
+body.mat-paper .panel{box-shadow:0 1px 1px rgba(0,0,0,.15),0 8px 20px rgba(0,0,0,.25)}
+body.mat-fabric .panel{border-style:dashed;border-color:rgba(255,255,255,.18)}
+body.mat-glass .panel{background-color:color-mix(in srgb,var(--panel) 72%,transparent);backdrop-filter:blur(12px) saturate(1.3);border-color:rgba(255,255,255,.18)}
+body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset 0 -1px 0 rgba(240,185,11,.25)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -5030,6 +5044,7 @@ function applyLang(rebuild){
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
+  if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
   try { welcome(); } catch(e){}
   try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays

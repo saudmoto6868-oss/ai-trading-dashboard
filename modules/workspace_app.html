@@ -57,7 +57,13 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .ph button:hover{color:var(--txt);border-color:var(--line)}
 .ph select{padding:0 2px;font-size:11px}
 .pb{flex:1;min-height:0;position:relative;overflow:auto}
-.panel.min{height:27px!important}.panel.min .pb,.panel.min .rz{display:none}
+.panel.min{height:27px!important}.panel.min .pb,.panel.min .rz,.panel.min .rzh{display:none}
+.rzh{position:absolute;z-index:3;touch-action:none}
+.rz-n{top:0;left:8px;right:8px;height:4px;cursor:ns-resize}.rz-s{bottom:0;left:8px;right:8px;height:7px;cursor:ns-resize}
+.rz-e{right:0;top:8px;bottom:8px;width:7px;cursor:ew-resize}.rz-w{left:0;top:8px;bottom:8px;width:7px;cursor:ew-resize}
+.rz-ne,.rz-nw,.rz-se,.rz-sw{width:12px;height:12px}.rz-ne{top:0;right:0;cursor:nesw-resize}.rz-nw{top:0;left:0;cursor:nwse-resize}
+.rz-se{bottom:0;right:0;cursor:nwse-resize}.rz-sw{bottom:0;left:0;cursor:nesw-resize}
+body.mob .rzh{display:none!important}
 .rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;
  background:linear-gradient(135deg,transparent 55%,var(--mut) 55%,var(--mut) 62%,transparent 62%,transparent 75%,var(--mut) 75%,var(--mut) 82%,transparent 82%)}
 .tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -2526,6 +2532,8 @@ class Panel {
     this.head.append(mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX);
     this.body = el("div","pb"); this.rz = el("div","rz");
     this.root.append(this.head, this.body, this.rz);
+    // resize from every side and corner (thin invisible grips on the border; the old corner grip stays)
+    this.rzs = ["n","s","e","w","ne","nw","se","sw"].map(d => { const g = el("div","rzh rz-"+d); g.dataset.d = d; this.root.append(g); return g; });
     Ws.el.append(this.root); Ws.panels.push(this);
     this.apply(); this.paint(); this.root.classList.toggle("min", this.min);
     this.bindDrag(); this.setTitle(); this.build();
@@ -2557,6 +2565,17 @@ class Panel {
       this.head.addEventListener("pointermove", mv); this.head.addEventListener("pointerup", up);
     });
     this.head.addEventListener("dblclick", () => this.toggleMax());
+    this.rzs.forEach(g => g.addEventListener("pointerdown", e => {   // edge / corner grips: n s e w ne nw se sw
+      if (this.max || MOB) return; e.stopPropagation(); g.setPointerCapture(e.pointerId); this.root.classList.add("drag"); this.front();
+      const d = g.dataset.d, sx = e.clientX, sy = e.clientY, o = Object.assign({}, this.rect), MW = 160, MH = 90;
+      const mv = ev => { const dx = ev.clientX - sx, dy = ev.clientY - sy, r = this.rect;
+        if (d.includes("e")) r.w = Math.max(MW, snap(o.w + dx));
+        if (d.includes("s")) r.h = Math.max(MH, snap(o.h + dy));
+        if (d.includes("w")){ const w = Math.max(MW, snap(o.w - dx)); r.x = o.x + o.w - w; r.w = w; }
+        if (d.includes("n")){ const h = Math.max(MH, snap(o.h - dy)), y = Math.max(0, o.y + o.h - h); r.h = o.y + o.h - y; r.y = y; }
+        this.apply(); };
+      const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
+      g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up); }));
     this.rz.addEventListener("pointerdown", e => {
       e.stopPropagation(); this.rz.setPointerCapture(e.pointerId); this.root.classList.add("drag");
       const sx = e.clientX, sy = e.clientY, ow = this.rect.w, oh = this.rect.h;

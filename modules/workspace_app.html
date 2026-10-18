@@ -421,6 +421,20 @@ function vpCalc(rows, nb){
   const mid = i => lo + (i+.5)*st;
   return {poc:mid(pi), vah:lo+(b+1)*st, val:lo+a*st, lo, hi, st, bins, dl, hasD, max:bins[pi]};
 }
+// volume profile v2: rows {l,h,v,d,tp} spread as a triangle peaked at the typical price (H+L+C)/3 (closer to where trading happened than an even
+// spread), or rows {pts:[[price, vol, delta]...]} = real trades by price (live footprint) scaled to the candle volume
+function vpCalc2(rows, nb){
+  if (!rows.length) return null; let lo = Infinity, hi = -Infinity; rows.forEach(r => { if (r.l < lo) lo = r.l; if (r.h > hi) hi = r.h; });
+  if (!(hi > lo)) return null; const st = (hi-lo)/nb, bins = new Float64Array(nb), dl = new Float64Array(nb), at = p => Math.min(nb-1, Math.max(0, Math.floor((p-lo)/st)));
+  rows.forEach(r => { if (r.pts){ r.pts.forEach(([p, v, d]) => { const i = at(p); bins[i] += v; dl[i] += d; }); return; }
+    const a = at(r.l), b = at(r.h), span = Math.max(1e-12, r.h - r.l); let ws = 0; const w = [];
+    for (let i = a; i <= b; i++){ const m = lo + (i+.5)*st, x = 1 - Math.abs(m - r.tp)/span; w.push(Math.max(.25, x)); ws += w[w.length-1]; }
+    for (let i = a; i <= b; i++){ const f = w[i-a]/ws; bins[i] += (r.v || 0)*f; dl[i] += (r.d || 0)*f; } });
+  let pi = 0; for (let i = 1; i < nb; i++) if (bins[i] > bins[pi]) pi = i;
+  let tot = 0; for (let i = 0; i < nb; i++) tot += bins[i]; let acc = bins[pi], a = pi, b = pi;
+  while (acc < tot*0.7 && (a > 0 || b < nb-1)){ const up = b < nb-1 ? bins[b+1] : -1, dn = a > 0 ? bins[a-1] : -1; if (up >= dn){ b++; acc += bins[b]; } else { a--; acc += bins[a]; } }
+  return {poc:lo + (pi+.5)*st, vah:lo+(b+1)*st, val:lo+a*st, lo, hi, st, bins:[...bins], dl:[...dl], max:bins[pi], pi};
+}
 /* per-indicator notes: what it is and how to read it (shown with the ⓘ button in the Indicators menu) */
 const IND_HELP = {
   e9:["Fast EMA (9): follows price closely. Price above it = short-term strength; a cross of EMA 9 over EMA 21 = early momentum shift.","المتوسط السريع (9): قريب من السعر. السعر فوقه = قوة قصيرة؛ تقاطعه فوق EMA 21 = بداية زخم صاعد."],
@@ -1042,7 +1056,7 @@ class CandleChart {
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
-      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},
+      gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{mode:"vd",range:"vis",rowpx:3,wpct:24,lbl:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -1263,7 +1277,7 @@ class CandleChart {
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
     if (this.harmOn) this.paintHarm(c, py, dec);
-    if (this.vpOn) this.paintVp(c, py, dec, PR, PB);
+    if (this.vpOn) this.paintVp(c, py, dec, PR, PB, i0, i1);
     if (this.bvdOn) this.paintBvd(c, py, dec, i0, i1);
     if (this.ewOn) this.paintEWauto(c, py, dec);
     if (this.fpOn || this.deltaOn) this.paintFp(c, py, dec, i0, i1, PB);
@@ -1782,31 +1796,39 @@ Object.assign(CandleChart.prototype, {
       const x = this.x(a2.i), y = py(a2[key]) + (up ? 16 : -16); c.fillStyle = "#0b0e11"; c.fillRect(x-17, y-8, 34, 14); c.strokeStyle = col; c.strokeRect(x-17, y-8, 34, 14); c.fillStyle = col; c.textAlign = "center"; c.fillText("SMT "+(up ? "▲" : "▼"), x, y+3); c.textAlign = "left"; });
     c.restore();
   },
-  paintVp(c, py, dec, PR, PB){
-    const fpN = this.fp ? this.fp.size : 0, k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + fpN;
-    if (!this._vp || this._vp.k !== k){
-      const rows = this.data.map(d => { const rg = d.h - d.l, f = this.fp && this.fp.get(d.t); let dd;
-        if (f){ let b_ = 0, s_ = 0; f.px.forEach(v => { b_ += v.b; s_ += v.s; }); dd = (b_ + s_) ? (b_ - s_)/(b_ + s_)*(d.v || 0) : 0; }   // real trades when we have them
-        else dd = rg > 0 ? (2*(d.c - d.l)/rg - 1)*(d.v || 0) : 0;   // candle-position estimate otherwise
-        return {h:d.h, l:d.l, v:d.v, d:dd}; });
-      this._vp = {k, v:vpCalc(rows, 60), f:vpCalc(rows, 1000)};   // 60 rows for POC / value area, 1000 fine rows for the picture
-    }
-    const vp = this._vp.v, fn = this._vp.f; if (!vp || !fn) return;
-    const bw = Math.max(56, (PR||this.W)*0.22), buyC = this.st.of.color, sellC = this.st.of.color2, binPx = Math.abs(py(fn.lo) - py(fn.lo + fn.st)), g = Math.max(1, Math.ceil(3/Math.max(.01, binPx)));
+  paintVp(c, py, dec, PR, PB, i0, i1){   // volume profile v2: volume + delta per price row (modes: vd / delta / split), visible range or all candles
+    const G = Object.assign({mode:"vd", range:"vis", rowpx:3, wpct:24, lbl:1}, this.st.vp || {}), n = this.data.length; if (!n) return;
+    const a0 = G.range === "vis" ? Math.max(0, i0|0) : 0, a1 = G.range === "vis" ? Math.min(n-1, (i1 == null ? n-1 : i1)|0) : n-1, fpN = this.fp ? this.fp.size : 0;
+    const k = [a0, a1, n, this.data[n-1].c, fpN].join(":");
+    if (!this._vp2 || this._vp2.k !== k){ let real = 0;
+      const rows = this.data.slice(a0, a1 + 1).map(d => { const f = this.fp && this.fp.get(d.t);
+        if (f && f.px && f.px.size){ let tb = 0; f.px.forEach(v => tb += v.b + v.s); if (tb > 0){ real++; const sc = (d.v || tb)/tb; return {l:d.l, h:d.h, pts:[...f.px].map(([p, v]) => [+p, (v.b + v.s)*sc, (v.b - v.s)*sc])}; } }
+        const rg = d.h - d.l; return {l:d.l, h:d.h, v:d.v, tp:(d.h + d.l + d.c)/3, d:rg > 0 ? (2*(d.c - d.l)/rg - 1)*(d.v || 0) : 0}; });   // no trades: delta estimated from where the candle closed
+      this._vp2 = {k, v:vpCalc2(rows, 60), f:vpCalc2(rows, 1200), real, cnt:rows.length}; }
+    const vp = this._vp2.v, fn = this._vp2.f; if (!vp || !fn) return;
+    const bw = Math.max(56, (PR||this.W)*(Math.max(8, Math.min(60, +G.wpct || 24))/100)), buyC = this.st.of.color, sellC = this.st.of.color2, neu = TH.mut;
+    const binPx = Math.abs(py(fn.lo) - py(fn.lo + fn.st)), g = Math.max(1, Math.ceil(Math.max(1, +G.rowpx || 3)/Math.max(.01, binPx)));
     const rowsD = []; for (let i = 0; i < fn.bins.length; i += g){ let v = 0, dl = 0; for (let j = i; j < Math.min(fn.bins.length, i+g); j++){ v += fn.bins[j]; dl += fn.dl[j]; } rowsD.push({i, v, dl, n:Math.min(g, fn.bins.length-i)}); }
-    const mx = Math.max(...rowsD.map(r => r.v), 1e-9), avg = rowsD.reduce((a,r) => a + r.v, 0)/rowsD.length; let drawn = 0;
-    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
+    const mx = Math.max(...rowsD.map(r => r.v), 1e-9), mxD = Math.max(...rowsD.map(r => Math.abs(r.dl)), 1e-9), avg = rowsD.reduce((a,r) => a + r.v, 0)/rowsD.length, pocR = rowsD.reduce((m, r) => r.v > m.v ? r : m, rowsD[0]);
+    let drawn = 0; c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
     rowsD.forEach(r => { const y1 = py(fn.lo+(r.i+r.n)*fn.st), y0 = py(fn.lo+r.i*fn.st); if (y0 < 0 || y1 > PB) return; drawn++;
-      const rh = Math.max(1, y0-y1-(y0-y1 > 3 ? 1 : 0)), w = bw*r.v/mx, bq = (r.v + r.dl)/2, wb = w*Math.max(0, bq)/Math.max(1e-9, r.v), ws = w - wb, mp = fn.lo+(r.i+r.n/2)*fn.st, inVA = mp >= vp.val && mp <= vp.vah;
-      c.globalAlpha = inVA ? .30 : .16; c.fillStyle = buyC; c.fillRect(PR-w, y1, wb, rh); c.fillStyle = sellC; c.fillRect(PR-w+wb, y1, ws, rh); c.globalAlpha = 1;
-      if (r.v < avg*0.25){ c.fillStyle = "rgba(240,185,11,.35)"; c.fillRect(PR-3, y1, 3, rh); }   // thin row = gap / low-volume node
-      if (rh >= 7 && r.v > 0){ const t = fmtV(r.v), tw = c.measureText(t).width;   // volume written INSIDE the bar (outside only if the bar is too short)
-        if (w >= tw + 6){ c.fillStyle = "rgba(220,226,234,.7)"; c.fillText(t, PR-w+3, y1 + rh/2 + 3); } else { c.fillStyle = "rgba(160,170,184,.75)"; c.textAlign = "right"; c.fillText(t, PR-w-3, y1 + rh/2 + 3); c.textAlign = "left"; } } });
-    { const tb = fn.dl.reduce((a,b) => a+b, 0); c.font = "bold 10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = tb >= 0 ? buyC : sellC; c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+(fpN ? "" : " ~")+"  ·  "+drawn+"/"+fn.bins.length+" rows", PR-4, 12); }
-    let pocCol = this.data.length && this.data[this.data.length-1].c >= vp.poc ? this.st.of.color : this.st.of.color2;   // fallback: price above POC = green (support), below = red
-    { let bq = 0, sq = 0; this.fp.forEach(m => m.px.forEach((v, p) => { if (Math.abs(p-vp.poc) <= vp.st) { bq += v.b; sq += v.s; } })); if (bq + sq > 0) pocCol = bq >= sq ? this.st.of.color : this.st.of.color2; }   // real delta at the POC when trades are available
-    [["POC",vp.poc,pocCol],["VAH",vp.vah,"#4aa3ff"],["VAL",vp.val,"#4aa3ff"]].forEach(([n,p,col]) => { const y = py(p); c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = n === "POC" ? 1.2 : 1; c.setLineDash(n === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.lineWidth = 1;
-      c.fillStyle = col; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillText(n+" "+p.toFixed(dec), PR-bw-4, y-4); c.globalAlpha = 1; });
+      const rh = Math.max(1, y0-y1-(y0-y1 > 3 ? 1 : 0)), mp = fn.lo+(r.i+r.n/2)*fn.st, inVA = mp >= vp.val && mp <= vp.vah, dc = r.dl >= 0 ? buyC : sellC;
+      let wLbl = 0;
+      if (G.mode === "delta"){ const w = bw*Math.abs(r.dl)/mxD; c.globalAlpha = inVA ? .85 : .6; c.fillStyle = dc; c.fillRect(PR - w, y1, w, rh); wLbl = w; }
+      else if (G.mode === "split"){ const w = bw*r.v/mx, wb = w*Math.max(0, (r.v + r.dl)/2)/Math.max(1e-9, r.v); c.globalAlpha = inVA ? .4 : .22; c.fillStyle = buyC; c.fillRect(PR-w, y1, wb, rh); c.fillStyle = sellC; c.fillRect(PR-w+wb, y1, w-wb, rh); wLbl = w; }
+      else { const w = bw*r.v/mx, wd = Math.min(w, bw*.6*Math.abs(r.dl)/mxD);   // vd: grey = volume, coloured part (own scale so it reads at a glance, from the axis) = who won at this price
+        c.globalAlpha = inVA ? .32 : .18; c.fillStyle = neu; c.fillRect(PR - w, y1, w, rh); c.globalAlpha = inVA ? .9 : .7; c.fillStyle = dc; c.fillRect(PR - wd, y1, wd, rh); wLbl = w; }
+      c.globalAlpha = 1;
+      if (r === pocR){ c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.strokeRect(PR - bw*r.v/mx + .5, y1 + .5, bw*r.v/mx - 1, Math.max(1, rh - 1)); }   // POC row outlined
+      if (r.v < avg*0.25){ c.fillStyle = "rgba(240,185,11,.35)"; c.fillRect(PR-3, y1, 3, rh); }   // low-volume node (gap)
+      if (G.lbl && rh >= 8 && r.v > 0){ const t = fmtV(r.v)+" "+(r.dl >= 0 ? "+" : "−")+fmtV(Math.abs(r.dl)), tw = c.measureText(t).width;
+        if (wLbl >= tw + 6){ c.fillStyle = "rgba(234,236,239,.85)"; c.fillText(t, PR - wLbl + 3, y1 + rh/2 + 3); } else { c.fillStyle = "rgba(170,178,190,.8)"; c.textAlign = "right"; c.fillText(t, PR - wLbl - 3, y1 + rh/2 + 3); c.textAlign = "left"; } } });
+    { const tb = fn.dl.reduce((a,b) => a+b, 0), src = this._vp2.real ? Lg("trades ","صفقات ")+this._vp2.real+"/"+this._vp2.cnt : Lg("estimated","تقديري");
+      c.font = "bold 10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillStyle = tb >= 0 ? buyC : sellC;
+      c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+"  ·  "+(G.range === "vis" ? Lg("visible","المعروض") : Lg("all","الكل"))+" "+this._vp2.cnt+Lg(" bars"," شمعة")+"  ·  "+src, PR-4, 12); }
+    let pocCol = vp.pi != null && fn.dl[Math.floor((vp.poc - fn.lo)/fn.st)] != null ? (fn.dl[Math.min(fn.dl.length-1, Math.max(0, Math.floor((vp.poc - fn.lo)/fn.st)))] >= 0 ? buyC : sellC) : buyC;
+    [["POC",vp.poc,pocCol],["VAH",vp.vah,"#4aa3ff"],["VAL",vp.val,"#4aa3ff"]].forEach(([nm,p,col]) => { const y = py(p); c.globalAlpha = .55; c.strokeStyle = col; c.lineWidth = nm === "POC" ? 1.2 : 1; c.setLineDash(nm === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.lineWidth = 1;
+      c.fillStyle = col; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.fillText(nm+" "+p.toFixed(dec), PR-bw-4, y-4); c.globalAlpha = 1; });
     c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
   ewCount(){   // newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
@@ -2757,7 +2779,10 @@ class Panel {
       {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
       {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; if (v){ this.smtT = 0; setTimeout(() => this.smtKick(), 0); } this.smtT = 0; if (!v) ch().smtD = null; }},
-      {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }},
+      {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }, sty:"vp", params:[
+        PS("mode", Lg("Show","العرض"), [["vd", Lg("Volume + delta (grey + colour)","حجم + دلتا (رمادي + لون)")], ["delta", Lg("Delta only","دلتا بس")], ["split", Lg("Buy / sell split","شراء / بيع جنب بعض")]]),
+        PS("range", Lg("Candles","الشموع"), [["vis", Lg("Visible on screen","المعروضة على الشاشة")], ["all", Lg("All loaded","كل المحمّل")]]),
+        P("rowpx", Lg("Row height px (detail)","ارتفاع الصف بكسل (التفاصيل)"), 1, 12, 1), P("wpct", Lg("Width % of chart","العرض % من الشارت"), 8, 60, 1), PB("lbl", Lg("Numbers on rows","الأرقام على الصفوف"))]},
       {id:"ew", label:T("indEw"), get:() => ch().ewOn, set:v => { ch().ewOn = v; this.state.ew = v; }},
       {id:"bvd", label:T("indBvd"), tip:T("bvdTip"), get:() => ch().bvdOn, set:v => { ch().bvdOn = v; this.state.bvd = v; }},
       {id:"harm", label:T("indHarm"), tip:T("harmTip"), get:() => ch().harmOn, set:v => { ch().harmOn = v; this.state.harm = v; }},

@@ -1523,8 +1523,11 @@ Object.assign(CandleChart.prototype, {
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
     if (this.domOn && gw >= 230) this.paintGauge(c, gx1, PB);
-    if (this.syncOn) this.paintSyncCard(c, gx0 + 2, this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2, PB);
     c.restore();
+    // sync card: in the empty space UNDER the order-flow column (next to the indicator panes) when there is room, else inside the column above the legend
+    if (this.syncOn){ const room = this.H - 20 - PB - 6;
+      if (room >= 96) this.paintSyncCard(c, X0 + 4, XE - 3, PB, {top:PB + 3, h:room});
+      else this.paintSyncCard(c, gx0 + 2, this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2, PB); }
   },
   gaugeData(now){   // buy/sell pressure from REAL data only: aggressor volume of the last 2 min of prints, and bid vs ask size resting within 0.5 % of the mid (latest book snapshot)
     const W = 120000, T = (this.flowT || []).filter(x => x.t >= now - W); let b = 0, s = 0; T.forEach(x => { if (x.side === "Buy") b += x.q; else s += x.q; });
@@ -2005,7 +2008,7 @@ Object.assign(CandleChart.prototype, {
       c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath(); c.lineWidth = 1.5; c.strokeStyle = col; c.fillStyle = col;
       if (t.res != null){ c.globalAlpha = t.res > 0 ? .95 : .45; c.fill(); } else { c.globalAlpha = 1; c.stroke(); } c.globalAlpha = 1; });
   },
-  paintSyncCard(c, x0, x1, PB){   // card in the empty bottom corner of the order-flow column: the three lights, OI / funding, Gann agreement, recent setups + live forward-test stats
+  paintSyncCard(c, x0, x1, PB, area){   // card in the empty bottom corner of the order-flow column: the three lights, OI / funding, Gann agreement, recent setups + live forward-test stats
     const sy = this.sync, S = this.st.sync, w = x1 - x0; if (w < 120) return;
     const log = this.syncLog || [], st = this.syncStats(), px = this.data.length ? this.data[this.data.length - 1].c : null, G = S.color, R = S.color2, mono = "9px ui-monospace,Menlo,Consolas,monospace";
     const rows = [];   // [kind, ...] drawn top to bottom; height follows the content
@@ -2021,10 +2024,10 @@ Object.assign(CandleChart.prototype, {
         if (o) rows.push(["txt", col, (warn ? "⚠ " : "")+"4h "+of.txt]);
         if (fu != null) rows.push(["txt", col, Lg("funding ","تمويل ")+(fu*100).toFixed(3)+"%"+(ff ? " · "+Lg(ff, ff === "crowded longs" ? "زحمة لونج" : "زحمة شورت") : "")]); }
       else rows.push(["txt", "#4a525c", Lg("OI / funding: loading or n/a","OI / تمويل: بيحمّل أو مش متاح")]); }
-    const maxH = Math.max(110, Math.min(PB*.55, 240)), base = 18 + 30 + 14 + 12;   // header + lights + recent title + footer
+    const maxH = area ? area.h : Math.max(110, Math.min(PB*.55, 240)), base = 18 + 30 + 14 + 12;   // header + lights + recent title + footer
     let used = base + (rows.length - 1)*13; const room = Math.max(0, Math.min(5, Math.floor((maxH - used)/12)));
     const recent = room ? log.slice().sort((a, b) => b.t - a.t).slice(0, room) : []; used += recent.length ? 14 + recent.length*12 : 14;
-    const h = Math.round(used), y0 = PB - h - 30;   // above the heat-map legend + feed status line
+    const h = Math.round(Math.min(used, maxH)), y0 = area ? area.top : PB - h - 30;   // under the column / above the heat-map legend + feed status line
     c.save(); c.fillStyle = "rgba(8,12,18,.9)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(x0, y0, w, h); c.strokeRect(x0 + .5, y0 + .5, w - 1, h - 1);
     c.beginPath(); c.rect(x0 + 1, y0 + 1, w - 2, h - 2); c.clip(); c.textBaseline = "middle"; c.textAlign = "left";
     // Arabic lines: right-aligned rtl, every Latin / number token isolated so "+0.88R" or "4h" stay in one piece

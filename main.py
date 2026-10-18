@@ -70,7 +70,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }
-    .block-container { padding-top: 0rem; padding-left: 0.6rem; padding-right: 0.6rem; max-width: 100%; }
+    .block-container { padding-top: 0rem; padding-left: 0.15rem; padding-right: 0.15rem; max-width: 100%; }
     header[data-testid="stHeader"] { background: transparent; height: 1.6rem; }
     div[data-testid="stSelectbox"] { margin-bottom: 0; }
 </style>
@@ -910,8 +910,9 @@ except Exception:
     _IS_MOBILE = False
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
 .st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.1em;text-transform:uppercase}}
-.block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
-.st-key-hdr{{margin:0 0 4px 2.6rem;width:calc(100% - 5.4rem)!important;box-sizing:border-box;padding:0 6px;background:var(--hdr-bg,linear-gradient(180deg,#0a0d11,#06080b));border:1px solid var(--hdr-line,#1c232b);border-radius:var(--hdr-r,10px)}}
+.block-container{{padding-top:{'.2rem' if _focus else '.45rem'}!important;padding-bottom:0!important}}
+[data-testid="stMainBlockContainer"]>div>[data-testid="stVerticalBlock"]{{gap:.2rem!important}} [data-testid="stMainBlockContainer"] iframe{{display:block}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
+.st-key-hdr{{margin:0 0 0 2.6rem;width:calc(100% - 5.4rem)!important;box-sizing:border-box;padding:0 6px;background:var(--hdr-bg,linear-gradient(180deg,#0a0d11,#06080b));border:1px solid var(--hdr-line,#1c232b);border-radius:var(--hdr-r,10px)}}
 .st-key-hdr [data-testid="stColumn"]+[data-testid="stColumn"]{{border-inline-start:1px solid var(--hdr-line,#1c232b);padding-inline-start:8px}}
 .st-key-lang_btn button,.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:0!important;background:transparent!important;font-size:13px}}
 .xpix-mini{{font:900 19px/1 'Arial Black',Arial,sans-serif;letter-spacing:.02em;color:#f2f2f2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}

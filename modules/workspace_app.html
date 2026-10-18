@@ -169,6 +169,9 @@ body.mob.mt5 .mtf button{flex:1 0 auto;border:0;border-radius:0;background:trans
 body.mob.mt5 .mtf button.on{color:#3d8ef7;box-shadow:inset 0 -2px 0 #3d8ef7}
 body.mob.mt5 .dt:not(.open)>*:not(:first-child){display:none}   /* phones: drawing tools folded to one button, tap it to open / close */
 #mjump{display:none}
+#mset{display:none}#mset.on{display:block;position:fixed;right:6px;top:44px;z-index:70;background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:200px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+body.rtl #mset.on{right:auto;left:6px}
+#mset>button{display:block;width:100%;text-align:start;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:10px 12px}
 /* ---- dashboard theme 1 "Less is More": blurred photo behind everything, rounded glass cards, amber glow ---- */
 body.ui-lux{background:#0d0c0a var(--uibg) center/cover fixed no-repeat}
 body.ui-lux #ws{background:transparent}
@@ -1106,6 +1109,7 @@ class CandleChart {
         if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
         if (hit.kind === "axw"){ this.axDrag = {x:e.clientX, w:this.axw}; return; }
         if (hit.kind === "up" || hit.kind === "dn"){ this.swapSub(hit.k, hit.kind === "up" ? -1 : 1); return; }
+        if (hit.kind === "x"){ this[hit.k+"On"] = false; this.onSubOff && this.onSubOff(hit.k); this.resize ? this.resize() : 0; this.draw(); return; }   // ✕ = turn the pane off
         if (hit.kind === "move"){ this.subMove = {k:hit.k}; return; }
         if (hit.kind === "size"){ this.subDrag = {k:hit.k, y:e.clientY, hp:this.st[hit.k].hp}; return; }
       } }
@@ -1139,7 +1143,7 @@ class CandleChart {
     if (Math.abs(mx - (this.W - this.axw)) <= 3 && my >= 0 && my < this.H) return {kind:"axw"};   // what the pointer is on: the order-flow column's left edge, a sub-pane's top edge (resize), its title (drag to reorder) or its up/down buttons
     if (this.colOn && Math.abs(mx - this.PR) <= 4 && my >= 0 && my < this.PB) return {kind:"col"};
     for (const q of (this._panes || [])){ if (my >= q.y0 - 7 && my <= q.y0 + 2 && mx < this.PR) return {kind:"size", k:q.k};
-      if (my > q.y0 + 2 && my <= q.y0 + 17){ if (mx >= this.PR - 36 && mx < this.PR - 20) return {kind:"up", k:q.k}; if (mx >= this.PR - 20 && mx < this.PR - 4) return {kind:"dn", k:q.k}; if (mx >= 0 && mx < 150) return {kind:"move", k:q.k}; } }
+      if (my > q.y0 + 2 && my <= q.y0 + 17){ if (mx >= this.PR - 54 && mx < this.PR - 38) return {kind:"x", k:q.k}; if (mx >= this.PR - 36 && mx < this.PR - 20) return {kind:"up", k:q.k}; if (mx >= this.PR - 20 && mx < this.PR - 4) return {kind:"dn", k:q.k}; if (mx >= 0 && mx < 150) return {kind:"move", k:q.k}; } }
     return null; }
   checkMore(){ if (this.onNeedMore && this.r - this.PR/this.bw < 15) this.onNeedMore(); }
   planLevels(){
@@ -1374,7 +1378,8 @@ class CandleChart {
     // pane controls: grip (drag the title to reorder), up / down buttons, thin handle on the top edge (drag to resize)
     c.save(); c.textAlign = "center"; c.textBaseline = "middle"; c.font = "10px sans-serif";
     this._panes.forEach((q, j) => { const bx = PR - 36;
-      c.fillStyle = "rgba(43,49,57,.9)"; c.fillRect(bx, q.y0 + 3, 15, 13); c.fillRect(bx + 17, q.y0 + 3, 15, 13);
+      c.fillStyle = "rgba(43,49,57,.9)"; c.fillRect(bx, q.y0 + 3, 15, 13); c.fillRect(bx + 17, q.y0 + 3, 15, 13); c.fillRect(bx - 18, q.y0 + 3, 15, 13);
+      c.fillStyle = "#f6465d"; c.fillText("✕", bx - 10.5, q.y0 + 10);   // close this indicator pane
       c.fillStyle = j > 0 ? "#eaecef" : "#5a636e"; c.fillText("▲", bx + 7.5, q.y0 + 10); c.fillStyle = j < this._panes.length-1 ? "#eaecef" : "#5a636e"; c.fillText("▼", bx + 24.5, q.y0 + 10);
       c.fillStyle = "#5a636e"; c.fillRect(Math.round(PR/2) - 14, q.y0 - 3, 28, 3); });
     c.restore();
@@ -2645,7 +2650,8 @@ class Panel {
     this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
+    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -4266,9 +4272,14 @@ function buildBar(){
   const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.8, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
-bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); zSet(+store.get(zKey, zDef));
-  if (MOB){ const mt = el("button", null, "MT5"); mt.classList.toggle("on", MT5); mt.title = Lg("MetaTrader-style phone layout on / off","واجهة ميتاتريدر للموبايل: تشغيل / إيقاف");
-    mt.onclick = () => { store.set(LS+"_mt5", !MT5); location.reload(); }; bar.append(mt); } Ws.histUI();
+if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, el("span","sp")); }
+  else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
+    const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
+    const mt = el("button", null, (MT5 ? "✓ " : "")+Lg("MetaTrader layout","واجهة ميتاتريدر")); mt.onclick = () => { store.set(LS+"_mt5", !MT5); location.reload(); };
+    const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
+    menu.append(mt, zr); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
+    bar.append(sel, ub, rb, el("span","sp"), gear); document.body.append(menu); }
+  zSet(+store.get(zKey, zDef)); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }
 function applyLang(rebuild){

@@ -222,9 +222,28 @@ async function calLoad(){
   $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Loading…</div>';
   let cal; try { cal = await calData(); } catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Calendar feed not reachable ('+esc(e.message||e)+'). Use the ForexFactory link.</div>'; return; }
   const now = Date.now();
-  $("side").innerHTML = cal.map(e => { const col = e.impact === "High" ? "#f6465d" : "#f0b90b", d = e.ts - now, soon = d > -600000 && d < 172800000;
-    return '<div class="ev" style="'+(d < -600000 ? "opacity:.45" : "")+'"><span class="dot" style="background:'+col+'"></span><b>'+esc(e.country)+'</b> '+esc(e.title)+(soon && e.impact === "High" ? ' <span style="color:#f6465d">●</span>' : "")+'<div style="color:var(--mut);font-size:10px">'+cairoFmt.format(e.ts)+' Cairo · fcst '+esc(e.forecast||"-")+' · prev '+esc(e.previous||"-")+'</div></div>'; }).join("") || '<div style="padding:8px;color:var(--mut)">No events.</div>';
+  const opts = [[0, CFG.ar ? "بدون منبّه" : "no alarm"], [15, "15m"], [60, "1h"], [120, "2h"], [240, "4h"], [720, "12h"]];
+  const head = '<div class="ev" style="cursor:default"><b>'+(CFG.ar ? "منبّه البث المباشر" : "Live-stream alarm")+'</b> <select id="naLead">'+opts.map(([v, t]) => '<option value="'+v+'"'+(NA.lead == v ? " selected" : "")+'>'+t+'</option>').join("")+'</select> '+
+    '<label style="white-space:nowrap"><input type="checkbox" id="naOpen"'+(NA.open ? " checked" : "")+'> '+(CFG.ar ? "افتح البث وقت الخبر" : "open the stream at the start")+'</label></div>';
+  $("side").innerHTML = head + cal.map(e => { const col = e.impact === "High" ? "#f6465d" : "#f0b90b", d = e.ts - now, soon = d > -600000 && d < 172800000, Lv = liveFor(e);
+    return '<div class="ev" style="'+(d < -600000 ? "opacity:.45" : "")+'"><span class="dot" style="background:'+col+'"></span><b>'+esc(e.country)+'</b> '+esc(e.title)+(soon && e.impact === "High" ? ' <span style="color:#f6465d">●</span>' : "")+'<div style="color:var(--mut);font-size:10px">'+cairoFmt.format(e.ts)+' Cairo · fcst '+esc(e.forecast||"-")+' · prev '+esc(e.previous||"-")+(Lv && e.impact === "High" ? ' · <a href="'+Lv[0]+'" target="_blank" rel="noopener noreferrer" style="color:#f6465d">▶ '+(CFG.ar ? "بث" : "live")+' ('+esc(Lv[1])+')</a>' : "")+'</div></div>'; }).join("") || '<div style="padding:8px;color:var(--mut)">No events.</div>';
+  const nl = document.getElementById("naLead"), no = document.getElementById("naOpen");
+  if (nl) nl.onchange = () => { NA.lead = +nl.value; naSave(); try { if (NA.lead && window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch(_){} };   // user click = allowed to ask for notifications
+  if (no) no.onchange = () => { NA.open = no.checked; naSave(); };
 }
+/* ---- live streams for big news: alarm N hours before, open the stream at the start ---- */
+// the channel's "/live" page = its current live stream (YouTube); when nothing is live YouTube shows the channel, so the link says "may be live"
+function liveFor(e){ const t = (e.title || "") + " " + (e.country || "");
+  if (/FOMC|Fed |Federal Funds|Powell|Fed Chair|Monetary Policy Statement/i.test(t) && /USD/.test(t)) return ["https://www.youtube.com/@federalreserve/live", "Federal Reserve"];
+  if (/ECB|Lagarde|Main Refinancing|Monetary Policy/i.test(t) && /EUR/.test(t)) return ["https://www.youtube.com/@europeancentralbank/live", "ECB"];
+  if (/BOE|Bank Rate|Bailey|MPC|Monetary Policy/i.test(t) && /GBP/.test(t)) return ["https://www.youtube.com/@bankofengland/live", "Bank of England"];
+  if (e.impact === "High") return ["https://www.youtube.com/@markets/live", "Bloomberg TV"];
+  return null; }
+const NA = Object.assign({lead:60, open:true}, (() => { try { return JSON.parse(localStorage.getItem("xpix_news_alarm") || "{}"); } catch(_){ return {}; } })());
+const naSave = () => { try { localStorage.setItem("xpix_news_alarm", JSON.stringify(NA)); } catch(_){} };
+const alarmed = {}, opened = {};
+function notify(title, body, url){ try { if (window.Notification && Notification.permission === "granted"){ const n = new Notification(title, {body, tag:title}); if (url) n.onclick = () => { window.open(url, "_blank", "noopener"); n.close(); }; } } catch(_){} }
+function openLive(url){ const w = window.open(url, "_blank", "noopener"); return !!w; }
 function beep(){ if (!audioOK) return; try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); o.stop(a.currentTime + .35); } catch(e){} }
 async function bellTick(){
   let cal; try { cal = await calData(); } catch(e){ $("bell").textContent = "🔔 calendar n/a"; return; }
@@ -238,8 +257,13 @@ async function bellTick(){
   b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.textContent += cnt;  b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+"); high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek;
   if (d < 3600000) b.classList.add("hot"); if (d < 900000) b.classList.add("blink");
   const k = nx.ts+"|15"; if (d < 900000 && d > 0 && !beeped[k]){ beeped[k] = 1; beep(); }
+  // live-stream alarm: every high-impact event with a stream, NA.lead minutes before; at the start open the stream (or offer the button if the browser blocks it)
+  cal.filter(e => e.impact === "High" && e.ts > now - 1800000).forEach(e => { const L = liveFor(e); if (!L) return; const dd = e.ts - now, key = e.ts+"|"+e.title;
+    if (NA.lead && dd > 0 && dd <= NA.lead*60000 && !alarmed[key]){ alarmed[key] = 1; beep(); notify("⏰ "+e.country+" "+e.title, (CFG.ar ? "بعد " : "in ")+Math.round(dd/60000)+(CFG.ar ? " دقيقة · بث: " : " min · live: ")+L[1], L[0]); }
+    if (dd <= 0 && dd > -1800000){ b.dataset.live = L[0]; b.textContent = "▶ "+(CFG.ar ? "البث المباشر: " : "LIVE: ")+e.country+" "+e.title+" ("+L[1]+")"; b.classList.add("hot","blink");
+      if (NA.open && !opened[key]){ opened[key] = 1; openLive(L[0]); } } });
 }
-$("bell").onclick = () => { if (openId !== "wmPop") $("wm").click(); document.querySelector('input[name=sv][value=cal]').checked = true; sideMode = "cal"; calLoad(); };
+$("bell").onclick = () => { if ($("bell").dataset.live){ openLive($("bell").dataset.live); return; } if (openId !== "wmPop") $("wm").click(); document.querySelector('input[name=sv][value=cal]').checked = true; sideMode = "cal"; calLoad(); };
 bellTick(); setInterval(bellTick, 30000);
 window.__wm = WM;
 </script></body></html>

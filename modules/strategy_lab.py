@@ -56,16 +56,24 @@ def _fetch(sym, tf, bars):
     return fetch_long(sym, tf, bars)
 
 
-def _outcome(hi, lo, cl, i, d, stop_d, H):
-    """R result of a trade opened at close i in direction d (+1 / -1)."""
-    e = cl[i]; sl = e - d * stop_d; tp = e + d * RR * stop_d
+def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):
+    """R result of a trade opened at close i in direction d (+1 / -1).
+    rr = reward multiple of the target (default RR); be = move the stop to entry once price has gone 1R in favour."""
+    rr = RR if rr is None else rr
+    e = cl[i]; sl = e - d * stop_d; tp = e + d * rr * stop_d; moved = False
     for j in range(i + 1, min(len(cl), i + 1 + H)):
         if (lo[j] <= sl) if d > 0 else (hi[j] >= sl):
-            return -1.0
+            return 0.0 if moved else -1.0
         if (hi[j] >= tp) if d > 0 else (lo[j] <= tp):
-            return RR
+            return rr
+        if be and not moved and ((hi[j] - e) if d > 0 else (e - lo[j])) >= stop_d:
+            sl, moved = e, True
     j = min(len(cl) - 1, i + H)
-    return float(np.clip(d * (cl[j] - e) / stop_d, -1.0, RR))
+    return float(np.clip(d * (cl[j] - e) / stop_d, -1.0, rr))
+
+
+# exit variants tested on the SAME entries: target multiple and break-even stop (the question: which RR / exit gives the best expectancy)
+VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True)}
 
 
 LOC_N, VOL_N, REG_N = 50, 20, 100
@@ -127,6 +135,7 @@ def walk(df, tf, stride=4, seed=0):
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
+                           "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
                            "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2})
     return events, bars
@@ -167,6 +176,15 @@ def summarize(all_events, all_bars):
             for name in gs + ["all signals"]:
                 c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
     rows = [chain_row(k, *v) for k, v in chain.items()]
+    var = defaultdict(list)
+    for tf, sym, ev in all_events:
+        for e in ev:
+            for n, r in (e.get("var") or {}).items():
+                var[(n, "all")].append(r); var[(n, e["key"])].append(r)
+    for (n, k), rs in var.items():
+        x = np.asarray(rs, float); se = 1.0 / np.sqrt(max(len(x), 1))
+        rows.append({"key": "*VAR*" if k == "all" else k, "school": "exit", "tf": "all", "side": n, "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
+                     "avgR": round(float(x.mean()), 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
     for (k, tf, side), rs in per.items():
         s = _stat(rs); b = _stat(base[(k, tf, side)])
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
@@ -255,7 +273,8 @@ def lunar_split(times, closes):
 
 
 def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
-    ch = [r for r in rows if r["key"] == "*CHAIN*"]; rows = [r for r in rows if r["key"] != "*CHAIN*"]
+    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]
+    rows = [r for r in rows if r["key"] != "*CHAIN*" and r["school"] != "exit"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
@@ -330,6 +349,12 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
               "| window | days | mean daily return % |", "|---|---|---|",
               f"| 15 days around new moon | {n1} | {100 * m1:.3f} |", f"| 15 days around full moon | {n2} | {100 * m2:.3f} |",
               "", f"Difference t = {t:+.2f} (|t| > 2 would be a hint, > 3 evidence; overlapping symbols are correlated, so this is generous)."]
+    if vr:
+        L += ["", "## Exit variants on the SAME entries (RR and break-even stop)", "",
+              "Which target / exit gives the best expectancy. Break-even break = win rate needed = 1/(1+RR). t = mean R vs 0 (paired across the same entries, roughly). "
+              "Only the totals below are for the whole pool; per-detector rows are in the JSON.", "",
+              "| exit | n | win % | avg R | total R | t |", "|---|---|---|---|---|---|"]
+        L += [f"| {r['side']} | {r['n']} | {r['win']} | {r['avgR']} | {r['sumR']} | {r['t']:+.2f} |" for r in vr if r["key"] == "*VAR*"]
     return "\n".join(L) + "\n"
 
 

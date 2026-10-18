@@ -146,13 +146,13 @@ if UI_THEME == "lux":   # theme 1 "Less is More": blurred photo behind the page,
 [data-testid="stSidebar"]>div{{background:rgba(18,16,13,.86)}} .stApp p,.stApp label,.stApp span{{color:#efe6d6}}
 .st-key-page label:has(input:checked){{border-bottom-color:#e0a95a!important}} .st-key-page label:has(input:checked) p{{color:#e0a95a!important}}
 [data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:rgba(24,21,18,.72);border-radius:14px}}
-.st-key-hdr{{border-bottom-color:rgba(224,169,90,.18)!important}} .xpix-mini i{{color:#e0a95a!important}}</style>""", unsafe_allow_html=True)
+.st-key-hdr{{--hdr-bg:linear-gradient(180deg,rgba(32,27,22,.92),rgba(18,16,13,.92));--hdr-line:rgba(224,169,90,.22);--hdr-r:14px}} .xpix-mini i{{color:#e0a95a!important}}</style>""", unsafe_allow_html=True)
 elif UI_THEME == "hud":   # theme 2 "Orbit HUD": misty sky behind the page, square frames, orange accent, wide uppercase lettering
     st.markdown(f"""<style>.stApp{{background:#141c22 url({UI_BG}) center/cover fixed no-repeat!important}}
 .stApp,.stApp p,.stApp label,.stApp span{{color:#e6ecef;font-family:Rajdhani,'Barlow Condensed','Segoe UI',sans-serif}} h1,h2,h3{{text-transform:uppercase;letter-spacing:.12em;font-weight:500}}
 [data-testid="stSidebar"]>div{{background:rgba(10,15,20,.75)}} .st-key-page label:has(input:checked){{border-bottom-color:#f0a43c!important}} .st-key-page label:has(input:checked) p{{color:#f0a43c!important}}
 [data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:rgba(10,15,20,.5);border-radius:0;border:1px solid rgba(225,235,240,.2)}}
-.stButton button{{border-radius:0;text-transform:uppercase;letter-spacing:.1em}} .st-key-hdr{{border-bottom-color:rgba(225,235,240,.2)!important}} .xpix-mini i{{color:#f0a43c!important}}
+.stButton button{{border-radius:0;text-transform:uppercase;letter-spacing:.1em}} .st-key-hdr{{--hdr-bg:rgba(10,15,20,.62);--hdr-line:rgba(225,235,240,.22);--hdr-r:0}} .xpix-mini i{{color:#f0a43c!important}}
 .stApp::before,.stApp::after{{content:"";position:fixed;top:80px;bottom:30px;width:12px;pointer-events:none;z-index:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.35) 0 1px,transparent 1px 38px)}}
 .stApp::before{{left:3px}} .stApp::after{{right:3px}}</style>""", unsafe_allow_html=True)
 
@@ -749,7 +749,7 @@ def render_header():
     language | focus. Focus mode folds the strip away so the Workspace gets the whole screen. Returns the container for the page tabs."""
     focus = bool(st.session_state.get("focus_ws"))
     with st.container(key="hdr"):
-        h_main, h_nav, h_thm, h_lang, h_foc = st.columns([5.3, 3.9, 0.9, 0.75, 0.3], vertical_alignment="center")
+        h_main, h_nav, h_thm, h_lang, h_foc = st.columns([5.3, 4.0, 1.0, 0.36, 0.36], vertical_alignment="center", gap="small")
     with h_main:
         if focus:   # folded: only a small mark
             st.markdown("<div class='xpix-mini'>XP<i>i</i>X</div>", unsafe_allow_html=True)
@@ -773,12 +773,14 @@ def render_header():
             render_header_bar(_logo_data_uri(), links, news, cal=cal, ar=_ui_lang() == "ar", theme=UI_THEME)
     with h_thm:   # dashboard theme (Classic + 7 slots; slot 1 built, the rest wait for the owner's pictures)
         st.selectbox(L("Theme"), [k for k, _ in _UI_THEMES], key="ui_theme", format_func=lambda k: L(dict(_UI_THEMES)[k]), label_visibility="collapsed",
-                     help=L("Dashboard theme: changes the whole page and the Workspace."))
+                     help=L("Dashboard theme: changes the whole page and the Workspace (Alt+T = next theme)."))
     with h_lang:
-        st.radio(L("Language"), ["en", "ar"], horizontal=True, key="ws_lang", label_visibility="collapsed",
-                 format_func=lambda k: {"en": "EN", "ar": "ع"}[k])
+        _lng = st.session_state.get("ws_lang", "en")
+        if st.button("ع" if _lng == "en" else "EN", key="lang_btn", help=L("Language (Alt+L)")):
+            st.session_state["ws_lang"] = "ar" if _lng == "en" else "en"
+            st.rerun()
     with h_foc:
-        if st.button("⤡" if focus else "⤢", key="focus_btn", help=L("Fold the header away: the Workspace gets the whole screen (click again to bring it back).")):
+        if st.button("⤡" if focus else "⤢", key="focus_btn", help=L("Fold the header away: the Workspace gets the whole screen (Alt+F)")):
             st.session_state["focus_ws"] = not focus
             st.rerun()
     return h_nav
@@ -891,7 +893,7 @@ def render_universe_controls():
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Scanner", "Lab", "Playbook", "Performance", "AI Analyst", "Alerts"]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Scanner", "Lab", "Playbook", "Stats", "AI", "Alerts"]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -909,12 +911,15 @@ except Exception:
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
 .st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.1em;text-transform:uppercase}}
 .block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
-.st-key-hdr{{padding:0 2.8rem 0 2.6rem;border-bottom:1px solid #1c232b;margin-bottom:2px}}
+.st-key-hdr{{margin:0 0 4px 2.6rem;width:calc(100% - 5.4rem)!important;box-sizing:border-box;padding:0 6px;background:var(--hdr-bg,linear-gradient(180deg,#0a0d11,#06080b));border:1px solid var(--hdr-line,#1c232b);border-radius:var(--hdr-r,10px)}}
+.st-key-hdr [data-testid="stColumn"]+[data-testid="stColumn"]{{border-inline-start:1px solid var(--hdr-line,#1c232b);padding-inline-start:8px}}
+.st-key-lang_btn button,.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:0!important;background:transparent!important;font-size:13px}}
 .xpix-mini{{font:900 19px/1 'Arial Black',Arial,sans-serif;letter-spacing:.02em;color:#f2f2f2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
-.st-key-focus_btn button{{padding:0 6px;min-height:28px;border:1px solid #1c232b;background:transparent}}
+
 .st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}}
-.st-key-ui_theme [data-baseweb="select"]>div{{background:transparent!important;border:1px solid #2b3139!important;min-height:30px}} .st-key-ui_theme [data-baseweb="select"] *{{color:#c3c9d1!important;font-size:11px}}
-@media (max-width:640px){{.st-key-hdr{{padding:0 .2rem 0 2.4rem}} .st-key-hdr [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important;gap:4px!important}}
+.st-key-ui_theme [role="group"]{{background:transparent!important;border:1px solid var(--hdr-line,#2b3139)!important;min-height:30px;border-radius:6px}}
+.st-key-ui_theme [role="group"] *{{color:#c3c9d1!important;font-size:11px}} .st-key-ui_theme svg{{fill:#8a9099}} .st-key-ui_theme [data-baseweb="select"] *{{color:#c3c9d1!important;font-size:11px}}
+@media (max-width:640px){{.st-key-hdr{{margin:0 .2rem 4px 2.4rem;width:calc(100% - 2.6rem)!important}} .st-key-hdr [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important;gap:4px!important}}
   .st-key-hdr [data-testid="stColumn"]:nth-child(1),.st-key-hdr [data-testid="stColumn"]:nth-child(2){{flex:1 1 100%!important;width:100%!important;min-width:100%!important}}
   .st-key-hdr [data-testid="stColumn"]:nth-child(3),.st-key-hdr [data-testid="stColumn"]:nth-child(4){{flex:0 0 auto!important;width:auto!important;min-width:0!important}}
   .block-container{{padding-left:.4rem!important;padding-right:.4rem!important}} .st-key-page [data-testid="stRadioOption"] p{{font-size:12px}}}} .st-key-ws_lang p{{font-size:11px}}

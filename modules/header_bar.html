@@ -2,7 +2,7 @@
 <style>
 :root{--bg:#05070a;--panel:#0b0f14;--line:#1c232b;--txt:#e6e9ee;--mut:#7d8794;--acc:#f0b90b}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;color:var(--txt);font:12px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
-#strip{height:46px;display:flex;align-items:center;gap:10px;padding:0 6px;position:relative;background:linear-gradient(180deg,#07090c,#05070a);border:1px solid var(--line);border-radius:8px}
+#strip{height:46px;display:flex;align-items:center;gap:10px;padding:0 2px;position:relative;background:transparent;border:0}
 #logo{flex:none;display:flex;align-items:center;height:40px;margin-inline-end:6px}
 #logo img{height:38px;max-width:170px;object-fit:contain}#logo svg{height:32px;width:auto;display:block}
 .sep{flex:none;width:1px;height:22px;background:var(--line)}
@@ -60,7 +60,8 @@
   <div id="rt"><div id="bell" title="Next high-impact news (click for the calendar)">🔔 …</div>
   <div class="sep"></div><div class="clk"><small>CAI</small><b id="tc">--:--:--</b></div>
   <div class="clk"><small>NY</small><b id="tn">--:--:--</b></div>
-  <div class="sep"></div><div class="lk" id="wm" title="World map: events">🌐</div></div>
+  <div class="sep"></div><div class="lk" id="wm" title="World map: events (Alt+W)">🌐</div><div class="lk" id="kb" title="Keyboard shortcuts">⌨</div></div>
+  <div class="pop" id="kbPop"></div>
   <div class="pop" id="fvPop"></div>
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
@@ -73,9 +74,9 @@
 const CFG = __CONFIG__;
 const $ = id => document.getElementById(id), esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 if (CFG.theme === "lux"){ const r = document.documentElement.style; [["--bg","#0d0c0a"],["--panel","rgba(24,21,18,.82)"],["--line","rgba(224,169,90,.20)"],["--txt","#efe6d6"],["--mut","#a8997f"],["--acc","#e0a95a"]].forEach(([k, v]) => r.setProperty(k, v));
-  document.addEventListener("DOMContentLoaded", () => { const st = document.getElementById("strip"); if (st){ st.style.background = "linear-gradient(180deg,rgba(30,26,21,.88),rgba(16,14,12,.88))"; st.style.borderRadius = "14px"; st.style.boxShadow = "0 6px 22px rgba(0,0,0,.45)"; } }); }   // theme 1 "Less is More"
+  document.addEventListener("DOMContentLoaded", () => { const st = document.getElementById("strip"); if (st){ st.style.background = "transparent"; } }); }   // theme 1 "Less is More"
 if (CFG.theme === "hud"){ const r = document.documentElement.style; [["--bg","#141c22"],["--panel","rgba(10,15,20,.55)"],["--line","rgba(225,235,240,.22)"],["--txt","#e6ecef"],["--mut","#93a2ad"],["--acc","#f0a43c"]].forEach(([k, v]) => r.setProperty(k, v));
-  document.addEventListener("DOMContentLoaded", () => { const st = document.getElementById("strip"); if (st){ st.style.background = "rgba(10,15,20,.55)"; st.style.borderRadius = "0"; st.style.fontFamily = "Rajdhani,'Barlow Condensed','Segoe UI',sans-serif"; } }); }   // theme 2 "Orbit HUD"
+  document.addEventListener("DOMContentLoaded", () => { const st = document.getElementById("strip"); if (st){ st.style.background = "transparent"; } }); }   // theme 2 "Orbit HUD"
 const safe = u => /^https?:\/\//i.test(u || "") ? u : "";
 /* main logo (owner design): slanted panel with XPiX + a barcode (modules/xpix_barcode.svg, widths / tops seeded with 6868); the bar-star mark is the app icon */
 const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 552 172"><path fill="#e3e4e8" d="M0 0 H139 L57 172 H0 Z"/><g transform="translate(20,50) scale(0.235)"><path fill="#0b0b0c" d="M0 0 H26 L92 100 H66 Z M66 0 H92 L26 100 H0 Z"/><path fill="#0b0b0c" fill-rule="evenodd" d="M104 0 H156 A30 30 0 0 1 156 60 H126 V100 H104 Z M126 20 H154 A10 10 0 0 1 154 40 H126 Z"/><path fill="#0b0b0c" d="M198 32 H220 V100 H198 Z M198 0 H220 V20 H198 Z"/><path fill="#0b0b0c" d="M232 0 H258 L324 100 H298 Z M298 0 H324 L258 100 H232 Z"/></g><rect x="149.0" y="0" width="3.2" height="172" fill="#e3e4e8"/><rect x="154.2" y="32" width="5.0" height="140" fill="#e3e4e8"/><rect x="166.0" y="14" width="5.0" height="158" fill="#e3e4e8"/><rect x="175.5" y="14" width="1.6" height="158" fill="#e3e4e8"/><rect x="179.1" y="0" width="7.5" height="172" fill="#e3e4e8"/><rect x="193.4" y="0" width="7.5" height="172" fill="#e3e4e8"/><rect x="202.9" y="0" width="5.0" height="172" fill="#e3e4e8"/><rect x="212.4" y="45" width="2.2" height="127" fill="#e3e4e8"/><rect x="216.6" y="32" width="7.5" height="140" fill="#e3e4e8"/><rect x="230.9" y="45" width="3.2" height="127" fill="#e3e4e8"/><rect x="237.1" y="32" width="1.6" height="140" fill="#e3e4e8"/><rect x="241.7" y="60" width="3.2" height="112" fill="#e3e4e8"/><rect x="251.7" y="14" width="2.2" height="158" fill="#e3e4e8"/><rect x="260.7" y="60" width="2.2" height="112" fill="#e3e4e8"/><rect x="269.7" y="60" width="2.2" height="112" fill="#e3e4e8"/><rect x="273.9" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="277.5" y="0" width="7.5" height="172" fill="#e3e4e8"/><rect x="288.0" y="0" width="2.2" height="172" fill="#e3e4e8"/><rect x="297.0" y="0" width="3.2" height="172" fill="#e3e4e8"/><rect x="307.0" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="313.1" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="321.5" y="0" width="7.5" height="172" fill="#e3e4e8"/><rect x="331.0" y="22" width="1.6" height="150" fill="#e3e4e8"/><rect x="337.1" y="32" width="5.0" height="140" fill="#e3e4e8"/><rect x="348.9" y="14" width="1.6" height="158" fill="#e3e4e8"/><rect x="353.5" y="22" width="3.2" height="150" fill="#e3e4e8"/><rect x="363.5" y="0" width="2.2" height="172" fill="#e3e4e8"/><rect x="372.5" y="60" width="2.2" height="112" fill="#e3e4e8"/><rect x="376.7" y="45" width="7.5" height="127" fill="#e3e4e8"/><rect x="388.7" y="14" width="1.6" height="158" fill="#e3e4e8"/><rect x="392.3" y="14" width="1.6" height="158" fill="#e3e4e8"/><rect x="400.7" y="32" width="5.0" height="140" fill="#e3e4e8"/><rect x="412.5" y="22" width="2.2" height="150" fill="#e3e4e8"/><rect x="417.7" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="422.3" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="428.4" y="32" width="2.2" height="140" fill="#e3e4e8"/><rect x="435.1" y="45" width="2.2" height="127" fill="#e3e4e8"/><rect x="439.3" y="45" width="1.6" height="127" fill="#e3e4e8"/><rect x="445.4" y="0" width="5.0" height="172" fill="#e3e4e8"/><rect x="452.4" y="0" width="3.2" height="172" fill="#e3e4e8"/><rect x="457.6" y="0" width="5.0" height="172" fill="#e3e4e8"/><rect x="465.6" y="0" width="1.6" height="172" fill="#e3e4e8"/><rect x="469.2" y="32" width="7.5" height="140" fill="#e3e4e8"/><rect x="483.5" y="45" width="5.0" height="127" fill="#e3e4e8"/><rect x="495.3" y="0" width="7.5" height="172" fill="#e3e4e8"/><rect x="505.8" y="32" width="7.5" height="140" fill="#e3e4e8"/><rect x="520.1" y="60" width="5.0" height="112" fill="#e3e4e8"/><rect x="531.9" y="32" width="3.2" height="140" fill="#e3e4e8"/><rect x="538.1" y="0" width="7.5" height="172" fill="#e3e4e8"/></svg>';
@@ -90,9 +91,33 @@ function setFrame(h){
   } catch(e){}
 }
 let openId = null;
-function closeAll(){ ["newsPop","fvPop","wmPop"].forEach(i => $(i).classList.remove("on")); openId = null; setFrame(BASE_H); }
+function closeAll(){ ["newsPop","fvPop","wmPop","kbPop"].forEach(i => $(i).classList.remove("on")); openId = null; setFrame(BASE_H); }
 function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
-document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv")) closeAll(); });
+document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv,#kb")) closeAll(); });
+/* ---- keyboard shortcuts: work on the whole page and inside the Workspace (same-origin frames) ---- */
+const KB = [["Alt+1 … 7", ["Pages: Workspace, Scanner, Lab, Playbook, Stats, AI, Alerts","الصفحات: الوورك سبيس، السكانر، المعمل، الدليل، الأداء، الذكي، التنبيهات"]],
+  ["Alt+F", ["Fold / unfold the header","طي / فتح الشريط العلوي"]], ["Alt+T", ["Next theme","الثيم اللي بعده"]], ["Alt+L", ["Arabic / English","عربي / إنجليزي"]],
+  ["Alt+R", ["Resources menu","قايمة المصادر"]], ["Alt+N", ["News list","قايمة الأخبار"]], ["Alt+W", ["World map","خريطة العالم"]], ["Esc", ["Close menus","قفل القوايم"]]];
+$("kbPop").innerHTML = '<div style="padding:8px 12px;min-width:250px">'+KB.map(([k, t]) => '<div style="display:flex;justify-content:space-between;gap:14px;padding:3px 0"><b style="color:var(--acc);font:600 11px ui-monospace,monospace">'+k+'</b><span>'+esc(CFG.ar ? t[1] : t[0])+'</span></div>').join("")+'</div>';
+$("kb").onclick = () => { if (openId === "kbPop") closeAll(); else { openPop("kbPop", 50 + 260); $("kbPop").style.right = "4px"; } };
+function kbAct(e){
+  if (e.key === "Escape"){ closeAll(); return; }
+  if (!e.altKey || e.ctrlKey || e.metaKey) return; const P = window.parent && window.parent.document; if (!P) return;
+  const k = (e.code || "").replace(/^Key|^Digit/, "").toUpperCase(); let done = true;
+  if (/^[1-7]$/.test(k)){ const lb = P.querySelectorAll(".st-key-page label"); lb[+k - 1] && lb[+k - 1].click(); }
+  else if (k === "F"){ const b = P.querySelector(".st-key-focus_btn button"); b && b.click(); }
+  else if (k === "L"){ const b = P.querySelector(".st-key-lang_btn button"); b && b.click(); }
+  else if (k === "T"){ const order = ["classic","lux","hud"], cur = CFG.theme || "classic", nx = order[(order.indexOf(cur) + 1) % order.length], u = new URL(window.parent.location.href); if (nx === "classic") u.searchParams.delete("theme"); else u.searchParams.set("theme", nx); window.parent.location.href = u.toString(); }
+  else if (k === "R"){ const d = document.querySelector(".fv"); d && d.click(); }
+  else if (k === "N"){ $("tick").click(); }
+  else if (k === "W"){ $("wm").click(); }
+  else done = false;
+  if (done) e.preventDefault(); }
+document.addEventListener("keydown", kbAct);
+const kbHook = () => { try { const P = window.parent; if (!P || P === window) return;   // a rerun can rebuild this frame: always swap the old listener for this one
+  const hook = d => { if (!d || d.__xpixKbFn === kbAct) return; if (d.__xpixKbFn) try { d.removeEventListener("keydown", d.__xpixKbFn); } catch(_){} d.__xpixKbFn = kbAct; d.addEventListener("keydown", kbAct); };
+  hook(P.document); [...P.document.querySelectorAll("iframe")].forEach(f => { try { if (f.contentWindow !== window) hook(f.contentDocument); } catch(_){} }); } catch(_){} };
+kbHook(); setInterval(kbHook, 3000);   // the Workspace frame loads later
 /* ---- logo + links ---- */
 $("logo").innerHTML = CFG.logo ? '<img alt="XPiX" src="'+esc(CFG.logo)+'">' : LOGO;
 $("logo").querySelectorAll("rect").forEach((r, i, all) => { r.style.animationDelay = (i/all.length*1.1).toFixed(3)+"s"; });   // left -> right wave   // XPiX mark (see LOGO below); an assets/logo.* file still wins

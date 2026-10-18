@@ -138,6 +138,9 @@ def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
 def answer(req: dict, hist: list) -> dict:
     """req = {id, q, ctx}; returns {id, say, go, page} or {id, err}."""
     rid = req.get("id")
+    if req.get("reset"):   # "New chat": forget the conversation
+        hist.clear()
+        return {"id": rid, "reset": True}
     q = str(req.get("q", ""))[:500].strip()
     if not q:
         return {"id": rid, "err": "empty"}

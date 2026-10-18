@@ -264,7 +264,18 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-v-talk{opacity:0;transition:opacity .25s}#guide .g-man.talk .g-v-talk{opacity:1}
 #guide .g-man.real .g-v-photo{animation:gBreathP 5s ease-in-out infinite}#guide .g-man.real.talk .g-v-photo{animation:gTalkP .5s ease-in-out infinite alternate}
 @keyframes gBreathP{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}@keyframes gTalkP{from{transform:scale(1.005) translateY(0)}to{transform:scale(1.012) translateY(-1px)}}
-#guide .g-mic{white-space:nowrap}#guide .g-mic.on,#guide .g-bot button.on{color:#0b0e11;background:#f0b90b;border-color:#f0b90b}
+#guide .g-mic{white-space:nowrap}
+#guide .g-bub{padding:6px 8px 7px;font-size:11.5px;line-height:1.5}
+#guide .g-bub[data-sz="1"]{width:310px;font-size:12.5px}#guide .g-bub[data-sz="2"]{width:390px;font-size:13.5px}
+#guide .g-hd{display:flex;align-items:center;gap:4px;margin:-2px 0 4px}#guide .g-hd .g-sp{flex:1}
+#guide .g-hd button{padding:0 5px;font-size:10.5px;min-height:20px;line-height:18px;background:transparent;border-color:transparent;color:var(--mut)}#guide .g-hd button:hover{color:#f0b90b;border-color:rgba(240,185,11,.4)}
+#guide .g-ic svg,#guideB .gbi svg{width:16px;height:16px;display:block}#guide .g-nm{color:#f0b90b;font-size:11px;letter-spacing:.5px}
+#guide .g-say{max-height:9.5em;overflow:auto}#guide .g-bub[data-sz="1"] .g-say{max-height:13em}#guide .g-bub[data-sz="2"] .g-say{max-height:18em}
+#guide .g-bub.fold{width:auto!important}#guide .g-bub.fold .g-bd,#guide .g-bub.fold .g-sm,#guide .g-bub.fold .g-opt{display:none}#guide .g-bub.fold .g-fold{transform:rotate(180deg)}
+#guide .g-bot{display:none!important;flex-direction:column;align-items:stretch!important;gap:4px;border-top:1px solid var(--line);padding-top:6px}#guide .g-bub.opts .g-bot{display:flex!important}#guide .g-bub.opts .g-opt{color:#f0b90b}
+#guide .g-btns{display:flex;flex-wrap:wrap;gap:4px}#guide .g-row{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:var(--mut)}#guide .g-row select{max-width:55%}
+#guide.nostage .g-stage{display:none}
+#guideB{display:inline-flex;align-items:center;gap:5px;padding:2px 8px}#guideB b{font-size:11px;letter-spacing:.5px;color:#f0b90b}#guide .g-mic.on,#guide .g-bot button.on{color:#0b0e11;background:#f0b90b;border-color:#f0b90b}
 #guide .g-man.listen .g-head{animation:gListen 1.2s ease-in-out infinite alternate}
 #guide .g-man.listen{filter:drop-shadow(0 0 14px rgba(240,185,11,.55)) drop-shadow(0 10px 14px #000a)}
 @keyframes gListen{from{transform:rotate(-4deg)}to{transform:rotate(-1deg)}}
@@ -279,7 +290,7 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 @keyframes gTalk{0%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
 @keyframes gBlink{0%,93%,100%{transform:scaleY(0)}96%{transform:scaleY(1)}}
 @keyframes gThink{from{transform:rotate(-3deg)}to{transform:rotate(4deg)}}
-#guide .g-bub{position:fixed;width:330px;max-width:calc(100vw - 12px);background:var(--panel);color:var(--txt);border:1px solid #f0b90b;border-radius:10px;padding:10px 10px 8px;box-shadow:0 8px 28px #000a;pointer-events:auto;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;visibility:hidden;font-size:12.5px;line-height:1.55}
+#guide .g-bub{position:fixed;width:250px;max-width:calc(100vw - 12px);background:var(--panel);color:var(--txt);border:1px solid #f0b90b;border-radius:10px;padding:10px 10px 8px;box-shadow:0 8px 28px #000a;pointer-events:auto;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;visibility:hidden;font-size:12.5px;line-height:1.55}
 #guide .g-bub.show{opacity:1;transform:none;visibility:visible}
 #guide .g-bub.hide{visibility:hidden!important;opacity:0!important}
 #guide .g-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}#guide .g-acts:empty{display:none}
@@ -4406,6 +4417,7 @@ Ws.add = type => {
 /* XPiX Guide: a presenter on a small stage in the bottom-left corner of the visible screen. He comes on by himself after start-up
    (✕ sends him off, the side tab brings him back), talks in Egyptian Arabic, and points at the part of the screen he is explaining.
    Answers: built-in offline guide + Claude / Gemini through modules/guide_ai.py. New presenters = one more entry in GUIDE_CHARS. */
+const GUIDE_ICON = '<svg width="18" height="18" style="display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect x="0" y="0" width="200" height="200" rx="46" fill="#d4a537"/><g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)"><rect x="80.00" y="52" width="8.5" height="68" fill="#0a0a0a"/><rect x="69.00" y="78" width="8.5" height="42" fill="#0a0a0a"/><rect x="58.00" y="94" width="8.5" height="26" fill="#0a0a0a"/><rect x="47.00" y="104" width="8.5" height="16" fill="#0a0a0a"/><rect x="36.00" y="110" width="8.5" height="10" fill="#0a0a0a"/><rect x="25.00" y="114" width="8.5" height="6" fill="#0a0a0a"/><rect x="111.50" y="120" width="8.5" height="52" fill="#0a0a0a"/><rect x="122.50" y="120" width="8.5" height="32" fill="#0a0a0a"/><rect x="133.50" y="120" width="8.5" height="20" fill="#0a0a0a"/><rect x="144.50" y="120" width="8.5" height="12" fill="#0a0a0a"/><rect x="155.50" y="120" width="8.5" height="8" fill="#0a0a0a"/><rect x="92" y="38" width="8" height="160" fill="#0a0a0a"/><rect x="101.5" y="15" width="8" height="160" fill="#f2f2f2"/></g></svg>';
 const GUIDE_CHARS = [
   {id:"mrx", name:"Mr X", ar:"مستر X", female:false, video:"mrx", skin:"#c4895f", skin2:"#9c6440", hair:"#0e0c0b", suit:"#23272e", suit2:"#14171b", shirt:"#f4f5f6", tie:"#b8912e", trousers:"#1a1d22", shoe:"#0a0a0b", hairStyle:"short"},
   {id:"saad", name:"Saad", ar:"سعد", female:false, skin:"#d6a27c", skin2:"#b98060", hair:"#1f1712", suit:"#1c2633", suit2:"#121922", shirt:"#f1f3f5", tie:"#c9a227", trousers:"#161e28", shoe:"#0d0f12", hairStyle:"short"},
@@ -4456,7 +4468,7 @@ const GVoice = {   // Egyptian voice first; long answers are spoken in short pie
   say(text, female, onStart, onEnd){ if (!Voice.ok) { onEnd && onEnd(); return; } this.stop(); const t = Voice.clean(text); if (!t){ onEnd && onEnd(); return; }
     const isAr = /[؀-ۿ]/.test(t), v = this.pick(isAr, female), parts = t.match(/[^.!?؟\n،,]+[.!?؟\n،,]*/g) || [t], ch = []; let cur = "";
     parts.forEach(p => { if (cur && (cur + p).length > 150){ ch.push(cur); cur = p; } else cur += p; }); if (cur.trim()) ch.push(cur);
-    ch.forEach((c, i) => { const u = new SpeechSynthesisUtterance(c.trim()); if (v){ u.voice = v; u.lang = v.lang; } else u.lang = isAr ? "ar-EG" : "en-US"; u.rate = 1; u.pitch = female ? 1.05 : .95;
+    ch.forEach((c, i) => { const u = new SpeechSynthesisUtterance(c.trim()); if (v){ u.voice = v; u.lang = v.lang; } else u.lang = isAr ? "ar-EG" : "en-US"; u.rate = +store.get(LS+"_grate", "1") || 1; u.pitch = female ? 1.05 : .95;
       if (!i) u.onstart = () => onStart && onStart(); if (i === ch.length - 1) u.onend = () => { this.stop(true); onEnd && onEnd(); };
       u.onerror = e => { this.stop(true); onEnd && onEnd(e && e.error); }; speechSynthesis.speak(u); });
     if (v && /Google/.test(v.name)) this.timer = setInterval(() => { if (!speechSynthesis.speaking) return clearInterval(this.timer); speechSynthesis.pause(); speechSynthesis.resume(); }, 9000); },
@@ -4471,11 +4483,16 @@ const Guide = {
   init(){
     if (this.root) return; const r = this.root = el("div"); r.id = "guide";
     r.innerHTML = '<div class="g-tab"></div><div class="g-stage"><div class="g-light"></div><div class="g-floor"></div><div class="g-man"></div><div class="g-tag"></div><button class="g-x" type="button">✕</button></div>'
-      + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><button type="button" class="g-mic"></button><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div>';
-    document.body.append(r); this.mic = r.querySelector(".g-mic"); this.mic.onclick = () => this.listening ? this.stopListen(true) : this.listen(); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
+      + '<svg class="g-beam"></svg><div class="g-bub"><div class="g-hd"><span class="g-ic">'+GUIDE_ICON+'</span><b class="g-nm"></b><span class="g-sp"></span><button type="button" class="g-sm" data-d="-1">A−</button><button type="button" class="g-sm" data-d="1">A+</button><button type="button" class="g-opt">⚙</button><button type="button" class="g-fold">▾</button></div>'
+      + '<div class="g-bd"><div class="g-say"></div><div class="g-acts"></div><form class="g-ask"><button type="button" class="g-mic"></button><input placeholder=""><button type="submit">↵</button></form><div class="g-bot"></div></div></div>';
+    document.body.append(r);
+    r.querySelector(".g-opt").onclick = () => { this.bub.classList.toggle("opts"); this.placeBub(); };
+    r.querySelector(".g-fold").onclick = () => { const f = !this.bub.classList.contains("fold"); this.bub.classList.toggle("fold", f); store.set(LS+"_gfold", f); this.placeBub(); };
+    r.querySelectorAll(".g-sm").forEach(b => b.onclick = () => { const z = Math.max(0, Math.min(2, (+store.get(LS+"_gbsz", 0)) + (+b.dataset.d))); store.set(LS+"_gbsz", z); this.look(); });
+    this.mic = r.querySelector(".g-mic"); this.mic.onclick = () => this.listening ? this.stopListen(true) : this.listen(); this.stage = r.querySelector(".g-stage"); this.tab = r.querySelector(".g-tab"); this.man = r.querySelector(".g-man"); this.bub = r.querySelector(".g-bub"); this.say_ = r.querySelector(".g-say"); this.acts = r.querySelector(".g-acts"); this.beam = r.querySelector(".g-beam");
     this.inp = r.querySelector(".g-ask input"); r.querySelector(".g-ask").onsubmit = e => { e.preventDefault(); const q = this.inp.value.trim(); if (q){ this.inp.value = ""; this.ask(q); } };
     this.man.onclick = () => this.bub.classList.toggle("hide"); this.tab.onclick = () => this.open(); r.querySelector(".g-x").onclick = () => this.close();
-    this.paint(); this.bot(); window.addEventListener("resize", () => this.dock());
+    this.paint(); this.bot(); this.look(); window.addEventListener("resize", () => this.dock());
     let q = 0; const onSc = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; this.dock(); }); };   // the stage stays in the visible corner while the page scrolls
     try { window.parent.addEventListener("scroll", onSc, true); window.parent.addEventListener("resize", onSc); } catch(e){} this.dock(); setTimeout(() => this.dock(), 800);
     document.addEventListener("pointerdown", () => { if (this._pending){ const t = this._pending; this._pending = ""; this.voice(t); } }, true);   // browsers only allow speech after the first tap: say the greeting then
@@ -4491,7 +4508,7 @@ const Guide = {
   async paint(){ const c = this.chr(), md = await this.media(c); this.man.classList.toggle("real", !!md);
     this.man.innerHTML = md && md.idle ? '<div class="g-vid"><video class="g-v-idle" src="'+md.idle+'" muted loop playsinline autoplay></video><video class="g-v-talk" src="'+md.talk+'" muted loop playsinline preload="auto"></video></div>'
       : md && md.photo ? '<div class="g-vid"><img class="g-v-photo" src="'+md.photo+'" alt=""></div>' : presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
-    this.tab.textContent = this.G("Guide", "المساعد"); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
+    this.tab.textContent = this.G(c.name, c.ar); this.root.querySelector(".g-nm").textContent = this.G(c.name, c.ar); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
     const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Presenter", "المذيع");
     cs.onchange = () => { store.set(LS+"_gchar", cs.value); this.paint(); this.hi(); };
@@ -4500,7 +4517,17 @@ const Guide = {
     const tb = el("button", null, this.G("Tour", "جولة")); tb.onclick = () => this.tour();
     const cb = el("button", this.chat ? "on" : null, this.chat ? this.G("Chat mode: on", "وضع الدردشة: شغال") : this.G("Chat mode", "وضع الدردشة")); cb.title = this.G("Hands-free: after each answer he listens again", "من غير إيدك: بعد كل رد يسمعك تاني");
     cb.onclick = () => { this.chat = !this.chat; this.bot(); if (this.chat){ if (!this.voiceOn()) store.set(LS+"_gvoice2", true); this.bot(); this.listen(); } else this.stopListen(true); };
-    b.append(cs, lb, vb, cb, tb); },
+    const row = (label, ...els) => { const d = el("label", "g-row"); d.append(el("span", null, label), ...els); return d; };
+    const sel = (key, def, opts, after) => { const x = el("select"); opts.forEach(([v, t]) => x.append(Object.assign(el("option"), {value:v, textContent:t}))); x.value = String(store.get(LS+key, def)); x.onchange = () => { store.set(LS+key, x.value); after && after(); }; return x; };
+    const tog = (key, def, after) => { const x = el("input"); x.type = "checkbox"; x.checked = store.get(LS+key, def) !== false; x.onchange = () => { store.set(LS+key, x.checked); after && after(); }; return x; };
+    const sz = sel("_gpsz", "m", [["s", this.G("Small", "صغير")], ["m", this.G("Medium", "وسط")], ["l", this.G("Large", "كبير")]], () => this.look());
+    const rt = sel("_grate", "1", [[".85", this.G("Slow", "بطيء")], ["1", this.G("Normal", "عادي")], ["1.15", this.G("Fast", "سريع")]]);
+    const clr = el("button", null, this.G("New chat", "محادثة جديدة")); clr.onclick = () => { const br = this.bridge(); if (br) br.ask({id:"r"+Date.now(), reset:true}); this.speak(this.G("Fresh start. What's on your mind?", "صفحة جديدة. في دماغك إيه؟")); };
+    b.append(el("div", "g-btns"), row(this.G("Presenter", "المذيع"), cs), row(this.G("Presenter size", "حجم المذيع"), sz), row(this.G("Show presenter", "إظهار المذيع"), tog("_gstage", true, () => this.look())),
+      row(this.G("Voice speed", "سرعة الصوت"), rt), row(this.G("Come on by himself at start", "يطلع لوحده مع التشغيل"), tog("_gon", true)));
+    b.firstChild.append(lb, vb, cb, tb, clr); },
+  look(){ if (!this.root) return; const z = +store.get(LS+"_gbsz", 0); this.bub.dataset.sz = z; this.bub.classList.toggle("fold", !!store.get(LS+"_gfold", false));
+    this.root.classList.toggle("nostage", store.get(LS+"_gstage", true) === false); this.dock(); this.placeBub(); },
   SR(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; },
   micLbl(){ if (!this.mic) return; const ok = !!this.SR(); this.mic.disabled = !ok; this.mic.textContent = this.listening ? this.G("● Listening", "● بسمعك") : this.G("Talk", "اتكلم");
     this.mic.classList.toggle("on", !!this.listening); this.mic.title = ok ? this.G("Speak your question (Chrome / Edge; the browser sends the audio to its speech service)", "قول سؤالك بصوتك (كروم أو إيدج؛ المتصفح بيبعت الصوت لخدمة التعرّف بتاعته)") : this.G("This browser can't listen - use Chrome or Edge", "المتصفح ده مش بيسمع - استخدم كروم أو إيدج"); },
@@ -4520,9 +4547,10 @@ const Guide = {
   scroller(){ try { let e = window.frameElement; while (e && (e = e.parentElement)){ const o = window.parent.getComputedStyle(e).overflowY; if (/(auto|scroll)/.test(o) && e.scrollHeight > e.clientHeight + 20) return e; } } catch(e){} return null; },
   async reveal(r){ const v = this.view(); if (!r || (r.top >= v.t && r.top + Math.min(r.height, 200) <= v.b)) return r; const sc = this.scroller(), dy = r.top - v.t - 90;   // bring a target below / above the fold onto the screen
     try { sc ? sc.scrollBy({top:dy, behavior:"smooth"}) : window.parent.scrollBy({top:dy, behavior:"smooth"}); } catch(e){ return r; } await this.wait(550); this.dock(); return null; },
-  dims(){ const v = this.view(), vh = v.b - v.t, h = Math.round(Math.max(210, Math.min(MOB ? 260 : 400, vh*.48))); return {h, w:Math.round(h*.62), top:v.b - h - (MOB && MT5 ? 60 : 6), v}; },
+  dims(){ const v = this.view(), vh = v.b - v.t, f = {s:.7, m:1, l:1.25}[store.get(LS+"_gpsz", "m")] || 1, h = Math.round(Math.max(150, Math.min((MOB ? 260 : 400)*f, vh*.48*f))); return {h, w:Math.round(h*.62), top:v.b - h - (MOB && MT5 ? 60 : 6), v}; },
   dock(){ if (!this.stage) return; const d = this.dims(); Object.assign(this.stage.style, {top:d.top+"px", height:d.h+"px", width:d.w+"px"}); this.tab.style.top = (d.v.b - 120)+"px"; if (this.bub.classList.contains("show")) this.placeBub(); },
-  placeBub(){ const d = this.dims(), bw = Math.min(330, innerWidth - 12), side = innerWidth - (8 + d.w + 10) >= bw;
+  placeBub(){ const d = this.dims(), bw = Math.min(this.bub.offsetWidth || 260, innerWidth - 12), ns = this.root.classList.contains("nostage");
+    if (ns){ Object.assign(this.bub.style, {left:"8px", top:"", bottom:(innerHeight - d.v.b + 8)+"px"}); return; } const side = innerWidth - (8 + d.w + 10) >= bw;
     if (side){ Object.assign(this.bub.style, {left:(8 + d.w + 8)+"px", top:"", bottom:(innerHeight - (d.top + d.h*.55))+"px"}); this.bub.classList.add("side"); }
     else { Object.assign(this.bub.style, {left:"6px", top:"", bottom:(innerHeight - d.top + 4)+"px"}); this.bub.classList.remove("side"); } },
   async open(){ this.init(); if (this.on) return; this.on = true; store.set(LS+"_gon", true); this.dock(); this.root.classList.add("on"); this.man.classList.add("walk");
@@ -4636,7 +4664,7 @@ function buildBar(){
   const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.8, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
-const gb = el("button", null, Lg("Guide","المساعد")); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
+const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");

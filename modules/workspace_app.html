@@ -270,7 +270,8 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-vid{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:radial-gradient(ellipse 58% 62% at 50% 46%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 58% 62% at 50% 46%,#000 62%,transparent 100%)}
 #guide .g-vid video,#guide .g-vid img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
 #guide .g-v-talk{opacity:0;transition:opacity .25s}#guide .g-man.talk .g-v-talk{opacity:1}
-#guide .g-man.real .g-v-photo{animation:gBreathP 5s ease-in-out infinite}#guide .g-man.real.talk .g-v-photo{animation:gTalkP .5s ease-in-out infinite alternate}
+#guide .g-man.real .g-face{animation:gBreathP 5s ease-in-out infinite}#guide .g-man.real.talk .g-face{animation:gTalkP 1.1s ease-in-out infinite alternate}
+#guide .g-face img{opacity:0}#guide .g-face img.on{opacity:1}
 @keyframes gBreathP{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}@keyframes gTalkP{from{transform:scale(1.005) translateY(0)}to{transform:scale(1.012) translateY(-1px)}}
 #guide .g-mic{white-space:nowrap}
 #guide .g-bub{padding:6px 8px 7px;font-size:11.5px;line-height:1.5}
@@ -4573,7 +4574,7 @@ const GLive = {
     this.lip(); },
   lip(){ cancelAnimationFrame(this._lr); const d = new Uint8Array(256), mo = () => Guide.man && Guide.man.querySelector(".g-mo");   // mouth follows the real voice level
     const f = () => { if (!this.on) return; this.an.getByteTimeDomainData(d); let s = 0; for (let i = 0; i < d.length; i++){ const v = (d[i] - 128)/128; s += v*v; } const rms = Math.sqrt(s/d.length), m = mo();
-      if (m) m.style.transform = "scaleY(" + Math.min(1, .15 + rms*6).toFixed(2) + ")"; this._lr = requestAnimationFrame(f); }; f(); },
+      if (m) m.style.transform = "scaleY(" + Math.min(1, .15 + rms*6).toFixed(2) + ")"; Guide.mouth(this.playing.length ? Math.min(1, rms*5) : -1); this._lr = requestAnimationFrame(f); }; f(); },
   play(b64){ const raw = atob(b64), n = raw.length >> 1, dv = new DataView(new ArrayBuffer(raw.length)); for (let i = 0; i < raw.length; i++) dv.setUint8(i, raw.charCodeAt(i));
     const buf = this.ctxOut.createBuffer(1, n, 24000), ch = buf.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = dv.getInt16(i*2, true)/32768;
     const s = this.ctxOut.createBufferSource(); s.buffer = buf; s.connect(this.an); const t0 = Math.max(this.ctxOut.currentTime + .04, this.nextT); s.start(t0); this.nextT = t0 + buf.duration;
@@ -4631,13 +4632,20 @@ const Guide = {
     if (!c.video) return null; this._media = this._media || {}; if (c.video in this._media) return this._media[c.video];
     let base = ""; try { base = window.parent.location.origin + "/app/static/" + c.video + "/"; } catch(e){ return this._media[c.video] = null; }
     const has = async f => { try { const r = await fetch(base + f, {method:"HEAD"}); return r.ok && !/text\/html/.test(r.headers.get("content-type") || ""); } catch(e){ return false; } };
-    const [idle, talk, photo] = await Promise.all(["idle.mp4", "talk.mp4", "photo.jpg"].map(has));
-    return this._media[c.video] = idle ? {idle:base+"idle.mp4", talk:talk ? base+"talk.mp4" : base+"idle.mp4"} : photo ? {photo:base+"photo.jpg"} : null; },
+    const [idle, talk, photo, mid, open, blink] = await Promise.all(["idle.mp4", "talk.mp4", "photo.jpg", "mid.jpg", "open.jpg", "blink.jpg"].map(has));
+    return this._media[c.video] = idle ? {idle:base+"idle.mp4", talk:talk ? base+"talk.mp4" : base+"idle.mp4"}
+      : photo ? {photo:base+"photo.jpg", mid:mid ? base+"mid.jpg" : "", open:open ? base+"open.jpg" : "", blink:blink ? base+"blink.jpg" : ""} : null; },
+  mouth(lvl){   // real photo + mouth frames: closed / mid / open picked from the live voice level (0..1), or -1 = idle
+    const f = this.man.querySelector(".g-face"); if (!f) return; const k = lvl < 0 ? "photo" : lvl < .1 ? "photo" : lvl < .32 ? "mid" : "open";
+    if (f.dataset.k !== k && !f.classList.contains("blinking")){ f.dataset.k = k; f.querySelectorAll("img").forEach(i => i.classList.toggle("on", i.dataset.k === k || (i.dataset.k === "photo" && !f.querySelector('img[data-k="'+k+'"]')))); } },
+  faceLife(){ clearTimeout(this._fb); clearInterval(this._fm); const f = this.man.querySelector(".g-face"); if (!f) return;
+    const bl = f.querySelector('img[data-k="blink"]'); if (bl){ const go = () => { this._fb = setTimeout(() => { if (!this.man.querySelector(".g-face")) return; f.classList.add("blinking"); f.querySelectorAll("img").forEach(i => i.classList.toggle("on", i === bl)); setTimeout(() => { f.classList.remove("blinking"); f.dataset.k = ""; this.mouth(-1); go(); }, 140); }, 2800 + Math.random()*3500); }; go(); }
+    this._fm = setInterval(() => { if (GLive.on) return; if (this.man.classList.contains("talk")) this.mouth(Math.random()); else this.mouth(-1); }, 115); },   // no live voice level (browser voice / text): plausible mouth movement while talking
   setTalk(on){ this.man.classList.toggle("talk", !!on); const t = this.man.querySelector(".g-v-talk"), i = this.man.querySelector(".g-v-idle");
     if (t && i && t.src !== i.src){ try { if (on){ t.currentTime = 0; t.play(); } else t.pause(); } catch(e){} } },
   async paint(){ const c = this.chr(), md = await this.media(c); this.man.classList.toggle("real", !!md);
     this.man.innerHTML = md && md.idle ? '<div class="g-vid"><video class="g-v-idle" src="'+md.idle+'" muted loop playsinline autoplay></video><video class="g-v-talk" src="'+md.talk+'" muted loop playsinline preload="auto"></video></div>'
-      : md && md.photo ? '<div class="g-vid"><img class="g-v-photo" src="'+md.photo+'" alt=""></div>' : presenterSvg(c); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
+      : md && md.photo ? '<div class="g-vid g-face" data-k="photo">' + [["photo", md.photo], ["mid", md.mid], ["open", md.open], ["blink", md.blink]].filter(x => x[1]).map(([k, u], i) => '<img class="g-v-photo'+(i ? "" : " on")+'" data-k="'+k+'" src="'+u+'" alt="">').join("") + '</div>' : presenterSvg(c); this.faceLife(); this.root.querySelector(".g-tag").textContent = this.G(c.name, c.ar);
     this.tab.textContent = this.G(c.name, c.ar); this.root.querySelector(".g-nm").textContent = this.G(c.name, c.ar); this.micLbl(); this.inp.placeholder = this.G("Ask me anything… what is the profile? where is the lab?", "اسألني أي حاجة… البروفيل ده إيه؟ فين اللاب؟"); },
   bot(){ const b = this.root.querySelector(".g-bot"); b.innerHTML = "";
     const cs = el("select"); GUIDE_CHARS.forEach(c => cs.append(Object.assign(el("option"), {value:c.id, textContent:this.G(c.name, c.ar)}))); cs.value = this.chr().id; cs.title = this.G("Presenter", "المذيع");

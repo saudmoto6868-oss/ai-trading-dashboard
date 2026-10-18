@@ -871,13 +871,21 @@ with (NAV_BOX if NAV_BOX is not None else st.container()):
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 _focus = bool(st.session_state.get("focus_ws"))
+try:   # phones: the Workspace frame = about one screen (its widgets scroll inside it); header row wraps into two lines
+    _IS_MOBILE = any(k in (st.context.headers.get("User-Agent", "") or "") for k in ("Mobi", "Android", "iPhone"))
+except Exception:
+    _IS_MOBILE = False
 st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
 .st-key-page label{{padding:2px 2px 3px;margin:0;white-space:nowrap}} .st-key-page [data-testid="stRadioOption"] p{{font-size:11px;letter-spacing:.14em;text-transform:uppercase}}
 .block-container{{padding-top:{'.35rem' if _focus else '.7rem'}!important}} [data-testid="stHeader"]{{background:transparent;height:2.2rem}}
 .st-key-hdr{{padding:0 2.8rem 0 2.6rem;border-bottom:1px solid #1c232b;margin-bottom:2px}}
 .xpix-mini{{font:800 18px/1 sans-serif;letter-spacing:.06em;color:#d7dce2}} .xpix-mini i{{font-style:normal;color:{ui_accent}}}
 .st-key-focus_btn button{{padding:0 6px;min-height:28px;border:1px solid #1c232b;background:transparent}}
-.st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}} .st-key-ws_lang p{{font-size:11px}}
+.st-key-ws_lang [role="radiogroup"]{{flex-wrap:nowrap;gap:8px}}
+@media (max-width:640px){{.st-key-hdr{{padding:0 .2rem 0 2.4rem}} .st-key-hdr [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important;gap:4px!important}}
+  .st-key-hdr [data-testid="stColumn"]:nth-child(1),.st-key-hdr [data-testid="stColumn"]:nth-child(2){{flex:1 1 100%!important;width:100%!important;min-width:100%!important}}
+  .st-key-hdr [data-testid="stColumn"]:nth-child(3),.st-key-hdr [data-testid="stColumn"]:nth-child(4){{flex:0 0 auto!important;width:auto!important;min-width:0!important}}
+  .block-container{{padding-left:.4rem!important;padding-right:.4rem!important}} .st-key-page [data-testid="stRadioOption"] p{{font-size:12px}}}} .st-key-ws_lang p{{font-size:11px}}
 [data-testid="stExpander"] summary{{background:#0b0f14!important;color:#e6e9ee!important}} [data-testid="stExpander"] summary p{{color:#e6e9ee!important}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
@@ -1110,7 +1118,7 @@ if PAGE == 0:   # workspace
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
         _ws_stat.caption("⏳ Workspace: building the page...")
         _tfs = get_tf_stats()
-        render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
+        render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
                          ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs)
         _ws_stat.empty()

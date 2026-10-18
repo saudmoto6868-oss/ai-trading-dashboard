@@ -44,6 +44,10 @@
 #evpop h4{margin:0 0 4px;font-size:13px}#evpop .x{position:absolute;right:8px;top:6px;cursor:pointer;color:var(--mut)}
 #evpop a{color:#4aa3ff}#evpop .hl{padding:4px 0;border-top:1px solid #20262c}
 #st{color:var(--mut);font-size:10px;margin-inline-start:6px}
+/* phones: logo, resources, news button, clocks (no seconds), world - everything else folds away; popups full width */
+@media (max-width:700px){#strip{gap:6px;padding:0 4px}#logo svg{height:34px}.sep,#bell{display:none}#tick{flex:0 0 74px}#tick .track{display:none}
+.clk small{display:none}.clk b{font-size:12px}#rt{gap:6px}.pop{left:4px!important;right:4px!important;width:auto!important;min-width:0}#side{width:100%}#wmPop .row{flex-direction:column}}
+@media (max-width:440px){#rt .clk + .clk{display:none}}
 </style></head><body>
 <div id="strip">
   <div id="logo"></div>
@@ -100,7 +104,7 @@ $("newsPop").addEventListener("mouseleave", () => { if (openId === "newsPop") cl
 /* ---- clocks ---- */
 const fmtC = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"});
 const fmtN = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"});
-const tickClk = () => { const n = new Date(); $("tc").textContent = fmtC.format(n); $("tn").textContent = fmtN.format(n); };
+const tickClk = () => { const n = new Date(), k = window.innerWidth < 700 ? 5 : 8; $("tc").textContent = fmtC.format(n).slice(0, k); $("tn").textContent = fmtN.format(n).slice(0, k); };   // phones: no seconds
 tickClk(); setInterval(tickClk, 1000);
 /* ---- world map ---- */
 const CATS = {conflict:["#f6465d","Conflict / attack"], quake:["#ff9800","Earthquake"], fire:["#ffd54f","Wildfire"], storm:["#b57cff","Storm / cyclone"], volcano:["#a1887f","Volcano"], other:["#4aa3ff","Other"]};

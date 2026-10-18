@@ -48,6 +48,10 @@
 @media (max-width:560px){#strip{gap:6px;padding:0 4px}#logo svg{height:34px}.sep,#bell{display:none}#tick{flex:0 0 74px}#tick .track{display:none}
 .clk small{display:none}.clk b{font-size:12px}#rt{gap:6px}.pop{left:4px!important;right:4px!important;width:auto!important;min-width:0}#side{width:100%}#wmPop .row{flex-direction:column}}
 @media (max-width:440px){#rt .clk + .clk{display:none}}
+/* logo barcode: a wave runs through the bars (like a dot-grid ripple) with a gold glint, repeating */
+#logo rect{transform-box:fill-box;transform-origin:50% 100%;animation:bcWave 3.2s cubic-bezier(.45,0,.25,1) infinite}
+@keyframes bcWave{0%,40%,100%{transform:scaleY(1);fill:#e3e4e8}12%{transform:scaleY(.55);fill:#f0b90b}24%{transform:scaleY(1.04);fill:#ffe9a3}}
+@media (prefers-reduced-motion:reduce){#logo rect{animation:none}}
 </style></head><body>
 <div id="strip">
   <div id="logo"></div>
@@ -90,7 +94,8 @@ function closeAll(){ ["newsPop","fvPop","wmPop"].forEach(i => $(i).classList.rem
 function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
 document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv")) closeAll(); });
 /* ---- logo + links ---- */
-$("logo").innerHTML = CFG.logo ? '<img alt="XPiX" src="'+esc(CFG.logo)+'">' : LOGO;   // XPiX mark (see LOGO below); an assets/logo.* file still wins
+$("logo").innerHTML = CFG.logo ? '<img alt="XPiX" src="'+esc(CFG.logo)+'">' : LOGO;
+$("logo").querySelectorAll("rect").forEach((r, i, all) => { r.style.animationDelay = (i/all.length*1.1).toFixed(3)+"s"; });   // left -> right wave   // XPiX mark (see LOGO below); an assets/logo.* file still wins
 { // every outside site in ONE menu ("Resources"); Finviz chart patterns as a sub-list
   const d = document.createElement("div"); d.className = "lk fv"; d.innerHTML = (CFG.ar ? "المصادر" : "Resources")+" ▾"; let h = "";
   CFG.links.forEach(l => { h += '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(l.url) || "#")+'">'+(l.icon ? '<img src="'+esc(l.icon)+'">' : '')+esc(l.name)+' ↗</a>';

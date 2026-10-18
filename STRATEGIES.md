@@ -138,8 +138,18 @@ NOT evidence; it only becomes useful if a walk-forward test on real candles show
 - `python -m modules.backtest_signals` - trendline break, CISD, Model 2022 vs a random baseline, plus **context_filters**: does killzone / premium-discount / daily bias raise the hit rate?
 - Random-walk checks: all tests report ~50% and no false "edge" flags. Published win-rate claims for SMC/ICT (e.g. 58% filtered) come from unaudited sources - treat as hypotheses.
 
-## Filter on/off backtest (not run yet - needs OKX access)
-`python -m modules.backtest_filters [BTC-USDT ETH-USDT ...]` walks every detector (Donchian ensemble, Session AMD, ORB, OB / breaker /
-unicorn, breakouts, Kill Zone Sniper, Power of Three) with the Group A filters OFF and ON on real OKX candles, against a random-direction
-baseline, and prints a Markdown table (also saved to `data/filter_compare.json`). Paste the table here once it has run.
-Direction hit-rate only (no costs, stops or targets). Results: **none yet** - the build sandbox cannot reach OKX (HTTP 403 from the egress proxy).
+## Filter on/off backtest (item 1) - first real run 2026-10-18 (GitHub Actions, BTC / ETH / SOL x 15m / 1h / 4h / 1d; full table FILTER_COMPARE.md)
+Direction hit-rate over the next 10 bars, no costs / stops; pooled over the 12 series (n-weighted):
+
+| signal | filters | n | win % | random-dir win % | avg move % |
+|---|---|---|---|---|---|
+| liqline | off / on | 683 / 438 | 45.8 / 49.8 | 49.6 / 49.3 | -0.32 / +0.32 |
+| ob | off / on | 519 / 184 | 49.3 / 51.1 | 51.3 / 47.8 | -0.06 / +0.11 |
+| breaker | off / on | 225 / 72 | 48.4 / 54.2 | 40.0 / 51.4 | -0.14 / +0.01 |
+| unicorn | off / on | 118 / 105 | 50.8 / 49.5 | 51.7 / 54.3 | +0.03 / -0.24 |
+| breakout | off / on | 243 / 212 | 42.4 / 42.5 | 44.0 / 50.0 | +0.63 / +0.70 |
+| orb | off / on | 41 / 30 | 34.2 / 33.3 | 65.8 / 63.3 | -0.15 / -0.10 |
+| donch, sess_amd, sma1040, turtle55, po3, kzs | filters do not touch them | 510, 87, 61, 56, 24, 5 | same on / off | | |
+
+Verdict: **no filter passes the bar.** Best case liqline +4 points win rate (about 1.3 sigma, and "on" is a subset of "off", so even less);
+breaker / ob gains sit on small or shrinking n. Filters stay as they are (they cut signal count, they do not hurt); nothing promoted.

@@ -42,4 +42,6 @@ jobs:
           if [ -f data/tf_stats.json ]; then git add -f data/tf_stats.json; fi
           git diff --cached --quiet && exit 0
           git commit -m "Strategy lab results $(date -u +%F)"
-          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
+          # the generated files are the bot's: on a conflict keep the fresh results (-X theirs = this commit during a rebase); fail loudly if the push never lands
+          ok=0; for i in 1 2 3; do git pull --rebase -X theirs origin main && git push origin HEAD:main && { ok=1; break; }; git rebase --abort 2>/dev/null || true; sleep 5; done
+          [ "$ok" = 1 ] || { echo "results NOT pushed"; exit 1; }

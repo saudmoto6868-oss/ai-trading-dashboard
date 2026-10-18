@@ -3540,8 +3540,11 @@ class Panel {
     [[0,T("fAll")],[50,"≥ 50%"],[70,"≥ 70%"]].forEach(([v,l]) => cf.append(Object.assign(el("option"), {value:v, textContent:T("conf")+" "+l}))); cf.value = S.jc;
     rng.onchange = () => { S.jr = rng.value; Ws.save(); draw(); }; cf.onchange = () => { S.jc = +cf.value; Ws.save(); draw(); };
     clr.onclick = () => { if (Date.now() - armed < 2500){ Journal.list = []; Journal.save(); armed = 0; clr.textContent = T("clear"); } else { armed = Date.now(); clr.textContent = "?"; setTimeout(() => clr.textContent = T("clear"), 2500); } };
-    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades (time, symbol, side, tf, r) for the Performance tab","صدّر الصفقات المقفولة (للتاب Performance)");
-    csvB.onclick = () => { const st = Journal.stats(+S.jc, S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3), rows = ["time,symbol,side,tf,r"].concat(st.closed.map(t => [new Date(t.t1).toISOString(), t.symbol || t.sym || "", t.dir === "bullish" ? "long" : "short", t.tfk || "", (+t.r).toFixed(3)].join(",")));
+    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades with their context layers (for the Performance tab and the A+++ review)","صدّر الصفقات المقفولة مع طبقات السياق (للتاب Performance ومراجعة A+++)");
+    // layer columns (order flow, session, news, funding, OI, score) let the lab-style review check which layers add R on YOUR trades
+    const cell = v => { const x = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+    csvB.onclick = () => { const st = Journal.stats(+S.jc, S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3), rows = ["time,symbol,side,tf,r,entry_time,rr,score_pct,tags,of,session,news,funding,oi"].concat(st.closed.map(t => [new Date(t.t1).toISOString(), t.symbol || t.sym || "", t.dir === "bullish" ? "long" : "short", t.tfk || "", (+t.r).toFixed(3),
+      t.t0 ? new Date(t.t0).toISOString() : "", t.rr != null ? (+t.rr).toFixed(2) : "", t.pct != null ? t.pct : "", t.tags, t.ctx && t.ctx.of, t.ctx && t.ctx.ses, t.ctx && t.ctx.news, t.ctx && t.ctx.fund, t.ctx && t.ctx.oi].map(cell).join(",")));
       const txt = rows.join("\n"); try { const a2 = document.createElement("a"); a2.href = URL.createObjectURL(new Blob([txt], {type:"text/csv"})); a2.download = "journal_trades.csv"; document.body.append(a2); a2.click(); a2.remove(); }
       catch(e){}
       try { navigator.clipboard.writeText(txt).then(() => { csvB.textContent = "✓"; setTimeout(() => csvB.textContent = "CSV", 1500); }, () => {}); } catch(e2){} };   // also copied to the clipboard in case the host page blocks downloads

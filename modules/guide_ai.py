@@ -90,10 +90,13 @@ def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (f
     contents.append({"role": "user", "parts": [{"text": "Screen context (data): " + ctx_txt + "\n\nQuestion: " + q}]})
     sch = {"type": "OBJECT", "required": ["say", "go", "page"], "properties": {"say": {"type": "STRING"},
            "go": {"type": "STRING", "enum": TARGETS}, "page": {"type": "STRING", "enum": PAGES}}}
-    r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
-                      headers={"x-goog-api-key": gemini_key(), "Content-Type": "application/json"}, timeout=25,
-                      json={"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
-                            "generationConfig": {"responseMimeType": "application/json", "responseSchema": sch, "maxOutputTokens": 2048}})
+    body = {"systemInstruction": {"parts": [{"text": SYSTEM}]}, "contents": contents,
+            "generationConfig": {"responseMimeType": "application/json", "responseSchema": sch, "maxOutputTokens": 2048}}
+    for m in dict.fromkeys([model, "gemini-2.5-flash", "gemini-2.0-flash"]):   # a retired / unknown model name (404) tries the next one
+        r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent",
+                          headers={"x-goog-api-key": gemini_key(), "Content-Type": "application/json"}, timeout=25, json=body)
+        if r.status_code != 404:
+            break
     r.raise_for_status()
     parts = ((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
     out = json.loads("".join(p.get("text", "") for p in parts if not p.get("thought")) or "{}")

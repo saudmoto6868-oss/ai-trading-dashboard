@@ -13,7 +13,11 @@ jobs:
         run: |
           [ -n "$K" ] || { echo "::error::secret ANTHROPIC_API_KEY is empty / missing"; exit 1; }
           echo "key starts with: ${K:0:10}  length: ${#K}  spaces/newlines: $(printf '%s' "$K" | tr -cd ' \n\r\t' | wc -c)  quotes: $(printf '%s' "$K" | tr -cd '"\047' | wc -c)"
-          code=$(curl -s -o r.json -w '%{http_code}' https://api.anthropic.com/v1/messages -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" \
-            -H "content-type: application/json" -d '{"model":"claude-haiku-5-5","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}')
-          echo "Anthropic API status: $code"; python3 -c "import json;d=json.load(open('r.json'));print('error:', (d.get('error') or {}).get('type'), (d.get('error') or {}).get('message'))" || true
-          rm -f r.json; [ "$code" = "200" ]
+          ok=0
+          for m in claude-haiku-5-5 claude-sonnet-5-5 claude-opus-5-5; do
+            code=$(curl -s -o r.json -w '%{http_code}' https://api.anthropic.com/v1/messages -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" \
+              -H "content-type: application/json" -d '{"model":"'$m'","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}')
+            echo "$m -> $code $(python3 -c "import json;d=json.load(open('r.json'));e=d.get('error') or {};print(e.get('type',''), e.get('message',''))" 2>/dev/null)"
+            [ "$code" = "200" ] && ok=1
+          done
+          rm -f r.json; [ "$ok" = "1" ]

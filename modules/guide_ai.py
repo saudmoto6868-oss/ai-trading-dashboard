@@ -52,8 +52,8 @@ def api_key() -> str:
     return key
 
 
-def gemini_key() -> str:
-    return _cfg("GEMINI_API_KEY", "")
+def gemini_key() -> str:   # the usual names a Google AI Studio key is saved under
+    return _cfg("GEMINI_API_KEY", "") or _cfg("GOOGLE_API_KEY", "") or _cfg("GEMINI_KEY", "")
 
 
 def provider() -> str:

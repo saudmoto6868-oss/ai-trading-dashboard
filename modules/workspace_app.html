@@ -34,6 +34,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .ihelp{margin-left:2px;padding:0 5px;font-size:11px;opacity:.7}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
+body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the belt lives in the top bar */
 #strip .lbl{flex:none;color:var(--mut);font-size:10px;text-transform:uppercase}
 .stpop{position:fixed;z-index:2147483000;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
 .stpop label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
@@ -4149,9 +4150,24 @@ Ws.stratPop = (anchor, onChange) => {
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
 /* quick-jump strip: live setup chips from the scanner; click = load symbol + setup on the chart */
+// the top bar (another frame of the same page) shows the belt in the empty band under it when it can; this frame keeps its own strip as the fallback
+const ribHost = () => { try { for (const f of window.parent.document.querySelectorAll("iframe")){ const w = f.contentWindow; if (w && w !== window && typeof w.__xpixRibbon === "function" && f.getBoundingClientRect().height > 0) return w; } } catch(_){} return null; };
+const ribItem = (e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), pl = e.plan || {}, risk = Math.abs((pl.entry||0) - (pl.stop||0)),
+    rr = risk > 0 && pl.tps && pl.tps.length ? Math.abs(pl.tps[0] - pl.entry)/risk : null, fresh = e._t && Date.now() - e._t < 15*60000;
+  return {i, sym:e.symbol.replace(/-(USDT|USDC|SWAP)$/,""), dir:long_ ? 1 : -1, tags:(e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "), meta:ttTxt(e.ttype)+" · "+(e.tfk||""), pct, hot:pct >= 70,
+    rr:rr ? Math.round(rr*10)/10 : null, fresh, tip:(e.tags||[]).map(t => tagTip(t) || t[0]).join("\n")+(pl.entry ? "\n"+Lg("entry ","دخول ")+fmtP(pl.entry)+" · "+Lg("stop ","ستوب ")+fmtP(pl.stop)+" · "+Lg("target ","هدف ")+fmtP(pl.tps[0]) : "")}; };
 Ws.drawStrip = () => {
   const box = document.getElementById("strip"); if (!box) return; const rows = readyList().slice(0, 40), TFC = TFC_ALL;
-  const sig = lang+"|"+rows.map(e => e.symbol+e.direction+e.tfk+e.score+(e.tags||[]).length).join(",")+"|"+(CFG.scanning ? 1 : 0); if (box._sig === sig) return; box._sig = sig;   // unchanged list: leave the strip alone (no flicker, no scroll reset)
+  const sig = lang+"|"+rows.map(e => e.symbol+e.direction+e.tfk+e.score+(e.tags||[]).length).join(",")+"|"+(CFG.scanning ? 1 : 0);
+  const host = MOB ? null : ribHost();
+  if (host){   // show it in the top bar: summary + chips (click = this frame shows the setup on the chart)
+    document.body.classList.add("rib-out"); if (host.__xpixRibbonSig === sig) return;
+    const items = rows.map(ribItem), up = items.filter(x => x.dir > 0).length;
+    host.__xpixRibbon({sig, ar:lang === "ar", label:(lang === "ar" ? "إشارات حية" : "Live setups"), n:items.length, up, dn:items.length - up, empty:rows.length ? "" : (CFG.scanning ? T("scanning") : T("rdEmpty")), items},
+      i => { const e = rows[i]; if (e) Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); });
+    return; }
+  document.body.classList.remove("rib-out");
+  if (box._sig === sig) return; box._sig = sig;   // unchanged list: leave the strip alone (no flicker, no scroll reset)
   const keep = box.scrollLeft; box.innerHTML = ""; const lb = el("span","lbl"); lb.textContent = lang === "ar" ? "إشارات حية" : "Live setups"; box.append(lb);
   if (!rows.length){ const m = el("span","m"); m.textContent = CFG.scanning ? T("scanning") : T("rdEmpty"); box.append(m); box._loop = 0; return; }
   const mk = e => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), c = el("span","chip");

@@ -54,6 +54,15 @@
 #logo rect{transform-box:fill-box;transform-origin:50% 100%;animation:bcWave 3.2s cubic-bezier(.45,0,.25,1) infinite}
 @keyframes bcWave{0%,40%,100%{transform:scaleY(1);fill:#e3e4e8}12%{transform:scaleY(.55);fill:#f0b90b}24%{transform:scaleY(1.04);fill:#ffe9a3}}
 @media (prefers-reduced-motion:reduce){#logo rect{animation:none}}
+/* the live-setups belt (sent by the Workspace frame) in the band under the bar, right of the logo tab */
+#ribbon{position:absolute;top:52px;right:2px;height:17px;display:none;align-items:center;gap:6px;overflow:hidden;z-index:2}
+#ribbon.on{display:flex}#ribbon .rl{flex:none;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);white-space:nowrap}#ribbon .rl b{color:var(--txt);font-weight:600}
+#ribT{flex:1;min-width:0;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;cursor:grab;white-space:nowrap}#ribT::-webkit-scrollbar{display:none}
+#ribT .c{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:9px;padding:0 7px;height:16px;font-size:10px;cursor:pointer;background:var(--panel)}
+#ribT .c:hover{background:#1e2329}#ribT .c b{font-weight:700}#ribT .c .m{color:var(--mut)}#ribT .c .rr{color:#4aa3ff}
+#ribT .c .nw{font-size:8px;font-weight:700;color:#0b0e11;background:var(--acc);border-radius:6px;padding:0 4px}
+#ribT .c.hot{animation:rg 1.2s ease-in-out infinite}@keyframes rg{50%{box-shadow:0 0 8px var(--hc)}}
+@media (prefers-reduced-motion:reduce){#ribT .c.hot{animation:none}}
 </style></head><body>
 <div id="strip">
   <div id="logo"></div>
@@ -64,6 +73,7 @@
   <div class="clk"><small>NY</small><b id="tn">--:--:--</b></div>
   <div class="sep"></div><div class="lk" id="wm" title="World map: events (Alt+W)">🌐</div><div class="lk" id="kb" title="Keyboard shortcuts">⌨</div></div>
   <div class="pop" id="kbPop"></div>
+  <div id="ribbon"><span class="rl" id="ribL"></span><div id="ribT"></div></div>
   <div class="pop" id="fvPop"></div>
   <div class="pop" id="newsPop"></div>
   <div class="pop" id="wmPop">
@@ -99,6 +109,26 @@ let openId = null;
 function closeAll(){ ["newsPop","fvPop","wmPop","kbPop"].forEach(i => $(i).classList.remove("on")); openId = null; setFrame(BASE_H); }
 function openPop(id, h){ closeAll(); $(id).classList.add("on"); openId = id; setFrame(h); }
 document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(".pop,#tick,#wm,.fv,#kb")) closeAll(); });
+/* ---- live-setups belt: the Workspace frame calls window.__xpixRibbon(data, onClick) ---- */
+(() => { const rb = $("ribbon"), T = $("ribT"); let loop = 0, hover = false, down = false, sx = 0, sl = 0, moved = false, last = 0, acc = 0, click = null;
+  const place = () => { const lg = $("logo"); rb.style.left = ((lg ? lg.getBoundingClientRect().right : 0) + 10)+"px"; };
+  window.__xpixRibbon = (d, onClick) => { window.__xpixRibbonSig = d.sig; click = onClick; place(); rb.classList.add("on");
+    $("ribL").innerHTML = esc(d.label)+(d.n ? ' <b>'+d.n+'</b> <span style="color:#0ecb81">▲'+d.up+'</span> <span style="color:#f6465d">▼'+d.dn+'</span>' : "");
+    const keep = T.scrollLeft; T.innerHTML = ""; if (!d.n){ T.innerHTML = '<span style="color:var(--mut);font-size:10px">'+esc(d.empty)+'</span>'; loop = 0; return true; }
+    const mk = x => { const c = document.createElement("span"), col = x.dir > 0 ? "#0ecb81" : "#f6465d"; c.className = "c"+(x.hot ? " hot" : ""); c.style.borderColor = col; c.style.setProperty("--hc", col); c.title = x.tip;
+      c.innerHTML = (x.fresh ? '<span class="nw">'+(d.ar ? "جديد" : "NEW")+'</span>' : "")+'<b>'+esc(x.sym)+'</b> <span style="color:'+col+'">'+(x.dir > 0 ? "▲" : "▼")+'</span> '+esc(x.tags)+' <span class="m">'+esc(x.meta)+' '+x.pct+'%</span>'+(x.rr ? ' <span class="rr">'+x.rr+'R</span>' : "");
+      c.onclick = () => { if (!moved && click) try { click(x.i); } catch(_){} }; return c; };
+    const first = d.items.map(mk); first.forEach(c => T.append(c)); let w1 = 0; first.forEach(c => w1 += c.offsetWidth + 5);
+    loop = w1 > T.clientWidth ? w1 : 0; if (loop){ const sp = document.createElement("span"); sp.style.cssText = "flex:none;width:12px"; T.append(sp); loop = w1 + 17; d.items.map(mk).forEach(c => T.append(c)); }
+    T.scrollLeft = loop ? keep % loop : 0; return true; };
+  addEventListener("resize", place);
+  T.addEventListener("pointerenter", () => hover = true); T.addEventListener("pointerleave", () => hover = false);
+  T.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sl = T.scrollLeft; moved = false; });
+  addEventListener("pointermove", e => { if (!down) return; const dx = e.clientX - sx; if (Math.abs(dx) > 4) moved = true; if (moved){ let v = sl - dx; if (loop) v = ((v % loop) + loop) % loop; T.scrollLeft = v; } });
+  addEventListener("pointerup", () => { down = false; setTimeout(() => moved = false, 0); });
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const tick = t => { const dt = Math.min(100, t - (last || t)); last = t; if (loop && !hover && !down && !reduce && !document.hidden){ acc += 26*dt/1000; if (acc >= 1){ const k = Math.floor(acc); acc -= k; T.scrollLeft += k; if (T.scrollLeft >= loop) T.scrollLeft -= loop; } } requestAnimationFrame(tick); };
+  requestAnimationFrame(tick); })();
 /* ---- keyboard shortcuts: work on the whole page and inside the Workspace (same-origin frames) ---- */
 const KB = [["Alt+1 … 7", ["Pages: Workspace, Scanner, Lab, Playbook, Stats, AI, Alerts","الصفحات: الوورك سبيس، السكانر، المعمل، الدليل، الأداء، الذكي، التنبيهات"]],
   ["Alt+F", ["Fold / unfold the header","طي / فتح الشريط العلوي"]], ["Alt+T", ["Next theme","الثيم اللي بعده"]], ["Alt+L", ["Arabic / English","عربي / إنجليزي"]],

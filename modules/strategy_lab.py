@@ -24,7 +24,8 @@ from pathlib import Path
 
 import numpy as np
 
-from modules.signals import BULL, atr_series, detect_all
+from modules.harmonic import find_harmonics
+from modules.signals import BEAR, BULL, atr_series, detect_all
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
@@ -41,7 +42,7 @@ SCHOOL = {
     "turtle55": "Trend (hedge fund)", "ob": "SMC / ICT", "fvg": "SMC / ICT", "breaker": "SMC / ICT", "unicorn": "SMC / ICT", "msb_ob": "SMC / ICT",
     "ote": "Fibonacci", "fib": "Fibonacci", "cisd": "SMC / ICT", "m2022": "SMC / ICT", "sweep": "Liquidity", "liqline": "Liquidity", "zombie": "Liquidity",
     "crt": "Liquidity", "judas": "Time (sessions)", "sess_amd": "Time (sessions)", "orb": "Time (sessions)", "kzs": "Time (sessions)", "po3": "Time (sessions)",
-    "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
+    "harmonic": "Harmonic (XABCD)", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
 }
@@ -114,7 +115,11 @@ def walk(df, tf, stride=4, seed=0):
     vol = df["volume"].values.astype(float) if "volume" in df else np.zeros(len(df))
     natr = atr / np.where(cl > 0, cl, 1)
     for i in range(150, len(df) - 2, stride):
-        sigs, _ = detect_all(df.iloc[max(0, i + 1 - WIN):i + 1].reset_index(drop=True))
+        win = df.iloc[max(0, i + 1 - WIN):i + 1].reset_index(drop=True)
+        sigs, _ = detect_all(win)
+        for p in find_harmonics(win, max_age=2):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
+            if not p.get("forming"):
+                sigs.append({"key": "harmonic", "family": "Harmonic", "direction": BULL if p["dir"] == "bull" else BEAR})
         if not sigs or not atr[i] > 0:
             continue
         rb = _outcome(hi, lo, cl, i, 1 if rng.rand() < .5 else -1, STOP_ATR * atr[i], H)

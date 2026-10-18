@@ -155,7 +155,7 @@ def live_token(rid) -> dict:
     if cnt["day"] != today:
         cnt["day"], cnt["n"] = today, 0
     live_n = cnt.setdefault("live", {})
-    if live_n.get(today, 0) >= int(_cfg("GUIDE_LIVE_CAP", "40")) or st.session_state.get("guide_live_n", 0) >= 15:
+    if live_n.get(today, 0) >= int(_cfg("GUIDE_LIVE_CAP", "40")) or st.session_state.get("guide_live_n", 0) >= int(_cfg("GUIDE_LIVE_SESSION_CAP", "15")):
         return {"id": rid, "err": "cap"}
     model = _cfg("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
     try:
@@ -195,7 +195,7 @@ def answer(req: dict, hist: list) -> dict:
     today = _dt.date.today().isoformat()
     if cnt["day"] != today:
         cnt["day"], cnt["n"] = today, 0
-    if cnt["n"] >= int(_cfg("GUIDE_DAILY_CAP", "150")) or st.session_state.get("guide_n", 0) >= SESSION_CAP:
+    if cnt["n"] >= int(_cfg("GUIDE_DAILY_CAP", "150")) or st.session_state.get("guide_n", 0) >= int(_cfg("GUIDE_SESSION_CAP", str(SESSION_CAP))):
         return {"id": rid, "err": "cap"}
     ctx = req.get("ctx") or {}
     ctx_txt = json.dumps({k: ctx[k] for k in sorted(ctx)}, ensure_ascii=False)[:1200]

@@ -6,3 +6,4 @@ streamlit-autorefresh
 quantstats
 pandas-ta-classic
 biquote
+anthropic>=1.15,<2

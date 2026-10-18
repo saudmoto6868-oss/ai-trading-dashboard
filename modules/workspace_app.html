@@ -844,6 +844,7 @@ const Hub = {
           payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
         } else if (kind === "trades"){
           const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
+          { const mx = d.length ? Math.max(...d.map(x => +x.ts || 0)) : 0; if (mx > 0 && Math.abs(mx - nowS()) > 60000) SKEW = mx - Date.now(); }   // PC clock wrong and /public/time failed: take the exchange time from the prints
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
@@ -2698,7 +2699,7 @@ class Panel {
   }
   syncMarks(){
     const ch = this.chart, d = ch.data; if (!d.length || !this.flt) return;
-    const rows = d.slice(-14), atr = rows.reduce((a,k) => a + (k.h - k.l), 0)/rows.length || 0, now = Date.now(), out = [];
+    const rows = d.slice(-14), atr = rows.reduce((a,k) => a + (k.h - k.l), 0)/rows.length || 0, now = nowS(), out = [];
     this.flt.events.filter(e => now - e.t < Math.max(15, (ch.st.flow.age|0) || 120)*60000 && (e.ev === "ABSORB" || e.ev === "FILLED")).slice(0, 12).forEach(e => {
       if (e.ev === "ABSORB"){ const dir = e.side === "ask" ? -1 : 1; out.push({t:e.t, p:e.p, kind:"absorb", dir, tgt:e.p + dir*1.5*atr}); }
       else out.push({t:e.t, p:e.p, kind:"sweep", dir:e.side === "bid" ? -1 : 1});
@@ -2716,7 +2717,7 @@ class Panel {
      Outcomes are followed live in this browser and kept per symbol (LS_sync_SYM, last 300): a forward test, not a backtest. */
   syncTick(){
     const ch = this.chart, d = ch.data; if (!ch.syncOn || !d.length || !this.flt) return;
-    const now = Date.now(), S = ch.st.sync, G = ch.gaugeData(nowS()), sym = this.state.sym, px = d[d.length-1].c;
+    const now = nowS(), S = ch.st.sync, G = ch.gaugeData(now), sym = this.state.sym, px = d[d.length-1].c;
     { const cx = Ctx.cache[sym]; if (!cx || now - cx.t > 60000) Ctx.get(sym); }
     const book = G.bk ? G.bk.v : null, tape = G.tr ? G.tr.v : null; let lim = 0, nl = 0;
     this.flt.events.forEach(e => { if (now - e.t > (S.win || 60)*1000) return; const v = e.ev === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.ev === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.ev === "FILLED" ? (e.side === "ask" ? 1 : -1) : e.ev === "ABSORB" ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
@@ -3861,13 +3862,13 @@ function drawDepth(cv, book){
   area(B, "#0ecb81", "rgba(14,203,129,.28)"); area(A, "#f6465d", "rgba(246,70,93,.28)");
 }
 function absorbEvents(lt, rows){
-  const now = Date.now(), seen = {};
+  const now = nowS(), seen = {};   // exchange time, like the candles (PC clock may be off)
   rows.filter(r => r.absorb).forEach(r => { const o = seen[r.p] = seen[r.p] || {q:0, adir:r.adir}; o.q += r.q; });
   Object.entries(seen).forEach(([p,o]) => { const k = p+"|"+Math.floor(now/120000); if (lt.abs.has(k)) return; lt.abs.add(k); lt.events.unshift({t:now, ev:"ABSORB", side:o.adir === "sellers" ? "ask" : "bid", p:+p, q:o.q}); });
   lt.events = lt.events.slice(0, 200);
 }
 function limitUpdate(lt, book, rows){
-  const now = Date.now(), cur = {};
+  const now = nowS(), cur = {};
   [["bid", book.bids],["ask", book.asks]].forEach(([side, arr]) => {
     const med = median(arr.map(x=>x.q));
     arr.forEach(x => { if (med && x.q >= settings.big*med) cur[side+"|"+x.p] = x.q; });

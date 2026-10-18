@@ -30,7 +30,7 @@ def fetch_long(symbol, tf, bars=1000, base_url=None, sleep=0.12):
     url = (base_url or OKX_CANDLES_URL)
     hist = url.replace("/market/candles", "/market/history-candles")
     rows, after = [], None
-    for page in range(12):
+    for page in range(max(12, (bars - 300 + 99) // 100 + 1)):   # 300 newest + 100 per older page
         u, lim = (url, 300) if page == 0 else (hist, 100)
         params = {"instId": symbol, "bar": _BAR[tf], "limit": lim}
         if after:

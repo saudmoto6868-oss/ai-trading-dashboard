@@ -31,6 +31,7 @@ OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
 TFS = ("1m", "15m", "1h", "4h", "1d")
 HORIZON = {"1m": 60, "15m": 64, "1h": 48, "4h": 30, "1d": 20}
 BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
+GZ_BARS = {"15m": 5000, "1h": 5000, "4h": 3000, "1d": 1500}   # longer history for the Gann zone out-of-sample test (more trades)
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
 TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
 SYMBOLS = ("BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "DOGE-USDT", "HL:xyz:GOLD", "HL:xyz:SP500")
@@ -250,7 +251,7 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
                 L.append(f"| {tf} shapes 120/180/240/360 deg | {100 * q2:.1f} | {n2} | {100 * q3:.1f} | {n3} | {(q2 - q3) / se2:+.1f} |")
         L.append("Rough sigma (overlapping tries). Above +3 on several timeframes would be evidence for Gann timing; around 0 = ordinary offsets. Random-walk self-tests: fixed counts -1.2; shapes (control = same points with the cycle length of another swing) +0.4 to +2.5 over 4 seeds, so only > +3 on several timeframes counts.")
     if gzone:
-        L += ["", "## Gann zone trades OUT OF SAMPLE (grid fitted on the first 60 % of each series, traded on the last 40 %; Workspace rule incl. time stop)", "",
+        L += ["", "## Gann zone trades OUT OF SAMPLE (walk-forward: grid refitted on everything before each 10 % slice of the last half, traded only in that slice; Workspace rule incl. time stop)", "",
               "| tf | trades | win % | avg R | random-direction avg R | difference (t) |", "|---|---|---|---|---|---|"]
         for tf, rs in sorted(gzone.items()):
             if not rs:
@@ -287,9 +288,14 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
             g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]})
             for k in acc:
                 acc[k][0] += g[k][0]; acc[k][1] += g[k][1]
-            if tf in ("1h", "4h", "1d"):
+            if tf in GZ_BARS:
                 try:
-                    gzone.setdefault(tf, []).extend(trade_test(df.reset_index(drop=True), grng))
+                    dz = df
+                    try:
+                        dz = fetch(sym, tf, GZ_BARS[tf]) if GZ_BARS[tf] > len(df) else df
+                    except Exception as e:
+                        log(f"gann zone long fetch {sym} {tf}: {type(e).__name__} - using {len(df)} bars")
+                    gzone.setdefault(tf, []).extend(trade_test(dz.reset_index(drop=True), grng))
                 except Exception as e:
                     log(f"gann zone {sym} {tf}: {type(e).__name__} {e}")
             if tf == "1d":

@@ -1,7 +1,7 @@
 """Out-of-sample test of the Workspace 'Gann zone trades' (same rules as workspace_app.html gannFit / gannTrades, timeframe grid only).
 
-Walk-forward: the Gann grid (start swing, spacing, time spacing) is fitted on the first FIT_SHARE of the candles only; the zone rule then trades
-the remaining candles it never saw:
+Walk-forward (FOLDS): for each fold (a, b) the Gann grid (start swing, spacing, time spacing) is refitted on candles [0, a) only and the zone
+rule enters only on candles [a, b) it never saw (exits may run past b) - like the live chart, which refits as new candles arrive:
   * time windows = start + k x time spacing (+- ZW bars); price levels = Se7s grid (averages, square, secondary angles, rings to cover the range);
   * a candle touching a level (+- 0.25 ATR) that closes back away from it (body in that direction, > 0.1 ATR past the level) = entry at its close;
   * stop = beyond the touch - 0.25 ATR; TP1 = next level in the direction at >= 1R (else 1.5R); time stop = the second time window after entry.
@@ -13,6 +13,7 @@ import math
 import numpy as np
 
 FIT_SHARE, ZW, K_PIV = 0.6, 2, 5
+FOLDS = ((.5, .6), (.6, .7), (.7, .8), (.8, .9), (.9, 1.0))
 
 
 def pivots(h, l, K=K_PIV):
@@ -95,10 +96,17 @@ def fit(h, l, c):
     return best
 
 
-def trade_test(df, rng):
-    """-> list of (R, R_random) for zone trades in the out-of-sample part of one series."""
+def trade_test(df, rng, folds=FOLDS):
+    """-> list of (R, R_random) for zone trades in the out-of-sample folds of one series."""
     h, l, c, o = (df[k].values.astype(float) for k in ("high", "low", "close", "open"))
-    n = len(c); cut = int(n * FIT_SHARE); F = fit(h[:cut], l[:cut], c[:cut])
+    n = len(c); out = []
+    for a, b in folds:
+        out += _fold(h, l, c, o, n, int(n * a), int(n * b), rng)
+    return out
+
+
+def _fold(h, l, c, o, n, cut, end, rng):
+    F = fit(h[:cut], l[:cut], c[:cut])
     if not F:
         return []
     atr, tol = F["atr"], 0.25 * F["atr"]
@@ -109,7 +117,7 @@ def trade_test(df, rng):
     for wi, tk in enumerate(wins):
         if tk < cut:
             continue
-        for i in range(max(cut, tk - ZW), min(n, tk + ZW + 1)):
+        for i in range(max(cut, tk - ZW), min(end, tk + ZW + 1)):
             near = lv[(lv >= l[i] - tol) & (lv <= h[i] + tol)]; done = False
             for L in near:
                 d = 1 if (c[i] > L + .1 * atr and c[i] > o[i] and l[i] <= L + tol) else -1 if (c[i] < L - .1 * atr and c[i] < o[i] and h[i] >= L - tol) else 0

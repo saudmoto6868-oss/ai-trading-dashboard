@@ -1462,6 +1462,7 @@ class CandleChart {
     if (this.bvdOn) this.paintBvd(c, py, dec, i0, i1);
     if (this.ewOn) this.paintEWauto(c, py, dec);
     if (this.fpOn || this.deltaOn) this.paintFp(c, py, dec, i0, i1, PB);
+    this.paintJournal(c, py, dec);   // journal trades of this symbol: kept on every timeframe, closed ones dimmed (2026-10-19)
     if (this.bubOn && !this.colOn) this.paintBub(c, py, i0, i1);   // with the order-flow column on, the bubbles live in the column instead
     if (this.dotOn) this.paintDots(c, py, i0, i1);
     if (this.mkOn) this.paintMk(c, py, PR);
@@ -2718,6 +2719,29 @@ Object.assign(CandleChart.prototype, {
     c.fillStyle = "rgba(0,0,0,.65)"; c.fillRect(bx, by, bw, 18); c.fillStyle = "#4aa3ff"; c.textAlign = "left"; c.fillText(txt, bx + 7, by + 13);
     c.restore();
   },
+  paintJournal(c, py, dec){
+    const d = this.data, tr = this.jtr; if (!tr || !tr.length || !d || !d.length) return;
+    const last = d[d.length-1].t;
+    c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
+    for (const t of tr){
+      const x0 = this.tx(t.t0), x1 = this.tx(t.t1 || last);
+      if (!(x1 >= 0) || x0 > this.PR) continue;
+      const closed = t.status !== "open", long_ = t.dir === "bullish", w = Math.max(3, x1 - x0);
+      const yE = py(t.entry), yS = py(t.sl), yT = py(t.tp1);
+      c.globalAlpha = closed ? .28 : 1;
+      c.fillStyle = "rgba(14,203,129,.16)"; c.fillRect(x0, Math.min(yE,yT), w, Math.abs(yE-yT));
+      c.fillStyle = "rgba(246,70,93,.16)"; c.fillRect(x0, Math.min(yE,yS), w, Math.abs(yE-yS));
+      c.lineWidth = 1;
+      c.strokeStyle = "#4aa3ff"; c.beginPath(); c.moveTo(x0, yE); c.lineTo(x1, yE); c.stroke();
+      c.strokeStyle = "#f6465d"; c.beginPath(); c.moveTo(x0, yS); c.lineTo(x1, yS); c.stroke();
+      c.strokeStyle = "#0ecb81"; c.beginPath(); c.moveTo(x0, yT); c.lineTo(x1, yT); c.stroke();
+      const lab = t.status === "tp" ? "TP ✓ "+(+t.r).toFixed(2)+"R" : t.status === "sl" ? "SL ✗ "+(+t.r).toFixed(2)+"R" : t.status === "nf" ? "no fill" : t.status === "exp" ? "expired" : "open";
+      c.font = "10px sans-serif"; c.textAlign = "left"; c.fillStyle = closed ? "#848e9c" : (long_ ? "#0ecb81" : "#f6465d");
+      c.fillText((long_ ? "Long" : "Short")+" · "+lab, Math.max(x0, 0) + 4, yE - 6);
+      c.globalAlpha = 1;
+    }
+    c.restore();
+  },
   paintSetupBox(c, py, pl, dec){
     const ov0 = this.overlay, t00 = ov0 && ov0.t0 != null ? ov0.t0 : -Infinity;
     if (!this.data.some(b => b.t >= t00 && b.l <= pl.entry && b.h >= pl.entry)) return this.paintPending(c, py, pl, dec);
@@ -3164,7 +3188,7 @@ class Panel {
     const chan = "candle"+okxBar(tf), subMin = TFSEC[tf] < 60;
     this.chart.loadDraws(LS+"_dr_"+sym);
     if (this.jsub) Journal.subs.delete(this.jsub);
-    this.jsub = () => { if (!this.chart) return; this.chart.sigs = Journal.list.filter(t => t.symbol === sym && t.t0).map(t => ({t:t.t0, dir:t.dir, pct:t.pct, tfk:t.tfk, status:t.status})); this.chart.draw(); }; Journal.subs.add(this.jsub); this.jsub();
+    this.jsub = () => { if (!this.chart) return; this.chart.sigs = Journal.list.filter(t => t.symbol === sym && t.t0).map(t => ({t:t.t0, dir:t.dir, pct:t.pct, tfk:t.tfk, status:t.status})); this.chart.jtr = Journal.list.filter(t => t.symbol === sym && t.t0); this.chart.draw(); }; Journal.subs.add(this.jsub); this.jsub();
     { const sc = CFG.scan && CFG.scan[sym] && CFG.scan[sym][tf];   // the scanner result for exactly this symbol AND this chart timeframe (a plan from another timeframe may point the other way)
       this.chart.overlay = (sc && planOk(sc.plan, sc.dir) && passFilters(sc.dir, sc.ttype)) ? sc : null; } this.chart.marks = [];
     this.flt = {prev:null, events:[], sym, abs:new Set()};
@@ -3667,8 +3691,8 @@ class Panel {
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);
       h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
         + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "nf" ? Lg("no fill","ما اتنفذتش") : t.status === "exp" ? T("jExp") : T("jOpen");
-          return '<tr><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
-      box.innerHTML = h;
+          return '<tr data-tid="'+esc(t.id)+'" style="cursor:pointer"><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
+      box.innerHTML = h; box.onclick = e => { const r = e.target.closest && e.target.closest("tr[data-tid]"); if (r) Ws.focusTrade(r.dataset.tid); };   // a journal row jumps the chart to that trade in the past
       const mv = dlt => { const d = new Date(cy, cm+dlt, 1); S.jm = d.getFullYear()+"-"+d.getMonth(); Ws.save(); draw(); };
       box.querySelector(".jp").onclick = () => mv(-1); box.querySelector(".jn").onclick = () => mv(1);
     };
@@ -4504,6 +4528,13 @@ Ws.broadcast = (from, sym) => {
 // phones, MT5 layout: MetaTrader's bottom tabs (text only). A tab shows the first widget of its kinds and creates one if missing; the rest are under "More".
 const MTABS = [[["Quotes","الأسعار"], ["watch"], "watch"], [["Chart","الرسم البياني"], ["chart","tvc"], "chart"], [["Trade","التداول"], ["setup","dom","signals"], "setup"],
                [["History","السجل"], ["journal","alerts"], "journal"], [["Messages","الرسائل"], ["news","alerts"], "news"]];   // labels picked at build time (the language is known then)
+Ws.focusTrade = async id => {
+  const t = Journal.list.find(x => x.id === id); if (!t) return;
+  const panel = Ws.panels.find(q => q.type === "chart" && q.chart && q.state && q.state.sym === t.symbol); if (!panel) return;
+  for (let k = 0; k < 20 && panel.chart.data.length && panel.chart.data[0].t > t.t0 && !panel.noMore; k++) await panel.loadMore();
+  const ch = panel.chart, i0 = ch.data.findIndex(b => b.t >= t.t0); if (i0 < 0) return;
+  ch.r = i0 + Math.round(ch.PR/ch.bw/2); ch.clampR(); ch.saveView(); ch.draw();
+};
 Ws.mshow = p => { if (!MOB || !p) return; p.root.classList.add("p-"+p.type); Ws.panels.forEach(q => q.root.classList.toggle("mact", q === p)); Ws.mcur = p; p.min = false; p.root.classList.remove("min");
   const mm = document.getElementById("mmore"); if (mm) mm.classList.remove("on");
   document.querySelectorAll("#mnav button").forEach(b => b.classList.toggle("on", !!b._match && b._match(p))); setTimeout(() => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(e){} }, 30); };

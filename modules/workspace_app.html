@@ -543,10 +543,15 @@ function harmPlan(name, X, A, C, D, prz){   // D = price where the trade is take
   const tps = [D + sg*0.382*ad, D + sg*0.618*ad, A], risk = Math.abs(D-stop) || 1e-9;
   return {dir:sg > 0 ? "long" : "short", entry:D, stop, tps, rr:Math.abs(tps[0]-D)/risk};
 }
+function harmHit(pl, d, from){   // true once a bar after the trade point touched the stop or the last target (the trade is over)
+  const long_ = pl.dir === "long", lo = pl.stop, tp = pl.tps[2];
+  for (let j = from + 1; j < d.length; j++){ const b = d[j]; if (long_ ? (b.l <= lo || b.h >= tp) : (b.h >= lo || b.l <= tp)) return true; }
+  return false;
+}
 function harmFind(d, maxN){   // newest-first list of {name, dir, state:"done"|"forming", pts:[{i,p}] (5 for done, 4 for forming), prz, plan}
   const z = harmZigzag(d, 0.012, 3), res = [], n = d.length; if (z.length < 4 || !n) return res; const last = d[n-1].c;
   for (let e = z.length; e >= 5 && res.length < maxN; e--){
-    const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p); if (!nm || n-1 - w[4].i > 150) continue;
+    const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p); if (!nm) continue;
     const prz = harmPrz(nm, w[0].p, w[1].p, w[2].p, w[3].p);
     res.push({name:nm, dir:w[1].p > w[0].p ? "bull" : "bear", state:"done", pts:w.map(q => ({i:q.i, p:q.p})), prz, plan:harmPlan(nm, w[0].p, w[1].p, w[3].p, w[4].p, prz)});
   }
@@ -2088,9 +2093,11 @@ Object.assign(CandleChart.prototype, {
       c.fillStyle = "#ffc107"; c.font = fs; c.textAlign = "left"; c.fillText("PRZ "+F(h.prz.lo)+(h.prz.hi - h.prz.lo > 1e-12 ? " – "+F(h.prz.hi) : ""), zx + 3, z0 - 5);
       // title
       c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
-      // trade box
+      // trade box (drawn only while the trade is still open: no stop / last target touched since its point)
+      const live = forming || !harmHit(h.plan, this.data, h.pts[4].i);
       const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
-      if (q === 0 && bwid > 60){   // the trade box only for the newest pattern, so older ones do not clutter the chart c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
+      if (q === 0 && bwid > 60 && live){   // the trade box only for the newest open pattern, so older ones do not clutter the chart
+        c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
         c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
         [[pl.entry,"#4aa3ff","ENTRY "+F(pl.entry)],[pl.stop,"#f6465d","SL "+F(pl.stop)],[pl.tps[0],"#0ecb81","TP1 "+F(pl.tps[0])+"  R:R "+pl.rr.toFixed(1)],[pl.tps[1],"#0ecb81","TP2 "+F(pl.tps[1])],[pl.tps[2],"#0ecb81","TP3 (A) "+F(pl.tps[2])]].forEach(([v,cl,tx]) => { const y = py(v); c.strokeStyle = cl; c.lineWidth = 1; c.beginPath(); c.moveTo(bx, y+.5); c.lineTo(bx+bwid, y+.5); c.stroke(); c.fillStyle = cl; c.fillText(tx, bx + 3, y - 3); });
         c.fillStyle = "#b57cff"; c.fillText(Lg("HARMONIC PLAN", "خطة الهارمونيك")+(forming ? " ("+Lg("pending", "معلّقة")+")" : ""), bx + 3, Math.min(yE, yT3, yS) - 12); }

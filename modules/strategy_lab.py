@@ -44,12 +44,14 @@ TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series
 SYMBOLS = ("HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:CL", "HL:xyz:BRENTOIL", "HL:xyz:EUR", "HL:xyz:JPY", "HL:xyz:GBP",
            "HL:xyz:SP500", "HL:xyz:XYZ100", "BTC-USDT", "ETH-USDT", "SOL-USDT")
 # analysis school of each detector key (fundamental / macro is a context filter here, not a signal)
+HARM_FIT = 0.7   # harmonic "tight" key: mean ratio fit >= 0.7 (harmonic.py _fit)
 SCHOOL = {
     "ma_cross": "Trend (MA)", "ema_stack": "Trend (MA)", "vwap": "Trend (MA)", "donch": "Trend (hedge fund)", "sma1040": "Trend (hedge fund)",
     "turtle55": "Trend (hedge fund)", "ob": "SMC / ICT", "fvg": "SMC / ICT", "breaker": "SMC / ICT", "unicorn": "SMC / ICT", "msb_ob": "SMC / ICT",
     "ote": "Fibonacci", "fib": "Fibonacci", "cisd": "SMC / ICT", "m2022": "SMC / ICT", "sweep": "Liquidity", "liqline": "Liquidity", "zombie": "Liquidity",
     "crt": "Liquidity", "judas": "Time (sessions)", "sess_amd": "Time (sessions)", "orb": "Time (sessions)", "kzs": "Time (sessions)", "po3": "Time (sessions)",
-    "harm_gartley": "Harmonic: Gartley", "harm_bat": "Harmonic: Bat", "harm_butterfly": "Harmonic: Butterfly", "harm_crab": "Harmonic: Crab", "harm_cypher": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
+    "harm_gartley": "Harmonic: Gartley", "harm_bat": "Harmonic: Bat", "harm_butterfly": "Harmonic: Butterfly", "harm_crab": "Harmonic: Crab", "harm_cypher": "Harmonic: Cypher",
+    "harm_gartley_tight": "Harmonic: Gartley", "harm_bat_tight": "Harmonic: Bat", "harm_butterfly_tight": "Harmonic: Butterfly", "harm_crab_tight": "Harmonic: Crab", "harm_cypher_tight": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
 }
@@ -135,7 +137,11 @@ def walk(df, tf, stride=4, seed=0, peers=()):
         sigs, _ = detect_all(win)
         for p in find_harmonics(win, max_age=2):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
             if not p.get("forming"):
-                sigs.append({"key": "harm_" + str(p.get("name", "?")).lower(), "family": "Harmonic", "direction": BULL if p["dir"] == "bull" else BEAR})
+                hk = "harm_" + str(p.get("name", "?")).lower()
+                d = BULL if p["dir"] == "bull" else BEAR
+                sigs.append({"key": hk, "family": "Harmonic", "direction": d})
+                if p.get("fit", 0) >= HARM_FIT:   # tight-fit subset: every ratio near its Fibonacci level
+                    sigs.append({"key": hk + "_tight", "family": "Harmonic", "direction": d})
         for pdf, label, inv in peers:   # SMT: this market vs a correlated peer, over the same window (added 2026-10-19)
             sigs += smt_signals(win, _peer_slice(pdf, win["time"].iloc[0], win["time"].iloc[-1]), label, inv)
         if not sigs or not atr[i] > 0:

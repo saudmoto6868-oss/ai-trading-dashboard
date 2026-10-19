@@ -25,3 +25,12 @@ assert calls["n"] > 100, calls          # the harmonic finder runs on the walk
 assert sl.SCHOOL["harm_gartley"].startswith("Harmonic")
 assert all(not e["key"].startswith("harm") or e["fam"] == "Harmonic" for e in ev)
 print("ok strategy harmonic", len(ev), "events, finder calls", calls["n"])
+
+# quality split: an exact Gartley (all ratios on their Fibonacci level) scores 1; a pattern at the tolerance edge scores low
+from modules.harmonic import _fit
+X, A = 0.0, 100.0
+B = A - 61.8; C = B + 0.618 * (A - B); D = A - 0.786 * 100.0
+assert abs(_fit(X, A, B, C, D, "Gartley") - 1.0) < 1e-9
+edge = A - 61.8 * (1 + 0.05)   # B pushed close to the tolerance limit
+assert _fit(X, A, edge, C, D, "Gartley") < 0.5
+print("ok harmonic fit score")

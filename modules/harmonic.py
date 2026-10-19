@@ -69,8 +69,27 @@ def _check(X, A, B, C, D):
     return None
 
 
+def _fit(X, A, B, C, D, name):
+    """0..1 quality of a matched pattern: how close each measured ratio sits to the centre of its rule range
+    (1 = exact Fibonacci level, 0 = at the edge of the tolerance); the worst ratio sets the score. Added 2026-10-19 for the lab's quality split."""
+    xa, ab = abs(A - X), abs(A - B)
+    r = RULES[name]
+    pairs = [(ab / xa, r["b"])]
+    if name == "Cypher":
+        xc = abs(C - X)
+        pairs += [(xc / xa, r["cx"]), (abs(C - D) / xc, r["d"])]
+    else:
+        pairs += [(abs(C - B) / ab, r["c"]), (abs(A - D) / xa, r["d"])]
+    scores = []
+    for v, (lo, hi) in pairs:
+        mid = (lo + hi) / 2
+        dist = max(0.0, abs(v - mid) - (hi - lo) / 2)
+        scores.append(1 - min(1.0, dist / (mid * TOL)))
+    return float(min(scores))   # the worst ratio decides: one loose leg makes the whole pattern loose
+
+
 def find_harmonics(df, max_age=12, dev=0.012):
-    """Patterns whose D point is recent. -> [{name, dir:'bull'|'bear', pts:[(i,price)]*5, forming:bool}]"""
+    """Patterns whose D point is recent. -> [{name, dir:'bull'|'bear', pts:[(i,price)]*5, forming:bool, fit:0..1}]"""
     h, l, c = df["high"].values, df["low"].values, df["close"].values
     piv = zigzag(h, l, dev)
     n = len(df)
@@ -87,5 +106,6 @@ def find_harmonics(df, max_age=12, dev=0.012):
             continue
         name = _check(*[p[1] for p in pts])
         if name:
-            res.append({"name": name, "dir": "bull" if pts[1][1] > pts[0][1] else "bear", "pts": pts, "forming": forming})
+            res.append({"name": name, "dir": "bull" if pts[1][1] > pts[0][1] else "bear", "pts": pts, "forming": forming,
+                        "fit": round(_fit(*[p[1] for p in pts], name), 3)})
     return res

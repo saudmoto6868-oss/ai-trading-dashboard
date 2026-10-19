@@ -34,6 +34,9 @@ HORIZON = {"1m": 60, "15m": 64, "1h": 48, "4h": 30, "1d": 20}
 BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
 GZ_BARS = {"15m": 5000, "1h": 5000, "4h": 3000, "1d": 1500}   # longer history for the Gann zone out-of-sample test (more trades)
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
+# round-trip cost per trade, in units of R (fees + spread + slippage). A rough planning number, not a broker quote:
+# 0.10R = a trade whose 1R stop is ~0.2 % away pays ~0.2 % in costs. Override with LAB_COST_R. Every "net" column uses it.
+COST_R = float(os.environ.get("LAB_COST_R", "0.10"))
 TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
 # owner's market mix (2026-10-19): crypto ~25 %, the rest in priority order gold > oil > dollar (EUR / JPY / GBP as dollar proxies) > US indices > stocks.
 # Hyperliquid xyz perps are used for TradFi (no key, 24/7 perpetuals). Stocks: add ids here once verified on the xyz list (see hl_feed.symbols("Stocks")).
@@ -192,7 +195,7 @@ def summarize(all_events, all_bars):
     for (n, k), rs in var.items():
         x = np.asarray(rs, float); se = 1.0 / np.sqrt(max(len(x), 1))
         rows.append({"key": "*VAR*" if k == "all" else k, "school": "exit", "tf": "all", "side": n, "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
-                     "avgR": round(float(x.mean()), 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
+                     "avgR": round(float(x.mean()), 3), "net": round(float(x.mean()) - COST_R, 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
     for (k, tf, side), rs in per.items():
         s = _stat(rs); b = _stat(base[(k, tf, side)])
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
@@ -361,8 +364,9 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
         L += ["", "## Exit variants on the SAME entries (RR and break-even stop)", "",
               "Which target / exit gives the best expectancy. Break-even break = win rate needed = 1/(1+RR). t = mean R vs 0 (paired across the same entries, roughly). "
               "Only the totals below are for the whole pool; per-detector rows are in the JSON.", "",
-              "| exit | n | win % | avg R | total R | t |", "|---|---|---|---|---|---|"]
-        L += [f"| {r['side']} | {r['n']} | {r['win']} | {r['avgR']} | {r['sumR']} | {r['t']:+.2f} |" for r in vr if r["key"] == "*VAR*"]
+              f"Costs: {COST_R}R per trade assumed (net column = avg R - costs). Costs are a planning estimate, not measured.", "",
+              "| exit | n | win % | avg R | net avg R (after costs) | total R | t |", "|---|---|---|---|---|---|---|"]
+        L += [f"| {r['side']} | {r['n']} | {r['win']} | {r['avgR']} | {r['net']} | {r['sumR']} | {r['t']:+.2f} |" for r in vr if r["key"] == "*VAR*"]
     return "\n".join(L) + "\n"
 
 

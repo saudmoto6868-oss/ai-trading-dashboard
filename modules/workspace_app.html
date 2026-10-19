@@ -543,6 +543,10 @@ function harmPlan(name, X, A, C, D, prz){   // D = price where the trade is take
   const tps = [D + sg*0.382*ad, D + sg*0.618*ad, A], risk = Math.abs(D-stop) || 1e-9;
   return {dir:sg > 0 ? "long" : "short", entry:D, stop, tps, rr:Math.abs(tps[0]-D)/risk};
 }
+function harmFilled(pl, d, from){   // true once price has traded at the entry since the pattern point; no fill = no trade, so no box
+  for (let j = from; j < d.length; j++){ const b = d[j]; if (b.l <= pl.entry && b.h >= pl.entry) return true; }
+  return false;
+}
 function harmHit(pl, d, from){   // true once a bar after the trade point touched the stop or the last target (the trade is over)
   const long_ = pl.dir === "long", lo = pl.stop, tp = pl.tps[2];
   for (let j = from + 1; j < d.length; j++){ const b = d[j]; if (long_ ? (b.l <= lo || b.h >= tp) : (b.h >= lo || b.l <= tp)) return true; }
@@ -2093,8 +2097,8 @@ Object.assign(CandleChart.prototype, {
       c.fillStyle = "#ffc107"; c.font = fs; c.textAlign = "left"; c.fillText("PRZ "+F(h.prz.lo)+(h.prz.hi - h.prz.lo > 1e-12 ? " – "+F(h.prz.hi) : ""), zx + 3, z0 - 5);
       // title
       c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
-      // trade box (drawn only while the trade is still open: no stop / last target touched since its point)
-      const live = forming || !harmHit(h.plan, this.data, h.pts[4].i);
+      // trade box (drawn only once price has reached the entry and while the trade is still open: no stop / last target touched since its point)
+      const fromI = h.pts[h.pts.length-1].i, live = harmFilled(h.plan, this.data, fromI) && !harmHit(h.plan, this.data, fromI);
       const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
       if (q === 0 && bwid > 60 && live){   // the trade box only for the newest open pattern, so older ones do not clutter the chart
         c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));

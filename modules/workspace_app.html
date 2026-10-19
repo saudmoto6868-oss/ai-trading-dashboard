@@ -2085,8 +2085,9 @@ Object.assign(CandleChart.prototype, {
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
     this._ew = {k, v:out}; return out;
   },
-  htfList(tf){   // the four bigger timeframes above this one (owner: four, not two), from a fixed ladder
-    const L = ["1m","5m","15m","1H","4H","1D","1W"], i = L.indexOf(tf); return i < 0 ? [] : L.slice(i+1, i+5);
+  htfList(tf){   // the four bigger timeframes above this one, plus weekly and monthly for confirmation (owner 2026-10-19)
+    const L = ["1m","5m","15m","1H","4H","1D","1W","1M"], i = L.indexOf(tf); if (i < 0) return [];
+    return [...new Set([...L.slice(i+1, i+5), ...["1W","1M"].filter(x => L.indexOf(x) > i)])];
   },
   htfTrends(){   // [{tf, dir}] for the four bigger timeframes; each is fetched once per 5 min per symbol and shared by all charts
     if (!this.sym) return [];
@@ -2101,7 +2102,7 @@ Object.assign(CandleChart.prototype, {
       return store[k] && store[k].v;
     }).filter(Boolean);
   },
-  htfNote(c, row){   // "15m ▲  1H ▼  4H ▲  1D ▲" under the indicator notes
+  htfNote(c, row){   // "15m ▲  1H ▼  4H ▲  1D ▲  1W ▲  1M ▲" under the indicator notes
     const T = this.htfTrends(); if (!T.length) return;
     this.indNote(c, row, T.map(t => t.tf+" "+(t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–")).join("   ")+"  "+Lg("trend", "اتجاه"));
   },

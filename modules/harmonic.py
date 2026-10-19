@@ -88,10 +88,21 @@ def _fit(X, A, B, C, D, name):
     return float(min(scores))   # the worst ratio decides: one loose leg makes the whole pattern loose
 
 
-def find_harmonics(df, max_age=12, dev=0.012):
-    """Patterns whose D point is recent. -> [{name, dir:'bull'|'bear', pts:[(i,price)]*5, forming:bool, fit:0..1}]"""
+def vol_dev(df, k=4.0, lo=0.002, hi=0.04, n=200):
+    """Zig-zag swing size from volatility: k x the mean bar range (% of close) over the last n bars, clamped to [lo, hi].
+    Same formula as zzDev() in workspace_app.html (keep both in sync). A fixed 1.2 % found no swings on calm markets / small timeframes."""
+    h, l, c = df["high"].values[-n:], df["low"].values[-n:], df["close"].values[-n:]
+    if not len(c):
+        return lo
+    rng = (h - l) / np.where(c > 0, c, 1)
+    return float(min(hi, max(lo, k * rng.mean())))
+
+
+def find_harmonics(df, max_age=12, dev=0.012, vol=False):
+    """Patterns whose D point is recent. vol=True: swing size from vol_dev() instead of dev.
+    -> [{name, dir:'bull'|'bear', pts:[(i,price)]*5, forming:bool, fit:0..1}]"""
     h, l, c = df["high"].values, df["low"].values, df["close"].values
-    piv = zigzag(h, l, dev)
+    piv = zigzag(h, l, vol_dev(df) if vol else dev)
     n = len(df)
     res = []
     sets = []

@@ -56,6 +56,8 @@ SCHOOL = {
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
 }
+for _n in ("gartley", "bat", "butterfly", "crab", "cypher"):   # harmonic on volatility-scaled swings (added 2026-10-19)
+    SCHOOL.update({f"harm_vol_{_n}": f"Harmonic: {_n.title()} (vol swings)", f"harm_vol_{_n}_tight": f"Harmonic: {_n.title()} (vol swings)"})
 for _d in EW_DEGREES:   # Elliott keys: all three hard rules (r3) or two of three (r2), per degree
     SCHOOL.update({f"ew_r3_{_d}": "Elliott wave", f"ew_r2_{_d}": "Elliott wave"})
 
@@ -144,6 +146,13 @@ def walk(df, tf, stride=4, seed=0, peers=()):
                 d = BULL if p["dir"] == "bull" else BEAR
                 sigs.append({"key": hk, "family": "Harmonic", "direction": d})
                 if p.get("fit", 0) >= HARM_FIT:   # tight-fit subset: every ratio near its Fibonacci level
+                    sigs.append({"key": hk + "_tight", "family": "Harmonic", "direction": d})
+        for p in find_harmonics(win, max_age=2, vol=True):   # same patterns with volatility-scaled swings (key harm_vol_*; added 2026-10-19)
+            if not p.get("forming"):
+                hk = "harm_vol_" + str(p.get("name", "?")).lower()
+                d = BULL if p["dir"] == "bull" else BEAR
+                sigs.append({"key": hk, "family": "Harmonic", "direction": d})
+                if p.get("fit", 0) >= HARM_FIT:
                     sigs.append({"key": hk + "_tight", "family": "Harmonic", "direction": d})
         sigs += elliott_signals(win)   # Elliott impulse candidates per degree, scored by rules held (added 2026-10-19)
         for pdf, label, inv in peers:   # SMT: this market vs a correlated peer, over the same window (added 2026-10-19)

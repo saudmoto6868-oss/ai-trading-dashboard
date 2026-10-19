@@ -7,10 +7,10 @@ wave 5 in the impulse direction. Rules counted (own wording, see docs/ELLIOTT_HA
   R3  wave 3 is longer than wave 1 (proxy for "wave 3 is not the shortest": wave 5 is still unknown here)
 Keys: ew_r3_<degree> (all three rules), ew_r2_<degree> (two of three). The lab decides whether the count matters.
 Added 2026-10-19. Candles only; no network."""
-from modules.harmonic import zigzag
+from modules.harmonic import vol_dev, zigzag
 from modules.signals import BEAR, BULL
 
-DEGREES = {"d1": 0.012, "d2": 0.03}   # swing filter: 1.2 % minor, 3 % intermediate
+DEGREES = {"d1": 0.012, "d2": 0.03, "v": None}   # swing filter: 1.2 % minor, 3 % intermediate; "v" = volatility-scaled (added 2026-10-19, same as the chart)
 MAX_AGE = 8                            # zig-zag confirms a pivot 3 bars late; the walk steps every 4 bars
 
 
@@ -30,7 +30,7 @@ def elliott_signals(win):
     n = len(win)
     out = []
     for deg, dev in DEGREES.items():
-        zz = zigzag(h, l, dev)
+        zz = zigzag(h, l, vol_dev(win, 2.5, 0.001, 0.025) if dev is None else dev)
         if len(zz) < 5 or n - 1 - zz[-1][0] > MAX_AGE:
             continue
         kinds = [k for _, _, k in zz[-5:]]

@@ -1,7 +1,7 @@
 """Ask an external model (Gemini; DeepSeek / OpenAI if their key is set) to review the trading schools, and save each answer.
 
 Run in GitHub Actions (workflow school-review.yml) so the keys stay in repo Secrets, never in chat or in the code:
-  GEMINI_API_KEY (required), DEEPSEEK_API_KEY (optional), OPENAI_API_KEY (optional)
+  GEMINI_API_KEY (required), DEEPSEEK_API_KEY (optional)  (OpenAI removed 2026-10-19 to save credit)
 Output: docs/reviews/<topic>-<provider>.md. Claude (the director) reads them, checks the claims against the lab, and decides.
 The reviews are opinions with sources to verify - not evidence. Only the lab (n >= 100, t > 3, out-of-sample) is evidence.
 """
@@ -112,7 +112,6 @@ PROVIDERS = {
     "openrouter": _openrouter,
     "gemini": _gemini,
     "deepseek": lambda p: _openai_compat("https://api.deepseek.com/chat/completions", os.environ.get("DEEPSEEK_API_KEY", ""), "deepseek-chat", p) if os.environ.get("DEEPSEEK_API_KEY") else "",
-    "openai": lambda p: _openai_compat("https://api.openai.com/v1/chat/completions", os.environ.get("OPENAI_API_KEY", ""), os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), p) if os.environ.get("OPENAI_API_KEY") else "",
 }
 
 

@@ -28,7 +28,7 @@ Corrective A-B-C: B retraces 38.2-78.6% of A; C often equals A or 1.618 x A.
 - Lab: key `harmonic` added 2026-10-18; first result pending the next run. Tested on synthetic candles only.
 
 ## Plan (measurable)
-1. Lab: score Elliott counts by how many hard rules pass, and test "rules passed = 3" vs "2" out-of-sample, same entries.
+1. Lab: score Elliott counts by how many hard rules pass, and test "rules passed = 3" vs "2" out-of-sample, same entries. (Built 2026-10-19 in `modules/elliott_lab.py`: keys ew_r3_d1 / ew_r2_d1 / ew_r3_d2 / ew_r2_d2. Wave-3-longer-than-wave-1 is a proxy for the not-shortest rule.)
 2. Lab: harmonic per pattern name (Gartley, Bat, Butterfly, Crab, Cypher) with n >= 100 per name, or it is not evidence.
 3. App: show "forming" counts and Fib labels (after the lab says it helps, not before).
 

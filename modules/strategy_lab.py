@@ -27,6 +27,7 @@ import numpy as np
 from modules.harmonic import find_harmonics
 from modules.signals import BEAR, BULL, atr_series, detect_all
 from modules.smt import smt_signals, peers_of
+from modules.elliott_lab import DEGREES as EW_DEGREES, elliott_signals
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
@@ -55,6 +56,8 @@ SCHOOL = {
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
 }
+for _d in EW_DEGREES:   # Elliott keys: all three hard rules (r3) or two of three (r2), per degree
+    SCHOOL.update({f"ew_r3_{_d}": "Elliott wave", f"ew_r2_{_d}": "Elliott wave"})
 
 
 def _fetch(sym, tf, bars):
@@ -142,6 +145,7 @@ def walk(df, tf, stride=4, seed=0, peers=()):
                 sigs.append({"key": hk, "family": "Harmonic", "direction": d})
                 if p.get("fit", 0) >= HARM_FIT:   # tight-fit subset: every ratio near its Fibonacci level
                     sigs.append({"key": hk + "_tight", "family": "Harmonic", "direction": d})
+        sigs += elliott_signals(win)   # Elliott impulse candidates per degree, scored by rules held (added 2026-10-19)
         for pdf, label, inv in peers:   # SMT: this market vs a correlated peer, over the same window (added 2026-10-19)
             sigs += smt_signals(win, _peer_slice(pdf, win["time"].iloc[0], win["time"].iloc[-1]), label, inv)
         if not sigs or not atr[i] > 0:

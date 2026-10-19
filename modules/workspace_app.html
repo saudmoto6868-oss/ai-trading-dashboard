@@ -565,8 +565,13 @@ function harmHit(pl, d, from){   // true once a bar after the trade point touche
   for (let j = from + 1; j < d.length; j++){ const b = d[j]; if (long_ ? (b.l <= lo || b.h >= tp) : (b.h >= lo || b.l <= tp)) return true; }
   return false;
 }
+/* zigzag swing size from the market's own volatility: k x the average bar range (% of price) over the last 200 bars, clamped.
+   A fixed % (was 1.2 % harmonic, 0.6 % Elliott) found nothing on calm markets / small timeframes (gold 5m bars move ~0.05 %). */
+function zzDev(d, k, lo, hi){ const n = d.length, m = Math.min(200, n); if (!m) return lo; let s = 0;
+  for (let i = n - m; i < n; i++){ const b = d[i]; s += (b.h - b.l)/(b.c || 1); }
+  return Math.max(lo, Math.min(hi, k*s/m)); }
 function harmFind(d, maxN){   // newest-first list of {name, dir, state:"done"|"forming", pts:[{i,p}] (5 for done, 4 for forming), prz, plan}
-  const z = harmZigzag(d, 0.012, 3), res = [], n = d.length; if (z.length < 4 || !n) return res; const last = d[n-1].c;
+  const z = harmZigzag(d, zzDev(d, 4, 0.002, 0.04), 3), res = [], n = d.length; if (z.length < 4 || !n) return res; const last = d[n-1].c;
   for (let e = z.length; e >= 5 && res.length < maxN; e--){
     const w = z.slice(e-5, e), nm = harmCheck(w[0].p, w[1].p, w[2].p, w[3].p, w[4].p); if (!nm) continue;
     const prz = harmPrz(nm, w[0].p, w[1].p, w[2].p, w[3].p);
@@ -2057,7 +2062,7 @@ Object.assign(CandleChart.prototype, {
   },
   ewCount(){   // newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + this.tf; if (this._ew && this._ew.k === k) return this._ew.v;
-    const z = harmZigzag(this.data, 0.006, 3), out = []; let e = z.length;
+    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), out = []; let e = z.length;
     for (; e >= 6 && out.length < 2; e--){
       const w = z.slice(e-6, e), up = w[0].k === "L", s = up ? 1 : -1, P = w.map(q => q.p);
       const l1 = s*(P[1]-P[0]), l3 = s*(P[3]-P[2]), l5 = s*(P[5]-P[4]);

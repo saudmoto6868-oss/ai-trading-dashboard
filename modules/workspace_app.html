@@ -279,7 +279,8 @@ body.mob #mjump button{flex:none;border-radius:14px;padding:3px 12px;min-height:
 #guide .g-bub[data-sz="1"]{width:310px;font-size:12.5px}#guide .g-bub[data-sz="2"]{width:390px;font-size:13.5px}
 #guide .g-hd{display:flex;align-items:center;gap:4px;margin:-2px 0 4px}#guide .g-hd .g-sp{flex:1}
 #guide .g-hd button{padding:0 5px;font-size:10.5px;min-height:20px;line-height:18px;background:transparent;border-color:transparent;color:var(--mut)}#guide .g-hd button:hover{color:#f0b90b;border-color:rgba(240,185,11,.4)}
-#guide .g-ic svg,#guideB .gbi svg{width:16px;height:16px;display:block}#guide .g-nm{color:#f0b90b;font-size:11px;letter-spacing:.5px}
+#guide .g-ic svg,#guideB[hidden]{display:none}   /* the author rule above (display:inline-flex) would beat the hidden attribute: Mr X stayed visible while off */
+#guideB .gbi svg{width:16px;height:16px;display:block}#guide .g-nm{color:#f0b90b;font-size:11px;letter-spacing:.5px}
 #guide .g-say{max-height:9.5em;overflow:auto}#guide .g-bub[data-sz="1"] .g-say{max-height:13em}#guide .g-bub[data-sz="2"] .g-say{max-height:18em}
 #guide .g-bub.fold{width:auto!important}#guide .g-bub.fold .g-bd,#guide .g-bub.fold .g-sm,#guide .g-bub.fold .g-opt{display:none}#guide .g-bub.fold .g-fold{transform:rotate(180deg)}
 #guide .g-bot{display:none!important;flex-direction:column;align-items:stretch!important;gap:4px;border-top:1px solid var(--line);padding-top:6px}#guide .g-bub.opts .g-bot{display:flex!important}#guide .g-bub.opts .g-opt{color:#f0b90b}

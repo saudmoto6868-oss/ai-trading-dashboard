@@ -215,3 +215,5 @@ Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after de
 - e7d960a Biquote fallback + gold/silver in the Forex list.
 - 047c0de Performance tab + Journal CSV export.
 - 2026-10-19 hotfix: `hexRgb` and `hmMix` were assigned without `const`; the workspace script is strict, so the page threw "hexRgb is not defined" on load. Now declared with `const`. Lesson: check the script in strict mode, not only `new Function`.
+- 2026-10-19 Mr X button visible while off (owner screenshot): `#guideB{display:inline-flex}` overrode the `hidden` attribute set when MRX_LIVE is off. Added `#guideB[hidden]{display:none}`. Build-checked only; not checked in a browser.
+- 2026-10-19 Streamlit log warning: `st.components.v1.html` "will be removed after 2026-06-01" (date already passed). Used in modules/workspace.py, header_bar.py, main.py, guide_ai.py, tv_widget.py. Not migrated yet: needs the st.iframe API checked against the pinned Streamlit version first.

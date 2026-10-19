@@ -1759,24 +1759,25 @@ Object.assign(CandleChart.prototype, {
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
     const OF = this.st.of; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
+    const FB = OF.fpBuy || OF.color, FS = OF.fpSell || OF.color2;   // footprint colours: own override, else the Depth-of-Trade buy / sell colours (added 2026-10-19)
     const BO = 20, brk = i => { if (i < BO) return 0; let hh = -Infinity, ll = Infinity; for (let j = i-BO; j < i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return d[i].c > hh ? 1 : d[i].c < ll ? -1 : 0; };   // closed beyond the previous 20-bar range
     for (let i = i0; i <= i1; i++){
       const cd = d[i], m = this.fp.get(cd.t), bk = brk(i), isBo = bk !== 0 && brk(i-1) !== bk;   // only the FIRST candle of a breakout is marked
       if (isBo){   // the breakout candle: its body shows the buy / sell split (green = buyers, red = sellers), a small plain text under it gives the ratio
         const rg = cd.h - cd.l, est = !m, b_ = m ? m.b : (rg > 0 ? (cd.c - cd.l)/rg : .5), s_ = m ? m.s : 1 - b_, tot = (b_ + s_) || 1, bp = b_/tot, x_ = this.x(i), bwid = Math.max(5, bw*0.8), yT = Math.min(py(cd.o), py(cd.c)), yB = Math.max(py(cd.o), py(cd.c)), hB = Math.max(8, yB - yT), yT2 = yT - (hB - (yB - yT))/2;
-        c.fillStyle = OF.color2; c.fillRect(x_ - bwid/2, yT2, bwid, hB*(1 - bp)); c.fillStyle = OF.color; c.fillRect(x_ - bwid/2, yT2 + hB*(1 - bp), bwid, hB*bp);
-        c.strokeStyle = bk > 0 ? OF.color : OF.color2; c.lineWidth = 1.2; c.strokeRect(x_ - bwid/2 + .5, yT2 + .5, bwid - 1, hB - 1); c.lineWidth = 1;
-        if (bw >= 14){ const bps = Math.round(bp*100), tx = (est ? "~" : "")+Lg("Buy ", "شراء ")+bps+"% · "+Lg("Sell ", "بيع ")+(100 - bps)+"%"; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillStyle = bp >= .5 ? OF.color : OF.color2; c.fillText(tx, x_, Math.min(PB - 6, py(cd.l) + 12)); c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; } }
-      if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? OF.color : OF.color2;
+        c.fillStyle = FS; c.fillRect(x_ - bwid/2, yT2, bwid, hB*(1 - bp)); c.fillStyle = FB; c.fillRect(x_ - bwid/2, yT2 + hB*(1 - bp), bwid, hB*bp);
+        c.strokeStyle = bk > 0 ? FB : FS; c.lineWidth = 1.2; c.strokeRect(x_ - bwid/2 + .5, yT2 + .5, bwid - 1, hB - 1); c.lineWidth = 1;
+        if (bw >= 14){ const bps = Math.round(bp*100), tx = (est ? "~" : "")+Lg("Buy ", "شراء ")+bps+"% · "+Lg("Sell ", "بيع ")+(100 - bps)+"%"; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillStyle = bp >= .5 ? FB : FS; c.fillText(tx, x_, Math.min(PB - 6, py(cd.l) + 12)); c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; } }
+      if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? FB : FS;
       if (this.fpOn && (big || mid)){
         const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
         let mx = 0, poc = null; rows.forEach((v, k) => { const t = v.b + v.s; if (t > mx){ mx = t; poc = k; } });
         rows.forEach((v, k) => {
           const y = py(k*step), h = Math.max(2, Math.abs(py(k*step) - py((k+1)*step)) - 1), a = (v.b + v.s)/(mx || 1);
-          c.fillStyle = hexA(v.b >= v.s ? OF.color : OF.color2, .12+.5*a); c.fillRect(x-w/2, y-h/2, w, h);
-          if (k === poc){ c.strokeStyle = v.b >= v.s ? OF.color : OF.color2; c.lineWidth = 2; c.strokeRect(x-w/2, y-h/2, w, h); c.lineWidth = 1; }
+          c.fillStyle = hexA(v.b >= v.s ? FB : FS, .12+.5*a); c.fillRect(x-w/2, y-h/2, w, h);
+          if (k === poc){ c.strokeStyle = v.b >= v.s ? FB : FS; c.lineWidth = 2; c.strokeRect(x-w/2, y-h/2, w, h); c.lineWidth = 1; }
           if (big && (v.b + v.s) >= OF.bigx*(m.b + m.s)/Math.max(1, rows.size) && h >= 6){   // large order: dot + offset + radius proportional to its size, same colour as the cell
-            const ratio = Math.min(1, (v.b + v.s)/(mx || 1)), bc = v.b >= v.s ? OF.color : OF.color2, ox = x+w/2+5+ratio*22, rr = 2.5+ratio*5;
+            const ratio = Math.min(1, (v.b + v.s)/(mx || 1)), bc = v.b >= v.s ? FB : FS, ox = x+w/2+5+ratio*22, rr = 2.5+ratio*5;
             c.strokeStyle = bc; c.globalAlpha = .5; c.lineWidth = 1; c.beginPath(); c.moveTo(x+w/2, y); c.lineTo(ox, y); c.stroke(); c.globalAlpha = 1;
             c.fillStyle = bc; c.beginPath(); c.arc(ox, y, rr, 0, 6.3); c.fill(); c.textAlign = "left"; c.font = "bold "+fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.b + v.s), ox+rr+3, y);
             if (i === i1){ const last = d[d.length-1].c, dist = k*step - last; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((dist >= 0 ? "+" : "")+dist.toFixed(dec), ox+rr+3+26, y); } }
@@ -4367,6 +4368,9 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   col("color", L("Buy colour (bubbles, DOM, cells, delta, POC)","لون الشراء (فقاعات، DOM، خلايا، دلتا، POC)")); col("color2", L("Sell colour","لون البيع"));
   const m = el("select"); [[1, L("Sweep/absorb follow buy/sell colour","السويب/الامتصاص بلون الشراء/البيع")],[0, L("Custom marker colours","ألوان مخصصة")]].forEach(([v,l]) => m.append(Object.assign(el("option"), {value:v, textContent:l}))); m.value = OF.sidec ? 1 : 0; m.onchange = () => { OF.sidec = +m.value; onChange(); }; row(L("Marker colours","ألوان العلامات"), m);
   col("sweepC", L("Sweep marker (custom)","علامة السويب (مخصص)")); col("absC", L("Absorption marker (custom)","علامة الامتصاص (مخصص)"));
+  { const fpc = (k, base, lab) => { const i = el("input"); i.type = "color"; i.value = OF[k] || OF[base]; i.oninput = () => { OF[k] = i.value; onChange(); }; row(lab, i); };
+    fpc("fpBuy", "color", L("Footprint buy colour","لون شراء الفوتبرنت")); fpc("fpSell", "color2", L("Footprint sell colour","لون بيع الفوتبرنت"));
+    const fpr = el("button"); fpr.textContent = L("Use buy / sell colours","استخدم ألوان الشراء / البيع"); fpr.onclick = () => { OF.fpBuy = ""; OF.fpSell = ""; onChange(); pop.remove(); }; row(L("Footprint colours","ألوان الفوتبرنت"), fpr); }
   num("min", L("Bubbles: min size (0 all · 1 smart · 2 whale)","الفقاعات: أقل حجم (0 الكل · 1 ذكي · 2 حوت)"), 0, 2, 1); num("bsz", L("Bubble size ×","حجم الفقاعة ×"), 0.3, 3, 0.1);
   { const hs = el("select"); [["book", L("Bookmap thermal (blue → yellow → red)","بوك ماب حراري (أزرق ← أصفر ← أحمر)")], ["side", L("Bid / ask colours (buy & sell colour)","ألوان الطلب والعرض (لون الشراء والبيع)")], ["amber", L("Amber (old)","كهرماني (القديم)")]].forEach(([v, l]) => hs.append(Object.assign(el("option"), {value:v, textContent:l}))); hs.value = OF.hm || "book"; hs.onchange = () => { OF.hm = hs.value; onChange(); }; row(L("Heat-map colours","ألوان الهيت ماب"), hs); }
   { const hx = el("select"); [["fix", L("Fixed saved history (up to 7 days when zoomed out)","تاريخ ثابت محفوظ (لحد 7 أيام لما تبعد)")], ["live", L("Live scrolling (old, max 20 min)","لايف بيتحرك (القديم، أقصى 20 دقيقة)")]].forEach(([v, l]) => hx.append(Object.assign(el("option"), {value:v, textContent:l}))); hx.value = OF.hmm || "fix"; hx.onchange = () => { OF.hmm = hx.value; onChange(); }; row(L("Heat-map mode","نمط الهيت ماب"), hx); }

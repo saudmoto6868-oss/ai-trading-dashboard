@@ -2787,7 +2787,7 @@ Object.assign(CandleChart.prototype, {
 const Ws = { panels:[], z:10, el:null, seq:1 };
 
 // phones / small tablets (the Streamlit iframe is as wide as the screen): stacked layout + touch gestures
-const MOB = (() => { try { return window.innerWidth < 820 || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();
+const MOB = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();   // phones and tablets only: a narrow desktop window keeps the desktop layout (width alone switched it, 2026-10-19)
 let MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
 const mobH = type => { const sh = Math.min((window.screen && screen.availHeight) || 800, 1000); return Math.round(sh*(type === "chart" || type === "tvc" ? .72 : type === "dom" || type === "tape" || type === "limits" ? .6 : .5)); };
 class Panel {

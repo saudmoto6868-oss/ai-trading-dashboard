@@ -2106,8 +2106,9 @@ Object.assign(CandleChart.prototype, {
     const T = this.htfTrends(); if (!T.length) return;
     this.indNote(c, row, T.map(t => t.tf+" "+(t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–")).join("   ")+"  "+Lg("trend", "اتجاه"));
   },
-  htfAgainst(up){   // true when the nearest bigger timeframe with a known trend points the other way
-    const T = this.htfTrends(); const t = T[0]; return !!t && ((t.dir === "up" && up === false) || (t.dir === "down" && up === true));
+  htfAgainst(up){   // true when most of the bigger timeframes with a known trend point the other way (weekly and monthly count as confirmation)
+    const T = this.htfTrends().filter(t => t.dir !== "flat"); if (!T.length) return false;
+    const opp = T.filter(t => (t.dir === "up") === (up === false)).length; return opp > T.length/2;
   },
   indNote(c, row, txt){   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
     c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;

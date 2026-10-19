@@ -570,6 +570,11 @@ function harmHit(pl, d, from){   // true once a bar after the trade point touche
 function zzDev(d, k, lo, hi){ const n = d.length, m = Math.min(200, n); if (!m) return lo; let s = 0;
   for (let i = n - m; i < n; i++){ const b = d[i]; s += (b.h - b.l)/(b.c || 1); }
   return Math.max(lo, Math.min(hi, k*s/m)); }
+function htfDir(rows, tf){   // EMA50 trend of one timeframe's candles: up / down when price and the EMA agree with a 10-bar slope, else flat
+  if (!rows || rows.length < 60) return null; const k = 2/51; let e = rows[0].c; const ema = [];
+  rows.forEach(r => { e = r.c*k + e*(1-k); ema.push(e); }); const n = rows.length - 1, c = rows[n].c, slope = ema[n] - ema[n-10];
+  return {tf, dir: c > ema[n] && slope > 0 ? "up" : c < ema[n] && slope < 0 ? "down" : "flat"};
+}
 function harmFind(d, maxN){   // newest-first list of {name, dir, state:"done"|"forming", pts:[{i,p}] (5 for done, 4 for forming), prz, plan}
   const z = harmZigzag(d, zzDev(d, 4, 0.002, 0.04), 3), res = [], n = d.length; if (z.length < 4 || !n) return res; const last = d[n-1].c;
   for (let e = z.length; e >= 5 && res.length < maxN; e--){
@@ -1489,6 +1494,7 @@ class CandleChart {
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
+    if (this.ewOn || this.harmOn) this.htfNote(c, 2);   // bigger-timeframe trend, once per paint
     if (this.harmOn) this.paintHarm(c, py, dec);
     if (this.vpOn) this.paintVp(c, py, dec, PR, PB, i0, i1);
     if (this.bvdOn) this.paintBvd(c, py, dec, i0, i1);
@@ -2075,12 +2081,30 @@ Object.assign(CandleChart.prototype, {
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
     this._ew = {k, v:out}; return out;
   },
+  htfOf(tf){ return {"1m":"15m","5m":"1H","15m":"1H","30m":"4H","1H":"4H","2H":"4H","4H":"1D"}[tf] || null; },   // next bigger timeframe for the context line
+  htfTrend(){   // trend of the next bigger timeframe (EMA50 + its 10-bar slope), fetched once per 5 min per symbol; null while loading / unknown
+    const H = this.htfOf(this.tf); if (!H || !this.sym) return null;
+    const k = this.sym+"|"+H, store = this._htf = this._htf || {}, e = store[k];
+    if (!e || (!e.busy && Date.now() - e.t > 300000)){
+      store[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
+      candlesTf(this.sym, H, true, 120).then(rows => { store[k] = {t:Date.now(), v:htfDir(rows, H), busy:false}; this.draw(); })
+        .catch(() => { store[k] = {t:Date.now(), v:null, busy:false}; });
+    }
+    return store[k] ? store[k].v : null;
+  },
+  htfNote(c, row){   // "1H ▲ trend" under the indicator notes
+    const t = this.htfTrend(); if (!t) return;
+    this.indNote(c, row, t.tf+" "+(t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–")+" "+Lg("trend", "اتجاه"));
+  },
+  htfAgainst(up){   // true when a count / pattern points against the bigger trend (flat or unknown = not against)
+    const t = this.htfTrend(); return !!t && ((t.dir === "up" && up === false) || (t.dir === "down" && up === true));
+  },
   indNote(c, row, txt){   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
     c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;
     c.globalAlpha = .7; c.fillStyle = "#000"; c.fillRect(6, y - 11, w, 14); c.globalAlpha = 1; c.fillStyle = "#9aa4b1"; c.fillText(txt, 11, y); c.restore();
   },
   paintEWauto(c, py, dec){
-    const list = this.ewCount(); if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    const list = this.ewCount(); if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -2100,7 +2124,7 @@ Object.assign(CandleChart.prototype, {
   paintHarm(c, py, dec){   // XABCD legs + ratio labels, PRZ box, and the pattern's own trade box (Entry / SL / TP) - separate from the scanner signal box
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
     if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 5)};   // up to 5 patterns from the loaded bars (newest first)
-    if (!this._harm.list.length){ this.indNote(c, 0, Lg("Harmonic: no XABCD pattern on this timeframe yet", "هارمونيك: مفيش نموذج XABCD على الفريم ده لسه")); return; }
+    if (!this._harm.list.length){ this.indNote(c, 0, Lg("Harmonic: no XABCD pattern on this timeframe yet", "هارمونيك: مفيش نموذج XABCD على الفريم ده لسه")); return; } if (this.htfAgainst(this._harm.list[0].dir === "bull")) this.indNote(c, 3, Lg("Harmonic pattern against the bigger trend", "نمط هارمونيك عكس الاتجاه الأكبر"));
     const nm = ["X","A","B","C","D"], n = this.data.length, PRx = this.PR, F = v => Number(v).toFixed(dec), fs = "bold 10px ui-monospace,Menlo,Consolas,monospace";
     this._harm.list.forEach((h, q) => {
       const bull = h.dir === "bull", col = bull ? "#0ecb81" : "#f6465d", forming = h.state === "forming", P = h.pts.map(t => ({x:this.x(t.i), y:py(t.p), p:t.p})), m = P.length, bw = Math.max(this.bw, 4);

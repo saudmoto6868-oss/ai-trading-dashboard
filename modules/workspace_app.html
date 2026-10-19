@@ -2085,9 +2085,13 @@ Object.assign(CandleChart.prototype, {
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
     this._ew = {k, v:out}; return out;
   },
-  htfList(tf){   // the four bigger timeframes above this one, plus weekly and monthly for confirmation (owner 2026-10-19)
+  htfList(tf){   // six frames around this chart (owner 2026-10-19: "5 to 6 frames", option 3 = smaller ones too): up to two smaller, then the bigger ones; weekly and monthly are always there when bigger
     const L = ["1m","5m","15m","1H","4H","1D","1W","1M"], i = L.indexOf(tf); if (i < 0) return [];
-    return [...new Set([...L.slice(i+1, i+5), ...["1W","1M"].filter(x => L.indexOf(x) > i)])];
+    const smaller = L.slice(Math.max(0, i-2), i), bigger = L.slice(i+1);
+    const pick = [...smaller, ...bigger.slice(0, 4)];
+    for (let k = i-3; pick.length < 6 && k >= 0; k--) pick.unshift(L[k]);   // not enough bigger frames near the top: take the next smaller ones
+    for (const x of bigger.slice(4)) if (pick.length < 6) pick.push(x);
+    return [...new Set(pick)].slice(0, 6);
   },
   htfTrends(){   // [{tf, dir}] for the four bigger timeframes; each is fetched once per 5 min per symbol and shared by all charts
     if (!this.sym) return [];

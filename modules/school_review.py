@@ -71,7 +71,33 @@ def _openai_compat(url: str, key: str, model: str, prompt: str) -> str:
     return r.json()["choices"][0]["message"]["content"]
 
 
+# OpenRouter: one key, free open-source models (":free" ids). Ids change often; the first one the key can use wins, 404 = try the next.
+OPENROUTER_MODELS = [os.environ.get("OPENROUTER_MODEL", ""), "meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-next-80b-a3b-instruct:free"]
+
+
+def _openrouter(prompt: str) -> str:
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        return ""
+    last = ""
+    for model in [m for m in OPENROUTER_MODELS if m]:
+        for attempt in range(3):
+            r = requests.post("https://openrouter.ai/api/v1/chat/completions", timeout=180,
+                              headers={"authorization": "Bearer " + key}, json={"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 3000, "temperature": 0.3})
+            if r.status_code == 404:
+                last = f"model {model} not found"
+                break
+            if r.status_code in (429, 503):
+                last = f"{model} busy ({r.status_code})"
+                time.sleep(20 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
+    raise RuntimeError(last or "no OpenRouter model answered")
+
+
 PROVIDERS = {
+    "openrouter": _openrouter,
     "gemini": _gemini,
     "deepseek": lambda p: _openai_compat("https://api.deepseek.com/chat/completions", os.environ.get("DEEPSEEK_API_KEY", ""), "deepseek-chat", p) if os.environ.get("DEEPSEEK_API_KEY") else "",
     "openai": lambda p: _openai_compat("https://api.openai.com/v1/chat/completions", os.environ.get("OPENAI_API_KEY", ""), os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), p) if os.environ.get("OPENAI_API_KEY") else "",
@@ -81,9 +107,9 @@ PROVIDERS = {
 # who answers what: every topic goes to Gemini (the one key that works) plus one second model, so two opinions can be compared.
 # Add a provider here once its key works; a provider with no key or a failing key is skipped and logged.
 ROUTES = {
-    "schools": ["gemini", "openai"],
-    "scalp4h": ["gemini", "deepseek"],
-    "risk": ["gemini", "deepseek"],
+    "schools": ["gemini", "openrouter"],
+    "scalp4h": ["gemini", "openrouter"],
+    "risk": ["gemini", "openrouter"],
 }
 
 

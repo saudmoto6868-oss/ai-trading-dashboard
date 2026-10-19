@@ -63,8 +63,20 @@ st.set_page_config(
     page_title="XPiX", layout="wide", page_icon=str(Path(__file__).with_name("modules") / "xpix_icon.png"),
     initial_sidebar_state="collapsed",
 )
-if "ws_lang" not in st.session_state and st.query_params.get("lang") in ("en", "ar"):   # Alt+L / the language list keep the choice in the URL
-    st.session_state["ws_lang"] = st.query_params["lang"]
+def _url_pref(name, allowed, default):
+    """Choice from the link (?name=...), else the cookie the Workspace keeps (xpix_<name>, so a bare link keeps the last theme), else default."""
+    q = st.query_params.get(name)
+    if q in allowed:
+        return q
+    try:
+        c = st.context.cookies.get("xpix_" + name)
+    except Exception:
+        c = None
+    return c if c in allowed else default
+
+
+if "ws_lang" not in st.session_state and _url_pref("lang", ("en", "ar"), None):   # Alt+L / the language list keep the choice in the URL
+    st.session_state["ws_lang"] = _url_pref("lang", ("en", "ar"), None)
 
 st.markdown("""
 <style>
@@ -133,7 +145,7 @@ elif auto_on:
 # ---- Dashboard theme (top bar) ------------------------------------------------------
 from modules.workspace import UI_THEMES as _UI_THEMES, ui_theme_bg as _ui_theme_bg, ui_vars as _ui_vars
 if "ui_theme" not in st.session_state:
-    st.session_state["ui_theme"] = st.query_params.get("theme", "classic") if st.query_params.get("theme") in dict(_UI_THEMES) else "classic"
+    st.session_state["ui_theme"] = _url_pref("theme", dict(_UI_THEMES), "classic")
 _BUILT_THEMES = tuple(k for k, _ in _UI_THEMES)   # every listed theme is built (3-9 run on the palette engine)
 if st.session_state["ui_theme"] not in _BUILT_THEMES:   # an empty slot: say so and stay on Classic
     st.toast(L("That theme slot is still empty - send the picture for it and it gets built."))
@@ -149,7 +161,7 @@ _MATS = ["auto", "none", "steel", "paper", "wood", "fabric", "glass", "carbon"]
 _MAT_AUTO = {"classic": "none", "lux": "glass", "hud": "carbon", "ember": "steel", "sunset": "wood", "emerald": "fabric", "neon": "glass", "mono": "steel", "grafana": "carbon", "blueprint": "paper",
              "slate": "none", "frost": "glass", "gold": "steel", "amber": "carbon", "dusk": "fabric", "cyber": "carbon", "nogray": "steel"}
 if "ui_mat" not in st.session_state:
-    st.session_state["ui_mat"] = st.query_params.get("mat", "auto") if st.query_params.get("mat") in _MATS else "auto"
+    st.session_state["ui_mat"] = _url_pref("mat", _MATS, "auto")
 UI_MAT = _MAT_AUTO.get(UI_THEME, "none") if st.session_state["ui_mat"] == "auto" else st.session_state["ui_mat"]
 if st.session_state["ui_mat"] != "auto":
     st.query_params["mat"] = st.session_state["ui_mat"]

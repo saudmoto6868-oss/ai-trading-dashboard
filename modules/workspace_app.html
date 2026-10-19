@@ -388,11 +388,24 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
 /* any uncaught error is shown on screen (a dark frame with no toolbar otherwise looks like "the page does not open") */
 /* safe boot: a flag is set now and cleared 5 s after start-up (a freeze blocks that timer). If it is still there on the next load, the last load hung or crashed
    (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
-(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", prev = localStorage.getItem(BOOT);
-  if (prev && Date.now() - +prev > 8000 && Date.now() - +prev < 6 * 3600e3){
+/* The flag used to stay behind whenever Streamlit replaced this frame within 5 s (any rerun), and the next load wiped every setting
+   (owner: "refresh resets everything"). Now the flag is removed when the frame unloads normally, and the wipe needs TWO stuck loads in a row. */
+(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", prev = localStorage.getItem(BOOT), now = Date.now(), mine = String(now);
+  const stuck = prev && now - +prev > 8000 && now - +prev < 6 * 3600e3, strikes = stuck ? (+localStorage.getItem(BAD) || 0) + 1 : 0;
+  if (strikes >= 2){
     Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
     window.__wsSafeBoot = true; }
-  localStorage.setItem(BOOT, String(Date.now())); } catch(e){} })();
+  else if (strikes) localStorage.setItem(BAD, String(strikes)); else localStorage.removeItem(BAD);
+  localStorage.setItem(BOOT, mine);
+  addEventListener("pagehide", () => { try { if (localStorage.getItem(BOOT) === mine) localStorage.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
+} catch(e){} })();
+/* Theme / material / language live in the page link (?theme=...), so opening the bare link fell back to Classic. The current choice is
+   also kept in cookies (xpix_theme / xpix_mat / xpix_lang); main.py reads them when the link has no choice. While the app runs,
+   a link without ?theme means Classic and without ?mat means Auto (main.py removes the default from the link). */
+(function(){ try { const W = window.parent;
+  const save = () => { try { const u = new URLSearchParams(W.location.search);
+    [["theme", "classic"], ["mat", "auto"], ["lang", ""]].forEach(([k, d]) => { const v = u.get(k) || d; if (v) document.cookie = "xpix_"+k+"="+encodeURIComponent(v)+"; path=/; max-age=31536000; SameSite=Lax"; }); } catch(e){} };
+  save(); setInterval(save, 10000); } catch(e){} })();
 (function(){ const show = m => { try { let b = document.getElementById("wsErrBox"); if (!b){ b = document.createElement("div"); b.id = "wsErrBox";
   b.style.cssText = "position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#3a0d12;color:#ffd7dc;border:1px solid #f6465d;border-radius:6px;padding:8px 10px;font:12px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto";
   (document.body || document.documentElement).appendChild(b); } b.textContent += (b.textContent ? "\n" : "Workspace error (send a screenshot of this box):\n") + m; } catch(_){} };
@@ -2057,8 +2070,12 @@ Object.assign(CandleChart.prototype, {
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
     this._ew = {k, v:out}; return out;
   },
+  indNote(c, row, txt){   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
+    c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;
+    c.globalAlpha = .7; c.fillStyle = "#000"; c.fillRect(6, y - 11, w, 14); c.globalAlpha = 1; c.fillStyle = "#9aa4b1"; c.fillText(txt, 11, y); c.restore();
+  },
   paintEWauto(c, py, dec){
-    const list = this.ewCount(); if (!list.length) return; const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    const list = this.ewCount(); if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -2077,7 +2094,8 @@ Object.assign(CandleChart.prototype, {
   },
   paintHarm(c, py, dec){   // XABCD legs + ratio labels, PRZ box, and the pattern's own trade box (Entry / SL / TP) - separate from the scanner signal box
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
-    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 5)};   // up to 5 patterns from the last 150 bars (was 2, so older patterns never showed)
+    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 5)};   // up to 5 patterns from the loaded bars (newest first)
+    if (!this._harm.list.length){ this.indNote(c, 0, Lg("Harmonic: no XABCD pattern on this timeframe yet", "هارمونيك: مفيش نموذج XABCD على الفريم ده لسه")); return; }
     const nm = ["X","A","B","C","D"], n = this.data.length, PRx = this.PR, F = v => Number(v).toFixed(dec), fs = "bold 10px ui-monospace,Menlo,Consolas,monospace";
     this._harm.list.forEach((h, q) => {
       const bull = h.dir === "bull", col = bull ? "#0ecb81" : "#f6465d", forming = h.state === "forming", P = h.pts.map(t => ({x:this.x(t.i), y:py(t.p), p:t.p})), m = P.length, bw = Math.max(this.bw, 4);

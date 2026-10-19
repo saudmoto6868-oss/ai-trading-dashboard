@@ -28,3 +28,5 @@ Done 2026-10-19 (owner): a fold arrow (▾ / ▸) at the top right of the chart 
 Done 2026-10-19 (owner): one fold arrow for all indicators (Elliott, Harmonic, Gann). It hides description text only: the grey indicator notes, the trend line, and the Gann definition lines. Lines, boxes, signals and the drawings stay. Mock-tested: with all three on, folding drops the description labels from 7 to 2 (labels on the drawings) and the stroke count is unchanged (11). The click on the arrow is not tested in the browser.
 
 Done 2026-10-19: when drawings are hidden, a chip shows "◌ N hidden: show all"; a click shows them again. Mock-tested in headless Chromium with the real mouse click (hidden count goes to 0, no page errors). Still open: a per-drawing list, brush / pen, object tree.
+
+Done 2026-10-19: brush tool (hold and drag). One stroke per drag, points added every 2 px, selectable by clicking on it; options bar colour, width and dash apply. Browser-tested with a real mouse drag (one stroke, 21 points, tool returns to the cursor, no page errors). Not done: moving or editing a stroke after it is drawn; object tree; deep linkage.

@@ -1391,7 +1391,9 @@ class CandleChart {
   viewKey(){ return LS+"_view|"+this.sym+"|"+this.tf; }
   saveView(){ if (!this.data.length || this.r == null) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
   restoreView(){ try { const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
-  up(e){ if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
+  up(e){
+    if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
+    if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
       if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap(t0.x - rc.left, t0.y - rc.top); } }   // a quick tap = MT5 round menu
     if (this.tp){ this.tp.delete(e.pointerId); if (this.tp.size < 2) this.pinch = null; } this.axDrag = null; if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
   swapSub(k, dir){ const act = this.subActive(), i = act.indexOf(k), j = i + dir; if (i < 0 || j < 0 || j >= act.length) return; const a = this.subOrd.indexOf(k), b = this.subOrd.indexOf(act[j]); [this.subOrd[a], this.subOrd[b]] = [this.subOrd[b], this.subOrd[a]]; this.onLayout && this.onLayout(); this.draw(); }
@@ -2231,6 +2233,7 @@ Object.assign(CandleChart.prototype, {
               {x:X(d.t1), y:Y(d.stop), set:(t,p) => { d.stop = p; d.t1 = Math.max(d.t0 + this.secMs()*2, t); }},
               {x:X(d.t1), y:Y(d.tp), set:(t,p) => { d.tp = p; d.t1 = Math.max(d.t0 + this.secMs()*2, t); }}];
     }
+    if (d.type === "brush") return d.pts.length ? [{x:X(d.pts[0].t), y:Y(d.pts[0].p), set:() => {}}] : [];
     return d.pts.map(q => ({x:X(q.t), y:Y(q.p), set:(t,p) => { q.t = t; q.p = p; }}));
   },
   hit(d, x, y){
@@ -2242,6 +2245,7 @@ Object.assign(CandleChart.prototype, {
     if (d.type === "channel"){ const o = this.chanOff(d), y2a = this.yp(d.pts[0].p+o), y2b = this.yp(d.pts[1].p+o); return (seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) || seg(hs[0].x,y2a,hs[1].x,y2b)) ? {body:1} : null; }
     if (d.type === "text"){ const w = (d.txt||"").length*6+10; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < 9) ? {body:1} : null; }
     if (d.type === "vline") return Math.abs(hs[0].x - x) < 6 ? {body:1} : null;
+    if (d.type === "brush"){ for (let i = 0; i + 1 < d.pts.length; i++){ if (seg(this.tx(d.pts[i].t), this.yp(d.pts[i].p), this.tx(d.pts[i+1].t), this.yp(d.pts[i+1].p))) return {body:1}; } return null; }
     if (d.type === "prange"){ const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y); return (y >= y1-4 && y <= y2+4) ? {body:1} : null; }
     if (d.type === "drange"){ const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x); return (x >= x1-4 && x <= x2+4) ? {body:1} : null; }
     if (d.type === "ray"){ const e = this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y); return seg(hs[0].x,hs[0].y,e.x,e.y) ? {body:1} : null; }
@@ -2282,6 +2286,7 @@ Object.assign(CandleChart.prototype, {
     }
     const id = Date.now() + Math.random();
     if (t === "vline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
+    else if (t === "brush"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.creating = d; }
     else if (t === "hline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "text"){ let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", ""); } catch(e){} if (tx === null){ this.setTool("cur"); return true; } const d = {id, type:t, txt:tx || "Note", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "trend" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure" || t === "prange" || t === "drange"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
@@ -2293,7 +2298,7 @@ Object.assign(CandleChart.prototype, {
   },
   toolMove(e){
     if (this.planDrag){ const q = this.pt(e), ph = this._planH; if (ph) this.planLen = Math.max(5, Math.min(2000, Math.round((q.x - ph.x0)/this.bw))); return true; }
-    if (this.creating){ const q = this.pt(e), c = this.creating; c.pts[c.pts.length-1] = {t:q.t, p:q.p}; return true; }
+    if (this.creating){ const q = this.pt(e), c = this.creating; if (c.type === "brush"){ if (e.buttons === 1){ const L = c.pts[c.pts.length-1]; if (Math.hypot(this.tx(q.t)-this.tx(L.t), this.yp(q.p)-this.yp(L.p)) >= 2) c.pts.push({t:q.t, p:q.p}); } return true; } c.pts[c.pts.length-1] = {t:q.t, p:q.p}; return true; }
     const dd = this.dragD; if (!dd) return false;
     const q = this.pt(e), d = dd.d; dd.changed = true;
     if (dd.h.h != null) this.handles(d)[dd.h.h].set(q.t, q.p);
@@ -2898,7 +2903,10 @@ Object.assign(CandleChart.prototype, {
     this.draws.forEach(d => {
       if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
       const hs = this.handles(d), sel = d === this.sel;
-      if (d.type === "prange"){
+      if (d.type === "brush"){
+        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 2; c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash(d.dash ? [5,4] : []); c.beginPath();
+        d.pts.forEach((q,i) => { const x = this.tx(q.t), y = this.yp(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.stroke(); c.setLineDash([]);
+      } else if (d.type === "prange"){
         const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y), col = d.color || "#4aa3ff", p0 = d.pts[0].p, p1 = d.pts[1].p;
         c.fillStyle = col+"1f"; c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
         const df = p1 - p0; lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0*100).toFixed(2)+"%)", 6, (y1+y2)/2, col);
@@ -3107,7 +3115,7 @@ class Panel {
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
-    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["prange","≡",Lg("Price range","نطاق سعري")],["drange","⫼",Lg("Date range","نطاق زمني")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
+    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["prange","≡",Lg("Price range","نطاق سعري")],["drange","⫼",Lg("Date range","نطاق زمني")],["brush","✎",Lg("Brush (hold and drag)","فرشاة (اضغط واسحب)")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
       const b = el("button",null,ic); b.title = tt; this.toolBtns[k] = b; dt.append(b);
       if (k === "fib"){
         const closePop = () => { if (this.fibPop){ this.fibPop.remove(); this.fibPop = null; } };

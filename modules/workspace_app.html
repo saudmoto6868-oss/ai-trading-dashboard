@@ -859,7 +859,12 @@ function okx(path){
     try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
   }
   const p = (async () => {
-    const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
+    let r;
+    try { r = await fetch(API + "/api/v5" + path, {cache:"no-store"}); }
+    catch(e){   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
+      if (rub) OKX_COOL = Date.now() + 600000;
+      throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
+    }
     if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();

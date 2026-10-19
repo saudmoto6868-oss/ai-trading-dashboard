@@ -214,3 +214,4 @@ Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after de
 - da78b6b FRED sidebar + Currents news fallback.
 - e7d960a Biquote fallback + gold/silver in the Forex list.
 - 047c0de Performance tab + Journal CSV export.
+- 2026-10-19 hotfix: `hexRgb` and `hmMix` were assigned without `const`; the workspace script is strict, so the page threw "hexRgb is not defined" on load. Now declared with `const`. Lesson: check the script in strict mode, not only `new Function`.

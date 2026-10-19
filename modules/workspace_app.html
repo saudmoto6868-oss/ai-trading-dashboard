@@ -853,6 +853,7 @@ function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
   const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 3000, hit = OKX_CACHE[path];
+  if (rub && CFG.rubik && Object.prototype.hasOwnProperty.call(CFG.rubik, path) && CFG.rubik[path] != null) return Promise.resolve(CFG.rubik[path]);   // server-fetched copy (modules/okx_stats.py): no browser call to OKX's rubik stats
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh

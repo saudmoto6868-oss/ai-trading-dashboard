@@ -141,6 +141,15 @@ def ui_theme_bg(theme: str) -> str:
 MRX_LIVE = os.environ.get("MRX_LIVE", "").strip() == "1"
 
 
+def _rubik(symbols) -> dict:
+    """Server-fetched OKX rubik stats for the page (empty when the server cannot reach OKX). See modules/okx_stats.py."""
+    try:
+        from modules.okx_stats import rubik_for
+        return rubik_for(symbols)
+    except Exception:
+        return {}
+
+
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
@@ -185,7 +194,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
         "gannoos": _gann_oos(),
-        "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
+        "ui": ui_theme or "", "uiBg": ui_bg or "", "rubik": _rubik(symbols), "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
     # "</" inside a <script> block would end it early

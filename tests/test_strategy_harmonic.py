@@ -22,6 +22,6 @@ try:
 finally:
     sl.find_harmonics = orig
 assert calls["n"] > 100, calls          # the harmonic finder runs on the walk
-assert sl.SCHOOL["harmonic"].startswith("Harmonic")
-assert all(e["key"] != "harmonic" or e["fam"] == "Harmonic" for e in ev)
+assert sl.SCHOOL["harm_gartley"].startswith("Harmonic")
+assert all(not e["key"].startswith("harm") or e["fam"] == "Harmonic" for e in ev)
 print("ok strategy harmonic", len(ev), "events, finder calls", calls["n"])

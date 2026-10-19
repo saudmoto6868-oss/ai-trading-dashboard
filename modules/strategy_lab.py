@@ -48,7 +48,7 @@ SCHOOL = {
     "turtle55": "Trend (hedge fund)", "ob": "SMC / ICT", "fvg": "SMC / ICT", "breaker": "SMC / ICT", "unicorn": "SMC / ICT", "msb_ob": "SMC / ICT",
     "ote": "Fibonacci", "fib": "Fibonacci", "cisd": "SMC / ICT", "m2022": "SMC / ICT", "sweep": "Liquidity", "liqline": "Liquidity", "zombie": "Liquidity",
     "crt": "Liquidity", "judas": "Time (sessions)", "sess_amd": "Time (sessions)", "orb": "Time (sessions)", "kzs": "Time (sessions)", "po3": "Time (sessions)",
-    "harmonic": "Harmonic (XABCD)", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
+    "harm_gartley": "Harmonic: Gartley", "harm_bat": "Harmonic: Bat", "harm_butterfly": "Harmonic: Butterfly", "harm_crab": "Harmonic: Crab", "harm_cypher": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
 }
@@ -80,7 +80,9 @@ def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):
 
 
 # exit variants tested on the SAME entries: target multiple and break-even stop (the question: which RR / exit gives the best expectancy)
-VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True)}
+# (target R, break-even stop, horizon in bars or None = the timeframe's own horizon). "h16" = a 16-bar window: on 15m that is the 4-hour scalp.
+VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True),
+            "rr1.5_h16": (1.5, False, 16), "rr2.0_h16": (2.0, False, 16)}
 
 
 LOC_N, VOL_N, REG_N = 50, 20, 100
@@ -125,7 +127,7 @@ def walk(df, tf, stride=4, seed=0):
         sigs, _ = detect_all(win)
         for p in find_harmonics(win, max_age=2):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
             if not p.get("forming"):
-                sigs.append({"key": "harmonic", "family": "Harmonic", "direction": BULL if p["dir"] == "bull" else BEAR})
+                sigs.append({"key": "harm_" + str(p.get("name", "?")).lower(), "family": "Harmonic", "direction": BULL if p["dir"] == "bull" else BEAR})
         if not sigs or not atr[i] > 0:
             continue
         rb = _outcome(hi, lo, cl, i, 1 if rng.rand() < .5 else -1, STOP_ATR * atr[i], H)
@@ -146,7 +148,7 @@ def walk(df, tf, stride=4, seed=0):
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
-                           "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
+                           "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
                            "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2})
     return events, bars

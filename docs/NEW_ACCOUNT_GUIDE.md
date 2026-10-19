@@ -7,7 +7,7 @@
 - **الـ lab والمراجعات:** بتشتغل على GitHub Actions (`strategy-lab`، `school-review`). نتايجها في `STRATEGY_LAB.md` و`docs/reviews/`.
 - **الحالة الحالية وقايمة المهام:** `PROJECT_STATUS.md`، و`docs/TASK_QUEUE.md`، و`docs/PRIORITIES.md`.
 
-ابدأ بقراءة `CLAUDE.md` (القواعد الأساسية) و`docs/TASK_QUEUE.md` (المهام المفتوحة) قبل أي شغل.
+ابدأ بقراءة `CLAUDE.md` (القواعد الأساسية)، و`docs/MEETING_ROOM.md` (أوامر المالك والمحضر)، و`docs/WHITEBOARD.md` (المهام والمسؤولين)، و`docs/TASK_QUEUE.md` قبل أي شغل.
 
 ## 2. قواعد حماية البيانات (إلزامية)
 1. **ماتكتبش أي مفتاح أو باسورد أو توكن في الشات، ولا في الكود، ولا في الـ commits.** المفاتيح بتتحط في Streamlit Secrets أو متغيرات البيئة بس.

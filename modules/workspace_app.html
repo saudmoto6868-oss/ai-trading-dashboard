@@ -790,7 +790,8 @@ const Ctx = {
   news(sym, t){ const now = t || Date.now(), cur = ["USD"].concat((/^(?:FH:|Y:)?([A-Z]{3})_?([A-Z]{3})/.exec(String(sym).replace("HL:xyz:","")) || []).slice(1));
     const hit = (CFG.cal || []).filter(e => e.impact === "High" && e.ts >= now - 30*60e3 && e.ts <= now + 60*60e3 && cur.includes(e.country)); return hit.length ? hit[0] : null; },
   async get(sym){
-    const c = this.cache[sym]; if ((c && Date.now() - c.t < 60000) || this.busy[sym] || /^(Y|FH):/.test(sym)) return c; this.busy[sym] = true;
+    // many setups / scanner symbols call this at once: each symbol is refreshed at most every 5 min, and the OKX open-interest call is skipped during a rate-limit pause
+    const c = this.cache[sym]; if ((c && Date.now() - c.t < 300000) || this.busy[sym] || /^(Y|FH):/.test(sym)) return c; this.busy[sym] = true;
     const out = {t:Date.now(), of:null, fund:null};
     try {
       const [bk, tr] = await Promise.all([okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400").catch(() => null), okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100").catch(() => null)]);
@@ -799,9 +800,9 @@ const Ctx = {
         bk[0].bids.forEach(x => { if ((mid - +x[0])/mid <= .005) bd += +x[1]; }); bk[0].asks.forEach(x => { if ((+x[0] - mid)/mid <= .005) ad += +x[1]; }); if (bd + ad > 0) bi = (bd - ad)/(bd + ad); }
       if (tr && tr.length){ const t0 = Math.max(...tr.map(x => +x.ts)) - 120000; let b = 0, s_ = 0; tr.forEach(x => { if (+x.ts < t0) return; x.side === "buy" ? b += +x.sz : s_ += +x.sz; }); if (b + s_ > 0) de = (b - s_)/(b + s_); }
       out.of = {book:bi, delta:de};
-      if (!/^HL:/.test(sym)){ const base = sym.split("-")[0];
+      if (!/^HL:/.test(sym)){ const base = sym.split("-")[0], rubOk = Date.now() >= OKX_COOL;
         const [f, oiH, cd] = await Promise.all([okx("/public/funding-rate?instId="+base+"-USDT-SWAP").catch(() => null),
-          okx("/rubik/stat/contracts/open-interest-volume?ccy="+base+"&period=1H").catch(() => null), okx("/market/candles?instId="+base+"-USDT-SWAP&bar=1H&limit=6").catch(() => null)]);
+          rubOk ? okx("/rubik/stat/contracts/open-interest-volume?ccy="+base+"&period=1H").catch(() => null) : null, okx("/market/candles?instId="+base+"-USDT-SWAP&bar=1H&limit=6").catch(() => null)]);
         if (f && f[0]) out.fund = +f[0].fundingRate;
         if (oiH && oiH.length > 4 && cd && cd.length > 4){ const oi4 = (+oiH[0][1]/+oiH[4][1] - 1)*100, p4 = (+cd[0][4]/+cd[4][4] - 1)*100;
           out.oi = {oi4, p4, read: p4 >= 0 && oi4 >= 0 ? "longs" : p4 >= 0 ? "cover" : oi4 >= 0 ? "shorts" : "closing"}; } }

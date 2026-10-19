@@ -37,19 +37,30 @@ GEMINI_MODELS = [os.environ.get("GEMINI_MODEL", ""), "gemini-flash-latest", "gem
 
 
 def _gemini(prompt: str) -> str:
+    """Gemini with retries: 404 = this model name is not available to the key (try the next); 429 / 503 / timeout = busy (wait, retry)."""
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key:
         return ""
     last = ""
-    for model in [m for m in GEMINI_MODELS if m]:   # same fallback idea as the Mr X chat: the first model the key can use wins
-        r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                          headers={"x-goog-api-key": key, "content-type": "application/json"},
-                          json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}}, timeout=120)
-        if r.status_code == 404:
-            last = f"model {model} not found"
-            continue
-        r.raise_for_status()
-        return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+    for model in [m for m in GEMINI_MODELS if m]:
+        for attempt in range(3):
+            try:
+                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                                  headers={"x-goog-api-key": key, "content-type": "application/json"},
+                                  json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}}, timeout=300)
+            except requests.Timeout:
+                last = f"{model} timeout"
+                time.sleep(20)
+                continue
+            if r.status_code == 404:
+                last = f"model {model} not found"
+                break
+            if r.status_code in (429, 503):
+                last = f"{model} busy ({r.status_code})"
+                time.sleep(20 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
     raise RuntimeError(last or "no Gemini model answered")
 
 

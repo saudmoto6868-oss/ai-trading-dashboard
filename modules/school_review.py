@@ -78,12 +78,21 @@ PROVIDERS = {
 }
 
 
+# who answers what: every topic goes to Gemini (the one key that works) plus one second model, so two opinions can be compared.
+# Add a provider here once its key works; a provider with no key or a failing key is skipped and logged.
+ROUTES = {
+    "schools": ["gemini", "openai"],
+    "scalp4h": ["gemini", "deepseek"],
+    "risk": ["gemini", "deepseek"],
+}
+
+
 def run(topics=None, providers=None, log=print):
     OUT.mkdir(parents=True, exist_ok=True)
     done = []
     for t in topics or TOPICS:
         prompt = (CONTEXT + "\n\n" if CONTEXT else "") + TOPICS[t]
-        for name in providers or PROVIDERS:
+        for name in providers or ROUTES.get(t, list(PROVIDERS)):
             try:
                 text = PROVIDERS[name](prompt)
             except Exception as e:  # one failing model must not stop the others

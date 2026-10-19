@@ -1429,7 +1429,7 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){
-    const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length;
+    const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length; this._gChip = null;
     c.clearRect(0,0,W,H); c.fillStyle = TH.bg; c.fillRect(0,0,W,H);   // clear first: a dashboard theme may use a see-through background
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textBaseline = "middle";
     if (!n){ c.fillStyle = TH.mut; c.fillText(T("loading"), 12, 20); return; }
@@ -2247,6 +2247,7 @@ Object.assign(CandleChart.prototype, {
   chanOff(d){ const a = d.pts[0], b = d.pts[1], c = d.pts[2], dt = b.t-a.t || 1; return c.p - (a.p + (b.p-a.p)*(c.t-a.t)/dt); },
   toolDown(e){
     const q = this.pt(e); if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
+    const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.gannOpen = this.gannOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){
       const order = this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse();
@@ -2704,10 +2705,10 @@ Object.assign(CandleChart.prototype, {
           const col = dir > 0 ? "#0ecb81" : "#f6465d"; c.globalAlpha = .16; c.fillStyle = col; c.fillRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.globalAlpha = .9; c.strokeStyle = col; c.setLineDash([4,3]); c.strokeRect(Math.min(xa, xb), ya, Math.max(3, Math.abs(xb - xa)), Math.max(2, yb - ya)); c.setLineDash([]);
           c.fillStyle = col; c.font = "bold 9px sans-serif"; c.fillText((cl ? "★ " : "")+(dir > 0 ? Lg("buy zone ","منطقة شراء ") : Lg("sell zone ","منطقة بيع "))+fmtP(p)+(cl ? " ("+cl.tfs.join("·")+")" : "")+" · "+new Date(nx.t).toISOString().slice(5, 16).replace("T"," "), Math.min(xa, xb), dir > 0 ? yb + 10 : ya - 8); c.font = "10px sans-serif"; }); }
       c.globalAlpha = .95; c.fillStyle = T.n >= 30 ? "#c3c9d1" : "#f0b90b"; c.font = "9px sans-serif";
-      c.fillText(Lg("Gann zone trades on this history: ","صفقات مناطق جان على التاريخ ده: ")+(T.n ? "n "+T.n+" · "+Lg("win ","فوز ")+T.win+"% · "+Lg("avg ","متوسط ")+(T.avg > 0 ? "+" : "")+T.avg+"R" : Lg("none yet","لسه مفيش"))+(T.n ? (T.onTime != null ? Lg(" · TP on time ","· الهدف في وقته ")+T.onTime+"%" : "")+" · "+Lg("time exits ","خروج بالزمن ")+T.timeExits+" · "+Lg("avg ","متوسط ")+T.bars+Lg(" bars"," شمعة") : "")+(T.n < 30 ? Lg(" · under 30 = not evidence"," · أقل من 30 = مش دليل") : "")+Lg(" · in-sample (the grid was fitted on the same data)"," · على نفس البيانات اللي الشبكة اتظبطت عليها"), 40, 50);
+      this.gannOpen !== false && c.fillText(Lg("Gann zone trades on this history: ","صفقات مناطق جان على التاريخ ده: ")+(T.n ? "n "+T.n+" · "+Lg("win ","فوز ")+T.win+"% · "+Lg("avg ","متوسط ")+(T.avg > 0 ? "+" : "")+T.avg+"R" : Lg("none yet","لسه مفيش"))+(T.n ? (T.onTime != null ? Lg(" · TP on time ","· الهدف في وقته ")+T.onTime+"%" : "")+" · "+Lg("time exits ","خروج بالزمن ")+T.timeExits+" · "+Lg("avg ","متوسط ")+T.bars+Lg(" bars"," شمعة") : "")+(T.n < 30 ? Lg(" · under 30 = not evidence"," · أقل من 30 = مش دليل") : "")+Lg(" · in-sample (the grid was fitted on the same data)"," · على نفس البيانات اللي الشبكة اتظبطت عليها"), 40, 50);
       // weekly lab, out of sample (fit on the first 60 %, traded on the last 40 %, vs random direction) for this timeframe
       const oo = (CFG.gannoos || {})[String(tf).toLowerCase()]; if (oo && oo.n){ const ev = oo.n >= 100 && oo.t > 3; c.fillStyle = ev ? "#0ecb81" : "#f0b90b";
-        c.fillText(Lg("Lab out of sample ("+tf+"): ","المعمل خارج العينة ("+tf+"): ")+"n "+oo.n+" · "+Lg("win ","فوز ")+oo.win+"% · "+Lg("avg ","متوسط ")+(oo.avg > 0 ? "+" : "")+oo.avg+"R · "+Lg("random ","عشوائي ")+(oo.rnd > 0 ? "+" : "")+oo.rnd+"R · t "+oo.t+(ev ? Lg(" · passes the bar"," · عدّى شرط الدليل") : Lg(" · not evidence (needs t>3, n≥100)"," · مش دليل (محتاج t>3 و n≥100)")), 40, 62); }
+        this.gannOpen !== false && c.fillText(Lg("Lab out of sample ("+tf+"): ","المعمل خارج العينة ("+tf+"): ")+"n "+oo.n+" · "+Lg("win ","فوز ")+oo.win+"% · "+Lg("avg ","متوسط ")+(oo.avg > 0 ? "+" : "")+oo.avg+"R · "+Lg("random ","عشوائي ")+(oo.rnd > 0 ? "+" : "")+oo.rnd+"R · t "+oo.t+(ev ? Lg(" · passes the bar"," · عدّى شرط الدليل") : Lg(" · not evidence (needs t>3, n≥100)"," · مش دليل (محتاج t>3 و n≥100)")), 40, 62); }
       c.font = "10px sans-serif"; }
     const HT = {"1m":"15m","3m":"1H","5m":"1H","15m":"4H","30m":"4H","1h":"1D","1H":"1D","2h":"1D","2H":"1D","4h":"1D","4H":"1D","6H":"1W","12H":"1W","1d":"1W","1D":"1W","1w":"1M","1W":"1M"};
     const cycT = (+G.shape || 4)*tsp*src.ms;   // one full 360-degree cycle in time = shape x time spacing
@@ -2738,9 +2739,12 @@ Object.assign(CandleChart.prototype, {
     // start mark + summary
     c.globalAlpha = 1; c.fillStyle = G.color; c.beginPath(); c.arc(xT(t0), py(F.P), 4, 0, 6.3); c.fill();
     c.font = "bold 10px sans-serif"; c.textBaseline = "top"; const auto = G.mode !== "manual";
-    c.fillText("Gann "+(auto ? "AUTO" : "MANUAL")+" ("+(src.tf || "chart")+") · "+Lg("start ","بداية ")+fmtP(F.P)+(F.dir > 0 ? " ▲" : " ▼")+" "+new Date(t0).toISOString().slice(0, 10)+" · "+Lg("spacing ","تباعد ")+F.s+" · "+["","circle","line","triangle","square","pentagon","hexagon","heptagon","octagon","nonagon","decagon"][+G.shape || 4], 40, 24);
+    if (this.gannOpen !== false) c.fillText("Gann "+(auto ? "AUTO" : "MANUAL")+" ("+(src.tf || "chart")+") · "+Lg("start ","بداية ")+fmtP(F.P)+(F.dir > 0 ? " ▲" : " ▼")+" "+new Date(t0).toISOString().slice(0, 10)+" · "+Lg("spacing ","تباعد ")+F.s+" · "+["","circle","line","triangle","square","pentagon","hexagon","heptagon","octagon","nonagon","decagon"][+G.shape || 4], 40, 24);
     c.font = "9px sans-serif"; c.fillStyle = "#9aa4b2";
-    c.fillText(Lg("price: ","السعر: ")+F.hits+"/"+F.m+Lg(" later swings on a level (chance ~"," قمة/قاع لاحقة على مستوى (الصدفة ~")+F.mu.toFixed(1)+", z "+F.z.toFixed(1)+") · "+Lg("time every ","الوقت كل ")+tsp+Lg(" bars: "," شمعة: ")+F.th+"/"+F.tm+" (z "+F.tz.toFixed(1)+")"+Lg(" · in-sample fit, not a forecast"," · مطابقة على الماضي، مش توقع"), 40, 37);
+    if (this.gannOpen !== false) c.fillText(Lg("price: ","السعر: ")+F.hits+"/"+F.m+Lg(" later swings on a level (chance ~"," قمة/قاع لاحقة على مستوى (الصدفة ~")+F.mu.toFixed(1)+", z "+F.z.toFixed(1)+") · "+Lg("time every ","الوقت كل ")+tsp+Lg(" bars: "," شمعة: ")+F.th+"/"+F.tm+" (z "+F.tz.toFixed(1)+")"+Lg(" · in-sample fit, not a forecast"," · مطابقة على الماضي، مش توقع"), 40, 37);
+    // fold / unfold arrow for the Gann definition text (owner 2026-10-19: "clean chart like TradingView")
+    const open = this.gannOpen !== false, gx = PR - 22, gy = 4; c.fillStyle = "rgba(11,14,17,.75)"; c.fillRect(gx, gy, 18, 14); c.fillStyle = "#9aa4b2"; c.font = "10px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(open ? "▾" : "▸", gx + 9, gy + 7);
+    this._gChip = {x:gx, y:gy, w:18, h:14};
     c.restore(); c.globalAlpha = 1; c.textBaseline = "middle"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
   paintKZS(c, py, i0, i1, PB){

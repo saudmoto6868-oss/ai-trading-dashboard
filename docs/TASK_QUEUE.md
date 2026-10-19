@@ -22,3 +22,5 @@ Done 2026-10-19: the counter-trend warning now looks at all bigger timeframes (f
 Done 2026-10-19: drawing tools: price range (horizontal band with the price difference and %), date range (vertical band with the bar count), hide (the options bar hides a drawing; it is not drawn or selectable), edit text (text tool only). Mock-tested in headless Chromium: both bands paint without errors; hide sets the flag and clears the selection. Not done: a list of hidden drawings to show them again; brush / pen; object tree.
 
 Done 2026-10-19 (owner choice 3): the trend chain is six frames around the chart: up to two smaller frames and then the bigger ones (weekly and monthly included). Example: 5m shows 1m, 15m, 1H, 4H, 1D, 1W. Mock-tested in headless Chromium (trend line shows the six); lists checked for every frame.
+
+Done 2026-10-19 (owner): a fold arrow (▾ / ▸) at the top right of the chart folds the Gann definition text (summary, zone trades, lab out of sample); the Gann lines and labels stay. Mock-tested: the arrow draws in both states; the click toggle is not tested in the browser.

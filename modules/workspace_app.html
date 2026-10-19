@@ -2061,7 +2061,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintHarm(c, py, dec){   // XABCD legs + ratio labels, PRZ box, and the pattern's own trade box (Entry / SL / TP) - separate from the scanner signal box
     const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0);
-    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 2)};
+    if (!this._harm || this._harm.k !== k) this._harm = {k, list:harmFind(this.data, 5)};   // up to 5 patterns from the last 150 bars (was 2, so older patterns never showed)
     const nm = ["X","A","B","C","D"], n = this.data.length, PRx = this.PR, F = v => Number(v).toFixed(dec), fs = "bold 10px ui-monospace,Menlo,Consolas,monospace";
     this._harm.list.forEach((h, q) => {
       const bull = h.dir === "bull", col = bull ? "#0ecb81" : "#f6465d", forming = h.state === "forming", P = h.pts.map(t => ({x:this.x(t.i), y:py(t.p), p:t.p})), m = P.length, bw = Math.max(this.bw, 4);
@@ -2085,7 +2085,7 @@ Object.assign(CandleChart.prototype, {
       c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
       // trade box
       const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
-      if (bwid > 60){ c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
+      if (q === 0 && bwid > 60){   // the trade box only for the newest pattern, so older ones do not clutter the chart c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
         c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
         [[pl.entry,"#4aa3ff","ENTRY "+F(pl.entry)],[pl.stop,"#f6465d","SL "+F(pl.stop)],[pl.tps[0],"#0ecb81","TP1 "+F(pl.tps[0])+"  R:R "+pl.rr.toFixed(1)],[pl.tps[1],"#0ecb81","TP2 "+F(pl.tps[1])],[pl.tps[2],"#0ecb81","TP3 (A) "+F(pl.tps[2])]].forEach(([v,cl,tx]) => { const y = py(v); c.strokeStyle = cl; c.lineWidth = 1; c.beginPath(); c.moveTo(bx, y+.5); c.lineTo(bx+bwid, y+.5); c.stroke(); c.fillStyle = cl; c.fillText(tx, bx + 3, y - 3); });
         c.fillStyle = "#b57cff"; c.fillText(Lg("HARMONIC PLAN", "خطة الهارمونيك")+(forming ? " ("+Lg("pending", "معلّقة")+")" : ""), bx + 3, Math.min(yE, yT3, yS) - 12); }

@@ -844,18 +844,23 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
 /* OKX calls are shared: every panel asks for the same endpoints (open interest, positioning, funding), and OKX answers 429 when they
    all fire at once. One request per path is in flight or cached for a short time (rubik stats: 60 s, prices: 3 s); a 429 is reported
    as a rate limit instead of being retried in a loop. */
-const OKX_CACHE = {};
+const OKX_CACHE = {}; let OKX_COOL = 0;
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const ttl = /\/rubik\//.test(path) ? 60000 : 3000, hit = OKX_CACHE[path];
+  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 3000, hit = OKX_CACHE[path];
   if (hit && Date.now() - hit.t < ttl) return hit.p;
+  if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
+  if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
+    try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
+  }
   const p = (async () => {
     const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
-    if (r.status === 429) throw new Error("OKX rate limit (429): wait a minute");
+    if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
+    if (rub) try { localStorage.setItem("okxc:"+path, JSON.stringify({t: Date.now(), v: j.data})); } catch(e){}
     return j.data;
   })();
   OKX_CACHE[path] = {t: Date.now(), p};
@@ -3736,7 +3741,7 @@ class Panel {
           D = {oi:oiNow && oiNow[0] ? +oiNow[0].oiUsd || h[0] : h[0], oi1:ch(m5, 12), oi4:ch(h, 4), oi24:ch(h, 24), p1:ch(px, 1), p4:ch(px, 4), p24:ch(px, 24),
                ls:lsH && lsH[0] ? +lsH[0][1] : null, oiS:h.slice(0, 25).reverse(), px:px.slice().reverse(), lsS:(lsH || []).slice(0, 25).map(r => +r[1]).reverse()}; err = "";
         } catch(e){ err = "OKX: "+(e.message || e); }
-        if (!alive) return; draw(); tm = setTimeout(poll, 60000); };
+        if (!alive) return; draw(); tm = setTimeout(poll, 180000); };
       poll(); };
     const ro = new ResizeObserver(() => draw()); ro.observe(cv); this.unsubs.push(() => ro.disconnect()); this.resub();
   }

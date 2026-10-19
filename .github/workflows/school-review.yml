@@ -27,5 +27,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/reviews
-          git diff --cached --quiet || git commit -m "School reviews from external models (not evidence)"
-          git push
+          git diff --cached --quiet && exit 0
+          git commit -m "School reviews from external models (not evidence)"
+          # main moves while the models run (other commits, the lab bot): rebase onto it and retry; the generated reviews are this run's, so keep them on a conflict
+          ok=0; for i in 1 2 3; do git pull --rebase -X theirs origin main && git push origin HEAD:main && { ok=1; break; }; git rebase --abort 2>/dev/null || true; sleep 5; done
+          [ "$ok" = 1 ] || { echo "reviews NOT pushed"; exit 1; }

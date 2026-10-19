@@ -56,7 +56,7 @@ def _gemini(prompt: str) -> str:
                 last = f"model {model} not found"
                 break
             if r.status_code in (429, 503):
-                last = f"{model} busy ({r.status_code})"
+                last = f"{model} busy ({r.status_code}), retries used up" if attempt == 2 else f"{model} busy ({r.status_code})"
                 time.sleep(20 * (attempt + 1))
                 continue
             r.raise_for_status()

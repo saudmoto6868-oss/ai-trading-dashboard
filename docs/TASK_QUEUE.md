@@ -24,3 +24,5 @@ Done 2026-10-19: drawing tools: price range (horizontal band with the price diff
 Done 2026-10-19 (owner choice 3): the trend chain is six frames around the chart: up to two smaller frames and then the bigger ones (weekly and monthly included). Example: 5m shows 1m, 15m, 1H, 4H, 1D, 1W. Mock-tested in headless Chromium (trend line shows the six); lists checked for every frame.
 
 Done 2026-10-19 (owner): a fold arrow (▾ / ▸) at the top right of the chart folds the Gann definition text (summary, zone trades, lab out of sample); the Gann lines and labels stay. Mock-tested: the arrow draws in both states; the click toggle is not tested in the browser.
+
+Done 2026-10-19 (owner): one fold arrow for all indicators (Elliott, Harmonic, Gann). It hides description text only: the grey indicator notes, the trend line, and the Gann definition lines. Lines, boxes, signals and the drawings stay. Mock-tested: with all three on, folding drops the description labels from 7 to 2 (labels on the drawings) and the stroke count is unchanged (11). The click on the arrow is not tested in the browser.

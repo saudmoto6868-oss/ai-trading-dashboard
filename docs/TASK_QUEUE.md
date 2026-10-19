@@ -30,3 +30,5 @@ Done 2026-10-19 (owner): one fold arrow for all indicators (Elliott, Harmonic, G
 Done 2026-10-19: when drawings are hidden, a chip shows "◌ N hidden: show all"; a click shows them again. Mock-tested in headless Chromium with the real mouse click (hidden count goes to 0, no page errors). Still open: a per-drawing list, brush / pen, object tree.
 
 Done 2026-10-19: brush tool (hold and drag). One stroke per drag, points added every 2 px, selectable by clicking on it; options bar colour, width and dash apply. Browser-tested with a real mouse drag (one stroke, 21 points, tool returns to the cursor, no page errors). Not done: moving or editing a stroke after it is drawn; object tree; deep linkage.
+
+Done 2026-10-19: object tree (≣ button in the drawing bar): lists this chart's drawings, newest first; click a row to select it, the eye hides or shows it, ✕ deletes it. Browser-tested: rows listed (2), eye toggle hides a drawing. Not done: drag to reorder; drawings of other symbols.

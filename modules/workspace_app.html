@@ -3130,6 +3130,27 @@ class Panel {
         };
       } else b.onclick = () => this.chart.setTool(this.chart.tool === k && k !== "cur" ? "cur" : k);
     });
+    // object tree (owner 2026-10-19: TradingView-style list): every drawing of this chart, newest first; click selects, eye hides, x deletes
+    const ob = el("button",null,"≣"); ob.title = Lg("object tree","شجرة الكائنات"); dt.append(ob);
+    const closeObj = () => { if (this.objPop){ this.objPop.remove(); this.objPop = null; } };
+    ob.onclick = () => {
+      if (this.objPop){ closeObj(); return; }
+      const ch = this.chart, pop = el("div","fibpop"); this.objPop = pop;
+      const rows = ch.draws.slice().reverse();
+      if (!rows.length){ const e0 = el("div"); e0.textContent = Lg("no drawings on this chart","مفيش رسمات على الشارت ده"); pop.append(e0); }
+      rows.forEach(d => {
+        const it = el("div"); const name = d.type + (d.txt ? " · "+d.txt : "");
+        it.append(Object.assign(el("span"), {textContent: name}));
+        const eye = el("small"); eye.textContent = d.hidden ? "◌" : "●"; eye.title = Lg("show / hide","إظهار / إخفاء");
+        eye.onclick = e => { e.stopPropagation(); d.hidden = !d.hidden; ch.saveDraws(); ch.draw(); eye.textContent = d.hidden ? "◌" : "●"; };
+        const x = el("small"); x.textContent = "✕"; x.title = Lg("delete","حذف");
+        x.onclick = e => { e.stopPropagation(); ch.draws = ch.draws.filter(z => z !== d); if (ch.sel === d) ch.sel = null; ch.saveDraws(); ch.draw(); it.remove(); };
+        it.onclick = () => { ch.sel = d; ch.draw(); closeObj(); };
+        it.append(eye, x); pop.append(it);
+      });
+      wrap.append(pop);
+      setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== ob){ closeObj(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+    };
     const del = el("button",null,"🗑"); del.title = T("tDel"); del.onclick = () => this.chart.deleteSel();
     const clr2 = el("button",null,"✕"); clr2.title = T("tClr"); let armed = 0;
     clr2.onclick = () => { if (Date.now() - armed < 2500){ this.chart.clearDraws(); armed = 0; clr2.textContent = "✕"; } else { armed = Date.now(); clr2.textContent = "?"; setTimeout(() => { if (Date.now() - armed >= 2400) clr2.textContent = "✕"; }, 2600); } };

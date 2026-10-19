@@ -35,7 +35,10 @@ BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
 GZ_BARS = {"15m": 5000, "1h": 5000, "4h": 3000, "1d": 1500}   # longer history for the Gann zone out-of-sample test (more trades)
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
 TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
-SYMBOLS = ("BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "DOGE-USDT", "HL:xyz:GOLD", "HL:xyz:SP500")
+# owner's market mix (2026-10-19): crypto ~25 %, the rest in priority order gold > oil > dollar (EUR / JPY / GBP as dollar proxies) > US indices > stocks.
+# Hyperliquid xyz perps are used for TradFi (no key, 24/7 perpetuals). Stocks: add ids here once verified on the xyz list (see hl_feed.symbols("Stocks")).
+SYMBOLS = ("HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:CL", "HL:xyz:BRENTOIL", "HL:xyz:EUR", "HL:xyz:JPY", "HL:xyz:GBP",
+           "HL:xyz:SP500", "HL:xyz:XYZ100", "BTC-USDT", "ETH-USDT", "SOL-USDT")
 # analysis school of each detector key (fundamental / macro is a context filter here, not a signal)
 SCHOOL = {
     "ma_cross": "Trend (MA)", "ema_stack": "Trend (MA)", "vwap": "Trend (MA)", "donch": "Trend (hedge fund)", "sma1040": "Trend (hedge fund)",

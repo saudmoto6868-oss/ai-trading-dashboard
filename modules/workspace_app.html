@@ -573,6 +573,7 @@ function harmHit(pl, d, from){   // true once a bar after the trade point touche
 function zzDev(d, k, lo, hi){ const n = d.length, m = Math.min(200, n); if (!m) return lo; let s = 0;
   for (let i = n - m; i < n; i++){ const b = d[i]; s += (b.h - b.l)/(b.c || 1); }
   return Math.max(lo, Math.min(hi, k*s/m)); }
+const HTF_CACHE = {};   // "SYMBOL|TF" -> {t, v, busy}: shared by every chart
 function htfDir(rows, tf){   // EMA50 trend of one timeframe's candles: up / down when price and the EMA agree with a 10-bar slope, else flat
   if (!rows || rows.length < 60) return null; const k = 2/51; let e = rows[0].c; const ema = [];
   rows.forEach(r => { e = r.c*k + e*(1-k); ema.push(e); }); const n = rows.length - 1, c = rows[n].c, slope = ema[n] - ema[n-10];
@@ -2084,23 +2085,28 @@ Object.assign(CandleChart.prototype, {
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
     this._ew = {k, v:out}; return out;
   },
-  htfOf(tf){ return {"1m":"15m","5m":"1H","15m":"1H","30m":"4H","1H":"4H","2H":"4H","4H":"1D"}[tf] || null; },   // next bigger timeframe for the context line
-  htfTrend(){   // trend of the next bigger timeframe (EMA50 + its 10-bar slope), fetched once per 5 min per symbol; null while loading / unknown
-    const H = this.htfOf(this.tf); if (!H || !this.sym) return null;
-    const k = this.sym+"|"+H, store = this._htf = this._htf || {}, e = store[k];
-    if (!e || (!e.busy && Date.now() - e.t > 300000)){
-      store[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
-      candlesTf(this.sym, H, true, 120).then(rows => { store[k] = {t:Date.now(), v:htfDir(rows, H), busy:false}; this.draw(); })
-        .catch(() => { store[k] = {t:Date.now(), v:null, busy:false}; });
-    }
-    return store[k] ? store[k].v : null;
+  htfList(tf){   // the four bigger timeframes above this one (owner: four, not two), from a fixed ladder
+    const L = ["1m","5m","15m","1H","4H","1D","1W"], i = L.indexOf(tf); return i < 0 ? [] : L.slice(i+1, i+5);
   },
-  htfNote(c, row){   // "1H ▲ trend" under the indicator notes
-    const t = this.htfTrend(); if (!t) return;
-    this.indNote(c, row, t.tf+" "+(t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–")+" "+Lg("trend", "اتجاه"));
+  htfTrends(){   // [{tf, dir}] for the four bigger timeframes; each is fetched once per 5 min per symbol and shared by all charts
+    if (!this.sym) return [];
+    const store = HTF_CACHE;
+    return this.htfList(this.tf).map(H => {
+      const k = this.sym+"|"+H, e = store[k];
+      if (!e || (!e.busy && Date.now() - e.t > 300000)){
+        store[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
+        candlesTf(this.sym, H, true, 120).then(rows => { store[k] = {t:Date.now(), v:htfDir(rows, H), busy:false}; this.draw(); })
+          .catch(() => { store[k] = {t:Date.now(), v:null, busy:false}; });
+      }
+      return store[k] && store[k].v;
+    }).filter(Boolean);
   },
-  htfAgainst(up){   // true when a count / pattern points against the bigger trend (flat or unknown = not against)
-    const t = this.htfTrend(); return !!t && ((t.dir === "up" && up === false) || (t.dir === "down" && up === true));
+  htfNote(c, row){   // "15m ▲  1H ▼  4H ▲  1D ▲" under the indicator notes
+    const T = this.htfTrends(); if (!T.length) return;
+    this.indNote(c, row, T.map(t => t.tf+" "+(t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–")).join("   ")+"  "+Lg("trend", "اتجاه"));
+  },
+  htfAgainst(up){   // true when the nearest bigger timeframe with a known trend points the other way
+    const T = this.htfTrends(); const t = T[0]; return !!t && ((t.dir === "up" && up === false) || (t.dir === "down" && up === true));
   },
   indNote(c, row, txt){   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
     c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;

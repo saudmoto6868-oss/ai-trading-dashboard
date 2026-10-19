@@ -2116,9 +2116,13 @@ Object.assign(CandleChart.prototype, {
     const opp = T.filter(t => (t.dir === "up") === (up === false)).length; return opp > T.length/2;
   },
   infoChip(c){   // one fold arrow for all indicator description text (owner 2026-10-19): hides labels only, never the lines / boxes / signals
-    this._gChip = null; if (!(this.ewOn || this.harmOn || this.gannOn)) return;
+    this._gChip = null; this._hidChip = null; if (!(this.ewOn || this.harmOn || this.gannOn) && !this.draws.some(d => d.hidden)) return;
     const open = this.infoOpen !== false, gx = this.PR - 22, gy = 4; c.save(); c.fillStyle = "rgba(11,14,17,.75)"; c.fillRect(gx, gy, 18, 14); c.fillStyle = "#9aa4b2"; c.font = "10px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(open ? "▾" : "▸", gx + 9, gy + 7); c.restore();
     this._gChip = {x:gx, y:gy, w:18, h:14};
+    const nh = this.draws.filter(d => d.hidden).length; this._hidChip = null;
+    if (nh){ const txt = "◌ "+nh+" "+Lg("hidden: show all","مخفي: إظهار الكل"); c.font = "10px sans-serif"; const w = c.measureText(txt).width + 12, hx = gx - w - 6;
+      c.save(); c.fillStyle = "rgba(11,14,17,.75)"; c.fillRect(hx, gy, w, 14); c.fillStyle = "#9aa4b2"; c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(txt, hx + 6, gy + 7); c.restore();
+      this._hidChip = {x:hx, y:gy, w, h:14}; }
   },
   indNote(c, row, txt){
     if (this.infoOpen === false) return;   // description text folded   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
@@ -2254,6 +2258,7 @@ Object.assign(CandleChart.prototype, {
   chanOff(d){ const a = d.pts[0], b = d.pts[1], c = d.pts[2], dt = b.t-a.t || 1; return c.p - (a.p + (b.p-a.p)*(c.t-a.t)/dt); },
   toolDown(e){
     const q = this.pt(e); if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
+    const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){

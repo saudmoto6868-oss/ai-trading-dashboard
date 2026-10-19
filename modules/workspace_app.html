@@ -2889,11 +2889,11 @@ Object.assign(CandleChart.prototype, {
         const df = p1.p - p0.p, bars = Math.round((p1.t - p0.t)/this.secMs()); lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0.p*100).toFixed(2)+"%) · "+bars+" "+Lg("bars","شمعة"), (hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2-10, col);
       } else if (d.type === "rect"){
         const x1 = Math.min(hs[0].x,hs[1].x), y1 = Math.min(hs[0].y,hs[1].y), w = Math.abs(hs[0].x-hs[1].x), h = Math.abs(hs[0].y-hs[1].y);
-        c.fillStyle = "rgba(74,163,255,.14)"; c.fillRect(x1,y1,w,h); c.strokeStyle = "#4aa3ff"; c.lineWidth = 1.2; c.strokeRect(x1,y1,w,h);
+        const rc = d.color || "#4aa3ff"; c.fillStyle = d.color ? rc+"24" : "rgba(74,163,255,.14)"; c.fillRect(x1,y1,w,h); c.strokeStyle = rc; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.strokeRect(x1,y1,w,h); c.setLineDash([]);
       } else if (d.type === "channel"){
         const o = d.pts.length > 2 ? this.chanOff(d) : 0, ya = this.yp(d.pts[0].p+o), yb = this.yp(d.pts[1].p+o);
-        c.fillStyle = "rgba(181,124,255,.12)"; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
-        c.strokeStyle = "#b57cff"; c.lineWidth = 1.5; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
+        const cc = d.color || "#b57cff"; c.fillStyle = d.color ? cc+"1f" : "rgba(181,124,255,.12)"; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
+        c.strokeStyle = cc; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
         c.setLineDash([4,4]); c.lineWidth = 1; c.beginPath(); c.moveTo(hs[0].x,(hs[0].y+ya)/2); c.lineTo(hs[1].x,(hs[1].y+yb)/2); c.stroke(); c.setLineDash([]);
       } else if (d.type === "text"){
         lab(d.txt || "Note", hs[0].x, hs[0].y, "#eaecef", "rgba(43,49,57,.9)");

@@ -5055,6 +5055,7 @@ function buildBar(){
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
+if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
 if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
@@ -5085,7 +5086,7 @@ function applyLang(rebuild){
   else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
   if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
   try { welcome(); } catch(e){}
-  try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
+  if (CFG.mrxOn) try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // off until the official launch (MRX_LIVE=1): no presenter on screen, no photo in the DOM   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");

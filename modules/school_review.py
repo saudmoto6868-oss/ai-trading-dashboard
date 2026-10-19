@@ -33,16 +33,24 @@ TOPICS = {
 }
 
 
+GEMINI_MODELS = [os.environ.get("GEMINI_MODEL", ""), "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]
+
+
 def _gemini(prompt: str) -> str:
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key:
         return ""
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                      headers={"x-goog-api-key": key, "content-type": "application/json"},
-                      json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}}, timeout=120)
-    r.raise_for_status()
-    return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+    last = ""
+    for model in [m for m in GEMINI_MODELS if m]:   # same fallback idea as the Mr X chat: the first model the key can use wins
+        r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                          headers={"x-goog-api-key": key, "content-type": "application/json"},
+                          json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}}, timeout=120)
+        if r.status_code == 404:
+            last = f"model {model} not found"
+            continue
+        r.raise_for_status()
+        return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+    raise RuntimeError(last or "no Gemini model answered")
 
 
 def _openai_compat(url: str, key: str, model: str, prompt: str) -> str:

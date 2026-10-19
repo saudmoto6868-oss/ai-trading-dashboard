@@ -26,6 +26,7 @@ import numpy as np
 
 from modules.harmonic import find_harmonics
 from modules.signals import BEAR, BULL, atr_series, detect_all
+from modules.smt import smt_signals, peers_of
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
@@ -114,8 +115,15 @@ def grade(layers):
     return "A+++" if n == 5 else "A+" if n == 4 else "A" if n == 3 else "B" if n == 2 else "C"
 
 
-def walk(df, tf, stride=4, seed=0):
-    """-> list of events {i, key, fam, d, r, base}, plus per-bar groups for conflicts / confluence."""
+def _peer_slice(pdf, t0, t1):
+    """Peer candles that fall inside the walk window [t0, t1] (both frames sorted by time)."""
+    tm = pdf["time"]
+    return pdf.iloc[tm.searchsorted(t0, "left"):tm.searchsorted(t1, "right")].reset_index(drop=True)
+
+
+def walk(df, tf, stride=4, seed=0, peers=()):
+    """-> list of events {i, key, fam, d, r, base}, plus per-bar groups for conflicts / confluence.
+    peers = [(peer_df, label, inverse)] correlated markets for the SMT school (smt.py)."""
     rng = np.random.RandomState(seed)
     hi, lo, cl = (df[c].values for c in ("high", "low", "close"))
     atr = atr_series(df, 14).values
@@ -128,6 +136,8 @@ def walk(df, tf, stride=4, seed=0):
         for p in find_harmonics(win, max_age=2):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
             if not p.get("forming"):
                 sigs.append({"key": "harm_" + str(p.get("name", "?")).lower(), "family": "Harmonic", "direction": BULL if p["dir"] == "bull" else BEAR})
+        for pdf, label, inv in peers:   # SMT: this market vs a correlated peer, over the same window (added 2026-10-19)
+            sigs += smt_signals(win, _peer_slice(pdf, win["time"].iloc[0], win["time"].iloc[-1]), label, inv)
         if not sigs or not atr[i] > 0:
             continue
         rb = _outcome(hi, lo, cl, i, 1 if rng.rand() < .5 else -1, STOP_ATR * atr[i], H)
@@ -376,6 +386,24 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
     evs, brs, done, gann, lunar, gzone = [], [], [], {}, {"new": [0.0, 0.0, 0], "full": [0.0, 0.0, 0]}, {}
     from modules.gann_lab import trade_test
     grng = np.random.default_rng(11)
+    peer_cache = {}
+
+    def peers_for(sym, tf):
+        """Correlated markets of `sym` that are in this run's universe, fetched once per (market, tf)."""
+        out = []
+        for p, inv in peers_of(sym):
+            if p not in symbols:
+                continue
+            if (p, tf) not in peer_cache:
+                try:
+                    peer_cache[(p, tf)] = fetch(p, tf, BARS[tf]).reset_index(drop=True)
+                except Exception as e:
+                    log(f"smt peer {p} {tf}: {type(e).__name__} {e}")
+                    peer_cache[(p, tf)] = None
+            if peer_cache[(p, tf)] is not None:
+                out.append((peer_cache[(p, tf)], p, inv))
+        return out
+
     for sym in symbols:
         for tf in tfs:
             t0 = time.time()
@@ -386,7 +414,7 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                 continue
             if df is None or len(df) < 300:
                 log(f"skip {sym} {tf}: too few candles"); continue
-            ev, br = walk(df.reset_index(drop=True), tf, stride)
+            ev, br = walk(df.reset_index(drop=True), tf, stride, peers=peers_for(sym, tf))
             evs.append((tf, sym, ev)); brs.append((tf, sym, br)); done.append(f"{sym} {tf}")
             g = gann_cycles(df["high"].values, df["low"].values); acc = gann.setdefault(tf, {"gann": [0, 0], "control": [0, 0], "shapes": [0, 0], "shapes_ctrl": [0, 0]})
             for k in acc:

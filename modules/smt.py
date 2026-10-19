@@ -26,6 +26,8 @@ SMT_PAIRS = [
     ("Y:USDJPY=X", "Y:EURUSD=X", True), ("Y:USDCHF=X", "Y:EURUSD=X", True),
     # US indices
     ("Y:^GSPC", "Y:^IXIC", False), ("Y:^NDX", "Y:^GSPC", False), ("Y:^DJI", "Y:^GSPC", False),
+    # Hyperliquid xyz dex (24/7 perps, same clock on both legs): metals, oil, US indices
+    ("HL:xyz:GOLD", "HL:xyz:SILVER", False), ("HL:xyz:CL", "HL:xyz:BRENTOIL", False), ("HL:xyz:SP500", "HL:xyz:XYZ100", False),
 ]
 
 

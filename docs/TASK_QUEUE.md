@@ -11,7 +11,7 @@ Rule: cheap first. Each item has a tier. Slow mode = only tier A and B, no web s
 Open now (in order):
 1. A: OTE yellow box drawn for every count, as in the indicator (done 2026-10-19: unreached-zone filter removed).
 2. B: linkage phase 2 (count of a bigger TF shown on a smaller TF). Needs one design answer first: which TF pairs.
-3. A: drawing options phase 2: rectangle and channel now follow colour, width, dash (done 2026-10-19). Fibonacci and wave still use their own colours.
+3. A: drawing options phase 2: rectangle and channel now follow colour, width, dash (done 2026-10-19). Fibonacci and wave now follow colour / width / dash too (done 2026-10-19). Item 3 closed.
 4. C: lab run #13 results (waiting on GitHub Actions).
 5. C: xpix review follow-up (waiting on ChatGPT, issue #8).
 

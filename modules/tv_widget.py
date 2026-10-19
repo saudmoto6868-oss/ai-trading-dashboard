@@ -4,7 +4,7 @@ Builds the embedded TradingView widget (advanced chart, with full
 indicator toolbar) for a given symbol.
 """
 
-import streamlit.components.v1 as components
+import streamlit as st
 from config import TV_SYMBOL_MAP
 
 
@@ -36,4 +36,4 @@ def render_tv_chart(symbol: str, height: int = 500, interval: str = "60", key: s
       </script>
     </div>
     """
-    components.html(widget_html, height=height + 20)
+    st.iframe(widget_html, height=height + 20)

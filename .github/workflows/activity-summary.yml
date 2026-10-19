@@ -1,0 +1,22 @@
+name: Activity summary
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - name: Write who pushed what into the job summary
+        run: |
+          {
+            echo "## Push activity (last 10 commits)"
+            git log -n 10 --name-only --format='### %h %an: %s'
+          } >> "$GITHUB_STEP_SUMMARY"

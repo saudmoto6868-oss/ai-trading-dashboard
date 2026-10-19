@@ -18,3 +18,5 @@ Open now (in order):
 Done 2026-10-19: multi-timeframe linkage uses the four bigger timeframes (ladder 1m,5m,15m,1H,4H,1D,1W): on a 5m chart the line shows 15m, 1H, 4H, 1D. Cache is shared by all charts (one request per timeframe per symbol per 5 min). Warning row uses the nearest bigger timeframe only. Mock-tested: four trend chips appear after the fetch, no page errors. Not checked on live OKX.
 
 Done 2026-10-19: the counter-trend warning now looks at all bigger timeframes (four plus weekly and monthly): it fires when most of them with a known trend point the other way. Syntax-checked only.
+
+Done 2026-10-19: drawing tools: price range (horizontal band with the price difference and %), date range (vertical band with the bar count), hide (the options bar hides a drawing; it is not drawn or selectable), edit text (text tool only). Mock-tested in headless Chromium: both bands paint without errors; hide sets the flag and clears the selection. Not done: a list of hidden drawings to show them again; brush / pen; object tree.

@@ -2227,6 +2227,8 @@ Object.assign(CandleChart.prototype, {
     if (d.type === "channel"){ const o = this.chanOff(d), y2a = this.yp(d.pts[0].p+o), y2b = this.yp(d.pts[1].p+o); return (seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) || seg(hs[0].x,y2a,hs[1].x,y2b)) ? {body:1} : null; }
     if (d.type === "text"){ const w = (d.txt||"").length*6+10; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < 9) ? {body:1} : null; }
     if (d.type === "vline") return Math.abs(hs[0].x - x) < 6 ? {body:1} : null;
+    if (d.type === "prange"){ const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y); return (y >= y1-4 && y <= y2+4) ? {body:1} : null; }
+    if (d.type === "drange"){ const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x); return (x >= x1-4 && x <= x2+4) ? {body:1} : null; }
     if (d.type === "ray"){ const e = this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y); return seg(hs[0].x,hs[0].y,e.x,e.y) ? {body:1} : null; }
     if (d.type === "trend" || d.type === "arrow" || d.type === "measure") return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null;
     if (d.type === "wave"){ for (let i = 0; i < hs.length-1; i++) if (seg(hs[i].x,hs[i].y,hs[i+1].x,hs[i+1].y)) return {body:1}; return null; }
@@ -2265,7 +2267,7 @@ Object.assign(CandleChart.prototype, {
     if (t === "vline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "hline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "text"){ let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", ""); } catch(e){} if (tx === null){ this.setTool("cur"); return true; } const d = {id, type:t, txt:tx || "Note", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
-    else if (t === "trend" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
+    else if (t === "trend" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure" || t === "prange" || t === "drange"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
     else if (t === "long" || t === "short"){
       const a = this.avgRange()*1.5, dir = t === "long" ? 1 : -1, d = {id, type:t, t0:q.t, t1:q.t + this.secMs()*25, entry:q.p, stop:q.p - dir*a, tp:q.p + dir*a*2};
       this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur");
@@ -2865,6 +2867,8 @@ Object.assign(CandleChart.prototype, {
     [1, 2, 3].forEach(w => add(String(w), {"data-w":w, title:Lg("width","سُمك")}, () => set(d => { d.w = w; })));
     add("⋯", {"data-dash":1, title:Lg("dashed","متقطع")}, () => set(d => { d.dash = !d.dash; }));
     add(Lg("Lock","قفل"), {"data-lock":1, title:Lg("lock: cannot be moved","قفل: ماينفعش يتحرك")}, () => set(d => { d.lock = !d.lock; }));
+    add(Lg("Hide","إخفاء"), {"data-hide":1, title:Lg("hide (show again from the list: not yet)","إخفاء")}, () => set(d => { d.hidden = !d.hidden; this.sel = null; }));
+    add(Lg("Edit","تعديل"), {title:Lg("edit text (text tool only)","تعديل النص")}, () => { const d = this.sel; if (!d || d.type !== "text") return; let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", d.txt || ""); } catch(e){} if (tx === null) return; d.txt = tx || "Note"; this.saveDraws(); this.draw(); });
     add(Lg("Copy","نسخ"), {title:Lg("copy","نسخة")}, () => { const d = this.sel; if (!d) return; const n = JSON.parse(JSON.stringify(d)), sh = this.secMs()*3; n.id = Date.now() + Math.random();
       (n.pts || []).forEach(q => { q.t += sh; }); if (n.t0 != null){ n.t0 += sh; n.t1 += sh; } this.draws.push(n); this.sel = n; this.saveDraws(); this.draw(); });
     add(Lg("Front","للأمام"), {title:Lg("bring to front","للأمام")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d).concat([d]); this.saveDraws(); this.draw(); });
@@ -2875,8 +2879,17 @@ Object.assign(CandleChart.prototype, {
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
     const lab = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
+      if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
       const hs = this.handles(d), sel = d === this.sel;
-      if (d.type === "hline"){
+      if (d.type === "prange"){
+        const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y), col = d.color || "#4aa3ff", p0 = d.pts[0].p, p1 = d.pts[1].p;
+        c.fillStyle = col+"1f"; c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
+        const df = p1 - p0; lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0*100).toFixed(2)+"%)", 6, (y1+y2)/2, col);
+      } else if (d.type === "drange"){
+        const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x), col = d.color || "#4aa3ff", bars = Math.round(Math.abs(d.pts[1].t - d.pts[0].t)/this.secMs());
+        c.fillStyle = col+"1f"; c.fillRect(x1, 0, x2-x1, this.PB); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x1+.5,0); c.lineTo(x1+.5,this.PB); c.moveTo(x2+.5,0); c.lineTo(x2+.5,this.PB); c.stroke(); c.setLineDash([]);
+        lab(bars+" "+Lg("bars","شمعة"), x1+4, 12, col);
+      } else if (d.type === "hline"){
         const y = hs[0].y; c.strokeStyle = d.color || "#f0b90b"; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y); c.lineTo(this.PR,y); c.stroke(); lab(d.pts[0].p.toFixed(dec), 4, y-9, "#f0b90b");
       } else if (d.type === "vline"){
         const x = hs[0].x; c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x,0); c.lineTo(x,this.PB); c.stroke(); c.setLineDash([]);
@@ -3077,7 +3090,7 @@ class Panel {
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
-    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
+    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["prange","≡",Lg("Price range","نطاق سعري")],["drange","⫼",Lg("Date range","نطاق زمني")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
       const b = el("button",null,ic); b.title = tt; this.toolBtns[k] = b; dt.append(b);
       if (k === "fib"){
         const closePop = () => { if (this.fibPop){ this.fibPop.remove(); this.fibPop = null; } };

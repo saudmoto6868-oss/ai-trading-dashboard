@@ -2,44 +2,25 @@
 
 _Model opinion, not evidence. Verify every source._
 
-### 1. Regime
-* **Measurable Rule:** Current 15-minute $\text{ATR}(14)$ must be greater than the 50-period simple moving average of $\text{ATR}(14)$ ($\text{ATR}_{14} > \text{SMA}_{50}(\text{ATR}_{14})$).
-* **Published / Lab Evidence:** Strong empirical backing. Intraday volatility exhibits autoregressive clustering (Engle, 1982). A trade capped by a strict 4-hour time stop requires active expansion; running mean-reversion or directional trades in compressed/contracting volatility yields elevated theta/time-decay risk and target-underfill.
-* **Convention:** The choice of a 14-period ATR and a 50-period baseline SMA is an arbitrary charting standard; other volatility estimators (e.g., Garman-Klass or Parkinson ranges) measure the same property.
+Here is a quantitative, 7-step checklist tailored for 15-minute execution with a 4-hour (16-bar) hard time stop.
 
 ---
 
-### 2. Higher-Timeframe (HTF) Bias
-* **Measurable Rule:** On the 1-hour chart, the 20-period EMA must be strictly above the 50-period EMA ($\text{EMA}_{20} > \text{EMA}_{50}$) for longs (or below for shorts).
-* **Published / Lab Evidence:** Supported by time-series momentum and trend-following literature (Moskowitz, Ooi, Pedersen, 2012), showing directional persistence across intermediate horizons. In the lab, baseline trend filters eliminate adverse runs even if simple MA crosses generate negative standalone alpha.
-* **Convention:** Using the 1-hour timeframe (4x the execution frame) and specific EMA parameters (20/50) is standard retail/institutional heuristic, not a derived mathematical optimum.
+### Scalp Execution Checklist (Max 7 Conditions)
+
+| # | Condition | Measurable Rule | Status: Evidence vs. Convention |
+|---|---|---|---|
+| **1** | **Regime** *(Volatility)* | $15\text{m ATR}(14) > 50\text{-bar Simple Moving Average of ATR}(14)$. | **Published Evidence**: Supported by volatility clustering literature (Engle, 1982; Mandelbrot). Low-volatility regimes fail to generate the dispersion needed to hit $1.5\text{R}$ within 16 bars. |
+| **2** | **HTF Bias** *(Trend direction)* | $1\text{H Close} > 1\text{H EMA}(50)$ and $1\text{H EMA}(50)$ slope is positive over the last 3 bars (reversed for shorts). | **Published Evidence**: Supported by time-series momentum anomalies (Moskowitz, Ooi, Pedersen, 2012; Brock, Lakonishok, LeBaron, 1992). Moving average slope reliably filters directional drift. |
+| **3** | **Location** *(Value boundary)* | Price tests a validated horizontal level (a rolling $1\text{H}$ swing high/low tested $\ge 2$ times over the last 5 trading days) within $\pm 0.25 \times 15\text{m ATR}(14)$. | **Published Evidence**: Partially supported. Academic microstructure confirms limit/stop order clustering at prior structural pivots (Osler, 2003, 2005). Supported internally by the XPIX lab (`level` edge passed). |
+| **4** | **Trigger** *(Execution event)* | The $15\text{m}$ candle breaks the prior bar’s extreme in the bias direction, with bar range $> 1.0 \times 15\text{m ATR}(14)$. | **Mixed**: Intraday range expansion and directional micro-breakouts have empirical support (Crabel, 1990). However, specific candlestick shapes (engulfing, pinbars) are **trader convention**. |
+| **5** | **Confirmation** *(Volume validation)* | Trigger bar volume $> 1.5 \times 20\text{-bar SMA of volume}$. | **Published Evidence**: Supported by volume-price literature (Blume, Easley, O’Hara, 1994; Karpoff, 1987). Breakouts lacking anomalous volume have a significantly higher false-breakout rate. |
+| **6** | **Timing** *(Liquidity window)* | Entry timestamp falls strictly within high-liquidity session opens: 07:00–10:00 UTC (London) or 12:30–15:30 UTC (New York). | **Published Evidence**: Highly supported by empirical market microstructure (Admati & Pfleiderer, 1988). Intraday spreads, volatility, and order flow follow a strict U-shaped curve; off-session scalps are net-negative after spread drag. |
+| **7** | **Risk** *(Sizing & Exits)* | Initial Stop Loss = $1.5 \times 15\text{m ATR}(14)$; Take Profit = $1.5 \times \text{Risk}$ ($1:1.5\text{R}$); Hard Time Exit = close trade at market on the close of the 16th bar ($4\text{ hours}$) if neither SL nor TP is triggered. | **Convention & Methodological**: Volatility-based sizing (ATR stops) and time exits are standard quantitative risk controls to combat the disposition effect (Shefrin & Statman, 1985). The exact $1.5\text{R}$ target and 16-bar limit are **operational conventions**. |
 
 ---
 
-### 3. Location
-* **Measurable Rule:** The 15-minute candle low touches or penetrates a rolling 48-period (12-hour) swing high/low that has had at least two prior unbreached touches.
-* **Published / Lab Evidence:** Supported by the XPIX lab (`level` passed the edge gate: $+0.07 / +0.08\,\text{avg R}$, $n > 3150$, $t > 3$) and academic work on order clustering at discrete, visible horizontal reference points (Brock, Lakonishok, LeBaron, 1992; Osler, 2000).
-* **Convention:** The 48-bar lookback window and the definition of a "touch zone" (within a fraction of ATR) are discretionary design parameters.
+### Implementation Discipline
 
----
-
-### 4. Trigger
-* **Measurable Rule:** The 15-minute entry candle penetrates the location level by at least $0.1 \times \text{ATR}(14)$ and closes back on the HTF-bias side of the level (rejection/sweep close).
-* **Published / Lab Evidence:** Supported by order-flow microstructure studies on liquidity sweeps and liquidity-replenishment dynamics around institutional stops (Harris, 2003). (Note: The lab showed standalone `sweep` is net-flat to negative at $-0.02\,\text{R}$, meaning the edge relies on pairing it directly with a verified HTF/location filter).
-* **Convention:** Requiring the condition to settle strictly at the *close* of the 15-minute bar rather than using a tick-level or sub-minute limit order is an operational convention to avoid intra-bar whipsaws.
-
----
-
-### 5. Confirmation
-* **Measurable Rule:** 14-period RSI on the 15-minute chart must show a regular momentum divergence across the two most recent swing extremes within the last 16 bars.
-* **Published / Lab Evidence:** Moderate lab backing (`rsi_div` produced $+0.05\,\text{avg R}$, $n = 824$). Academic literature on technical oscillators indicates mild mean-reversion qualities at intraday turning points, though edge deteriorates rapidly after spreads.
-* **Convention:** The standard 14-bar RSI window and the strict definition of what constitutes a "pivot" for the divergence calculation are inherited charting conventions.
-
----
-
-### 6. Timing
-* **Measurable Rule:** The bar timestamp must open within high-volume session windows: 07:00–10:30 UTC (London morning) or 12:30–16:00 UTC (New York morning).
-* **Published / Lab Evidence:** Robust academic support. Intraday volume, spread, and directional velocity follow a well-documented U-shaped curve (Jain & Joh, 1988; Biais, Hillion, Spatt, 1995). The lab confirms timing detectors hold positive expectation (`sess_amd` $+0.18\,\text{R}$, `judas` $+0.03\,\text{R}$), ensuring the position moves before the 4-hour window expires.
-* **Convention:** Hard calendar cutoffs (e.g., cutting off at 10:30 vs. 11:00 UTC) are practical approximations of continuous liquidity ebbs.
-
----
+1. **Failure Rule**: If any single condition (1 through 6) fails, the signal is discarded—no discretionary overrides.
+2. **Time-Stop Enforcement**: The 16-bar (4-hour) exit prevents capital tie-up in dead chop. If a scalp has not reached the $1.5\text{R}$ threshold within 16 bars, the thesis has expired, and holding longer degrades the volatility edge.

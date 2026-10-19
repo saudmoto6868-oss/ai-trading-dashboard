@@ -75,12 +75,24 @@ def _openai_compat(url: str, key: str, model: str, prompt: str) -> str:
 OPENROUTER_MODELS = [os.environ.get("OPENROUTER_MODEL", ""), "meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-next-80b-a3b-instruct:free"]
 
 
+def _openrouter_free_ids() -> list[str]:
+    """Live list of free (":free") chat models from OpenRouter's public catalogue - free ids change often, so we ask instead of guessing."""
+    try:
+        data = requests.get("https://openrouter.ai/api/v1/models", timeout=30).json().get("data", [])
+    except Exception:
+        return []
+    ids = [m["id"] for m in data if str(m.get("id", "")).endswith(":free")]
+    ids.sort(key=lambda i: (("instruct" not in i and "chat" not in i), i))   # instruction-tuned first
+    return ids[:6]
+
+
 def _openrouter(prompt: str) -> str:
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         return ""
     last = ""
-    for model in [m for m in OPENROUTER_MODELS if m]:
+    candidates = [m for m in OPENROUTER_MODELS if m] + [m for m in _openrouter_free_ids() if m not in OPENROUTER_MODELS]
+    for model in candidates:
         for attempt in range(3):
             r = requests.post("https://openrouter.ai/api/v1/chat/completions", timeout=180,
                               headers={"authorization": "Bearer " + key}, json={"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 3000, "temperature": 0.3})

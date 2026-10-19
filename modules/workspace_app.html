@@ -841,14 +841,26 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
   if (/\/market\/candles/.test(path)){ const k = YF_BAR[q.get("bar")]; if (!k || !D[k]) throw new Error("timeframe "+q.get("bar")+" not available for this market (15m / 1H / 4H / 1D only)"); const lim = +q.get("limit") || 100; return D[k].slice(-lim).reverse().map(r => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), String(r[4]), String(r[5]), "0", "0", "1"]); }
   throw new Error("not available for this market (Yahoo feed)");
 }
-async function okx(path){
+/* OKX calls are shared: every panel asks for the same endpoints (open interest, positioning, funding), and OKX answers 429 when they
+   all fire at once. One request per path is in flight or cached for a short time (rubik stats: 60 s, prices: 3 s); a 429 is reported
+   as a rate limit instead of being retried in a loop. */
+const OKX_CACHE = {};
+function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
-  if (!r.ok) throw new Error("HTTP "+r.status);
-  const j = await r.json();
-  if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
-  return j.data;
+  const ttl = /\/rubik\//.test(path) ? 60000 : 3000, hit = OKX_CACHE[path];
+  if (hit && Date.now() - hit.t < ttl) return hit.p;
+  const p = (async () => {
+    const r = await fetch(API + "/api/v5" + path, {cache:"no-store"});
+    if (r.status === 429) throw new Error("OKX rate limit (429): wait a minute");
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
+    return j.data;
+  })();
+  OKX_CACHE[path] = {t: Date.now(), p};
+  p.catch(() => { if (OKX_CACHE[path] && OKX_CACHE[path].p === p) delete OKX_CACHE[path]; });   // failed calls are not cached
+  return p;
 }
 /* OKX public liquidation orders (no key) for a symbol's perpetual family -> [{t, p, side:"L"|"S", usd}] newest first, or null for non-OKX symbols.
    forced SELL = longs liquidated, forced BUY = shorts liquidated; USD = contracts x ctVal x bankruptcy price (linear) or contracts x ctVal (inverse). */

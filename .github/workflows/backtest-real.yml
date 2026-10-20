@@ -1,0 +1,36 @@
+name: Real-candle backtests (manual)
+
+on:
+  workflow_dispatch: {}   # only when the owner presses "Run workflow"
+
+permissions:
+  contents: read          # results go to artifacts, never to the repo
+
+jobs:
+  backtests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install pandas numpy requests
+      - name: Filters (direction hit-rate, no costs yet)
+        continue-on-error: true
+        run: python -m modules.backtest_filters
+      - name: Signals (direction hit-rate, no costs yet)
+        continue-on-error: true
+        run: python -m modules.backtest_signals
+      - name: Best timeframe (per strategy)
+        continue-on-error: true
+        timeout-minutes: 60
+        run: python -m modules.backtest_tf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backtest-real-${{ github.run_id }}
+          path: |
+            data/*.json
+            *.md
+          if-no-files-found: warn

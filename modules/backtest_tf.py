@@ -54,8 +54,11 @@ def fetch_long(symbol, tf, bars=1000, base_url=None, sleep=0.12):
     return df.sort_values("time").reset_index(drop=True)[["time", "open", "high", "low", "close", "volume"]]
 
 
+COST_PCT = float(os.environ.get("LAB_COST_PCT", "0.001"))   # round trip, planning estimate (owner decision 2026-10-20), not a measurement
+
+
 def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):
-    """-> list of (tags, 'tp'|'sl'|'exp') for one candle series."""
+    """-> list of (tags, 'tp'|'sl'|'exp', gross_R, cost_R) for one candle series. R = move / planned risk (stop distance)."""
     out, H = [], HORIZON[tf]
     hi, lo = df["high"].values, df["low"].values
     for i in range(warm, len(df) - 2, stride):
@@ -83,23 +86,33 @@ def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):
                 res = "tp"
                 break
         tags = sorted({tag_for(s)[0] for s in r["signals"]}) + ["*"]   # "*" = every signal together
-        out.append((tags, res))
+        risk = abs(entry - stop)
+        gross = abs(tp1 - entry) / risk if res == "tp" else (-1.0 if res == "sl" else 0.0)
+        out.append((tags, res, gross, COST_PCT * entry / risk))
     return out
 
 
 def aggregate(results):
-    """results: {tf: [(tags, res)]} -> {strategy: {tf: {n, hit, tp, sl, exp}}}"""
+    """results: {tf: [(tags, res, gross_R, cost_R)]} -> {strategy: {tf: {n, hit, tp, sl, exp, avg_R_gross, avg_R_net}}}.
+    n = closed trades (tp + sl). exp = expired without a result (shown next to the win rate, never hidden)."""
     stats = {}
     for tf, rows in results.items():
-        for tags, res in rows:
+        for tags, res, gross, cost in rows:
             for g in tags:
-                d = stats.setdefault(g, {}).setdefault(tf, {"tp": 0, "sl": 0, "exp": 0})
+                d = stats.setdefault(g, {}).setdefault(tf, {"tp": 0, "sl": 0, "exp": 0, "_g": 0.0, "_c": 0.0})
                 d[res] += 1
+                if res in ("tp", "sl"):
+                    d["_g"] += gross
+                    d["_c"] += cost
     for g, per in stats.items():
         for tf, d in per.items():
             n = d["tp"] + d["sl"]
             d["n"] = n
             d["hit"] = round(d["tp"] / n, 3) if n else None
+            d["avg_R_gross"] = round(d["_g"] / n, 3) if n else None
+            d["avg_R_net"] = round((d["_g"] - d["_c"]) / n, 3) if n else None
+            d.pop("_g", None)
+            d.pop("_c", None)
     return stats
 
 

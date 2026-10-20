@@ -121,7 +121,12 @@ td{padding:1px 4px;white-space:nowrap}
 .mq{overflow:hidden;white-space:nowrap;position:relative;height:22px;line-height:22px}
 .mq .tr{display:inline-block;animation:mq var(--d,60s) linear infinite}.mq.rev .tr{animation-direction:reverse}.mq:hover .tr{animation-play-state:paused}
 .mq span.it{cursor:pointer;margin-inline-end:32px}.mq span.it:hover{color:var(--gold);text-decoration:underline}.mq .sr{color:var(--mut)}
-@keyframes wfu{0%{background:rgba(14,203,129,.55)}100%{background:transparent}}@keyframes wfd{0%{background:rgba(246,70,93,.55)}100%{background:transparent}}.wt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.wt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
+@keyframes wfu{0%{background:rgba(14,203,129,.55)}100%{background:transparent}}@keyframes wfd{0%{background:rgba(246,70,93,.55)}100%{background:transparent}}.wt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.wt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px}
+.rdt th,.wt th{position:relative;min-width:28px}
+th.cx-over{box-shadow:inset 2px 0 0 #f0b90b}
+.cx-h{position:absolute;top:0;inset-inline-end:0;width:6px;height:100%;cursor:col-resize;user-select:none;touch-action:none}
+.cx-h:hover{background:rgba(240,185,11,.35)}
+table.colx.fx td,table.colx.fx th{white-space:nowrap}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
 @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .pop{position:absolute;inset:0;background:var(--panel);z-index:5;overflow:auto;padding:8px}
 table.fx{table-layout:fixed}table.fx td,table.fx th{overflow:hidden;text-overflow:ellipsis}
@@ -5363,6 +5368,60 @@ function applyLang(rebuild){
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");
     document.body.appendChild(n); setTimeout(() => n.remove(), 12000); }
+})();
+// table columns (team tasks 11 + 12): drag a header's edge to resize (ellipsis + min width), drag a header onto another to reorder.
+// Saved per table "shape" (the header texts in their default order), so tables of the same kind share their layout. Mouse only (no touch drag yet).
+(function(){
+  const LS = "xpix_cols_v1"; let st = {}; try { st = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){}
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch(e){} };
+  const movePerm = (perm, from, to) => { const p = perm.slice(); p.splice(to, 0, p.splice(from, 1)[0]); return p; };
+  const hdr = tb => (tb.tHead && tb.tHead.rows[0]) || tb.rows[0];
+  const flat = r => Array.from(r.cells).every(c => c.colSpan === 1);
+  const applyPerm = (r, perm, key) => { const cs = Array.from(r.cells); if (cs.length !== perm.length || !flat(r)){ r._cx = "skip"; return; } perm.forEach(i => r.appendChild(cs[i])); r._cx = key; };
+  let drag = null, busy = false, queued = false, obs = null;
+  const sync = tb => {
+    const h = hdr(tb); if (!h || h.cells.length < 2) return;
+    if (h._cx === undefined){   // new header row: read the default-order signature, then apply the saved order
+      if (!flat(h)){ tb._cx = null; h._cx = "skip"; return; }
+      const n = h.cells.length, sig = Array.from(h.cells).map(c => (c.textContent || "").trim()).join("|"), s = st[sig];
+      const perm = s && s.perm && s.perm.length === n ? s.perm.slice() : Array.from({length:n}, (_, i) => i);
+      tb._cx = {sig, perm, n, key: perm.join(",")}; tb.classList.add("colx");
+    }
+    const cx = tb._cx; if (!cx) return;
+    Array.from(tb.rows).forEach(r => { if (r._cx === undefined && r.cells.length === cx.n) applyPerm(r, cx.perm, cx.key); });
+    const s = st[cx.sig], w = s && s.w;
+    Array.from(h.cells).forEach((c, p) => {
+      if (w && w[cx.perm[p]] && !c.style.width){ c.style.width = w[cx.perm[p]] + "px"; tb.classList.add("fx"); }
+      if (!c.querySelector(".cx-h")){ const g = document.createElement("span"); g.className = "cx-h"; g.draggable = false; c.appendChild(g); }
+      c.draggable = true;
+    });
+  };
+  const run = () => { queued = false; busy = true; document.querySelectorAll("table.rdt, table.wt").forEach(tb => { try { sync(tb); } catch(e){} }); if (obs) obs.takeRecords(); busy = false; };
+  const sched = () => { if (busy || queued) return; queued = true; requestAnimationFrame(run); };
+  const tableOf = n => n && n.closest && n.closest("table.colx");
+  document.addEventListener("pointerdown", e => {   // resize: drag the right edge handle of a header cell
+    const g = e.target.closest && e.target.closest(".cx-h"), th = g && g.parentElement, tb = tableOf(th); if (!tb || !tb._cx) return;
+    e.preventDefault(); e.stopPropagation(); const cx = tb._cx, h = hdr(tb), cells = Array.from(h.cells), idx = cells.indexOf(th);
+    cells.forEach(c => { c.style.width = c.offsetWidth + "px"; }); tb.classList.add("fx");
+    const sx = e.clientX, sw = th.offsetWidth, dir = getComputedStyle(tb).direction === "rtl" ? -1 : 1; th.draggable = false;
+    const mv = ev => { th.style.width = Math.max(28, sw + (ev.clientX - sx) * dir) + "px"; };
+    const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); th.draggable = true;
+      const w = {}; cells.forEach((c, p) => { w[cx.perm[p]] = Math.round(c.offsetWidth); }); (st[cx.sig] = st[cx.sig] || {perm: cx.perm.slice()}).w = w; save(); };
+    document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true);
+  }, true);
+  document.addEventListener("dragstart", e => { const th = e.target.closest && e.target.closest("th"), tb = tableOf(th); if (!tb || !tb._cx || e.target.closest(".cx-h")){ return; }
+    drag = {tb, from: Array.from(hdr(tb).cells).indexOf(th)}; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); } catch(x){} });
+  document.addEventListener("dragover", e => { const th = e.target.closest && e.target.closest("th"); if (drag && th && tableOf(th) === drag.tb){ e.preventDefault(); document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over")); th.classList.add("cx-over"); } });
+  document.addEventListener("drop", e => { const th = e.target.closest && e.target.closest("th"); document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over"));
+    if (!drag || !th || tableOf(th) !== drag.tb){ drag = null; return; } e.preventDefault();
+    const tb = drag.tb, cx = tb._cx, from = drag.from, to = Array.from(hdr(tb).cells).indexOf(th); drag = null; if (from < 0 || to < 0 || from === to) return;
+    busy = true; Array.from(tb.rows).forEach(r => { if (r._cx === cx.key && r.cells.length === cx.n){ const cs = Array.from(r.cells); r.insertBefore(cs[from], to > from ? cs[to].nextSibling : cs[to]); } });
+    cx.perm = movePerm(cx.perm, from, to); cx.key = cx.perm.join(","); Array.from(tb.rows).forEach(r => { if (r._cx !== undefined && r._cx !== "skip") r._cx = cx.key; });
+    (st[cx.sig] = st[cx.sig] || {}).perm = cx.perm.slice(); save(); if (obs) obs.takeRecords(); busy = false; });
+  document.addEventListener("dragend", () => { drag = null; document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over")); });
+  document.addEventListener("mouseover", e => { const c = e.target.closest && e.target.closest("table.colx.fx td"); if (c && !c.title) c.title = (c.textContent || "").trim(); });
+  obs = new MutationObserver(sched); obs.observe(document.body, {childList:true, subtree:true}); sched();
+  window.__xpixCols = {movePerm};   // for tests
 })();
 </script>
 </body>

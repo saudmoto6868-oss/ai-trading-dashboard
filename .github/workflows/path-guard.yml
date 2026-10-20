@@ -1,0 +1,32 @@
+# Blocks pushes that change files outside the owner-approved list (team account scope).
+name: Path guard
+on:
+  push:
+    branches: [docs/owner-meeting-requirements-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check changed files
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          # first push of a new branch has no usable "before": check against main instead
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git merge-base origin/main "$AFTER")
+          else
+            BASE="$BEFORE"
+          fi
+          ALLOWED='^(docs/OWNER_REQUIREMENTS_2026-10-20\.md|docs/MEETING_ROOM\.md|docs/WHITEBOARD\.md|\.github/workflows/path-guard\.yml)$'
+          BAD=$(git diff --name-only "$BASE" "$AFTER" | grep -Ev "$ALLOWED" || true)
+          if [ -n "$BAD" ]; then
+            echo "Files outside the allowed list:"; echo "$BAD"; exit 1
+          fi
+          echo "All changed files are in the allowed list."

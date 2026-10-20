@@ -35,3 +35,4 @@
 - ده سجل لما الجلسة دي عملته بس. الذكاءات التانية لازم تسجل نفسها في الجدول.
 - نتايج الاختبارات على بيانات وهمية لازم تتكتب كده، ومايتكتبش إنها اتختبرت على شارت حقيقي.
 | 2026-10-20 | ChatGPT | توثيق طلبات المالك | AGENTS.md، docs/MEETING_ROOM.md، docs/WHITEBOARD.md، docs/ACTIVITY_LOG.md | docs/OWNER_REQUIREMENTS_2026-10-20.md، docs/MEETING_ROOM.md، docs/WHITEBOARD.md، docs/ACTIVITY_LOG.md | — | Commit على فرع docs/owner-meeting-requirements-2026-10-20 | — | جُمعت المتطلبات؛ لم تُنفذ ميزات التطبيق ولم تُشغّل workflows |
+| 2026-10-20 | ChatGPT | توثيق طلب Watchlist | docs/OWNER_REQUIREMENTS_2026-10-20.md، docs/WHITEBOARD.md، docs/MEETING_ROOM.md | نفس الملفات الثلاثة | — | Commits على فرع docs/owner-meeting-requirements-2026-10-20 | — | تسجيل إعادة تنظيم الفلاتر وإزالة زري AMD؛ لم يتم تنفيذ أي تعديل على التطبيق |

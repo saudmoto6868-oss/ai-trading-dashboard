@@ -5397,7 +5397,7 @@ function applyLang(rebuild){
     });
   };
   const run = () => { queued = false; busy = true; document.querySelectorAll("table.rdt, table.wt").forEach(tb => { try { sync(tb); } catch(e){} }); if (obs) obs.takeRecords(); busy = false; };
-  const sched = () => { if (busy || queued) return; queued = true; requestAnimationFrame(run); };
+  const sched = () => { if (busy || queued) return; queued = true; setTimeout(run, 30); };   // setTimeout, not rAF: rAF never fires while the page is hidden / not painting
   const tableOf = n => n && n.closest && n.closest("table.colx");
   document.addEventListener("pointerdown", e => {   // resize: drag the right edge handle of a header cell
     const g = e.target.closest && e.target.closest(".cx-h"), th = g && g.parentElement, tb = tableOf(th); if (!tb || !tb._cx) return;

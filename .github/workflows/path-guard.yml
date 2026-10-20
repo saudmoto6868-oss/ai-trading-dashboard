@@ -24,7 +24,7 @@ jobs:
           else
             BASE="$BEFORE"
           fi
-          ALLOWED='^(docs/OWNER_REQUIREMENTS_2026-10-20\.md|docs/MEETING_ROOM\.md|docs/WHITEBOARD\.md|\.github/workflows/path-guard\.yml)$'
+          ALLOWED='^(docs/OWNER_REQUIREMENTS_2026-10-20\.md|docs/MEETING_ROOM\.md|docs/WHITEBOARD\.md|docs/CLAUDE_TEAM\.md|\.github/workflows/path-guard\.yml)$'
           BAD=$(git diff --name-only "$BASE" "$AFTER" | grep -Ev "$ALLOWED" || true)
           if [ -n "$BAD" ]; then
             echo "Files outside the allowed list:"; echo "$BAD"; exit 1

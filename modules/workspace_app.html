@@ -2233,7 +2233,11 @@ Object.assign(CandleChart.prototype, {
               {x:X(d.t1), y:Y(d.stop), set:(t,p) => { d.stop = p; d.t1 = Math.max(d.t0 + this.secMs()*2, t); }},
               {x:X(d.t1), y:Y(d.tp), set:(t,p) => { d.tp = p; d.t1 = Math.max(d.t0 + this.secMs()*2, t); }}];
     }
-    if (d.type === "brush") return d.pts.length ? [{x:X(d.pts[0].t), y:Y(d.pts[0].p), set:() => {}}] : [];
+    if (d.type === "brush"){ // one handle per ~30 points (stroke can hold hundreds): drag a handle to edit that point
+      const n = d.pts.length, step = Math.max(1, Math.ceil(n / 30)), out = [];
+      for (let i = 0; i < n; i += step){ const q = d.pts[i]; out.push({x:X(q.t), y:Y(q.p), set:(t,p) => { q.t = t; q.p = p; }}); }
+      return out;
+    }
     return d.pts.map(q => ({x:X(q.t), y:Y(q.p), set:(t,p) => { q.t = t; q.p = p; }}));
   },
   hit(d, x, y){

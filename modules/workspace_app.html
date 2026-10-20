@@ -3137,9 +3137,20 @@ class Panel {
       if (this.objPop){ closeObj(); return; }
       const ch = this.chart, pop = el("div","fibpop"); this.objPop = pop;
       const rows = ch.draws.slice().reverse();
+      let dragSrc = null; // drag a row onto another row to change the draw order (z-order)
       if (!rows.length){ const e0 = el("div"); e0.textContent = Lg("no drawings on this chart","مفيش رسمات على الشارت ده"); pop.append(e0); }
       rows.forEach(d => {
         const it = el("div"); const name = d.type + (d.txt ? " · "+d.txt : "");
+        it.draggable = true; it.title = Lg("drag to reorder","اسحب لتغيير الترتيب");
+        it.ondragstart = e => { dragSrc = d; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); };
+        it.ondragover = e => { if (dragSrc && dragSrc !== d){ e.preventDefault(); e.dataTransfer.dropEffect = "move"; } };
+        it.ondrop = e => {
+          e.preventDefault(); if (!dragSrc || dragSrc === d) return;
+          const from = ch.draws.indexOf(dragSrc); if (from < 0 || ch.draws.indexOf(d) < 0) return;
+          ch.draws.splice(from, 1); ch.draws.splice(ch.draws.indexOf(d) + 1, 0, dragSrc); dragSrc = null;
+          ch.saveDraws(); ch.draw(); closeObj(); ob.onclick(); // reopen the list in its new order
+        };
+        it.ondragend = () => { dragSrc = null; };
         it.append(Object.assign(el("span"), {textContent: name}));
         const eye = el("small"); eye.textContent = d.hidden ? "◌" : "●"; eye.title = Lg("show / hide","إظهار / إخفاء");
         eye.onclick = e => { e.stopPropagation(); d.hidden = !d.hidden; ch.saveDraws(); ch.draw(); eye.textContent = d.hidden ? "◌" : "●"; };

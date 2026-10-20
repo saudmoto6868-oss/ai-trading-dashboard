@@ -3536,6 +3536,26 @@ class Panel {
     const uTb = el("div","tb"), uBox = el("div"); const catSel = el("select"); catSel.onchange = () => { U.cat = catSel.value; if (!U.cat.startsWith("__")){ const want = U.cat === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(U.cat) ? "SPOT" : (U.cat === "All" ? U.type : (U.type === "SPOT" ? "SWAP" : U.type)); if (want !== U.type){ U.type = want; typeSel.value = want; if (!/^(Crypto|Meme|All)/.test(U.cat)) U.quote = "ALL"; Ws.save(); return loadU(); } } Ws.save(); renderU(); };
     const typeSel = selU([["SPOT","Spot"],["SWAP","Perp (swap)"],["FUTURES","Futures"],["OPTION","Options"]], "type");
     uTb.append(typeSel, selU([["ALL","All quotes"],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
+    // technical filters (team task 10): closes from OKX 1H candles, top-30 by volume only, cached 5 min
+    const TECH_OPTS = [["none","Technical: off"],["rsiLo","RSI(14) < 30"],["rsiHi","RSI(14) > 70"],["aboveEma","Price > EMA20 (1H)"],["belowEma","Price < EMA20 (1H)"],["brkUp","Breakout: close > 20-bar high (1H)"]];
+    const techC = new Map(); let techBusy = false;
+    const techCalc = cl => {   // cl: closes, oldest first; null when there is not enough history
+      if (cl.length < 35) return null;
+      let g = 0, l = 0; for (let i = 1; i <= 14; i++){ const d = cl[i] - cl[i-1]; g += Math.max(d, 0); l += Math.max(-d, 0); } g /= 14; l /= 14;
+      for (let i = 15; i < cl.length; i++){ const d = cl[i] - cl[i-1]; g = (g*13 + Math.max(d, 0))/14; l = (l*13 + Math.max(-d, 0))/14; }
+      const k = 2/21; let ema = cl[0]; for (let i = 1; i < cl.length; i++) ema = cl[i]*k + ema*(1-k);
+      const last = cl[cl.length-1], prevHi = Math.max(...cl.slice(-21, -1));
+      return {rsi: l === 0 ? 100 : 100 - 100/(1 + g/l), ema20: ema, last, brkUp: last > prevHi};
+    };
+    const loadTech = ids => Promise.all(ids.map(id => okx("/market/candles?instId="+id+"&bar=1H&limit=100").then(k => { const cl = k.map(r => +r[4]).reverse(); techC.set(id, {t: Date.now(), v: techCalc(cl)}); }).catch(() => techC.set(id, {t: Date.now(), v: null}))));
+    const techFilter = (rows) => {
+      const tf = U.tech; if (!tf || tf === "none") return rows;
+      const top = rows.slice(0, 30), stale = top.filter(x => !techC.has(x.id) || Date.now() - techC.get(x.id).t > 300000).map(x => x.id);
+      if (stale.length && !techBusy){ techBusy = true; loadTech(stale).then(() => { techBusy = false; renderU(); }); }
+      return top.filter(x => { const e = techC.get(x.id), v = e && e.v; if (!v) return false;
+        return tf === "rsiLo" ? v.rsi < 30 : tf === "rsiHi" ? v.rsi > 70 : tf === "aboveEma" ? v.last > v.ema20 : tf === "belowEma" ? v.last < v.ema20 : v.brkUp; });
+    };
+    uTb.append(selU(TECH_OPTS, "tech"));
     uni.append(uTb, uBox); let rowsU = [], cats = [];
     const CAT = {"1":"Crypto","3":"Stocks","4":"Commodities","5":"Forex","6":"Bonds"}, METAL = ["XAU","XAG","XPT","XPD","XAUT","PAXG"], ENERGY = ["CL","WTI","BRENT","XTI","XBR","NG","NATGAS","OIL","UKOIL","USOIL","HO","RB"], INDEX = ["SPX","NDX","DJI","US500","US100","US30","SPX500","NAS100","DAX","GER40","FTSE","UK100","HSI","N225","JP225","VIX","SPY","QQQ","IWM","DIA","VOO","IVV"];
     const MEMEB = (CFG.meme || []).map(s => s.split("-")[0]), catOf = (i, base) => (METAL.includes(base) ? "Metals" : ENERGY.includes(base) ? "Oil & Gas" : INDEX.includes(base) ? "Indices" : MEMEB.includes(base) ? "Meme coins" : CAT[i.instCategory]) || "Crypto";
@@ -3549,7 +3569,7 @@ class Panel {
       yfRows.unshift(...hlRows);
       const fhRows = CFG.fhToken ? FH_LIST.filter(x => x.cat === U.cat && !fhDup(x.id)).map(x => ({id:x.id, vol:2e18, cat:x.cat})) : [];
       yfRows.unshift(...fhRows.filter(f => !yfRows.some(y => y.id === f.id)));
-      const r = yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, U.top);
+      const r = techFilter(yfRows.concat(rowsU.filter(x => (U.cat === "All" || x.cat === U.cat || (U.cat === "Metals" && x.cat === "Commodities")))).sort((a,b) => b.vol - a.vol).slice(0, U.top));
       if (!r.length && /^error/.test(HL.state) && /^(Forex|Metals|Oil & Gas|Indices|Stocks|Bonds)$/.test(U.cat)){ uBox.innerHTML = '<div class="err">'+esc(Lg("Hyperliquid (live gold / oil / indices / FX) is not reachable right now: ", "Hyperliquid (ذهب / بترول / مؤشرات / فوركس لحظي) مش متاح دلوقتي: ")+HL.state.replace(/^error: /, "")+Lg(" - retrying every 4 s.", " - بيحاول تاني كل 4 ثواني."))+'</div>'; }
       else if (!r.length) uBox.innerHTML = '<div class="err" style="color:#848e9c">'+esc((U.cat === "Forex" || U.cat === "Indices") ? (lang === "ar" ? "\""+U.cat+"\" بييجي من Yahoo: اختاره من قايمة Asset class فوق (Chart Scanner) وارجع هنا." : "\""+U.cat+"\" comes from Yahoo: pick it in the Asset class dropdown (Chart Scanner tab), then come back.") : T("uniNone"))+'</div>';
       this.uSyms = r.map(x => x.id); r.forEach(x => this.uMeta[x.id] = x); this.uTitle = [U.type, U.quote, U.cat === "All" ? T("fAll") : U.cat, "Top "+(U.top > 5000 ? "All" : U.top)].join(" · ");

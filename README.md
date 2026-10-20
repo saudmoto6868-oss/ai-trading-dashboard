@@ -1,5 +1,7 @@
 # 6868 X
 
+> **Start here (any new account or agent):** read `docs/AGENT_PROMPT.md` first, then `docs/NEW_ACCOUNT_GUIDE.md`, `docs/MEETING_ROOM.md` and `docs/WHITEBOARD.md`.
+
 ## What this is
 A Streamlit dashboard with 5 tabs (Crypto, Forex, Metals, Stocks, Meme Coins).
 Each tab has a live TradingView chart plus a scored watchlist built from the

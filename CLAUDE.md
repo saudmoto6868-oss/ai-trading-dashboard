@@ -1,5 +1,7 @@
 # 6868 X - agent memory (short; read this instead of re-exploring)
 
+> **أول حاجة لأي حساب أو ذكاء جديد:** اقرأ `docs/AGENT_PROMPT.md` ثم `docs/NEW_ACCOUNT_GUIDE.md` ثم `docs/MEETING_ROOM.md` و`docs/WHITEBOARD.md`. ماتشتغلش قبل ما تقرأهم.
+
 Owner: Saud, Egyptian Arabic, short replies. Repo `saudmoto6868-oss/ai-trading-dashboard`, push to `main`.
 Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, not the whole change log).
 

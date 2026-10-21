@@ -1214,6 +1214,8 @@ def render_chart_scanner():
         st.info(L("No symbols match the selected conditions right now."))
         return
     shown = shown[:int(n_show)]
+    # task 17 (spec 25): a setup is "confirmed" when every chosen condition holds (match = All selected), otherwise "candidate"; never an order
+    setup_tag = "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if mode == "All selected" else "مرشح") + "</span>"
     per_row = 5
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
@@ -1229,7 +1231,7 @@ def render_chart_scanner():
                             tf_x, d_x = tf_pick, d_one
                     except Exception as e_tf:
                         st.caption(f"{tf_pick}: {e_tf}")
-                badges = (RADAR_TAG if sel else "") + "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
+                badges = ((RADAR_TAG + setup_tag) if sel else "") + "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
                                  f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d_x["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"

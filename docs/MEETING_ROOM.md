@@ -298,3 +298,9 @@
 - Added a toolbar `✎` toggle that hides/shows all drawing overlays without deleting stored drawings; stores the visibility preference in the chart panel state; suppresses drawing hit-testing and context-menu selection while hidden.
 - Static checks confirmed the expected code sections and branch comparison reports one changed file (9 additions, 6 deletions). No JavaScript parser/browser test was available, so runtime correctness and visual behavior remain unverified. No PR, merge, or workflow run.
 - [2026-10-21 00:28 UTC] [المالك] **قاعدة عامة لكل من يكتب في المحضر أو اللوحة أو الوثايق:** اكتب اسمك في أول كل مداخلة، وقول بوضوح إنت مين وبتقول إيه. مثال: `[اسمي: فلان] بقول: 1 2 3`. ده عشان نعرف مين عمل إيه، ونمنع تكرار الشغل والتعارض.
+
+
+## 2026-10-21 — Manual chart refresh preserving view
+- Implemented on independent branch `feat/manual-refresh-preserve-view-2026-10-21`, commit `9ec5c2f63219029ae4b78866cf5035e5326c0227`.
+- Added a separate `⟳` toolbar button, distinct from the existing 1s/2s/5s polling cadence selector. It snapshots symbol/timeframe, candle width, vertical zoom/shift and bars-back offset, then re-applies the viewport after the first successful candle batch is loaded.
+- GitHub comparison shows one changed file (9 additions, 2 deletions). Static source review only; no JS parser or browser test available. Failure-path behavior and visual preservation still require runtime verification. No PR, merge, or workflow run.

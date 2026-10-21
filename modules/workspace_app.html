@@ -3108,6 +3108,15 @@ class Panel {
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
     ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
+    const masterB = el("button",null,"⏻"); masterB.title = Lg("Master: turn all indicators off, click again to restore them","الماستر: إيقاف كل المؤشرات، والضغطة التانية ترجعهم");
+    masterB.onclick = () => {
+      const items = this.indItems || [];
+      const onNow = items.filter(x => { try { return x.get && x.get(); } catch(e){ return false; } });
+      if (onNow.length){ this._masterOn = onNow.map(x => x.id); onNow.forEach(x => { try { x.set(false); } catch(e){} }); }
+      else { (this._masterOn || []).forEach(id => { const x = items.find(y => y.id === id); if (x && x.set) { try { x.set(true); } catch(e){} } }); this._masterOn = null; }
+      masterB.classList.toggle("on", !!this._masterOn); this.chart.draw(); Ws.save();
+    };
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
@@ -3137,7 +3146,7 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
@@ -3286,6 +3295,7 @@ class Panel {
       {id:"cci", label:"CCI", get:() => ch().cciOn, set:v => { ch().cciOn = v; this.state.cci = v; }, sty:"cci", params:[P("len","Length",2,200,1), P("hp","Height %",1,92,1)]},
       {id:"psar", label:"Parabolic SAR", get:() => ch().psarOn, set:v => { ch().psarOn = v; this.state.psar = v; }, sty:"psar", col2:true, params:[P("step","Step",0.005,0.1,0.005), P("max","Max",0.05,1,0.05)]},
     ];
+    this.indItems = items;   // task 22: the Master button turns these off/on together
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];

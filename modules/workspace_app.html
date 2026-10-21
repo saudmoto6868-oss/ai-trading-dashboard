@@ -5405,8 +5405,8 @@ function wsRecBtn(){
   const finish = (stream) => { try { stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
   b.onclick = async () => {
     if (rec){ rec.stop(); return; }
-    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:false}); } catch(e){ return; }
-    chunks = []; try { rec = new MediaRecorder(stream, MediaRecorder.isTypeSupported("video/webm") ? {mimeType:"video/webm"} : undefined); } catch(e){ finish(stream); return; }
+    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:30, max:30}, width:{ideal:2560, max:2560}, height:{ideal:1440, max:1440}}, audio:false}); } catch(e){ return; }
+    chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: 8000000}, MediaRecorder.isTypeSupported("video/webm") ? {mimeType:"video/webm"} : {})); } catch(e){ finish(stream); return; }
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = () => { finish(stream); const url = URL.createObjectURL(new Blob(chunks, {type:"video/webm"})); const a = document.createElement("a"); a.href = url; a.download = "workspace-" + Date.now() + ".webm"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 4000); rec = null; b.classList.remove("on"); };
     const vt = stream.getVideoTracks()[0]; if (vt) vt.onended = () => { if (rec && rec.state !== "inactive") rec.stop(); };

@@ -38,6 +38,33 @@ PATTERN_FILTERS = {
     "dbl_top": "Double top", "dbl_bottom": "Double bottom",
 }
 PATTERN_FILTERS.update({k: "Pattern · " + v[0] for k, v in _pat.PATTERNS.items()})   # Finviz-style chart patterns (modules/patterns.py)
+# Move & volume filters (Finviz screener style): last candle's % move and volume against its 20-candle average
+MOVE_FILTERS = {
+    "chg_up2": "Change ≥ +2% (last candle)", "chg_dn2": "Change ≤ −2% (last candle)",
+    "vol_2x": "Volume ≥ 2× average (20 candles)", "vol_3x": "Volume ≥ 3× average (20 candles)",
+}
+
+
+def move_flags(d) -> set:
+    """Flags for MOVE_FILTERS from one candle frame (needs 'close' and 'volume'); empty if too short."""
+    if len(d) < 22:
+        return set()
+    close, vol = d["close"], d["volume"]
+    out = set()
+    chg = float(close.iloc[-1]) / float(close.iloc[-2]) - 1
+    if chg >= 0.02:
+        out.add("chg_up2")
+    if chg <= -0.02:
+        out.add("chg_dn2")
+    avg = float(vol.iloc[-21:-1].mean())
+    ratio = float(vol.iloc[-1]) / avg if avg > 0 else 0.0
+    if ratio >= 2:
+        out.add("vol_2x")
+    if ratio >= 3:
+        out.add("vol_3x")
+    return out
+
+
 # strategy filters: id -> (label, matcher on the scanner's signals: family or key)
 STRATEGY_FILTERS = {
     "st_elliott": ("Elliott Wave (3 / 5)", ("family", "Elliott")), "st_ew3": ("Elliott · Wave 3 start", ("key", "ew3")),
@@ -62,7 +89,7 @@ STRATEGY_FILTERS = {
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_m2022": ("ICT Model 2022 (raid + MSS + FVG, in a NY killzone)", ("key", "m2022")), "st_cisd": ("Sweep + CISD (liquidity grab, body close through the open of the down-candle run, before the structure break)", ("key", "cisd")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
 }
-ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
+ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **MOVE_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
 
 
 def flag_side(k: str):

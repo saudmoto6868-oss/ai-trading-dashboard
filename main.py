@@ -43,8 +43,8 @@ from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
 from modules.calendar_feed import fetch_calendar
-from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
-                                features as cs_features, flag_side, match_filters, mini_chart_svg, strategy_flags)
+from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, MOVE_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
+                                features as cs_features, flag_side, match_filters, mini_chart_svg, move_flags, strategy_flags)
 from modules.news_feed import get_latest_news, ticker_html
 from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
 from modules.dom_panel import (
@@ -1098,7 +1098,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             continue
         f = cs_features(df, look)
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
-        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1])}
+        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags | move_flags(df)), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1])}
     return out
 
 
@@ -1154,6 +1154,7 @@ def render_chart_scanner():
         sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
         sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
                                    format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
+        sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
     elif "strat" in qp:
@@ -1165,7 +1166,7 @@ def render_chart_scanner():
         sel_ema.append(f"ma_{rmap[rel_ma]}_{pair.replace('/', '_')}")
     sel_ema += {"Bullish (px>9>20>50)": ["stack_bull"], "Bearish (px<9<20<50)": ["stack_bear"],
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
-    sel = sel_rsi + sel_ema + sel_pat + sel_strat
+    sel = sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom
     try:
         data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, look)
     except Exception as e:

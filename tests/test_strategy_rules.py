@@ -29,6 +29,22 @@ try:
     evaluate({"name": "a"}, df); raise SystemExit("should fail")
 except ValueError:
     pass
+# contradictory AND rules are rejected with a readable message; OR, other timeframes and touching bounds are fine
+def _rs(*pairs, **kw):
+    return {"name": "c", "side": "long", **kw, "rules": [{"indicator": "rsi", "period": 14, "op": o, "value": v} for o, v in pairs]}
+for pairs in (((">", 70), ("<", 30)), ((">=", 50), ("<", 50)), ((">", 50), ("<=", 50)), ((">", 70), (">", 80), ("<", 75))):
+    e = validate(_rs(*pairs)); assert e and "contradictory" in e[0] and "rsi(14)" in e[0], (pairs, e)
+assert validate(_rs((">=", 50), ("<=", 50))) == []
+assert validate(_rs((">", 30), ("<", 70))) == []
+assert validate(_rs((">", 70), ("<", 30), logic="OR")) == []
+mixed = _rs((">", 70)); mixed["rules"].append({"indicator": "rsi", "period": 14, "op": "<", "value": 30, "tf": "4h"})
+assert validate(mixed) == []
+mixed["rules"][0]["tf"] = "4h"; assert validate(mixed)
+assert validate({**_rs((">", 70)), "rules": [{"indicator": "rsi", "period": 7, "op": ">", "value": 70}, {"indicator": "rsi", "period": 14, "op": "<", "value": 30}]}) == []
+try:
+    evaluate(_rs((">", 70), ("<", 30)), df); raise SystemExit("should fail")
+except ValueError as e:
+    assert "contradictory" in str(e)
 # JSON round trip
 assert from_json(to_json(s)) == s
 try:

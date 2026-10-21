@@ -39,6 +39,34 @@ def _series(df: pd.DataFrame, ind: str, period: int | None) -> pd.Series:
     raise ValueError(f"unknown indicator '{ind}'")
 
 
+def _contradictions(rules: list) -> list[str]:
+    """AND-joined threshold rules on the same indicator / period / timeframe that no bar can satisfy together,
+    e.g. rsi > 70 AND rsi < 30. `tf` is an optional per-rule timeframe label (None = the strategy's own)."""
+    lows, highs = {}, {}   # key -> (bound, strict); keep the tightest of each
+    for r in rules:
+        v = r.get("value")
+        if r.get("op") not in (">", ">=", "<", "<=") or isinstance(v, (dict, bool)) or not isinstance(v, (int, float)):
+            continue
+        key = (r.get("indicator"), r.get("period"), r.get("tf"))
+        strict = r["op"] in (">", "<")
+        if r["op"] in (">", ">="):
+            old = lows.get(key)
+            if old is None or v > old[0] or (v == old[0] and strict):
+                lows[key] = (v, strict)
+        else:
+            old = highs.get(key)
+            if old is None or v < old[0] or (v == old[0] and strict):
+                highs[key] = (v, strict)
+    errs = []
+    for key, (lo, ls) in lows.items():
+        if key in highs:
+            hi, hs = highs[key]
+            if lo > hi or (lo == hi and (ls or hs)):
+                name = key[0] + (f"({key[1]})" if key[1] else "") + (f" on {key[2]}" if key[2] else "")
+                errs.append(f"contradictory rules on {name}: no value is above {lo} and below {hi} at once (AND)")
+    return errs
+
+
 def validate(strategy: dict) -> list[str]:
     """Return a list of human-readable errors (empty = valid)."""
     errs = []
@@ -78,6 +106,10 @@ def validate(strategy: dict) -> list[str]:
                 errs.append(p + "value period must be an integer 2-500")
         elif isinstance(v, bool) or not isinstance(v, (int, float)) or not np.isfinite(v):
             errs.append(p + "value must be a finite number or an indicator")
+        if r.get("tf") is not None and not isinstance(r["tf"], str):
+            errs.append(p + "tf must be a text label such as '1h'")
+    if not errs and strategy.get("logic", "AND") == "AND":
+        errs.extend(_contradictions(rules))
     return errs
 
 

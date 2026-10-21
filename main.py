@@ -1081,6 +1081,8 @@ def render_soon_page(i):
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 
+_CS_TFS = ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"]
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
@@ -1134,7 +1136,7 @@ def render_chart_scanner():
     rels = ["—", "above", "below", "crossed above", "crossed below"]
     with st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
-        tf = r1[0].selectbox(L("Timeframe"), ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"], index=5, key="cs_tf")
+        tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=5, key="cs_tf")
         n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=10, step=1, key="cs_n")
         side_pick = r1[2].selectbox(L("Side"), ["Both", "Buy only", "Sell only"], key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), ["All selected", "Any selected"], key="cs_mode", format_func=L)
@@ -1181,20 +1183,30 @@ def render_chart_scanner():
         cols = st.columns(per_row)
         for col, (sym, d) in zip(cols, shown[r0:r0 + per_row]):
             with col:
+                tf_x, d_x = tf, d   # this chart's own timeframe (team task 16); "—" = same as the top Timeframe
+                tf_pick = st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", label_visibility="collapsed",
+                                       help=L("Own timeframe for this chart (— = same as the top Timeframe)"))
+                if tf_pick != "—" and tf_pick != tf:
+                    try:
+                        d_one = _chart_scan_data((sym,), tf_pick, look).get(sym)
+                        if d_one:
+                            tf_x, d_x = tf_pick, d_one
+                    except Exception as e_tf:
+                        st.caption(f"{tf_pick}: {e_tf}")
                 badges = "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
-                                 f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
-                rsi_v = d["rsi"]
+                                 f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d_x["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
+                rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
                 st.markdown(
-                    f"<div style='font-size:12px'><a href='{html.escape(tv_link(sym, tf), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                    f"<div style='font-size:12px'><a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
                     f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym)}</a> "
-                    f"<span style='color:#848e9c'>{fmt_price(d['price'])}</span> "
+                    f"<span style='color:#848e9c'>{fmt_price(d_x['price'])}</span> "
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
-                    f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d['svg']}'/>"
+                    f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d_x['svg']}'/>"
                     f"<div style='min-height:18px;margin-top:2px'>{badges}</div>", unsafe_allow_html=True)
-                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
+                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
-                        r_ = _cs_result(sym, tf)
+                        r_ = _cs_result(sym, tf_x)
                         if r_:
                             explain_symbol(r_)
                     except Exception as e_:

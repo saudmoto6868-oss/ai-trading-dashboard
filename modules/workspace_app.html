@@ -5421,7 +5421,7 @@ function applyLang(rebuild){
     });
   };
   const run = () => { queued = false; busy = true; document.querySelectorAll("table.rdt, table.wt").forEach(tb => { try { sync(tb); } catch(e){} }); if (obs) obs.takeRecords(); busy = false; };
-  const sched = () => { if (busy || queued) return; queued = true; setTimeout(run, 30); };   // setTimeout, not rAF: rAF never fires while the page is hidden / not painting
+  const sched = () => { if (busy || queued) return; queued = true; setTimeout(run, 150); };   // setTimeout, not rAF: rAF never fires while the page is hidden / not painting
   const tableOf = n => n && n.closest && n.closest("table.colx");
   document.addEventListener("pointerdown", e => {   // resize: drag the right edge handle of a header cell
     const g = e.target.closest && e.target.closest(".cx-h"), th = g && g.parentElement, tb = tableOf(th); if (!tb || !tb._cx) return;
@@ -5444,7 +5444,9 @@ function applyLang(rebuild){
     (st[cx.sig] = st[cx.sig] || {}).perm = cx.perm.slice(); save(); if (obs) obs.takeRecords(); busy = false; });
   document.addEventListener("dragend", () => { drag = null; document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over")); });
   document.addEventListener("mouseover", e => { const c = e.target.closest && e.target.closest("table.colx.fx td"); if (c && !c.title) c.title = (c.textContent || "").trim(); });
-  obs = new MutationObserver(sched); obs.observe(document.body, {childList:true, subtree:true}); sched();
+  // only react when a table (or a row/header inside one) was added: the page re-renders its live data many times a second
+  obs = new MutationObserver(recs => { for (const r of recs){ for (const n of r.addedNodes){ if (n.nodeType === 1 && (n.tagName === 'TABLE' || n.tagName === 'TR' || n.tagName === 'THEAD' || (n.querySelector && n.querySelector('table')))) { sched(); return; } } } });
+  obs.observe(document.body, {childList:true, subtree:true}); sched();
   window.__xpixCols = {movePerm};   // for tests
 })();
 </script>

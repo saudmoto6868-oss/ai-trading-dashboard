@@ -1169,7 +1169,10 @@ def render_chart_scanner():
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    with st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
+    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False)   # one button: hides the filter block; widgets stay rendered so selections are kept
+    if fold:
+        st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
+    with st.container(key="csfw"), st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
         tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=5, key="cs_tf")
         n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=10, step=1, key="cs_n")

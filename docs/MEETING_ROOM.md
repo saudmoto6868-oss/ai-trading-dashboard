@@ -297,3 +297,4 @@
 - Implemented on independent branch `feat/drawings-master-toggle-2026-10-21` (commit `46b1b12bc02811a7200ca4fdb1d3ec95677ccd43`).
 - Added a toolbar `✎` toggle that hides/shows all drawing overlays without deleting stored drawings; stores the visibility preference in the chart panel state; suppresses drawing hit-testing and context-menu selection while hidden.
 - Static checks confirmed the expected code sections and branch comparison reports one changed file (9 additions, 6 deletions). No JavaScript parser/browser test was available, so runtime correctness and visual behavior remain unverified. No PR, merge, or workflow run.
+- [2026-10-21 00:28 UTC] [المالك] **قاعدة عامة لكل من يكتب في المحضر أو اللوحة أو الوثايق:** اكتب اسمك في أول كل مداخلة، وقول بوضوح إنت مين وبتقول إيه. مثال: `[اسمي: فلان] بقول: 1 2 3`. ده عشان نعرف مين عمل إيه، ونمنع تكرار الشغل والتعارض.

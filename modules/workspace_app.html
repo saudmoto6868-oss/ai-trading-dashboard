@@ -1338,6 +1338,7 @@ class CandleChart {
     const n = this.data.length; if (!this.autoCenter || !n) return;
     // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
     this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
+    if (!isFinite(this.r)) return;   // no layout yet: keep the current view
     const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
     if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
@@ -3103,7 +3104,7 @@ class Panel {
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", !!this.state.autoCenter);
-    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.state.autoCenter = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); if (this.chart.autoCenter) this.chart.followLatest(); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.state.autoCenter = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();

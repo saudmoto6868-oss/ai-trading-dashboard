@@ -1279,6 +1279,7 @@ function niceTicks(lo, hi, n){
   return {ticks:out, step};
 }
 // task 52: a time-synced crosshair. When on, moving the cross over one chart of a symbol draws the same time on every other chart of that symbol.
+const CHART_UIDS = new Set();   // task 54b: ids in use on this page
 const XHS = {on:false, t:null, sym:null, src:null}; const XH_CHARTS = new Set();
 function xhSync(src){ if (!XHS.on) return; const ii = Math.max(0, Math.min(src.data.length-1, Math.round(src.idx(src.mouse ? src.mouse.x : 0)))); const d = src.data[ii]; if (!d) return;
   XHS.t = d.t; XHS.sym = src.sym; XHS.src = src; XH_CHARTS.forEach(c => { if (c !== src && c.sym === src.sym && c.data && c.data.length) c.draw(); }); }
@@ -3167,7 +3168,7 @@ class Panel {
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
-    this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    this.chart = new CandleChart(wrap); if (!this.state.chartUid || CHART_UIDS.has(this.state.chartUid)){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } CHART_UIDS.add(this.state.chartUid); this.chart.uid = this.state.chartUid;   // task 54b: a copied workspace gets a new id, so two charts never share one saved view this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };

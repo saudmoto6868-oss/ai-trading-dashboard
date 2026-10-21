@@ -1120,6 +1120,38 @@ def _cs_result(sym: str, tf: str):
     return r
 
 
+def render_market_map():
+    """Market map of the Hyperliquid TradFi markets (xyz): change tiles, breadth, and strength by asset class."""
+    from modules.hl_feed import markets as _hl_markets
+    from modules.market_map import board, breadth, by_class
+    try:
+        rows = _hl_markets()
+    except Exception as e:
+        st.warning(L("Market map: Hyperliquid did not answer") + f" ({type(e).__name__})")
+        return
+    df = board(rows)
+    if df.empty:
+        st.caption(L("Market map: no markets with a reference price right now."))
+        return
+    bd = breadth(df)
+    st.markdown(f"**{L('Market map')}** · {L('markets')}: {bd['n']} · {L('up')}: {bd['up_share']*100:.0f}% · "
+                f"{L('down')}: {bd['down_share']*100:.0f}% · {L('median change')}: {bd['median_chg']:+.2f}%")
+    st.caption(L("Tile colour = change vs the previous day; tile size = 24h volume (no market cap is available for these markets). "
+                 "Breadth and strength describe the move, they do not predict it."))
+    tiles = []
+    for _, r in df.iterrows():
+        g = max(-8.0, min(8.0, r["chg"])) / 8.0
+        bg = f"rgba(14,203,129,{abs(g)*0.85+0.1:.2f})" if g >= 0 else f"rgba(246,70,93,{abs(g)*0.85+0.1:.2f})"
+        size = 0.7 + 0.6 * (r["vol"] / df["vol"].max()) ** 0.5
+        tiles.append(f"<div title='{r['name']} · {r['cls']} · {r['chg']:+.2f}% · vs class {r['rel']:+.2f}%' "
+                     f"style='flex:{size:.2f} 1 110px;min-height:56px;background:{bg};border-radius:4px;padding:4px 6px;"
+                     f"font:12px ui-monospace,Menlo,monospace;color:#eaecef'><b>{r['name']}</b><br>{r['chg']:+.2f}%</div>")
+    st.markdown("<div style='display:flex;flex-wrap:wrap;gap:4px'>" + "".join(tiles) + "</div>", unsafe_allow_html=True)
+    cls = by_class(df)
+    st.dataframe(cls.rename(columns={"cls": L("Class"), "n": L("Markets"), "avg_chg": L("Avg change %"), "up_share": L("Share up")}).round(3),
+                 hide_index=True)
+
+
 def render_chart_scanner():
     st.markdown("""<style>
 .st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
@@ -1272,6 +1304,7 @@ if PAGE == 0:   # workspace
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
     try:
+        render_market_map()
         render_universe_controls()
         render_chart_scanner()
     except Exception as _e:

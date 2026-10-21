@@ -117,6 +117,17 @@ def lang() -> str:
         return "en"
 
 
+# Market map (Radar page, modules/market_map.py)
+AR.update({
+    "Market map": "خريطة السوق", "markets": "الأسواق", "up": "صاعد", "down": "هابط", "median change": "متوسط التغير",
+    "Market map: Hyperliquid did not answer": "خريطة السوق: Hyperliquid ما ردش",
+    "Market map: no markets with a reference price right now.": "خريطة السوق: مفيش أسواق بسعر مرجعي دلوقتي.",
+    "Tile colour = change vs the previous day; tile size = 24h volume (no market cap is available for these markets). Breadth and strength describe the move, they do not predict it.":
+        "لون المربع = التغير عن اليوم اللي فات؛ حجم المربع = حجم 24 ساعة (مفيش قيمة سوقية متاحة للأسواق دي). الاتساع والقوة بيوصفوا الحركة، ومابيتنبؤوش بيها.",
+    "Class": "الفئة", "Markets": "الأسواق", "Avg change %": "متوسط التغير %", "Share up": "نسبة الصاعد",
+})
+
+
 def L(text: str) -> str:
     """Arabic when the language switch says 'ar', otherwise the English text unchanged."""
     return AR.get(text, text) if lang() == "ar" else text

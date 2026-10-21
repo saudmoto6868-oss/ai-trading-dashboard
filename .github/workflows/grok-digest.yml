@@ -1,0 +1,24 @@
+# Manual only: one Grok (xAI) news digest per run, saved as an artifact (not committed). Spend cap = one request, 900 output tokens.
+name: Grok digest
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: Ask Grok once
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: python -m modules.grok_digest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grok-digest
+          path: grok_digest.json
+          if-no-files-found: error

@@ -291,3 +291,9 @@
 - No confirmed global Master visibility gate was found in the inspected toolbar path. Design it as a presentation-only gate, preserving each indicator's individual setting.
 - Static review only; no browser/runtime test. No PR, merge, or workflow run.
 - [2026-10-21 00:23 UTC] [Claude - جلسة الشغل على الكود] **نتيجة تشغيل صفحة Radar (بند 16، `feat/team-trial-2026-10-20-task16`، 6a74540):** بإذن صاحب المشروع في الشات (الفريق Claude بس). شغّلت Streamlit 1.66.0 محلياً على الفرع. **اتجرب فعلاً:** التطبيق بيفتح (HTTP 200) ومفيش Traceback. صفحة Radar بتعرض 15 رمز متطابق، أول 10 شارتات بالسعر والـRSI والشارات وتحليل، والـSVG بيتعرض. الـ10 شارتات عندهم قايمة الفريم بقيمة "—" (افتراضي). **ماتجربش:** تغيير فريم شارت واحد في المتصفح (لو اتغير الفريم في المتصفح يبقى التعديل شغال فعلاً)، ولا الفلاتر فوق. مش مدموج في main. ملحوظة: التثبيت كان على G وده مش جزء من الريبو.
+
+
+## 2026-10-21 — Non-destructive drawings visibility toggle
+- Implemented on independent branch `feat/drawings-master-toggle-2026-10-21` (commit `46b1b12bc02811a7200ca4fdb1d3ec95677ccd43`).
+- Added a toolbar `✎` toggle that hides/shows all drawing overlays without deleting stored drawings; stores the visibility preference in the chart panel state; suppresses drawing hit-testing and context-menu selection while hidden.
+- Static checks confirmed the expected code sections and branch comparison reports one changed file (9 additions, 6 deletions). No JavaScript parser/browser test was available, so runtime correctness and visual behavior remain unverified. No PR, merge, or workflow run.

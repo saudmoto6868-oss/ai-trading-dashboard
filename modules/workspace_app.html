@@ -1046,7 +1046,7 @@ const Journal = {
   }
 };
 setTimeout(() => { Journal.ingest(); Journal.track(); }, 1500);
-setInterval(() => { Journal.ingest(); Journal.track(); }, 30000);
+setInterval(() => { if (!document.hidden){ Journal.ingest(); Journal.track(); } }, 30000);   // task 54 (tabs): a hidden tab skips the journal write; a visible tab keeps it current, and the journal is shared
 Alerts.subs.add(() => Journal.ingest());
 const Setup = {sel:null, subs:new Set(), pick(e){ this.sel = e; this.subs.forEach(f => f()); }};   // the setup shown by the Setup Card widget (clicked chip / newest alert / best live setup)
 function setupHtml(e){

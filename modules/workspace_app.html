@@ -2177,8 +2177,11 @@ Object.assign(CandleChart.prototype, {
     if (!this._harm.list.length){ this.indNote(c, 0, Lg("Harmonic: no XABCD pattern on this timeframe yet", "هارمونيك: مفيش نموذج XABCD على الفريم ده لسه")); return; } if (this.htfAgainst(this._harm.list[0].dir === "bull")) this.indNote(c, 3, Lg("Harmonic pattern against the bigger trend", "نمط هارمونيك عكس الاتجاه الأكبر"));
     const nm = ["X","A","B","C","D"], n = this.data.length, PRx = this.PR, F = v => Number(v).toFixed(dec), fs = "bold 10px ui-monospace,Menlo,Consolas,monospace";
     this._harm.list.forEach((h, q) => {
+      // task 21: a pattern whose trade already ended (target hit or stop hit) is drawn muted (yellow, faded); older ended ones are hidden unless "show history" is on
+      const endedQ = !!harmHit(h.plan, this.data, h.pts[h.pts.length-1].i);
+      if (endedQ && q > 0 && !this.harmHist) return;
       const bull = h.dir === "bull", col = bull ? "#0ecb81" : "#f6465d", forming = h.state === "forming", P = h.pts.map(t => ({x:this.x(t.i), y:py(t.p), p:t.p})), m = P.length, bw = Math.max(this.bw, 4);
-      c.save(); const A0 = q ? .55 : 1; c.globalAlpha = A0;
+      c.save(); const A0 = (endedQ ? .4 : 1) * (q ? .55 : 1); c.globalAlpha = A0;
       if (!forming){ c.fillStyle = col; c.globalAlpha = A0*.12; [[0,1,2],[2,3,4]].forEach(t => { c.beginPath(); t.forEach((j,u) => u ? c.lineTo(P[j].x,P[j].y) : c.moveTo(P[j].x,P[j].y)); c.closePath(); c.fill(); }); }
       c.globalAlpha = A0; c.strokeStyle = col; c.lineWidth = 1.8; c.beginPath(); P.forEach((t,u) => u ? c.lineTo(t.x,t.y) : c.moveTo(t.x,t.y)); c.stroke();
       const xD = forming ? this.x(n-1) + 4*bw : P[4].x, yPm = py(h.prz.mid);

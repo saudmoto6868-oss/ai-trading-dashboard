@@ -1081,6 +1081,9 @@ def render_soon_page(i):
 TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
 CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
 
+# Radar setups (team task 17): a suggestion only; nothing here places an order
+RADAR_TAG = "<span title='Radar setup: suggestion only, no automatic orders' style='color:#f0b90b;font-weight:700;font-size:10px;margin-right:4px;cursor:help'>◆ RADAR</span>"
+
 _CS_TFS = ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"]
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -1172,7 +1175,7 @@ def render_chart_scanner():
     def ok(d):
         return match_filters(d, sel, want, mode == "Any selected")
     shown = [(sym, d) for sym, d in data.items() if ok(d)]
-    st.caption(f"{len(shown)} of {len(data)} symbols match" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
+    st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
         st.info(L("No symbols match the selected conditions right now."))
@@ -1193,7 +1196,7 @@ def render_chart_scanner():
                             tf_x, d_x = tf_pick, d_one
                     except Exception as e_tf:
                         st.caption(f"{tf_pick}: {e_tf}")
-                badges = "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
+                badges = (RADAR_TAG if sel else "") + "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
                                  f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d_x["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"

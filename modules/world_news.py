@@ -4,11 +4,12 @@ No tweets: there is no reliable free source for Trump / Fed posts."""
 import re
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 
 import requests
+
+from modules.news_utils import cairo_str, dedupe
 
 # id, url, language, topic, label
 FEEDS = [
@@ -51,14 +52,13 @@ def parse_rss(xml_text: str, feed) -> list:
             except Exception:
                 from datetime import datetime
                 dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            ts = int(dt.timestamp())
+            if dt.tzinfo is not None:   # a date with no timezone is not guessed: ts stays 0, no time shown
+                ts = int(dt.timestamp())
         except Exception:
             pass
         summ = unescape(_TAG.sub("", g("description", "summary"))).strip()[:400]
         out.append({"headline": title, "source": label, "url": link, "summary": summ, "ts": ts, "topic": topic, "lang": lang,
-                    "datetime": __import__("datetime").datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d %H:%M UTC") if ts else ""})
+                    "datetime": cairo_str(ts)})
     return out
 
 
@@ -81,4 +81,4 @@ def fetch_world(feeds=FEEDS, per_feed=12):
         if err:
             errs.append(err)
     items.sort(key=lambda x: x["ts"], reverse=True)
-    return items, errs
+    return dedupe(items), errs   # newest copy of a repeated title wins

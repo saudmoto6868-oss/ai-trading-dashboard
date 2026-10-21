@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 
 import requests
+
+from modules.news_utils import cairo_str, dedupe
 
 FEEDS = [("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
          ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
@@ -19,8 +22,15 @@ def parse_rss(xml_text: str, source: str, limit: int = 10) -> list[dict]:
     for it in root.iter("item"):
         t = (it.findtext("title") or "").strip()
         if t:
-            out.append({"title": t, "url": (it.findtext("link") or "").strip(), "source": source,
-                        "time": (it.findtext("pubDate") or "").strip()})
+            raw = (it.findtext("pubDate") or "").strip()
+            shown = raw   # no timezone in the feed date -> keep the raw text, do not guess
+            try:
+                dt = parsedate_to_datetime(raw)
+                if dt.tzinfo is not None:
+                    shown = cairo_str(dt.timestamp())
+            except Exception:
+                pass
+            out.append({"title": t, "url": (it.findtext("link") or "").strip(), "source": source, "time": shown})
         if len(out) >= limit:
             break
     return out
@@ -36,4 +46,4 @@ def fetch(limit: int = 15) -> list[dict]:
         except requests.RequestException:
             per.append([])
     mixed = [a for grp in zip(*[g + [None] * (10 - len(g)) for g in per]) for a in grp if a]
-    return mixed[:limit]
+    return dedupe(mixed, "title")[:limit]

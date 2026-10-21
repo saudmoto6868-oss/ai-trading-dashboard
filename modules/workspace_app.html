@@ -398,14 +398,14 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
    (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
 /* The flag used to stay behind whenever Streamlit replaced this frame within 5 s (any rerun), and the next load wiped every setting
    (owner: "refresh resets everything"). Now the flag is removed when the frame unloads normally, and the wipe needs TWO stuck loads in a row. */
-(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", prev = localStorage.getItem(BOOT), now = Date.now(), mine = String(now);
+(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", SS = sessionStorage, prev = SS.getItem(BOOT), now = Date.now(), mine = String(now);   // per tab (sessionStorage): a second open tab must not look like a stuck first tab
   const stuck = prev && now - +prev > 8000 && now - +prev < 6 * 3600e3, strikes = stuck ? (+localStorage.getItem(BAD) || 0) + 1 : 0;
   if (strikes >= 2){
     Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
     window.__wsSafeBoot = true; }
-  else if (strikes) localStorage.setItem(BAD, String(strikes)); else localStorage.removeItem(BAD);
-  localStorage.setItem(BOOT, mine);
-  addEventListener("pagehide", () => { try { if (localStorage.getItem(BOOT) === mine) localStorage.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
+  else if (strikes) SS.setItem(BAD, String(strikes)); else SS.removeItem(BAD);
+  SS.setItem(BOOT, mine);
+  addEventListener("pagehide", () => { try { if (SS.getItem(BOOT) === mine) SS.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
 } catch(e){} })();
 /* Theme / material / language live in the page link (?theme=...), so opening the bare link fell back to Classic. The current choice is
    also kept in cookies (xpix_theme / xpix_mat / xpix_lang); main.py reads them when the link has no choice. While the app runs,

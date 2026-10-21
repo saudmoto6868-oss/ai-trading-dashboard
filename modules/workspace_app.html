@@ -889,7 +889,10 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
 /* OKX calls are shared: every panel asks for the same endpoints (open interest, positioning, funding), and OKX answers 429 when they
    all fire at once. One request per path is in flight or cached for a short time (rubik stats: 60 s, prices: 3 s); a 429 is reported
    as a rate limit instead of being retried in a loop. */
-const OKX_CACHE = {}; let OKX_COOL = 0;
+const OKX_CACHE = {};
+// the rubik cooldown survives the workspace iframe being rebuilt (each rebuild used to re-hit OKX and reload the chart)
+let OKX_COOL = 0; try { OKX_COOL = +(sessionStorage.getItem("okx_cool") || 0); } catch(e){}
+const okxCoolSet = (t) => { OKX_COOL = t; try { sessionStorage.setItem("okx_cool", String(t)); } catch(e){} };
 const OKX_COOL_P = {};   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
@@ -905,10 +908,10 @@ function okx(path){
     let r;
     try { r = await fetch(API + "/api/v5" + path, {cache:"no-store"}); }
     catch(e){   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
-      if (rub) OKX_COOL = Date.now() + 600000;
+      if (rub) okxCoolSet(Date.now() + 600000);
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
-    if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; else OKX_COOL_P[path] = Date.now() + 30000; throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else OKX_COOL_P[path] = Date.now() + 30000; throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));

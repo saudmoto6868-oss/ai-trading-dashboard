@@ -1193,7 +1193,7 @@ def render_chart_scanner():
                             tf_x, d_x = tf_pick, d_one
                     except Exception as e_tf:
                         st.caption(f"{tf_pick}: {e_tf}")
-                badges = "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
+                badges = "".join(f"<span title='{html.escape(ALL_FILTERS.get(k, k), quote=True)}' style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;cursor:help'>"
                                  f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d_x["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"

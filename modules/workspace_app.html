@@ -1267,6 +1267,7 @@ const psarOf = (d, start, inc, max) => { const n = d.length, v = new Array(n).fi
     v[i] = res; u[i] = below; }
   return {v, up:u}; };
 const smaOf = (a, n) => { let s = 0; return a.map((v, i) => { s += v; if (i >= n) s -= a[i-n]; return i >= n-1 ? s/n : s/(i+1); }); };
+let CHART_S = 1;   // chart size from the header − / + control (1 = theme size); every chart lays itself out in units of this
 const MA_TYPES = ["SMA","EMA","WMA"], MA_MAX = 7, MA_COLS = ["#f0b90b","#4aa3ff","#b57cff","#ff9800","#0ecb81","#f6465d","#26c6da"];
 const maOf = (a, n, type) => {   // one moving average of a series: null before the first full window (SMA / WMA), EMA starts on the first bar
   if (type === "WMA"){ const den = n*(n+1)/2; return a.map((_, i) => { if (i < n-1) return null; let s = 0; for (let k = 0; k < n; k++) s += a[i-k]*(n-k); return s/den; }); }
@@ -1283,13 +1284,14 @@ function niceTicks(lo, hi, n){
   return {ticks:out, step};
 }
 // task 52: a time-synced crosshair. When on, moving the cross over one chart of a symbol draws the same time on every other chart of that symbol.
-const XHS = {on:false, t:null, sym:null, src:null}; const XH_CHARTS = new Set();
+const XHS = {on:true, t:null, sym:null, src:null}; const XH_CHARTS = new Set(), XH_BTNS = new Set();
+function xhSet(v){ XHS.on = !!v; store.set(LS+"_xh", XHS.on); XH_BTNS.forEach(b => b.classList.toggle("on", XHS.on)); if (!XHS.on) XHS.t = null; XH_CHARTS.forEach(c => c.draw()); }   // one switch for all charts / tabs
 function xhSync(src){ if (!XHS.on) return; const ii = Math.max(0, Math.min(src.data.length-1, Math.round(src.idx(src.mouse ? src.mouse.x : 0)))); const d = src.data[ii]; if (!d) return;
   XHS.t = d.t; XHS.sym = src.sym; XHS.src = src; XH_CHARTS.forEach(c => { if (c !== src && c.sym === src.sym && c.data && c.data.length) c.draw(); }); }
 class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
-    this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
+    this.data = []; this.S = 1; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
     this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
     this.st = {vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
@@ -1319,8 +1321,9 @@ class CandleChart {
   get subH(){ return this.subHs().reduce((x,y) => x+y, 0); }
   get PB(){ return this.H - 20 - this.subH; }
   resize(){
-    const dpr = window.devicePixelRatio || 1; this.W = this.host.clientWidth; this.H = this.host.clientHeight;
-    this.cv.width = this.W*dpr; this.cv.height = this.H*dpr; this.cv.style.width = this.W+"px"; this.cv.style.height = this.H+"px";
+    const dpr = window.devicePixelRatio || 1, hw = this.host.clientWidth, hh = this.host.clientHeight; this.S = CHART_S;
+    this.W = hw/this.S; this.H = hh/this.S;   // the chart is laid out in its own units: at 50 % zoom it has twice the room, so more candles fit
+    this.cv.width = Math.round(this.W*dpr); this.cv.height = Math.round(this.H*dpr); this.cv.style.width = hw+"px"; this.cv.style.height = hh+"px";
     this.ctx.setTransform(dpr,0,0,dpr,0,0); this.draw();
   }
   setData(arr, fit){
@@ -1373,7 +1376,7 @@ class CandleChart {
   x(i){ return this.PR - (this.r - i + 0.5)*this.bw; }
   idx(x){ return this.r + 0.5 - (this.PR - x)/this.bw; }
   wheel(e){
-    const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
+    const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
     if (mx > this.W-this.axw){ this._bookFit = false; this.yZoom = Math.max(0.02, Math.min(60, this.yZoom*Math.exp(e.deltaY*0.0015))); this.draw(); return; }
     if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.draw(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
     const anchor = this.idx(mx), f = Math.exp(-e.deltaY*0.0015);
@@ -1381,18 +1384,18 @@ class CandleChart {
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.draw(); this.checkMore();
   }
   down(e){
-    { const X = this._llX, r0 = this.cv.getBoundingClientRect(), mx0 = e.clientX - r0.left, my0 = e.clientY - r0.top;   // ✕ on the targets table
+    { const X = this._llX, r0 = this.cv.getBoundingClientRect(), mx0 = (e.clientX - r0.left)/this.S, my0 = (e.clientY - r0.top)/this.S;   // ✕ on the targets table
       if (X && this.llOn && this.llTbl !== false && mx0 >= X.x && mx0 <= X.x + X.w && my0 >= X.y && my0 <= X.y + X.h){ this.llTbl = false; this._llX = null; this.onLLTbl && this.onLLTbl(); this.draw(); return; }
       const K = this._kzsX; if (K && this.kzsOn && this.kzsTbl !== false && mx0 >= K.x && mx0 <= K.x + K.w && my0 >= K.y && my0 <= K.y + K.h){ this.kzsTbl = false; this._kzsX = null; this.onKzsTbl && this.onKzsTbl(); this.draw(); return; } }
     if (e.pointerType === "touch"){ this._tap0 = (this.tp && this.tp.size) ? null : {x:e.clientX, y:e.clientY, t:Date.now()};
-      if (this.xMode){ const rc = this.cv.getBoundingClientRect(); this._lp = true; this.drag = null; this.mouse = {x:e.clientX - rc.left, y:e.clientY - rc.top}; this.draw(); return; } }   // MT5 crosshair button: one finger moves the cross
+      if (this.xMode){ const rc = this.cv.getBoundingClientRect(); this._lp = true; this.drag = null; this.mouse = {x:(e.clientX - rc.left)/this.S, y:(e.clientY - rc.top)/this.S}; this.draw(); return; } }   // MT5 crosshair button: one finger moves the cross
     if (e.pointerType === "touch"){ clearTimeout(this._lpT); this._lp = false; const sx = e.clientX, sy = e.clientY;
-      this._lpT = setTimeout(() => { if (this.drag && Math.hypot(this.drag.x - sx, this.drag.y - sy) < 8 && !this.pinch){ this._lp = true; this.drag = null; const rc = this.cv.getBoundingClientRect(); this.mouse = {x:sx - rc.left, y:sy - rc.top}; this.draw(); } }, 450); }   // long press = crosshair
+      this._lpT = setTimeout(() => { if (this.drag && Math.hypot(this.drag.x - sx, this.drag.y - sy) < 8 && !this.pinch){ this._lp = true; this.drag = null; const rc = this.cv.getBoundingClientRect(); this.mouse = {x:(sx - rc.left)/this.S, y:(sy - rc.top)/this.S}; this.draw(); } }, 450); }   // long press = crosshair
     if (e.pointerType === "touch"){ const tp = this.tp = this.tp || new Map(); tp.set(e.pointerId, {x:e.clientX, y:e.clientY});
-      if (tp.size === 2){ const [a, b] = [...tp.values()], rect = this.cv.getBoundingClientRect(), mid = (a.x + b.x)/2 - rect.left;   // two fingers = pinch zoom on time
+      if (tp.size === 2){ const [a, b] = [...tp.values()], rect = this.cv.getBoundingClientRect(), mid = ((a.x + b.x)/2 - rect.left)/this.S;   // two fingers = pinch zoom on time
         this.pinch = {d0:Math.max(20, Math.abs(a.x - b.x)), bw0:this.bw, mid, anchor:this.idx(mid)}; this.drag = null; return; } }
     try { this.cv.setPointerCapture(e.pointerId); } catch(_){} this.cv.focus({preventScroll:true});
-    { const r0 = this.cv.getBoundingClientRect(), mx0 = e.clientX - r0.left, my = e.clientY - r0.top, hit = this.layoutHit(mx0, my);
+    { const r0 = this.cv.getBoundingClientRect(), mx0 = (e.clientX - r0.left)/this.S, my = (e.clientY - r0.top)/this.S, hit = this.layoutHit(mx0, my);
       if (hit){
         if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
         if (hit.kind === "axw"){ this.axDrag = {x:e.clientX, w:this.axw}; return; }
@@ -1402,24 +1405,24 @@ class CandleChart {
         if (hit.kind === "size"){ this.subDrag = {k:hit.k, y:e.clientY, hp:this.st[hit.k].hp}; return; }
       } }
     if (this.toolDown(e)) return;
-    const rect = this.cv.getBoundingClientRect(), mx = e.clientX - rect.left;
+    const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
     this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-this.axw};
   }
   move(e){
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
       const P = this.pinch, f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.draw(); this.checkMore(); return; }
-    const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top}; XH_CHARTS.add(this); xhSync(this);
+    const rect = this.cv.getBoundingClientRect(); this.mouse = {x:(e.clientX-rect.left)/this.S, y:(e.clientY-rect.top)/this.S}; XH_CHARTS.add(this); xhSync(this);
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.draw(); return; }   // crosshair mode (long press): move the cross, do not pan
-    if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)))); this.draw(); return; }
-    if (this.colDrag){ this.colW = Math.max(60, Math.min(Math.round(this.W*0.85), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)))); /* order-flow column: 60 px .. 85 % */ this.draw(); return; }
-    if (this.subDrag){ const dh = (this.subDrag.y - e.clientY)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(1, Math.min(92, Math.round((this.subDrag.hp + dh)*10)/10)); /* drag the divider all the way down or up */ this.resize(); this.draw(); return; }
+    if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)/this.S))); this.draw(); return; }
+    if (this.colDrag){ this.colW = Math.max(60, Math.min(Math.round(this.W*0.85), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)/this.S))); /* order-flow column: 60 px .. 85 % */ this.draw(); return; }
+    if (this.subDrag){ const dh = ((this.subDrag.y - e.clientY)/this.S)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(1, Math.min(92, Math.round((this.subDrag.hp + dh)*10)/10)); /* drag the divider all the way down or up */ this.resize(); this.draw(); return; }
     if (this.subMove){ const act = this.subActive(), i = act.indexOf(this.subMove.k), P = this._panes || [], me = P.find(q => q.k === this.subMove.k);
       if (me && i >= 0){ const my = this.mouse.y; if (i > 0 && my < me.y0 - 4) this.swapSub(this.subMove.k, -1); else if (i < act.length-1 && my > me.y0 + me.h + 8) this.swapSub(this.subMove.k, 1); } return; }
     { const hh = this.layoutHit(this.mouse.x, this.mouse.y); this.cv.style.cursor = hh ? ((hh.kind === "col" || hh.kind === "axw") ? "ew-resize" : hh.kind === "size" ? "ns-resize" : hh.kind === "move" ? "grab" : "pointer") : (this.tool === "cur" ? "" : "crosshair"); }
     if (this.toolMove(e)){ this.draw(); return; }
     if (this.drag){
-      const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y; this.drag.x = e.clientX; this.drag.y = e.clientY;
+      const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
       if (this.drag.axis){ this._bookFit = false; this.yZoom = Math.max(0.02, Math.min(60, this.yZoom*Math.exp(dy*0.005))); }
       else { this._bookFit = false; this.r -= dx/this.bw; this.yShift += dy/Math.max(1, this.PB); this.clampR(); this.checkMore(); }
     }
@@ -1432,7 +1435,7 @@ class CandleChart {
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
-      if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap(t0.x - rc.left, t0.y - rc.top); } }   // a quick tap = MT5 round menu
+      if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap((t0.x - rc.left)/this.S, (t0.y - rc.top)/this.S); } }   // a quick tap = MT5 round menu
     if (this.tp){ this.tp.delete(e.pointerId); if (this.tp.size < 2) this.pinch = null; } this.axDrag = null; if (this.subDrag){ this.subDrag = null; this.onSubH && this.onSubH(); } if (this.colDrag){ this.colDrag = null; this.onLayout && this.onLayout(); } if (this.subMove){ this.subMove = null; this.onLayout && this.onLayout(); } this.toolUp(e); this.drag = null; }
   swapSub(k, dir){ const act = this.subActive(), i = act.indexOf(k), j = i + dir; if (i < 0 || j < 0 || j >= act.length) return; const a = this.subOrd.indexOf(k), b = this.subOrd.indexOf(act[j]); [this.subOrd[a], this.subOrd[b]] = [this.subOrd[b], this.subOrd[a]]; this.onLayout && this.onLayout(); this.draw(); }
   layoutHit(mx, my){
@@ -1630,7 +1633,7 @@ class CandleChart {
     c.textAlign = "left"; c.fillStyle = "#848e9c";
     const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";
     c.fillText(txt, 8, 10); c.fillStyle = dcol; c.fillText((chg>=0?"+":"")+chg.toFixed(2)+"%", 8+c.measureText(txt).width, 10);
-    if (this.colOn) this.paintCol(c, py, PB, PR, i0, i1);
+    if (this.colOn){ this.paintCol(c, py, PB, PR, i0, i1); this.paintXhCol(c, PR, PB); }
     this.paintSub(c, PB, i0, i1);
   }
   paintSub(c, PB, i0, i1){
@@ -1878,10 +1881,19 @@ Object.assign(CandleChart.prototype, {
     }
     c.restore();
   },
+  paintXhCol(c, PR, PB){   // crosshair on the order-flow column: the time (and price) of this chart's pointer, or the time shared from a linked chart
+    const tx = this._colTx, CW = this.cw(); if (!tx || !CW) return; let t = null, y = null;
+    if (this.mouse && this.mouse.x < PR && this.mouse.y < PB){ const ii = Math.max(0, Math.min(this.data.length-1, Math.round(this.idx(this.mouse.x)))); if (this.data[ii]) t = this.data[ii].t; y = this.mouse.y; }
+    else if (XHS.on && XHS.sym === this.sym && XHS.t != null) t = XHS.t;
+    if (t == null) return; const x = tx(t); if (!(x > PR + 5 && x < PR + CW - 3)) return;
+    const own = !!this.mouse; c.save(); c.strokeStyle = own ? "#5a636e" : "#f0b90b"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(x+.5, 0); c.lineTo(x+.5, PB);
+    if (own && y != null){ c.moveTo(PR, y+.5); c.lineTo(PR + CW, y+.5); }
+    c.stroke(); c.restore(); },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 && (this.flowSpan || span > 900000) ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
     const tx = t => gx1 - (anchor - t)/span*gw;   // time -> x
+    this._colTx = tx;
     c.save(); c.fillStyle = (this.st.of.hm || "book") === "book" && this.domOn ? "rgb(1,3,8)" : "#0d1116"; c.fillRect(X0, 0, CW, PB);   // heat-map base colour fills the column top to bottom; the book itself only exists where the exchange lists orders c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
     c.fillStyle = "#3a424b"; c.fillRect(X0 + 1, Math.round(PB/2) - 12, 3, 24);   // grip: drag to resize, double-click = default
     c.beginPath(); c.rect(X0 + 5, 0, CW - 7, PB); c.clip();
@@ -2248,7 +2260,7 @@ Object.assign(CandleChart.prototype, {
   tx(t){ return this.x(this.t2i(t)); },
   yp(p){ return this.PB - (p-this._lo)/(this._hi-this._lo)*this.PB; },
   py2p(y){ return this._lo + (this.PB-y)/this.PB*(this._hi-this._lo); },
-  pt(e){ const r = this.cv.getBoundingClientRect(), x = e.clientX-r.left, y = e.clientY-r.top; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
+  pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
   saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
   setTool(t){ this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
@@ -3137,8 +3149,9 @@ class Panel {
       masterB.classList.toggle("on", !!this._masterOn); this.chart.draw(); Ws.save();
     };
     // task 52: crosshair sync toggle (same time on every chart of this symbol)
-    const xhB = el("button",null,"✚"); xhB.title = Lg("Crosshair sync: the same time on every chart of this symbol","تزامن الكروس: نفس الوقت في كل شارتات الرمز");
-    xhB.onclick = () => { XHS.on = !XHS.on; xhB.classList.toggle("on", XHS.on); if (!XHS.on){ XHS.t = null; XH_CHARTS.forEach(c => c.draw()); } };
+    const xhB = el("button",null,"✚"); xhB.title = Lg("Crosshair sync: the same time on every chart of this symbol, incl. their order-flow columns","تزامن الكروس: نفس الوقت في كل شارتات الرمز وعمود الأوردر فلو بتاعها");
+    XHS.on = store.get(LS+"_xh", true) !== false; XH_BTNS.add(xhB); xhB.classList.toggle("on", XHS.on);
+    xhB.onclick = () => xhSet(!XHS.on);
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
@@ -5442,9 +5455,10 @@ function buildBar(){
   const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
   sel.onchange = () => { const v = sel.value; if (v === "@trading"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
   const ub = el("button", null, "↶"), rb = el("button", null, "↷"); ub.id = "undoB"; rb.id = "redoB"; ub.onclick = () => Ws.undo(); rb.onclick = () => Ws.redo(); ub.style.cssText = rb.style.cssText = "padding:2px 8px;font-size:14px";
-  const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.5, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
+  const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.5, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); CHART_S = Math.max(.5, Math.min(1.4, v/zDef)); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
+zSet(+store.get(zKey, zDef));   // the saved size applies from the start, so the charts open at it too
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
 if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsRecBtn(), el("span","sp")); }

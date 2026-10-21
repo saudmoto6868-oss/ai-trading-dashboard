@@ -3943,11 +3943,11 @@ class Panel {
   }
   /* ---- news ---- */
   build_news(){
-    const S = this.state, ar = lang === "ar"; S.wm = Object.assign({eco:1, pol:1, geo:1, ar:1, en:1}, S.wm || {});
+    const S = this.state, ar = lang === "ar"; if (S.wmLang !== lang) { if (!S.wmLangManual) S.wm = Object.assign({}, S.wm || {}, {ar: ar ? 1 : 0, en: ar ? 0 : 1}); S.wmLang = lang; Ws.save(); } S.wm = Object.assign({eco:1, pol:1, geo:1, ar:ar ? 1 : 0, en:ar ? 0 : 1}, S.wm || {});
     const bar = el("div","tb"); bar.style.flexWrap = "wrap";
     [["eco", ar ? "اقتصادي" : "Economic"],["pol", ar ? "سياسي" : "Political"],["geo", ar ? "جيوسياسي" : "Geopolitical"],["ar", "عربي"],["en", ar ? "أجنبي" : "Foreign"]].forEach(([k, lab]) => {
       const b = el("button", null, lab), paint = () => { b.style.opacity = S.wm[k] ? "1" : ".4"; b.style.borderColor = S.wm[k] ? "#f0b90b" : ""; }; paint();
-      b.onclick = () => { S.wm[k] = S.wm[k] ? 0 : 1; paint(); Ws.save(); this.showNewsList(); }; bar.append(b); });
+      b.onclick = () => { S.wm[k] = S.wm[k] ? 0 : 1; if (k === "ar" || k === "en") S.wmLangManual = true; paint(); Ws.save(); this.showNewsList(); }; bar.append(b); });
     this.nBox = el("div","news-body"); this.body.append(bar, this.nBox); this.showNewsList();
   }
   showNewsList(){

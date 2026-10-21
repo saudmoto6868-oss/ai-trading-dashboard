@@ -117,6 +117,16 @@ def lang() -> str:
         return "en"
 
 
+# KPI strip (Stats page, modules/kpi.py)
+AR.update({
+    "Evidence": "الدليل", "passes gate": "عدّى البوابة", "not yet": "لسه مش دليل", "not evidence": "مش دليل",
+    "needs": "محتاج", "avg R in both halves": "متوسط R في النصين", "Trades": "الصفقات", "Win rate": "نسبة النجاح",
+    "Expectancy (R)": "متوسط الربح بالـ R", "Max drawdown (R)": "أقصى تراجع (R)", "After costs (R)": "بعد التكاليف (R)",
+    "By symbol": "حسب العملة", "By strategy": "حسب الاستراتيجية",
+    "Costs = {c} R per trade (planning estimate, not measured). Grey = under {n} trades, not evidence.": "التكاليف = {c} R للصفقة (تقدير تخطيط، مش متقاس). الرمادي = أقل من {n} صفقة، مش دليل.",
+})
+
+
 def L(text: str) -> str:
     """Arabic when the language switch says 'ar', otherwise the English text unchanged."""
     return AR.get(text, text) if lang() == "ar" else text

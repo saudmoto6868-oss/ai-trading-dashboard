@@ -16,7 +16,9 @@ jobs:
       - name: Ask Grok once
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-        run: python -m modules.grok_digest
+        run: |
+          python -m modules.grok_digest
+          python -c "import json;print(json.load(open('grok_digest.json'))['digest'])"
       - uses: actions/upload-artifact@v4
         with:
           name: grok-digest

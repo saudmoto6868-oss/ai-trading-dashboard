@@ -46,4 +46,4 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Sonnet: good for code work and much cheaper than the default; python allowed so it can run the tests
-          claude_args: '--max-turns 40 --model claude-sonnet-5-5 --allowedTools "Bash(python3:*),Bash(python:*),Bash(pip install:*),Bash(git fetch:*),Bash(git merge:*),Edit,Write"'
+          claude_args: '--max-turns 40 --model claude-sonnet-5-5 --allowedTools "Bash(python3:*),Bash(python:*),Bash(pip install:*),Bash(git fetch origin claude/issue-9-20261021-1523),Bash(git merge origin/claude/issue-9-20261021-1523),Edit,Write"'

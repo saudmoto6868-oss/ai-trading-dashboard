@@ -36,11 +36,8 @@ TOPICS = {
 GEMINI_MODELS = [os.environ.get("GEMINI_MODEL", ""), "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]
 
 
-def _gemini(prompt: str) -> str:
+def _gemini_key(key: str, prompt: str) -> str:
     """Gemini with retries: 404 = this model name is not available to the key (try the next); 429 / 503 / timeout = busy (wait, retry)."""
-    key = os.environ.get("GEMINI_API_KEY", "")
-    if not key:
-        return ""
     last = ""
     for model in [m for m in GEMINI_MODELS if m]:
         for attempt in range(3):
@@ -62,6 +59,20 @@ def _gemini(prompt: str) -> str:
             r.raise_for_status()
             return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
     raise RuntimeError(last or "no Gemini model answered")
+
+
+def _gemini(prompt: str) -> str:
+    """Two free Gemini keys: if the first is busy or out of quota, the second one answers."""
+    keys = [k for k in (os.environ.get("GEMINI_API_KEY", ""), os.environ.get("GEMINI_API_KEY_2", "")) if k]
+    if not keys:
+        return ""
+    last = None
+    for key in keys:
+        try:
+            return _gemini_key(key, prompt)
+        except Exception as e:
+            last = e
+    raise last
 
 
 def _openai_compat(url: str, key: str, model: str, prompt: str) -> str:

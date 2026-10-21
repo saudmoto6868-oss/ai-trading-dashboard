@@ -5380,6 +5380,23 @@ function welcome(){
     {opacity:1, transform:"none", filter:"none", boxShadow:"0 0 0 0 transparent"}], {duration:900, delay:200 + i*110, easing:"cubic-bezier(.2,.7,.2,1)", fill:"backwards"}));
 }
 /* toolbar */
+// task 26: record the whole workspace (every chart, table and widget visible on screen). The browser asks which tab or window to share;
+// the file is a WebM you download when you click again (or when the shared screen is stopped from the browser).
+function wsRecBtn(){
+  const b = el("button",null,"🖥"); let rec = null, chunks = [];
+  b.title = Lg("Record the workspace: the browser asks which tab or screen to share; click again to stop and download", "تسجيل مساحة العمل: المتصفح يسألك أي تاب أو شاشة تشارك؛ اضغط تاني للإيقاف والتحميل");
+  const finish = (stream) => { try { stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
+  b.onclick = async () => {
+    if (rec){ rec.stop(); return; }
+    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:false}); } catch(e){ return; }
+    chunks = []; try { rec = new MediaRecorder(stream, MediaRecorder.isTypeSupported("video/webm") ? {mimeType:"video/webm"} : undefined); } catch(e){ finish(stream); return; }
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = () => { finish(stream); const url = URL.createObjectURL(new Blob(chunks, {type:"video/webm"})); const a = document.createElement("a"); a.href = url; a.download = "workspace-" + Date.now() + ".webm"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 4000); rec = null; b.classList.remove("on"); };
+    const vt = stream.getVideoTracks()[0]; if (vt) vt.onended = () => { if (rec && rec.state !== "inactive") rec.stop(); };
+    rec.start(); b.classList.add("on");
+  };
+  return b;
+}
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
@@ -5393,7 +5410,7 @@ function buildBar(){
   zm.onclick = () => zSet((+store.get(zKey, zDef)) - .05); zp.onclick = () => zSet((+store.get(zKey, zDef)) + .05); zLbl.onclick = () => zSet(zDef);
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
-if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, el("span","sp")); }
+if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsRecBtn(), el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
     const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };

@@ -1885,10 +1885,11 @@ Object.assign(CandleChart.prototype, {
     const tx = this._colTx, CW = this.cw(); if (!tx || !CW) return; let t = null, y = null;
     if (this.mouse && this.mouse.x < PR && this.mouse.y < PB){ const ii = Math.max(0, Math.min(this.data.length-1, Math.round(this.idx(this.mouse.x)))); if (this.data[ii]) t = this.data[ii].t; y = this.mouse.y; }
     else if (XHS.on && XHS.sym === this.sym && XHS.t != null) t = XHS.t;
-    if (t == null) return; const x = tx(t); if (!(x > PR + 5 && x < PR + CW - 3)) return;
+    if (t == null) return; const xr = tx(t), x0 = PR + 5, x1 = PR + CW - 3, x = Math.max(x0, Math.min(x1, xr)), off = xr < x0 ? "◀ " : xr > x1 ? "▶ " : "";   // outside the column's window: the line pins to the edge with the time, so the column still shows where the crosshair is
     const own = !!this.mouse; c.save(); c.strokeStyle = own ? "#5a636e" : "#f0b90b"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(x+.5, 0); c.lineTo(x+.5, PB);
     if (own && y != null){ c.moveTo(PR, y+.5); c.lineTo(PR + CW, y+.5); }
-    c.stroke(); c.restore(); },
+    c.stroke(); c.setLineDash([]); if (off){ c.fillStyle = c.strokeStyle; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = x < PR + CW/2 ? "left" : "right"; c.fillText(off + this.fmtTime(t), x + (x < PR + CW/2 ? 4 : -4), 26); }
+    c.restore(); },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 && (this.flowSpan || span > 900000) ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)

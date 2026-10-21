@@ -979,11 +979,11 @@ async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest f
   const ag = TF_AGG[tf];
   if (!ag){   // native timeframe: task 55, the first load also walks back in history until `want` candles (same loop as the aggregated ones)
     let nat = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&limit="+(first ? 300 : 3)));
-    if (first){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 40 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }
+    if (first){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 8 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }
     return nat;
   }
   const [bb, n] = ag, unit = TFSEC[bb]*1000; let base = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&limit="+(first ? 300 : 100)));
-  if (first){ const need = (want || 120)*n; let guard = 0; while (base.length < need && guard++ < 40){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&after="+base[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; base = more.concat(base); } }
+  if (first){ const need = (want || 120)*n; let guard = 0; while (base.length < need && guard++ < 8){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&after="+base[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; base = more.concat(base); } }
   const out = aggBars(base, n, unit); if (out.length) out.shift();   // the oldest bucket is usually incomplete
   return out.map(({n:_n, ...r}) => r);
 }

@@ -1329,8 +1329,8 @@ class CandleChart {
     // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
     this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
     const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
-    const span = hi-lo;
-    if (span > 0) this.yShift += (this.data[n-1].c - (hi+lo)/2) / span;
+    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
+    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
     this.clampR();
   }
   fit(){

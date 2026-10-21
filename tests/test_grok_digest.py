@@ -8,5 +8,5 @@ assert pick_model(["grok-4", "grok-2"]) == "grok-2"
 assert pick_model(["other"]) == ""
 msgs = build_messages("2026-10-21")
 assert msgs[0]["role"] == "system" and "No buy or sell advice" in msgs[0]["content"]
-assert "2026-10-21" in msgs[1]["content"] and MAX_OUT <= 1000
+assert "2026-10-21" in msgs[1]["content"] and "Trump" in msgs[1]["content"] and MAX_OUT <= 1000
 print("test_grok_digest: all passed")

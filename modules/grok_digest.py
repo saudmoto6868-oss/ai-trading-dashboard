@@ -28,10 +28,12 @@ def build_messages(day: str) -> list[dict]:
     system = ("You summarise market-moving news and X posts for a trader. Use only facts you can source; "
               "name the source and time for each item. No buy or sell advice, no price targets. "
               "Say 'unverified' for anything from a single post.")
-    user = (f"Date: {day}. Assets: {ASSETS}. List up to 8 items from the last 24 hours that could move these assets "
-            "(central banks, tariffs and trade posts, government or political statements, large company news, "
-            "major social posts). For each: time, asset(s), one-line fact, source, confidence (high / unverified), "
-            "and expected direction only as 'up / down / unclear'. Keep it short.")
+    user = (f"Date: {day}. Assets: {ASSETS}. Scan the last 6 hours on X and the news for anything that could move these "
+            "assets: trending posts or statements by political leaders (for example Trump posts on tariffs, sanctions, "
+            "the Fed, oil or gold), central banks, big company news, and anything going viral. "
+            "Return up to 5 items, most impactful first. For each: time, asset(s), one-line fact, source, "
+            "impact (high / medium / low), confidence (high / unverified), and expected direction only as 'up / down / unclear'. "
+            "If nothing is high impact, say so in one line.")
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
@@ -52,10 +54,15 @@ def main() -> int:
                       json={"model": model, "messages": build_messages(day), "max_tokens": MAX_OUT, "temperature": 0.2})
     r.raise_for_status()
     text = r.json()["choices"][0]["message"]["content"]
-    out = {"day": day, "model": model, "digest": text}
+    usage = r.json().get("usage", {})
+    out = {"day": day, "model": model, "digest": text, "usage": usage}
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:   # shows on the run page, no download needed
+        with open(summary, "a", encoding="utf-8") as f:
+            f.write(f"## Grok watch {day} ({model})\n\n{text}\n\nTokens: {usage}\n")
     with open("grok_digest.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
-    print(f"model={model} chars={len(text)}")
+    print(f"model={model} chars={len(text)} usage={usage}")
     return 0
 
 

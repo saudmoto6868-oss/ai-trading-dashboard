@@ -1,6 +1,9 @@
-# Manual only: one Grok (xAI) news digest per run, saved as an artifact (not committed). Spend cap = one request, 900 output tokens.
+# Grok (xAI) watch: one request every 6 hours (4 a day) plus manual runs. Saved as an artifact and a run summary (not committed). Cap: one request, 900 output tokens.
 name: Grok digest
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

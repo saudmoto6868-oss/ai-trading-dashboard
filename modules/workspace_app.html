@@ -3229,7 +3229,8 @@ class Panel {
     this.chart.onToolChange = t => Object.entries(this.toolBtns).forEach(([k,b]) => b.classList.toggle("on", k === t));
     this.chart.onToolChange("cur");
     this.chart.flowOn = this.state.flow !== false; fl.classList.toggle("on", this.chart.flowOn);
-    this.animTimer = setInterval(() => { if (this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
+    // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
+    this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
     this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 300);
     emaBtns.forEach((b,i) => b.classList.toggle("on", !!this.chart.ema[[9,21,50][i]]));

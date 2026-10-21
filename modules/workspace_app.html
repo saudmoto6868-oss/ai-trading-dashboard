@@ -121,7 +121,12 @@ td{padding:1px 4px;white-space:nowrap}
 .mq{overflow:hidden;white-space:nowrap;position:relative;height:22px;line-height:22px}
 .mq .tr{display:inline-block;animation:mq var(--d,60s) linear infinite}.mq.rev .tr{animation-direction:reverse}.mq:hover .tr{animation-play-state:paused}
 .mq span.it{cursor:pointer;margin-inline-end:32px}.mq span.it:hover{color:var(--gold);text-decoration:underline}.mq .sr{color:var(--mut)}
-@keyframes wfu{0%{background:rgba(14,203,129,.55)}100%{background:transparent}}@keyframes wfd{0%{background:rgba(246,70,93,.55)}100%{background:transparent}}.wt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.wt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
+@keyframes wfu{0%{background:rgba(14,203,129,.55)}100%{background:transparent}}@keyframes wfd{0%{background:rgba(246,70,93,.55)}100%{background:transparent}}.wt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}.wt th{color:#848e9c;font-weight:400;text-align:start;padding:2px 4px}
+.rdt th,.wt th{position:relative;min-width:28px}
+th.cx-over{box-shadow:inset 2px 0 0 #f0b90b}
+.cx-h{position:absolute;top:0;inset-inline-end:0;width:6px;height:100%;cursor:col-resize;user-select:none;touch-action:none}
+.cx-h:hover{background:rgba(240,185,11,.35)}
+table.colx.fx td,table.colx.fx th{white-space:nowrap}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
 @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .pop{position:absolute;inset:0;background:var(--panel);z-index:5;overflow:auto;padding:8px}
 table.fx{table-layout:fixed}table.fx td,table.fx th{overflow:hidden;text-overflow:ellipsis}
@@ -1262,7 +1267,7 @@ function niceTicks(lo, hi, n){
 class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
-    this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H";
+    this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
     this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
     this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
@@ -1281,7 +1286,7 @@ class CandleChart {
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
     cv.tabIndex = 0; cv.style.outline = "none";
     cv.addEventListener("keydown", e => { if (e.key === "Delete" || e.key === "Backspace"){ this.deleteSel(); } else if (e.key === "Escape"){ this.cancelTool(); } });
-    this.draws = []; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
+    this.draws = []; this.drawingsVisible = true; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
   destroy(){ this.ro.disconnect(); }
@@ -1298,7 +1303,7 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit) this.fit(); else this.draw();
+    if (fit) this.fit(); else { if (this.autoCenter) this.followLatest(); this.draw(); }
   }
   calcEma(){
     this.emaV = {};
@@ -1324,9 +1329,18 @@ class CandleChart {
     const sec = TFSEC[this.tf] || 3600; let pv = 0, vv = 0, day = null;
     this.vwV = this.data.map(c => { const d = Math.floor(c.t/86400000); if (sec < 86400 && d !== day){ pv = 0; vv = 0; day = d; } const tp = (c.h+c.l+c.c)/3; pv += tp*c.v; vv += c.v; return vv ? pv/vv : c.c; });
   }
+  followLatest(){
+    const n = this.data.length; if (!this.autoCenter || !n) return;
+    // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
+    const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
+    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
+    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
+    this.clampR();
+  }
   fit(){
     const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.autoCenter) this.followLatest(); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   clampR(){
     const n = this.data.length, maxR = n - 1 + 0.7*this.PR/this.bw, minR = Math.min(n-1, 3);
@@ -2141,9 +2155,9 @@ Object.assign(CandleChart.prototype, {
       if (n === 0 && w.pts.length > 1){   // OTE boxes (62-79% retracement of the impulse leg) where waves 2 / 4 / A end or are expected to end; the newest one runs to the right edge
         const P = w.pts, xe = this.x(this.data.length-1) + this.bw/2; c.save();
         for (let k = 0; k + 1 < P.length; k += 2){ const a0 = P[k].p, b0 = P[k+1].p, z1 = b0 - (b0 - a0)*0.618, z2 = b0 - (b0 - a0)*0.786, nxt = P[k+2], live = !nxt, x0 = this.x(P[k+1].i), x1 = nxt ? this.x(nxt.i) : Math.max(x0 + 24, xe), y1 = py(Math.max(z1, z2)), y2 = py(Math.min(z1, z2));
-          c.globalAlpha = live ? .2 : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
-          if (live){ let inZ = false; for (let j = P[k+1].i + 1; j < this.data.length && !inZ; j++){ const b = this.data[j]; inZ = b.l <= Math.max(z1, z2) && b.h >= Math.min(z1, z2); }   // live zone: waiting until price trades inside it
-            c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("OTE 62-79% · "+(inZ ? Lg("in zone", "داخل المنطقة") : "⏳ "+Lg("waiting", "انتظار")), x0 + 3, y1 - 3); } }
+          let inZ = false; if (live) for (let j = P[k+1].i + 1; j < this.data.length && !inZ; j++){ const b = this.data[j]; inZ = b.l <= Math.max(z1, z2) && b.h >= Math.min(z1, z2); }   // confirmed bars after the impulse endpoint have traded into the zone
+          if (!live || this.oteAlways || inZ){ c.globalAlpha = live ? .2 : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
+            if (live){ c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("OTE 62-79% · "+Lg("in zone", "داخل المنطقة"), x0 + 3, y1 - 3); } } }
         c.restore(); c.textAlign = "center"; }
       if (n === 0 && w.pts.length){ const q = w.pts[1]; c.font = "9px sans-serif"; c.fillStyle = col; c.globalAlpha = .9; c.fillText("EW · "+this.tf+(w.up ? " ▲" : " ▼"), this.x(w.pts[0].i)+6, py(w.pts[0].p) + (w.up ? 14 : -14)); } });
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.textBaseline = "alphabetic"; c.globalAlpha = 1;
@@ -2213,7 +2227,7 @@ Object.assign(CandleChart.prototype, {
   ctxMenu(e){
     e.preventDefault(); document.querySelectorAll(".ctxm").forEach(m => m.remove());
     const q = this.pt(e); let target = null;
-    if (q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
+    if (this.drawingsVisible && q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
     const m = el("div","ctxm"); m.style.cssText = "position:fixed;z-index:2147483001;left:"+e.clientX+"px;top:"+e.clientY+"px";
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
@@ -2270,7 +2284,7 @@ Object.assign(CandleChart.prototype, {
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){
-      const order = this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse();
+      const order = this.drawingsVisible ? (this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse()) : [];
       for (const d of order){
         const h = this.hit(d, q.x, q.y); if (!h) continue;
         this.sel = d; this.drag = null;
@@ -2901,7 +2915,7 @@ Object.assign(CandleChart.prototype, {
     add(Lg("Delete","حذف"), {title:Lg("delete","حذف")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d); this.sel = null; this.saveDraws(); this.draw(); });
   },
   paintDraws(c, py, dec){
-    if (!this.data.length) return;
+    if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
     const lab = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
@@ -3083,6 +3097,13 @@ class Panel {
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", !!this.chart.autoCenter);
+    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.state.autoCenter = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); if (this.chart.autoCenter) this.chart.followLatest(); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
+    const syncDrawings = () => { drw.classList.toggle("on", this.chart.drawingsVisible); drw.style.opacity = this.chart.drawingsVisible ? "1" : ".55"; };
+    drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
+    const refreshNow = el("button",null,"⟳"); refreshNow.title = Lg("Reload chart data and preserve the current view","إعادة تحميل بيانات الشارت مع الحفاظ على موضع العرض والتكبير");
+    refreshNow.onclick = () => { const ch = this.chart; if (!ch || !ch.data.length) { this.resub(); return; } this._refreshView = {sym:this.state.sym, tf:this.state.tf, bw:ch.bw, yZoom:ch.yZoom, yShift:ch.yShift, back:(ch.data.length-1)-ch.r}; ch.saveView(); this.resub(); Ws.save(); };
     // screenshot (PNG) and video (WebM, 8 Mbps) of the chart; both download to the device (= save)
     const fname = (ext) => "xpix-"+this.chart.sym+"-"+this.chart.tf+"-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+"."+ext;
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
@@ -3107,15 +3128,15 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, fit, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, rf, refreshNow, fit, ac, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
-    this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    this.chart = new CandleChart(wrap); this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.autoCenter = !!this.state.autoCenter; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)
-    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
+    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -3232,6 +3253,7 @@ class Panel {
         P("rowpx", Lg("Row height px (detail)","ارتفاع الصف بكسل (التفاصيل)"), 1, 12, 1), P("wpct", Lg("Width % of chart","العرض % من الشارت"), 5, 30, 1), PB("lbl", Lg("Delta numbers on rows","أرقام الدلتا على الصفوف")),
         PB("book", Lg("Limit orders strip (order book)","شريط أوامر الليميت (الأوردر بوك)")), PB("walls", Lg("Mark big lasting walls","علّم الحوائط الكبيرة الثابتة"))]},
       {id:"ew", label:T("indEw"), get:() => ch().ewOn, set:v => { ch().ewOn = v; this.state.ew = v; }},
+      {id:"ote", label:Lg("OTE: show waiting zone","OTE: إظهار المنطقة قبل دخول السعر"), tip:Lg("Off by default: the active 62–79% OTE zone appears only after a later confirmed candle trades inside it. Turn on to keep the active zone visible while waiting. Historical completed zones remain visible either way.","مقفول افتراضيًا: منطقة OTE النشطة (62–79%) تظهر فقط بعد دخول شمعة لاحقة مؤكدة إليها. شغّله لإظهار المنطقة أثناء الانتظار. المناطق التاريخية المكتملة تظل ظاهرة في الحالتين."), get:() => !!ch().oteAlways, set:v => { ch().oteAlways = v; this.state.oteAlways = v; ch().draw(); }},
       {id:"bvd", label:T("indBvd"), tip:T("bvdTip"), get:() => ch().bvdOn, set:v => { ch().bvdOn = v; this.state.bvd = v; }},
       {id:"harm", label:T("indHarm"), tip:T("harmTip"), get:() => ch().harmOn, set:v => { ch().harmOn = v; this.state.harm = v; }},
       {id:"sig", label:T("indSig"), get:() => ch().showSig, set:v => { ch().showSig = v; this.state.sig = v; }},
@@ -3373,7 +3395,7 @@ class Panel {
     const ch = this.chart; if (!ch.data.length) return;
     const last = ch.data[ch.data.length-1];
     if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); ch.draw(); this.showPx(row.c, "ws");
+    ch.calcEma(); if (ch.autoCenter) ch.followLatest(); ch.draw(); this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
@@ -3444,7 +3466,12 @@ class Panel {
         setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
-        if (first) this.chart.setData(rows, true);
+        if (first){
+          this.chart.setData(rows, true);
+          const v = this._refreshView;
+          if (v && v.sym === sym && v.tf === tf && this.chart.data.length){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
+          this._refreshView = null;
+        }
         else {
           const data = this.chart.data.slice();
           rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });
@@ -5363,6 +5390,60 @@ function applyLang(rebuild){
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");
     document.body.appendChild(n); setTimeout(() => n.remove(), 12000); }
+})();
+// table columns (team tasks 11 + 12): drag a header's edge to resize (ellipsis + min width), drag a header onto another to reorder.
+// Saved per table "shape" (the header texts in their default order), so tables of the same kind share their layout. Mouse only (no touch drag yet).
+(function(){
+  const LS = "xpix_cols_v1"; let st = {}; try { st = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){}
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch(e){} };
+  const movePerm = (perm, from, to) => { const p = perm.slice(); p.splice(to, 0, p.splice(from, 1)[0]); return p; };
+  const hdr = tb => (tb.tHead && tb.tHead.rows[0]) || tb.rows[0];
+  const flat = r => Array.from(r.cells).every(c => c.colSpan === 1);
+  const applyPerm = (r, perm, key) => { const cs = Array.from(r.cells); if (cs.length !== perm.length || !flat(r)){ r._cx = "skip"; return; } perm.forEach(i => r.appendChild(cs[i])); r._cx = key; };
+  let drag = null, busy = false, queued = false, obs = null;
+  const sync = tb => {
+    const h = hdr(tb); if (!h || h.cells.length < 2) return;
+    if (h._cx === undefined){   // new header row: read the default-order signature, then apply the saved order
+      if (!flat(h)){ tb._cx = null; h._cx = "skip"; return; }
+      const n = h.cells.length, sig = Array.from(h.cells).map(c => (c.textContent || "").trim()).join("|"), s = st[sig];
+      const perm = s && s.perm && s.perm.length === n ? s.perm.slice() : Array.from({length:n}, (_, i) => i);
+      tb._cx = {sig, perm, n, key: perm.join(",")}; tb.classList.add("colx");
+    }
+    const cx = tb._cx; if (!cx) return;
+    Array.from(tb.rows).forEach(r => { if (r._cx === undefined && r.cells.length === cx.n) applyPerm(r, cx.perm, cx.key); });
+    const s = st[cx.sig], w = s && s.w;
+    Array.from(h.cells).forEach((c, p) => {
+      if (w && w[cx.perm[p]] && !c.style.width){ c.style.width = w[cx.perm[p]] + "px"; tb.classList.add("fx"); }
+      if (!c.querySelector(".cx-h")){ const g = document.createElement("span"); g.className = "cx-h"; g.draggable = false; c.appendChild(g); }
+      c.draggable = true;
+    });
+  };
+  const run = () => { queued = false; busy = true; document.querySelectorAll("table.rdt, table.wt").forEach(tb => { try { sync(tb); } catch(e){} }); if (obs) obs.takeRecords(); busy = false; };
+  const sched = () => { if (busy || queued) return; queued = true; setTimeout(run, 30); };   // setTimeout, not rAF: rAF never fires while the page is hidden / not painting
+  const tableOf = n => n && n.closest && n.closest("table.colx");
+  document.addEventListener("pointerdown", e => {   // resize: drag the right edge handle of a header cell
+    const g = e.target.closest && e.target.closest(".cx-h"), th = g && g.parentElement, tb = tableOf(th); if (!tb || !tb._cx) return;
+    e.preventDefault(); e.stopPropagation(); const cx = tb._cx, h = hdr(tb), cells = Array.from(h.cells), idx = cells.indexOf(th);
+    cells.forEach(c => { c.style.width = c.offsetWidth + "px"; }); tb.classList.add("fx");
+    const sx = e.clientX, sw = th.offsetWidth, dir = getComputedStyle(tb).direction === "rtl" ? -1 : 1; th.draggable = false;
+    const mv = ev => { th.style.width = Math.max(28, sw + (ev.clientX - sx) * dir) + "px"; };
+    const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); th.draggable = true;
+      const w = {}; cells.forEach((c, p) => { w[cx.perm[p]] = Math.round(c.offsetWidth); }); (st[cx.sig] = st[cx.sig] || {perm: cx.perm.slice()}).w = w; save(); };
+    document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true);
+  }, true);
+  document.addEventListener("dragstart", e => { const th = e.target.closest && e.target.closest("th"), tb = tableOf(th); if (!tb || !tb._cx || e.target.closest(".cx-h")){ return; }
+    drag = {tb, from: Array.from(hdr(tb).cells).indexOf(th)}; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); } catch(x){} });
+  document.addEventListener("dragover", e => { const th = e.target.closest && e.target.closest("th"); if (drag && th && tableOf(th) === drag.tb){ e.preventDefault(); document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over")); th.classList.add("cx-over"); } });
+  document.addEventListener("drop", e => { const th = e.target.closest && e.target.closest("th"); document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over"));
+    if (!drag || !th || tableOf(th) !== drag.tb){ drag = null; return; } e.preventDefault();
+    const tb = drag.tb, cx = tb._cx, from = drag.from, to = Array.from(hdr(tb).cells).indexOf(th); drag = null; if (from < 0 || to < 0 || from === to) return;
+    busy = true; Array.from(tb.rows).forEach(r => { if (r._cx === cx.key && r.cells.length === cx.n){ const cs = Array.from(r.cells); r.insertBefore(cs[from], to > from ? cs[to].nextSibling : cs[to]); } });
+    cx.perm = movePerm(cx.perm, from, to); cx.key = cx.perm.join(","); Array.from(tb.rows).forEach(r => { if (r._cx !== undefined && r._cx !== "skip") r._cx = cx.key; });
+    (st[cx.sig] = st[cx.sig] || {}).perm = cx.perm.slice(); save(); if (obs) obs.takeRecords(); busy = false; });
+  document.addEventListener("dragend", () => { drag = null; document.querySelectorAll("th.cx-over").forEach(x => x.classList.remove("cx-over")); });
+  document.addEventListener("mouseover", e => { const c = e.target.closest && e.target.closest("table.colx.fx td"); if (c && !c.title) c.title = (c.textContent || "").trim(); });
+  obs = new MutationObserver(sched); obs.observe(document.body, {childList:true, subtree:true}); sched();
+  window.__xpixCols = {movePerm};   // for tests
 })();
 </script>
 </body>

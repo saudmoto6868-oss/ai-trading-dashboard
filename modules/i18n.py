@@ -42,7 +42,7 @@ AR = {
     "Spot": "سبوت", "Perp (swap)": "عقود دائمة (swap)", "Futures": "عقود آجلة",
     # scanner / tabs
     "Trade type": "نوع الصفقة", "No symbols match the current filter.": "مفيش رموز مطابقة للفلتر الحالي.",
-    "Filters": "الفلاتر", "Timeframe": "الفريم", "Charts": "عدد الشارتات", "Side": "الاتجاه", "Match": "المطابقة", "Cross window": "نافذة التقاطع",
+    "Filters": "الفلاتر", "Hide filters": "إخفاء الفلاتر", "Timeframe": "الفريم", "Charts": "عدد الشارتات", "Side": "الاتجاه", "Match": "المطابقة", "Cross window": "نافذة التقاطع",
     "Trend stack": "ترتيب الترند", "Price vs EMA": "السعر مقابل EMA", "EMA vs EMA": "EMA مقابل EMA", "Pair": "الزوج", "Patterns": "الأنماط",
     "Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)": "الاستراتيجيات / الإشارات (إليوت، SMC، ICT، هارمونيك، VWAP ...)",
     "Both": "الاتنين", "Buy only": "شراء بس", "Sell only": "بيع بس", "All selected": "كل المختار", "Any selected": "أي واحد من المختار",

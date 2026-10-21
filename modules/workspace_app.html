@@ -3199,7 +3199,7 @@ class Panel {
       const gb = el("button",null,gic); gb.title = Lg("Group: "+gk, "مجموعة: "+gk);
       const gpop = el("div","fibpop"); gpop.style.left = "36px";
       dt.insertBefore(gb, this.toolBtns[present[0]]);
-      present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); });
+      present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); mb.addEventListener("click", () => { if (gpop.parentNode) gpop.remove(); }); });   // picking a tool closes the popup, so it does not cover the chart
       const closeG = () => { if (gpop.parentNode) gpop.remove(); };
       gb.onclick = () => {
         if (gpop.parentNode){ closeG(); return; }

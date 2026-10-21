@@ -10,7 +10,7 @@ import requests
 
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GITHUB = "https://api.github.com/repos/{repo}/pulls/{pr}/files"
-MODELS = ["gemini-flash-latest", "gemini-2.5-flash"]
+MODELS = ["gemini-flash-latest", "gemini-2.5-flash"]   # fallback names; the key's own list is tried first
 CHECKS = ("Check for: contradictory rules, look-ahead (any use of future bars), cost applied on net R, "
           "out-of-sample split fixed before the run, evidence gate (n >= 100, t > 3, both halves positive), "
           "secrets or keys in code, changes to trading logic without tests.")
@@ -37,9 +37,19 @@ def fetch_files(repo: str, pr: str, token: str) -> list[dict]:
         page += 1
 
 
+def available_models(key: str) -> list[str]:
+    """Models this key can call for generateContent, flash first (a 404 means the name is not on this key)."""
+    r = requests.get("https://generativelanguage.googleapis.com/v1beta/models", headers={"x-goog-api-key": key}, timeout=60)
+    r.raise_for_status()
+    ok = [m["name"].split("/", 1)[1] for m in r.json().get("models", [])
+          if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"] and "lite" not in m["name"]]
+    return sorted(ok, key=lambda n: ("latest" not in n, "2.5" not in n, n))
+
+
 def ask_gemini(key: str, prompt: str) -> str:
     last = ""
-    for m in MODELS:
+    names = available_models(key) or MODELS
+    for m in names:
         r = requests.post(GEMINI.format(model=m), headers={"x-goog-api-key": key, "content-type": "application/json"},
                           json={"contents": [{"parts": [{"text": prompt}]}],
                                 "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500}}, timeout=300)

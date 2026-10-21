@@ -281,3 +281,12 @@
 
 
 - [2026-10-21 UTC] [ChatGPT] بدأت تنفيذ Auto-Center للشارت على فرع مستقل من `main`: `feat/auto-center-chart-2026-10-21`. أُضيف زر تشغيل/إيقاف وحالة محفوظة مع إعدادات الـWorkspace، ومتابعة للشمعة الحالية مع محاولة الحفاظ على قيم zoom الأفقي والرأسي؛ أُضيفت المتابعة إلى تحديثات الشموع الحية ودفعات البيانات. تحقق ساكن فقط من وجود الأجزاء المعدلة وتوازن الأقواس المعقوفة في الملف الكامل؛ لم يُشغّل Node parser أو المتصفح، لذا التنفيذ أولي وغير معتمد بصريًا. لا PR أو دمج أو workflow.
+
+
+## 2026-10-21 — Chart controls audit (Master / Drawings / Refresh)
+- Reviewed `modules/workspace_app.html` on `main` by static source inspection.
+- The toolbar's `Refresh` control is a cadence selector (`1s`, `2s`, `5s`), not a manual reload button.
+- `resub()` resets candle data and subscription state, reloads symbol-specific drawings, and rebuilds chart subscriptions. Do not bind a manual refresh control to it until viewport and user settings restoration are verified.
+- Drawings are stored per symbol under a local-storage key; `paintDraws()` already skips individual objects with `hidden`. A global hide/show should be a non-destructive display flag and must not mutate saved drawings.
+- No confirmed global Master visibility gate was found in the inspected toolbar path. Design it as a presentation-only gate, preserving each indicator's individual setting.
+- Static review only; no browser/runtime test. No PR, merge, or workflow run.

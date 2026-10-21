@@ -1295,6 +1295,29 @@ if PAGE == 5:   # AI: chat with Mr X
 if PAGE == 6:   # soon
     render_soon_page(PAGE)
 
+def render_kpi_strip(jdf):
+    """KPI strip for the journal upload: six headline numbers, an evidence badge, and breakdowns by symbol / strategy."""
+    from modules.kpi import COST_R, GATE_N, breakdown, kpis
+    k = kpis(jdf)
+    ev = k["evidence"]
+    badge_col = {"passes gate": "🟢", "not yet": "🟠", "not evidence": "⚪"}[ev["badge"]]
+    st.markdown(f"**{badge_col} {L('Evidence')}: {L(ev['badge'])}** "
+                f"· n = {k['n']} ({L('needs')} {GATE_N}+) · t = {ev['t']:.2f} · "
+                f"{L('avg R in both halves')}: {ev['halves'][0]:+.2f} / {ev['halves'][1]:+.2f}")
+    c = st.columns(6)
+    c[0].metric(L("Trades"), k["n"])
+    c[1].metric(L("Win rate"), f"{k['win_rate']*100:.0f}%" if k["n"] else "–")
+    c[2].metric(L("Expectancy (R)"), f"{k['expectancy_r']:+.2f}" if k["n"] else "–")
+    c[3].metric("Profit factor", ("∞" if k["profit_factor"] == float("inf") else f"{k['profit_factor']:.2f}") if k["n"] else "–")
+    c[4].metric(L("Max drawdown (R)"), f"{k['max_dd_r']:.1f}" if k["n"] else "–")
+    c[5].metric(L("After costs (R)"), f"{k['net_expectancy_r']:+.2f}" if k["n"] else "–")
+    st.caption(L("Costs = {c} R per trade (planning estimate, not measured). Grey = under {n} trades, not evidence.").format(c=COST_R, n=GATE_N))
+    for key, label in (("symbol", L("By symbol")), ("strategy", L("By strategy"))):
+        if key in jdf.columns:
+            st.markdown(f"**{label}**")
+            st.dataframe(breakdown(jdf, key), hide_index=True)
+
+
 if PAGE == 4:   # perf
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
@@ -1305,7 +1328,9 @@ if PAGE == 4:   # perf
     _risk = st.number_input(L("Risk per trade (% of account)"), min_value=0.1, max_value=10.0, value=1.0, step=0.1, key="perf_risk")
     if _up is not None:
         try:
-            _ret = returns_from_trades(_pd.read_csv(_up), float(_risk))
+            _jdf = _pd.read_csv(_up)
+            render_kpi_strip(_jdf)
+            _ret = returns_from_trades(_jdf, float(_risk))
             if len(_ret) < 5:
                 st.warning(L("Need at least 5 closed trades for meaningful statistics."))
             else:

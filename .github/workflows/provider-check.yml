@@ -1,0 +1,34 @@
+# Manual check of the free-tier AI keys (prints HTTP status and limit fields only, never a key).
+name: Provider check
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Check each provider
+        run: |
+          chk() { # name, url, header
+            code=$(curl -s -o /tmp/r.json -w '%{http_code}' "$2" -H "$3" --max-time 30)
+            msg=$(python3 -c "import json;d=json.load(open('/tmp/r.json'));e=d.get('error') or {};print(str(e.get('message',''))[:160] if isinstance(e,dict) else str(e)[:160])" 2>/dev/null)
+            echo "$1 -> HTTP $code $msg"
+          }
+          [ -n "$XAI_API_KEY" ] && chk xai https://api.x.ai/v1/models "Authorization: Bearer $XAI_API_KEY" || echo "xai -> secret empty"
+          [ -n "$MISTRAL_API_KEY" ] && chk mistral https://api.mistral.ai/v1/models "Authorization: Bearer $MISTRAL_API_KEY" || echo "mistral -> secret empty"
+          [ -n "$GEMINI_API_KEY" ] && chk gemini_1 "https://generativelanguage.googleapis.com/v1beta/models" "x-goog-api-key: $GEMINI_API_KEY" || echo "gemini_1 -> secret empty"
+          [ -n "$GEMINI_API_KEY_2" ] && chk gemini_2 "https://generativelanguage.googleapis.com/v1beta/models" "x-goog-api-key: $GEMINI_API_KEY_2" || echo "gemini_2 -> secret empty"
+          [ -n "$OPENAI_API_KEY" ] && chk openai https://api.openai.com/v1/models "Authorization: Bearer $OPENAI_API_KEY" || echo "openai -> secret empty"
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            code=$(curl -s -o /tmp/or.json -w '%{http_code}' https://openrouter.ai/api/v1/auth/key -H "Authorization: Bearer $OPENROUTER_API_KEY")
+            echo "openrouter -> HTTP $code"
+            python3 -c "import json;d=json.load(open('/tmp/or.json')).get('data',{});print({k:d.get(k) for k in ('is_free_tier','usage','limit','limit_remaining','rate_limit')})" 2>/dev/null || true
+          else echo "openrouter -> secret empty"; fi

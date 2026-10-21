@@ -896,12 +896,12 @@ const OKX_CACHE = {};
 // the rubik cooldown survives the workspace iframe being rebuilt (each rebuild used to re-hit OKX and reload the chart)
 let OKX_COOL = 0; try { OKX_COOL = +(sessionStorage.getItem("okx_cool") || 0); } catch(e){}
 const okxCoolSet = (t) => { OKX_COOL = t; try { sessionStorage.setItem("okx_cool", String(t)); } catch(e){} };
-const OKX_COOL_P = {};   // per-path cooldown after a 429 (candles and other non-rubik paths)
+const OKX_COOL_P = {}; let OKX_COOL_ALL = 0;   // global pause for candle requests after any 429   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
   const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
-  const cool = OKX_COOL_P[path] || 0; if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
+  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
@@ -914,7 +914,7 @@ function okx(path){
       if (rub) okxCoolSet(Date.now() + 600000);
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else OKX_COOL_P[path] = Date.now() + 30000; throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); }   // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));

@@ -954,7 +954,7 @@ def render_universe_controls():
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Scanner", "Technical Office", "Playbook", "Stats", "AI", "Alerts"]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts"]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)

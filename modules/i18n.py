@@ -99,7 +99,7 @@ AR = {
     "Theme": "الثيم", "Language": "اللغة", "Coming": "قريباً", "Classic": "كلاسيك",
     "Slots 3-7: send a picture and the theme gets built.": "الخانات من ٣ لـ ٧: ابعت صورة والثيم يتعمل.",
     "Theme and language (Alt+T / Alt+L)": "الثيم واللغة (Alt+T / Alt+L)",
-    "Lab": "المعمل", "Technical Office": "المكتب الفني", "Playbook": "الدليل", "Stats": "الأداء", "AI": "الذكي", "Alerts": "التنبيهات", "Scanner": "السكانر", "Workspace": "الوورك سبيس"
+    "Lab": "المعمل", "Technical Office": "المكتب الفني", "Radar": "الرادار", "Playbook": "الدليل", "Stats": "الأداء", "AI": "الذكي", "Alerts": "التنبيهات", "Scanner": "السكانر", "Workspace": "الوورك سبيس"
 }
 
 

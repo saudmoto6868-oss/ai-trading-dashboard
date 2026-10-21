@@ -68,7 +68,7 @@ body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the b
 body.mob .rzh{display:none!important}
 .rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;
  background:linear-gradient(135deg,transparent 55%,var(--mut) 55%,var(--mut) 62%,transparent 62%,transparent 75%,var(--mut) 75%,var(--mut) 82%,transparent 82%)}
-.tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}   /* task 24: one scrollable strip when the widget is narrow, buttons are never hidden */
 .tb button{padding:1px 6px}
 .fill{position:absolute;inset:0}
 .chartwrap{position:relative;flex:1;min-height:0}
@@ -398,14 +398,14 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
    (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
 /* The flag used to stay behind whenever Streamlit replaced this frame within 5 s (any rerun), and the next load wiped every setting
    (owner: "refresh resets everything"). Now the flag is removed when the frame unloads normally, and the wipe needs TWO stuck loads in a row. */
-(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", prev = localStorage.getItem(BOOT), now = Date.now(), mine = String(now);
+(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", SS = sessionStorage, prev = SS.getItem(BOOT), now = Date.now(), mine = String(now);   // per tab (sessionStorage): a second open tab must not look like a stuck first tab
   const stuck = prev && now - +prev > 8000 && now - +prev < 6 * 3600e3, strikes = stuck ? (+localStorage.getItem(BAD) || 0) + 1 : 0;
   if (strikes >= 2){
     Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
     window.__wsSafeBoot = true; }
-  else if (strikes) localStorage.setItem(BAD, String(strikes)); else localStorage.removeItem(BAD);
-  localStorage.setItem(BOOT, mine);
-  addEventListener("pagehide", () => { try { if (localStorage.getItem(BOOT) === mine) localStorage.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
+  else if (strikes) SS.setItem(BAD, String(strikes)); else SS.removeItem(BAD);
+  SS.setItem(BOOT, mine);
+  addEventListener("pagehide", () => { try { if (SS.getItem(BOOT) === mine) SS.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
 } catch(e){} })();
 /* Theme / material / language live in the page link (?theme=...), so opening the bare link fell back to Classic. The current choice is
    also kept in cookies (xpix_theme / xpix_mat / xpix_lang); main.py reads them when the link has no choice. While the app runs,
@@ -428,6 +428,9 @@ const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
+// Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
+const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };
+const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
 /* ?ws_reset=1 on the page link = clear this browser's saved Workspace (layout, widget settings, drawings); the journal is kept */
 try { const q = new URLSearchParams(window.parent.location.search); if (q.get("ws_reset") === "1"){
   Object.keys(localStorage).filter(k => k.startsWith(LS) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
@@ -889,11 +892,16 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
 /* OKX calls are shared: every panel asks for the same endpoints (open interest, positioning, funding), and OKX answers 429 when they
    all fire at once. One request per path is in flight or cached for a short time (rubik stats: 60 s, prices: 3 s); a 429 is reported
    as a rate limit instead of being retried in a loop. */
-const OKX_CACHE = {}; let OKX_COOL = 0;
+const OKX_CACHE = {};
+// the rubik cooldown survives the workspace iframe being rebuilt (each rebuild used to re-hit OKX and reload the chart)
+let OKX_COOL = 0; try { OKX_COOL = +(sessionStorage.getItem("okx_cool") || 0); } catch(e){}
+const okxCoolSet = (t) => { OKX_COOL = t; try { sessionStorage.setItem("okx_cool", String(t)); } catch(e){} };
+const OKX_COOL_P = {};   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 3000, hit = OKX_CACHE[path];
+  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
+  const cool = OKX_COOL_P[path] || 0; if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
@@ -903,10 +911,10 @@ function okx(path){
     let r;
     try { r = await fetch(API + "/api/v5" + path, {cache:"no-store"}); }
     catch(e){   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
-      if (rub) OKX_COOL = Date.now() + 600000;
+      if (rub) okxCoolSet(Date.now() + 600000);
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
-    if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else OKX_COOL_P[path] = Date.now() + 30000; throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
@@ -1333,6 +1341,7 @@ class CandleChart {
     const n = this.data.length; if (!this.autoCenter || !n) return;
     // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
     this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
+    if (!isFinite(this.r)) return;   // no layout yet: keep the current view
     const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
     if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
@@ -1403,7 +1412,7 @@ class CandleChart {
   }
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+this.sym+"|"+this.tf; }
-  saveView(){ if (!this.data.length || this.r == null) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
+  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
   restoreView(){ try { const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
@@ -3100,8 +3109,17 @@ class Panel {
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
-    const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", !!this.state.autoCenter);
-    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.state.autoCenter = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); if (this.chart.autoCenter) this.chart.followLatest(); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
+    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
+    const masterB = el("button",null,"⏻"); masterB.title = Lg("Master: turn all indicators off, click again to restore them","الماستر: إيقاف كل المؤشرات، والضغطة التانية ترجعهم");
+    masterB.onclick = () => {
+      const items = this.indItems || [];
+      const onNow = items.filter(x => { try { return x.get && x.get(); } catch(e){ return false; } });
+      if (onNow.length){ this._masterOn = onNow.map(x => x.id); onNow.forEach(x => { try { x.set(false); } catch(e){} }); }
+      else { (this._masterOn || []).forEach(id => { const x = items.find(y => y.id === id); if (x && x.set) { try { x.set(true); } catch(e){} } }); this._masterOn = null; }
+      masterB.classList.toggle("on", !!this._masterOn); this.chart.draw(); Ws.save();
+    };
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
@@ -3131,12 +3149,12 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, refreshNow, fit, ac, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.autoCenter = !!this.state.autoCenter; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)
     this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
@@ -3157,6 +3175,20 @@ class Panel {
           wrap.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)){ closePop(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
         };
       } else b.onclick = () => this.chart.setTool(this.chart.tool === k && k !== "cur" ? "cur" : k);
+    });
+    // task 25: tools grouped like TradingView: one button per group opens its tools (the tools themselves are unchanged)
+    const TOOL_GROUPS = [["lines", "╱", ["trend","hline","vline","ray","arrow"]], ["shapes", "▭", ["rect","channel","drange","prange","range"]]];
+    TOOL_GROUPS.forEach(([gk, gic, members]) => {
+      const present = members.filter(k => this.toolBtns[k]); if (present.length < 2) return;
+      const gb = el("button",null,gic); gb.title = Lg("Group: "+gk, "مجموعة: "+gk);
+      const gpop = el("div","fibpop"); gpop.style.left = "36px";
+      dt.insertBefore(gb, this.toolBtns[present[0]]);
+      present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); });
+      const closeG = () => { if (gpop.parentNode) gpop.remove(); };
+      gb.onclick = () => {
+        if (gpop.parentNode){ closeG(); return; }
+        wrap.append(gpop); setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+      };
     });
     // object tree (owner 2026-10-19: TradingView-style list): every drawing of this chart, newest first; click selects, eye hides, x deletes
     const ob = el("button",null,"≣"); ob.title = Lg("object tree","شجرة الكائنات"); dt.append(ob);
@@ -3280,6 +3312,7 @@ class Panel {
       {id:"cci", label:"CCI", get:() => ch().cciOn, set:v => { ch().cciOn = v; this.state.cci = v; }, sty:"cci", params:[P("len","Length",2,200,1), P("hp","Height %",1,92,1)]},
       {id:"psar", label:"Parabolic SAR", get:() => ch().psarOn, set:v => { ch().psarOn = v; this.state.psar = v; }, sty:"psar", col2:true, params:[P("step","Step",0.005,0.1,0.005), P("max","Max",0.05,1,0.05)]},
     ];
+    this.indItems = items;   // task 22: the Master button turns these off/on together
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];

@@ -633,9 +633,7 @@ function vpCalc2(rows, nb){
 }
 /* per-indicator notes: what it is and how to read it (shown with the ⓘ button in the Indicators menu) */
 const IND_HELP = {
-  e9:["Fast EMA (9): follows price closely. Price above it = short-term strength; a cross of EMA 9 over EMA 21 = early momentum shift.","المتوسط السريع (9): قريب من السعر. السعر فوقه = قوة قصيرة؛ تقاطعه فوق EMA 21 = بداية زخم صاعد."],
-  e21:["EMA 21: the short/medium trend line. Pullbacks that hold it in an uptrend are classic buy zones; losing it warns of a pause.","EMA 21: خط الاتجاه القصير/المتوسط. الارتدادات اللي بتثبت عليه في الصعود مناطق شراء، وكسره تحذير."],
-  e50:["EMA 50: the swing trend. Above it = bullish bias, below = bearish. Often acts as dynamic support/resistance.","EMA 50: اتجاه السوينج. فوقه = تحيز صاعد، تحته = هابط. غالباً دعم/مقاومة ديناميكية."],
+  ma:["Moving averages (SMA / EMA / WMA, up to 7 lines). Fast lines (9-21) follow price; slow ones (50-200) show the swing trend. Price above a line = bullish bias, below = bearish; a fast line crossing a slow one = momentum shift. EMA reacts fastest, SMA is smoothest, WMA weights recent bars more.","المتوسطات المتحركة (SMA / EMA / WMA، لحد 7 خطوط). الفترات القصيرة (9-21) بتتبع السعر؛ الطويلة (50-200) اتجاه السوينج. السعر فوق الخط = تحيز صاعد، تحته = هابط؛ تقاطع خط سريع مع بطيء = تحول زخم. EMA أسرع رد فعل، SMA أنعم، WMA بيوزن الشموع الأحدث أكتر."],
   vwap:["VWAP: average price weighted by volume. Above = buyers in control, below = sellers. Institutions use it as a fair-value line.","VWAP: متوسط السعر موزون بالحجم. فوقه = المشترين مسيطرين، تحته = البائعين. خط القيمة العادلة للمؤسسات."],
   sig:["Scanner signal: BUY/SELL arrow on the signal candle with the plan (Entry blue, SL red, TP green). Past journal signals for this symbol also show as arrows (green ✓ hit TP, red ✗ hit SL). Drag the plan handle to resize the lines.","إشارة السكانر: سهم شراء/بيع على شمعة الإشارة مع الخطة (دخول أزرق، ستوب أحمر، أهداف خضرا). إشارات الجورنال السابقة للرمز بتظهر كأسهم (✓ ضرب الهدف، ✗ ضرب الستوب). اسحب مقبض الخطة لتغيير الطول."],
   flow:["Classic order-flow lines: a coloured level where heavy absorption or a sweep (liquidity grab) just happened. Price often reacts there again.","خطوط تدفق الأوامر: مستوى ملوّن فيه امتصاص قوي أو سحب سيولة. السعر غالباً بيتفاعل معاه تاني."],
@@ -660,11 +658,11 @@ const IND_HELP = {
 };
 /* Chart modes = indicator bundles (ids of the Indicators menu). Everything not listed is switched off, except display options. */
 const CHART_MODES = [
-  {id:"clean", en:"Clean", ar:"نظيف", on:["e9","e21","volume","sig"], tipEn:"Candles, EMA 9/21, volume and scanner signals only.", tipAr:"شموع + EMA 9/21 + فوليوم + إشارات السكانر بس."},
-  {id:"kzs", en:"Kill Zone Sniper", ar:"قناص الكيل زون", on:["e9","e21","kz","kzs","volume","sig"], tipEn:"Sessions + kill zones, the Kill Zone Sniper overlay, EMA 9/21 (the REJ filter), volume, signals. Intraday (1H and lower).", tipAr:"الجلسات + الكيل زون + قناص الكيل زون + EMA 9/21 + فوليوم + إشارات. للانترادي (ساعة وأقل)."},
-  {id:"smc", en:"ICT / SMC", ar:"ICT / SMC", on:["e9","e21","kz","lv","ll","smt","sig","volume"], tipEn:"Liquidity view: sessions, open levels, XPIX MTF liquidity levels, SMT, signals.", tipAr:"عرض السيولة: الجلسات، مستويات الفتح، مستويات XPIX، SMT، الإشارات."},
+  {id:"clean", en:"Clean", ar:"نظيف", on:["ma","volume","sig"], ma:[9,21], tipEn:"Candles, EMA 9/21, volume and scanner signals only.", tipAr:"شموع + EMA 9/21 + فوليوم + إشارات السكانر بس."},
+  {id:"kzs", en:"Kill Zone Sniper", ar:"قناص الكيل زون", on:["ma","kz","kzs","volume","sig"], ma:[9,21], tipEn:"Sessions + kill zones, the Kill Zone Sniper overlay, EMA 9/21 (the REJ filter), volume, signals. Intraday (1H and lower).", tipAr:"الجلسات + الكيل زون + قناص الكيل زون + EMA 9/21 + فوليوم + إشارات. للانترادي (ساعة وأقل)."},
+  {id:"smc", en:"ICT / SMC", ar:"ICT / SMC", on:["ma","kz","lv","ll","smt","sig","volume"], ma:[9,21], tipEn:"Liquidity view: sessions, open levels, XPIX MTF liquidity levels, SMT, signals.", tipAr:"عرض السيولة: الجلسات، مستويات الفتح، مستويات XPIX، SMT، الإشارات."},
   {id:"flow", en:"Order flow", ar:"أوردر فلو", on:["vwap","dcol","bub","dot","dom","mk","delta","vp","volume","sig"], tipEn:"Order-flow column, bubbles, dots, depth, delta, volume profile, VWAP.", tipAr:"عمود الأوردر فلو، الفقاعات، النقط، العمق، الدلتا، بروفايل الفوليوم، VWAP."},
-  {id:"swing", en:"Swing", ar:"سوينج", on:["e21","e50","don","lv","ll","rsi","adx","sig","volume"], tipEn:"EMA 21/50, Donchian ensemble, open levels, XPIX levels, RSI, ADX (trend strength). Best on 4H / 1D.", tipAr:"EMA 21/50، Donchian، مستويات الفتح، مستويات XPIX، RSI، ADX (قوة الترند). أحسن على 4 ساعات / يومي."},
+  {id:"swing", en:"Swing", ar:"سوينج", on:["ma","don","lv","ll","rsi","adx","sig","volume"], ma:[21,50], tipEn:"EMA 21/50, Donchian ensemble, open levels, XPIX levels, RSI, ADX (trend strength). Best on 4H / 1D.", tipAr:"EMA 21/50، Donchian، مستويات الفتح، مستويات XPIX، RSI، ADX (قوة الترند). أحسن على 4 ساعات / يومي."},
   {id:"mt5", en:"MT5", ar:"MT5", on:["mt5","r2","volume","sig"], tipEn:"The MT5 phone layout: MA ribbon + SAR + fractals and the RSI(2) + OsMA window.", tipAr:"شكل شارت MT5: ريبون المتوسطات + SAR + فراكتال ونافذة RSI(2) + OsMA."},
 ];
 const indHelp = id => { const v = IND_HELP[id]; return v ? v[lang === "ar" ? 1 : 0] : ""; };
@@ -1269,6 +1267,12 @@ const psarOf = (d, start, inc, max) => { const n = d.length, v = new Array(n).fi
     v[i] = res; u[i] = below; }
   return {v, up:u}; };
 const smaOf = (a, n) => { let s = 0; return a.map((v, i) => { s += v; if (i >= n) s -= a[i-n]; return i >= n-1 ? s/n : s/(i+1); }); };
+const MA_TYPES = ["SMA","EMA","WMA"], MA_MAX = 7, MA_COLS = ["#f0b90b","#4aa3ff","#b57cff","#ff9800","#0ecb81","#f6465d","#26c6da"];
+const maOf = (a, n, type) => {   // one moving average of a series: null before the first full window (SMA / WMA), EMA starts on the first bar
+  if (type === "WMA"){ const den = n*(n+1)/2; return a.map((_, i) => { if (i < n-1) return null; let s = 0; for (let k = 0; k < n; k++) s += a[i-k]*(n-k); return s/den; }); }
+  if (type === "SMA"){ let s = 0; return a.map((v, i) => { s += v; if (i >= n) s -= a[i-n]; return i >= n-1 ? s/n : null; }); }
+  const k = 2/(n+1); let e = null; return a.map(v => (e = e == null ? v : v*k + e*(1-k)));
+};
 const stochK = (d, k, slow) => smaOf(d.map((x, i) => { if (i < k-1) return 50; let hh = -Infinity, ll = Infinity; for (let j = i-k+1; j <= i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return hh > ll ? (x.c - ll)/(hh - ll)*100 : 50; }), slow);
 const rsiOf = (cl, L) => { let ag = 0, al = 0; return cl.map((v, i) => { if (!i) return 50; const d = v - cl[i-1], g = Math.max(d, 0), l = Math.max(-d, 0); if (i <= L){ ag += g/L; al += l/L; } else { ag = (ag*(L-1) + g)/L; al = (al*(L-1) + l)/L; } return i < L ? 50 : al === 0 ? 100 : 100 - 100/(1 + ag/al); }); };
 /* ---------------- own candlestick chart (canvas) ---------------- */
@@ -1286,8 +1290,8 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
-    this.ema = {9:true, 21:true, 50:false, vwap:false}; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
-    this.st = {9:{color:"#f0b90b",w:1.2,dash:"",len:9}, 21:{color:"#4aa3ff",w:1.2,dash:"",len:21}, 50:{color:"#b57cff",w:1.2,dash:"",len:50}, vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
+    this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
+    this.st = {vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
       gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
@@ -1326,8 +1330,9 @@ class CandleChart {
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
-    [9,21,50].forEach(n => { this.emaV[n] = emaOf(this.data.map(c => c.c), Math.max(1, this.st[n].len|0)); });
     const cl = this.data.map(c => c.c);
+    this.emaV = {9:maOf(cl, 9, "EMA"), 21:maOf(cl, 21, "EMA")};   // the REJ filter's fast / slow pair, always on
+    this.maV = this.maL.map(m => m.on ? maOf(cl, Math.max(1, m.len|0), m.type) : null);
     if (this.rsiOn){ const L = Math.max(2, this.st.rsi.len|0); let ag = 0, al = 0; this.rsiV = cl.map((v,i) => { if (!i) return 50; const d = v - cl[i-1], g = Math.max(d,0), l = Math.max(-d,0);
         if (i <= L){ ag += g/L; al += l/L; } else { ag = (ag*(L-1)+g)/L; al = (al*(L-1)+l)/L; } return i < L ? 50 : al === 0 ? 100 : 100 - 100/(1+ag/al); }); }
     if (this.macdOn){ const m = this.st.macd, ef = emaOf(cl, m.fast|0 || 12), es = emaOf(cl, m.slow|0 || 26), ml = ef.map((v,i) => v - es[i]), sg = emaOf(ml, m.sig|0 || 9); this.macdV = {m:ml, s:sg, h:ml.map((v,i) => v - sg[i])}; }
@@ -1514,11 +1519,10 @@ class CandleChart {
       if (this.fpOn && this.bw >= 44 && this.fp.has(k.t)){ c.lineWidth = 1; c.strokeRect(Math.round(x-bwp/2)+.5, Math.min(y1,y2), bwp, Math.max(1, Math.abs(y1-y2))); }   // footprint candle: body becomes an outline, the cells show the volume
       else c.fillRect(x-bwp/2, Math.min(y1,y2), bwp, Math.max(1, Math.abs(y1-y2)));
     }
-    const ecol = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};
-    [9,21,50].forEach(nn => {
-      if (!this.ema[nn]) return;
-      const sty = this.st[nn]; c.strokeStyle = sty.color || ecol[nn]; c.lineWidth = sty.w || 1.2; c.setLineDash(sty.dash ? sty.dash.split(",").map(Number) : []); c.beginPath();
-      for (let i = i0; i <= i1; i++){ const y = py(this.emaV[nn][i]), x = this.x(i); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+    this.maL.forEach((m, j) => {   // Moving averages: every line of the one MA indicator
+      const v = this.maV && this.maV[j]; if (!m.on || !v) return;
+      c.strokeStyle = m.color; c.lineWidth = m.w || 1.2; c.setLineDash(m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
+      for (let i = i0; i <= i1; i++){ if (v[i] == null) continue; const y = py(v[i]), x = this.x(i); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; }
       c.stroke(); c.setLineDash([]);
     });
     if (this.ema.vwap && this.vwV){
@@ -3114,7 +3118,6 @@ class Panel {
     this.tfSel.onchange = () => this.setTf(this.tfSel.value); tb.append(this.tfSel);
     if (MOB){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
         const b = el("button", null, l); b.dataset.tf = v; b.onclick = () => this.setTf(v); row.append(b); }); this._mtfPending = row; }   // MetaTrader's timeframe strip (phones)
-    const emaBtns = [9,21,50].map(n => { const b = el("button",null,"EMA"+n); b.onclick = () => { this.chart.ema[n] = !this.chart.ema[n]; this.state.ema = Object.assign({}, this.chart.ema); b.classList.toggle("on", this.chart.ema[n]); this.chart.draw(); Ws.save(); }; return b; });
     const vw = el("button",null,T("vwap")); vw.onclick = () => { this.chart.ema.vwap = !this.chart.ema.vwap; this.state.ema = Object.assign({}, this.chart.ema); vw.classList.toggle("on", !!this.chart.ema.vwap); this.chart.draw(); Ws.save(); };
     const sg = el("button",null,T("sig")); sg.onclick = () => { this.chart.showSig = !this.chart.showSig; this.state.sig = this.chart.showSig; sg.classList.toggle("on", this.chart.showSig); this.chart.draw(); Ws.save(); };
     const fl = el("button",null,T("flow")); fl.onclick = () => { this.chart.flowOn = !this.chart.flowOn; this.state.flow = this.chart.flowOn; fl.classList.toggle("on", this.chart.flowOn); this.chart.draw(); Ws.save(); };
@@ -3168,6 +3171,9 @@ class Panel {
     tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
+    else if (this.state.ema){ const E = this.state.ema, S0 = this.state.st || {}, DC = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};   // older saves: the three fixed EMA lines
+      this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
@@ -3249,7 +3255,6 @@ class Panel {
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
     this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 300);
-    emaBtns.forEach((b,i) => b.classList.toggle("on", !!this.chart.ema[[9,21,50][i]]));
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -3262,9 +3267,7 @@ class Panel {
       PC = (key, label) => ({key, label, color:true}), PN = (key, label, tip) => ({key, label, free:true, tip}), PT = (key, label, ph, tip) => ({key, label, text:true, ph, tip}), PH = label => ({sep:true, label});
     const ch = () => this.chart;
     const items = [
-      {id:"e9", label:"EMA 9", get:() => ch().ema[9], set:v => { ch().ema[9] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"9", params:[P("len","Length",1,500,1)]},
-      {id:"e21", label:"EMA 21", get:() => ch().ema[21], set:v => { ch().ema[21] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"21", params:[P("len","Length",1,500,1)]},
-      {id:"e50", label:"EMA 50", get:() => ch().ema[50], set:v => { ch().ema[50] = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"50", params:[P("len","Length",1,500,1)]},
+      {id:"ma", ma:true, label:Lg("Moving averages (SMA / EMA / WMA, up to 7)","المتوسطات المتحركة (SMA / EMA / WMA، لحد 7)"), tip:Lg("One indicator for every moving average. Each line in the box: on/off, SMA / EMA / WMA, period, colour, thickness, dash, remove.","مؤشر واحد لكل المتوسطات. كل خط في الصندوق: تشغيل/إيقاف، SMA / EMA / WMA، الفترة، اللون، السُمك، الشكل، حذف."), get:() => ch().maL.some(m => m.on), set:v => { ch().maL.forEach(m => m.on = v); }},
       {id:"vwap", label:"VWAP", get:() => !!ch().ema.vwap, set:v => { ch().ema.vwap = v; this.state.ema = Object.assign({}, ch().ema); }, sty:"vwap", params:[]},
       {id:"sbox", label:Lg("Trade box (setup as a box, not lines)","صندوق الصفقة (الخطة كصندوق بدل خطوط)"), tip:Lg("Draws the signal's trade plan (entry / stop / targets) as a risk-reward box on the chart instead of plain lines.","بيرسم خطة الصفقة (دخول / وقف / أهداف) كصندوق ربح/خسارة على الشارت بدل الخطوط."), get:() => ch().setupMode === "box", set:v => { ch().setupMode = v ? "box" : "lines"; this.state.smode = v ? "box" : "lines"; }},
       {id:"kz", label:T("indKz"), tip:T("kzTip"), get:() => ch().kz, set:v => { ch().kz = v; this.state.kz = v; this.kzb && this.kzb.classList.toggle("on", v); }},
@@ -3330,7 +3333,7 @@ class Panel {
       {id:"psar", label:"Parabolic SAR", get:() => ch().psarOn, set:v => { ch().psarOn = v; this.state.psar = v; }, sty:"psar", col2:true, params:[P("step","Step",0.005,0.1,0.005), P("max","Max",0.05,1,0.05)]},
     ];
     this.indItems = items;   // task 22: the Master button turns these off/on together
-    const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
+    const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];
     const UI = this.indUI = this.indUI || {x:null, y:null, min:false, pin:false};
@@ -3346,7 +3349,7 @@ class Panel {
       pop.innerHTML = ""; pop.append(head()); place(); if (UI.min){ const open = items.filter(it => it.open && it.get()); if (!open.length) return; }
       if (!UI.min){ const mr = el("div","irow"); mr.style.cssText = "gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px"; const ml = el("span","m",Lg("Mode","الوضع")); ml.style.flex = "0 0 100%"; mr.append(ml);
         CHART_MODES.forEach(md => { const b = el("button", null, esc(Lg(md.en, md.ar))); b.title = Lg(md.tipEn, md.tipAr); if (this.state.mode === md.id) b.classList.add("on");
-          b.onclick = e => { e.stopPropagation(); items.forEach(it => { if (!KEEP.includes(it.id)) it.set(md.on.includes(it.id)); }); this.state.mode = md.id; save(); render(); };
+          b.onclick = e => { e.stopPropagation(); items.forEach(it => { if (it.id === "ma") ch().maL.forEach(m => m.on = md.on.includes("ma") && (!md.ma || md.ma.includes(m.len))); else if (!KEEP.includes(it.id)) it.set(md.on.includes(it.id)); }); this.state.mode = md.id; save(); render(); };
           mr.append(b); });
         pop.append(mr); }
       (UI.min ? items.filter(it => it.open && it.get()) : items).forEach(it => {   // folded: only the indicators whose settings are open
@@ -3356,7 +3359,24 @@ class Panel {
         if (it.id === "dot3"){ const g = el("button",null,"⚙"); g.title = T("ofSet"); g.onclick = e => { e.stopPropagation(); Ws.ofPanel(g, this.chart, () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); this.chart.draw(); }); }; row.append(g); }
         { const note = indHelp(it.id) || it.tip; if (note){ const q = el("button",null,"ⓘ"); q.title = lang === "ar" ? "شرح المؤشر" : "What is this?"; q.className = "ihelp"; const nb = el("div","inote"); nb.textContent = note; nb.style.display = it.hOpen ? "block" : "none";
           q.onclick = e => { e.stopPropagation(); it.hOpen = !it.hOpen; nb.style.display = it.hOpen ? "block" : "none"; }; row.append(q); row.after = null; row._note = nb; } }
-        if (it.sty){
+        if (it.ma){ const g = el("button",null,"⚙"); g.title = T("indSet"); row.append(g); const box = el("div","iset"); box.style.display = it.open ? "flex" : "none"; box.style.flexDirection = "column"; box.style.alignItems = "stretch";
+          const build = () => { box.innerHTML = ""; const M = ch().maL;
+            M.forEach((m, j) => { const ln = el("div"), on = el("input"), ty = el("select"), per = el("input"), col = el("input"), w = el("select"), d = el("select"), x = el("button",null,"×");
+              ln.style.cssText = "display:flex;gap:4px;align-items:center;flex-wrap:nowrap;white-space:nowrap";
+              on.type = "checkbox"; on.checked = !!m.on; on.title = Lg("Show this line","إظهار الخط"); on.onchange = () => { m.on = on.checked; cb.checked = ch().maL.some(q => q.on); save(); };
+              MA_TYPES.forEach(t => ty.append(Object.assign(el("option"), {value:t, textContent:t}))); ty.value = m.type; ty.title = Lg("SMA / EMA / WMA","SMA / EMA / WMA"); ty.onchange = () => { m.type = ty.value; save(); };
+              per.type = "number"; per.min = 1; per.max = 500; per.step = 1; per.value = m.len; per.style.width = "52px"; per.title = Lg("Period","الفترة"); per.onchange = () => { m.len = Math.max(1, Math.min(500, +per.value || m.len)); per.value = m.len; save(); };
+              col.type = "color"; col.value = m.color; col.title = T("indColor"); col.oninput = () => { m.color = col.value; save(); };
+              [1,1.5,2,3,4].forEach(v => w.append(Object.assign(el("option"), {value:v, textContent:v+"px"}))); w.value = m.w; w.title = T("indWidth"); w.onchange = () => { m.w = +w.value; save(); };
+              DASH.forEach(([v,l]) => d.append(Object.assign(el("option"), {value:v, textContent:l}))); d.value = m.dash || ""; d.title = T("indStyle"); d.onchange = () => { m.dash = d.value; save(); };
+              x.title = Lg("Remove this line","احذف الخط"); x.onclick = () => { M.splice(j, 1); save(); build(); };
+              [on, ty, per, col, w, d, x].forEach(n => n.onpointerdown = e => e.stopPropagation());
+              ln.append(on, ty, per, col, w, d, x); box.append(ln); });
+            const add = el("button",null,"+ "+Lg("Add MA","أضف متوسط")); add.disabled = M.length >= MA_MAX; add.title = Lg("Up to 7 moving averages","لحد 7 متوسطات"); add.style.alignSelf = "flex-start";
+            add.onclick = () => { const k = M.length; M.push({on:true, type:"EMA", len:[50,100,200,10,20,5,30][k] || 14, color:MA_COLS[k % MA_COLS.length], w:1.2, dash:""}); save(); build(); }; box.append(add); };
+          build(); g.onclick = () => { it.open = !it.open; box.style.display = it.open ? "flex" : "none"; }; row.append(box);
+        }
+        else if (it.sty){
           if (SIG_IND.includes(it.sty)){ const sl = el("label","sgl"), sc = el("input"); sc.type = "checkbox"; sc.checked = ch().st[it.sty].sg !== false; sl.title = Lg("Signals: show this indicator's BUY / SELL marks","إشارات: اعرض علامات الشراء/البيع بتاعة المؤشر"); sc.onchange = () => { ch().st[it.sty].sg = sc.checked; save(); }; sl.append(sc, document.createTextNode(Lg("Signals","إشارات"))); sl.onclick = e => e.stopPropagation(); row.append(sl); }
           const g = el("button",null,"⚙"); g.title = T("indSet"); row.append(g); const box = el("div","iset"); box.style.display = it.open ? "flex" : "none";
           const st = () => ch().st[it.sty];

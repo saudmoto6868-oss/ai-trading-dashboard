@@ -3097,6 +3097,8 @@ class Panel {
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { drw.classList.toggle("on", this.chart.drawingsVisible); drw.style.opacity = this.chart.drawingsVisible ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
+    const refreshNow = el("button",null,"⟳"); refreshNow.title = Lg("Reload chart data and preserve the current view","إعادة تحميل بيانات الشارت مع الحفاظ على موضع العرض والتكبير");
+    refreshNow.onclick = () => { const ch = this.chart; if (!ch || !ch.data.length) { this.resub(); return; } this._refreshView = {sym:this.state.sym, tf:this.state.tf, bw:ch.bw, yZoom:ch.yZoom, yShift:ch.yShift, back:(ch.data.length-1)-ch.r}; ch.saveView(); this.resub(); Ws.save(); };
     // screenshot (PNG) and video (WebM, 8 Mbps) of the chart; both download to the device (= save)
     const fname = (ext) => "xpix-"+this.chart.sym+"-"+this.chart.tf+"-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+"."+ext;
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
@@ -3121,7 +3123,7 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, fit, ac, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, rf, refreshNow, fit, ac, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
@@ -3459,7 +3461,12 @@ class Panel {
         setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
-        if (first) this.chart.setData(rows, true);
+        if (first){
+          this.chart.setData(rows, true);
+          const v = this._refreshView;
+          if (v && v.sym === sym && v.tf === tf && this.chart.data.length){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
+          this._refreshView = null;
+        }
         else {
           const data = this.chart.data.slice();
           rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });

@@ -890,10 +890,12 @@ function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Ta
    all fire at once. One request per path is in flight or cached for a short time (rubik stats: 60 s, prices: 3 s); a 429 is reported
    as a rate limit instead of being retried in a loop. */
 const OKX_CACHE = {}; let OKX_COOL = 0;
+const OKX_COOL_P = {};   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 3000, hit = OKX_CACHE[path];
+  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
+  const cool = OKX_COOL_P[path] || 0; if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
@@ -906,7 +908,7 @@ function okx(path){
       if (rub) OKX_COOL = Date.now() + 600000;
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
-    if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) OKX_COOL = Date.now() + 180000; else OKX_COOL_P[path] = Date.now() + 30000; throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));

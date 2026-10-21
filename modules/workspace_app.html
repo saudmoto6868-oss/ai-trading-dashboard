@@ -1281,7 +1281,7 @@ class CandleChart {
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
     cv.tabIndex = 0; cv.style.outline = "none";
     cv.addEventListener("keydown", e => { if (e.key === "Delete" || e.key === "Backspace"){ this.deleteSel(); } else if (e.key === "Escape"){ this.cancelTool(); } });
-    this.draws = []; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
+    this.draws = []; this.drawingsVisible = true; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
   destroy(){ this.ro.disconnect(); }
@@ -2222,7 +2222,7 @@ Object.assign(CandleChart.prototype, {
   ctxMenu(e){
     e.preventDefault(); document.querySelectorAll(".ctxm").forEach(m => m.remove());
     const q = this.pt(e); let target = null;
-    if (q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
+    if (this.drawingsVisible && q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
     const m = el("div","ctxm"); m.style.cssText = "position:fixed;z-index:2147483001;left:"+e.clientX+"px;top:"+e.clientY+"px";
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
@@ -2279,7 +2279,7 @@ Object.assign(CandleChart.prototype, {
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){
-      const order = this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse();
+      const order = this.drawingsVisible ? (this.sel ? [this.sel, ...this.draws.filter(d => d !== this.sel)] : this.draws.slice().reverse()) : [];
       for (const d of order){
         const h = this.hit(d, q.x, q.y); if (!h) continue;
         this.sel = d; this.drag = null;
@@ -2910,7 +2910,7 @@ Object.assign(CandleChart.prototype, {
     add(Lg("Delete","حذف"), {title:Lg("delete","حذف")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d); this.sel = null; this.saveDraws(); this.draw(); });
   },
   paintDraws(c, py, dec){
-    if (!this.data.length) return;
+    if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
     const lab = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
@@ -3094,6 +3094,9 @@ class Panel {
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", !!this.chart.autoCenter);
     ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.state.autoCenter = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); if (this.chart.autoCenter) this.chart.followLatest(); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
+    const syncDrawings = () => { drw.classList.toggle("on", this.chart.drawingsVisible); drw.style.opacity = this.chart.drawingsVisible ? "1" : ".55"; };
+    drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
     // screenshot (PNG) and video (WebM, 8 Mbps) of the chart; both download to the device (= save)
     const fname = (ext) => "xpix-"+this.chart.sym+"-"+this.chart.tf+"-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+"."+ext;
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
@@ -3118,9 +3121,9 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, rf, fit, ac, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, rf, fit, ac, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
-    this.chart = new CandleChart(wrap); this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    this.chart = new CandleChart(wrap); this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.chart.autoCenter = !!this.state.autoCenter; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };

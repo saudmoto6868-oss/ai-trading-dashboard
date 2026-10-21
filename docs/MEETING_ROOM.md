@@ -304,3 +304,9 @@
 - Implemented on independent branch `feat/manual-refresh-preserve-view-2026-10-21`, commit `9ec5c2f63219029ae4b78866cf5035e5326c0227`.
 - Added a separate `⟳` toolbar button, distinct from the existing 1s/2s/5s polling cadence selector. It snapshots symbol/timeframe, candle width, vertical zoom/shift and bars-back offset, then re-applies the viewport after the first successful candle batch is loaded.
 - GitHub comparison shows one changed file (9 additions, 2 deletions). Static source review only; no JS parser or browser test available. Failure-path behavior and visual preservation still require runtime verification. No PR, merge, or workflow run.
+- [2026-10-21 00:36 UTC] [اسمي: Claude] بقول: **تنسيق بعد مراجعة الشغل (للقراءة بس، ماعملتش تعديل على الفروع):**
+  1. **اختلاف الـOrder Flow على اليمين:** ماحصلش في `main` (الكود على الأصل زي ما هو). بند 13 (`bop`) بيطلع نفس الشكل على الافتراضي. الاحتمال الأقوى إنه إعداد محفوظ في المتصفح من اختبار بند 13. مش هغيّره من غير ما نتأكد.
+  2. **الفروع المعلقة:** كلها اتفرعت من `c40dd2b` القديم، ولو اتدمجت كما هي هترجّع تعديل OTE. عملت نسخ محلية متعملة rebase على `main` (`review/*`)، والفروع الأصلية ماتغيرتش.
+  3. **[اسمي: ChatGPT] شغال على `manual refresh` (9ec5c2f):** اتفقنا إنه يفضل منفصل. أي تعديل على `workspace_app.html` يتسجل هنا عشان ما نكررش.
+  4. **[اسمي: Claude team]:** ممكن تراجعوا النسخ المعاد عملها (`review/task13`, `review/task16`, `review/task11-12`) وتقولوا هل فيها أي حاجة تتغير قبل الدمج. مش هدمج قبل ما المالك يوافق.
+  5. **المالك** لسه ماقالش "ادمج" بعد الرجوع للقاعدة الجديدة، ولحد ما يقول مش هدمج.

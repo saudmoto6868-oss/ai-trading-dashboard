@@ -1278,6 +1278,10 @@ function niceTicks(lo, hi, n){
   for (let v = Math.ceil(lo/step)*step; v <= hi; v += step) out.push(v);
   return {ticks:out, step};
 }
+// task 52: a time-synced crosshair. When on, moving the cross over one chart of a symbol draws the same time on every other chart of that symbol.
+const XHS = {on:false, t:null, sym:null, src:null}; const XH_CHARTS = new Set();
+function xhSync(src){ if (!XHS.on) return; const ii = Math.max(0, Math.min(src.data.length-1, Math.round(src.idx(src.mouse ? src.mouse.x : 0)))); const d = src.data[ii]; if (!d) return;
+  XHS.t = d.t; XHS.sym = src.sym; XHS.src = src; XH_CHARTS.forEach(c => { if (c !== src && c.sym === src.sym && c.data && c.data.length) c.draw(); }); }
 class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
@@ -1288,7 +1292,7 @@ class CandleChart {
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
       gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
-      mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; this.W = 0; this.H = 0;
+      mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; XH_CHARTS.add(this); this.W = 0; this.H = 0;
     const cv = this.cv;
     cv.addEventListener("wheel", e => { e.preventDefault(); this.saveView();; this.wheel(e); }, {passive:false});
     cv.addEventListener("pointerdown", e => this.down(e));
@@ -1399,7 +1403,7 @@ class CandleChart {
   move(e){
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
       const P = this.pinch, f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.draw(); this.checkMore(); return; }
-    const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top};
+    const rect = this.cv.getBoundingClientRect(); this.mouse = {x:e.clientX-rect.left, y:e.clientY-rect.top}; XH_CHARTS.add(this); xhSync(this);
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.draw(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)))); this.draw(); return; }
@@ -1607,6 +1611,9 @@ class CandleChart {
     }
     // crosshair + legend
     let show = last;
+    if (!this.mouse && XHS.on && XHS.sym === this.sym && XHS.t != null && this.data.length){   // task 52: time from another chart
+      let j = this.data.length - 1; while (j > 0 && this.data[j].t > XHS.t) j--; const xs = this.x(j);
+      if (xs > 0 && xs < PR){ c.strokeStyle = "#f0b90b"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(xs+.5,0); c.lineTo(xs+.5,H-20); c.stroke(); c.setLineDash([]); } }
     const m = this.mouse;
     if (m && m.x < PR && m.y < H-20){   // vertical line runs through the chart AND every indicator pane down to the time strip
       const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last; const inMain = m.y < PB;
@@ -3126,6 +3133,9 @@ class Panel {
       else { (this._masterOn || []).forEach(id => { const x = items.find(y => y.id === id); if (x && x.set) { try { x.set(true); } catch(e){} } }); this._masterOn = null; }
       masterB.classList.toggle("on", !!this._masterOn); this.chart.draw(); Ws.save();
     };
+    // task 52: crosshair sync toggle (same time on every chart of this symbol)
+    const xhB = el("button",null,"✚"); xhB.title = Lg("Crosshair sync: the same time on every chart of this symbol","تزامن الكروس: نفس الوقت في كل شارتات الرمز");
+    xhB.onclick = () => { XHS.on = !XHS.on; xhB.classList.toggle("on", XHS.on); if (!XHS.on){ XHS.t = null; XH_CHARTS.forEach(c => c.draw()); } };
     const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
     const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
@@ -3155,7 +3165,7 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, masterB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);

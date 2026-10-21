@@ -68,7 +68,7 @@ body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the b
 body.mob .rzh{display:none!important}
 .rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;
  background:linear-gradient(135deg,transparent 55%,var(--mut) 55%,var(--mut) 62%,transparent 62%,transparent 75%,var(--mut) 75%,var(--mut) 82%,transparent 82%)}
-.tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tb{display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}   /* task 24: one scrollable strip when the widget is narrow, buttons are never hidden */
 .tb button{padding:1px 6px}
 .fill{position:absolute;inset:0}
 .chartwrap{position:relative;flex:1;min-height:0}

@@ -3164,6 +3164,20 @@ class Panel {
         };
       } else b.onclick = () => this.chart.setTool(this.chart.tool === k && k !== "cur" ? "cur" : k);
     });
+    // task 25: tools grouped like TradingView: one button per group opens its tools (the tools themselves are unchanged)
+    const TOOL_GROUPS = [["lines", "╱", ["trend","hline","vline","ray","arrow"]], ["shapes", "▭", ["rect","channel","drange","prange","range"]]];
+    TOOL_GROUPS.forEach(([gk, gic, members]) => {
+      const present = members.filter(k => this.toolBtns[k]); if (present.length < 2) return;
+      const gb = el("button",null,gic); gb.title = Lg("Group: "+gk, "مجموعة: "+gk);
+      const gpop = el("div","fibpop"); gpop.style.left = "36px";
+      dt.insertBefore(gb, this.toolBtns[present[0]]);
+      present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); });
+      const closeG = () => { if (gpop.parentNode) gpop.remove(); };
+      gb.onclick = () => {
+        if (gpop.parentNode){ closeG(); return; }
+        wrap.append(gpop); setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+      };
+    });
     // object tree (owner 2026-10-19: TradingView-style list): every drawing of this chart, newest first; click selects, eye hides, x deletes
     const ob = el("button",null,"≣"); ob.title = Lg("object tree","شجرة الكائنات"); dt.append(ob);
     const closeObj = () => { if (this.objPop){ this.objPop.remove(); this.objPop = null; } };

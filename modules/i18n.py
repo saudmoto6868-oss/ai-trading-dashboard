@@ -125,6 +125,15 @@ AR.update({
     "By symbol": "حسب العملة", "By strategy": "حسب الاستراتيجية",
     "Costs = {c} R per trade (planning estimate, not measured). Grey = under {n} trades, not evidence.": "التكاليف = {c} R للصفقة (تقدير تخطيط، مش متقاس). الرمادي = أقل من {n} صفقة، مش دليل.",
 })
+# Market map (Radar page, modules/market_map.py)
+AR.update({
+    "Market map": "خريطة السوق", "markets": "الأسواق", "up": "صاعد", "down": "هابط", "median change": "متوسط التغير",
+    "Market map: Hyperliquid did not answer": "خريطة السوق: Hyperliquid ما ردش",
+    "Market map: no markets with a reference price right now.": "خريطة السوق: مفيش أسواق بسعر مرجعي دلوقتي.",
+    "Tile colour = change vs the previous day; tile size = 24h volume (no market cap is available for these markets). Breadth and strength describe the move, they do not predict it.":
+        "لون المربع = التغير عن اليوم اللي فات؛ حجم المربع = حجم 24 ساعة (مفيش قيمة سوقية متاحة للأسواق دي). الاتساع والقوة بيوصفوا الحركة، ومابيتنبؤوش بيها.",
+    "Class": "الفئة", "Markets": "الأسواق", "Avg change %": "متوسط التغير %", "Share up": "نسبة الصاعد",
+})
 
 
 def L(text: str) -> str:

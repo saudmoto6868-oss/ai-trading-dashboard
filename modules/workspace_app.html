@@ -914,7 +914,8 @@ function okx(path){
       if (rub) okxCoolSet(Date.now() + 600000);
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); }   // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying throw new Error("OKX rate limit (429): wait a few minutes"); }
+    // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); } throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));

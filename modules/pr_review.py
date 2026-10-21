@@ -42,7 +42,7 @@ def available_models(key: str) -> list[str]:
     r = requests.get("https://generativelanguage.googleapis.com/v1beta/models", headers={"x-goog-api-key": key}, timeout=60)
     r.raise_for_status()
     ok = [m["name"].split("/", 1)[1] for m in r.json().get("models", [])
-          if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"] and "lite" not in m["name"]]
+          if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"] and not any(x in m["name"] for x in ("lite", "tts", "image", "live", "embed", "preview"))]
     return sorted(ok, key=lambda n: ("latest" not in n, "2.5" not in n, n))
 
 
@@ -53,7 +53,7 @@ def ask_gemini(key: str, prompt: str) -> str:
         r = requests.post(GEMINI.format(model=m), headers={"x-goog-api-key": key, "content-type": "application/json"},
                           json={"contents": [{"parts": [{"text": prompt}]}],
                                 "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500}}, timeout=300)
-        if r.status_code in (404, 429, 503):
+        if r.status_code in (400, 404, 429, 503):   # 400 = this name cannot take a text review (e.g. a speech model)
             last = f"{m}: HTTP {r.status_code}"
             continue
         r.raise_for_status()

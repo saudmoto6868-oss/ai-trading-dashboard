@@ -58,8 +58,16 @@ def to_strategy(ans: dict) -> dict:
     return {"name": name, "side": ans.get("side", "long"), "logic": ans.get("logic", "AND"), "rules": rules}
 
 
-def ask(text: str, history: list, key: str, model: str = "gemini-flash-latest") -> dict:
-    """One turn with the agent. history: [{"q":..., "a":...}]. Returns the answer dict plus 'strategy' and 'errors'."""
+def ask(text: str, history: list, key: str, model: str = "gemini-flash-latest", provider: str = "gemini") -> dict:
+    """One turn with the agent. history: [{"q":..., "a":...}]. Returns the answer dict plus 'strategy' and 'errors'.
+    provider 'openai' = ChatGPT (modules/ai_provider.py, owner 2026-10-23), 'gemini' = the free Google key (default / fallback)."""
+    if provider == "openai":
+        from modules import ai_provider as AP
+        msgs = []
+        for h in history[-6:]:
+            msgs += [{"role": "user", "content": h["q"]}, {"role": "assistant", "content": h["a"]}]
+        msgs.append({"role": "user", "content": text})
+        return finish(AP.chat_json(SYSTEM, msgs, AP.describe(SCHEMA), key=key, model=None if model.startswith("gemini") else model))
     import requests
     contents = []
     for h in history[-6:]:

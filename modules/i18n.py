@@ -5,6 +5,20 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    "Price": "السعر", "Change %": "التغير %", "20-bar %": "تغير 20 شمعة %", "Volume ×avg": "الفوليوم ×المتوسط", "Signals": "الإشارات", "Which": "أنهي إشارات",
+    "Chart grid": "الشارتات",
+    "Levels / breakouts": "المستويات / الاختراقات", "Momentum / divergence": "الزخم / الدايفرجنس", "Fibonacci": "فيبوناتشي", "Liquidity": "السيولة",
+    "Trend (hedge fund)": "الترند (صناديق التحوط)", "Time (sessions)": "الوقت (الجلسات)", "Elliott wave": "موجات إليوت", "SMC / ICT": "SMC / ICT",
+    "Trend (MA)": "الترند (المتوسطات)", "Intermarket (SMT)": "بين الأسواق (SMT)",
+    # work board areas, workflow names, lab caption (2026-10-22)
+    "Order flow": "الأوردر فلو", "Radar": "الرادار", "Technical Office": "المكتب الفني", "Workspace": "الـ Workspace", "Strategies": "الاستراتيجيات",
+    "Playbook": "الـ Playbook", "Stats": "الإحصائيات", "AI": "الذكاء الاصطناعي", "Alerts": "التنبيهات", "Research": "البحث", "Operations": "التشغيل",
+    "Security": "الأمان", "Data": "الداتا", "Priority": "الأولوية",
+    "Activity summary": "ملخص النشاط", "Real-candle backtests (manual)": "باك تيست على شموع حقيقية (يدوي)", "Claude Code": "Claude Code",
+    "Gemini review": "مراجعة Gemini", "Grok digest": "ملخص Grok", "Anthropic key check": "فحص مفتاح Anthropic", "Provider check": "فحص المزودين",
+    "School review": "مراجعة المدارس", "Strategy lab": "معمل الاستراتيجيات", "Telegram alerts": "تنبيهات تليجرام",
+    "Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs.":
+        "شموع حقيقية من OKX و Hyperliquid، بتشتغل كل أسبوع على GitHub Actions، وكل نتيجة مقارنة باتجاه عشوائي. شرط الدليل: n ≥ 100 و t > 3. أقل من 30 صفقة = مش دليل. احكم بعمود صافي R (بعد خصم 0.1R تكلفة لكل صفقة)؛ متوسط R لوحده من غير تكلفة.",
     # Playbook / Alerts / AI pages (2026-10-22)
     "By trading style": "حسب نوع التداول", "Schools": "المدارس", "Rules & timing": "القواعد والتوقيت", "Full document": "الوثيقة كاملة",
     "Setup": "الإعداد", "Entry": "الدخول", "net": "صافي", "Holding time": "مدة الصفقة", "Principles": "المبادئ", "Goal": "الهدف", "no lab data": "مفيش داتا lab",

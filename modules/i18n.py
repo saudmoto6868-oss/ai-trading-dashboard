@@ -28,6 +28,10 @@ AR = {
     "Signal": "الإشارة", "Kind": "النوع", "Count": "العدد", "Lab net R": "صافي R في المعمل", "Lab n": "n في المعمل",
     "Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate.":
         "صافي R في المعمل = متوسط R الأسبوعي بعد تكلفة 0.1R للكاشف ده على أقرب فريم في المعمل. الإشارة اقتراح، مش دليل، لحد ما تعدّي البوابة.",
+    # Radar trade card (task 17, 2026-10-22)
+    "Trade card: no clear direction on this timeframe": "كارت الصفقة: مفيش اتجاه واضح على الفريم ده", "Buy": "شراء", "Sell": "بيع",
+    "entry": "دخول", "stop": "وقف", "targets": "أهداف", "Against the side filter": "عكس فلتر الاتجاه المختار",
+    "Suggestion from the rules, not an order; size by your risk per trade.": "اقتراح من القواعد، مش أمر؛ الحجم حسب مخاطرتك في الصفقة.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

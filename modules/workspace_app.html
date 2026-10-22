@@ -898,7 +898,10 @@ const OKX_COOL_P = {}; let OKX_COOL_ALL = 0;   // global pause for candle reques
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
+  const rub = /\/rubik\//.test(path);
+  // Live order-book / trade snapshots are polled every 1.5 s by Hub. Do not reuse a 10 s cache entry for these endpoints.
+  // Keep a short 1.2 s in-flight/repeat guard to coalesce overlapping requests without serving stale snapshots across polling ticks.
+  const liveFlow = /\/market\/(?:books(?:-full)?|trades)\?/.test(path), ttl = rub ? 120000 : liveFlow ? 1200 : 10000, hit = OKX_CACHE[path];
   const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));

@@ -13,6 +13,8 @@
 ## الصيغة
 | الوقت (UTC) | الذكاء / الحساب | الفعل | قرأ | غيّر | نسخ | بعت | استقبل | النتيجة |
 |---|---|---|---|---|---|---|---|---|
+| 2026-10-22 19:10 | ChatGPT | إصلاح عرض Order Flow على فرع مستقل؛ فحص ثابت لمصدر الفرع | modules/workspace_app.html، docs/MEETING_ROOM.md، docs/WHITEBOARD.md، CLAUDE.md | modules/workspace_app.html؛ tests/test_orderflow_render_policy.py | — | commits 29e35f5 و6914a27؛ تعليق مراجعة في PR #65 | مراجعة Claude: fallback DOM/bubbles فوق الشموع هو المسار المرجح؛ لم تنفذ اختبارات متصفح | 6 assertions ثابتة للمصدر نجحت؛ لم يُشغّل Python test أو Playwright أو live OKX؛ لا دمج ولا نشر |
+
 
 ## سجل البداية (مُرحّل من الجلسة وسجل Git، 2026-10-19)
 

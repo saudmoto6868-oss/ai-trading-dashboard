@@ -1283,6 +1283,94 @@ function niceTicks(lo, hi, n){
   for (let v = Math.ceil(lo/step)*step; v <= hi; v += step) out.push(v);
   return {ticks:out, step};
 }
+/* FLOWREAD:BEGIN - pure functions (no DOM): ONE wall tracker shared by the heat-map flashes, the limits list and the sync lights, plus the plain-language reading of the order book + tape + limits. Tested by tests/test_flow_read.py (node). Every sentence it produces DESCRIBES what was seen in the last minutes; it never predicts (research: no order-flow signal is proven net of costs, so this is context). Limits stated on purpose: snapshots (1-2 s) miss orders placed and pulled between two polls; one venue is a partial view. */
+const FlowRead = (() => {
+  const med = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
+  const tickOf = ps => { const s = [...new Set(ps)].sort((a, b) => a - b); let t = Infinity; for (let i = 1; i < s.length; i++){ const d = s[i] - s[i-1]; if (d > 1e-12 && d < t) t = d; } return t === Infinity ? 0 : t; };
+  const newState = () => ({walls:new Map(), prevT:0, prev:null, mids:[], big:5, ev:[]});
+  // snap = {t, bids:[{p,q}], asks:[{p,q}]} (any order); trades = [{t,p,q,side:"Buy"|"Sell"}] (any age: only prints after the previous snapshot count).
+  // -> events [{t, kind:"PLACED"|"PULLED"|"FILLED"|"REFILL", side:"bid"|"ask", p, q, age (ms the wall had rested), dist (fraction of mid), ratio (printed qty / vanished qty), near (price had been approaching)}]
+  function update(st, snap, trades, opt){
+    const big = (opt && opt.big) || st.big || 5, bids = snap.bids || [], asks = snap.asks || [];
+    if (!bids.length || !asks.length) return [];
+    let bb = -Infinity, ba = Infinity; bids.forEach(x => { if (x.p > bb) bb = x.p; }); asks.forEach(x => { if (x.p < ba) ba = x.p; });
+    if (!(bb < ba)) return [];
+    const t = snap.t, mid = (bb + ba)/2, all = bids.concat(asks), m = med(all.map(x => x.q));
+    let lo = Infinity, hi = -Infinity; all.forEach(x => { if (x.p < lo) lo = x.p; if (x.p > hi) hi = x.p; });
+    const tk = tickOf(all.map(x => x.p)) || mid*1e-4, sizeAt = new Map(); all.forEach(x => sizeAt.set(x.p, (sizeAt.get(x.p) || 0) + x.q));
+    const tr = (trades || []).filter(x => x.t > st.prevT && x.t <= t + 1000);
+    st.mids.push([t, mid]); while (st.mids.length && t - st.mids[0][0] > 60000) st.mids.shift();
+    const midAgo = ms => { let r = st.mids[0] ? st.mids[0][1] : mid; for (const [tt, mm] of st.mids){ if (t - tt >= ms) r = mm; else break; } return r; };
+    const tradedAt = p => tr.reduce((a, x) => a + (Math.abs(x.p - p) <= tk*0.6 ? x.q : 0), 0);
+    let mx = 0; all.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005 && x.q > mx) mx = x.q; });
+    const thr = Math.max(big*m, ((opt && opt.rel) || st.rel || 0.25)*mx);   // a wall must be big against the typical level AND a real share (25 %) of the biggest level near price: on a 2000-level crypto ladder 5 x median is a few cents of BTC that flicker all the time
+    const cur = new Map(); bids.forEach(x => { if (m > 0 && x.q >= thr) cur.set("bid|"+x.p, x.q); }); asks.forEach(x => { if (m > 0 && x.q >= thr) cur.set("ask|"+x.p, x.q); });
+    const events = [], pw = st.prev;
+    const ev = (kind, w, q, extra) => { const dist = Math.abs(w.p - mid)/mid, d0 = Math.abs(w.p - midAgo(10000))/midAgo(10000);
+      events.push(Object.assign({t, kind, side:w.side, p:w.p, q, age:t - w.first, dist, near:d0 > dist*1.25}, extra || {})); };
+    cur.forEach((q, k) => {
+      const w = st.walls.get(k);
+      if (!w){ const i = k.indexOf("|"), side = k.slice(0, i), p = +k.slice(i + 1), seen = !!pw && p >= pw.lo && p <= pw.hi;   // seen: the previous snapshot already covered this price, so it is a genuinely new order (not a level that entered the book window because price moved)
+        const nw = {side, p, first:t, last:t, q, qMax:q, n:1, refills:0, lastRefill:0, born:seen ? "placed" : "entered"}; st.walls.set(k, nw); if (seen) ev("PLACED", nw, q); return; }
+      w.n++; w.last = t; const ex = tradedAt(w.p);
+      if (q < 0.6*w.q){ const drop = w.q - q, ratio = ex/drop; ev(ratio >= 0.5 ? "FILLED" : "PULLED", w, drop, {ratio:+ratio.toFixed(2), partial:true}); }
+      else if (ex >= 0.5*w.q && q >= 0.8*w.q && t - w.lastRefill > 10000){ w.refills++; w.lastRefill = t; ev("REFILL", w, ex, {refills:w.refills}); }   // hit by prints and the shown size is back: a refill (absorption-like), never called an iceberg
+      w.q = q; if (q > w.qMax) w.qMax = q;
+    });
+    st.walls.forEach((w, k) => {
+      if (cur.has(k)) return;
+      if (w.p < lo || w.p > hi){ st.walls.delete(k); return; }   // left the visible ladder because price moved: not an event
+      const now_ = sizeAt.get(w.p) || 0;
+      if (now_ >= 0.6*w.q){ if (now_ < thr*0.7) st.walls.delete(k); else w.q = now_; return; }   // only the 'big' bar moved (median changed): not an event
+      const drop = w.q - now_, ratio = tradedAt(w.p)/drop; ev(ratio >= 0.5 ? "FILLED" : "PULLED", w, drop, {ratio:+ratio.toFixed(2)}); st.walls.delete(k);
+    });
+    st.prev = {lo, hi, t}; st.prevT = t; st.ev.push(...events); if (st.ev.length > 300) st.ev.splice(0, 100);
+    return events;
+  }
+  const fq = q => q >= 1e6 ? (q/1e6).toFixed(1)+"M" : q >= 1000 ? (q/1000).toFixed(1)+"k" : q >= 10 ? q.toFixed(0) : q.toFixed(2);
+  const fa = ms => ms < 90000 ? Math.round(ms/1000)+" s" : Math.round(ms/60000)+" m";
+  const defP = p => p >= 1000 ? p.toFixed(1) : p >= 1 ? p.toFixed(3) : p.toPrecision(4);
+  // ctx = {now, snap:{t,bids,asks}, trades:[{t,p,q,side,tier}], events:[engine events + {kind:"ABSORB", side, p, q, t}], fmtP}
+  // -> {tilt:{book,tape,lim,dir,label}, lines:[{sev, side:"bid"|"ask"|null, p, en, ar}], facts}
+  function read(st, ctx){
+    const now = ctx.now, fp = ctx.fmtP || defP, snap = ctx.snap, lines = [], F = {};
+    const stale = snap ? (now - snap.t)/1000 : null;
+    let bb = -Infinity, ba = Infinity; if (snap){ (snap.bids || []).forEach(x => { if (x.p > bb) bb = x.p; }); (snap.asks || []).forEach(x => { if (x.p < ba) ba = x.p; }); }
+    const mid = isFinite(bb) && isFinite(ba) ? (bb + ba)/2 : null; F.mid = mid;
+    if (stale != null && stale > 6) lines.push({sev:5, side:null, p:null, en:"Book data is "+Math.round(stale)+" s old: the reading is unreliable", ar:"داتا الدفتر قديمة ("+Math.round(stale)+" ث): القراءة مش موثوقة"});
+    if (mid == null) return {tilt:{book:null, tape:null, lim:0, dir:0, label:{en:"no book", ar:"مفيش دفتر"}}, lines, facts:F};
+    let bd = 0, ad = 0; snap.bids.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) bd += x.q; }); snap.asks.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) ad += x.q; });
+    const book = bd + ad > 0 ? (bd - ad)/(bd + ad) : null; F.book = {bid:bd, ask:ad, v:book};
+    const T = (ctx.trades || []).filter(x => x.t >= now - 120000); let b2 = 0, s2 = 0, b30 = 0, s30 = 0; T.forEach(x => { const buy = x.side === "Buy"; if (buy) b2 += x.q; else s2 += x.q; if (x.t >= now - 30000){ if (buy) b30 += x.q; else s30 += x.q; } });
+    const tape = b2 + s2 > 0 ? (b2 - s2)/(b2 + s2) : null; F.tape = {buy:b2, sell:s2, v:tape, v30:b30 + s30 > 0 ? (b30 - s30)/(b30 + s30) : null};
+    const evs = (ctx.events || []).filter(e => now - e.t <= 120000); let lim = 0, nl = 0;
+    evs.forEach(e => { if (now - e.t > 60000) return; const v = e.kind === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.kind === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.kind === "FILLED" ? (e.side === "ask" ? 1 : -1) : (e.kind === "ABSORB" || e.kind === "REFILL") ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
+    const sg = (v, th) => v == null ? 0 : v >= th ? 1 : v <= -th ? -1 : 0, L = [sg(book, .15), sg(tape, .2), nl ? sg(lim, 1) : 0], dir = L.every(x => x === 1) ? 1 : L.every(x => x === -1) ? -1 : 0;
+    const act = L.filter(x => x !== 0), mixed = act.some(x => x > 0) && act.some(x => x < 0);
+    const label = dir > 0 ? {en:"all three lean buying", ar:"التلاتة بيميلوا للشراء"} : dir < 0 ? {en:"all three lean selling", ar:"التلاتة بيميلوا للبيع"} : mixed ? {en:"book / tape / limits disagree", ar:"الدفتر والشريط والليمت متعارضين"} : act.length ? {en:"one of three leans "+(act[0] > 0 ? "buying" : "selling"), ar:"واحد من التلاتة بيميل لل"+(act[0] > 0 ? "شراء" : "بيع")} : {en:"balanced / quiet", ar:"متوازن / هادي"};
+    const sd = s => s === "bid" ? {en:"bid", ar:"شراء"} : {en:"ask", ar:"بيع"}, bp = d => Math.round(d*1e4);
+    const pulled = evs.filter(e => e.kind === "PULLED").sort((a, b) => b.t - a.t), near = pulled.find(e => e.dist <= 0.002 && e.age >= 8000) || pulled.find(e => e.near && e.age >= 8000);
+    if (near) lines.push({sev:4, side:near.side, p:near.p, en:sd(near.side).en[0].toUpperCase()+sd(near.side).en.slice(1)+" wall "+fq(near.q)+" at "+fp(near.p)+" pulled without trading ("+bp(near.dist)+" bp from price, rested "+fa(near.age)+")", ar:"حائط "+sd(near.side).ar+" "+fq(near.q)+" على "+fp(near.p)+" اتسحب من غير تنفيذ (على بُعد "+bp(near.dist)+"bp من السعر، قاعد "+fa(near.age).replace(" s", " ث").replace(" m", " د")+")"});
+    else if (pulled.length >= 3) lines.push({sev:2, side:null, p:null, en:pulled.length+" walls pulled in the last 2 min without trading", ar:pulled.length+" حيطان اتسحبت من غير تنفيذ في آخر دقيقتين"});
+    const ab = evs.filter(e => e.kind === "ABSORB").sort((a, b) => b.t - a.t)[0];
+    if (ab) lines.push({sev:4, side:ab.side, p:ab.p, en:"Absorption-like at "+fp(ab.p)+": "+(ab.side === "ask" ? "aggressive buying" : "aggressive selling")+" "+fq(ab.q)+" met resting orders without moving price", ar:"امتصاص محتمل عند "+fp(ab.p)+": "+(ab.side === "ask" ? "شراء" : "بيع")+" عدواني "+fq(ab.q)+" اتقابل بأوامر معلّقة من غير ما السعر يتحرك"});
+    const rf = evs.filter(e => e.kind === "REFILL").sort((a, b) => b.t - a.t)[0];
+    if (rf) lines.push({sev:4, side:rf.side, p:rf.p, en:"Refill at "+fp(rf.p)+" ("+rf.refills+"x): prints hit the "+sd(rf.side).en+" wall and its size came back", ar:"إعادة ملء عند "+fp(rf.p)+" ("+rf.refills+"×): الصفقات بتضرب حائط ال"+sd(rf.side).ar+" وحجمه بيرجع"});
+    const fl = evs.filter(e => e.kind === "FILLED" && !e.partial).sort((a, b) => b.t - a.t)[0];
+    if (fl) lines.push({sev:3, side:fl.side, p:fl.p, en:sd(fl.side).en[0].toUpperCase()+sd(fl.side).en.slice(1)+" wall "+fq(fl.q)+" at "+fp(fl.p)+" was traded through ("+Math.round(fl.ratio*100)+"% printed)", ar:"حائط "+sd(fl.side).ar+" "+fq(fl.q)+" على "+fp(fl.p)+" اتنفذ ("+Math.round(fl.ratio*100)+"% صفقات)"});
+    if (book != null && tape != null && Math.abs(book) >= .15 && Math.abs(tape) >= .2){ const same = (book > 0) === (tape > 0);
+      lines.push({sev:2, side:null, p:null, en:"Book "+(book > 0 ? "+" : "")+Math.round(book*100)+"% vs tape "+(tape > 0 ? "+" : "")+Math.round(tape*100)+"%: "+(same ? "agree" : "disagree (resting size and prints point opposite ways)"), ar:"الدفتر "+(book > 0 ? "+" : "")+Math.round(book*100)+"% والشريط "+(tape > 0 ? "+" : "")+Math.round(tape*100)+"%: "+(same ? "متفقين" : "متعارضين (الأوامر المعلقة والصفقات في اتجاهين مختلفين)")}); }
+    const walls = [...st.walls.values()].filter(w => Math.abs(w.p - mid)/mid <= 0.005 && now - w.first >= 20000); ["bid", "ask"].forEach(s => { const w = walls.filter(x => x.side === s).sort((a, b) => b.q - a.q)[0];
+      if (w) lines.push({sev:1, side:s, p:w.p, en:"Biggest "+sd(s).en+" wall "+fq(w.q)+" at "+fp(w.p)+" ("+bp(Math.abs(w.p - mid)/mid)+" bp, resting "+fa(now - w.first)+(w.refills ? ", refilled "+w.refills+"x" : "")+")", ar:"أكبر حائط "+sd(s).ar+" "+fq(w.q)+" على "+fp(w.p)+" (بُعد "+bp(Math.abs(w.p - mid)/mid)+"bp، قاعد "+fa(now - w.first).replace(" s", " ث").replace(" m", " د")+(w.refills ? "، اتملى "+w.refills+"×" : "")+")"}); });
+    const big = T.filter(x => now - x.t <= 60000).sort((a, b) => b.q - a.q)[0], mq = med(T.map(x => x.q));
+    if (big && mq > 0 && big.q >= 6*mq) lines.push({sev:1, side:null, p:big.p, en:"Largest print: "+(big.side === "Buy" ? "buy" : "sell")+" "+fq(big.q)+" at "+fp(big.p)+" "+Math.round((now - big.t)/1000)+" s ago", ar:"أكبر صفقة: "+(big.side === "Buy" ? "شراء" : "بيع")+" "+fq(big.q)+" عند "+fp(big.p)+" من "+Math.round((now - big.t)/1000)+" ث"});
+    if (!lines.length) lines.push({sev:0, side:null, p:null, en:"Quiet: no wall pulled or traded through, no absorption in the last 2 min", ar:"هادي: مفيش حائط اتسحب أو اتنفذ ومفيش امتصاص في آخر دقيقتين"});
+    lines.sort((a, b) => b.sev - a.sev);
+    return {tilt:{book, tape, lim, dir, label}, lines, facts:F};
+  }
+  return {newState, update, read, med, tickOf};
+})();
+/* FLOWREAD:END */
 // task 52: a time-synced crosshair. When on, moving the cross over one chart of a symbol draws the same time on every other chart of that symbol.
 const XHS = {on:true, t:null, sym:null, src:null}; const XH_CHARTS = new Set(), XH_BTNS = new Set();
 function xhSet(v){ XHS.on = !!v; store.set(LS+"_xh", XHS.on); XH_BTNS.forEach(b => b.classList.toggle("on", XHS.on)); if (!XHS.on) XHS.t = null; XH_CHARTS.forEach(c => c.draw()); }   // one switch for all charts / tabs
@@ -1716,17 +1804,15 @@ Object.assign(CandleChart.prototype, {
     const all = bids.concat(asks); if (!all.length) return []; let mn = Infinity, mx = -Infinity; all.forEach(x => { if (x.p < mn) mn = x.p; if (x.p > mx) mx = x.p; }); const mid = all[0].p, raw = Math.max(mid*0.00004, (mx - mn)/300), mag = Math.pow(10, Math.floor(Math.log10(raw || 1e-9))), bk = [1,2,5,10].map(x => x*mag).find(x => x >= raw) || raw, g = new Map();
     all.forEach(x => { const k = Math.round(x.p/bk); g.set(k, (g.get(k) || 0) + x.q); }); const out = []; g.forEach((q, k) => out.push([k*bk, q])); this.bk = bk; return out;
   },
-  flowDiff(fb){   // a big resting order that shrank between two book snapshots: executed (trades at that price covered it) = "fill", otherwise it was pulled = "pull"
-    const n = fb.length; if (n < 2) return; const A = fb[n-2], B = fb[n-1], cur = new Map(B.lv.map(([p, q]) => [p, q])); if (!A.lv.length || !B.lv.length) return;
-    let lo = Infinity, hi = -Infinity; B.lv.forEach(([p]) => { if (p < lo) lo = p; if (p > hi) hi = p; });
-    const avg = A.lv.reduce((a, x) => a + x[1], 0)/A.lv.length, mid = (B.bb + B.ba)/2, tk = Math.max(1e-12, ...[0].concat(A.lv.length > 1 ? [Math.abs(A.lv[1][0] - A.lv[0][0])] : [])) || 1e-9;
-    const T_ = (this.flowT || []).filter(x => x.t >= A.t - 500), E = this.flowE = this.flowE || [];
-    A.lv.forEach(([p, q]) => { if (q < 4*avg || p < lo || p > hi) return; const q2 = cur.get(p) || 0, drop = q - q2; if (drop < 0.5*q) return;
-      const ex = T_.reduce((a, x) => a + (Math.abs(x.p - p) <= tk*0.6 ? x.q : 0), 0); E.push({t:B.t, p, q:drop, kind:ex >= 0.5*drop ? "fill" : "pull", bid:p <= mid}); });
+  flowDiff(b, t){   // wall events (pulled / filled / refill) from the ONE tracker shared with the limits list and the sync lights (FlowRead): a pulled wall is told apart from a filled one by the prints at its price since the previous snapshot, and carries its age and distance from price
+    const fr = this.fr = this.fr || FlowRead.newState(); fr.big = settings.big;
+    const evs = FlowRead.update(fr, {t, bids:(b.deep ? b.deep.bids : b.bids) || [], asks:(b.deep ? b.deep.asks : b.asks) || []}, this.flowT || []);
+    const E = this.flowE = this.flowE || [];
+    evs.forEach(e => { if (e.kind === "FILLED" || e.kind === "PULLED") E.push({t:e.t, p:e.p, q:e.q, kind:e.kind === "FILLED" ? "fill" : "pull", bid:e.side === "bid", age:e.age, dist:e.dist}); });
     if (E.length > 300) E.splice(0, 100);
   },
   domAdd(b){
-    this.lastBook = b; this.bkTrack(b); { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Bookmap column: one book snapshot per poll, own timestamp
+    this.lastBook = b; this.bkTrack(b); { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(b, fb[fb.length-1].t); this.hmAdd(fb[fb.length-1]); }   // Bookmap column: one book snapshot per poll, own timestamp
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
@@ -1906,6 +1992,7 @@ Object.assign(CandleChart.prototype, {
     const ab = new Map(); { const g = new Map(), w0 = now - Math.min(span, 45000); T_.forEach(x => { if (x.t < w0) return; const k = Math.round(x.p/step), o = g.get(k) || (g.set(k, {sum:0, n:0, buy:0, sell:0, t0:x.t}), g.get(k)); o.sum += x.q; o.n++; x.side === "Buy" ? o.buy += x.q : o.sell += x.q; if (x.t < o.t0) o.t0 = x.t; });
       const sums = [...g.values()].map(o => o.sum).sort((a, b) => a - b), med = sums.length ? sums[sums.length >> 1] : 0;
       g.forEach((o, k) => { if (o.n >= 4 && sums.length >= 4 && o.sum >= 3*Math.max(med, 1e-12)) ab.set(k, o); }); }
+    this._absZ = []; ab.forEach((o, k) => this._absZ.push({t:now, kind:"ABSORB", side:o.buy >= o.sell ? "ask" : "bid", p:k*step, q:o.sum}));   // zones for the flow reading
     if (this.domOn) ab.forEach((o, k) => { const y = py(k*step), x0 = Math.max(gx0, tx(o.t0)); if (y < -rowH || y > PB + rowH) return; c.strokeStyle = "#b57cff"; c.lineWidth = 1.6; c.fillStyle = "rgba(181,124,255,.16)"; c.fillRect(x0, y - rowH/2, gx1 - x0, rowH); c.strokeRect(x0, y - rowH/2, gx1 - x0, rowH);
       c.fillStyle = "#d9b8ff"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("ABS " + (o.buy >= o.sell ? Lg("sellers absorb","البيع بيمتص") : Lg("buyers absorb","الشراء بيمتص")), x0 + 2, y - rowH/2 - 3); });
     // 2c) flashes: a big resting order that vanished. White = pulled (cancelled), purple = filled / absorbed by trades. Bright for 2.5 s, then a faint tick stays at that price and time
@@ -1929,6 +2016,7 @@ Object.assign(CandleChart.prototype, {
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
     if (this.domOn && gw >= 230) this.paintGauge(c, gx1, PB);
+    if (this.readOn !== false && this.domOn) this.paintRead(c, X0, XE, PB, py, now);
     c.restore();
     // sync card: in the empty space UNDER the order-flow column (next to the indicator panes) when there is room, else inside the column above the legend
     if (this.syncOn){ const room = this.H - 20 - PB - 6;
@@ -2501,6 +2589,35 @@ Object.assign(CandleChart.prototype, {
       if (lo < i0 || lo > i1) return; const x = this.x(lo), y = py(t.en); if (y < 0 || y > PB) return; const col = t.dir > 0 ? S.color : S.color2, r = 5;
       c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath(); c.lineWidth = 1.5; c.strokeStyle = col; c.fillStyle = col;
       if (t.res != null){ c.globalAlpha = t.res > 0 ? .95 : .45; c.fill(); } else { c.globalAlpha = 1; c.stroke(); } c.globalAlpha = 1; });
+  },
+  readCtx(now){   // inputs of FlowRead.read for this chart: its snapshot, prints, the shared tracker's events and the absorption zones painted in the column
+    const sn = this.flowB && this.flowB[this.flowB.length-1], b = this.lastBook; if (!sn || !b) return null;
+    const lad = (arr, deep) => ((deep ? deep : arr) || []);
+    const snap = {t:sn.t, bids:lad(b.bids, b.deep && b.deep.bids), asks:lad(b.asks, b.deep && b.deep.asks)};
+    const events = ((this.fr && this.fr.ev) || []).slice(); (this._absZ || []).forEach(z => events.push(z));
+    return {now, snap, trades:(this.flowT || []).filter(x => x.t >= now - 120000), events, fmtP:v => fmtP(v)};
+  },
+  paintRead(c, X0, XE, PB, py, now){   // FLOW READING: 2-4 plain sentences about what the book, the prints and the limit tracker did in the last 2 minutes, numbered, with the same numbers drawn on the heat map at the price they talk about. A description, never a forecast.
+    if (!this._rdT || now - this._rdT > 600){ const cx = this.readCtx(now); this._rd = cx ? FlowRead.read(this.fr || FlowRead.newState(), cx) : null; this._rdT = now; }
+    const R = this._rd; if (!R) return; const w = XE - X0, ar = lang === "ar", lines = R.lines.slice(0, w >= 190 && PB >= 300 ? 4 : PB >= 220 ? 3 : 2); if (w < 120 || !lines.length) return;
+    const G = this.st.of.color || "#0ecb81", Rd = this.st.of.color2 || "#f6465d", fs = 9, lh = 11;
+    c.save(); c.font = fs+"px sans-serif"; c.textBaseline = "middle";
+    const iso = t => ar ? t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "⁦"+m+"⁩") : t;
+    const wrap = t => { const out = [], words = t.split(" "), maxW = w - 26; let cur = ""; words.forEach(wd => { const tt = cur ? cur+" "+wd : wd; if (c.measureText(tt).width > maxW && cur){ out.push(cur); cur = wd; } else cur = tt; }); if (cur) out.push(cur); return out.slice(0, 3); };
+    const rows = lines.map(l => ({l, ws:wrap(ar ? l.ar : l.en)})), H = 16 + rows.reduce((a, r) => a + r.ws.length*lh + 3, 0) + 4, y0 = 52;
+    c.fillStyle = "rgba(8,12,18,.78)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(X0 + 4, y0, w - 8, H); c.strokeRect(X0 + 4.5, y0 + .5, w - 9, H - 1);
+    const tilt = R.tilt, tc = tilt.dir > 0 ? G : tilt.dir < 0 ? Rd : "#9aa4b2";
+    c.font = "bold 9px sans-serif"; c.fillStyle = "#eaecef"; c.textAlign = ar ? "right" : "left"; c.fillText(ar ? "قراءة الأوردر فلو" : "FLOW READING", ar ? XE - 10 : X0 + 9, y0 + 8);
+    c.font = "8px sans-serif"; c.fillStyle = tc; c.textAlign = ar ? "left" : "right"; c.fillText((ar ? tilt.label.ar : tilt.label.en), ar ? X0 + 9 : XE - 10, y0 + 8);
+    let y = y0 + 18;
+    rows.forEach((r, i) => { const col = r.l.side === "bid" ? G : r.l.side === "ask" ? Rd : r.l.sev >= 4 ? "#f0b90b" : "#c3c9d1";
+      c.beginPath(); c.fillStyle = col; c.arc(ar ? XE - 14 : X0 + 14, y + 1, 6, 0, 6.3); c.fill(); c.fillStyle = "#0b0e11"; c.font = "bold 8px sans-serif"; c.textAlign = "center"; c.fillText(String(i + 1), ar ? XE - 14 : X0 + 14, y + 2);
+      c.font = fs+"px sans-serif"; c.fillStyle = "#d5dbe2"; c.textAlign = ar ? "right" : "left";
+      if (ar) c.direction = "rtl"; r.ws.forEach((t, k) => { c.fillText(iso(t), ar ? XE - 24 : X0 + 24, y + k*lh + 1); }); c.direction = "ltr"; y += r.ws.length*lh + 3;
+      if (r.l.p != null){ const Y = py(r.l.p); if (Y > 0 && Y < PB){ c.strokeStyle = col; c.globalAlpha = .55; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(X0 + 5, Y + .5); c.lineTo(XE - 3, Y + .5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+        c.beginPath(); c.fillStyle = col; c.arc(XE - 9, Y, 6, 0, 6.3); c.fill(); c.fillStyle = "#0b0e11"; c.font = "bold 8px sans-serif"; c.textAlign = "center"; c.fillText(String(i + 1), XE - 9, Y + 1); } } });
+    c.font = "8px sans-serif"; c.fillStyle = "#6b7684"; c.textAlign = ar ? "right" : "left"; c.fillText(ar ? "وصف لآخر دقيقتين، مش توقع" : "describes the last 2 min, not a forecast", ar ? XE - 10 : X0 + 9, y0 + H - 5);
+    c.restore();
   },
   paintSyncCard(c, x0, x1, PB, area){   // card in the empty bottom corner of the order-flow column: the three lights, OI / funding, Gann agreement, recent setups + live forward-test stats
     const sy = this.sync, S = this.st.sync, w = x1 - x0; if (w < 120) return;
@@ -3178,7 +3295,7 @@ class Panel {
     this.chart.lockR = this.state.lock || null; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)
-    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
+    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.readOn = this.state.read !== false; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -3298,6 +3415,7 @@ class Panel {
       {id:"dot", label:T("indDot"), tip:T("dotTip"), get:() => ch().dotOn, set:v => { ch().dotOn = v; this.state.dot = v; }},
       {id:"dom", label:T("indDom"), tip:T("domTip"), get:() => ch().domOn, set:v => { const c_ = ch(); c_.domOn = v; if (v) c_.colOn = true; this.state.dom = v; if (v) this.state.dcol = true; }},
       {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
+      {id:"read", label:Lg("Flow reading (what book + tape + limits did)","قراءة الأوردر فلو (اللي عمله الدفتر والشريط والليمت)"), tip:Lg("A short numbered reading inside the order-flow column, with the same numbers marked on the heat map: pulled / filled walls with their age and distance from price, absorption-like zones, refills, book vs tape agreement. It describes the last 2 minutes and never predicts.","قراءة قصيرة مرقّمة جوه عمود الأوردر فلو، ونفس الأرقام متعلّمة على الهيت ماب: حيطان اتسحبت أو اتنفذت بعمرها ومسافتها من السعر، مناطق امتصاص، إعادة ملء، واتفاق الدفتر مع الشريط. وصف لآخر دقيقتين، مش توقع."), get:() => ch().readOn !== false, set:v => { ch().readOn = v; this.state.read = v; }},
       {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
       {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; if (v){ this.smtT = 0; setTimeout(() => this.smtKick(), 0); } this.smtT = 0; if (!v) ch().smtD = null; }},
@@ -3438,7 +3556,7 @@ class Panel {
     const now = nowS(), S = ch.st.sync, G = ch.gaugeData(now), sym = this.state.sym, px = d[d.length-1].c;
     { const cx = Ctx.cache[sym]; if (!cx || now - cx.t > 60000) Ctx.get(sym); }
     const book = G.bk ? G.bk.v : null, tape = G.tr ? G.tr.v : null; let lim = 0, nl = 0;
-    this.flt.events.forEach(e => { if (now - e.t > (S.win || 60)*1000) return; const v = e.ev === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.ev === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.ev === "FILLED" ? (e.side === "ask" ? 1 : -1) : e.ev === "ABSORB" ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
+    this.flt.events.forEach(e => { if (now - e.t > (S.win || 60)*1000) return; const v = e.ev === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.ev === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.ev === "FILLED" ? (e.side === "ask" ? 1 : -1) : (e.ev === "ABSORB" || e.ev === "REFILL") ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
     const sg = (v, th) => v == null ? 0 : v >= th ? 1 : v <= -th ? -1 : 0, L = [sg(book, +S.book || .15), sg(tape, +S.tape || .2), nl ? sg(lim, +S.lim || 1) : 0];
     const dir = L.every(x => x === 1) ? 1 : L.every(x => x === -1) ? -1 : 0;
     if (!this._syncSym || this._syncSym !== sym){ this._syncSym = sym; this.syncLogArr = store.get(LS+"_sync_"+sym, []); this._syncLast = 0; }
@@ -4635,32 +4753,21 @@ function absorbEvents(lt, rows){
   Object.entries(seen).forEach(([p,o]) => { const k = p+"|"+Math.floor(now/120000); if (lt.abs.has(k)) return; lt.abs.add(k); lt.events.unshift({t:now, ev:"ABSORB", side:o.adir === "sellers" ? "ask" : "bid", p:+p, q:o.q}); });
   lt.events = lt.events.slice(0, 200);
 }
-function limitUpdate(lt, book, rows){
-  const now = nowS(), cur = {};
-  [["bid", book.bids],["ask", book.asks]].forEach(([side, arr]) => {
-    const med = median(arr.map(x=>x.q));
-    arr.forEach(x => { if (med && x.q >= settings.big*med) cur[side+"|"+x.p] = x.q; });
-  });
-  let lo = null, hi = null; if (rows && rows.length){ const ps = rows.map(r=>r.p); lo = Math.min(...ps); hi = Math.max(...ps); }
-  if (lt.prev){
-    Object.keys(cur).forEach(k => { if (!(k in lt.prev)){ const [s,p] = k.split("|"); lt.events.unshift({t:now, ev:"PLACED", side:s, p:+p, q:cur[k]}); } });
-    const bmin = Math.min(...book.bids.map(x=>x.p)), amax = Math.max(...book.asks.map(x=>x.p));
-    Object.keys(lt.prev).forEach(k => {
-      const [s,ps] = k.split("|"), p = +ps, old = lt.prev[k], nq = cur[k] || 0;
-      if (s === "bid" && p < bmin) return; if (s === "ask" && p > amax) return;
-      if (nq < 0.4*old){ const thru = (s==="ask" && hi != null && hi >= p) || (s==="bid" && lo != null && lo <= p); lt.events.unshift({t:now, ev:thru?"FILLED":"PULLED", side:s, p, q:old}); }
-    });
-  }
-  lt.prev = cur; lt.events = lt.events.slice(0, 200);
+function limitUpdate(lt, book, rows){   // same wall tracker as the heat-map flashes (FlowRead), fed the same ladder, so the list, the lights and the heat map can never disagree about one wall
+  lt.fr = lt.fr || FlowRead.newState(); lt.fr.big = settings.big;
+  const evs = FlowRead.update(lt.fr, {t:nowS(), bids:(book.deep ? book.deep.bids : book.bids) || [], asks:(book.deep ? book.deep.asks : book.asks) || []}, rows || []);
+  evs.forEach(e => lt.events.unshift({t:e.t, ev:e.kind, side:e.side, p:e.p, q:e.q, age:e.age, dist:e.dist, ratio:e.ratio, near:e.near, refills:e.refills, partial:e.partial}));
+  lt.events = lt.events.slice(0, 200);
 }
 function renderEvents(panel, evAll){
   const w = panel.state.lwin != null ? panel.state.lwin : 900000, f = panel.state.flt || "all", now = Date.now();
-  const ev = evAll.filter(e => (!w || e.t >= now - w) && (f === "all" || (f === "abs" ? e.ev === "ABSORB" : e.side === f)));
+  const ev = evAll.filter(e => (!w || e.t >= now - w) && (f === "all" || (f === "abs" ? (e.ev === "ABSORB" || e.ev === "REFILL") : e.side === f)));
   if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
-  const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff"};
-  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:"absorption"};
+  const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255", REFILL:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff", REFILL:"#c9a3ff"};
+  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:"absorption", REFILL:"refill (hit, size came back)"};
+  const detail = e => (e.age != null ? " · "+Math.round(e.age/1000)+"s" : "")+(e.dist != null ? " · "+Math.round(e.dist*1e4)+"bp" : "")+(e.ratio != null && e.ev !== "PLACED" ? " · "+Math.round(e.ratio*100)+"% "+Lg("printed","اتنفّذ") : "");
   let h = '<table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
-  ev.slice(0,60).forEach(e => { const fr = now-e.t < 6000 ? ' class="cf"' : ""; h += '<tr style="background:rgba('+rgb[e.ev]+',.08);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td'+fr+' style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td'+fr+'>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
+  ev.slice(0,60).forEach(e => { const fr = now-e.t < 6000 ? ' class="cf"' : ""; h += '<tr style="background:rgba('+rgb[e.ev]+',.08);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td'+fr+' style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td'+fr+'>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev]+detail(e))+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';
 }
 

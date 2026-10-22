@@ -1616,6 +1616,118 @@ def _radar_evidence(flags, tf):
             f"<span style='color:{col}'>{html.escape(e['key'])} {e['tf']} · {html.escape(L('net'))} {e['net']:+.3f}R · n {e['n']} · {html.escape(note)}</span></div>")
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _radar_closes(symbols: tuple, tf: str = "1h"):
+    """Close prices of the Radar universe on one timeframe (one download, cached 5 min) for Performance / Correlation."""
+    import pandas as _pd
+    frames, _e = fetch_frames(list(symbols), [tf], limit=260)
+    cols = {}
+    for s in symbols:
+        df = (frames.get(s) or {}).get(tf)
+        if df is not None and len(df) > 30:
+            t = df["time"]
+            t = _pd.to_datetime(t, unit="ms") if _pd.api.types.is_numeric_dtype(t) else _pd.to_datetime(t)
+            cols[s] = _pd.Series(df["close"].astype(float).values, index=t.values)
+    return _pd.DataFrame(cols).sort_index()   # aligned on candle time, so returns compare the same hours
+
+
+def render_radar_perf():
+    """Finviz 'Performance' view: % change over 1 h, 4 h, 24 h, 3 d, 1 w and 10 d per symbol (1h candles), plus the leaders."""
+    import pandas as _pd
+    import altair as alt
+    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    if px.empty:
+        st.info(L("No candles yet."))
+        return
+    spans = {"1 h": 1, "4 h": 4, "24 h": 24, "3 d": 72, "1 w": 168, "10 d": 240}
+    rows = []
+    for s in px.columns:
+        c = px[s].dropna()
+        r = {"Symbol": s, "Price": float(c.iloc[-1])}
+        for k, n in spans.items():
+            r[k] = round((c.iloc[-1] / c.iloc[-1 - n] - 1) * 100, 2) if len(c) > n else None
+        r["Volatility 24 h %"] = round(float(c.pct_change().tail(24).std() * 100), 2) if len(c) > 25 else None
+        rows.append(r)
+    df = _pd.DataFrame(rows)
+    sort_by = st.segmented_control(L("Sort by"), list(spans), default="24 h", key="perf_sort") or "24 h"
+    df = df.sort_values(sort_by, ascending=False, na_position="last")
+    k = st.columns(4)
+    v = df[sort_by].dropna()
+    k[0].metric(L("Symbols"), len(df)); k[1].metric(L("Up") + f" ({sort_by})", int((v > 0).sum())); k[2].metric(L("Down") + f" ({sort_by})", int((v < 0).sum()))
+    k[3].metric(L("Median") + f" ({sort_by})", f"{v.median():+.2f}%" if len(v) else "-")
+    pc = {c: st.column_config.NumberColumn(format="%+.2f%%") for c in spans}
+    st.dataframe(df.rename(columns={"Symbol": L("Symbol"), "Price": L("Price"), "Volatility 24 h %": L("Volatility 24 h %")}), hide_index=True,
+                 use_container_width=True, column_config={**pc, L("Price"): st.column_config.NumberColumn(format="%.4g")})
+    long = df.melt(id_vars="Symbol", value_vars=list(spans), var_name="span", value_name="pct").dropna()
+    st.markdown(f"**{L('Change % by period (heat map)')}**")
+    st.altair_chart(alt.Chart(long).mark_rect().encode(
+        x=alt.X("span:N", sort=list(spans), title=None), y=alt.Y("Symbol:N", sort=list(df["Symbol"]), title=None),
+        color=alt.Color("pct:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0), title="%"), tooltip=["Symbol", "span", "pct"]
+    ).properties(height=max(200, 20 * len(df))), use_container_width=True)
+    st.caption(L("1h candles from the same source as the charts. Educational, not investment advice."))
+
+
+def render_radar_corr():
+    """Correlation of 1h returns over the last ~10 days: which symbols move together (one trade, not two) and which hedge."""
+    import altair as alt
+    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    if px.shape[1] < 2:
+        st.info(L("Need at least two symbols with candles."))
+        return
+    rets = px.pct_change(fill_method=None).dropna(how="all")
+    cm = rets.corr().round(2)
+    long = cm.reset_index(names="a").melt(id_vars="a", var_name="b", value_name="corr")
+    order = list(cm.columns)
+    st.altair_chart(alt.Chart(long).mark_rect().encode(
+        x=alt.X("b:N", sort=order, title=None), y=alt.Y("a:N", sort=order, title=None),
+        color=alt.Color("corr:Q", scale=alt.Scale(scheme="blueorange", domain=[-1, 1]), title="corr"), tooltip=["a", "b", "corr"]
+    ).properties(height=max(260, 22 * len(order))), use_container_width=True)
+    pairs = long[long["a"] < long["b"]].sort_values("corr")
+    a, b = st.columns(2)
+    a.markdown(f"**{L('Move together (corr >= 0.8): treat as one position')}**")
+    a.dataframe(pairs[pairs["corr"] >= 0.8].sort_values("corr", ascending=False).head(12), hide_index=True, use_container_width=True)
+    b.markdown(f"**{L('Lowest correlation (diversify / hedge)')}**")
+    b.dataframe(pairs.head(12), hide_index=True, use_container_width=True)
+    st.caption(L("Pearson correlation of 1h returns, last 260 candles. Correlation changes over time; it is not a forecast."))
+
+
+def render_radar_signals():
+    """Finviz 'Signal' list: every pattern / strategy signal live now, the symbols it fired on, its side, and the lab's number."""
+    import pandas as _pd
+    from modules import office_kpi as _OK
+    from modules.chart_scan import STRATEGY_FILTERS as _SF, PATTERN_FILTERS as _PF, flag_side
+    tf = st.selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1h"), key="sig_tf")
+    try:
+        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
+    except Exception as e:
+        st.warning(f"Could not load candles: {e}")
+        return
+    lab = _OK.load()
+    by = {}
+    for sym, d in data.items():
+        for k in d["flags"]:
+            if k in _SF or k in _PF:
+                side = flag_side(k) or "/".join(d.get("sides", {}).get(k, [])) or "-"
+                by.setdefault(k, []).append(f"{sym} ({side})" if side != "-" else sym)
+    rows = []
+    for k, syms in by.items():
+        ev = _OK.evidence(lab, _SF[k][1][1], tf) if k in _SF and _SF[k][1][0] == "key" else None
+        rows.append({"Signal": _SF[k][0] if k in _SF else _PF[k], "Kind": "Strategy" if k in _SF else "Pattern", "Count": len(syms),
+                     "Symbols": ", ".join(sorted(syms)[:12]), "Lab net R": ev["net"] if ev else None, "Lab n": ev["n"] if ev else None,
+                     "Lab": ("OFF" if ev["off"] else "passed" if ev["gate"] else "not evidence") if ev else "-"})
+    if not rows:
+        st.info(L("No signals on this timeframe right now."))
+        return
+    df = _pd.DataFrame(rows).sort_values(["Count", "Lab net R"], ascending=[False, False], na_position="last")
+    k = st.columns(3)
+    k[0].metric(L("Signals live"), len(df)); k[1].metric(L("Symbols scanned"), len(data))
+    k[2].metric(L("With positive lab net R"), int((df["Lab net R"].fillna(-1) > 0).sum()))
+    df["Kind"] = df["Kind"].map(L); df["Lab"] = df["Lab"].map(L)
+    st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, use_container_width=True,
+                 column_config={L("Lab net R"): st.column_config.NumberColumn(format="%+.3f")})
+    st.caption(L("Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate."))
+
+
 def render_radar_screener():
     """Finviz-style screener (owner 2026-10-22): one sortable table for the whole Radar universe on one timeframe, quick
     filters on top, and a top-movers bar chart. Same candles as the Charts tab (cached), so it adds no downloads."""
@@ -1854,9 +1966,12 @@ if PAGE == 0:   # workspace
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
     try:   # one tab bar (owner 2026-10-22: switch views without scrolling); only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Screener", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed")
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed")
         if _rv == "Heat map":
             render_market_map()
+        elif _rv in ("Performance", "Correlation", "Signal list"):
+            render_universe_controls()
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv]()
         elif _rv == "Screener":
             render_universe_controls()
             render_radar_screener()

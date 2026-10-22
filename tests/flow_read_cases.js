@@ -2,7 +2,7 @@
 const fs = require("fs");
 const src = fs.readFileSync(process.argv[2], "utf8"), a = src.indexOf("/* FLOWREAD:BEGIN"), b = src.indexOf("/* FLOWREAD:END */");
 if (a < 0 || b < 0) { console.error("FLOWREAD block not found"); process.exit(2); }
-const FlowRead = new Function(src.slice(a, b) + "; return FlowRead;")();
+const { FlowRead, ZoneLog } = new Function(src.slice(a, b) + "; return {FlowRead, ZoneLog};")();
 let n = 0; const ok = (c, m) => { n++; if (!c) { console.error("FAIL: " + m); process.exit(1); } };
 const lad = (mid, step, k, over = {}) => { const bids = [], asks = []; for (let i = 0; i < k; i++) { bids.push({ p: +(mid - step / 2 - i * step).toFixed(6), q: over["b" + i] ?? 10 }); asks.push({ p: +(mid + step / 2 + i * step).toFixed(6), q: over["a" + i] ?? 10 }); } return { bids, asks }; };
 const snap = (t, mid, over) => Object.assign({ t }, lad(mid, 1, 30, over));
@@ -83,4 +83,27 @@ ok(R.zones.length === 0, "a lone wall is not a zone");
 R = FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small, events: [{ t: 39500, kind: "ABSORB", side: "bid", p: 99.80, q: 80 }] });
 ok(R.zones.length === 1 && R.zones[0].strength === 2 && R.lines.some(l => l.sev === 3.5 && /2 of 4/.test(l.en)), "two sources = a weaker zone");
 ok(FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small, events: [{ t: 39500, kind: "ABSORB", side: "bid", p: 95, q: 80 }] }).zones.length === 0, "far apart sources do not merge");
+
+// 12) zone forward test: hold / break / control / dedupe / planted effect
+const Z = (p, strength = 3) => ({ p, lo: p, hi: p, strength, srcs: ["book", "limits", "tape"].slice(0, strength) });
+let zl = { recs: [] };
+let r1 = ZoneLog.add(zl, Z(99.9), 100, 1000);               // price came from above (mid 100 > 99.9), control level at 100.1
+ok(r1 && r1.from === 1 && Math.abs(r1.ctl - 100.1) < 1e-9, "zone logged with the side price came from and the mirrored control");
+ok(ZoneLog.add(zl, Z(99.9), 100, 2000) === null, "same zone within 5 min is not logged twice");
+ok(ZoneLog.add(zl, Z(99.9), 100, 1000 + 400000) !== null, "after 5 min it can be logged again");
+zl = { recs: [] }; r1 = ZoneLog.add(zl, Z(99.9), 100, 0);
+[[100, 1000], [99.95, 2000], [99.9, 3000], [99.96, 4000], [99.97, 5000]].forEach(([m, t]) => ZoneLog.step(zl, m, t));
+ok(r1.z.touchT === 1 && r1.z.out === "hold", "touch then 6+ bp back where it came from = hold");
+ok(r1.c.out === null || r1.c.out === "break", "control level (100.1) was never touched as support: no hold");
+zl = { recs: [] }; r1 = ZoneLog.add(zl, Z(99.9), 100, 0);
+[[99.95, 1000], [99.9, 2000], [99.85, 3000], [99.8, 4000]].forEach(([m, t]) => ZoneLog.step(zl, m, t));
+ok(r1.z.out === "break", "touch then 6+ bp through = break");
+// planted effect: zones always hold, controls never -> the paired t is large and positive; random coin flips -> no effect
+zl = { recs: [] }; let tt = 0;
+for (let i = 0; i < 60; i++) { const r = ZoneLog.add(zl, Z(99.9 - i * 0.01 * 0), 100, tt); tt += 400000; r.z.touchT = 1; r.z.out = "hold"; r.c.touchT = 1; r.c.out = i % 4 === 0 ? "hold" : "break"; }
+let S = ZoneLog.stats(zl); ok(S.pair === 60 && S.z.hold === 60 && S.diff > 0.5 && S.t > 3, "planted zone effect is detected (diff " + S.diff + ", t " + S.t + ")");
+zl = { recs: [] }; tt = 0; let seed = 5; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+for (let i = 0; i < 400; i++) { const r = ZoneLog.add(zl, Z(99.9), 100, tt); tt += 400000; r.z.touchT = 1; r.z.out = rnd() < .5 ? "hold" : "break"; r.c.touchT = 1; r.c.out = rnd() < .5 ? "hold" : "break"; }
+S = ZoneLog.stats(zl); ok(S.pair >= 250 && Math.abs(S.t) < 3, "coin flips: no effect (t " + S.t + ")");
+ok(ZoneLog.stats({ recs: [] }).n === 0 && ZoneLog.stats({ recs: [] }).t === 0, "empty log");
 console.log("ok flow_read " + n + " checks");

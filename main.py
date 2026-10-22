@@ -1191,7 +1191,7 @@ def _bt_agent(sym, tf):
             st.write(h["a"])
     key = gemini_key()
     if not key:
-        st.info(L("The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand below."))
+        st.info(L("The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand in Technical Office > Backtest."))
         return
     q = st.text_area(L("Your idea"), key="bt_agent_q", placeholder=L("e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart"))
     c = st.columns([1, 1, 4])
@@ -1349,9 +1349,8 @@ def render_lab_page():
         st.error(f"Technical Office: {type(e).__name__}: {e}")
 
 
-def render_playbook_page():
+def _playbook_doc():
     """The playbook: which schools / rules are used, how quality is kept honest (STRATEGIES.md)."""
-    st.subheader(L("Playbook"))
     pb = _md_sections("STRATEGIES.md")
     if not pb:
         st.info(L("STRATEGIES.md not found."))
@@ -1364,6 +1363,110 @@ def render_playbook_page():
     pick = st.selectbox(L("Section"), [k for k in keys if k not in top], key="pb_more")
     if pick:
         st.markdown(pb[pick])
+
+
+def _playbook_styles():
+    """Playbook by trading style: timeframe stack, principles, goal, and the lab's strongest detectors for that style."""
+    from modules import office_kpi as _OK, office_ui as U
+    d = _OK.load()
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    tone = {"Scalp": "warn", "Day": "info", "Swing": "ok", "Position": "info"}
+    cards = []
+    for name, _tfs in _OK.STYLES:
+        info = _OK.STYLE_INFO[name]
+        stack = "".join(f"<div class='xo-tile' style='text-align:center'><div class='xo-sub'>{L(lbl)}</div><b style=\"font-family:'JetBrains Mono',monospace\">{U.esc(v)}</b></div>"
+                        for lbl, v in zip(("Trend", "Setup", "Entry"), info["stack"]))
+        rows = "".join(f"<div style='display:flex;justify-content:space-between;gap:8px;font-size:12px'><span>{U.esc(r['key'])} {U.esc(r['tf'])} · n {r['n']}{(' · ' + L('not evidence')) if r['n'] < 100 else ''} · {L('vs random')} {r['vs_random']:+.2f}</span>"
+                       f"<b style='color:{U.TONE['ok'] if r['net'] > 0 else U.TONE['bad']};font-family:monospace'>{L('net')} {r['net']:+.3f}</b></div>" for r in _OK.style_top(d, name, 4))
+        cards.append(f"<div class='xo-card' style='flex:1 1 300px'><div style='display:flex;justify-content:space-between;align-items:center;gap:8px'>"
+                     f"<div class='xo-h' style='font-size:18px;margin:0'>{L(name if name != 'Day' else 'Day trade')}</div>{U.badge(L(info['status']), tone[name])}</div>"
+                     f"<div class='xo-sub' style='margin:4px 0 10px'>{L('Holding time')}: {L(info['hold'])}</div>"
+                     f"<div class='xo-grid' style='grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:10px'>{stack}</div>"
+                     f"<div style='font-size:13px;line-height:21px;margin-bottom:10px'><b>{L('Principles')}:</b> {L(info['rules'])}</div>"
+                     f"<div style='background:#232a33;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;margin-bottom:10px'>{rows or U.esc(L('no lab data'))}</div>"
+                     f"<div style='font-size:13px'><b>{L('Goal')}:</b> {L(info['goal'])}</div></div>")
+    st.markdown("<div class='xo-row'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+    st.caption(L("Timeframes step by about 4-6x (trend from the higher one, setup from the middle, entry from the lower). Numbers: weekly lab, net = avg R - 0.1R costs. Educational, not investment advice."))
+
+
+def _playbook_schools():
+    from modules import office_kpi as _OK
+    d = _OK.load()
+    if not d:
+        st.info(L("No lab results yet - they appear after the first weekly run."))
+        return
+    _office_bars(_OK.pooled(d, "school"), L("avg R by school (dashed = 0.1R cost)"))
+    pb = _md_sections("STRATEGIES.md")
+    k = [x for x in pb if x.startswith("Schools ranked")]
+    if k:
+        with st.expander(k[0], expanded=True):
+            st.markdown(pb[k[0]])
+
+
+def _playbook_rules():
+    from modules import office_kpi as _OK, office_ui as U
+    s = _OK.summary(_OK.load()) or {}
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    lab = _md_sections("STRATEGY_LAB.md")
+    tod = next((lab[x] for x in lab if x.startswith("Time of day")), "")
+    st.markdown("<div class='xo-row'>" + U.indicators(L("Rules every strategy must pass"), [
+        (L("Evidence gate"), "n ≥ 100", "t > 3 · " + L("both halves positive"), None),
+        (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None),
+        (L("OFF (no longer decide a trade)"), len(s.get("off", [])), ", ".join(s.get("off", [])), None),
+        (L("Last lab run"), s.get("built") or "-", f"{s.get('symbols', 0)} " + L("symbols"), "info")]) + "</div>", unsafe_allow_html=True)
+    if tod:
+        st.markdown(f"**{L('Timing from the lab (UTC session and weekday, every detector pooled)')}**")
+        st.markdown(tod)
+
+
+def render_playbook_page():
+    """Playbook (owner 2026-10-22): one tab bar - by trading style, schools, rules and timing, the full document."""
+    tabs = {"By trading style": _playbook_styles, "Schools": _playbook_schools, "Rules & timing": _playbook_rules, "Full document": _playbook_doc}
+    pick = st.segmented_control(L("Playbook"), list(tabs), default="By trading style", format_func=L, key="pb_tab", label_visibility="collapsed")
+    try:
+        tabs.get(pick or "By trading style", _playbook_styles)()
+    except Exception as e:
+        st.error(f"Playbook: {type(e).__name__}: {e}")
+
+
+def render_alerts_page():
+    """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
+    and the plan for Radar alerts (task 17). Nothing here sends an order."""
+    from modules import office_ui as U
+    from modules.alerts import ALERT_SCORE_THRESHOLD
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
+    wf = {w["file"]: w for w in U.workflows()}
+    tgw = wf.get("telegram-alerts.yml", {})
+    tab = st.segmented_control(L("Alerts"), ["Sources", "Telegram", "Radar alerts (task 17)"], default="Sources", format_func=L, key="al_tab", label_visibility="collapsed")
+    if tab in (None, "Sources"):
+        st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
+                             (L("Telegram workflow"), tgw.get("schedule") or "-", "ok" if tgw else "off"),
+                             (L("Dashboard banners"), L("on"), "ok"),
+                             (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
+        st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
+            (L("Scanner alerts (Workspace)"), L("strong setups ranked by evidence score") + f" · ≥ {ALERT_SCORE_THRESHOLD}", L("on: banners + sound"), "ok"),
+            (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
+            (L("Telegram (GitHub Actions)"), L("runs without the dashboard open"), (L("every 30 min") if tgw else L("missing")), "ok" if tgw else "bad"),
+            (L("1m alerts"), L("switched off: -147R of -150R in the journal"), L("off"), "warn"),
+            (L("Radar confirmed setups"), L("every chosen condition holds, with entry / stop"), L("task 17, after the ranking"), "off"),
+            (L("Order-flow sync alerts"), L("book + tape agree with the setup"), L("waiting for the order-flow sync fix"), "off"),
+            (L("News alarm"), L("strong news event: blinking light, short Arabic summary, source"), L("chat item 24.1, open"), "off"),
+            (L("Paper-trading bot"), L("follows only rules that passed the lab, own track record"), L("planned, never real orders"), "off")]) + "</div>", unsafe_allow_html=True)
+    elif tab == "Telegram":
+        st.markdown(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
+        st.markdown(U.table([L("Setting"), L("Where"), L("Value")], [
+            [L("Bot token and chat id"), "Streamlit secrets / GitHub secrets", U.badge(L("key set") if tg else L("no key"), "ok" if tg else "warn")],
+            [L("Schedule"), ".github/workflows/telegram-alerts.yml", U.esc(tgw.get("schedule") or "-")],
+            [L("Timeframes / top / minimum quality"), "TG_TFS · TG_TOP · TG_MIN_Q · TG_MIN_STARS", "1h,1d · 3 · 60 · 4"],
+            [L("Already-sent memory"), ".tg_sent.json (actions/cache)", L("no repeats")]]), unsafe_allow_html=True)
+        st.caption(L("Use the sidebar > Telegram alerts > Send test message to check the link. The keys never go into the code or the chat."))
+    else:
+        st.markdown(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
+                      "with the entry, stop and target from the existing rules, the detector's lab evidence, and the Radar mark. Suggestion only - no orders."))
+        st.markdown(U.table([L("Field"), L("Source")], [[L("Symbol, timeframe, strategy"), "Radar"], [L("Entry / stop / target"), L("existing scanner rules")],
+                                                      [L("Evidence"), "data/strategy_lab.json (net avg R, n)"], [L("Invalidation"), L("stop level")], [L("Status"), L("confirmed only")]]), unsafe_allow_html=True)
+    st.caption(L("Educational, not investment advice. No automatic orders."))
 
 
 def render_soon_page(i):
@@ -1727,12 +1830,26 @@ if PAGE == 2:   # lab
 if PAGE == 3:   # playbook
     render_playbook_page()
 
-if PAGE == 5:   # AI: chat with Mr X
-    from modules.ai_page import render_ai_page
-    render_ai_page(ACTIVE_SYMBOLS, L)
+if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
+    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent", "Agent desk"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
+    if _ai_tab == "Backtest agent":
+        _c = st.columns([1.2, 0.8, 4])
+        _bt_agent(_c[0].text_input(L("Symbol"), "BTC-USDT", key="ai_bt_sym"), _c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="ai_bt_tf"))
+    elif _ai_tab == "Agent desk":
+        from modules import office_ui as _U
+        st.markdown(_U.CSS, unsafe_allow_html=True)
+        st.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
+        st.markdown(_U.table([L("Needs"), L("Status")], [
+            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
+            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
+            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
+        st.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
+    else:
+        from modules.ai_page import render_ai_page
+        render_ai_page(ACTIVE_SYMBOLS, L)
 
-if PAGE == 6:   # soon
-    render_soon_page(PAGE)
+if PAGE == 6:   # alerts (owner 2026-10-22: built as a real page)
+    render_alerts_page()
 
 def render_kpi_strip(jdf):
     """KPI strip for the journal upload: six headline numbers, an evidence badge, and breakdowns by symbol / strategy."""

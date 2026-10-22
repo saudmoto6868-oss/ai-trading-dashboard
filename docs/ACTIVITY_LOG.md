@@ -16,6 +16,8 @@
 
 | 2026-10-22 19:25 | ChatGPT | عزل إصلاح Order Flow عن تغييرات الكاش | PR #66، modules/workspace_app.html على main والفرع السابق | modules/workspace_app.html؛ tests/test_orderflow_render_policy.py؛ .github/workflows/orderflow-render-regression.yml | — | أنشأت فرعًا نظيفًا من main وأضفت إصلاح العرض واختبار CI | اكتشفت أن PR #66 الأصلي يحتوي تغييرات الكاش غير المتعلقة بالإصلاح؛ لا رد مراجعة نهائي من Claude حتى الآن | الفرع النظيف لا يتضمن تعديل TTL أو workflow الكاش؛ يلزم تشغيل CI ومراجعة المتصفح قبل الاعتماد؛ لا merge/deploy |
 
+| 2026-10-22 19:08 | ChatGPT | متابعة مراجعة Claude وإزالة المسارات القديمة غير المستخدمة | PR #67، modules/workspace_app.html، tests/test_orderflow_render_policy.py | modules/workspace_app.html؛ tests/test_orderflow_render_policy.py | — | تعليق Claude في PR #67؛ commits ceb3b5b و19b4db9 | Claude أكد نجاح CI وأشار إلى أن paintDom/paintBub لا توجد لهما استدعاءات وأن اختبار المتصفح غير متاح؛ تحقق الكود أن paintCol يرسم heat map وbubbles داخل العمود | إزالة دوال الرسم القديمة التي كانت مخصصة للرسم فوق الشموع؛ إضافة فحوصات ثابتة لمسار paintCol والـ heat/bubbles؛ يلزم CI جديد واختبار متصفح/OKX يدوي؛ لا merge/deploy |
+
 ## سجل البداية (مُرحّل من الجلسة وسجل Git، 2026-10-19)
 
 | الوقت (UTC) | الذكاء / الحساب | الفعل | قرأ | غيّر | نسخ | بعت | استقبل | النتيجة |

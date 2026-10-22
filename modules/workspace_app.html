@@ -2602,7 +2602,7 @@ Object.assign(CandleChart.prototype, {
     const R = this._rd; if (!R) return; const w = XE - X0, ar = lang === "ar", lines = R.lines.slice(0, w >= 190 && PB >= 300 ? 4 : PB >= 220 ? 3 : 2); if (w < 120 || !lines.length) return;
     const G = this.st.of.color || "#0ecb81", Rd = this.st.of.color2 || "#f6465d", fs = 9, lh = 11;
     c.save(); c.font = fs+"px sans-serif"; c.textBaseline = "middle";
-    const iso = t => ar ? t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "⁦"+m+"⁩") : t;
+    const iso = t => ar ? t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "\u2066"+m+"\u2069") : t;
     const wrap = t => { const out = [], words = t.split(" "), maxW = w - 26; let cur = ""; words.forEach(wd => { const tt = cur ? cur+" "+wd : wd; if (c.measureText(tt).width > maxW && cur){ out.push(cur); cur = wd; } else cur = tt; }); if (cur) out.push(cur); return out.slice(0, 3); };
     const rows = lines.map(l => ({l, ws:wrap(ar ? l.ar : l.en)})), H = 16 + rows.reduce((a, r) => a + r.ws.length*lh + 3, 0) + 4, y0 = 52;
     c.fillStyle = "rgba(8,12,18,.78)"; c.strokeStyle = "#2b3139"; c.lineWidth = 1; c.fillRect(X0 + 4, y0, w - 8, H); c.strokeRect(X0 + 4.5, y0 + .5, w - 9, H - 1);

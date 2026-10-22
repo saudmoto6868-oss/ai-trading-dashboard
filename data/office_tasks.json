@@ -1,0 +1,26 @@
+{
+  "updated": "2026-10-22",
+  "note": "Work board of the Technical Office (WBS). Kept by the site manager; every status change is also written in docs/MEETING_ROOM.md.",
+  "tasks": [
+    {"wbs": "1.2", "title": "Strategy rules model (#58)", "area": "Technical Office", "owner": "Technical Office", "status": "done", "gate": "G4", "next": "Merged to main"},
+    {"wbs": "1.3", "title": "Backtest runner with evidence gate (#59)", "area": "Technical Office", "owner": "Technical Office", "status": "done", "gate": "G4", "next": "Merged to main"},
+    {"wbs": "1.4", "title": "Import a strategy from text / video link (WP1)", "area": "Technical Office", "owner": "ChatGPT (template) + Technical Office", "status": "waiting", "gate": "G1", "next": "ChatGPT writes the template"},
+    {"wbs": "1.6", "title": "First backtest: liqline 1d, frozen out-of-sample window", "area": "Strategies", "owner": "Technical Office", "status": "ready", "gate": "G2", "next": "Write the window in the meeting room, then run"},
+    {"wbs": "1.10", "title": "Strategy storage", "area": "Technical Office", "owner": "Owner", "status": "decided", "gate": "-", "next": "Session only (owner, 2026-10-22); Supabase later"},
+    {"wbs": "1.11", "title": "Control-room screens (owner reference images)", "area": "Technical Office", "owner": "Technical Office", "status": "in progress", "gate": "G3", "next": "Owner checks the screens"},
+    {"wbs": "2.3", "title": "Decision KPIs on the Radar", "area": "Radar", "owner": "Technical Office", "status": "review", "gate": "G2", "next": "Gemini review of radar-rank"},
+    {"wbs": "2.4", "title": "Hide / show filters (task 34)", "area": "Radar", "owner": "Technical Office", "status": "review", "gate": "G2", "next": "Gemini review"},
+    {"wbs": "2.6", "title": "Alerts for confirmed setups with entry / stop (task 17)", "area": "Radar", "owner": "Technical Office", "status": "open", "gate": "G1", "next": "After the ranking is merged"},
+    {"wbs": "2.7", "title": "Gold footprint from the Hyperliquid trade stream", "area": "Order flow", "owner": "Technical Office", "status": "review", "gate": "G3", "next": "Browser test, then Gemini"},
+    {"wbs": "3.1", "title": "Model inventory (every detector with its verdict)", "area": "Strategies", "owner": "Site manager", "status": "open", "gate": "-", "next": "Fed by the weekly lab"},
+    {"wbs": "3.4", "title": "Monthly live vs backtest check", "area": "Strategies", "owner": "Site manager", "status": "open", "gate": "-", "next": "Needs 30-50 live trades per model"},
+    {"wbs": "4.1", "title": "School review (one per week)", "area": "Research", "owner": "Gemini / OpenRouter", "status": "running", "gate": "-", "next": "school-review workflow"},
+    {"wbs": "5.2", "title": "Gemini -> Grok news relay", "area": "Research", "owner": "Technical Office", "status": "open", "gate": "G1", "next": "Design"},
+    {"wbs": "5.3", "title": "Daily market news (gold, oil, indices, FX, crypto)", "area": "Research", "owner": "Free accounts", "status": "open", "gate": "-", "next": "Grok watch every 6 h"},
+    {"wbs": "6.3", "title": "Protect main", "area": "Security", "owner": "Owner", "status": "blocked", "gate": "-", "next": "First change strategy-lab / school-review to open a PR"},
+    {"wbs": "6.5", "title": "DeepSeek key returns 401", "area": "Security", "owner": "Owner", "status": "blocked", "gate": "-", "next": "Owner checks the key"},
+    {"wbs": "7.1", "title": "AI desk: agent that writes tasks into the meeting room", "area": "AI", "owner": "Owner (keys) + Technical Office", "status": "waiting", "gate": "G1", "next": "OpenAI key, limited GitHub token, daily cap"},
+    {"wbs": "7.2", "title": "Data sources: FRED, Level 2 history", "area": "Data", "owner": "Owner", "status": "parked", "gate": "-", "next": "Owner: later (2026-10-22)"},
+    {"wbs": "0.6", "title": "First page load takes ~30 s", "area": "Operations", "owner": "Technical Office", "status": "open", "gate": "G2", "next": "Profile the header / news / market map calls"}
+  ]
+}

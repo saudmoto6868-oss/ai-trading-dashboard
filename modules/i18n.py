@@ -80,7 +80,11 @@ AR = {
     "Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)": "بيحمّل شموع كل رموز الرادار (أول تحميل ممكن ياخد لحد دقيقة؛ بعد كده بيتخزّن)",
     "No symbol matches the chosen filters, so ALL symbols are shown below, unfiltered. Loosen the filters or clear them.": "مفيش رمز مطابق للفلاتر المختارة، فبنعرض كل الرموز تحت من غير فلترة. خفّف الفلاتر أو امسحها.",
     "Clear all filters": "امسح كل الفلاتر",
-    "Finviz screener": "سكرينر فينفيز", "Similar charts": "شارتات مشابهة",
+    "Similar charts": "شارتات مشابهة", "Universe size": "عدد الرموز المفحوصة",
+    "How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load.": "كام رمز الرادار يفحصهم (الأكبر في حجم 24 ساعة الأول). كل ما زادوا التحميل الأول بياخد وقت أطول.",
+    "Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)": "قوايم فنية (الأداء، المتوسطات، القمم والقيعان، الفجوة، ATR، الفوليوم، الشموع)",
+    "No symbol meets ALL the chosen filters right now.": "مفيش رمز بيحقق كل الفلاتر المختارة دلوقتي.",
+    "Nearest (some of the conditions) are shown below.": "الأقرب (بيحقق جزء من الشروط) معروض تحت.", "Any": "أي حاجة",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

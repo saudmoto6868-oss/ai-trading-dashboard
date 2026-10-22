@@ -114,6 +114,21 @@ def top_rows(d: dict, min_n: int = GATE_N, top: int = 15) -> list:
              "gate": passes_gate(r)} for r in rows[:top]]
 
 
+LAB_TF = {"1m": "1m", "3m": "1m", "5m": "15m", "13m": "15m", "15m": "15m", "30m": "1h", "1h": "1h", "2h": "1h", "3h": "4h", "4h": "4h",
+          "6h": "4h", "7h": "4h", "8h": "4h", "12h": "1d", "1d": "1d", "3d": "1d", "1w": "1d", "1mo": "1d"}
+
+
+def evidence(d: dict, key: str, tf: str) -> dict | None:
+    """Radar card line: the lab row of one detector on the chart's timeframe (nearest lab timeframe), else its all-timeframe row."""
+    rows = {(r["key"], r.get("tf")): r for r in _detector_rows(d) if r.get("side") == "all"}
+    a = rows.get((key, "all"))
+    r = rows.get((key, LAB_TF.get(tf, tf))) or a
+    if not r:
+        return None
+    return {"key": key, "tf": r["tf"], "n": r["n"], "net": net(r), "gate": passes_gate(r),
+            "off": bool(a) and a["n"] >= OFF_MIN_N and a["avgR"] <= OFF_R}
+
+
 def lab_avg(d: dict) -> float | None:
     """Trade-weighted avg R of every detector x timeframe row (side 'all'): the backtest side of 'live vs backtest'."""
     rows = pooled(d, "tf")

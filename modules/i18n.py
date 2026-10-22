@@ -7,6 +7,12 @@ from __future__ import annotations
 AR = {
     "Price": "السعر", "Change %": "التغير %", "20-bar %": "تغير 20 شمعة %", "Volume ×avg": "الفوليوم ×المتوسط", "Signals": "الإشارات", "Which": "أنهي إشارات",
     "Chart grid": "الشارتات",
+    # Radar strip (design board 'Radar', 2026-10-22)
+    "Market state (daily)": "حالة السوق (اليومي)", "Share of the Radar symbols above / below their daily EMA 20 and 50": "نسبة رموز الرادار فوق / تحت EMA 20 و50 على اليومي",
+    "trend up": "ترند صاعد", "trend down": "ترند هابط", "range / mixed": "رينج / مختلط", "Strong news within 1 h": "خبر قوي خلال ساعة",
+    "yes": "نعم", "no": "لا", "High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them":
+        "أحداث عالية التأثير من التقويم الاقتصادي في الساعة الجاية؛ الـ Playbook بيقول مفيش دخول ±1 ساعة حواليها",
+    "Data age": "حداثة الداتا", "conditions": "شروط", "Detector evidence": "دليل الكاشف",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

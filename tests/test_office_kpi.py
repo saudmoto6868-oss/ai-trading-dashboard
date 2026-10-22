@@ -46,6 +46,11 @@ def test_journal_and_top_rows():
     d = {"rows": [_row("a", "1d", 150, 0.3, t=3.5), _row("b", "1h", 400, 0.05), _row("c", "1m", 50, 0.9), _row("a", "all", 900, 0.1)]}
     top = K.top_rows(d)
     assert [r["key"] for r in top] == ["a", "b"] and top[0]["gate"] and not top[1]["gate"]
+    d["rows"].append(_row("b", "all", 600, -0.08))
+    assert K.evidence(d, "a", "1d")["tf"] == "1d" and K.evidence(d, "a", "1w")["tf"] == "1d"
+    assert K.evidence(d, "a", "4h")["tf"] == "all" and K.evidence(d, "zz", "1h") is None
+    assert K.evidence(d, "b", "1h")["off"] and not K.evidence(d, "a", "1d")["off"]
+    d["rows"].pop()
     assert K.lab_avg(d) == round((150 * 0.3 + 400 * 0.05 + 50 * 0.9) / 600, 3)
 
 

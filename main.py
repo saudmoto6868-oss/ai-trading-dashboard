@@ -1524,7 +1524,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         f = cs_features(df, look)
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
         out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags | move_flags(df)), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
-                    **_screen_cols(df)}
+                    "t": time.time(), **_screen_cols(df)}
     return out
 
 
@@ -1576,6 +1576,44 @@ def render_market_map():
     cls = by_class(df)
     st.dataframe(cls.rename(columns={"cls": L("Class"), "n": L("Markets"), "avg_chg": L("Avg change %"), "up_share": L("Share up")}).round(3),
                  hide_index=True)
+
+
+def _radar_state(tf, data):
+    """Radar strip (design board 'Radar'): daily market state, strong news in the next hour, data age. Never blocks the page."""
+    out = {"regime": "-", "regime_sub": "", "news": "", "age": "-"}
+    try:
+        dd = data if tf == "1d" else _chart_scan_data(tuple(SCAN_SYMBOLS), "1d", 3)
+        tr = [d.get("trend") for d in dd.values()]
+        if tr:
+            up, dn = tr.count("up"), tr.count("down")
+            out["regime"] = "trend up" if up >= 0.6 * len(tr) else "trend down" if dn >= 0.6 * len(tr) else "range / mixed"
+            out["regime_sub"] = f"↑{up} ↓{dn} / {len(tr)}"
+    except Exception:
+        pass
+    now = time.time() * 1000
+    cal = _bg("cal", _calendar_rows, [])
+    hi = [e for e in cal or [] if e.get("impact") == "High" and 0 <= e["ts"] - now <= 3600_000]
+    out["news"] = ", ".join(f"{e['country']} {e['title']}" for e in hi[:2])[:60]
+    ts = [d.get("t") for d in data.values() if d.get("t")]
+    if ts:
+        s = int(time.time() - min(ts))
+        out["age"] = f"{s} s" if s < 120 else f"{s // 60} min"
+    return out
+
+
+def _radar_evidence(flags, tf):
+    """One line per chart: the lab's number for the strongest detector on it (design board 'Radar': detector evidence)."""
+    from modules import office_kpi as _OK
+    from modules.chart_scan import STRATEGY_FILTERS as _SF
+    d = _OK.load()
+    ev = [e for e in (_OK.evidence(d, _SF[k][1][1], tf) for k in flags if k in _SF and _SF[k][1][0] == "key") if e]
+    if not ev:
+        return ""
+    e = max(ev, key=lambda x: (not x["off"], x["n"] >= _OK.GATE_N, x["net"]))
+    note = L("OFF") if e["off"] else L("passed") if e["gate"] else L("not evidence")
+    col = "#f87171" if e["off"] or e["net"] <= 0 else "#5eead4" if e["gate"] else "#a3adba"
+    return (f"<div style='font-size:10px;color:#848e9c;margin-top:2px'>{html.escape(L('Detector evidence'))}: "
+            f"<span style='color:{col}'>{html.escape(e['key'])} {e['tf']} · {html.escape(L('net'))} {e['net']:+.3f}R · n {e['n']} · {html.escape(note)}</span></div>")
 
 
 def render_radar_screener():
@@ -1706,12 +1744,16 @@ def render_chart_scanner():
     shown.sort(key=lambda sd: (0 if _confirmed(sd[1]) else 1, -_hits(sd[1]), sd[0]))
     # KPI strip (decision moment, owner's control-room images 2026-10-22): counts come from the charts on screen only
     n_conf = sum(1 for _s, _d in shown if _confirmed(_d)) if sel else 0
-    k = st.columns(5)
+    k = st.columns(6)
     k[0].metric(L("Matched"), f"{len(shown)} / {len(data)}")
     k[1].metric(L("Confirmed"), n_conf if sel else "-", help=L("Every chosen condition holds on this chart"))
     k[2].metric(L("Candidates"), (len(shown) - n_conf) if sel else "-", help=L("Some chosen conditions hold"))
-    k[3].metric(L("Timeframe"), tf)
-    k[4].metric(L("Conditions chosen"), len(sel))
+    _rs = _radar_state(tf, data)
+    k[3].metric(L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], delta_color="off",
+                help=L("Share of the Radar symbols above / below their daily EMA 20 and 50"))
+    k[4].metric(L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or None, delta_color="off",
+                help=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them"))
+    k[5].metric(L("Data age"), _rs["age"], f"{L('Timeframe')} {tf} · {len(sel)} {L('conditions')}", delta_color="off")
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -1746,7 +1788,7 @@ def render_chart_scanner():
                     f"<span style='color:#848e9c'>{fmt_price(d_x['price'])}</span> "
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
                     f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d_x['svg']}'/>"
-                    f"<div style='min-height:18px;margin-top:2px'>{badges}</div>", unsafe_allow_html=True)
+                    f"<div style='min-height:18px;margin-top:2px'>{badges}</div>" + _radar_evidence(d_x["flags"], tf_x), unsafe_allow_html=True)
                 if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf_x)

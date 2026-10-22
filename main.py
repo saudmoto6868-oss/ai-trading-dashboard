@@ -1073,6 +1073,36 @@ def _has_secret(name):
         return bool(os.environ.get(name))
 
 
+def _office_bars(rows, title):
+    """Bar chart of avg R before costs; the dashed line is the 0.1R cost, so only bars above it make money after costs."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_kpi as _OK
+    df = _pd.DataFrame(rows)
+    if df.empty:
+        return
+    df["after_costs"] = df["net"].apply(lambda v: "above the cost" if v > 0 else "below the cost")
+    bars = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+        x=alt.X("label:N", sort=None, title=None), y=alt.Y("avgR:Q", title="avg R"),
+        color=alt.Color("after_costs:N", scale=alt.Scale(domain=["above the cost", "below the cost"], range=["#2dd4bf", "#f87171"]), legend=None),
+        tooltip=["label", "n", "avgR", "net"])
+    cost = alt.Chart(_pd.DataFrame({"y": [_OK.COST_R]})).mark_rule(strokeDash=[6, 4], color="#f0b429").encode(y="y:Q")
+    st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(title)}</div>", unsafe_allow_html=True)
+    st.altair_chart((bars + cost).properties(height=220), use_container_width=True)
+
+
+def _office_charts():
+    from modules import office_kpi as _OK
+    d = _OK.load()
+    if not d:
+        return
+    a, b = st.columns(2)
+    with a:
+        _office_bars(_OK.pooled(d, "tf"), L("avg R by timeframe (dashed = 0.1R cost)"))
+    with b:
+        _office_bars(_OK.pooled(d, "school"), L("avg R by school (dashed = 0.1R cost)"))
+
+
 def _office_overview():
     """Control room: status bar, evidence gauge, alerts, indicators, system map, tools (owner's reference images)."""
     from modules import office_kpi as _OK, office_ui as U
@@ -1110,6 +1140,7 @@ def _office_overview():
                     (L("Open tasks"), cnt.get("open", 0) + cnt.get("waiting", 0), L("work board"), None),
                     (L("Live vs backtest"), "[—]", L("after 30-50 live trades"), None),
                     (L("Max drawdown"), "[—R]", L("from the backtest engine"), None)]) + "</div>", unsafe_allow_html=True)
+    _office_charts()
     hl = "ok" if src.get("Hyperliquid") else "bad"
     st.markdown(U.system_map(L("System map"), L("From data to decision to evidence; every node shows its state"), [
         [("OKX", L("crypto · candles, book, trades"), "ok" if src.get("OKX") else "bad"), ("Hyperliquid", L("gold · oil · indices · FX"), hl),
@@ -1207,6 +1238,14 @@ def _office_backtest():
     sp = res.get("split") or {}
     st.caption(L("Split frozen before any trade") + f": in-sample {sp.get('in_sample_bars')} / out-of-sample {sp.get('out_of_sample_bars')} " + L("candles")
                + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
+    seq = [("in-sample", v) for v in ins.get("net_r", [])] + [("out-of-sample", v) for v in res.get("net_r", [])]
+    if seq:   # equity curve in R after costs: in-sample first (information), then the out-of-sample part the verdict uses
+        import altair as alt
+        import pandas as _pd
+        eq = _pd.DataFrame(seq, columns=["part", "net R"]); eq["trade"] = range(1, len(eq) + 1); eq["cumulative net R"] = eq["net R"].cumsum()
+        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x="trade:Q", y="cumulative net R:Q",
+                        color=alt.Color("part:N", scale=alt.Scale(domain=["in-sample", "out-of-sample"], range=["#93c5fd", "#2dd4bf"])),
+                        tooltip=["trade", "part", "net R", "cumulative net R"]).properties(height=240), use_container_width=True)
 
 
 def _office_ops():

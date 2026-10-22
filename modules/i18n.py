@@ -5,6 +5,8 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    "avg R by timeframe (dashed = 0.1R cost)": "متوسط R حسب الفريم (المتقطع = تكلفة 0.1R)", "avg R by school (dashed = 0.1R cost)": "متوسط R حسب المدرسة (المتقطع = تكلفة 0.1R)",
+    "loaded (the dashboard fetch is capped; long histories run in GitHub Actions)": "اتحملت (الداشبورد بيجيب عدد محدود؛ التاريخ الطويل على GitHub Actions)",
     # Technical Office v2 tabs / control room / work board / backtest / operations, Radar tab bar (2026-10-22)
     "Control room": "غرفة التحكم", "Work board": "لوحة المهام", "Backtest": "الباك تيست", "Operations": "التشغيل", "Lab results": "نتايج الـ lab",
     "Charts": "الشارتات", "Heat map": "الخريطة الحرارية", "live": "مباشر", "down": "واقف", "key set": "المفتاح موجود", "no key": "مفيش مفتاح",

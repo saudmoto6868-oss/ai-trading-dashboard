@@ -129,6 +129,26 @@ def evidence(d: dict, key: str, tf: str) -> dict | None:
             "off": bool(a) and a["n"] >= OFF_MIN_N and a["avgR"] <= OFF_R}
 
 
+def detector_card(d: dict, key: str) -> dict:
+    """Technical Office > Detector analysis: every lab row of one detector (per timeframe and side), its best timeframe,
+    OFF status and which trading styles it belongs to."""
+    rows = [r for r in _detector_rows(d) if r["key"] == key]
+    per_tf = [r for r in rows if r.get("side") == "all" and r.get("tf") != "all"]
+    a = next((r for r in rows if r.get("side") == "all" and r.get("tf") == "all"), None)
+    big = [r for r in per_tf if r["n"] >= GATE_N]
+    best = max(big or per_tf, key=net) if per_tf else None
+    fmt = lambda r: {"tf": r["tf"], "side": r.get("side"), "n": r["n"], "win": r.get("win"), "avgR": r["avgR"], "net": net(r),
+                     "vs_random": round(r["avgR"] - (r.get("base_avgR") or 0.0), 3), "t": r.get("t"), "gate": passes_gate(r)}
+    return {"key": key, "school": (rows[0].get("school") if rows else None), "rows": [fmt(r) for r in rows],
+            "all": fmt(a) if a else None, "best": fmt(best) if best else None, "best_is_evidence_size": bool(big),
+            "off": bool(a) and a["n"] >= OFF_MIN_N and a["avgR"] <= OFF_R,
+            "styles": [s for s, tfs in STYLES if any(r["tf"] in tfs for r in per_tf)]}
+
+
+def detector_keys(d: dict) -> list:
+    return sorted({r["key"] for r in _detector_rows(d)})
+
+
 def lab_avg(d: dict) -> float | None:
     """Trade-weighted avg R of every detector x timeframe row (side 'all'): the backtest side of 'live vs backtest'."""
     rows = pooled(d, "tf")

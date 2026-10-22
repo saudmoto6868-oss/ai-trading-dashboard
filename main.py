@@ -939,9 +939,10 @@ ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Wo
 
 def render_universe_controls():
     """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
-    _u1, _u2, _u3 = st.columns([1.3, 1.0, 6])
+    _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
+    _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=40, step=10, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
     if st.session_state.get("asset_cls", "Crypto") != "Crypto":
         st.query_params["cls"] = st.session_state["asset_cls"]
     elif "cls" in st.query_params:
@@ -1934,7 +1935,8 @@ from modules import chart_explain as _CX
 @st.cache_data(ttl=300, show_spinner=False)
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
-    frames, _errs = fetch_frames(list(symbols), [tf], limit=260)
+    from modules import fv_screen as _FV
+    frames, _errs = fetch_frames(list(symbols), [tf], limit=260, workers=8)
     pfr = _peer_frames(symbols, tf)
     out = {}
     for sym in symbols:
@@ -1949,7 +1951,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         except Exception:
             expl = {}
         out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
-                    "t": time.time(), **_screen_cols(df)}
+                    "t": time.time(), "fv": _FV.metrics(df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
 
@@ -2010,6 +2012,9 @@ def _clear_cs_filters():
         ss[k] = []
     for k in ("cs_px_rel", "cs_ma_rel", "cs_stack"):
         ss[k] = "—"
+    for k in list(ss.keys()):
+        if isinstance(k, str) and k.startswith("fv_f_"):
+            ss[k] = "Any"
     ss.pop("radar_def", None)
     try:
         if "strat" in st.query_params:
@@ -2171,97 +2176,6 @@ def _fv_frames(symbols: tuple, tf: str):
     return {s: f[tf] for s, f in frames.items() if f.get(tf) is not None and len(f[tf]) >= 30}
 
 
-def _fv_reset():
-    ss = st.session_state
-    for k in list(ss.keys()):
-        if isinstance(k, str) and k.startswith("fv_f_"):
-            ss[k] = "Any"
-    ss["fv_q"] = ""
-
-
-def render_radar_finviz():
-    """Finviz-style screener (owner 2026-10-23): the same drop-down lists as Finviz's Technical tab (Performance, Volatility, RSI, Gap, moving
-    averages, Change, High/Low, Pattern, Candlestick, ATR, Relative Volume), all ANDed, over the Radar universe; views Overview / Performance /
-    Technical / Charts. A match describes the candles; it is not a signal."""
-    import pandas as _pd
-    from modules import fv_screen as FV, patterns as _pt, chart_explain as _cx
-    ar = _ui_lang() == "ar"
-    A = lambda e, a: a if ar else e
-    c = st.columns([0.9, 1.6, 1.6, 0.8])
-    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1d"), key="fv_tf")
-    view = c[1].segmented_control(A("View", "العرض"), ["Overview", "Performance", "Technical", "Charts"], default="Overview",
-                                  format_func=lambda v: {"Overview": A("Overview", "نظرة عامة"), "Performance": A("Performance", "الأداء"), "Technical": A("Technical", "فني"), "Charts": A("Charts", "شارتات")}[v], key="fv_view") or "Overview"
-    q = c[2].text_input(A("Symbol contains", "الرمز يحتوي"), key="fv_q")
-    c[3].button(A("Reset filters", "امسح الفلاتر"), key="fv_reset", on_click=_fv_reset)
-    with st.spinner(L("Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)")):
-        frames = _fv_frames(tuple(SCAN_SYMBOLS), tf)
-    if not frames:
-        st.info(L("No candles yet."))
-        return
-    rows = {s: FV.metrics(df) for s, df in frames.items()}
-    ctxs = {s: {"candles": FV.candle_set(df)} for s, df in frames.items()}
-    pat_opts = [(k, v[0], (_cx.PATTERN_AR.get(k) or (v[0],))[0]) for k, v in _pt.PATTERNS.items()]
-    sel = {}
-    with st.expander(A("Filters (Technical) - all are ANDed", "الفلاتر (فنية) - كلها بتتجمع مع بعض"), expanded=True):
-        cols = st.columns(5)
-        for i, (key, _g, en, ar_name, opts) in enumerate(FV.FILTERS):
-            opts = pat_opts if key == "pattern" else opts
-            lab = {code: (a if ar else e) for code, e, a in opts}
-            pick = cols[i % 5].selectbox(ar_name if ar else en, ["Any"] + [o[0] for o in opts], format_func=lambda x, lab=lab: A("Any", "أي حاجة") if x == "Any" else lab.get(x, x), key="fv_f_" + key)
-            if pick != "Any":
-                sel[key] = pick
-    if "pattern" in sel:
-        scan = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
-        for s in ctxs:
-            ctxs[s]["flags"] = set((scan.get(s) or {}).get("flags", []))
-    hits = FV.apply(sel, rows, ctxs)
-    if q.strip():
-        hits = [s for s in hits if q.strip().lower() in s.lower()]
-    k = st.columns(4)
-    k[0].metric(A("Matched", "مطابق"), f"{len(hits)} / {len(rows)}"); k[1].metric(A("Filters set", "فلاتر مختارة"), len(sel))
-    k[2].metric(A("Timeframe", "الفريم"), tf); k[3].metric(A("Candles per symbol", "شموع لكل رمز"), int(_pd.Series([m["n"] for m in rows.values() if m]).median()) if any(rows.values()) else 0)
-    if not hits:
-        st.info(A("No symbol passes all the chosen filters. Loosen one of them (or reset).", "مفيش رمز بيعدّي كل الفلاتر المختارة. خفّف واحد منهم (أو امسح الكل)."))
-        return
-    per = FV.PERIODS if tf == "1d" else [(f"{n} bars", n) for n in (1, 5, 20, 60, 120, 250)]
-    pn = lambda name: A(name, FV.PERIODS_AR.get(name, name)) if tf == "1d" else name
-    def row(s):
-        m = rows[s]; cs = ctxs[s]["candles"]
-        r = {A("Symbol", "الرمز"): s, A("Price", "السعر"): m["price"], A("Change %", "التغير %"): round(m["chg"], 2)}
-        if view == "Performance":
-            for name, kk in FV.PERIODS:
-                r[pn(name)] = None if m.get("perf_" + name) is None else round(m["perf_" + name], 2)
-            r[A("Volatility W", "تقلب أسبوع")] = round(m["vol_week"], 2); r[A("Volatility M", "تقلب شهر")] = round(m["vol_month"], 2)
-        elif view == "Technical":
-            r.update({"RSI": None if m["rsi"] is None else round(m["rsi"], 1), "SMA20 %": None if m.get("sma20") is None else round(m["sma20_rel"], 2),
-                      "SMA50 %": None if m.get("sma50") is None else round(m["sma50_rel"], 2), "SMA200 %": None if m.get("sma200") is None else round(m["sma200_rel"], 2),
-                      A("From 20d high %", "من قمة 20 %"): round(m["from_hi_20d"], 2) if "from_hi_20d" in m else None,
-                      A("From 52w high %", "من قمة 52 أسبوع %"): round(m["from_hi_52w"], 2) if "from_hi_52w" in m else None,
-                      A("From 52w low %", "من قاع 52 أسبوع %"): round(m["from_lo_52w"], 2) if "from_lo_52w" in m else None,
-                      "ATR %": round(m["atr_pct"], 2), A("Rel. volume", "الفوليوم النسبي"): None if m["relvol"] is None else round(m["relvol"], 2)})
-        else:
-            r.update({A("Change from open %", "من الافتتاح %"): round(m["chg_open"], 2), A("Gap %", "الفجوة %"): round(m["gap"], 2), "RSI": None if m["rsi"] is None else round(m["rsi"], 1),
-                      A("Rel. volume", "الفوليوم النسبي"): None if m["relvol"] is None else round(m["relvol"], 2)})
-        r[A("Candle", "الشمعة")] = " · ".join(sorted((dict((x[0], A(x[1], x[2])) for x in FV.CANDLES)[x] for x in cs))) or "-"
-        return r
-    if view == "Charts":
-        scan = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
-        cc = st.columns(4)
-        for i, s in enumerate(hits[:16]):
-            d_ = scan.get(s)
-            if d_:
-                m = rows[s]
-                cc[i % 4].markdown(f"<div style='font-size:12px'><b>{html.escape(s)}</b> <span style='color:#848e9c'>{fmt_price(m['price'])}</span> "
-                                   f"<span style='color:{'#0ecb81' if m['chg'] >= 0 else '#f6465d'}'>{m['chg']:+.2f}%</span></div>"
-                                   f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d_['svg']}'/>", unsafe_allow_html=True)
-        if len(hits) > 16:
-            st.caption(A(f"Showing 16 of {len(hits)}.", f"بنعرض 16 من {len(hits)}."))
-    else:
-        st.dataframe(_pd.DataFrame([row(s) for s in hits]), hide_index=True, use_container_width=True)
-    st.caption(A("Lists and names follow finviz.com's Technical tab; fundamentals, earnings and analyst filters do not exist for crypto / FX / commodities. A match describes the candles; it is not a signal. Educational, not investment advice.",
-                 "القوايم والأسماء زي تاب Technical في finviz.com؛ فلاتر الأساسيات والأرباح والمحللين مش موجودة للكريبتو والفوركس والسلع. التطابق وصف للشموع، مش إشارة. تعليمي، مش توصية استثمارية."))
-
-
 def render_radar_similar():
     """Find similar charts (Finviz, Sep 2026): rank the symbols and past stretches whose recent price path looks like the chosen one."""
     import altair as alt
@@ -2401,20 +2315,13 @@ def render_radar_signals():
     st.caption(L("Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate."))
 
 
-def render_radar_screener():
-    """Finviz-style screener (owner 2026-10-22): one sortable table for the whole Radar universe on one timeframe, quick
-    filters on top, and a top-movers bar chart. Same candles as the Charts tab (cached), so it adds no downloads."""
+def render_radar_screener(f):
+    """Finviz-style table (owner 2026-10-22): one sortable table for the Radar universe, filtered by the SAME panel as the chart grid (no second set of
+    options), and a top-movers bar chart. Same candles as the chart grid (cached)."""
     import pandas as _pd
-    c = st.columns([0.8, 1.2, 1, 1, 1])
-    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1h"), key="scr_tf")
-    trend = c[1].segmented_control(L("Trend"), ["All", "up", "down", "mixed"], default="All", format_func=L, key="scr_trend")
-    rsi_z = c[2].selectbox("RSI", ["All", "<= 30", "30-70", ">= 70"], key="scr_rsi", format_func=L)
-    vmin = c[3].number_input(L("Volume ≥ × average"), 0.0, 20.0, 0.0, 0.5, key="scr_vol")
-    sigmin = c[4].number_input(L("Signals ≥"), 0, 20, 0, key="scr_sig")
-    try:
-        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
-    except Exception as e:
-        st.warning(f"Could not load candles: {e}")
+    tf = f["tf"]
+    data = _radar_data(f)
+    if data is None:
         return
     rows = []
     for sym, d in data.items():
@@ -2425,18 +2332,7 @@ def render_radar_screener():
     if df.empty:
         st.info(L("No symbols match the selected conditions right now."))
         return
-    if trend not in (None, "All"):
-        df = df[df["Trend"] == trend]
-    if rsi_z == "<= 30":
-        df = df[df["RSI"] <= 30]
-    elif rsi_z == ">= 70":
-        df = df[df["RSI"] >= 70]
-    elif rsi_z == "30-70":
-        df = df[(df["RSI"] > 30) & (df["RSI"] < 70)]
-    if vmin:
-        df = df[df["Volume ×avg"].fillna(0) >= vmin]
-    if sigmin:
-        df = df[df["Signals"] >= sigmin]
+    df = df[df["Symbol"].isin([s_ for s_, d_ in data.items() if _radar_pass(d_, f)])]
     k = st.columns(5)
     k[0].metric(L("Matched"), f"{len(df)} / {len(rows)}")
     k[1].metric(L("Trend up"), int((df["Trend"] == "up").sum()))
@@ -2461,7 +2357,9 @@ def render_radar_screener():
     st.caption(L("Educational, not investment advice. Same candles as the Charts tab; no automatic orders."))
 
 
-def render_chart_scanner():
+def _radar_filters(view):
+    """ONE filter panel for every Radar view (owner 2026-10-23): universe, timeframe, side, indicators, strategies, patterns and the Finviz-style technical lists.
+    Rendered on every run so its choices survive switching tabs; returns the settings dict."""
     st.markdown("""<style>
 .st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
 .st-key-csf label p,.st-key-csf [data-testid="stWidgetLabel"] p{font-size:10px!important;color:#848e9c!important;margin:0 0 1px 0!important;text-transform:uppercase;letter-spacing:.03em}
@@ -2478,7 +2376,7 @@ def render_chart_scanner():
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False)   # one button: hides the filter block; widgets stay rendered so selections are kept
+    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view not in ("Chart grid", "Screener")   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     with st.container(key="csfw"), st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
@@ -2486,7 +2384,7 @@ def render_chart_scanner():
         rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
-        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=int(rd.get("n", 10)), step=1, key="cs_n")
+        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
         look = r1[4].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
@@ -2501,6 +2399,18 @@ def render_chart_scanner():
         sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
                                    format_func=_strat_name, key="cs_strat")
         sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
+        from modules import fv_screen as _FV
+        _ar = _ui_lang() == "ar"
+        fv = {}
+        with st.expander(L("Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)"), expanded=False):
+            _fc = st.columns(5)
+            _fk = [f_ for f_ in _FV.FILTERS if f_[0] not in ("pattern", "rsi")]   # patterns and RSI already live in the rows above: one place for each option
+            for _i, (_key, _g, _en, _arn, _opts) in enumerate(_fk):
+                _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
+                _pk = _fc[_i % 5].selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
+                if _pk != "Any":
+                    fv[_key] = _pk
+        st.button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
     elif "strat" in qp:
@@ -2513,39 +2423,67 @@ def render_chart_scanner():
     sel_ema += {"Bullish (px>9>20>50)": ["stack_bull"], "Bearish (px<9<20<50)": ["stack_bear"],
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom
+    want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
+    return {"tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
+
+
+def _radar_hits(d, f):
+    """(conditions met, conditions chosen) for one chart: indicator / pattern / strategy flags plus the Finviz-style technical lists."""
+    from modules import fv_screen as _FV
+    hits = sum(1 for k in f["sel"] if match_filters(d, [k], f["want"], False))
+    if f["fv"] and d.get("fv"):
+        ctx = {"candles": set(d.get("cn", ())), "flags": set(d["flags"])}
+        hits += sum(1 for k, c in f["fv"].items() if _FV.test(k, c, d["fv"], ctx))
+    return hits, len(f["sel"]) + len(f["fv"])
+
+
+def _radar_pass(d, f):
+    h, n = _radar_hits(d, f)
+    if not n:
+        return match_filters(d, [], f["want"], False)
+    return h > 0 if f["any"] else h == n
+
+
+def _radar_data(f):
+    """Scan data of the universe on the panel's timeframe (cached), or None after a message."""
     try:
         with st.spinner(L("Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)")):
-            data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, look)
+            return _chart_scan_data(tuple(SCAN_SYMBOLS), f["tf"], f["look"])
     except Exception as e:
         st.warning(f"Could not load candles: {e}")
+        return None
+
+
+def render_chart_scanner(f):
+    tf, look, sel, want, n_show = f["tf"], f["look"], f["sel"], f["want"], f["n"]
+    data = _radar_data(f)
+    if data is None:
         return
-    want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    def ok(d):
-        return match_filters(d, sel, want, mode == "Any selected")
-    shown = [(sym, d) for sym, d in data.items() if ok(d)]
-    if not shown and data and sel:   # owner 2026-10-23: the chart grid must never vanish. Nothing matches -> show every symbol (unfiltered) and say so
-        st.warning(L("No symbol matches the chosen filters, so ALL symbols are shown below, unfiltered. Loosen the filters or clear them."))
-        st.button(L("Clear all filters"), key="cs_clear", on_click=_clear_cs_filters)
-        shown = list(data.items()); sel = []
+    nsel = len(sel) + len(f["fv"])
+    shown = [(sym, d) for sym, d in data.items() if _radar_pass(d, f)]
+    if not shown and data and nsel:   # filters must really filter: say 0 matched, and offer the nearest charts (some conditions met) instead of everything
+        near = sorted(((sym, d) for sym, d in data.items() if _radar_hits(d, f)[0] > 0), key=lambda sd: -_radar_hits(sd[1], f)[0])
+        st.warning(L("No symbol meets ALL the chosen filters right now.") + (" " + L("Nearest (some of the conditions) are shown below.") if near else ""))
+        shown = near
     # owner rule (meeting room 2026-10-22): confirmed = every chosen condition holds for THIS chart (not just the mode);
     # ranking = confirmed first, then candidates; inside each group, more conditions hit first, then symbol
     def _hits(d):
-        return sum(1 for k in sel if match_filters(d, [k], want, False))
+        return _radar_hits(d, f)[0]
     def _confirmed(d):
-        return bool(sel) and _hits(d) == len(sel)
+        return nsel > 0 and _hits(d) == nsel
     shown.sort(key=lambda sd: (0 if _confirmed(sd[1]) else 1, -_hits(sd[1]), sd[0]))
     # KPI strip (decision moment, owner's control-room images 2026-10-22): counts come from the charts on screen only
-    n_conf = sum(1 for _s, _d in shown if _confirmed(_d)) if sel else 0
+    n_conf = sum(1 for _s, _d in shown if _confirmed(_d)) if nsel else 0
     k = st.columns(6)
     k[0].metric(L("Matched"), f"{len(shown)} / {len(data)}")
-    k[1].metric(L("Confirmed"), n_conf if sel else "-", help=L("Every chosen condition holds on this chart"))
-    k[2].metric(L("Candidates"), (len(shown) - n_conf) if sel else "-", help=L("Some chosen conditions hold"))
+    k[1].metric(L("Confirmed"), n_conf if nsel else "-", help=L("Every chosen condition holds on this chart"))
+    k[2].metric(L("Candidates"), (len(shown) - n_conf) if nsel else "-", help=L("Some chosen conditions hold"))
     _rs = _radar_state(tf, data)
     k[3].metric(L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], delta_color="off",
                 help=L("Share of the Radar symbols above / below their daily EMA 20 and 50"))
     k[4].metric(L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or None, delta_color="off",
                 help=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them"))
-    k[5].metric(L("Data age"), _rs["age"], f"{L('Timeframe')} {tf} · {len(sel)} {L('conditions')}", delta_color="off")
+    k[5].metric(L("Data age"), _rs["age"], f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", delta_color="off")
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -2557,7 +2495,7 @@ def render_chart_scanner():
         return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
     per_row = 5
     st.markdown(_RADAR_CSS, unsafe_allow_html=True)
-    _top = [s for s, d_ in shown[:10] if sel and _confirmed(d_)]
+    _top = [s for s, d_ in shown[:10] if nsel and _confirmed(d_)]
     if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
         from concurrent.futures import ThreadPoolExecutor
         try:
@@ -2571,7 +2509,7 @@ def render_chart_scanner():
             with col:
                 tf_x, d_x = tf, d   # this chart's own timeframe (team task 16); "—" = same as the top Timeframe
                 tf_pick = st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", label_visibility="collapsed",
-                                       help=L("Own timeframe for this chart (— = same as the top Timeframe)"))
+                                       help=L("Own timeframe for this chart (— = same as the top Timeframe)")) if r0 + i_c < 20 else "—"   # per-chart widgets only on the first 20 (100+ charts stay fast)
                 if tf_pick != "—" and tf_pick != tf:
                     try:
                         d_one = _chart_scan_data((sym,), tf_pick, look).get(sym)
@@ -2581,9 +2519,9 @@ def render_chart_scanner():
                         st.caption(f"{tf_pick}: {e_tf}")
                 # owner 2026-10-22: no row of small tags; one short line, and the explanation opens when the mouse is on the chart
                 n_sig = sum(1 for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_")))
-                tag = (RADAR_TAG + setup_tag(d_x)) if sel else ""
+                tag = (RADAR_TAG + setup_tag(d_x)) if nsel else ""
                 card_s = card_f = ""
-                if sel and _confirmed(d_x) and r0 + i_c < 10:   # task 17: trade card for the top 10 confirmed
+                if nsel and _confirmed(d_x) and r0 + i_c < 10:   # task 17: trade card for the top 10 confirmed
                     card_s, card_f = _trade_card(sym, tf_x, want)
                 ladder = {t: _htf_trend(tuple(SCAN_SYMBOLS) if tf_x == tf else (sym,), t) for t in _LADDER.get(tf_x, ())}
                 rsi_v = d_x["rsi"]
@@ -2597,7 +2535,7 @@ def render_chart_scanner():
                     + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
                     f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
                     f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s, unsafe_allow_html=True)
-                if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
+                if r0 + i_c < 20 and st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf_x)
                         if r_:
@@ -2681,22 +2619,22 @@ if PAGE == 0:   # workspace
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
-    try:   # one tab bar (owner 2026-10-22: switch views without scrolling); only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Finviz screener", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed")
+    try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        render_universe_controls()
+        SCAN_SYMBOLS, _ac_msg2 = class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 40)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
+        SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 40))]
+        _rf = _radar_filters(_rv)
         if _rv == "Heat map":
             render_market_map()
-        elif _rv in ("Finviz screener", "Similar charts"):
-            render_universe_controls()
-            {"Finviz screener": render_radar_finviz, "Similar charts": render_radar_similar}[_rv]()
+        elif _rv == "Similar charts":
+            render_radar_similar()
         elif _rv in ("Performance", "Correlation", "Signal list"):
-            render_universe_controls()
             {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv]()
         elif _rv == "Screener":
-            render_universe_controls()
-            render_radar_screener()
+            render_radar_screener(_rf)
         else:
-            render_universe_controls()
-            render_chart_scanner()
+            render_chart_scanner(_rf)
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 

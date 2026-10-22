@@ -35,6 +35,7 @@ def test_summary_and_styles():
     assert s["best"]["key"] == "liqline" and s["best"]["net"] == 0.257 and s["best"]["vs_random"] == 0.206
     st = {x["style"]: x for x in K.styles(d)}
     assert st["Scalp"]["key"] == "judas" and st["Swing"]["key"] == "liqline" and st["Day"]["key"] == "ob"
+    assert s["det_rows"] == 3 and s["det_t"] == 0 and s["chain_rows"] == 1 and s["chain_t"] == 1   # detector rows carry no t, chain rows do
     assert K.summary({}) == {}
 
 

@@ -1726,7 +1726,7 @@ Object.assign(CandleChart.prototype, {
     if (E.length > 300) E.splice(0, 100);
   },
   domAdd(b){
-    this.lastBook = b; this.bkTrack(b); { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Bookmap column: one book snapshot per poll, own timestamp
+    this.lastBook = b; this.bkTrack(b); if (this.domOn) { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Record heatmap history only while the order-flow book layer is enabled
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
@@ -1737,9 +1737,9 @@ Object.assign(CandleChart.prototype, {
   },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
-    // saved history: skipped when too big (it froze the page for the owner, 2026-10-17); only the last 24 h is loaded
+    // Load the existing local history without deleting it just because it is large.
+    // Keep parsing guarded; corrupted data is ignored but never automatically removed.
     let raw = null; try { raw = localStorage.getItem(LS+"_hm_"+this.sym); } catch(e){}
-    if (raw && raw.length > 1500000){ try { localStorage.removeItem(LS+"_hm_"+this.sym); } catch(e){} raw = null; }
     const s = raw ? (() => { try { return JSON.parse(raw); } catch(e){ return null; } })() : null, cut = nowS() - 86400e3;
     if (s && s.step && s.b){ this.hm.step = s.step; Object.keys(s.b).forEach(k => { if (+k < cut) return; const o = s.b[k]; this.hm.b.set(+k, {w:o.w, m:o.m, c:new Map(o.c)}); }); }
   },
@@ -1755,8 +1755,23 @@ Object.assign(CandleChart.prototype, {
     [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
     nb.forEach(o => { const lim = o.w > 60000 ? 40 : 150; if (o.c.size > lim){ const top = [...o.c.entries()].sort((a, b) => b[1] - a[1]).slice(0, lim); o.c = new Map(top); } }); H.b = nb;
     const pack = () => { const b = {}; nb.forEach((o, t) => { if (o.w > 60000 || t >= now - 3600e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };
-    try { const j = pack(); let txt = JSON.stringify(j); if (txt.length > 1.6e6){ const ks = Object.keys(j.b).map(Number).sort((a, b) => a - b); for (let i = 0; i < ks.length*0.4; i++) delete j.b[ks[i]]; } localStorage.setItem(LS+"_hm_"+this.sym, JSON.stringify(j)); }
-    catch(e){ try { Object.keys(localStorage).filter(k => k.indexOf(LS+"_hm_") === 0 && k !== LS+"_hm_"+this.sym).forEach(k => localStorage.removeItem(k)); } catch(e2){} }
+    try {
+      const j = pack();
+      let txt = JSON.stringify(j);
+      // If storage is tight, prune oldest buckets in small batches; preserve recent history
+      // and never delete another symbol's history as a side effect of this save.
+      const ks = () => Object.keys(j.b).map(Number).sort((a, b) => a - b);
+      let keys = ks(), cutCount = 0;
+      while (txt.length > 1400000 && keys.length > 24 && cutCount < 12) {
+        const removeCount = Math.max(1, Math.ceil(keys.length * 0.08));
+        for (let i = 0; i < removeCount && keys.length; i++) delete j.b[keys.shift()];
+        cutCount++;
+        txt = JSON.stringify(j);
+      }
+      localStorage.setItem(LS+"_hm_"+this.sym, txt);
+    } catch(e) {
+      // Quota errors are non-destructive: keep all existing localStorage keys intact.
+    }
   },
   paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, last 24 h); the column only chooses how much time it shows
     const H = this.hm; if (!H || !H.step || !H.b.size) return null; const OF = this.st.of, scheme = OF.hm || "book", lo = this._lo, hi = this._hi, mult = Math.max(1, Math.ceil((hi - lo)/Math.max(1, PB/5)/H.step)), sR = mult*H.step, rowH = Math.max(1.5, Math.abs(py(0) - py(sR)));

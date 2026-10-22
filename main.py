@@ -1215,6 +1215,14 @@ def render_chart_scanner():
     def _confirmed(d):
         return bool(sel) and _hits(d) == len(sel)
     shown.sort(key=lambda sd: (0 if _confirmed(sd[1]) else 1, -_hits(sd[1]), sd[0]))
+    # KPI strip (decision moment, owner's control-room images 2026-10-22): counts come from the charts on screen only
+    n_conf = sum(1 for _s, _d in shown if _confirmed(_d)) if sel else 0
+    k = st.columns(5)
+    k[0].metric(L("Matched"), f"{len(shown)} / {len(data)}")
+    k[1].metric(L("Confirmed"), n_conf if sel else "-", help=L("Every chosen condition holds on this chart"))
+    k[2].metric(L("Candidates"), (len(shown) - n_conf) if sel else "-", help=L("Some chosen conditions hold"))
+    k[3].metric(L("Timeframe"), tf)
+    k[4].metric(L("Conditions chosen"), len(sel))
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:

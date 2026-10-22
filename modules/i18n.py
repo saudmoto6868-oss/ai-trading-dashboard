@@ -5,6 +5,9 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    # Radar KPI strip (2026-10-22)
+    "Matched": "مطابق", "Confirmed": "مؤكد", "Candidates": "مرشح", "Conditions chosen": "الشروط المختارة",
+    "Every chosen condition holds on this chart": "كل الشروط المختارة متحققة على الشارت ده", "Some chosen conditions hold": "بعض الشروط المختارة متحققة",
     # tabs
     "🧩 Workspace": "🧩 مساحة العمل", "📊 Chart Scanner": "📊 سكانر الشارت", "🪙 Crypto": "🪙 كريبتو", "💱 Forex": "💱 فوركس",
     "🥇 Metals": "🥇 معادن", "📈 Stocks": "📈 أسهم", "🐸 Meme Coins": "🐸 عملات الميم", "📈 Performance": "📈 الأداء",

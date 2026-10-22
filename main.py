@@ -1431,6 +1431,20 @@ def _office_detector():
          L("n >= 300 and avg R <= -0.06") if c["off"] else (L("n under 100 on the best timeframe") if not c["best_is_evidence_size"] else L("needs t > 3 and both halves positive")),
          "bad" if c["off"] else "ok" if b and b.get("gate") else "warn"),
         (L("Trading styles"), " · ".join(L(s) for s in c["styles"]) or "-", L("from the timeframes it was tested on"), None)]) + "</div>", unsafe_allow_html=True)
+    try:   # a frozen holdout on older candles, when one was run for this detector (modules/lab_holdout.py)
+        import json as _json
+        ho = _json.loads((Path(__file__).resolve().parent / "data" / f"holdout_{k}_1d.json").read_text(encoding="utf-8"))
+        hr = ho["result"]
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Frozen holdout on older candles (1d)'))}</div>", unsafe_allow_html=True)
+        st.markdown("<div class='xo-row'>" + U.indicators(L("Holdout") + f" · {len(ho['per_symbol'])} " + L("symbols"), [
+            ("n", hr["n"], L("signals"), None),
+            (L("net") + " avg R", f"{hr['net_avgR']:+.3f}", L("gross") + f" {hr['gross_avgR']:+.3f}", "ok" if hr["net_avgR"] > 0 else "bad"),
+            (L("Random entries"), f"{hr['random_avgR']:+.3f}", L("gross avg R of random direction on the same bars"), "warn"),
+            ("t", f"{hr['t_vs_random']}", L("vs random; the bar is 3"), "bad" if hr["t_vs_random"] <= 3 else "ok"),
+            (L("Halves"), f"{hr['h1']['net_avgR']:+.3f} / {hr['h2']['net_avgR']:+.3f}", L("net, first / second half"), None),
+            (L("Verdict"), L("passed") if hr["pass"] else L("not evidence"), L("rule frozen before the run"), "ok" if hr["pass"] else "warn")]) + "</div>", unsafe_allow_html=True)
+    except (OSError, ValueError, KeyError):
+        pass
     df = _pd.DataFrame(c["rows"])
     if df.empty:
         return

@@ -61,6 +61,9 @@ AR = {
     "below the cost": "تحت التكلفة", "families": "مدارس",
     "IV rank (1 year)": "IV rank (سنة)", "min": "أقل", "max": "أعلى", "percentile": "المئين", "DVOL history not available": "تاريخ DVOL مش متاح",
     "The lab measures t for": "المعمل بيقيس t لـ", "rows only; the rest cannot pass the gate yet": "صف بس؛ الباقي ما يقدرش يعدّي البوابة لسه",
+    "Frozen holdout on older candles (1d)": "اختبار مجمّد على شموع أقدم (يومي)", "Holdout": "الاختبار المجمّد", "symbols": "رموز", "signals": "إشارة", "gross": "إجمالي",
+    "Random entries": "دخول عشوائي", "gross avg R of random direction on the same bars": "متوسط R الإجمالي لاتجاه عشوائي على نفس الشموع", "vs random; the bar is 3": "مقابل العشوائي؛ الحد 3",
+    "Halves": "النصين", "net, first / second half": "الصافي، النصف الأول / التاني", "rule frozen before the run": "القاعدة اتجمدت قبل التشغيل",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

@@ -59,6 +59,7 @@ AR = {
     "Exploratory run: every variant you try counts as another trial. A real verdict needs a frozen out-of-sample window recorded in the meeting room before the run. Exit here = the engine's standard ATR stop and 1.5R target.":
         "تجربة استكشافية: كل نسخة بتجربها بتتحسب محاولة. الحكم الحقيقي محتاج نافذة out-of-sample مثبتة ومسجلة في المحضر قبل التشغيل. الخروج هنا = وقف ATR وهدف 1.5R بتوع المحرك.",
     "below the cost": "تحت التكلفة", "families": "مدارس",
+    "IV rank (1 year)": "IV rank (سنة)", "min": "أقل", "max": "أعلى", "percentile": "المئين", "DVOL history not available": "تاريخ DVOL مش متاح",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",
@@ -68,8 +69,8 @@ AR = {
     "days": "يوم", "ATM IV, nearest": "IV عند السعر، الأقرب", "annualised": "سنوي", "Days": "الأيام", "Max pain": "Max pain",
     "Skew ±10% (put IV - call IV)": "السكيو ±10% (IV البوت − IV الكول)", "Biggest strikes": "أكبر الـ strikes", "IV term structure": "هيكل الـ IV حسب المدة",
     "Strike": "الـ Strike", "Gold line = spot, purple dotted = max pain for this expiry.": "الخط الذهبي = السعر، البنفسجي المنقط = max pain للاستحقاق ده.",
-    "The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV RANK needs history we do not store yet. Free Deribit data, about 2 minutes old. Educational, not investment advice.":
-        "الـ OI والحجم مابيقولوش الصفقة فتحت ولا قفلت مركز، ولا كانت هيدج ولا رهان؛ فالـ put/call والـ walls سياق بس. الـ IV RANK محتاج تاريخ مش بنخزنه لسه. بيانات Deribit مجانية، متأخرة حوالي دقيقتين. تعليمي، مش توصية استثمارية.",
+    "The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice.":
+        "الـ OI والحجم مابيقولوش الصفقة فتحت ولا قفلت مركز، ولا كانت هيدج ولا رهان؛ فالـ put/call والـ walls سياق بس. الـ IV rank من تاريخ DVOL اليومي بتاع Deribit. بيانات Deribit مجانية، متأخرة حوالي دقيقتين. تعليمي، مش توصية استثمارية.",
     # Flow manual (2026-10-22)
     "Flow manual": "مانيوال الأوردر فلو", "Tools we have and their limits": "الأدوات اللي عندنا وحدودها", "Tool": "الأداة", "Shows": "بتبين", "Where": "فين", "Data": "الداتا", "Limits": "الحدود",
     "Methods: how to read, how to use, where it breaks": "الطرق: إزاي تقرأ، إزاي تستخدم، بتفشل فين", "Daily routine": "الروتين اليومي", "Step": "الخطوة", "What to do": "تعمل إيه",

@@ -1461,6 +1461,14 @@ def _office_options():
         return
     s = OD.summarize(rows)
     ex = s["expiries"]
+    try:
+        @st.cache_data(ttl=1800, show_spinner=False)
+        def _dv(c):
+            return OD.dvol(c)
+        hist = _dv(cur)
+        rk = OD.iv_rank([v for _d, v in hist])
+    except Exception:
+        hist, rk = [], None
     if not ex:
         st.info(L("No option data."))
         return
@@ -1472,7 +1480,8 @@ def _office_options():
         (L("Put / call (open interest)"), f"{t['pc_oi']}" if t["pc_oi"] else "-", L("all expiries"), "warn" if t["pc_oi"] and t["pc_oi"] > 1 else None),
         (L("Volume (24 h)"), f"{t['vol']:,.0f} {cur}", "", None),
         (L("Nearest expiry"), str(near["exp"]), f"{near['days']} " + L("days"), None),
-        (L("ATM IV, nearest"), f"{near['iv']}%" if near["iv"] else "-", L("annualised"), None)]) + "</div>", unsafe_allow_html=True)
+        (L("ATM IV, nearest"), f"{near['iv']}%" if near["iv"] else "-", L("annualised"), None),
+        (L("IV rank (1 year)"), f"{rk['rank']:.0f}%" if rk else "-", (f"DVOL {rk['now']} · " + L("min") + f" {rk['min']} / " + L("max") + f" {rk['max']} · " + L("percentile") + f" {rk['percentile']:.0f}%") if rk else L("DVOL history not available"), None)]) + "</div>", unsafe_allow_html=True)
     df = _pd.DataFrame([{L("Expiry"): str(e["exp"]), L("Days"): e["days"], L("Open interest"): e["oi"], "P/C OI": e["pc_oi"], "P/C vol": e["pc_vol"],
                          L("Max pain"): e["max_pain"], "ATM IV %": e["iv"], L("Skew ±10% (put IV - call IV)"): e["skew10"],
                          L("Biggest strikes"): " · ".join(f"{int(k)}{c} ({oi:,.0f})" for k, c, oi in e["walls"])} for e in ex])
@@ -1509,12 +1518,16 @@ def _office_options():
     if wk:
         lines.append(f"السكيو لاستحقاق {wk['exp']} (IV بوت 10% تحت ناقص IV كول 10% فوق) = " + f"{wk['skew10']:+.1f}: " +
                      ("السوق بيدفع أكتر للحماية من النزول." if wk["skew10"] > 3 else "السوق بيدفع أكتر للصعود." if wk["skew10"] < -3 else "مفيش ميل واضح."))
+    if rk:
+        lines.append(f"الـ IV rank سنة = {rk['rank']:.0f}% (الـ DVOL {rk['now']} بين أقل {rk['min']} وأعلى {rk['max']}): " +
+                     ("التقلب الضمني رخيص نسبياً مقارنة بالسنة؛ الأوبشنز غير غالية، والسوق مش مسعّر توتر." if rk["rank"] < 25 else
+                      "التقلب الضمني غالي نسبياً؛ السوق مسعّر توتر أو حدث." if rk["rank"] > 75 else "وسط السنة.") + " (وصف، مش إشارة.)")
     ivs = [e for e in ex if e["iv"] and e["days"] >= 1]
     if len(ivs) >= 3:
         lines.append("هيكل الـ IV: " + ("مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير." if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
                                        "طبيعي (البعيد أغلى): هدوء نسبي." if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else "مسطح."))
     st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'><b>قراءة أقرب استحقاق (سياق مش إشارة)</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
-    st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV RANK needs history we do not store yet. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
+    st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 
 def _office_flow_lab():

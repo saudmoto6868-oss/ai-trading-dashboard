@@ -15,6 +15,32 @@ LAB_FILE = Path(__file__).resolve().parent.parent / "data" / "strategy_lab.json"
 # trading styles -> lab timeframes (the lab runs 1m, 15m, 1h, 4h, 1d); see the Playbook artboard
 STYLES = [("Scalp", ("1m",)), ("Day", ("15m", "1h")), ("Swing", ("4h", "1d")), ("Position", ("1d",))]
 
+# Playbook by trading style (owner 2026-10-22). Timeframes step by ~4-6x (Elder's triple screen): trend from the higher one,
+# setup from the middle one, entry from the lower one. Text is guidance; the numbers next to it come from the lab file.
+STYLE_INFO = {
+    "Scalp": {"hold": "minutes, closed in the same session", "stack": ("15m / 1H", "5m", "1m"),
+              "rules": "session liquidity (Judas, sweep, CRT on the 1H / 4H candle), only inside the kill zones, stop behind the sweep, target >= 2R because of costs",
+              "goal": "100 forward trades on 5m inside the kill zones with net >= +0.05R before any scalp alert", "status": "paused until evidence"},
+    "Day": {"hold": "hours, closed before the day ends", "stack": ("4H", "1H", "15m"),
+            "rules": "session AMD, CISD after a sweep, RSI divergence for timing, no entry +-1 h around a strong news event",
+            "goal": "grade A+++ (5 context layers) passes t > 3 with both halves positive after costs within 4 weeks", "status": "candidate for testing"},
+    "Swing": {"hold": "days to weeks", "stack": ("1W", "1D", "4H"),
+              "rules": "daily levels and liquidity lines, break of a daily level, MACD divergence on the daily, stop 1.5 ATR, size by volatility",
+              "goal": "liqline 1d (the only daily detector with n >= 100) gets the first frozen out-of-sample backtest; verdict within a week", "status": "first backtest"},
+    "Position": {"hold": "weeks to months", "stack": ("1M", "1W", "1D"),
+                 "rules": "time-series momentum (the strongest published evidence), wide stop, small size by volatility, spread over markets",
+                 "goal": "add symbols until n >= 100 and compare with the random baseline before any verdict", "status": "needs more symbols"},
+}
+
+
+def style_top(d: dict, style: str, top: int = 5, min_n: int = 30) -> list:
+    """Best detector x timeframe rows for one style (lab timeframes of that style), by net avg R, n >= min_n."""
+    tfs = dict(STYLES)[style]
+    rows = [r for r in _detector_rows(d) if r.get("side") == "all" and r.get("tf") in tfs and r["n"] >= min_n]
+    rows.sort(key=net, reverse=True)
+    return [{"key": r["key"], "tf": r["tf"], "n": r["n"], "win": r.get("win"), "avgR": r["avgR"], "net": net(r),
+             "vs_random": round(r["avgR"] - (r.get("base_avgR") or 0.0), 3), "school": r.get("school")} for r in rows[:top]]
+
 
 def load(path=LAB_FILE) -> dict:
     try:

@@ -5,14 +5,61 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    # Playbook / Alerts / AI pages (2026-10-22)
+    "By trading style": "حسب نوع التداول", "Schools": "المدارس", "Rules & timing": "القواعد والتوقيت", "Full document": "الوثيقة كاملة",
+    "Setup": "الإعداد", "Entry": "الدخول", "net": "صافي", "Holding time": "مدة الصفقة", "Principles": "المبادئ", "Goal": "الهدف", "no lab data": "مفيش داتا lab",
+    "minutes, closed in the same session": "دقايق، بيتقفل في نفس الجلسة", "hours, closed before the day ends": "ساعات، بيتقفل قبل آخر اليوم",
+    "days to weeks": "أيام لأسابيع", "weeks to months": "أسابيع لشهور",
+    "paused until evidence": "موقوف لحد الدليل", "candidate for testing": "مرشح للاختبار", "first backtest": "أول باك تيست", "needs more symbols": "محتاج رموز أكتر",
+    "session liquidity (Judas, sweep, CRT on the 1H / 4H candle), only inside the kill zones, stop behind the sweep, target >= 2R because of costs":
+        "سيولة الجلسة (Judas، Sweep، CRT على شمعة 1H / 4H)، في الـ Kill Zones بس، الوقف ورا الـ sweep، الهدف ≥ 2R عشان التكلفة",
+    "session AMD, CISD after a sweep, RSI divergence for timing, no entry +-1 h around a strong news event":
+        "AMD الجلسة، CISD بعد sweep، دايفرجنس RSI للتوقيت، مفيش دخول ±1 ساعة حوالين خبر قوي",
+    "daily levels and liquidity lines, break of a daily level, MACD divergence on the daily, stop 1.5 ATR, size by volatility":
+        "مستويات اليومي وخطوط السيولة، اختراق مستوى يومي، دايفرجنس MACD على اليومي، وقف 1.5 ATR، الحجم بالتقلب",
+    "time-series momentum (the strongest published evidence), wide stop, small size by volatility, spread over markets":
+        "ترند الزمن (أقوى دليل منشور)، وقف واسع، حجم صغير بالتقلب، تنويع على الأسواق",
+    "100 forward trades on 5m inside the kill zones with net >= +0.05R before any scalp alert": "100 صفقة forward على 5m في الـ Kill Zones بصافي ≥ +0.05R قبل أي تنبيه سكالب",
+    "grade A+++ (5 context layers) passes t > 3 with both halves positive after costs within 4 weeks": "درجة A+++ (5 طبقات سياق) تعدّي t > 3 والنصين موجبين بعد التكلفة خلال 4 أسابيع",
+    "liqline 1d (the only daily detector with n >= 100) gets the first frozen out-of-sample backtest; verdict within a week": "liqline 1d (الكاشف اليومي الوحيد بـ n ≥ 100) ياخد أول باك تيست بنافذة مثبتة؛ الحكم خلال أسبوع",
+    "add symbols until n >= 100 and compare with the random baseline before any verdict": "نزود الرموز لحد n ≥ 100 ونقارن بالعشوائي قبل أي حكم",
+    "Timeframes step by about 4-6x (trend from the higher one, setup from the middle, entry from the lower). Numbers: weekly lab, net = avg R - 0.1R costs. Educational, not investment advice.":
+        "الفريمات بنسبة 4–6 مرات (الاتجاه من الأكبر، الإعداد من النص، الدخول من الأصغر). الأرقام من الـ lab الأسبوعي، والصافي = متوسط R − 0.1R. تعليمي، مش توصية.",
+    "Rules every strategy must pass": "القواعد اللي لازم أي استراتيجية تعدّيها", "both halves positive": "النصين موجبين",
+    "Timing from the lab (UTC session and weekday, every detector pooled)": "التوقيت من الـ lab (الجلسة بتوقيت UTC واليوم، كل الكواشف مع بعض)",
+    "Sources": "المصادر", "Radar alerts (task 17)": "تنبيهات الرادار (بند 17)", "Telegram workflow": "workflow تليجرام", "Dashboard banners": "تنبيهات الداشبورد",
+    "on": "شغال", "off": "مقفول", "1m alerts": "تنبيهات 1m", "Alert sources": "مصادر التنبيهات", "Scanner alerts (Workspace)": "تنبيهات السكانر (الـ Workspace)",
+    "strong setups ranked by evidence score": "الإعدادات القوية مرتبة بدرجة الدليل", "on: banners + sound": "شغال: تنبيه + صوت",
+    "Telegram (sidebar)": "تليجرام (الشريط الجانبي)", "top alerts while the dashboard is open": "أقوى التنبيهات والداشبورد مفتوح",
+    "needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID": "محتاج TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID", "Telegram (GitHub Actions)": "تليجرام (GitHub Actions)",
+    "runs without the dashboard open": "بيشتغل والداشبورد مقفول", "every 30 min": "كل 30 دقيقة", "missing": "مش موجود",
+    "switched off: -147R of -150R in the journal": "اتقفلت: −147R من −150R في الـ journal", "Radar confirmed setups": "إعدادات الرادار المؤكدة",
+    "every chosen condition holds, with entry / stop": "كل الشروط متحققة، بالدخول والوقف", "Order-flow sync alerts": "تنبيهات تزامن الأوردر فلو",
+    "book + tape agree with the setup": "الدفتر والشريط متفقين مع الإعداد", "waiting for the order-flow sync fix": "مستني إصلاح التزامن",
+    "News alarm": "إنذار الأخبار", "strong news event: blinking light, short Arabic summary, source": "خبر قوي: لمبة وامضة، ملخص عربي، المصدر",
+    "chat item 24.1, open": "بند الشات 24.1، مفتوح", "Paper-trading bot": "بوت تداول ورقي", "follows only rules that passed the lab, own track record": "بيتبع القواعد اللي عدّت الـ lab بس، وله سجله",
+    "planned, never real orders": "مخطط، ومفيش أوامر حقيقية أبداً",
+    "Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it.":
+        "تنبيهات تليجرام بتطلع بطريقتين: من الشريط الجانبي والداشبورد مفتوح، ومن workflow على GitHub Actions كل 30 دقيقة من غيره.",
+    "Setting": "الإعداد", "Where": "المكان", "Bot token and chat id": "توكن البوت والـ chat id", "Schedule": "الجدول",
+    "Timeframes / top / minimum quality": "الفريمات / العدد / أقل جودة", "Already-sent memory": "ذاكرة اللي اتبعت", "no repeats": "مفيش تكرار",
+    "Use the sidebar > Telegram alerts > Send test message to check the link. The keys never go into the code or the chat.": "استخدم الشريط الجانبي ← تنبيهات تليجرام ← رسالة تجربة. المفاتيح مابتتكتبش في الكود ولا الشات.",
+    "Field": "الحقل", "Source": "المصدر", "Symbol, timeframe, strategy": "الرمز، الفريم، الاستراتيجية", "Entry / stop / target": "الدخول / الوقف / الهدف",
+    "existing scanner rules": "قواعد السكانر الموجودة", "Evidence": "الدليل", "Invalidation": "الإبطال", "stop level": "مستوى الوقف", "confirmed only": "المؤكد بس",
+    "Educational, not investment advice. No automatic orders.": "تعليمي، مش توصية استثمارية. مفيش أوامر تلقائية.",
+    "Mr X": "Mr X", "Backtest agent": "وكيل الباك تيست", "Agent desk": "مكتب الوكلاء", "Needs": "المطلوب", "owner decision": "قرار المالك",
+    "A model key (OpenAI or the free Gemini key)": "مفتاح موديل (OpenAI أو Gemini المجاني)",
+    "A GitHub token limited to this repository (write the meeting room, open an @claude request)": "توكن GitHub محدود على الريبو ده (يكتب في المحضر ويفتح طلب @claude)",
+    "A daily spending cap": "سقف صرف يومي",
+    "Until these are set, write tasks in the meeting room; the site manager distributes them.": "لحد ما دول يتظبطوا، اكتب المهام في المحضر، ومدير الموقع يوزعها.",
     # Radar screener + backtest agent (2026-10-22)
     "Screener": "السكرينر", "Trend": "الاتجاه", "up": "صاعد", "down": "هابط", "mixed": "مختلط", "Volume ≥ × average": "الفوليوم ≥ × المتوسط",
     "Signals ≥": "الإشارات ≥", "Trend up": "اتجاه صاعد", "Trend down": "اتجاه هابط", "Oversold (RSI ≤ 30)": "تشبع بيع (RSI ≤ 30)",
     "Overbought (RSI ≥ 70)": "تشبع شراء (RSI ≥ 70)", "Top movers over 20 bars": "الأكثر حركة على آخر 20 شمعة",
     "Educational, not investment advice. Same candles as the Charts tab; no automatic orders.": "تعليمي، مش توصية. نفس شموع تبويب الشارتات؛ مفيش أوامر تلقائية.",
     "Explain your idea to the backtest agent": "اشرح فكرتك لوكيل الباك تيست", "Or build the rules by hand": "أو ابني القواعد بإيدك",
-    "The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand below.":
-        "الوكيل محتاج مفتاح Gemini مجاني (GEMINI_API_KEY في Streamlit secrets). لحد ما يتحط، ابني القواعد بإيدك تحت.",
+    "The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand in Technical Office > Backtest.":
+        "الوكيل محتاج مفتاح Gemini مجاني (GEMINI_API_KEY في Streamlit secrets). لحد ما يتحط، ابني القواعد بإيدك في المكتب الفني ← الباك تيست.",
     "Your idea": "فكرتك", "e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart": "مثال: اشتري لما RSI 14 يبقى تحت 30 والإغلاق فوق EMA 200، على اليومي",
     "Ask the agent": "اسأل الوكيل", "New conversation": "محادثة جديدة", "The agent asks": "الوكيل بيسأل",
     "Assumptions / not testable here": "افتراضات / حاجات ماتتختبرش هنا", "Test the agent's rules": "اختبر قواعد الوكيل",

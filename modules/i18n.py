@@ -45,6 +45,23 @@ AR = {
     "n under 100 on the best timeframe": "n أقل من 100 على أحسن فريم", "needs t > 3 and both halves positive": "محتاج t > 3 والنصين موجبين",
     "Trading styles": "أنواع التداول", "from the timeframes it was tested on": "من الفريمات اللي اتختبر عليها",
     "All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice.": "كل الأرقام من ملف المعمل الأسبوعي؛ الصافي = متوسط R − 0.1R. تعليمي، مش توصية استثمارية.",
+    # Technical Office: Strategy map (2026-10-22)
+    "Strategy map": "خريطة الاستراتيجيات", "Clusters: what repeats what": "العناقيد: مين بيكرر مين", "Cluster": "العنقود", "Measures": "بيقيس",
+    "Members": "الأعضاء", "Strongest member (lab, n >= 100)": "أقوى عضو (المعمل، n ≥ 100)", "Redundancy rule": "قاعدة التكرار",
+    "Detectors that fire together (lab)": "كواشف بتظهر مع بعض (المعمل)", "Bars together": "شموع مشتركة", "Same direction": "نفس الاتجاه",
+    "High same-direction share + many shared bars = the pair adds little to each other. About 50% = the pair is noise together.":
+        "نسبة اتفاق عالية + شموع مشتركة كتير = الاتنين مش بيضيفوا لبعض. حوالي 50% = مع بعض ضوضاء.",
+    "Does stacking more families help? (lab)": "هل زيادة عدد المدارس المتفقة بتفيد؟ (المعمل)", "Agreeing families": "مدارس متفقة",
+    "Rows without opposing signals. More agreeing families gave no clear improvement (4+ was the worst row), and every row with n >= 100 is below zero after costs.":
+        "الصفوف من غير إشارات معاكسة. زيادة المدارس المتفقة ماحسّنتش النتيجة بوضوح (4+ كانت أسوأ صف)، وكل صف n ≥ 100 تحت الصفر بعد التكلفة.",
+    "Strategies as parts by role": "الاستراتيجيات كأجزاء حسب الوظيفة", "Strategy": "الاستراتيجية", "Role": "الوظيفة", "Part": "الجزء",
+    "What it does here": "بيعمل إيه هنا", "Lab (best timeframe)": "المعمل (أحسن فريم)", "Try it on real candles": "جرّبها على شموع حقيقية",
+    "Exploratory run: every variant you try counts as another trial. A real verdict needs a frozen out-of-sample window recorded in the meeting room before the run. Exit here = the engine's standard ATR stop and 1.5R target.":
+        "تجربة استكشافية: كل نسخة بتجربها بتتحسب محاولة. الحكم الحقيقي محتاج نافذة out-of-sample مثبتة ومسجلة في المحضر قبل التشغيل. الخروج هنا = وقف ATR وهدف 1.5R بتوع المحرك.",
+    "below the cost": "تحت التكلفة", "families": "مدارس",
+    "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
+    "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
+        "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

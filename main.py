@@ -1442,11 +1442,96 @@ def _office_detector():
     st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
 
 
+def _office_strategy_map():
+    """Technical Office > Strategy map (owner 2026-10-22): an indicator is one measurement, a strategy is parts with different jobs.
+    Clusters (what repeats what), the strongest member of each from the lab, whether stacking helps, the named strategies as
+    role slots with redundancy warnings, and the gaps. Every number is the weekly lab's; the explanations are guidance."""
+    from modules import office_kpi as _OK, office_ui as U, strategy_map as _SM
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    lab = _OK.load()
+    st.markdown(
+        "<div class='xo-card' dir='rtl' style='line-height:24px'><b>القاعدة:</b> المؤشر قياس واحد (RSI مثلاً)، والكاشف حدث بيظهر على شمعة (زي FVG)، "
+        "والاستراتيجية مجموعة أجزاء كل جزء ليه وظيفة: <b>سياق ← إعداد ← زناد ← فلتر ← خروج ← حجم</b>. "
+        "<b>جزء واحد لكل وظيفة، وجزء واحد لكل عنقود</b>: لو اتنين بيقيسوا نفس الشيء فالتاني تكرار مش تأكيد. "
+        "مستوى الدليل مكتوب لكل استراتيجية بصراحة، والأرقام جاية من المعمل الأسبوعي بس.</div>", unsafe_allow_html=True)
+    # 1. clusters
+    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Clusters: what repeats what'))}</div>", unsafe_allow_html=True)
+    rows = []
+    for cl, (name, meas, rule) in _SM.CLUSTERS.items():
+        mem = _SM.members(lab, cl); best = _SM.cluster_best(lab, cl)
+        names = " · ".join(m["name"] for m in mem)
+        if best:
+            bb = best["best"]
+            rep = f"{U.esc(best['name'])} {U.esc(bb['tf'])} · {bb['net']:+.3f}R · n {bb['n']}" + ("" if bb["net"] > 0 else f" <span style='color:#f87171'>({html.escape(L('below the cost'))})</span>")
+        else:
+            rep = "<span style='color:#a3adba'>مفيش عضو بـ n ≥ 100</span>"
+        rows.append([f"<b>{U.esc(name)}</b>", U.esc(meas), U.esc(names), rep, U.esc(rule)])
+    st.markdown(U.table([L("Cluster"), L("Measures"), L("Members"), L("Strongest member (lab, n >= 100)"), L("Redundancy rule")], rows), unsafe_allow_html=True)
+    # 2. agreement between detectors + does stacking help
+    a, b = st.columns(2)
+    with a:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('Detectors that fire together (lab)'))}</div>", unsafe_allow_html=True)
+        pr = [[U.esc(r["a"]), U.esc(r["b"]), r["together"], f"{100 - r['rate']:.0f}%"]
+              for r in sorted(lab.get("conflicts", []), key=lambda r: r["rate"])[:12]]
+        st.markdown(U.table([L("Detector"), L("Detector"), L("Bars together"), L("Same direction")], pr), unsafe_allow_html=True)
+        st.caption(L("High same-direction share + many shared bars = the pair adds little to each other. About 50% = the pair is noise together."))
+    with b:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('Does stacking more families help? (lab)'))}</div>", unsafe_allow_html=True)
+        sk = _SM.stacking(lab)
+        st.markdown(U.table([L("Agreeing families"), "n", L("net")], [[U.esc(k.replace("families", L("families"))), n, U.badge(f"{v:+.3f}R" + ("" if n >= _OK.GATE_N else " · n<100"), "ok" if v > 0 and n >= _OK.GATE_N else "bad" if v <= 0 else "warn")] for k, n, v in sk]), unsafe_allow_html=True)
+        st.caption(L("Rows without opposing signals. More agreeing families gave no clear improvement (4+ was the worst row), and every row with n >= 100 is below zero after costs."))
+    # 3. strategies
+    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Strategies as parts by role'))}</div>", unsafe_allow_html=True)
+    names = {b["id"]: b["name"] for b in _SM.BLUEPRINTS}
+    pick = st.selectbox(L("Strategy"), list(names), format_func=names.get, key="sm_pick")
+    bp = _SM.BP[pick]
+    ev_t, ev_tone = _SM.EVIDENCE[bp["evidence"]]
+    st.markdown(f"<div class='xo-row'><div class='xo-card' dir='rtl' style='flex:1 1 100%'><b style='font-size:16px'>{U.esc(bp['name'])}</b> "
+                f"{U.badge(L(bp['style']), 'info')} {U.badge(ev_t, ev_tone)}<div class='xo-sub' style='margin-top:6px'>{U.esc(bp['evidence_note'])}</div></div></div>", unsafe_allow_html=True)
+    prow = []
+    for role, cid, note in bp["parts"]:
+        c = _SM.component(cid); card = _OK.detector_card(lab, c["src"][1]) if c["src"][0] == "lab" and not c["src"][1].startswith("chain:") and lab else {}
+        bb = card.get("best")
+        prow.append([U.esc(_SM.ROLES[role].split(" (")[0]), f"<b>{U.esc(c['name'])}</b>", U.esc(_SM.CLUSTERS[c["cluster"]][0]), U.esc(note),
+                     f"{U.esc(bb['tf'])} {bb['net']:+.3f}R · n {bb['n']}" if bb else "<span style='color:#a3adba'>-</span>"])
+    st.markdown(U.table([L("Role"), L("Part"), L("Cluster"), L("What it does here"), L("Lab (best timeframe)")], prow), unsafe_allow_html=True)
+    for w in _SM.check(bp["parts"]) + ([bp["warn"]] if bp.get("warn") else []):
+        st.warning(w)
+    if bp.get("lab"):
+        lr = []
+        for k in bp["lab"]:
+            c = _OK.detector_card(lab, k)
+            if c.get("best"):
+                lr.append([U.esc(k), U.esc(c["best"]["tf"]), c["best"]["n"], f"{c['best']['net']:+.3f}", f"{c['best']['vs_random']:+.3f}",
+                           U.badge(L("OFF") if c["off"] else L("passed") if c["best"]["gate"] else L("not evidence"), "bad" if c["off"] else "ok" if c["best"]["gate"] else "warn")])
+        if lr:
+            st.markdown(U.table([L("Detector"), L("Timeframe"), "n", L("net"), L("vs random"), L("Gate")], lr), unsafe_allow_html=True)
+    if bp.get("rules"):
+        c1 = st.columns([1.2, 0.8, 3])
+        sym = c1[0].text_input(L("Symbol"), "BTC-USDT", key=f"sm_sym_{pick}")
+        tfs = ["1h", "4h", "1d"]
+        tf = c1[1].selectbox(L("Timeframe"), tfs, index=tfs.index(bp.get("tf", "1d")), key=f"sm_tf_{pick}")
+        with st.expander("JSON", expanded=False):
+            from modules import strategy_rules as _SR
+            st.code(_SR.to_json(bp["rules"]), language="json")
+        if st.button(L("Try it on real candles"), type="primary", key=f"sm_run_{pick}"):
+            _bt_run_show(bp["rules"], sym, tf)
+        st.caption(L("Exploratory run: every variant you try counts as another trial. A real verdict needs a frozen out-of-sample window recorded in the meeting room before the run. Exit here = the engine's standard ATR stop and 1.5R target."))
+    else:
+        st.info(bp.get("needs", ""))
+    # 4. gaps
+    gp = _SM.gaps(lab)
+    if gp:
+        st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Gaps: where the dashboard is thin'))}</div>", unsafe_allow_html=True)
+        st.markdown(U.table([L("Cluster"), L("Gap")], [[U.esc(n), U.esc(t)] for n, t in gp]), unsafe_allow_html=True)
+    st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
+
+
 def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
     tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
-            "Detector analysis": _office_detector, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
         tabs.get(pick or "Control room", _office_overview)()

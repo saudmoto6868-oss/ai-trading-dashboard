@@ -14,7 +14,11 @@ LOGIC = ("AND", "OR")
 SIDES = ("long", "short")
 # indicator name -> parameter names allowed (all take one integer period except price fields)
 INDICATORS = {"close": (), "open": (), "high": (), "low": (), "volume": (), "sma": ("period",), "ema": ("period",),
-              "rsi": ("period",), "atr": ("period",), "roc": ("period",)}
+              "rsi": ("period",), "atr": ("period",), "roc": ("period",),
+              # added 2026-10-22 (strategy map): hh / ll = highest high / lowest low of the PRIOR `period` bars (Donchian channel, the current
+              # bar is excluded so close > hh is a real breakout); macd_hist = MACD(12, 26, 9) histogram; adx = Wilder ADX (trend strength,
+              # not direction); bbw = Bollinger band width in % of price (2 standard deviations over `period` closes)
+              "hh": ("period",), "ll": ("period",), "macd_hist": (), "adx": ("period",), "bbw": ("period",)}
 _NAME = re.compile(r"^[\w\- ]{1,60}$", re.U)
 
 
@@ -32,6 +36,24 @@ def _series(df: pd.DataFrame, ind: str, period: int | None) -> pd.Series:
         d = c.diff(); up = d.clip(lower=0).ewm(alpha=1 / period, adjust=False).mean()
         dn = (-d.clip(upper=0)).ewm(alpha=1 / period, adjust=False).mean()
         return 100 - 100 / (1 + up / dn.replace(0, np.nan))
+    if ind == "hh":
+        return df["high"].astype(float).rolling(period).max().shift(1)
+    if ind == "ll":
+        return df["low"].astype(float).rolling(period).min().shift(1)
+    if ind == "macd_hist":
+        m = c.ewm(span=12, adjust=False).mean() - c.ewm(span=26, adjust=False).mean()
+        return m - m.ewm(span=9, adjust=False).mean()
+    if ind == "bbw":
+        return 4 * c.rolling(period).std(ddof=0) / c.rolling(period).mean() * 100
+    if ind == "adx":
+        h, l = df["high"].astype(float), df["low"].astype(float)
+        up, dn = h.diff(), -l.diff()
+        pdm = up.where((up > dn) & (up > 0), 0.0); mdm = dn.where((dn > up) & (dn > 0), 0.0)
+        atr = _series(df, "atr", period)
+        pdi = 100 * pdm.ewm(alpha=1 / period, adjust=False).mean() / atr
+        mdi = 100 * mdm.ewm(alpha=1 / period, adjust=False).mean() / atr
+        dx = 100 * (pdi - mdi).abs() / (pdi + mdi).replace(0, np.nan)
+        return dx.ewm(alpha=1 / period, adjust=False).mean()
     if ind == "atr":
         pc = df["close"].shift(1)
         tr = pd.concat([df["high"] - df["low"], (df["high"] - pc).abs(), (df["low"] - pc).abs()], axis=1).max(axis=1)

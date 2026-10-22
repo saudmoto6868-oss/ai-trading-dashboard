@@ -1775,21 +1775,6 @@ Object.assign(CandleChart.prototype, {
         c.fillStyle = scheme === "side" ? hexA(pr <= o.m ? OF.color : OF.color2, .1 + .85*u) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*u*u)+","+Math.round(30 + 210*u*u*u)+","+(.1 + .85*u).toFixed(2)+")" : scheme === "custom" ? hmMix(u, hexRgb(this.st.of.hmLo || "#010308"), hexRgb(this.st.of.hmHi || "#fff5fa")) : hmRamp(u); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     return bs[0][0];
   },
-  paintDom(c, py, i0, i1, PB){   // resting-liquidity heat map behind the candles (bid colour = buy, ask colour = sell)
-    const OF = this.st.of, bw = this.bw, d = this.data, lo = this._lo, hi = this._hi, raw = (hi-lo)/Math.max(1, PB/9), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
-    let mx = 0; const cols = [];
-    for (let i = i0; i <= i1; i++){ const m = this.dom.get(d[i].t); if (!m) continue; const g = new Map(); m.forEach((v, p) => { const k = Math.round(p/step), o = g.get(k); if (!o || v.q > o.q) g.set(k, v); }); g.forEach(v => { if (v.q > mx) mx = v.q; }); cols.push([i, g]); }
-    cols.forEach(([i, g]) => { const x = this.x(i); g.forEach((v, k) => { const y = py(k*step), h = Math.max(2, Math.abs(py(k*step) - py((k+1)*step)) - 1), a = Math.min(.85, Math.pow(v.q/(mx || 1), .55)*.8*OF.dom);
-      c.fillStyle = hexA(v.side === "b" ? OF.color : OF.color2, a); c.fillRect(x-bw/2, y-h/2, bw, h); }); });
-  },
-  paintBub(c, py, i0, i1){   // large prints as bubbles (size = volume)
-    const OF = this.st.of, d = this.data, minTier = OF.min >= 2 ? 2 : OF.min >= 1 ? 1 : 0, rank = {normal:0, smart:1, whale:2}; let mx = 0;
-    this.bub.forEach(b => { if (rank[b.tier] >= minTier && b.q > mx) mx = b.q; });
-    this.bub.forEach(b => { if (rank[b.tier] < minTier) return; let i = d.length-1; while (i > 0 && d[i].t > b.t) i--; if (i < i0 || i > i1) return;
-      const x = this.x(i), y = py(b.p), r = (3 + Math.sqrt(b.q/(mx || 1))*13)*OF.bsz, col = b.side === "Buy" ? OF.color : OF.color2;
-      c.fillStyle = hexA(col, Math.min(1, .38*(OF.bop || 1))); c.strokeStyle = col; c.lineWidth = b.tier === "whale" ? 2 : 1; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill(); c.stroke(); });
-    c.lineWidth = 1;
-  },
   paintSigs(c, py, PR, PB, ov){   // BUY/SELL arrows: live scanner signal on the last candle + past journal signals for this symbol
     const d = this.data, n = d.length, sm = this.secMs(), list = this.sigs.slice(); c.font = "bold 10px sans-serif"; c.textAlign = "center";
     if (ov && ov.dir){ list.push({t:d[n-1].t, dir:ov.dir, pct:Math.round(100*ov.score/Math.max(1,ov.max)), tfk:ov.tf || this.tf, live:true}); }

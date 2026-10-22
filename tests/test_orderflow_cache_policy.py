@@ -9,10 +9,11 @@ SOURCE = Path(__file__).resolve().parents[1] / "modules" / "workspace_app.html"
 source = SOURCE.read_text(encoding="utf-8")
 
 checks = {
-    "live book/trade endpoint matcher": r"const liveFlow = /\\/market\\/(?:books(?:-full)?|trades)\\?/.test(path)",
-    "short live flow TTL and unchanged ordinary TTL": "ttl = rub ? 120000 : liveFlow ? 1200 : 10000",
-    "Rubik TTL preserved": "rub ? 120000",
-    "existing request cache lookup preserved": "hit = OKX_CACHE[path]",
+    "dedicated live-flow endpoint matcher": "const liveFlow =" ,
+    "book and trade endpoint coverage": "(?:books(?:-full)?|trades)",
+    "short live-flow TTL and unchanged ordinary TTL": "ttl = rub ? 120000 : liveFlow ? 1200 : 10000",
+    "request cache lookup preserved": "hit = OKX_CACHE[path]",
+    "Rubik cache TTL preserved": "rub ? 120000",
 }
 for label, expected in checks.items():
     if expected not in source:

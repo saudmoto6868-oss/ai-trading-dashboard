@@ -119,7 +119,9 @@ def summarize(rows: list, today=None) -> dict:
     by = {}
     for o in book:
         by.setdefault(o["exp"], []).append(o)
-    px = (sum(o["px"] for o in book if o["px"]) / max(1, sum(1 for o in book if o["px"]))) if book else 0.0
+    # spot proxy = the NEAREST expiry's underlying price (each expiry's `underlying_price` is its own forward, so an average over all
+    # expiries would sit above spot by the carry); the index price itself is not in this payload
+    px = next((o["px"] for d in sorted(by) for o in by[d] if o["px"]), 0.0)
     ex = []
     for d, opts in sorted(by.items()):
         s = next((o["px"] for o in opts if o["px"]), px) or px

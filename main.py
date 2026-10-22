@@ -1055,7 +1055,11 @@ def _office_control_room():
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _source_status():
-    """Is each data source answering right now? (tiny public calls, 4 s timeout, cached 60 s). Never sends a key."""
+    return _source_ping()
+
+
+def _source_ping():
+    """Is each data source answering right now? (tiny public calls, 4 s timeout; _source_status caches it 60 s). Never sends a key."""
     import requests
     out = {}
     for name, fn in (("OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=4)),
@@ -1121,7 +1125,8 @@ def _office_overview():
                          (L("Blocked tasks"), cnt.get("blocked", 0), "bad" if cnt.get("blocked") else "ok")]), unsafe_allow_html=True)
     al = []
     if not s.get("passed"):
-        al.append((L("Nothing has passed the evidence gate yet"), L("info"), "info", L("every signal is a suggestion, not evidence")))
+        al.append((L("Nothing has passed the evidence gate yet"), L("info"), "info",
+                   L("The lab measures t for") + f" {s.get('t_measured', 0)} / {s.get('candidates', 0)} " + L("rows only; the rest cannot pass the gate yet")))
     pb = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
     if pb and s.get("built") and s["built"] not in pb[0]:
         al.append((L("The Playbook summary is older than the last lab run"), L("degraded"), "warn", f"{pb[0].split(' ')[2]} / {s['built']}"))
@@ -1546,9 +1551,11 @@ def _office_flow_lab():
     if up is not None:
         for ln in up.getvalue().decode("utf-8", "ignore").splitlines():
             try:
-                rows.append(_json.loads(ln))
+                r_ = _json.loads(ln)
             except ValueError:
-                pass
+                continue
+            if isinstance(r_, dict) and all(k in r_ for k in ("sym", "t", "mid")):   # a row without these cannot be labelled
+                rows.append(r_)
         rows.sort(key=lambda r: (r["sym"], r["t"]))
         src = up.name
     else:
@@ -2389,10 +2396,7 @@ def render_info_strip():
     date of the last lab run. Off switch: Theme & language menu > 'Info strip'. Hidden in Workspace focus mode."""
     if not st.session_state.get("info_strip", True) or st.session_state.get("focus_ws"):
         return
-    try:
-        src = _source_status()
-    except Exception:
-        src = {}
+    src = _bg("srcping", _source_ping, {}, ttl=60, wait=1.0)   # never holds the page up when a source is down (4 s timeouts)
     from modules import office_kpi as _OK
     built = (_OK.summary(_OK.load()) or {}).get("built") or "-"
     dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"

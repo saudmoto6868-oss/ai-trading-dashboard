@@ -4,27 +4,18 @@ Run with: python tests/test_orderflow_cache_policy.py
 These checks validate source policy only; they do not simulate network timing or prove live-feed freshness.
 """
 from pathlib import Path
-import re
 
 SOURCE = Path(__file__).resolve().parents[1] / "modules" / "workspace_app.html"
-text = SOURCE.read_text(encoding="utf-8")
+source = SOURCE.read_text(encoding="utf-8")
 
-def require(pattern: str, message: str) -> None:
-    if not re.search(pattern, text):
-        raise AssertionError(message)
+checks = {
+    "live book/trade endpoint matcher": r"const liveFlow = /\\/market\\/(?:books(?:-full)?|trades)\\?/.test(path)",
+    "short live flow TTL and unchanged ordinary TTL": "ttl = rub ? 120000 : liveFlow ? 1200 : 10000",
+    "Rubik TTL preserved": "rub ? 120000",
+    "existing request cache lookup preserved": "hit = OKX_CACHE[path]",
+}
+for label, expected in checks.items():
+    if expected not in source:
+        raise AssertionError(f"Missing expected source fragment: {label}")
 
-# Live book/trade REST paths must have a dedicated short TTL.
-require(
-    r"liveFlow\s*=\s*/\\/market\\/\(\?:books\(\?:-full\)\?\|trades\)\\\?/",
-    "Live book/trade endpoint matcher is missing or changed.",
-)
-require(
-    r"liveFlow\s*\?\s*1200\s*:\s*10000",
-    "Live flow TTL should be 1200 ms while ordinary REST TTL stays 10000 ms.",
-)
-require(
-    r"rub\s*\?\s*120000",
-    "Rubik statistics cache TTL should remain 120000 ms.",
-)
-
-print("PASS: live Order Flow cache policy is present (static source check only).")
+print("PASS: Order Flow cache policy source checks (static only; no network simulation).")

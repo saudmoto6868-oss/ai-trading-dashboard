@@ -1052,9 +1052,174 @@ def _office_control_room():
     st.divider()
 
 
-def render_lab_page():
-    """Strategy lab: weekly walk-forward on real candles (GitHub Actions), random baseline; shows what passed the evidence bar."""
-    st.subheader(L("Strategy lab - what the numbers say"))
+@st.cache_data(ttl=60, show_spinner=False)
+def _source_status():
+    """Is each data source answering right now? (tiny public calls, 4 s timeout, cached 60 s). Never sends a key."""
+    import requests
+    out = {}
+    for name, fn in (("OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=4)),
+                     ("Hyperliquid", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=4))):
+        try:
+            out[name] = bool(fn().ok)
+        except Exception:
+            out[name] = False
+    return out
+
+
+def _has_secret(name):
+    try:
+        return bool(os.environ.get(name) or st.secrets.get(name))
+    except Exception:
+        return bool(os.environ.get(name))
+
+
+def _office_overview():
+    """Control room: status bar, evidence gauge, alerts, indicators, system map, tools (owner's reference images)."""
+    from modules import office_kpi as _OK, office_ui as U
+    s = _OK.summary(_OK.load()) or {}
+    board = U.load_tasks().get("tasks", []); cnt = U.task_counts(board); src = _source_status()
+    fred = _has_secret("FRED_API_KEY"); tg = _has_secret("TELEGRAM_BOT_TOKEN")
+    b = s.get("best") or {}
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    st.markdown(U.chips([(L("OKX"), L("live") if src.get("OKX") else L("down"), "ok" if src.get("OKX") else "bad"),
+                         (L("Hyperliquid"), L("live") if src.get("Hyperliquid") else L("down"), "ok" if src.get("Hyperliquid") else "bad"),
+                         ("FRED", L("key set") if fred else L("no key"), "ok" if fred else "off"),
+                         (L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
+                         (L("Last lab run"), s.get("built") or "-", "info"),
+                         (L("Blocked tasks"), cnt.get("blocked", 0), "bad" if cnt.get("blocked") else "ok")]), unsafe_allow_html=True)
+    al = []
+    if not s.get("passed"):
+        al.append((L("Nothing has passed the evidence gate yet"), L("info"), "info", L("every signal is a suggestion, not evidence")))
+    pb = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
+    if pb and s.get("built") and s["built"] not in pb[0]:
+        al.append((L("The Playbook summary is older than the last lab run"), L("degraded"), "warn", f"{pb[0].split(' ')[2]} / {s['built']}"))
+    for t in board:
+        if t.get("status") == "blocked":
+            al.append((t["title"], L("blocked"), "bad", t.get("next", "")))
+    if not src.get("Hyperliquid", True):
+        al.append((L("Hyperliquid is not answering"), L("down"), "bad", L("gold / oil / index charts stop updating")))
+    st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
+                L("n >= 100 · t > 3 · net > 0 · both halves positive, after 0.1R"), L("groups passed")) +
+                U.alerts(L("Alerts"), al[:5]) +
+                U.indicators(L("Indicators"), [
+                    (L("Detectors in the lab"), s.get("detectors", "-"), f"{s.get('symbols', 0)} " + L("symbols"), None),
+                    (L("OFF (no longer decide a trade)"), len(s.get("off", [])), ", ".join(s.get("off", [])), None),
+                    (L("Best net avg R (n >= 100)"), f"{b['net']:+.3f}" if b else "-", f"{b.get('key', '')} {b.get('tf', '')} · n {b.get('n', '')}", "ok" if b and b["net"] > 0 else None),
+                    (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None),
+                    (L("Tasks in review"), cnt.get("review", 0), L("waiting for Gemini / owner"), "info"),
+                    (L("Open tasks"), cnt.get("open", 0) + cnt.get("waiting", 0), L("work board"), None),
+                    (L("Live vs backtest"), "[—]", L("after 30-50 live trades"), None),
+                    (L("Max drawdown"), "[—R]", L("from the backtest engine"), None)]) + "</div>", unsafe_allow_html=True)
+    hl = "ok" if src.get("Hyperliquid") else "bad"
+    st.markdown(U.system_map(L("System map"), L("From data to decision to evidence; every node shows its state"), [
+        [("OKX", L("crypto · candles, book, trades"), "ok" if src.get("OKX") else "bad"), ("Hyperliquid", L("gold · oil · indices · FX"), hl),
+         ("FRED", L("macro data"), "ok" if fred else "off"), (L("News & calendar"), L("Grok watch every 6 h"), "ok")],
+        [(L("Detectors") + f" · {s.get('detectors', '-')}", L("OFF") + f": {len(s.get('off', []))}", "ok")],
+        [(L("Scanner & Radar"), L("confirmed first, then candidates"), "ok"), (L("Order flow"), L("footprint · book · tape"), hl),
+         (L("Backtest"), L("rules + engine, verdict on out-of-sample"), "info"), (L("Strategy import"), L("text / video link -> rules"), "off")],
+        [(L("Alerts · Telegram"), L("confirmed only, never orders"), "ok" if tg else "off"), (L("Journal"), L("in the browser · CSV export"), "info"),
+         (L("Model inventory"), L("gate verdict per strategy"), "info")]]), unsafe_allow_html=True)
+    st.markdown(U.tools(L("Tools"), [
+        (L("Backtest"), L("strategy + symbol + timeframe, verdict on out-of-sample"), L("tab: Backtest"), "ok"),
+        (L("Strategy builder"), L("indicator + condition + value, AND / OR, JSON"), L("tab: Backtest"), "ok"),
+        (L("Strategy import"), L("text or link -> rules + assumptions"), L("waiting: ChatGPT template"), "warn"),
+        (L("Scanner control"), L("filters, timeframe, confirmed / candidate"), L("Radar page"), "ok"),
+        (L("Trade card"), L("entry, stop, target and the detector's evidence"), L("task 17, after the ranking"), "off"),
+        (L("Telegram"), L("alerts for confirmed setups only"), L("workflow every 30 min") + (" · " + L("key set") if tg else " · " + L("no key")), "ok" if tg else "warn"),
+        (L("Recording"), L("snapshot / record the chart and the workspace"), L("Workspace toolbar"), "ok"),
+        (L("KPIs"), L("net R, profit factor, drawdown, t"), L("Stats page"), "ok")]), unsafe_allow_html=True)
+    st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
+
+
+def _office_board():
+    from modules import office_ui as U
+    d = U.load_tasks(); tasks = d.get("tasks", [])
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    cnt = U.task_counts(tasks)
+    st.markdown(U.chips([(L(k), v, U.STATUS_TONE.get(k, "off")) for k, v in sorted(cnt.items())]), unsafe_allow_html=True)
+    areas = sorted({t.get("area", "-") for t in tasks})
+    pick = st.segmented_control(L("Area"), [L("All")] + areas, default=L("All"), key="to_board_area")
+    rows = [[U.esc(t.get("wbs", "")), U.esc(t.get("title", "")), U.esc(t.get("area", "")), U.esc(t.get("owner", "")),
+             U.badge(L(t.get("status", "open")), U.STATUS_TONE.get(t.get("status", "open"), "off")), U.esc(t.get("gate", "")), U.esc(t.get("next", ""))]
+            for t in tasks if pick in (None, L("All")) or t.get("area") == pick]
+    st.markdown(U.table([L("WBS"), L("Task"), L("Area"), L("Owner"), L("Status"), L("Gate"), L("Next step")], rows), unsafe_allow_html=True)
+    st.caption(L("Work board updated") + f" {d.get('updated', '-')} · data/office_tasks.json · " + L("every change is also written in the meeting room"))
+
+
+def _office_backtest():
+    """Build a strategy (rules) and backtest it on real candles: verdict on the frozen out-of-sample part only."""
+    from modules import strategy_rules as SR, strategy_bt as BT
+    from modules.market_cache import get_klines
+    st.caption(L("Rules are kept for this session only (owner decision 2026-10-22). Small runs here; big runs go to GitHub Actions with the owner's approval. No orders, ever."))
+    store = SR.SessionStore(st.session_state)
+    c = st.columns([1.2, 0.8, 0.8, 0.8, 1])
+    sym = c[0].text_input(L("Symbol"), "BTC-USDT", key="bt_sym")
+    tf = c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="bt_tf")   # the labels the data feeds use (see _CS_TFS)
+    side = c[2].selectbox(L("Side"), list(SR.SIDES), key="bt_side")
+    logic = c[3].selectbox(L("Logic"), list(SR.LOGIC), key="bt_logic")
+    name = c[4].text_input(L("Name"), "my rule", key="bt_name")
+    inds = list(SR.INDICATORS)
+    rules = []
+    for i in range(int(st.number_input(L("Rules"), 1, 6, 1, key="bt_nr"))):
+        r = st.columns([1, 0.6, 1, 1, 0.6])
+        ind = r[0].selectbox(L("Indicator") + f" {i + 1}", inds, index=inds.index("close") if i == 0 else inds.index("rsi"), key=f"bt_i{i}")
+        per = r[1].number_input(L("Period"), 2, 500, 14 if i == 0 else 20, key=f"bt_p{i}") if SR.INDICATORS[ind] else None
+        op = r[2].selectbox(L("Condition"), list(SR.OPS), index=SR.OPS.index("crosses_above") if i == 0 else SR.OPS.index("<"), key=f"bt_o{i}")
+        vk = r[3].selectbox(L("Compare with"), [L("number")] + inds, index=1 + inds.index("ema") if i == 0 else 0, key=f"bt_vk{i}")
+        if vk == L("number"):
+            val = float(r[4].number_input(L("Value"), value=70.0, key=f"bt_v{i}"))
+        else:
+            val = {"indicator": vk}
+            if SR.INDICATORS[vk]:
+                val["period"] = int(r[4].number_input(L("Period"), 2, 500, 50, key=f"bt_vp{i}"))
+        rule = {"indicator": ind, "op": op, "value": val}
+        if per is not None:
+            rule["period"] = int(per)
+        rules.append(rule)
+    strat = {"name": name, "side": side, "logic": logic, "rules": rules}
+    errs = SR.validate(strat)
+    with st.expander("JSON", expanded=False):
+        st.code(SR.to_json(strat) if not errs else str(strat), language="json")
+    if errs:
+        st.error(" · ".join(errs))
+        return
+    b = st.columns([1, 1, 4])
+    if b[0].button(L("Save rule"), key="bt_save"):
+        store.save(strat); st.success(L("Saved for this session"))
+    run = b[1].button(L("Run backtest"), type="primary", key="bt_run")
+    if store.names():
+        st.caption(L("Saved this session") + ": " + ", ".join(store.names()))
+    if not run:
+        return
+    try:
+        df = get_klines(sym.strip(), tf, 1000)
+        res = BT.run(df, SR.evaluate(strat, df), side=side)
+    except Exception as e:
+        st.error(f"{type(e).__name__}: {e}")
+        return
+    ev = res.get("evidence") or {}; ins = res.get("in_sample") or {}
+    m = st.columns(5)
+    m[0].metric(L("Out-of-sample trades"), res.get("n", 0))
+    m[1].metric(L("net avg R"), "-" if not res.get("n") else f"{res['net_expectancy_r']:+.3f}")
+    m[2].metric(L("Win rate"), "-" if not res.get("n") else f"{res['win_rate'] * 100:.0f}%")
+    m[3].metric(L("Verdict"), L(ev.get("badge", "not evidence")))
+    m[4].metric(L("In-sample (info)"), f"{ins.get('n', 0)} · " + ("-" if not ins.get("n") else f"{ins['net_expectancy_r']:+.3f}R"))
+    sp = res.get("split") or {}
+    st.caption(L("Split frozen before any trade") + f": in-sample {sp.get('in_sample_bars')} / out-of-sample {sp.get('out_of_sample_bars')} " + L("candles")
+               + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
+
+
+def _office_ops():
+    from modules import office_ui as U
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    wf = U.workflows()
+    rows = [[U.esc(w["name"]), U.esc(w["file"]), U.esc(w["schedule"] or "-"), "✓" if w["manual"] else "",
+             U.badge(L("writes to the repo"), "warn") if w["writes"] else ""] for w in wf]
+    st.markdown(U.table([L("Workflow"), L("File"), L("Schedule (UTC cron)"), L("Manual run"), L("Repo writes")], rows), unsafe_allow_html=True)
+    st.caption(L("Protecting main is on hold until the workflows that push to main open a pull request instead (owner rule: protect only if nothing breaks)."))
+
+
+def _office_lab():
     _office_control_room()
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
                  "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
@@ -1078,6 +1243,17 @@ def render_lab_page():
     if rest:
         pick = st.selectbox(L("More tables"), rest, key="lab_more")
         st.markdown(lab[pick])
+
+
+def render_lab_page():
+    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, backtest, operations, lab results)."""
+    tabs = {"Control room": _office_overview, "Work board": _office_board, "Backtest": _office_backtest,
+            "Operations": _office_ops, "Lab results": _office_lab}
+    pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
+    try:
+        tabs.get(pick or "Control room", _office_overview)()
+    except Exception as e:
+        st.error(f"Technical Office: {type(e).__name__}: {e}")
 
 
 def render_playbook_page():
@@ -1358,10 +1534,13 @@ if PAGE == 0:   # workspace
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
-    try:
-        render_market_map()
-        render_universe_controls()
-        render_chart_scanner()
+    try:   # one tab bar (owner 2026-10-22: switch views without scrolling); only the open view runs
+        _rv = st.segmented_control(L("Radar"), ["Charts", "Heat map"], default="Charts", format_func=L, key="radar_view", label_visibility="collapsed")
+        if _rv == "Heat map":
+            render_market_map()
+        else:
+            render_universe_controls()
+            render_chart_scanner()
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 

@@ -1204,7 +1204,7 @@ def _bt_agent(sym, tf):
     """Backtest agent (owner 2026-10-22): explain the idea in words, the agent turns it into rules, the dashboard tests them."""
     import json
     from modules import strategy_agent as A, strategy_rules as SR
-    from modules.guide_ai import gemini_key
+    from modules import ai_provider as AP
     st.markdown(f"**{L('Explain your idea to the backtest agent')}**")
     hist = st.session_state.setdefault("bt_agent_hist", [])
     for h in hist[-6:]:
@@ -1212,15 +1212,16 @@ def _bt_agent(sym, tf):
             st.write(h["q"])
         with st.chat_message("assistant"):
             st.write(h["a"])
-    key = gemini_key()
+    prov, key = AP.pick()
     if not key:
-        st.info(L("The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand in Technical Office > Backtest."))
+        st.info(L("The agent needs a ChatGPT key (OPENAI_API_KEY) or the free Gemini key (GEMINI_API_KEY) in Streamlit secrets. Until then, build the rules by hand in Technical Office > Backtest."))
         return
+    st.caption(L("Answered by") + (" ChatGPT" if prov == "openai" else " Gemini"))
     q = st.text_area(L("Your idea"), key="bt_agent_q", placeholder=L("e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart"))
     c = st.columns([1, 1, 4])
     if c[0].button(L("Ask the agent"), key="bt_agent_go") and q.strip():
         try:
-            ans = A.ask(q.strip(), hist, key)
+            ans = A.ask(q.strip(), hist, key, provider=prov)
         except Exception as e:
             st.error(f"{type(e).__name__}: {e}")
             return

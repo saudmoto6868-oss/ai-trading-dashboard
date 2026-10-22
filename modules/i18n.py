@@ -66,6 +66,9 @@ AR = {
     "Frozen holdout on older candles (1d)": "اختبار مجمّد على شموع أقدم (يومي)", "Holdout": "الاختبار المجمّد", "symbols": "رموز", "signals": "إشارة", "gross": "إجمالي",
     "Random entries": "دخول عشوائي", "gross avg R of random direction on the same bars": "متوسط R الإجمالي لاتجاه عشوائي على نفس الشموع", "vs random; the bar is 3": "مقابل العشوائي؛ الحد 3",
     "Halves": "النصين", "net, first / second half": "الصافي، النصف الأول / التاني", "rule frozen before the run": "القاعدة اتجمدت قبل التشغيل",
+    "The agent needs a ChatGPT key (OPENAI_API_KEY) or the free Gemini key (GEMINI_API_KEY) in Streamlit secrets. Until then, build the rules by hand in Technical Office > Backtest.":
+        "الوكيل محتاج مفتاح ChatGPT (OPENAI_API_KEY) أو مفتاح Gemini المجاني (GEMINI_API_KEY) في Secrets بتاعة Streamlit. لحد وقتها ابني القواعد بإيدك في المكتب الفني ← الباك تيست.",
+    "Answered by": "الإجابة من",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

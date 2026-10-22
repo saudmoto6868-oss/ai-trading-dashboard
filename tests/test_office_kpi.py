@@ -38,6 +38,17 @@ def test_summary_and_styles():
     assert K.summary({}) == {}
 
 
+def test_journal_and_top_rows():
+    j = K.journal_kpis([2, -1, -1, 3, -1, float("nan")])
+    assert j["n"] == 5 and j["win"] == 0.4 and j["avgR"] == 0.4 and j["net"] == 0.3
+    assert j["pf"] == 1.67 and j["maxdd"] == -2.0 and j["total"] == 2.0
+    assert K.journal_kpis([]) == {"n": 0} and K.journal_kpis([1, 2])["pf"] is None
+    d = {"rows": [_row("a", "1d", 150, 0.3, t=3.5), _row("b", "1h", 400, 0.05), _row("c", "1m", 50, 0.9), _row("a", "all", 900, 0.1)]}
+    top = K.top_rows(d)
+    assert [r["key"] for r in top] == ["a", "b"] and top[0]["gate"] and not top[1]["gate"]
+    assert K.lab_avg(d) == round((150 * 0.3 + 400 * 0.05 + 50 * 0.9) / 600, 3)
+
+
 def test_real_lab_file_loads():
     s = K.summary(K.load())
     if s:   # the repo ships data/strategy_lab.json
@@ -45,5 +56,5 @@ def test_real_lab_file_loads():
 
 
 if __name__ == "__main__":
-    test_net_and_gate(); test_summary_and_styles(); test_real_lab_file_loads()
+    test_net_and_gate(); test_summary_and_styles(); test_journal_and_top_rows(); test_real_lab_file_loads()
     print("ok office_kpi", K.summary(K.load()).get("best"))

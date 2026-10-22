@@ -1879,7 +1879,67 @@ def render_kpi_strip(jdf):
             st.dataframe(breakdown(jdf, key), hide_index=True)
 
 
+def _stats_lab():
+    """Stats > Lab evidence: what the weekly lab really measured, in the control-room style; nothing estimated."""
+    from modules import office_kpi as _OK, office_ui as U
+    d = _OK.load(); s = _OK.summary(d) or {}
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    if not s:
+        st.info(L("No lab file yet (data/strategy_lab.json)."))
+        return
+    b = s.get("best") or {}; la = _OK.lab_avg(d)
+    st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
+                L("n >= 100 · t > 3 · net > 0 · both halves positive, after 0.1R"), L("groups passed")) +
+                U.indicators(L("Indicators"), [
+                    (L("Detectors in the lab"), s.get("detectors", "-"), f"{s.get('symbols', 0)} " + L("symbols"), None),
+                    (L("Last lab run"), s.get("built") or "-", L("weekly"), "info"),
+                    (L("Best net avg R (n >= 100)"), f"{b['net']:+.3f}" if b else "-", f"{b.get('key', '')} {b.get('tf', '')} · n {b.get('n', '')}", "ok" if b and b["net"] > 0 else None),
+                    (L("All detectors, avg R"), f"{la:+.3f}" if la is not None else "-", L("net") + f" {la - _OK.COST_R:+.3f}" if la is not None else "", "ok" if la and la > _OK.COST_R else "bad"),
+                    (L("OFF (no longer decide a trade)"), len(s.get("off", [])), ", ".join(s.get("off", [])), None),
+                    (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None)]) + "</div>", unsafe_allow_html=True)
+    _office_charts()
+    rows = _OK.top_rows(d)
+    fmt = lambda v, p="+.3f": "-" if v is None else format(v, p)
+    st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Strongest detector x timeframe (n >= 100), by net avg R'))}</div>", unsafe_allow_html=True)
+    st.markdown(U.table([L("Detector"), L("Timeframe"), L("School"), "n", L("Win rate"), "avg R", L("net"), L("vs random"), "t", L("Gate")],
+                        [[U.esc(r["key"]), U.esc(r["tf"]), U.esc(L(r["school"] or "-")), r["n"], "-" if r["win"] is None else f"{r['win']:.0f}%",   # the lab stores win as a percent
+                          fmt(r["avgR"]), fmt(r["net"]), fmt(r["vs_random"]), fmt(r["t"], ".2f"),
+                          U.badge(L("passed") if r["gate"] else (L("no t yet") if r["t"] is None else L("not yet")), "ok" if r["gate"] else "warn")]
+                         for r in rows]), unsafe_allow_html=True)
+    st.caption(L("vs random = avg R minus the random-entry baseline on the same bars. 'no t yet' = the lab has not measured the t-stat for this row, so it cannot pass the gate."))
+
+
+def _stats_journal_kpis(jdf):
+    """Stats > My journal: net R, profit factor, drawdown in R, and live vs backtest (lab average)."""
+    from modules import office_kpi as _OK, office_ui as U
+    col = next((c for c in jdf.columns if str(c).strip().lower() in ("r", "r_multiple", "rr")), None)
+    if col is None:
+        return
+    j = _OK.journal_kpis(jdf[col].tolist())
+    if not j["n"]:
+        return
+    la = _OK.lab_avg(_OK.load())
+    diff = None if la is None else round(j["avgR"] - la, 3)
+    st.markdown(U.CSS + "<div class='xo-row'>" + U.indicators(L("Journal in R"), [
+        (L("Trades"), j["n"], L("closed"), None),
+        (L("Win rate"), f"{j['win']*100:.0f}%", "", None),
+        ("avg R", f"{j['avgR']:+.3f}", L("net") + f" {j['net']:+.3f}", "ok" if j["net"] > 0 else "bad"),
+        (L("Profit factor"), "-" if j["pf"] is None else j["pf"], L("gains / losses"), "ok" if (j["pf"] or 0) > 1 else "bad"),
+        (L("Max drawdown"), f"{j['maxdd']}R", L("from the equity peak"), "warn" if j["maxdd"] < 0 else None),
+        ("t", "-" if j["t"] is None else j["t"], L("evidence needs t > 3 and n >= 100"), "ok" if (j["t"] or 0) > 3 and j["n"] >= 100 else None),
+        (L("Live vs backtest"), "-" if diff is None else f"{diff:+.3f}R", L("your avg R minus the lab's") + ("" if la is None else f" ({la:+.3f})"),
+         None if diff is None else "ok" if diff >= 0 else "warn"),
+        (L("Total"), f"{j['total']:+.2f}R", "", None)]) + "</div>", unsafe_allow_html=True)
+    if j["n"] < 30:
+        st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
+
+
 if PAGE == 4:   # perf
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    if _stab == "Lab evidence":
+        _stats_lab()
+        st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
+        st.stop()
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
                  "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge."))
@@ -1891,6 +1951,7 @@ if PAGE == 4:   # perf
         try:
             _jdf = _pd.read_csv(_up)
             render_kpi_strip(_jdf)
+            _stats_journal_kpis(_jdf)
             _ret = returns_from_trades(_jdf, float(_risk))
             if len(_ret) < 5:
                 st.warning(L("Need at least 5 closed trades for meaningful statistics."))

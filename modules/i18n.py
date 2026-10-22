@@ -13,6 +13,21 @@ AR = {
     "yes": "نعم", "no": "لا", "High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them":
         "أحداث عالية التأثير من التقويم الاقتصادي في الساعة الجاية؛ الـ Playbook بيقول مفيش دخول ±1 ساعة حواليها",
     "Data age": "حداثة الداتا", "conditions": "شروط", "Detector evidence": "دليل الكاشف",
+    # Radar views: Performance / Signal list / Correlation (2026-10-22)
+    "Performance": "الأداء", "Signal list": "قائمة الإشارات", "Correlation": "الارتباط", "No candles yet.": "لسه مفيش شموع.",
+    "Sort by": "رتّب حسب", "Symbols": "الرموز", "Up": "صاعد", "Down": "هابط", "Median": "الوسيط", "Volatility 24 h %": "التذبذب 24 ساعة %",
+    "Change % by period (heat map)": "التغير % حسب المدة (خريطة حرارية)",
+    "1h candles from the same source as the charts. Educational, not investment advice.": "شموع 1H من نفس مصدر الشارتات. تعليمي، مش توصية استثمارية.",
+    "Need at least two symbols with candles.": "محتاج رمزين على الأقل فيهم شموع.",
+    "Move together (corr >= 0.8): treat as one position": "بيتحركوا مع بعض (ارتباط ≥ 0.8): اعتبرهم صفقة واحدة",
+    "Lowest correlation (diversify / hedge)": "أقل ارتباط (تنويع / تحوّط)",
+    "Pearson correlation of 1h returns, last 260 candles. Correlation changes over time; it is not a forecast.":
+        "ارتباط بيرسون لعوائد 1H، آخر 260 شمعة. الارتباط بيتغير مع الوقت، ومش توقع.",
+    "Strategy": "استراتيجية", "Pattern": "نمط", "No signals on this timeframe right now.": "مفيش إشارات على الفريم ده دلوقتي.",
+    "Signals live": "إشارات شغالة", "Symbols scanned": "رموز اتفحصت", "With positive lab net R": "صافي المعمل موجب",
+    "Signal": "الإشارة", "Kind": "النوع", "Count": "العدد", "Lab net R": "صافي R في المعمل", "Lab n": "n في المعمل",
+    "Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate.":
+        "صافي R في المعمل = متوسط R الأسبوعي بعد تكلفة 0.1R للكاشف ده على أقرب فريم في المعمل. الإشارة اقتراح، مش دليل، لحد ما تعدّي البوابة.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

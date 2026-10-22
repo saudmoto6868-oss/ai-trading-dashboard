@@ -5,6 +5,15 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    # Technical Office control room (2026-10-22)
+    "Passed the evidence gate": "عدّى بوابة الدليل", "Detectors in the lab": "كواشف في الـ lab", "OFF (no longer decide a trade)": "مقفولة (ماتقررش صفقة)",
+    "Best net avg R (n >= 100)": "أفضل صافي R (n ≥ 100)", "Cost per trade": "تكلفة الصفقة", "Last lab run": "آخر تشغيل lab",
+    "n >= 100, t > 3, net > 0 and both halves positive after 0.1R costs": "n ≥ 100، t > 3، صافي موجب، والنصين موجبين بعد تكلفة 0.1R",
+    "Scalp": "سكالب", "Day trade": "داي تريد", "Swing": "سوينج", "Position": "بوزيشن", "Style": "النوع", "Lab timeframes": "فريمات الـ lab",
+    "Strongest detector (n >= 100)": "أقوى كاشف (n ≥ 100)", "net avg R": "صافي R", "vs random": "مقابل العشوائي",
+    "The Playbook summary is older than the last lab run": "ملخص الـ Playbook أقدم من آخر تشغيل lab",
+    "Nothing has passed the evidence gate yet: every signal is a suggestion, not evidence.": "لسه مفيش حاجة عدّت بوابة الدليل: كل إشارة اقتراح، مش دليل.",
+    "Educational, not investment advice. Source: data/strategy_lab.json (weekly lab).": "تعليمي، مش توصية استثمارية. المصدر: data/strategy_lab.json (الـ lab الأسبوعي).",
     # tabs
     "🧩 Workspace": "🧩 مساحة العمل", "📊 Chart Scanner": "📊 سكانر الشارت", "🪙 Crypto": "🪙 كريبتو", "💱 Forex": "💱 فوركس",
     "🥇 Metals": "🥇 معادن", "📈 Stocks": "📈 أسهم", "🐸 Meme Coins": "🐸 عملات الميم", "📈 Performance": "📈 الأداء",

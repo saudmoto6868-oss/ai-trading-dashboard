@@ -14,6 +14,9 @@ AR = {
     "The Playbook summary is older than the last lab run": "ملخص الـ Playbook أقدم من آخر تشغيل lab",
     "Nothing has passed the evidence gate yet: every signal is a suggestion, not evidence.": "لسه مفيش حاجة عدّت بوابة الدليل: كل إشارة اقتراح، مش دليل.",
     "Educational, not investment advice. Source: data/strategy_lab.json (weekly lab).": "تعليمي، مش توصية استثمارية. المصدر: data/strategy_lab.json (الـ lab الأسبوعي).",
+    # Radar KPI strip (2026-10-22)
+    "Matched": "مطابق", "Confirmed": "مؤكد", "Candidates": "مرشح", "Conditions chosen": "الشروط المختارة",
+    "Every chosen condition holds on this chart": "كل الشروط المختارة متحققة على الشارت ده", "Some chosen conditions hold": "بعض الشروط المختارة متحققة",
     # tabs
     "🧩 Workspace": "🧩 مساحة العمل", "📊 Chart Scanner": "📊 سكانر الشارت", "🪙 Crypto": "🪙 كريبتو", "💱 Forex": "💱 فوركس",
     "🥇 Metals": "🥇 معادن", "📈 Stocks": "📈 أسهم", "🐸 Meme Coins": "🐸 عملات الميم", "📈 Performance": "📈 الأداء",

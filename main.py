@@ -1008,7 +1008,7 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 def _md_sections(path):
     """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
     try:
-        txt = Path(path).read_text(encoding="utf-8")
+        txt = (Path(__file__).resolve().parent / path).read_text(encoding="utf-8")   # repo root, not the working folder
     except Exception:
         return {}
     out, cur = {}, None
@@ -1024,7 +1024,7 @@ def render_lab_page():
     """Strategy lab: weekly walk-forward on real candles (GitHub Actions), random baseline; shows what passed the evidence bar."""
     st.subheader(L("Strategy lab - what the numbers say"))
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
-                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. No costs, so real results are worse."))
+                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
     lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
     if not lab:
         st.info(L("No lab results yet - they appear after the first weekly run."))

@@ -38,5 +38,13 @@ def test_strikes():
     assert k == [(90.0, 0.0, 10.0), (100.0, 20.0, 30.0), (110.0, 40.0, 5.0)]
 
 
+def test_iv_rank():
+    s = [30 + i for i in range(40)]                     # rising 30..69
+    r = O.iv_rank(s)
+    assert r["now"] == 69.0 and r["rank"] == 100 and r["percentile"] == 100 and r["days"] == 40
+    assert O.iv_rank(s[:-1] + [50])["rank"] == round((50 - 30) / (68 - 30) * 100)       # min 30, max 68 once the last value is 50
+    assert O.iv_rank([10.0] * 40) is None and O.iv_rank(s[:10]) is None and O.iv_rank([None] * 50) is None
+
+
 if __name__ == "__main__":
-    test_parse(); test_max_pain_and_summary(); test_strikes(); print("ok options_desk")
+    test_parse(); test_max_pain_and_summary(); test_strikes(); test_iv_rank(); print("ok options_desk")

@@ -7,7 +7,8 @@ strikes with the most open interest (the 'walls'). Across expiries: the IV term 
 Honest limits (shown in the UI too): open interest and volume do not say whether a trade OPENED or CLOSED a position, or whether
 it was a hedge or a bet, so put/call ratio and 'walls' are CONTEXT, not a trade signal. Max pain is a theory about pinning near
 expiry, with weak evidence outside the last day or two. IV level alone says little; IV RANK needs history we do not store yet.
-Pure functions on the payload; one cached fetch."""
+DVOL (Deribit's 30-day implied-volatility index, free daily history) gives the IV history, so IV rank and percentile need no
+snapshot job of ours. Pure functions on the payload; cached fetches."""
 from __future__ import annotations
 
 import re
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 import requests
 
 URL = "https://www.deribit.com/api/v2/public/get_book_summary_by_currency"
+DVOL_URL = "https://www.deribit.com/api/v2/public/get_volatility_index_data"
 _NAME = re.compile(r"^([A-Z]+)-(\d{1,2}[A-Z]{3}\d{2})-(\d+(?:\.\d+)?)-([CP])$")
 _cache: dict = {}
 
@@ -31,6 +33,34 @@ def fetch(currency: str = "BTC", ttl: int = 120, timeout: int = 15) -> list:
     rows = r.json().get("result") or []
     _cache[currency] = (time.time(), rows)
     return rows
+
+
+def dvol(currency: str = "BTC", days: int = 365, ttl: int = 1800, timeout: int = 20) -> list:
+    """Daily DVOL candles [(date, close)] for the last `days` days (cached `ttl` s). Raises on network / API errors."""
+    key = f"dvol-{currency}-{days}"
+    hit = _cache.get(key)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    end = int(time.time() * 1000)
+    r = requests.get(DVOL_URL, params={"currency": currency, "start_timestamp": end - days * 86400_000, "end_timestamp": end, "resolution": "1D"}, timeout=timeout)
+    r.raise_for_status()
+    out = [(datetime.fromtimestamp(c[0] / 1000, timezone.utc).date(), float(c[4])) for c in (r.json().get("result") or {}).get("data", []) if len(c) >= 5]
+    _cache[key] = (time.time(), out)
+    return out
+
+
+def iv_rank(series: list) -> dict | None:
+    """IV rank / percentile of the LAST value against the series (needs >= 30 values): rank = (now - min) / (max - min), percentile =
+    share of earlier days with a lower value. Both are 0-100; a short or flat series gives None."""
+    v = [x for x in series if x is not None]
+    if len(v) < 30:
+        return None
+    now, lo, hi = v[-1], min(v), max(v)
+    if hi <= lo:
+        return None
+    prior = v[:-1]
+    return {"now": round(now, 1), "min": round(lo, 1), "max": round(hi, 1), "rank": round((now - lo) / (hi - lo) * 100, 0),
+            "percentile": round(sum(1 for x in prior if x < now) / len(prior) * 100, 0), "days": len(v)}
 
 
 def parse(name: str):

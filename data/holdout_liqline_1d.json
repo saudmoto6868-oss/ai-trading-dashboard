@@ -1,0 +1,139 @@
+{
+ "frozen": {
+  "key": "liqline",
+  "tf": "1d",
+  "lab_bars": 900,
+  "fetch_bars": 4000,
+  "min_holdout_bars": 700,
+  "stride": 4,
+  "cost_r": 0.1,
+  "symbols": [
+   "BTC-USDT",
+   "ETH-USDT",
+   "SOL-USDT",
+   "XRP-USDT",
+   "DOGE-USDT",
+   "ADA-USDT",
+   "LTC-USDT",
+   "BNB-USDT",
+   "LINK-USDT",
+   "AVAX-USDT",
+   "DOT-USDT",
+   "TRX-USDT",
+   "BCH-USDT",
+   "ETC-USDT",
+   "ATOM-USDT"
+  ],
+  "gate": {
+   "n": 100,
+   "t": 3.0,
+   "net": 0.0,
+   "halves": "both > 0"
+  }
+ },
+ "built": 1792699217,
+ "result": {
+  "n": 877,
+  "gross_avgR": 0.196,
+  "net_avgR": 0.096,
+  "random_avgR": 0.09,
+  "win_pct": 42.2,
+  "t_vs_random": 2.17,
+  "t_net_vs_zero": 2.39,
+  "h1": {
+   "n": 417,
+   "net_avgR": 0.148
+  },
+  "h2": {
+   "n": 460,
+   "net_avgR": 0.049
+  },
+  "pass": false
+ },
+ "per_symbol": {
+  "BTC-USDT": {
+   "holdout_bars": 2400,
+   "from": "2017-10-10",
+   "holdout_to": "2024-05-05",
+   "n": 69
+  },
+  "ETH-USDT": {
+   "holdout_bars": 2400,
+   "from": "2017-10-10",
+   "holdout_to": "2024-05-05",
+   "n": 63
+  },
+  "SOL-USDT": {
+   "holdout_bars": 1315,
+   "from": "2020-09-29",
+   "holdout_to": "2024-05-05",
+   "n": 43
+  },
+  "XRP-USDT": {
+   "holdout_bars": 2308,
+   "from": "2018-01-10",
+   "holdout_to": "2024-05-05",
+   "n": 78
+  },
+  "DOGE-USDT": {
+   "holdout_bars": 1758,
+   "from": "2019-07-14",
+   "holdout_to": "2024-05-05",
+   "n": 51
+  },
+  "ADA-USDT": {
+   "holdout_bars": 2115,
+   "from": "2018-07-22",
+   "holdout_to": "2024-05-05",
+   "n": 74
+  },
+  "LTC-USDT": {
+   "holdout_bars": 2308,
+   "from": "2018-01-10",
+   "holdout_to": "2024-05-05",
+   "n": 81
+  },
+  "LINK-USDT": {
+   "holdout_bars": 2308,
+   "from": "2018-01-10",
+   "holdout_to": "2024-05-05",
+   "n": 81
+  },
+  "AVAX-USDT": {
+   "holdout_bars": 1323,
+   "from": "2020-09-21",
+   "holdout_to": "2024-05-05",
+   "n": 34
+  },
+  "DOT-USDT": {
+   "holdout_bars": 1354,
+   "from": "2020-08-21",
+   "holdout_to": "2024-05-05",
+   "n": 37
+  },
+  "TRX-USDT": {
+   "holdout_bars": 2308,
+   "from": "2018-01-10",
+   "holdout_to": "2024-05-05",
+   "n": 73
+  },
+  "BCH-USDT": {
+   "holdout_bars": 1996,
+   "from": "2018-11-18",
+   "holdout_to": "2024-05-05",
+   "n": 69
+  },
+  "ETC-USDT": {
+   "holdout_bars": 2308,
+   "from": "2018-01-10",
+   "holdout_to": "2024-05-05",
+   "n": 62
+  },
+  "ATOM-USDT": {
+   "holdout_bars": 1841,
+   "from": "2019-04-22",
+   "holdout_to": "2024-05-05",
+   "n": 62
+  }
+ }
+}

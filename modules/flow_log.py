@@ -15,7 +15,10 @@ Features per row (all from public data, nothing is traded):
   cvd   = taker-buy minus taker-sell quote volume of the trades since the previous poll, normalised by their total (-1..+1)
   speed = trades per second since the previous poll
   spread_bps = (ask - bid) / mid in basis points
-Poll cadence limits what these can see (a 2 s poll misses everything faster); that is stated, not hidden.
+Poll cadence limits what these can see (a 2 s poll misses everything faster); that is stated, not hidden. Known limits: the trades are
+fetched a few hundred ms after the book snapshot (small overlap with the 5 s forward return); OKX returns at most 100 trades per call, so
+on a fast tape cvd / speed can be truncated; signals are non-overlapping only WITHIN a symbol, and BTC / ETH / SOL move together, so the
+plain t-stat is optimistic (it treats the symbols as independent)
 Costs: COST_BPS = taker fee both ways + half spread + slippage, a PLANNING number (override with FLOW_COST_BPS), not a quote."""
 from __future__ import annotations
 
@@ -175,6 +178,7 @@ def evaluate(rows: list, rule_id: str, horizon: int, cost_bps: float = COST_BPS,
         sign = (1 if v > 0 else -1) * d
         sig.append((r["t"], sign * fr, rng.choice((1, -1)) * fr))
     n = len(sig)
+    sig.sort(key=lambda x: x[0])   # time order across symbols: the two halves are a real time split, not 'first symbol / second symbol'
     gross = [g for _t, g, _c in sig]; net = [g - cost_bps for g in gross]; ctl = [c - cost_bps for _t, _g, c in sig]
     half = n // 2
     h1, h2 = net[:half], net[half:]

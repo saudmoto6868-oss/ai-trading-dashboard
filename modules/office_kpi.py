@@ -28,7 +28,7 @@ STYLE_INFO = {
             "goal": "grade A+++ (5 context layers) passes t > 3 with both halves positive after costs within 4 weeks", "status": "candidate for testing"},
     "Swing": {"hold": "days to weeks", "stack": ("1W", "1D", "4H"),
               "rules": "daily levels and liquidity lines, break of a daily level, MACD divergence on the daily, stop 1.5 ATR, size by volatility",
-              "goal": "liqline 1d (the only daily detector with n >= 100) gets the first frozen out-of-sample backtest; verdict within a week", "status": "first backtest"},
+              "goal": "liqline 1d (the best net among the 11 daily detectors with n >= 100, so its number is biased upward) gets a frozen holdout on older candles; see lab_holdout", "status": "first backtest"},
     "Position": {"hold": "weeks to months", "stack": ("1M", "1W", "1D"),
                  "rules": "time-series momentum (the strongest published evidence), wide stop, small size by volatility, spread over markets",
                  "goal": "add symbols until n >= 100 and compare with the random baseline before any verdict", "status": "needs more symbols"},
@@ -86,6 +86,7 @@ def summary(d: dict) -> dict:
     return {
         "detectors": len(keys), "off": off, "passed": len(passed),
         "candidates": len(per_tf) + len(chain),
+        "t_measured": sum(1 for r in per_tf + chain if r.get("t") is not None),   # rows the lab gave a t-stat; the rest cannot pass the gate
         "best": None if not best else {"key": best["key"], "tf": best["tf"], "n": best["n"], "net": net(best),
                                        "vs_random": round(best["avgR"] - (best.get("base_avgR") or 0.0), 3)},
         "built": time.strftime("%Y-%m-%d", time.gmtime(built)) if built else None,

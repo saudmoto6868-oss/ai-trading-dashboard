@@ -60,6 +60,7 @@ AR = {
         "تجربة استكشافية: كل نسخة بتجربها بتتحسب محاولة. الحكم الحقيقي محتاج نافذة out-of-sample مثبتة ومسجلة في المحضر قبل التشغيل. الخروج هنا = وقف ATR وهدف 1.5R بتوع المحرك.",
     "below the cost": "تحت التكلفة", "families": "مدارس",
     "IV rank (1 year)": "IV rank (سنة)", "min": "أقل", "max": "أعلى", "percentile": "المئين", "DVOL history not available": "تاريخ DVOL مش متاح",
+    "The lab measures t for": "المعمل بيقيس t لـ", "rows only; the rest cannot pass the gate yet": "صف بس؛ الباقي ما يقدرش يعدّي البوابة لسه",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

@@ -49,6 +49,17 @@ def test_judge_random_has_no_edge_and_planted_edge_is_found():
     assert inv["net_bps"] < 0 and not inv["pass"]                       # the opposite rule loses on the same data
 
 
+def test_halves_are_a_time_split():
+    """BTC drifts up all the time, ETH drifts down: with a split by symbol one half would be +5 and the other -5; by time both halves mix."""
+    rows = []
+    for i in range(1000):
+        rows.append({"t": float(i), "sym": "BTC", "mid": 100 * (1 + 5e-4) ** i, "imb": 0.9, "ofi": 0.0, "cvd": 0.0, "speed": 1.0})
+        rows.append({"t": float(i), "sym": "ETH", "mid": 100 * (1 - 5e-4) ** i, "imb": -0.9, "ofi": 0.0, "cvd": 0.0, "speed": 1.0})
+    F.label(rows, horizons=(5,))
+    r = F.evaluate(rows, "imb_with", 5, cost_bps=0.0)    # BTC: long into a rising mid, ETH: short into a falling mid -> every trade wins
+    assert r["half1"] > 0 and r["half2"] > 0, r
+
+
 def test_costs_kill_a_small_edge():
     rows = _rows(20000, 0.3, seed=4)
     cheap = F.judge(rows, cost_bps=0.0); dear = F.judge([dict(r) for r in rows], cost_bps=50.0)
@@ -58,4 +69,4 @@ def test_costs_kill_a_small_edge():
 
 
 if __name__ == "__main__":
-    test_features(); test_label_and_horizons(); test_judge_random_has_no_edge_and_planted_edge_is_found(); test_costs_kill_a_small_edge(); print("ok flow_log")
+    test_features(); test_label_and_horizons(); test_judge_random_has_no_edge_and_planted_edge_is_found(); test_halves_are_a_time_split(); test_costs_kill_a_small_edge(); print("ok flow_log")

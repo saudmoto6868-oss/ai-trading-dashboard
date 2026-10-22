@@ -1008,7 +1008,7 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 def _md_sections(path):
     """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
     try:
-        txt = Path(path).read_text(encoding="utf-8")
+        txt = (Path(__file__).resolve().parent / path).read_text(encoding="utf-8")   # repo root, not the working folder
     except Exception:
         return {}
     out, cur = {}, None
@@ -1020,11 +1020,44 @@ def _md_sections(path):
     return {k: "\n".join(v).strip() for k, v in out.items()}
 
 
+def _office_control_room():
+    """Technical Office v2 header (control-room layout, owner's reference images 2026-10-22): gate, headline KPIs, best per
+    trading style, warnings. Every number comes from data/strategy_lab.json (modules/office_kpi.py); nothing is estimated."""
+    from modules import office_kpi as _OK
+    d = _OK.load(); s = _OK.summary(d)
+    if not s:
+        return
+    b = s["best"] or {}
+    c = st.columns(6)
+    c[0].metric(L("Passed the evidence gate"), f"{s['passed']} / {s['candidates']}", help=L("n >= 100, t > 3, net > 0 and both halves positive after 0.1R costs"))
+    c[1].metric(L("Detectors in the lab"), s["detectors"])
+    c[2].metric(L("OFF (no longer decide a trade)"), len(s["off"]), help=", ".join(s["off"]) or "-")
+    c[3].metric(L("Best net avg R (n >= 100)"), f"{b.get('net', 0):+.3f}" if b else "-", help=(f"{b['key']} {b['tf']} · n {b['n']} · vs random {b['vs_random']:+.3f}" if b else None))
+    c[4].metric(L("Cost per trade"), f"{_OK.COST_R}R")
+    c[5].metric(L("Last lab run"), s["built"] or "-", help=f"{s['symbols']} symbols")
+    sty = _OK.styles(d)
+    lbl = {"Scalp": L("Scalp"), "Day": L("Day trade"), "Swing": L("Swing"), "Position": L("Position")}
+    st.markdown("| " + " | ".join([L("Style"), L("Lab timeframes"), L("Strongest detector (n >= 100)"), "n", L("net avg R"), L("vs random")]) + " |\n|---|---|---|---|---|---|\n"
+                + "\n".join(f"| {lbl[x['style']]} | {x['tfs']} | {(x['key'] + ' ' + x['tf']) if x['key'] else '-'} | {x['n'] or '-'} | "
+                            f"{'' if x['net'] is None else format(x['net'], '+.3f')} | {'' if x['vs_random'] is None else format(x['vs_random'], '+.3f')} |" for x in sty))
+    warn = []
+    pb_dates = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
+    if pb_dates and s["built"] and s["built"] not in pb_dates[0]:
+        warn.append(L("The Playbook summary is older than the last lab run") + f" ({pb_dates[0].split(' ')[2]} / {s['built']})")
+    if not s["passed"]:
+        warn.append(L("Nothing has passed the evidence gate yet: every signal is a suggestion, not evidence."))
+    for w in warn:
+        st.warning(w)
+    st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
+    st.divider()
+
+
 def render_lab_page():
     """Strategy lab: weekly walk-forward on real candles (GitHub Actions), random baseline; shows what passed the evidence bar."""
     st.subheader(L("Strategy lab - what the numbers say"))
+    _office_control_room()
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
-                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. No costs, so real results are worse."))
+                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
     lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
     if not lab:
         st.info(L("No lab results yet - they appear after the first weekly run."))

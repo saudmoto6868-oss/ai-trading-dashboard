@@ -33,6 +33,18 @@ AR = {
     "entry": "دخول", "stop": "وقف", "targets": "أهداف", "Against the side filter": "عكس فلتر الاتجاه المختار",
     "Suggestion from the rules, not an order; size by your risk per trade.": "اقتراح من القواعد، مش أمر؛ الحجم حسب مخاطرتك في الصفقة.",
     "signals": "إشارات", "hover the chart for the explanation": "قف بالماوس على الشارت للشرح",
+    # Info strip (item 44) + Technical Office: Scanner control / Detector analysis (2026-10-22)
+    "Info strip": "شريط المعلومات", "The thin line under the header: educational note, data sources, last lab run": "السطر الرفيع تحت الهيدر: ملاحظة تعليمي، ومصادر الداتا، وآخر تشغيل للمعمل",
+    "Educational, not investment advice": "تعليمي، مش توصية استثمارية", "No automatic orders": "مفيش تنفيذ أوامر تلقائي",
+    "Detector analysis": "تحليل الكاشف", "Preset by trading style": "إعداد جاهز حسب نوع التداول", "Manual": "يدوي", "Day": "داي تريد",
+    "no lab row": "مش في المعمل", "What the lab says about these detectors on this timeframe": "المعمل بيقول إيه عن الكواشف دي على الفريم ده",
+    "Lab timeframe": "فريم المعمل", "Negative after costs on the lab's numbers:": "سالب بعد التكلفة حسب أرقام المعمل:",
+    "Apply to the Radar": "طبّق على الرادار", "Saved for this session. Open the Radar page to see it.": "اتحفظ للجلسة دي. افتح صفحة الرادار تشوفه.",
+    "Radar now": "الرادار دلوقتي", "charts": "شارت", "All timeframes": "كل الفريمات", "Best timeframe": "أحسن فريم",
+    "best timeframe minus random entries": "أحسن فريم ناقص الدخول العشوائي", "n >= 300 and avg R <= -0.06": "n ≥ 300 ومتوسط R ≤ ‎-0.06",
+    "n under 100 on the best timeframe": "n أقل من 100 على أحسن فريم", "needs t > 3 and both halves positive": "محتاج t > 3 والنصين موجبين",
+    "Trading styles": "أنواع التداول", "from the timeframes it was tested on": "من الفريمات اللي اتختبر عليها",
+    "All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice.": "كل الأرقام من ملف المعمل الأسبوعي؛ الصافي = متوسط R − 0.1R. تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

@@ -50,6 +50,9 @@ def test_journal_and_top_rows():
     assert K.evidence(d, "a", "1d")["tf"] == "1d" and K.evidence(d, "a", "1w")["tf"] == "1d"
     assert K.evidence(d, "a", "4h")["tf"] == "all" and K.evidence(d, "zz", "1h") is None
     assert K.evidence(d, "b", "1h")["off"] and not K.evidence(d, "a", "1d")["off"]
+    c = K.detector_card(d, "b")
+    assert c["off"] and c["all"]["n"] == 600 and c["best"]["tf"] == "1h" and c["styles"] == ["Day"]
+    assert K.detector_card(d, "a")["best"]["tf"] == "1d" and "b" in K.detector_keys(d)
     d["rows"].pop()
     assert K.lab_avg(d) == round((150 * 0.3 + 400 * 0.05 + 50 * 0.9) / 600, 3)
 

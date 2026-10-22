@@ -840,6 +840,7 @@ def render_header():
                 st.query_params["lang"] = _pick
                 st.rerun()
             st.caption(L("Coming") + ": " + " · ".join(v[0] for v in _LANGS.values() if not v[2]))
+            st.toggle(L("Info strip"), value=True, key="info_strip", help=L("The thin line under the header: educational note, data sources, last lab run"))
     with h_foc:
         if st.button("⤡" if focus else "⤢", key="focus_btn", help=L("Fold the header away: the Workspace gets the whole screen (Alt+F)")):
             st.session_state["focus_ws"] = not focus
@@ -1342,10 +1343,110 @@ def _office_lab():
         st.markdown(lab[pick])
 
 
+def _strat_name(k):
+    """Detector / strategy filter name in the page language (Arabic short names from chart_explain.FLAG_AR)."""
+    from modules.chart_scan import STRATEGY_FILTERS as _SF
+    return _CX.FLAG_AR.get(k, _SF[k][0]) if _ui_lang() == "ar" and k in _CX.FLAG_AR else _SF[k][0]
+
+
+# Scanner presets by trading style (Playbook > By trading style): Radar timeframe + the detectors that style uses
+_SCAN_PRESETS = {
+    "Scalp": {"tf": "5m", "strat": ["st_judas", "st_sweep", "st_crt", "st_ote", "st_kzs"], "mode": "Any selected"},
+    "Day": {"tf": "1h", "strat": ["st_cisd", "st_rsidiv", "st_sessamd", "st_m2022"], "mode": "Any selected"},
+    "Swing": {"tf": "1d", "strat": ["st_tl", "st_macddiv", "st_bvd", "st_donch"], "mode": "Any selected"},
+    "Position": {"tf": "1w", "strat": ["st_turtle55", "st_sma1040", "st_donch"], "mode": "Any selected"},
+}
+
+
+def _office_scanner():
+    """Technical Office > Scanner control (owner 2026-10-22: control the scanner from the office). Sets the Radar's
+    timeframe, chart count, match mode, side and detectors for this session, by trading style or by hand, and shows the
+    lab's number for every chosen detector on that timeframe before you open the Radar."""
+    from modules import office_kpi as _OK, office_ui as U
+    from modules.chart_scan import STRATEGY_FILTERS as _SF
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    cur = st.session_state.get("radar_def", {})
+    style = st.segmented_control(L("Preset by trading style"), ["Manual"] + list(_SCAN_PRESETS), default="Manual", format_func=L, key="sc_style")
+    p = _SCAN_PRESETS.get(style or "Manual", {})
+    c = st.columns(4)
+    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(p.get("tf") or cur.get("tf") or "1h"), key=f"sc_tf_{style}")
+    n = c[1].number_input(L("Charts"), 1, 30, int(cur.get("n", 10)), key="sc_n")
+    modes = ["All selected", "Any selected"]
+    mode = c[2].selectbox(L("Match"), modes, index=modes.index(p.get("mode") or cur.get("mode") or "All selected"), format_func=L, key=f"sc_mode_{style}")
+    sides = ["Both", "Buy only", "Sell only"]
+    side = c[3].selectbox(L("Side"), sides, index=sides.index(cur.get("side", "Both")), format_func=L, key="sc_side")
+    strat = st.multiselect(L("Detectors"), list(_SF), default=p.get("strat") or cur.get("strat", []), format_func=_strat_name, key=f"sc_strat_{style}")
+    lab = _OK.load()
+    rows, weak = [], []
+    for k in strat:
+        ev = _OK.evidence(lab, _SF[k][1][1], tf) if _SF[k][1][0] == "key" else None
+        if ev and ev["net"] <= 0:
+            weak.append(_strat_name(k))
+        rows.append([U.esc(_strat_name(k)), U.esc(ev["tf"]) if ev else "-", ev["n"] if ev else "-", f"{ev['net']:+.3f}" if ev else "-",
+                     U.badge(L("OFF") if ev and ev["off"] else L("passed") if ev and ev["gate"] else L("not evidence") if ev else L("no lab row"),
+                             "bad" if ev and (ev["off"] or ev["net"] <= 0) else "ok" if ev and ev["gate"] else "warn")])
+    if rows:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('What the lab says about these detectors on this timeframe'))}</div>", unsafe_allow_html=True)
+        st.markdown(U.table([L("Detector"), L("Lab timeframe"), "n", L("net"), L("Gate")], rows), unsafe_allow_html=True)
+        if weak:
+            st.warning(L("Negative after costs on the lab's numbers:") + " " + ", ".join(weak))
+    a, b = st.columns([1, 3])
+    if a.button(L("Apply to the Radar"), type="primary", key="sc_apply"):
+        st.session_state["radar_def"] = {"tf": tf, "n": int(n), "mode": mode, "side": side, "strat": strat}
+        for k_ in ("cs_tf", "cs_n", "cs_mode", "cs_side"):
+            st.session_state.pop(k_, None)
+        st.session_state["cs_strat"] = list(strat)
+        st.query_params["strat"] = ",".join(strat) if strat else ""
+        b.success(L("Saved for this session. Open the Radar page to see it."))
+    if cur:
+        st.caption(L("Radar now") + f": {cur.get('tf')} · {cur.get('n')} {L('charts')} · {L(cur.get('mode', ''))} · {L(cur.get('side', ''))} · "
+                   + (", ".join(_strat_name(k) for k in cur.get("strat", []) if k in _SF) or "-"))
+
+
+def _office_detector():
+    """Technical Office > Detector analysis: one detector's full lab card - every timeframe and side, best timeframe,
+    vs random, gate, OFF, and which trading style it fits; bars of net R per timeframe."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_kpi as _OK, office_ui as U
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    lab = _OK.load()
+    keys = _OK.detector_keys(lab)
+    if not keys:
+        st.info(L("No lab file yet (data/strategy_lab.json)."))
+        return
+    k = st.selectbox(L("Detector"), keys, index=keys.index("liqline") if "liqline" in keys else 0, key="det_key")
+    c = _OK.detector_card(lab, k)
+    b, a = c["best"] or {}, c["all"] or {}
+    st.markdown("<div class='xo-row'>" + U.indicators(f"{k} · {L(c['school'] or '-')}", [
+        (L("All timeframes"), f"{a.get('net', 0):+.3f}R" if a else "-", f"n {a.get('n', '-')} · " + L("net"), "bad" if a and a["net"] <= 0 else "ok" if a else None),
+        (L("Best timeframe"), f"{b.get('tf', '-')}", f"{L('net')} {b['net']:+.3f}R · n {b['n']}" if b else "", "ok" if b and b["net"] > 0 else "bad" if b else None),
+        (L("vs random"), f"{b['vs_random']:+.3f}" if b else "-", L("best timeframe minus random entries"), "ok" if b and b["vs_random"] > 0 else "warn" if b else None),
+        (L("Status"), L("OFF") if c["off"] else L("passed") if b and b.get("gate") else L("not evidence"),
+         L("n >= 300 and avg R <= -0.06") if c["off"] else (L("n under 100 on the best timeframe") if not c["best_is_evidence_size"] else L("needs t > 3 and both halves positive")),
+         "bad" if c["off"] else "ok" if b and b.get("gate") else "warn"),
+        (L("Trading styles"), " · ".join(L(s) for s in c["styles"]) or "-", L("from the timeframes it was tested on"), None)]) + "</div>", unsafe_allow_html=True)
+    df = _pd.DataFrame(c["rows"])
+    if df.empty:
+        return
+    per = df[(df["side"] == "all") & (df["tf"] != "all")]
+    if len(per):
+        order = [t for t in ("1m", "15m", "1h", "4h", "1d") if t in set(per["tf"])]
+        st.altair_chart(alt.Chart(per).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=alt.X("tf:N", sort=order, title=None), y=alt.Y("net:Q", title=L("net") + " R"),
+            color=alt.condition("datum.net > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["tf", "n", "net", "vs_random"]
+        ).properties(height=200), use_container_width=True)
+    df = df.assign(win=df["win"].map(lambda w: None if w is None else f"{w:.0f}%"), gate=df["gate"].map(lambda g: L("passed") if g else "-"))
+    st.dataframe(df.rename(columns={"tf": L("Timeframe"), "side": L("Side"), "win": L("Win rate"), "net": L("net"), "vs_random": L("vs random"), "gate": L("Gate")}),
+                 hide_index=True, use_container_width=True)
+    st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
+
+
 def render_lab_page():
-    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Backtest": _office_backtest,
-            "Operations": _office_ops, "Lab results": _office_lab}
+    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
+    analysis, backtest, operations, lab results)."""
+    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
+            "Detector analysis": _office_detector, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
         tabs.get(pick or "Control room", _office_overview)()
@@ -1912,10 +2013,12 @@ def render_chart_scanner():
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     with st.container(key="csfw"), st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
         r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
-        tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=5, key="cs_tf")
-        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=10, step=1, key="cs_n")
-        side_pick = r1[2].selectbox(L("Side"), ["Both", "Buy only", "Sell only"], key="cs_side", format_func=L)
-        mode = r1[3].selectbox(L("Match"), ["All selected", "Any selected"], key="cs_mode", format_func=L)
+        rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
+        _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
+        tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
+        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=30, value=int(rd.get("n", 10)), step=1, key="cs_n")
+        side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
+        mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
         look = r1[4].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
         stack = r1[5].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
         r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
@@ -1926,7 +2029,7 @@ def render_chart_scanner():
         sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
         sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
         sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
-                                   format_func=lambda k: STRATEGY_FILTERS[k][0], key="cs_strat")
+                                   format_func=_strat_name, key="cs_strat")
         sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
@@ -2027,6 +2130,29 @@ def render_chart_scanner():
                     except Exception as e_:
                         st.caption(f"Analysis unavailable: {e_}")
 
+
+def render_info_strip():
+    """Item 44: one thin line under the header - 'educational, not advice' plus whether each data source answers and the
+    date of the last lab run. Off switch: Theme & language menu > 'Info strip'. Hidden in Workspace focus mode."""
+    if not st.session_state.get("info_strip", True) or st.session_state.get("focus_ws"):
+        return
+    try:
+        src = _source_status()
+    except Exception:
+        src = {}
+    from modules import office_kpi as _OK
+    built = (_OK.summary(_OK.load()) or {}).get("built") or "-"
+    dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
+    items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
+    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
+    items.append(f"{html.escape(L('Last lab run'))} {built}")
+    items.append(html.escape(L("No automatic orders")))
+    st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"
+                "border:1px solid #2b3139;border-radius:6px;padding:3px 10px;margin:0 0 6px'>" + "".join(f"<span>{x}</span>" for x in items) + "</div>",
+                unsafe_allow_html=True)
+
+
+render_info_strip()
 
 if PAGE == 0:   # workspace
     _ws_stat = st.empty()   # loading steps shown while the server builds the Workspace (cleared once it is sent)

@@ -952,3 +952,4 @@
 - **Voice**: Gemini Live voice stays; a browser-speech alternative is only needed if voice leaves Gemini — not built.
 - **Code review (G2)** now belongs to ChatGPT per the owner. Merge order unchanged: ChatGPT clean branch -> reading -> colors -> zone test, after review and owner approval.
 - [2026-10-23 UTC] [Claude - مدير الفريق] **اتدمج PR #68 (✕ لمقياس الضغط وكارت Order Flow) على main بأمر المالك الصريح، من غير مراجعة Gemini ولا تجربة متصفح (المالك قال ادمج ونجرب). commit 4b59625. المالك هيبلّغ لو شغال ولا لأ؛ لو فيه مشكلة نرجّعه (revert) فوراً.** @ChatGPT: main اتحرك، رجّع فرعك على main قبل ما تدمج عشان تعارض الأسطر.
+- [2026-10-23 UTC] [أمر المالك] **قاعدة المراجعة لما Gemini ما بيردش:** لو Gemini ما ردش بعد طلب أو اتنين، ماحدش يستناه ولا يعطّل الشغل. المراجعة تروح لـ**Claude team** أو لـ**ChatGPT** (واحد بس، ماتتكررش). اللي شغال يكمّل، وماحدش يوقف على حد مابيردش. الدمج لسه بأمر المالك. (سجّلها Claude عن المالك.)

@@ -425,7 +425,7 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
 "use strict";
 const CFG = __CONFIG__;
 const API = CFG.apiBase || "https://www.okx.com";
-const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
+const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31; default to standard TLS port 443
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
@@ -1752,9 +1752,9 @@ Object.assign(CandleChart.prototype, {
   },
   hmSave(now){   // compact (older than 3 h -> 5 min buckets, keep the biggest walls only), keep 7 days, write to localStorage
     this._hmSv = now; const H = this.hm; if (!H) return; const nb = new Map();
-    [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
+    [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 7*86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
     nb.forEach(o => { const lim = o.w > 60000 ? 40 : 150; if (o.c.size > lim){ const top = [...o.c.entries()].sort((a, b) => b[1] - a[1]).slice(0, lim); o.c = new Map(top); } }); H.b = nb;
-    const pack = () => { const b = {}; nb.forEach((o, t) => { if (o.w > 60000 || t >= now - 3600e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };
+    const pack = () => { const b = {}; nb.forEach((o, t) => { if (o.w > 60000 || t >= now - 3*3600e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };
     try {
       const j = pack();
       let txt = JSON.stringify(j);
@@ -1773,8 +1773,9 @@ Object.assign(CandleChart.prototype, {
       // Quota errors are non-destructive: keep all existing localStorage keys intact.
     }
   },
-  paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, last 24 h); the column only chooses how much time it shows
+  paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, up to 7 days subject to browser storage); the column only chooses how much time it shows
     const H = this.hm; if (!H || !H.step || !H.b.size) return null; const OF = this.st.of, scheme = OF.hm || "book", lo = this._lo, hi = this._hi, mult = Math.max(1, Math.ceil((hi - lo)/Math.max(1, PB/5)/H.step)), sR = mult*H.step, rowH = Math.max(1.5, Math.abs(py(0) - py(sR)));
+    const ramps = {book:[[0,[1,3,8]],[.25,[20,70,190]],[.5,[20,190,210]],[.7,[240,220,40]],[.88,[245,120,30]],[1,[255,250,235]]], magma:[[0,[5,4,18]],[.3,[75,25,110]],[.58,[190,45,95]],[.8,[255,135,55]],[1,[255,245,180]]], ice:[[0,[2,12,25]],[.3,[10,75,120]],[.6,[45,190,210]],[.82,[180,240,245]],[1,[255,255,255]]], emerald:[[0,[2,15,10]],[.3,[0,90,60]],[.6,[20,190,110]],[.82,[180,235,70]],[1,[255,250,210]]]}, RAMP = ramps[scheme] || ramps.book, bright = Math.max(.25, Math.min(1.75, Number(OF.hmBright) || 1)); const colorAt = (t, price, mid) => { if (scheme === "side") return hexA(price <= mid ? OF.color : OF.color2, .1 + .85*t); if (scheme === "amber") return "rgba(255,"+Math.round(190 + 65*t*t)+","+Math.round(30 + 210*t*t*t)+","+(.1 + .85*t).toFixed(2)+")"; if (scheme === "custom") return hmMix(t, hexRgb(OF.hmLo || "#010308"), hexRgb(OF.hmHi || "#fff5fa")); for (let q = 1; q < RAMP.length; q++){ if (t <= RAMP[q][0]){ const a = RAMP[q-1], b = RAMP[q], u = (t-a[0])/(b[0]-a[0] || 1); return "rgb("+Math.round(a[1][0]+(b[1][0]-a[1][0])*u)+","+Math.round(a[1][1]+(b[1][1]-a[1][1])*u)+","+Math.round(a[1][2]+(b[1][2]-a[1][2])*u)+")"; } } return "rgb(255,250,235)"; };
     const bs = []; H.b.forEach((o, t) => { if (t + o.w >= tL && t <= tR) bs.push([t, o]); }); if (!bs.length) return null; bs.sort((a, b) => a[0] - b[0]);
     let mx = 0; bs.forEach(([t, o]) => { if (o._mu !== mult){ const r = new Map(); o.c.forEach((q, k) => { const kr = Math.floor(k/mult), v = r.get(kr); if (v == null || q > v) r.set(kr, q); }); o._r = r; o._mu = mult; let m = 0; r.forEach(q => { if (q > m) m = q; }); o._mx = m; } if (o._mx > mx) mx = o._mx; });
     // more time buckets than ~2 px columns (a long window): merge them per pixel column (max per row), cached while the window stands still.
@@ -1786,8 +1787,8 @@ Object.assign(CandleChart.prototype, {
           m.w = Math.max(m.w, t + o.w - m.t); m.m = o.m; o._r.forEach((q, kr) => { const v = m._r.get(kr); if (v == null || q > v) m._r.set(kr, q); }); });
         cols = [...by.values()].map(m => [m.t, m]); this._hmMerge = {key, cols}; } }
     cols.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
-      o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const u = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)); if (u < .04) return;
-        c.fillStyle = scheme === "side" ? hexA(pr <= o.m ? OF.color : OF.color2, .1 + .85*u) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*u*u)+","+Math.round(30 + 210*u*u*u)+","+(.1 + .85*u).toFixed(2)+")" : scheme === "custom" ? hmMix(u, hexRgb(this.st.of.hmLo || "#010308"), hexRgb(this.st.of.hmHi || "#fff5fa")) : hmRamp(u); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+      o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
+        c.fillStyle = colorAt(t, pr, o.m); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     return bs[0][0];
   },
   paintDom(c, py, i0, i1, PB){   // resting-liquidity heat map behind the candles (bid colour = buy, ask colour = sell)
@@ -1924,7 +1925,7 @@ Object.assign(CandleChart.prototype, {
     if (this.domOn && (OF.vpf === true)){ const d_ = this.data, nR = Math.max(20, Math.min(240, Math.round(PB/5))), key = d_.length+"|"+d_[d_.length-1].c+"|"+d_[d_.length-1].v+"|"+i0+"|"+i1+"|"+lo+"|"+hi+"|"+nR;
       if (!this._vp || this._vp.k !== key){ const vp = new Float64Array(nR), rh = (hi - lo)/nR || 1; for (let i = Math.max(0, i0); i <= Math.min(d_.length-1, i1); i++){ const k = d_[i], a0 = Math.max(0, Math.floor((k.l - lo)/rh)), a1 = Math.min(nR-1, Math.floor((k.h - lo)/rh)); if (a1 < a0) continue; const per = k.v/(a1 - a0 + 1); for (let r = a0; r <= a1; r++) vp[r] += per; } let m = 0; vp.forEach(v => { if (v > m) m = v; }); this._vp = {k:key, vp, m, rh}; }
       const V = this._vp; for (let r = 0; r < nR; r++){ const u = Math.pow(V.vp[r]/(V.m || 1), .6); if (u < .05) continue; const y0 = py(lo + (r + 1)*V.rh), y1 = py(lo + r*V.rh); c.fillStyle = hmRamp(u*.4); c.globalAlpha = .55 + .35*u; c.fillRect(gx0, y0, gw, Math.max(1, y1 - y0 + .5)); } c.globalAlpha = 1; }
-    const fixedHm = (OF.hmm || "fix") === "fix" && span > 900000; if (this.domOn && fixedHm) this.paintHeatCol(c, py, PB, tx, gx0, gx1, anchor - span*1.05, anchor + 60000);
+    const fixedHm = (OF.hmm || "fix") === "fix" && span > 900000; if (this.domOn && fixedHm){ this.hmInit(); const firstHm = this.paintHeatCol(c, py, PB, tx, gx0, gx1, anchor - span*1.05, anchor + 60000); if (firstHm == null){ c.fillStyle = "#848e9c"; c.font = "10px sans-serif"; c.textAlign = "left"; c.fillText(Lg("No saved depth cells in this time window / price range","لا توجد خلايا عمق محفوظة في الفترة الزمنية أو النطاق السعري ده"), gx0, 26); } }
     if (this.domOn && !fixedHm) B.forEach((sn, i) => { const x0 = Math.max(gx0, tx(sn.t)), x1 = Math.min(gx1, i + 1 < B.length ? tx(B[i+1].t) : gx1), w = Math.max(1.2, x1 - x0); if (x1 < gx0) return;
       rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(v.q/(hm || 1), .55)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
         c.globalAlpha = Math.max(.12, Math.min(1, (.08 + .9*t) * Math.min(1, bright)));
@@ -1955,7 +1956,7 @@ Object.assign(CandleChart.prototype, {
     c.fillText(Lg("ORDER FLOW · "+sp+" window (wheel = zoom)", "أوردر فلو · نافذة "+sp+" (العجلة = تكبير الوقت)"), gx0, 10);
     if (this.domOn){ c.fillStyle = "#ffffff"; c.fillText("■ "+Lg("pulled","اتلغى"), gx1 - 96, 10); c.fillStyle = "#b57cff"; c.fillText("■ "+Lg("filled","اتنفذ"), gx1 - 46, 10); c.fillStyle = "#848e9c"; }
     if (this.domOn && B.length){ const sn = B[B.length-1], ps = sn.lv.map(x => x[0]), mid = (sn.bb + sn.ba)/2; if (ps.length && mid){ const cov = (Math.max(...ps) - Math.min(...ps))/mid*100/2; c.fillStyle = "#6b7684"; c.fillText(Lg("book depth ±"+cov.toFixed(2)+"% (exchange limit)", "عمق الدفتر ±"+cov.toFixed(2)+"% (حد البورصة)"), gx0, 36); } }
-    if (this.domOn && OF.vpf === true){ c.fillStyle = "#6b7684"; c.textAlign = "left"; c.fillText(Lg("▒ dim = traded volume by price (full chart range) · bright = live/saved order book","▒ الخافت = حجم التداول على السعر (كامل نطاق الشارت) · الساطع = دفتر الأوامر"), gx0, 46); }
+    if (this.domOn && OF.vpf === true){ c.fillStyle = "#6b7684"; c.textAlign = "left"; c.fillText(Lg("▒ dim = estimated candle-volume profile (approx.) · bright = live/saved order book","▒ الخافت = توزيع تقديري لحجم الشموع (تقريبي) · الساطع = دفتر الأوامر الحي/المحفوظ"), gx0, 46); }
     if (this.domOn){ const bx = gx0, by = PB - 22, bw_ = Math.min(110, gw - 10); for (let q = 0; q < bw_; q++){ c.fillStyle = scheme === "side" ? hexA(OF.color, .15 + .85*(q/(bw_ - 1))) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*(q/(bw_-1))**2)+","+Math.round(30 + 210*(q/(bw_-1))**3)+",1)" : ramp(q/(bw_ - 1)); c.fillRect(bx + q, by, 1.2, 6); } c.fillStyle = "#9aa4b2"; c.font = "8px sans-serif"; c.textAlign = "left"; c.fillText(Lg("small","صغير"), bx, by - 2); c.textAlign = "right"; c.fillText(Lg("big orders","أوامر كبيرة"), bx + bw_, by - 2); c.textAlign = "left"; }
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
@@ -4750,6 +4751,7 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   { const hx = el("select"); [["fix", L("Fixed saved history (up to 7 days when zoomed out)","تاريخ ثابت محفوظ (لحد 7 أيام لما تبعد)")], ["live", L("Live scrolling (old, max 20 min)","لايف بيتحرك (القديم، أقصى 20 دقيقة)")]].forEach(([v, l]) => hx.append(Object.assign(el("option"), {value:v, textContent:l}))); hx.value = OF.hmm || "fix"; hx.onchange = () => { OF.hmm = hx.value; onChange(); }; row(L("Heat-map mode","نمط الهيت ماب"), hx); }
   { const hd = el("select"); [["auto", L("Auto by timeframe","تلقائي حسب الفريم")], ["compact", L("Price detail: compact (wide view)","تفاصيل السعر: مختصرة (نطاق أوسع)")], ["balanced", L("Price detail: balanced","تفاصيل السعر: متوازنة")], ["precise", L("Price detail: precise (more rows)","تفاصيل السعر: دقيقة (صفوف أكثر)")]].forEach(([v,l]) => hd.append(Object.assign(el("option"), {value:v, textContent:l}))); hd.value = OF.hmDetail || "auto"; hd.onchange = () => { OF.hmDetail = hd.value; onChange(); }; row(L("Adaptive price detail","تفاصيل السعر التكيفية"), hd); }
   { const ws_ = el("select"); [[0,"Auto"],[120000,"2 min"],[600000,"10 min"],[3600000,"1 h"],[21600000,"6 h"],[86400000,"1 day"],[259200000,"3 days"],[604800000,"7 days"]].forEach(([v, l]) => ws_.append(Object.assign(el("option"), {value:v, textContent:l}))); ws_.value = String(ch().flowSpan || 0); ws_.onchange = () => { ch().flowSpan = +ws_.value || 0; onChange(); }; row(L("Column time window","الفترة الزمنية للعمود"), ws_); }
+  { const vp = el("input"); vp.type = "checkbox"; vp.checked = OF.vpf === true; vp.onchange = () => { OF.vpf = vp.checked; onChange(); }; row(L("Estimated candle-volume profile (approx.; not order-book depth)","توزيع تقديري لحجم الشموع (تقريبي؛ مش عمق دفتر الأوامر)"), vp); }
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);

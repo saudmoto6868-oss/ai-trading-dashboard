@@ -942,7 +942,7 @@ def render_universe_controls():
     _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
-    _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=40, step=10, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
+    _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
     if st.session_state.get("asset_cls", "Crypto") != "Crypto":
         st.query_params["cls"] = st.session_state["asset_cls"]
     elif "cls" in st.query_params:
@@ -1933,6 +1933,17 @@ from modules import chart_explain as _CX
 
 
 @st.cache_data(ttl=300, show_spinner=False)
+def _last_ts(df):
+    """Open time of the last candle as 'MM-DD HH:MM' (UTC), or ''."""
+    try:
+        import pandas as _p
+        v = df["time"].iloc[-1]
+        t = _p.to_datetime(v, unit="ms", utc=True) if isinstance(v, (int, float)) or str(getattr(v, "dtype", "")).startswith("int") else _p.to_datetime(v, utc=True)
+        return t.strftime("%m-%d %H:%M")
+    except Exception:
+        return ""
+
+
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
@@ -1951,7 +1962,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         except Exception:
             expl = {}
         out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
-                    "t": time.time(), "fv": _FV.metrics(df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
+                    "t": time.time(), "ts": _last_ts(df), "fv": _FV.metrics(df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
 
@@ -2008,7 +2019,7 @@ def render_market_map():
 def _clear_cs_filters():
     """Callback of 'Clear all filters': reset the Radar filter widgets, the Scanner-control preset and the saved URL filter (runs before the rerun)."""
     ss = st.session_state
-    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom"):
+    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom", "cs_quick"):
         ss[k] = []
     for k in ("cs_px_rel", "cs_ma_rel", "cs_stack"):
         ss[k] = "—"
@@ -2080,7 +2091,7 @@ _LADDER = {"1m": ("1h", "15m"), "3m": ("1h", "15m"), "5m": ("4h", "1h"), "13m": 
 @st.cache_data(ttl=600, show_spinner=False)
 def _htf_trend(symbols: tuple, tf: str):
     """Trend per symbol on a higher timeframe for the hover ladder: up (close > EMA 20 > EMA 50), down, or mixed."""
-    frames, _e = fetch_frames(list(symbols), [tf], limit=120)
+    frames, _e = fetch_frames(list(symbols), [tf], limit=120, workers=8)
     out = {}
     for s in symbols:
         df = (frames.get(s) or {}).get(tf)
@@ -2126,6 +2137,15 @@ def _hover_panel(sym, tf, d, ladder, card_full=""):
     parts.append("<span style='color:#848e9c'>النموذج والشمعة = الانحياز المعروف في الكتب، مش دليل مقاس. تعليمي، مش توصية.</span>")
     return "<div class='xr-tip' dir='rtl'>" + "<hr>".join(parts) + "</div>"
 
+
+_QUICK_CHIPS = [   # (filter key, icon, short name): the same keys as the dropdown filters, one click each (owner 2026-10-23: shapes and colours, not only buttons)
+    ("rsi_lt30", "🟢", "RSI<30"), ("rsi_gt70", "🔴", "RSI>70"), ("chan_up", "📈", "Channel ↑"), ("chan_dn", "📉", "Channel ↓"),
+    ("tl_up", "🔺", "Trendline ↑"), ("tl_dn", "🔻", "Trendline ↓"), ("dbl_bottom", "🟦", "Double bottom"), ("dbl_top", "🟧", "Double top"),
+    ("chg_up2", "🚀", "+2%"), ("chg_dn2", "💥", "−2%"), ("vol_2x", "🔊", "Vol 2×"), ("vol_3x", "⚡", "Vol 3×"),
+    ("stack_bull", "🐂", "Bull stack"), ("stack_bear", "🐻", "Bear stack"), ("above_all", "☁️", "Above EMAs"), ("below_all", "🌧️", "Below EMAs"),
+    ("st_elliott", "🌊", "Elliott"), ("st_msb", "🧱", "SMC MSB+OB"), ("st_unicorn", "🦄", "Unicorn"), ("st_ob", "📦", "Order block"),
+]
+_QUICK_LBL = {k: f"{i} {n}" for k, i, n in _QUICK_CHIPS}
 
 _RADAR_CSS = """<style>
 .xr-tile{position:relative}
@@ -2379,38 +2399,43 @@ def _radar_filters(view):
     fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view not in ("Chart grid", "Screener")   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
-    with st.container(key="csfw"), st.expander(L("Filters"), expanded=True), st.container(key="csf"):   # collapse the whole block to give the charts room
-        r1 = st.columns([1, 0.7, 1, 1, 1.3, 1.1])
+    with st.container(key="csfw"), st.container(key="csf"):
+        r1 = st.columns([1, 0.7, 1, 1, 1.4])
         rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
         n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
-        look = r1[4].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
-        stack = r1[5].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
-        r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
-        rel_px = r2[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
-        len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
-        rel_ma = r2[2].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
-        pair = r2[3].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-        sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
-        sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-        sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
-                                   format_func=_strat_name, key="cs_strat")
-        sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
-        from modules import fv_screen as _FV
-        _ar = _ui_lang() == "ar"
-        fv = {}
-        with st.expander(L("Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)"), expanded=False):
-            _fc = st.columns(5)
-            _fk = [f_ for f_ in _FV.FILTERS if f_[0] not in ("pattern", "rsi")]   # patterns and RSI already live in the rows above: one place for each option
-            for _i, (_key, _g, _en, _arn, _opts) in enumerate(_fk):
-                _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
-                _pk = _fc[_i % 5].selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
-                if _pk != "Any":
-                    fv[_key] = _pk
-        st.button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_QUICK_LBL.get, key="cs_quick", label_visibility="collapsed")
+        with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
+            r1 = st.columns([1.3, 1.1])
+            look = r1[0].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+            stack = r1[1].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
+            r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
+            rel_px = r2[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
+            len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
+            rel_ma = r2[2].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
+            pair = r2[3].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+            sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
+            sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
+            sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
+                                       format_func=_strat_name, key="cs_strat")
+            sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
+            from modules import fv_screen as _FV
+            _ar = _ui_lang() == "ar"
+            fv = {}
+            st.markdown("**" + L("Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)") + "**")
+            if True:
+                _fc = st.columns(5)
+                _fk = [f_ for f_ in _FV.FILTERS if f_[0] not in ("pattern", "rsi")]   # patterns and RSI already live in the rows above: one place for each option
+                for _i, (_key, _g, _en, _arn, _opts) in enumerate(_fk):
+                    _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
+                    _pk = _fc[_i % 5].selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
+                    if _pk != "Any":
+                        fv[_key] = _pk
+
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
     elif "strat" in qp:
@@ -2422,7 +2447,7 @@ def _radar_filters(view):
         sel_ema.append(f"ma_{rmap[rel_ma]}_{pair.replace('/', '_')}")
     sel_ema += {"Bullish (px>9>20>50)": ["stack_bull"], "Bearish (px<9<20<50)": ["stack_bear"],
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
-    sel = sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom
+    sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
     return {"tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
 
@@ -2503,6 +2528,14 @@ def render_chart_scanner(f):
                 list(_ex.map(lambda s: _cs_result(s, tf), _top))
         except Exception:
             pass
+    _lt = _LADDER.get(tf, ())
+    _symt = tuple(SCAN_SYMBOLS)
+    try:   # the ladder's higher timeframes load side by side, once for the whole grid
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+        with _TPE(max(1, len(_lt))) as _ex2:
+            _lad_main = dict(zip(_lt, _ex2.map(lambda t_: _htf_trend(_symt, t_), _lt)))
+    except Exception:
+        _lad_main = {t_: {} for t_ in _lt}
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
@@ -2523,14 +2556,19 @@ def render_chart_scanner(f):
                 card_s = card_f = ""
                 if nsel and _confirmed(d_x) and r0 + i_c < 10:   # task 17: trade card for the top 10 confirmed
                     card_s, card_f = _trade_card(sym, tf_x, want)
-                ladder = {t: _htf_trend(tuple(SCAN_SYMBOLS) if tf_x == tf else (sym,), t) for t in _LADDER.get(tf_x, ())}
+                ladder = {t: (_lad_main[t] if tf_x == tf else _htf_trend((sym,), t)) for t in _LADDER.get(tf_x, ())}
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
+                _chg = d_x.get("chg"); _vx = d_x.get("volx")
+                from modules.symbol_icon import icon as _sic
                 st.markdown(
-                    f"<div style='font-size:12px'><a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                    f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym)}</a> "
-                    f"<span style='color:#848e9c'>{fmt_price(d_x['price'])}</span> "
-                    f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
+                    f"<div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                    f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                    f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                    + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                    + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                    + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                    + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
                     f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
                     + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
                     f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
@@ -2622,8 +2660,8 @@ if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
         _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
         render_universe_controls()
-        SCAN_SYMBOLS, _ac_msg2 = class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 40)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
-        SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 40))]
+        SCAN_SYMBOLS, _ac_msg2 = class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
+        SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
         _rf = _radar_filters(_rv)
         if _rv == "Heat map":
             render_market_map()

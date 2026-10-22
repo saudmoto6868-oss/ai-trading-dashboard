@@ -81,6 +81,7 @@ AR = {
     "No symbol matches the chosen filters, so ALL symbols are shown below, unfiltered. Loosen the filters or clear them.": "مفيش رمز مطابق للفلاتر المختارة، فبنعرض كل الرموز تحت من غير فلترة. خفّف الفلاتر أو امسحها.",
     "Clear all filters": "امسح كل الفلاتر",
     "Similar charts": "شارتات مشابهة", "Universe size": "عدد الرموز المفحوصة",
+    "Quick filters": "فلاتر سريعة", "More filters (EMA, RSI, patterns, strategies, technical lists)": "فلاتر أكتر (EMA، RSI، نماذج، استراتيجيات، قوايم فنية)",
     "How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load.": "كام رمز الرادار يفحصهم (الأكبر في حجم 24 ساعة الأول). كل ما زادوا التحميل الأول بياخد وقت أطول.",
     "Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)": "قوايم فنية (الأداء، المتوسطات، القمم والقيعان، الفجوة، ATR، الفوليوم، الشموع)",
     "No symbol meets ALL the chosen filters right now.": "مفيش رمز بيحقق كل الفلاتر المختارة دلوقتي.",

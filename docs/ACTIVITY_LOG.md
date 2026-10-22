@@ -36,3 +36,5 @@
 - نتايج الاختبارات على بيانات وهمية لازم تتكتب كده، ومايتكتبش إنها اتختبرت على شارت حقيقي.
 
 | 03:00–03:06 UTC | ChatGPT | مراجعة Order Flow وإصلاح حفظ الهيت ماب | `modules/workspace_app.html`, OKX/Bybit/Binance docs | `modules/workspace_app.html`, PR #63, سجلات المشروع | — | commits على `fix/orderflow-history-coverage-review` | نتائج اختبار معزول | syntax check للـ JS نجح؛ اختبارات `hmSave` و`hmInit` التخيلية نجحت؛ لا اختبار متصفح حي. اكتشاف cache REST لمدة 10s فوق polling 1.5s؛ لم يتغير مسار Order Flow الحالي. |
+
+| 03:07–03:08 UTC | ChatGPT | تحديث توافق WebSocket قبل تقاعد 8443 | OKX official changelog | `modules/workspace_app.html` + docs + PR #63 | — | commit على فرع المراجعة | توثيق رسمي | الافتراضي أصبح WSS على 443؛ لم يُختبر اتصال حي ولم يتم النشر. |

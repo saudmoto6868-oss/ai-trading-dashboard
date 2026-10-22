@@ -3,6 +3,8 @@
 Only numbers the lab really produced; nothing estimated. Costs follow the owner's rule: net = avg R - 0.1R per trade.
 Gate (meeting room): n >= 100, t > 3, net > 0, and both halves (in-sample / out-of-sample) positive when the lab has them.
 """
+from __future__ import annotations
+
 import json
 import time
 from pathlib import Path
@@ -101,6 +103,39 @@ def pooled(d: dict, by: str) -> list:
     out = [{"label": k, "n": v[0], "avgR": round(v[1] / v[0], 3), "net": round(v[1] / v[0] - COST_R, 3)} for k, v in acc.items() if v[0]]
     order = {"1m": 0, "15m": 1, "1h": 2, "4h": 3, "1d": 4}
     return sorted(out, key=lambda x: order.get(x["label"], 9)) if by == "tf" else sorted(out, key=lambda x: -x["avgR"])
+
+
+def top_rows(d: dict, min_n: int = GATE_N, top: int = 15) -> list:
+    """Stats page: strongest detector x timeframe rows (side 'all') with n >= min_n, by net avg R, with the gate verdict."""
+    rows = [r for r in _detector_rows(d) if r.get("side") == "all" and r.get("tf") != "all" and r["n"] >= min_n]
+    rows.sort(key=net, reverse=True)
+    return [{"key": r["key"], "tf": r["tf"], "school": r.get("school"), "n": r["n"], "win": r.get("win"), "avgR": r["avgR"],
+             "net": net(r), "vs_random": round(r["avgR"] - (r.get("base_avgR") or 0.0), 3), "t": r.get("t"),
+             "gate": passes_gate(r)} for r in rows[:top]]
+
+
+def lab_avg(d: dict) -> float | None:
+    """Trade-weighted avg R of every detector x timeframe row (side 'all'): the backtest side of 'live vs backtest'."""
+    rows = pooled(d, "tf")
+    n = sum(r["n"] for r in rows)
+    return round(sum(r["n"] * r["avgR"] for r in rows) / n, 3) if n else None
+
+
+def journal_kpis(rs) -> dict:
+    """KPIs of closed trades in R: n, win rate, avg R, net (after 0.1R), profit factor, max drawdown in R, t-stat."""
+    rs = [float(x) for x in rs if x == x]   # drops NaN
+    n = len(rs)
+    if not n:
+        return {"n": 0}
+    avg = sum(rs) / n
+    gain, loss = sum(x for x in rs if x > 0), -sum(x for x in rs if x < 0)
+    eq = peak = dd = 0.0
+    for x in rs:
+        eq += x; peak = max(peak, eq); dd = min(dd, eq - peak)
+    sd = (sum((x - avg) ** 2 for x in rs) / (n - 1)) ** 0.5 if n > 1 else 0.0
+    return {"n": n, "win": round(sum(x > 0 for x in rs) / n, 3), "avgR": round(avg, 3), "net": round(avg - COST_R, 3),
+            "pf": round(gain / loss, 2) if loss else None, "maxdd": round(dd, 2), "total": round(sum(rs), 2),
+            "t": round(avg / (sd / n ** 0.5), 2) if sd else None}
 
 
 def styles(d: dict) -> list:

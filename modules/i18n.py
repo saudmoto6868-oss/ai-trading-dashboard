@@ -7,6 +7,17 @@ from __future__ import annotations
 AR = {
     "Price": "السعر", "Change %": "التغير %", "20-bar %": "تغير 20 شمعة %", "Volume ×avg": "الفوليوم ×المتوسط", "Signals": "الإشارات", "Which": "أنهي إشارات",
     "Chart grid": "الشارتات",
+    # Stats page (2026-10-22)
+    "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
+    "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",
+    "Strongest detector x timeframe (n >= 100), by net avg R": "أقوى كاشف × فريم (n ≥ 100)، مرتبة بصافي متوسط R",
+    "Detector": "الكاشف", "School": "المدرسة", "passed": "عدّى", "no t yet": "مفيش t لسه",
+    "vs random = avg R minus the random-entry baseline on the same bars. 'no t yet' = the lab has not measured the t-stat for this row, so it cannot pass the gate.":
+        "مقابل العشوائي = متوسط R ناقص متوسط الدخول العشوائي على نفس الشموع. «مفيش t لسه» = المعمل ماقاسش قيمة t للصف ده، فمينفعش يعدّي البوابة.",
+    "Journal in R": "السجل بوحدة R", "closed": "مقفولة", "Profit factor": "معامل الربح", "gains / losses": "المكاسب ÷ الخسائر",
+    "from the equity peak": "من أعلى قمة للرصيد", "evidence needs t > 3 and n >= 100": "الدليل محتاج t > 3 و n ≥ 100",
+    "your avg R minus the lab's": "متوسطك ناقص متوسط المعمل", "Total": "الإجمالي",
+    "Fewer than 30 trades: the live vs backtest comparison is noise for now.": "أقل من 30 صفقة: المقارنة مع الباك تيست لسه ضوضاء.",
     "Levels / breakouts": "المستويات / الاختراقات", "Momentum / divergence": "الزخم / الدايفرجنس", "Fibonacci": "فيبوناتشي", "Liquidity": "السيولة",
     "Trend (hedge fund)": "الترند (صناديق التحوط)", "Time (sessions)": "الوقت (الجلسات)", "Elliott wave": "موجات إليوت", "SMC / ICT": "SMC / ICT",
     "Trend (MA)": "الترند (المتوسطات)", "Intermarket (SMT)": "بين الأسواق (SMT)",

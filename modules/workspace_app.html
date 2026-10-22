@@ -425,7 +425,7 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
 "use strict";
 const CFG = __CONFIG__;
 const API = CFG.apiBase || "https://www.okx.com";
-const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
+const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31; default to standard TLS port 443
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)

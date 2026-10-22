@@ -1442,6 +1442,109 @@ def _office_detector():
     st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
 
 
+def _office_options():
+    """Technical Office > Options desk: the crypto option market from Deribit's free public book (no chart needed). Per-expiry put/call,
+    max pain, ATM IV, skew proxy and OI walls, the IV term structure, and plain-Arabic reading lines. Context, not a trade signal."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_ui as U, options_desk as OD
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    cur = st.segmented_control(L("Underlying"), ["BTC", "ETH"], default="BTC", key="od_cur", label_visibility="collapsed") or "BTC"
+
+    @st.cache_data(ttl=120, show_spinner=False)
+    def _rows(c):
+        return OD.fetch(c)
+    try:
+        rows = _rows(cur)
+    except Exception as e:
+        st.warning(f"Deribit: {type(e).__name__}: {e}")
+        return
+    s = OD.summarize(rows)
+    ex = s["expiries"]
+    if not ex:
+        st.info(L("No option data."))
+        return
+    t = s["totals"]
+    near = next((e for e in ex if e["days"] >= 1), ex[0])
+    st.markdown("<div class='xo-row'>" + U.indicators(f"{cur} · Deribit", [
+        (L("Spot (index)"), f"{s['spot']:,.0f}", "", None),
+        (L("Open interest"), f"{t['oi']:,.0f} {cur}", "", None),
+        (L("Put / call (open interest)"), f"{t['pc_oi']}" if t["pc_oi"] else "-", L("all expiries"), "warn" if t["pc_oi"] and t["pc_oi"] > 1 else None),
+        (L("Volume (24 h)"), f"{t['vol']:,.0f} {cur}", "", None),
+        (L("Nearest expiry"), str(near["exp"]), f"{near['days']} " + L("days"), None),
+        (L("ATM IV, nearest"), f"{near['iv']}%" if near["iv"] else "-", L("annualised"), None)]) + "</div>", unsafe_allow_html=True)
+    df = _pd.DataFrame([{L("Expiry"): str(e["exp"]), L("Days"): e["days"], L("Open interest"): e["oi"], "P/C OI": e["pc_oi"], "P/C vol": e["pc_vol"],
+                         L("Max pain"): e["max_pain"], "ATM IV %": e["iv"], L("Skew ±10% (put IV - call IV)"): e["skew10"],
+                         L("Biggest strikes"): " · ".join(f"{int(k)}{c} ({oi:,.0f})" for k, c, oi in e["walls"])} for e in ex])
+    a, b = st.columns([1, 1])
+    with a:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('IV term structure'))}</div>", unsafe_allow_html=True)
+        ts = _pd.DataFrame([{"days": e["days"], "iv": e["iv"], "exp": str(e["exp"])} for e in ex if e["iv"]])
+        if len(ts):
+            st.altair_chart(alt.Chart(ts).mark_line(point=True, color="#2dd4bf").encode(x=alt.X("days:Q", title=L("Days")), y=alt.Y("iv:Q", title="IV %", scale=alt.Scale(zero=False)),
+                            tooltip=["exp", "days", "iv"]).properties(height=220), use_container_width=True)
+    with b:
+        pick = st.selectbox(L("Expiry"), [str(e["exp"]) for e in ex], index=ex.index(near), key="od_exp")
+        d_pick = next(e for e in ex if str(e["exp"]) == pick)
+        ks = _pd.DataFrame(OD.strikes(rows, d_pick["exp"], s["spot"]), columns=["strike", "calls", "puts"])
+        if len(ks):
+            lng = ks.melt("strike", var_name="side", value_name="oi")
+            ch = alt.Chart(lng).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("oi:Q", title=L("Open interest")), color=alt.Color("side:N",
+                    scale=alt.Scale(domain=["calls", "puts"], range=["#2dd4bf", "#f87171"]), legend=alt.Legend(orient="top")), tooltip=["strike", "side", "oi"])
+            rl = alt.Chart(_pd.DataFrame({"x": [s["spot"]], "t": [L("Spot (index)")]})).mark_rule(color="#f0b429", strokeDash=[6, 4]).encode(x="x:Q")
+            mp = alt.Chart(_pd.DataFrame({"x": [d_pick["max_pain"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q")
+            st.altair_chart((ch + rl + mp).properties(height=220), use_container_width=True)
+            st.caption(L("Gold line = spot, purple dotted = max pain for this expiry."))
+    st.dataframe(df, hide_index=True, use_container_width=True)
+    # plain reading of the nearest expiry: description, never a signal
+    lines = []
+    if near["pc_oi"]:
+        lines.append(f"نسبة puts / calls بالـ open interest لأقرب استحقاق ({near['exp']}) = {near['pc_oi']}: " +
+                     ("puts أكتر من calls؛ غالباً حماية ومراكز هيدج، مش رهان هابط بالضرورة." if near["pc_oi"] > 1.1 else
+                      "calls أكتر من puts؛ بيحصل مع التفاؤل أو مع بيع calls مغطاة، مش بالضرورة صعود." if near["pc_oi"] < 0.8 else "متوازنة تقريباً."))
+    if near["max_pain"] and s["spot"]:
+        dist = (near["max_pain"] / s["spot"] - 1) * 100
+        lines.append(f"الـ max pain = {near['max_pain']:,.0f} ({dist:+.1f}% عن السعر). نظرية الشد ناحيته بتبقى ذات معنى في آخر يوم أو يومين قبل الاستحقاق بس.")
+    wk = next((e for e in ex if e["days"] >= 7 and e["skew10"] is not None), None)   # the 1-day wings are illiquid, so skew is read from >= 7 days
+    if wk:
+        lines.append(f"السكيو لاستحقاق {wk['exp']} (IV بوت 10% تحت ناقص IV كول 10% فوق) = " + f"{wk['skew10']:+.1f}: " +
+                     ("السوق بيدفع أكتر للحماية من النزول." if wk["skew10"] > 3 else "السوق بيدفع أكتر للصعود." if wk["skew10"] < -3 else "مفيش ميل واضح."))
+    ivs = [e for e in ex if e["iv"] and e["days"] >= 1]
+    if len(ivs) >= 3:
+        lines.append("هيكل الـ IV: " + ("مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير." if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
+                                       "طبيعي (البعيد أغلى): هدوء نسبي." if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else "مسطح."))
+    st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'><b>قراءة أقرب استحقاق (سياق مش إشارة)</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
+    st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV RANK needs history we do not store yet. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
+
+
+def _office_flow_manual():
+    """Technical Office > Flow manual: chartless methods (order book, tape, funding / OI, options) - what each measures, how to read it,
+    how it is used, where it breaks, the evidence, which tool shows it, the daily routine and the forward-test protocol."""
+    from modules import flow_manual as FM, office_ui as U
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    st.markdown("<div class='xo-card' dir='rtl' style='line-height:26px'><b style='font-size:16px'>الخلاصة: نعتمد عليها بإيه؟</b><br>"
+                + "<br>".join("• " + x for x in FM.HEADLINE) + "</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Tools we have and their limits'))}</div>", unsafe_allow_html=True)
+    st.markdown(U.table([L("Tool"), L("Shows"), L("Where"), L("Data"), L("Limits")], [[f"<b>{U.esc(a)}</b>", U.esc(b), U.esc(c), U.esc(d), U.esc(e)] for a, b, c, d, e in FM.TOOLS]), unsafe_allow_html=True)
+    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Methods: how to read, how to use, where it breaks'))}</div>", unsafe_allow_html=True)
+    for m in FM.METHODS:
+        tt, tone = FM.TIERS[m["tier"]]
+        with st.expander(m["title"] + " — " + tt.split(" · ")[0], expanded=False):
+            st.markdown(f"<div dir='rtl' style='line-height:25px'>{U.badge(tt, tone)}<br><b>بيقيس:</b> {U.esc(m['measures'])}<br><b>إزاي تقراه:</b><ol style='margin:4px 0'>"
+                        + "".join(f"<li>{U.esc(x)}</li>" for x in m["read"]) + f"</ol><b>الاستخدام:</b> {U.esc(m['setup'])}<br><b>بيفشل فين:</b> {U.esc(m['fails'])}<br>"
+                        f"<b>الدليل:</b> {U.esc(m['evidence'])}<br><b>الداتا عندنا:</b> {U.esc(m['data'])}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Daily routine'))}</div>", unsafe_allow_html=True)
+    st.markdown(U.table([L("Step"), L("What to do")], [[f"<b>{U.esc(a)}</b>", U.esc(b)] for a, b in FM.ROUTINE]), unsafe_allow_html=True)
+    a, b = st.columns(2)
+    with a:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('Forward test: how a flow signal earns trust'))}</div>", unsafe_allow_html=True)
+        st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'>" + "<br>".join(f"{i}. {U.esc(x)}" for i, x in enumerate(FM.FORWARD_TEST, 1)) + "</div>", unsafe_allow_html=True)
+    with b:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('What is still missing'))}</div>", unsafe_allow_html=True)
+        st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'>" + "<br>".join("• " + U.esc(x) for x in FM.MISSING) + "</div>", unsafe_allow_html=True)
+    st.caption(L("Research sources are named per method (OPENED = read in full, otherwise a search snippet or background knowledge). Educational, not investment advice."))
+
+
 def _office_strategy_map():
     """Technical Office > Strategy map (owner 2026-10-22): an indicator is one measurement, a strategy is parts with different jobs.
     Clusters (what repeats what), the strongest member of each from the lab, whether stacking helps, the named strategies as
@@ -1531,7 +1634,7 @@ def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
     tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
         tabs.get(pick or "Control room", _office_overview)()

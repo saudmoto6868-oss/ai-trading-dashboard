@@ -62,6 +62,20 @@ AR = {
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",
+    # Options desk (2026-10-22)
+    "Options desk": "مكتب الأوبشنز", "No option data.": "مفيش بيانات أوبشنز.", "Spot (index)": "السعر (المؤشر)", "Open interest": "المراكز المفتوحة (OI)",
+    "Put / call (open interest)": "Put / Call (بالـ OI)", "all expiries": "كل الاستحقاقات", "Volume (24 h)": "الحجم (24 ساعة)", "Nearest expiry": "أقرب استحقاق",
+    "days": "يوم", "ATM IV, nearest": "IV عند السعر، الأقرب", "annualised": "سنوي", "Days": "الأيام", "Max pain": "Max pain",
+    "Skew ±10% (put IV - call IV)": "السكيو ±10% (IV البوت − IV الكول)", "Biggest strikes": "أكبر الـ strikes", "IV term structure": "هيكل الـ IV حسب المدة",
+    "Strike": "الـ Strike", "Gold line = spot, purple dotted = max pain for this expiry.": "الخط الذهبي = السعر، البنفسجي المنقط = max pain للاستحقاق ده.",
+    "The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV RANK needs history we do not store yet. Free Deribit data, about 2 minutes old. Educational, not investment advice.":
+        "الـ OI والحجم مابيقولوش الصفقة فتحت ولا قفلت مركز، ولا كانت هيدج ولا رهان؛ فالـ put/call والـ walls سياق بس. الـ IV RANK محتاج تاريخ مش بنخزنه لسه. بيانات Deribit مجانية، متأخرة حوالي دقيقتين. تعليمي، مش توصية استثمارية.",
+    # Flow manual (2026-10-22)
+    "Flow manual": "مانيوال الأوردر فلو", "Tools we have and their limits": "الأدوات اللي عندنا وحدودها", "Tool": "الأداة", "Shows": "بتبين", "Where": "فين", "Data": "الداتا", "Limits": "الحدود",
+    "Methods: how to read, how to use, where it breaks": "الطرق: إزاي تقرأ، إزاي تستخدم، بتفشل فين", "Daily routine": "الروتين اليومي", "Step": "الخطوة", "What to do": "تعمل إيه",
+    "Forward test: how a flow signal earns trust": "الاختبار الأمامي: إزاي الإشارة تكسب ثقة", "What is still missing": "اللي لسه ناقص",
+    "Research sources are named per method (OPENED = read in full, otherwise a search snippet or background knowledge). Educational, not investment advice.":
+        "مصادر البحث مكتوبة لكل طريقة (OPENED = اتقرأت كاملة، غير كده مقتطف بحث أو معرفة عامة). تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

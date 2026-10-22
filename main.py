@@ -1081,6 +1081,7 @@ def _office_bars(rows, title):
     df = _pd.DataFrame(rows)
     if df.empty:
         return
+    df["label"] = df["label"].map(L)
     df["after_costs"] = df["net"].apply(lambda v: "above the cost" if v > 0 else "below the cost")
     bars = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
         x=alt.X("label:N", sort=None, title=None), y=alt.Y("avgR:Q", title="avg R"),
@@ -1125,7 +1126,8 @@ def _office_overview():
         al.append((L("The Playbook summary is older than the last lab run"), L("degraded"), "warn", f"{pb[0].split(' ')[2]} / {s['built']}"))
     for t in board:
         if t.get("status") == "blocked":
-            al.append((t["title"], L("blocked"), "bad", t.get("next", "")))
+            _ar = _ui_lang() == "ar"
+            al.append((t.get("title_ar") if _ar and t.get("title_ar") else t["title"], L("blocked"), "bad", t.get("next_ar") if _ar and t.get("next_ar") else t.get("next", "")))
     if not src.get("Hyperliquid", True):
         al.append((L("Hyperliquid is not answering"), L("down"), "bad", L("gold / oil / index charts stop updating")))
     st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
@@ -1169,10 +1171,12 @@ def _office_board():
     cnt = U.task_counts(tasks)
     st.markdown(U.chips([(L(k), v, U.STATUS_TONE.get(k, "off")) for k, v in sorted(cnt.items())]), unsafe_allow_html=True)
     areas = sorted({t.get("area", "-") for t in tasks})
-    pick = st.segmented_control(L("Area"), [L("All")] + areas, default=L("All"), key="to_board_area")
-    rows = [[U.badge(t.get("p", "-"), {"P1": "bad", "P2": "warn", "P3": "info"}.get(t.get("p"), "off")), U.esc(t.get("wbs", "")), U.esc(t.get("title", "")), U.esc(t.get("area", "")), U.esc(t.get("owner", "")),
-             U.badge(L(t.get("status", "open")), U.STATUS_TONE.get(t.get("status", "open"), "off")), U.esc(t.get("gate", "")), U.esc(t.get("next", ""))]
-            for t in tasks if pick in (None, L("All")) or t.get("area") == pick]
+    pick = st.segmented_control(L("Area"), ["All"] + areas, default="All", format_func=L, key="to_board_area")
+    ar = _ui_lang() == "ar"
+    tx = lambda t, k: t.get(k + "_ar") if ar and t.get(k + "_ar") else t.get(k, "")
+    rows = [[U.badge(t.get("p", "-"), {"P1": "bad", "P2": "warn", "P3": "info"}.get(t.get("p"), "off")), U.esc(t.get("wbs", "")), U.esc(tx(t, "title")), U.esc(L(t.get("area", ""))), U.esc(tx(t, "owner")),
+             U.badge(L(t.get("status", "open")), U.STATUS_TONE.get(t.get("status", "open"), "off")), U.esc(t.get("gate", "")), U.esc(tx(t, "next"))]
+            for t in tasks if pick in (None, "All") or t.get("area") == pick]
     st.markdown(U.table([L("Priority"), L("WBS"), L("Task"), L("Area"), L("Owner"), L("Status"), L("Gate"), L("Next step")], rows), unsafe_allow_html=True)
     st.caption(L("Work board updated") + f" {d.get('updated', '-')} · data/office_tasks.json · " + L("every change is also written in the meeting room"))
 
@@ -1306,7 +1310,7 @@ def _office_ops():
     from modules import office_ui as U
     st.markdown(U.CSS, unsafe_allow_html=True)
     wf = U.workflows()
-    rows = [[U.esc(w["name"]), U.esc(w["file"]), U.esc(w["schedule"] or "-"), "✓" if w["manual"] else "",
+    rows = [[U.esc(L(w["name"])), U.esc(w["file"]), U.esc(w["schedule"] or "-"), "✓" if w["manual"] else "",
              U.badge(L("writes to the repo"), "warn") if w["writes"] else ""] for w in wf]
     st.markdown(U.table([L("Workflow"), L("File"), L("Schedule (UTC cron)"), L("Manual run"), L("Repo writes")], rows), unsafe_allow_html=True)
     st.caption(L("Protecting main is on hold until the workflows that push to main open a pull request instead (owner rule: protect only if nothing breaks)."))
@@ -1616,11 +1620,12 @@ def render_radar_screener():
     k[2].metric(L("Trend down"), int((df["Trend"] == "down").sum()))
     k[3].metric(L("Oversold (RSI ≤ 30)"), int((df["RSI"] <= 30).sum()))
     k[4].metric(L("Overbought (RSI ≥ 70)"), int((df["RSI"] >= 70).sum()))
-    st.dataframe(df.sort_values("20-bar %", ascending=False, na_position="last"), hide_index=True, use_container_width=True,
-                 column_config={"Price": st.column_config.NumberColumn(format="%.4g"),
-                                "Change %": st.column_config.NumberColumn(format="%+.2f%%"), "20-bar %": st.column_config.NumberColumn(format="%+.2f%%"),
+    shown_df = df.sort_values("20-bar %", ascending=False, na_position="last").assign(Trend=lambda x: x["Trend"].map(L))
+    st.dataframe(shown_df.rename(columns={c: L(c) for c in shown_df.columns}), hide_index=True, use_container_width=True,
+                 column_config={L("Price"): st.column_config.NumberColumn(format="%.4g"),
+                                L("Change %"): st.column_config.NumberColumn(format="%+.2f%%"), L("20-bar %"): st.column_config.NumberColumn(format="%+.2f%%"),
                                 "RSI": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
-                                "Volume ×avg": st.column_config.NumberColumn(format="%.2f×"), "ATR %": st.column_config.NumberColumn(format="%.2f%%")})
+                                L("Volume ×avg"): st.column_config.NumberColumn(format="%.2f×"), "ATR %": st.column_config.NumberColumn(format="%.2f%%")})
     top = df.dropna(subset=["20-bar %"]).sort_values("20-bar %")
     if len(top):
         import altair as alt
@@ -1807,7 +1812,7 @@ if PAGE == 0:   # workspace
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
     try:   # one tab bar (owner 2026-10-22: switch views without scrolling); only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Charts", "Screener", "Heat map"], default="Charts", format_func=L, key="radar_view", label_visibility="collapsed")
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Screener", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed")
         if _rv == "Heat map":
             render_market_map()
         elif _rv == "Screener":

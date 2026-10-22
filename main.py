@@ -1601,6 +1601,29 @@ def _radar_state(tf, data):
     return out
 
 
+def _trade_card(sym, tf, want=None):
+    """Task 17 trade card for a confirmed chart: side, entry, stop and 3 targets from the dashboard's own rule
+    (risk_engine.build_trade_plan on the scanner result: stop behind the nearest support / resistance). Never an order."""
+    try:
+        r = _cs_result(sym, tf)
+    except Exception:
+        r = None
+    if not r or r.get("direction") not in ("bullish", "bearish"):
+        return f"<div style='font-size:10px;color:#848e9c'>{html.escape(L('Trade card: no clear direction on this timeframe'))}</div>"
+    p = build_trade_plan({**r, "trend_bias": r["direction"]})
+    long_ = p["direction"] == "Long"
+    against = want and want != ("buy" if long_ else "sell")
+    col = "#0ecb81" if long_ else "#f6465d"
+    rd = p["risk_distance"] or 1e-12
+    tps = " / ".join(f"{fmt_price(t)} ({abs(t - p['entry']) / rd:.1f}R)" for t in p["take_profits"])
+    return ("<div style='background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px 6px;margin-top:3px;font-size:10.5px;line-height:15px'>"
+            f"<b style='color:{col}'>{html.escape(L('Buy') if long_ else L('Sell'))}</b> · {html.escape(L('entry'))} {fmt_price(p['entry'])} · "
+            f"{html.escape(L('stop'))} {fmt_price(p['stop_loss'])} ({p['risk_distance'] / p['entry'] * 100:.2f}%)<br>"
+            f"{html.escape(L('targets'))} {tps}"
+            + (f"<br><span style='color:#f0b429'>{html.escape(L('Against the side filter'))}</span>" if against else "")
+            + f"<br><span style='color:#848e9c'>{html.escape(L('Suggestion from the rules, not an order; size by your risk per trade.'))}</span></div>")
+
+
 def _radar_evidence(flags, tf):
     """One line per chart: the lab's number for the strongest detector on it (design board 'Radar': detector evidence)."""
     from modules import office_kpi as _OK
@@ -1878,7 +1901,7 @@ def render_chart_scanner():
     per_row = 5
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
-        for col, (sym, d) in zip(cols, shown[r0:r0 + per_row]):
+        for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
             with col:
                 tf_x, d_x = tf, d   # this chart's own timeframe (team task 16); "—" = same as the top Timeframe
                 tf_pick = st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", label_visibility="collapsed",
@@ -1901,6 +1924,8 @@ def render_chart_scanner():
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
                     f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d_x['svg']}'/>"
                     f"<div style='min-height:18px;margin-top:2px'>{badges}</div>" + _radar_evidence(d_x["flags"], tf_x), unsafe_allow_html=True)
+                if sel and _confirmed(d_x) and r0 + i_c < 5:
+                    st.markdown(_trade_card(sym, tf_x, want), unsafe_allow_html=True)   # task 17: top 5 confirmed only
                 if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf_x)

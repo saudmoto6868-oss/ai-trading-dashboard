@@ -58,4 +58,29 @@ ok(/disagree/.test(R.tilt.label.en) && R.lines.some(l => /disagree/.test(l.en)),
 ok(FlowRead.update(FlowRead.newState(), { t: 1, bids: [], asks: [] }, []).length === 0, "empty book");
 ok(FlowRead.update(FlowRead.newState(), { t: 1, bids: [{ p: 101, q: 1 }], asks: [{ p: 100, q: 1 }] }, []).length === 0, "crossed book");
 ok(FlowRead.read(FlowRead.newState(), { now: 1, snap: null, trades: [], events: [] }).lines.length >= 0, "no snapshot");
+
+// 10) heat level: defaults unchanged, liquidity filter, colour ceiling, brightness, contrast
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+ok(near(FlowRead.level(0.25, 1, { dom: 1 }, .5), 0.5), "default level = sqrt");
+ok(FlowRead.level(0.25, 1, { dom: 1, hmCut: 30 }, .5) === 0 && FlowRead.level(0.6, 1, { dom: 1, hmCut: 30 }, 1) > 0, "liquidity filter hides small cells");
+ok(near(FlowRead.level(0.5, 1, { dom: 1, hmTop: 50 }, 1), 1), "colour ceiling: half of the biggest already brightest");
+ok(near(FlowRead.level(0.25, 1, { dom: 1, hmBri: 0.5 }, 1), 0.125), "brightness scales");
+ok(FlowRead.level(0.04, 1, { dom: 1, hmGam: 0.3 }, .5) > FlowRead.level(0.04, 1, { dom: 1 }, .5), "lower contrast exponent shows faint cells more");
+ok(FlowRead.level(5, 1, { dom: 1 }, .5) === 1 && FlowRead.level(0, 0, { dom: 1 }, .5) === 0, "clamped, no NaN on empty window");
+// 11) confluence zone: wall that rested + refill + absorption + big print all at one price -> 4 of 4; a lone wall -> no zone
+const snapT = (t, over) => Object.assign({ t }, lad(100, 0.05, 30, over));   // bid3 = 99.825
+st = FlowRead.newState(); FlowRead.update(st, snapT(1000), []); FlowRead.update(st, snapT(2000, { b3: 100 }), []);
+FlowRead.update(st, snapT(39000, { b3: 100 }), []);
+const small = Array.from({ length: 8 }, (_, i) => ({ t: 38000 + i * 100, p: 100, q: 1, side: "Buy" }));
+const bigPrint = { t: 39800, p: 99.825, q: 50, side: "Sell" };
+const zev = [{ t: 39000, kind: "REFILL", side: "bid", p: 99.825, q: 60, refills: 2, age: 37000 }, { t: 39500, kind: "ABSORB", side: "bid", p: 99.8, q: 80 }];
+R = FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small.concat([bigPrint]), events: zev });
+ok(R.zones.length === 1 && R.zones[0].strength === 4 && Math.abs(R.zones[0].p - 99.82) < 0.05, "4-source confluence zone");
+ok(R.lines[0].zone && R.lines[0].sev === 4.5 && /Confluence/.test(R.lines[0].en) && /منطقة التقاء/.test(R.lines[0].ar) && /4 of 4/.test(R.lines[0].en), "zone line is first and says 4 of 4");
+ok(!R.lines.some(l => !l.zone && l.p != null && Math.abs(l.p - 99.82) < 0.1), "ingredient lines inside the zone are folded into it");
+R = FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small, events: [] });
+ok(R.zones.length === 0, "a lone wall is not a zone");
+R = FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small, events: [{ t: 39500, kind: "ABSORB", side: "bid", p: 99.80, q: 80 }] });
+ok(R.zones.length === 1 && R.zones[0].strength === 2 && R.lines.some(l => l.sev === 3.5 && /2 of 4/.test(l.en)), "two sources = a weaker zone");
+ok(FlowRead.read(st, { now: 40000, snap: snapT(39000, { b3: 100 }), trades: small, events: [{ t: 39500, kind: "ABSORB", side: "bid", p: 95, q: 80 }] }).zones.length === 0, "far apart sources do not merge");
 console.log("ok flow_read " + n + " checks");

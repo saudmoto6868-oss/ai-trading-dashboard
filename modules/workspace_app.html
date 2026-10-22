@@ -513,6 +513,9 @@ let SKEW = 0; const nowS = () => Date.now() + SKEW;
 const HM_RAMP = [[0,[1,3,8]],[.1,[12,26,110]],[.2,[22,72,205]],[.32,[0,158,230]],[.43,[0,200,170]],[.54,[60,205,70]],[.65,[190,225,40]],[.75,[250,205,30]],[.84,[250,130,25]],[.92,[235,45,50]],[.97,[225,60,200]],[1,[255,245,250]]];   // many distinct bands: navy > blue > sky > teal > green > lime > yellow > orange > red > magenta > white
 const hmRamp = t => { for (let q = 1; q < HM_RAMP.length; q++){ if (t <= HM_RAMP[q][0]){ const a = HM_RAMP[q-1], b = HM_RAMP[q], u = (t - a[0])/(b[0] - a[0] || 1); return "rgb("+Math.round(a[1][0] + (b[1][0]-a[1][0])*u)+","+Math.round(a[1][1] + (b[1][1]-a[1][1])*u)+","+Math.round(a[1][2] + (b[1][2]-a[1][2])*u)+")"; } } return "rgb(255,250,235)"; };
 const hexRgb = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];   // "#rrggbb" -> [r,g,b]
+const HM_ICE = [[0,[2,6,16]],[.3,[10,50,140]],[.6,[60,170,230]],[.85,[190,235,255]],[1,[255,255,255]]], HM_GRAY = [[0,[8,8,8]],[1,[245,245,245]]];
+const rampOf = (R, t) => { t = Math.max(0, Math.min(1, t)); for (let q = 1; q < R.length; q++){ if (t <= R[q][0]){ const a = R[q-1], b = R[q], u = (t - a[0])/(b[0] - a[0] || 1); return "rgb("+Math.round(a[1][0] + (b[1][0]-a[1][0])*u)+","+Math.round(a[1][1] + (b[1][1]-a[1][1])*u)+","+Math.round(a[1][2] + (b[1][2]-a[1][2])*u)+")"; } } const l = R[R.length-1][1]; return "rgb("+l[0]+","+l[1]+","+l[2]+")"; };
+const hmCol = (scheme, u, OF, bid) => scheme === "side" ? hexA(bid ? OF.color : OF.color2, .1 + .85*u) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*u*u)+","+Math.round(30 + 210*u*u*u)+","+(.1 + .85*u).toFixed(2)+")" : scheme === "custom" ? hmMix(u, hexRgb(OF.hmLo || "#010308"), hexRgb(OF.hmHi || "#fff5fa")) : scheme === "ice" ? rampOf(HM_ICE, u) : scheme === "mono" ? rampOf(HM_GRAY, u) : hmRamp(u);   // one colour function for the fixed-grid heat map, the live heat map and the legend
 const hmMix = (t, lo, hi) => "rgb("+Math.round(lo[0] + (hi[0]-lo[0])*t)+","+Math.round(lo[1] + (hi[1]-lo[1])*t)+","+Math.round(lo[2] + (hi[2]-lo[2])*t)+")";   // custom heat-map ramp: two colours (added 2026-10-19)
 const candleRem = (lastT, tf) => { const ms = (TFSEC[tf] || 3600)*1000; let e = nowS() - lastT; if (e < 0) e = 0; return e < ms ? ms - e : ms - (e % ms); };   // ms until the next candle opens
 const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; };
@@ -1364,11 +1367,38 @@ const FlowRead = (() => {
       if (w) lines.push({sev:1, side:s, p:w.p, en:"Biggest "+sd(s).en+" wall "+fq(w.q)+" at "+fp(w.p)+" ("+bp(Math.abs(w.p - mid)/mid)+" bp, resting "+fa(now - w.first)+(w.refills ? ", refilled "+w.refills+"x" : "")+")", ar:"أكبر حائط "+sd(s).ar+" "+fq(w.q)+" على "+fp(w.p)+" (بُعد "+bp(Math.abs(w.p - mid)/mid)+"bp، قاعد "+fa(now - w.first).replace(" s", " ث").replace(" m", " د")+(w.refills ? "، اتملى "+w.refills+"×" : "")+")"}); });
     const big = T.filter(x => now - x.t <= 60000).sort((a, b) => b.q - a.q)[0], mq = med(T.map(x => x.q));
     if (big && mq > 0 && big.q >= 6*mq) lines.push({sev:1, side:null, p:big.p, en:"Largest print: "+(big.side === "Buy" ? "buy" : "sell")+" "+fq(big.q)+" at "+fp(big.p)+" "+Math.round((now - big.t)/1000)+" s ago", ar:"أكبر صفقة: "+(big.side === "Buy" ? "شراء" : "بيع")+" "+fq(big.q)+" عند "+fp(big.p)+" من "+Math.round((now - big.t)/1000)+" ث"});
+    const tk_ = tickOf((snap.bids || []).concat(snap.asks || []).map(x => x.p)) || mid*1e-4, Z = zonesOf(st, now, mid, tk_, evs, T);
+    const tolZ = Math.max(3*tk_, mid*0.0003), inZone = l => l.p != null && Z.some(z => l.p >= z.lo - tolZ && l.p <= z.hi + tolZ);
+    for (let i = lines.length - 1; i >= 0; i--) if (inZone(lines[i]) && lines[i].sev < 5) lines.splice(i, 1);   // the zone line already names these ingredients
+    Z.forEach(z => lines.push({zone:true, sev:z.strength >= 3 ? 4.5 : 3.5, side:null, p:z.p, en:"Confluence at "+fp(z.p)+": "+zTxt(z, "en")+" ("+z.strength+" of 4 sources)", ar:"منطقة التقاء عند "+fp(z.p)+": "+zTxt(z, "ar")+" ("+z.strength+" من 4 مصادر)"}));
     if (!lines.length) lines.push({sev:0, side:null, p:null, en:"Quiet: no wall pulled or traded through, no absorption in the last 2 min", ar:"هادي: مفيش حائط اتسحب أو اتنفذ ومفيش امتصاص في آخر دقيقتين"});
     lines.sort((a, b) => b.sev - a.sev);
-    return {tilt:{book, tape, lim, dir, label}, lines, facts:F};
+    return {tilt:{book, tape, lim, dir, label}, lines, facts:F, zones:Z};
   }
-  return {newState, update, read, med, tickOf};
+  // heat level 0..1 from a resting size: liquidity filter (hmCut = hide cells below this % of the biggest), colour ceiling (hmTop = % of the biggest that already gets the brightest colour), contrast (hmGam exponent, 0 = the site default `gam`), brightness (hmBri) and the old 'Heat x' (dom)
+  const level = (q, mx, OF, gam) => {
+    const top = Math.max(.05, (OF.hmTop || 100)/100), cut = Math.max(0, Math.min(.9, (OF.hmCut || 0)/100));
+    let u = q/((mx || 1)*top); if (u > 1) u = 1; if (u <= cut) return 0; u = (u - cut)/(1 - cut);
+    return Math.min(1, Math.pow(u, OF.hmGam || gam)*(OF.dom || 1)*(OF.hmBri || 1));
+  };
+  // confluence zones: where SEVERAL independent things happened at the same price in the last 2 minutes. Sources: book (a wall that rested >= 15 s), limits (a wall pulled after resting / traded through / refilled), tape (absorption-like), prints (a big print). 2+ sources = a zone of interest; it says WHERE to look, not which way price goes.
+  function zonesOf(st, now, mid, tk, evs, trades){
+    const tol = Math.max(3*tk, mid*0.0003), pts = [];
+    st.walls.forEach(w => { if (now - w.first >= 15000 && Math.abs(w.p - mid)/mid <= 0.005) pts.push({p:w.p, src:"book", side:w.side, q:w.q}); });
+    evs.forEach(e => { if (e.kind === "ABSORB") pts.push({p:e.p, src:"tape", side:e.side, q:e.q});
+      else if (e.kind === "REFILL" || e.kind === "FILLED" || (e.kind === "PULLED" && e.age >= 8000)) pts.push({p:e.p, src:"limits", side:e.side, q:e.q, kind:e.kind}); });
+    const mq = med(trades.map(x => x.q)); trades.forEach(x => { if (now - x.t <= 60000 && mq > 0 && x.q >= 6*mq) pts.push({p:x.p, src:"prints", side:x.side === "Buy" ? "ask" : "bid", q:x.q}); });
+    pts.sort((a, b) => a.p - b.p); const groups = [];
+    pts.forEach(x => { const g = groups[groups.length - 1]; if (g && x.p - g.hi <= tol && x.p - g.lo <= 2*tol){ g.items.push(x); g.hi = Math.max(g.hi, x.p); } else groups.push({lo:x.p, hi:x.p, items:[x]}); });
+    return groups.map(g => { const srcs = [...new Set(g.items.map(i => i.src))], qs = g.items.reduce((a, i) => a + i.q, 0), p = g.items.reduce((a, i) => a + i.p*i.q, 0)/(qs || 1); return {p, lo:g.lo, hi:g.hi, srcs, strength:srcs.length, items:g.items}; })
+      .filter(z => z.strength >= 2).sort((a, b) => b.strength - a.strength || b.items.length - a.items.length).slice(0, 3);
+  }
+  const zTxt = (z, lg) => z.srcs.map(s => { const it = z.items.filter(i => i.src === s);
+    if (s === "book"){ const b = it.slice().sort((a, c) => c.q - a.q)[0]; return lg === "ar" ? "حائط "+(b.side === "bid" ? "شراء" : "بيع")+" "+fq(b.q) : (b.side === "bid" ? "bid" : "ask")+" wall "+fq(b.q); }
+    if (s === "limits"){ const M = lg === "ar" ? {PULLED:"اتسحب", FILLED:"اتنفذ", REFILL:"إعادة ملء"} : {PULLED:"pulled", FILLED:"traded through", REFILL:"refill"}; return [...new Set(it.map(i => i.kind))].map(k => M[k]).join("/"); }
+    if (s === "tape") return lg === "ar" ? "امتصاص محتمل" : "absorption-like";
+    const pr = it.slice().sort((a, c) => c.q - a.q)[0]; return lg === "ar" ? "صفقة كبيرة "+(pr.side === "ask" ? "شراء" : "بيع")+" "+fq(pr.q) : "big "+(pr.side === "ask" ? "buy" : "sell")+" print "+fq(pr.q); }).join(" + ");
+  return {newState, update, read, med, tickOf, level, zonesOf};
 })();
 /* FLOWREAD:END */
 // task 52: a time-synced crosshair. When on, moving the cross over one chart of a symbol draws the same time on every other chart of that symbol.
@@ -1857,8 +1887,8 @@ Object.assign(CandleChart.prototype, {
           m.w = Math.max(m.w, t + o.w - m.t); m.m = o.m; o._r.forEach((q, kr) => { const v = m._r.get(kr); if (v == null || q > v) m._r.set(kr, q); }); });
         cols = [...by.values()].map(m => [m.t, m]); this._hmMerge = {key, cols}; } }
     cols.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
-      o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const u = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)); if (u < .04) return;
-        c.fillStyle = scheme === "side" ? hexA(pr <= o.m ? OF.color : OF.color2, .1 + .85*u) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*u*u)+","+Math.round(30 + 210*u*u*u)+","+(.1 + .85*u).toFixed(2)+")" : scheme === "custom" ? hmMix(u, hexRgb(this.st.of.hmLo || "#010308"), hexRgb(this.st.of.hmHi || "#fff5fa")) : hmRamp(u); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+      o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const u = FlowRead.level(q, mx, OF, .5); if (u < .04) return;
+        c.fillStyle = hmCol(scheme, u, OF, pr <= o.m); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     return bs[0][0];
   },
   paintSigs(c, py, PR, PB, ov){   // BUY/SELL arrows: live scanner signal on the last candle + past journal signals for this symbol
@@ -1981,11 +2011,16 @@ Object.assign(CandleChart.prototype, {
       const V = this._vp; for (let r = 0; r < nR; r++){ const u = Math.pow(V.vp[r]/(V.m || 1), .6); if (u < .05) continue; const y0 = py(lo + (r + 1)*V.rh), y1 = py(lo + r*V.rh); c.fillStyle = hmRamp(u*.4); c.globalAlpha = .55 + .35*u; c.fillRect(gx0, y0, gw, Math.max(1, y1 - y0 + .5)); } c.globalAlpha = 1; }
     const fixedHm = (OF.hmm || "fix") === "fix" && span > 900000; if (this.domOn && fixedHm) this.paintHeatCol(c, py, PB, tx, gx0, gx1, anchor - span*1.05, anchor + 60000);
     if (this.domOn && !fixedHm) B.forEach((sn, i) => { const x0 = Math.max(gx0, tx(sn.t)), x1 = Math.min(gx1, i + 1 < B.length ? tx(B[i+1].t) : gx1), w = Math.max(1.2, x1 - x0); if (x1 < gx0) return;
-      rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const t = Math.min(1, Math.pow(v.q/(hm || 1), .55)*(OF.dom || 1)); if (t < .04) return;
-        c.fillStyle = scheme === "side" ? hexA(v.bid ? OF.color : OF.color2, .08 + .9*t) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*t*t)+","+Math.round(30 + 210*t*t*t)+","+(.08 + .9*t).toFixed(2)+")" : ramp(t); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+      rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const t = FlowRead.level(v.q, hm, OF, .55); if (t < .04) return;
+        c.fillStyle = hmCol(scheme, t, OF, v.bid); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
     // 1b) Bookmap-style depth histogram on the right edge: current resting size at every price row (bid colour below the mid, ask colour above)
     if (this.domOn && B.length){ const sn = B[B.length-1], R_ = sn._r; if (R_ && R_.size){ let mq = 0; R_.forEach(v => { if (v.q > mq) mq = v.q; }); const mw = gw*0.3;
-      R_.forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const w_ = Math.max(1, Math.pow(v.q/(mq || 1), .6)*mw); c.fillStyle = hexA(v.bid ? OF.color : OF.color2, .55); c.fillRect(gx1 - w_, y - rowH/2 + .5, w_, Math.max(1, rowH - 1)); }); } }
+      R_.forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const w_ = Math.max(1, Math.pow(v.q/(mq || 1), .6)*mw); c.fillStyle = hexA(v.bid ? OF.color : OF.color2, .55); c.fillRect(gx1 - w_, y - rowH/2 + .5, w_, Math.max(1, rowH - 1)); });
+      if (OF.chg !== 0){ const prev = B.length > 1 ? B[B.length-2]._r : null, CH = this._chg = this._chg || new Map();   // live change layer: a level that grew (cyan) or shrank (magenta) since the previous snapshot is outlined for 3 s; a level that vanished leaves a fading dashed ghost
+        if (prev && sn.t !== this._chgT){ this._chgT = sn.t; R_.forEach((v, k) => { const o = prev.get(k), dq = o ? (v.q - o.q)/(o.q || 1e-12) : (v.q >= .25*mq ? 1 : 0); if (dq >= .35 && v.q >= .12*mq) CH.set(k, {t:now, kind:"up", q:v.q}); else if (dq <= -.35 && o && o.q >= .12*mq) CH.set(k, {t:now, kind:"down", q:v.q}); });
+          prev.forEach((o, k) => { if (!R_.has(k) && o.q >= .2*mq) CH.set(k, {t:now, kind:"gone", q:o.q}); }); }
+        CH.forEach((e, k) => { const age = now - e.t; if (age > 3000){ CH.delete(k); return; } const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const w2 = Math.max(3, Math.pow(e.q/(mq || 1), .6)*mw);
+          c.globalAlpha = 1 - age/3000; c.lineWidth = 1.4; c.strokeStyle = e.kind === "up" ? "#7ee8ff" : "#ff4fd8"; if (e.kind === "gone") c.setLineDash([2, 2]); c.strokeRect(gx1 - w2 - .5, y - rowH/2 + .5, w2, Math.max(2, rowH - 1)); c.setLineDash([]); c.globalAlpha = 1; }); } } }
     // 2) mid-price trace (the line the heat map is read against)
     if (this.domOn && B.length > 1){ c.strokeStyle = "#eaecef"; c.lineWidth = 1.2; c.beginPath(); let st = false; B.forEach(sn => { if (!sn.bb || !sn.ba) return; const x = tx(sn.t); if (x < gx0) return; const y = py((sn.bb + sn.ba)/2); st ? c.lineTo(x, y) : (c.moveTo(x, y), st = true); }); c.stroke(); }
     // 2b) absorption: lots of volume traded at ONE price row without the price leaving it = the resting orders there soaked it up -> purple frame on the heat map
@@ -2011,7 +2046,7 @@ Object.assign(CandleChart.prototype, {
     if (this.domOn){ c.fillStyle = "#ffffff"; c.fillText("■ "+Lg("pulled","اتلغى"), gx1 - 96, 10); c.fillStyle = "#b57cff"; c.fillText("■ "+Lg("filled","اتنفذ"), gx1 - 46, 10); c.fillStyle = "#848e9c"; }
     if (this.domOn && B.length){ const sn = B[B.length-1], ps = sn.lv.map(x => x[0]), mid = (sn.bb + sn.ba)/2; if (ps.length && mid){ const cov = (Math.max(...ps) - Math.min(...ps))/mid*100/2; c.fillStyle = "#6b7684"; c.fillText(Lg("book depth ±"+cov.toFixed(2)+"% (exchange limit)", "عمق الدفتر ±"+cov.toFixed(2)+"% (حد البورصة)"), gx0, 36); } }
     if (this.domOn && OF.vpf === true){ c.fillStyle = "#6b7684"; c.textAlign = "left"; c.fillText(Lg("▒ dim = traded volume by price (full chart range) · bright = live/saved order book","▒ الخافت = حجم التداول على السعر (كامل نطاق الشارت) · الساطع = دفتر الأوامر"), gx0, 46); }
-    if (this.domOn){ const bx = gx0, by = PB - 22, bw_ = Math.min(110, gw - 10); for (let q = 0; q < bw_; q++){ c.fillStyle = scheme === "side" ? hexA(OF.color, .15 + .85*(q/(bw_ - 1))) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*(q/(bw_-1))**2)+","+Math.round(30 + 210*(q/(bw_-1))**3)+",1)" : ramp(q/(bw_ - 1)); c.fillRect(bx + q, by, 1.2, 6); } c.fillStyle = "#9aa4b2"; c.font = "8px sans-serif"; c.textAlign = "left"; c.fillText(Lg("small","صغير"), bx, by - 2); c.textAlign = "right"; c.fillText(Lg("big orders","أوامر كبيرة"), bx + bw_, by - 2); c.textAlign = "left"; }
+    if (this.domOn){ const bx = gx0, by = PB - 22, bw_ = Math.min(110, gw - 10); for (let q = 0; q < bw_; q++){ c.fillStyle = hmCol(scheme, q/(bw_ - 1), OF, true); c.fillRect(bx + q, by, 1.2, 6); } c.fillStyle = "#9aa4b2"; c.font = "8px sans-serif"; c.textAlign = "left"; c.fillText(Lg("small","صغير"), bx, by - 2); c.textAlign = "right"; c.fillText(Lg("big orders","أوامر كبيرة"), bx + bw_, by - 2); c.textAlign = "left"; }
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
@@ -2599,7 +2634,10 @@ Object.assign(CandleChart.prototype, {
   },
   paintRead(c, X0, XE, PB, py, now){   // FLOW READING: 2-4 plain sentences about what the book, the prints and the limit tracker did in the last 2 minutes, numbered, with the same numbers drawn on the heat map at the price they talk about. A description, never a forecast.
     if (!this._rdT || now - this._rdT > 600){ const cx = this.readCtx(now); this._rd = cx ? FlowRead.read(this.fr || FlowRead.newState(), cx) : null; this._rdT = now; }
-    const R = this._rd; if (!R) return; const w = XE - X0, ar = lang === "ar", lines = R.lines.slice(0, w >= 190 && PB >= 300 ? 4 : PB >= 220 ? 3 : 2); if (w < 120 || !lines.length) return;
+    const R = this._rd; if (!R) return;
+    (R.zones || []).forEach(z => { const y1 = py(z.hi), y2 = py(z.lo), yy = Math.min(y1, y2), hh = Math.max(7, Math.abs(y1 - y2) + 4); if (yy > PB || yy + hh < 0) return;   // confluence zone: a gold bracket at the column's left edge, one dot per agreeing source
+      c.save(); c.fillStyle = z.strength >= 3 ? "rgba(240,185,11,.95)" : "rgba(240,185,11,.55)"; c.fillRect(X0 + 5, yy, 3, hh); c.font = "bold 8px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText("●".repeat(z.strength), X0 + 11, yy + hh/2); c.restore(); });
+    const w = XE - X0, ar = lang === "ar", lines = R.lines.slice(0, w >= 190 && PB >= 300 ? 4 : PB >= 220 ? 3 : PB >= 160 ? 2 : 1);   // small chart: fewer lines, the heat map stays readable if (w < 120 || !lines.length) return;
     const G = this.st.of.color || "#0ecb81", Rd = this.st.of.color2 || "#f6465d", fs = 9, lh = 11;
     c.save(); c.font = fs+"px sans-serif"; c.textBaseline = "middle";
     const iso = t => ar ? t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "\u2066"+m+"\u2069") : t;
@@ -4808,7 +4846,7 @@ Ws.sensPop = anchor => {
 };
 /* Depth-of-Trade settings (colours + sizes), ATAS-style */
 Ws.ofPanel = (anchor, chart, onChange) => {
-  document.querySelectorAll(".stpop").forEach(x => x.remove()); const OF = chart.st.of, ar = lang === "ar", L = (e, a) => ar ? a : e;
+  document.querySelectorAll(".stpop").forEach(x => x.remove()); const OF = chart.st.of, ar = lang === "ar", L = (e, a) => ar ? a : e; [["hmCut", 0], ["hmTop", 100], ["hmGam", 0], ["hmBri", 1], ["chg", 1]].forEach(([k, v]) => { if (OF[k] == null) OF[k] = v; });
   const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-300))+"px"; pop.style.top = (r.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "260px";
   const row = (lab, input) => { const l = el("span"); l.textContent = lab; pop.append(l, input); input.onpointerdown = e => e.stopPropagation(); };
   const col = (k, lab) => { const i = el("input"); i.type = "color"; i.value = OF[k]; i.oninput = () => { OF[k] = i.value; onChange(); }; row(lab, i); };
@@ -4821,10 +4859,17 @@ Ws.ofPanel = (anchor, chart, onChange) => {
     fpc("fpBuy", "color", L("Footprint buy colour","لون شراء الفوتبرنت")); fpc("fpSell", "color2", L("Footprint sell colour","لون بيع الفوتبرنت"));
     const fpr = el("button"); fpr.textContent = L("Use buy / sell colours","استخدم ألوان الشراء / البيع"); fpr.onclick = () => { OF.fpBuy = ""; OF.fpSell = ""; onChange(); pop.remove(); }; row(L("Footprint colours","ألوان الفوتبرنت"), fpr); }
   num("min", L("Bubbles: min size (0 all · 1 smart · 2 whale)","الفقاعات: أقل حجم (0 الكل · 1 ذكي · 2 حوت)"), 0, 2, 1); num("bsz", L("Bubble size ×","حجم الفقاعة ×"), 0.3, 3, 0.1); num("bop", L("Bubble opacity ×","شفافية الفقاعة ×"), 0.2, 2.5, 0.1);
-  { const hs = el("select"); [["book", L("Bookmap thermal (blue → yellow → red)","بوك ماب حراري (أزرق ← أصفر ← أحمر)")], ["side", L("Bid / ask colours (buy & sell colour)","ألوان الطلب والعرض (لون الشراء والبيع)")], ["amber", L("Amber (old)","كهرماني (القديم)")], ["custom", L("Custom: two colours","مخصص: لونين")]].forEach(([v, l]) => hs.append(Object.assign(el("option"), {value:v, textContent:l}))); hs.value = OF.hm || "book"; hs.onchange = () => { OF.hm = hs.value; onChange(); }; row(L("Heat-map colours","ألوان الهيت ماب"), hs); for (const [k, lab, dv] of [["hmLo", L("Heat-map low colour","لون الهيت ماب المنخفض"), "#010308"], ["hmHi", L("Heat-map high colour","لون الهيت ماب العالي"), "#fff5fa"]]){ const i = el("input"); i.type = "color"; i.value = OF[k] || dv; i.oninput = () => { OF[k] = i.value; OF.hm = "custom"; hs.value = "custom"; onChange(); }; row(lab, i); } }
+  { const hs = el("select"); [["book", L("Bookmap thermal (blue → yellow → red)","بوك ماب حراري (أزرق ← أصفر ← أحمر)")], ["side", L("Bid / ask colours (buy & sell colour)","ألوان الطلب والعرض (لون الشراء والبيع)")], ["amber", L("Amber (old)","كهرماني (القديم)")], ["ice", L("Ice (dark blue → white)","جليدي (أزرق غامق ← أبيض)")], ["mono", L("Gray (black → white)","رمادي (أسود ← أبيض)")], ["custom", L("Custom: two colours","مخصص: لونين")]].forEach(([v, l]) => hs.append(Object.assign(el("option"), {value:v, textContent:l}))); hs.value = OF.hm || "book"; hs.onchange = () => { OF.hm = hs.value; onChange(); }; row(L("Heat-map colours","ألوان الهيت ماب"), hs); for (const [k, lab, dv] of [["hmLo", L("Heat-map low colour","لون الهيت ماب المنخفض"), "#010308"], ["hmHi", L("Heat-map high colour","لون الهيت ماب العالي"), "#fff5fa"]]){ const i = el("input"); i.type = "color"; i.value = OF[k] || dv; i.oninput = () => { OF[k] = i.value; OF.hm = "custom"; hs.value = "custom"; onChange(); }; row(lab, i); } }
   { const hx = el("select"); [["fix", L("Fixed saved history (up to 7 days when zoomed out)","تاريخ ثابت محفوظ (لحد 7 أيام لما تبعد)")], ["live", L("Live scrolling (old, max 20 min)","لايف بيتحرك (القديم، أقصى 20 دقيقة)")]].forEach(([v, l]) => hx.append(Object.assign(el("option"), {value:v, textContent:l}))); hx.value = OF.hmm || "fix"; hx.onchange = () => { OF.hmm = hx.value; onChange(); }; row(L("Heat-map mode","نمط الهيت ماب"), hx); }
   { const ws_ = el("select"); [[0,"Auto"],[120000,"2 min"],[600000,"10 min"],[3600000,"1 h"],[21600000,"6 h"],[86400000,"1 day"],[259200000,"3 days"],[604800000,"7 days"]].forEach(([v, l]) => ws_.append(Object.assign(el("option"), {value:v, textContent:l}))); ws_.value = String(ch().flowSpan || 0); ws_.onchange = () => { ch().flowSpan = +ws_.value || 0; onChange(); }; row(L("Column time window","الفترة الزمنية للعمود"), ws_); }
-  num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
+  num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1);
+  { const numz = (k, lab, mn, mx, stp) => { const i = el("input"); i.type = "number"; i.min = mn; i.max = mx; i.step = stp; i.value = OF[k]; i.style.width = "60px"; i.onchange = () => { const v = parseFloat(i.value); OF[k] = isFinite(v) ? Math.max(mn, Math.min(mx, v)) : OF[k]; i.value = OF[k]; onChange(); }; row(lab, i); };   // like num() but 0 is a valid value
+    numz("hmCut", L("Liquidity filter: hide cells below this % of the biggest size","فلتر السيولة: اخفي الخلايا الأقل من النسبة دي من أكبر حجم"), 0, 80, 5);
+    numz("hmTop", L("Colour ceiling: this % of the biggest size already gets the brightest colour","سقف اللون: النسبة دي من أكبر حجم تاخد أسطع لون"), 20, 100, 5);
+    numz("hmGam", L("Contrast (0 = default, lower shows more faint cells)","التباين (0 = الافتراضي، الأقل يظهر خلايا خافتة أكتر)"), 0, 1.5, 0.05);
+    numz("hmBri", L("Brightness ×","السطوع ×"), 0.4, 2.5, 0.1);
+    const cs = el("select"); [[1, L("On","شغال")], [0, L("Off","مقفول")]].forEach(([v, l]) => cs.append(Object.assign(el("option"), {value:v, textContent:l}))); cs.value = OF.chg === 0 ? 0 : 1; cs.onchange = () => { OF.chg = +cs.value; onChange(); };
+    row(L("Live change outline (cyan = grew, magenta = shrank / vanished)","إطار التغيير اللحظي (سماوي = زاد، ماجنتا = قلّ أو اختفى)"), cs); } num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };

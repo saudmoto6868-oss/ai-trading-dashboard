@@ -534,6 +534,58 @@
    "title_ar": "فرضية تانية: اختبار مجمد تاني أو اختبار درجة A+++",
    "next_ar": "المالك يختار الفرضية؛ نسجلها في المحضر قبل التشغيل",
    "owner_ar": "المالك + مدير الموقع"
+  },
+  {
+   "p": "P1",
+   "wbs": "9.3",
+   "title": "Confluence-zone forward test: collect >= 100 paired zones (Workspace open, order-flow column on), export, judge in Flow lab",
+   "area": "Order flow",
+   "owner": "Site manager + owner",
+   "status": "in progress",
+   "gate": "G3",
+   "next": "Code is on feat/orderflow-zonetest-2026-10-23; needs hours with the Workspace open (about 1 zone a minute per symbol)",
+   "title_ar": "اختبار أمامي لمناطق الالتقاء: تجميع 100 منطقة مقارنة على الأقل (الـ Workspace مفتوح والعمود شغال)، تصدير، وحكم في معمل الأوردر فلو",
+   "next_ar": "الكود على feat/orderflow-zonetest-2026-10-23؛ محتاج ساعات والـ Workspace مفتوح (حوالي منطقة في الدقيقة لكل رمز)",
+   "owner_ar": "مدير الموقع + المالك"
+  },
+  {
+   "p": "P1",
+   "wbs": "9.4",
+   "title": "Order-flow merge stack: ChatGPT clean branch -> reading -> colours -> zone test; then rebase ChatGPT's vnext / history branches onto it",
+   "area": "Order flow",
+   "owner": "ChatGPT + site manager + Gemini review",
+   "status": "review",
+   "gate": "G2",
+   "next": "Gemini reviews in this order; the stack merges into main without conflicts (trial merge); vnext and history-coverage-review conflict in workspace_app.html and need a rebase",
+   "title_ar": "تجميع الأوردر فلو: فرع ChatGPT ← القراءة ← الألوان ← اختبار المناطق، وبعدين نعمل rebase لفروع vnext والتاريخ فوقهم",
+   "next_ar": "Gemini يراجع بالترتيب ده؛ المجموعة بتدمج في main من غير تعارض (جربت دمج تجريبي)؛ فرعي vnext والتاريخ بيتعارضوا في workspace_app.html ومحتاجين rebase",
+   "owner_ar": "ChatGPT + مدير الموقع + مراجعة Gemini"
+  },
+  {
+   "p": "P2",
+   "wbs": "9.5",
+   "title": "ChatGPT answers the backtest agent and the assistant's text questions (set OPENAI_API_KEY); voice stays on Gemini Live until a paid OpenAI voice is approved",
+   "area": "AI",
+   "owner": "Owner (key + approval) + site manager",
+   "status": "waiting",
+   "gate": "G3",
+   "next": "Owner sets OPENAI_API_KEY in Streamlit secrets; without it Gemini is used and nothing is spent",
+   "title_ar": "ChatGPT يجاوب وكيل الباك تيست وأسئلة المساعد النصية (محتاج OPENAI_API_KEY)؛ الصوت يفضل على Gemini Live لحد ما يتعتمد صوت OpenAI المدفوع",
+   "next_ar": "المالك يحط OPENAI_API_KEY في Secrets؛ من غيره بيشتغل Gemini ومفيش صرف",
+   "owner_ar": "المالك (المفتاح والموافقة) + مدير الموقع"
+  },
+  {
+   "p": "P3",
+   "wbs": "9.6",
+   "title": "Order-flow Bookmap gaps: CVD mini-line under the column, bubble size filter by percentile, numeric colour legend",
+   "area": "Order flow",
+   "owner": "Site manager",
+   "status": "open",
+   "gate": "G1",
+   "next": "After 9.4 is reviewed",
+   "title_ar": "فجوات Bookmap في الأوردر فلو: خط CVD صغير تحت العمود، فلتر حجم الفقاعات بالنسبة المئوية، مفتاح ألوان بأرقام",
+   "next_ar": "بعد مراجعة 9.4",
+   "owner_ar": "مدير الموقع"
   }
  ]
 }

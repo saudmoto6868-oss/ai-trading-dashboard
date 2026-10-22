@@ -69,6 +69,14 @@ AR = {
     "The agent needs a ChatGPT key (OPENAI_API_KEY) or the free Gemini key (GEMINI_API_KEY) in Streamlit secrets. Until then, build the rules by hand in Technical Office > Backtest.":
         "الوكيل محتاج مفتاح ChatGPT (OPENAI_API_KEY) أو مفتاح Gemini المجاني (GEMINI_API_KEY) في Secrets بتاعة Streamlit. لحد وقتها ابني القواعد بإيدك في المكتب الفني ← الباك تيست.",
     "Answered by": "الإجابة من",
+    "Confluence zones: forward test": "مناطق الالتقاء: اختبار أمامي",
+    "The Workspace logs every confluence zone and follows the price; a zone 'holds' when price, after touching it, moves 6 bp back to where it came from before moving 6 bp through it. Every zone has a control level (the mirror price) tracked the same way. Export from the chart's indicator menu: 'Export zone test log'.":
+        "الـ Workspace بيسجل كل منطقة التقاء ويتابع السعر؛ المنطقة «ثبتت» لما السعر بعد ما يلمسها يرجع 6 نقط أساس لناحية ما جه منها قبل ما يعدّيها 6 نقط. وكل منطقة ليها مستوى كنترول (السعر المقلوب) بيتتابع بنفس القاعدة. التصدير من قايمة مؤشرات الشارت: «تصدير سجل اختبار المناطق».",
+    "Zone test logs (.json, one per symbol)": "سجلات اختبار المناطق (.json، واحد لكل رمز)",
+    "Zones": "المناطق", "Zones logged": "مناطق مسجلة", "touched": "لمست", "Zones held / broke": "مناطق ثبتت / اتكسرت", "after touching": "بعد اللمس",
+    "Control held / broke": "الكنترول ثبت / اتكسر", "mirror level, same rule": "مستوى مقلوب، نفس القاعدة", "Paired zones": "مناطق مقارنة",
+    "both resolved; the gate needs 100": "الاتنين اتحسموا؛ البوابة محتاجة 100", "Zone minus control": "المنطقة ناقص الكنترول", "halves": "النصين",
+    "t > 3, both halves positive, n >= 100": "t > 3، والنصين موجبين، n ≥ 100", "Sources agreeing": "مصادر متفقة",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

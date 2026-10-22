@@ -41,3 +41,6 @@ Done 2026-10-19: object tree (≣ button in the drawing bar): lists this chart's
 - **Checks actually run:** both inline JavaScript script blocks compile via `new Function`; isolated harnesses executed the extracted `hmSave` and `hmInit` methods with synthetic localStorage and passed retention/compaction/bootstrap assertions.
 - **Not done:** no live browser visual check across 30s/1m/5m/15m/1H, no real-feed reconnect test, no test of chart zoom or mobile rendering. No merge/deploy.
 - **Next:** build a separate Historical Liquidity Heatmap mode using public WebSocket depth, explicit source/symbol/connection state, sequence-gap resync, independent storage and rendering, and tests for missing data and all supported display timeframes. Do not infer historical depth from candle timeframe aggregation.
+
+
+- **Compatibility follow-up (2026-10-22):** Changed the default OKX WebSocket base from port `8443` to the default TLS port `443` because OKX's official changelog says port 8443 will stop accepting connections on 2026-10-31 and port 443 already works. Any deployment-specific `CFG.wsBase` override still needs checking. No live connection test performed.

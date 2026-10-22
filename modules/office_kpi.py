@@ -86,7 +86,8 @@ def summary(d: dict) -> dict:
     return {
         "detectors": len(keys), "off": off, "passed": len(passed),
         "candidates": len(per_tf) + len(chain),
-        "t_measured": sum(1 for r in per_tf + chain if r.get("t") is not None),   # rows the lab gave a t-stat; the rest cannot pass the gate
+        "det_rows": len(per_tf), "det_t": sum(1 for r in per_tf if r.get("t") is not None),   # detector x timeframe rows and how many have a t-stat (the lab gives none)
+        "chain_rows": len(chain), "chain_t": sum(1 for r in chain if r.get("t") is not None),   # chain-grade rows, which do carry a t-stat
         "best": None if not best else {"key": best["key"], "tf": best["tf"], "n": best["n"], "net": net(best),
                                        "vs_random": round(best["avgR"] - (best.get("base_avgR") or 0.0), 3)},
         "built": time.strftime("%Y-%m-%d", time.gmtime(built)) if built else None,

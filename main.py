@@ -1109,6 +1109,19 @@ def _office_charts():
         _office_bars(_OK.pooled(d, "school"), L("avg R by school (dashed = 0.1R cost)"))
 
 
+def _holdouts():
+    """Frozen holdout results on disk (data/holdout_*.json from modules/lab_holdout.py): [{'key', 'pass', 'n', 'net', 't'}]."""
+    import json as _json
+    out = []
+    for p in sorted((Path(__file__).resolve().parent / "data").glob("holdout_*.json")):
+        try:
+            j = _json.loads(p.read_text(encoding="utf-8")); r = j["result"]
+            out.append({"key": j["frozen"]["key"], "pass": bool(r["pass"]), "n": r["n"], "net": r["net_avgR"], "t": r["t_vs_random"]})
+        except (OSError, ValueError, KeyError):
+            continue
+    return out
+
+
 def _office_overview():
     """Control room: status bar, evidence gauge, alerts, indicators, system map, tools (owner's reference images)."""
     from modules import office_kpi as _OK, office_ui as U
@@ -1126,7 +1139,7 @@ def _office_overview():
     al = []
     if not s.get("passed"):
         al.append((L("Nothing has passed the evidence gate yet"), L("info"), "info",
-                   L("The lab measures t for") + f" {s.get('t_measured', 0)} / {s.get('candidates', 0)} " + L("rows only; the rest cannot pass the gate yet")))
+                   L("The lab gives a t-stat to") + f" {s.get('det_t', 0)} / {s.get('det_rows', 0)} " + L("detector rows (and") + f" {s.get('chain_t', 0)} / {s.get('chain_rows', 0)} " + L("chain rows): a row without t cannot pass the gate")))
     pb = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
     if pb and s.get("built") and s["built"] not in pb[0]:
         al.append((L("The Playbook summary is older than the last lab run"), L("degraded"), "warn", f"{pb[0].split(' ')[2]} / {s['built']}"))
@@ -1146,8 +1159,8 @@ def _office_overview():
                     (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None),
                     (L("Tasks in review"), cnt.get("review", 0), L("waiting for Gemini / owner"), "info"),
                     (L("Open tasks"), cnt.get("open", 0) + cnt.get("waiting", 0), L("work board"), None),
-                    (L("Live vs backtest"), "[—]", L("after 30-50 live trades"), None),
-                    (L("Max drawdown"), "[—R]", L("from the backtest engine"), None)]) + "</div>", unsafe_allow_html=True)
+                    (L("Rows with a t-stat"), f"{s.get('det_t', 0)} / {s.get('det_rows', 0)}", L("detector x timeframe; the gate needs t > 3"), "bad" if not s.get("det_t") else None),
+                    (L("Holdout tests run"), f"{len(_holdouts())}", L("frozen holdouts on older candles") + " · " + L("passed") + f" {sum(1 for h in _holdouts() if h['pass'])}", None)]) + "</div>", unsafe_allow_html=True)
     _office_charts()
     hl = "ok" if src.get("Hyperliquid") else "bad"
     st.markdown(U.system_map(L("System map"), L("From data to decision to evidence; every node shows its state"), [

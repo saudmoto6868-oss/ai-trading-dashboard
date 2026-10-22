@@ -65,6 +65,18 @@ def summary(d: dict) -> dict:
     }
 
 
+def pooled(d: dict, by: str) -> list:
+    """Trade-weighted avg R per timeframe ('tf') or per school ('school'): [{label, n, avgR, net}]."""
+    rows = [r for r in _detector_rows(d) if r.get("side") == "all"]
+    rows = [r for r in rows if (r.get("tf") != "all") == (by == "tf")]
+    acc = {}
+    for r in rows:
+        a = acc.setdefault(r[by], [0, 0.0]); a[0] += r["n"]; a[1] += r["n"] * (r.get("avgR") or 0.0)
+    out = [{"label": k, "n": v[0], "avgR": round(v[1] / v[0], 3), "net": round(v[1] / v[0] - COST_R, 3)} for k, v in acc.items() if v[0]]
+    order = {"1m": 0, "15m": 1, "1h": 2, "4h": 3, "1d": 4}
+    return sorted(out, key=lambda x: order.get(x["label"], 9)) if by == "tf" else sorted(out, key=lambda x: -x["avgR"])
+
+
 def styles(d: dict) -> list:
     """Per trading style: the strongest detector x timeframe with n >= 100, by net avg R (None when there is none)."""
     rows = [r for r in _detector_rows(d) if r.get("side") == "all"]

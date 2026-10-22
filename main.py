@@ -1517,6 +1517,58 @@ def _office_options():
     st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV RANK needs history we do not store yet. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 
+def _office_flow_lab():
+    """Technical Office > Flow lab: the forward-test judge for order-flow signals (modules/flow_log.py). Reads the collector's log
+    (or an uploaded one), fills the forward returns, tests the frozen rules after costs against a random-sign control, and applies
+    the lab's gate. Nothing here is a trade signal; a rule only earns trust by passing."""
+    import json as _json
+    import pandas as _pd
+    from modules import flow_log as FL, office_ui as U
+    st.markdown(U.CSS, unsafe_allow_html=True)
+    st.markdown("<div class='xo-card' dir='rtl' style='line-height:25px'><b>الفكرة:</b> الدفتر والشريط ما لهمش تاريخ طويل نختبر عليه، فبنختبرهم <b>للأمام</b>: "
+                "الـ collector بيسجل كل ثواني مؤشرات الدفتر والشريط، والحكم بيقيس عائد السعر بعدها بـ 5 ثواني و30 ثانية و5 دقايق وساعة، "
+                "بقواعد مجمدة، بعد التكلفة، ومقارنة بإشارة عشوائية. القاعدة تعدّي بس لو <b>n ≥ 100 ، t > 3 ، والنصين موجبين</b>.</div>", unsafe_allow_html=True)
+    up = st.file_uploader(L("Flow log (.jsonl)"), type=["jsonl", "json", "txt"], key="fl_up")
+    rows = []
+    if up is not None:
+        for ln in up.getvalue().decode("utf-8", "ignore").splitlines():
+            try:
+                rows.append(_json.loads(ln))
+            except ValueError:
+                pass
+        rows.sort(key=lambda r: (r["sym"], r["t"]))
+        src = up.name
+    else:
+        rows = FL.load(); src = str(FL.PATH)
+    c = st.columns([1, 1, 2])
+    cost = c[0].number_input(L("Cost per trade (bps)"), 0.0, 100.0, float(FL.COST_BPS), 1.0, key="fl_cost",
+                             help=L("Taker fee both ways + half spread + slippage; a planning number. 10 bps = 0.10%"))
+    secs = c[1].selectbox(L("Collect now (seconds)"), [0, 60, 120, 300], format_func=lambda x: "-" if not x else str(x), key="fl_secs")
+    if secs and c[2].button(L("Collect BTC / ETH / SOL now") + f" ({secs} s)", key="fl_go"):
+        with st.spinner(L("Collecting from OKX ...")):
+            n = FL.collect(["BTC-USDT", "ETH-USDT", "SOL-USDT"], int(secs), 2.0)
+        st.success(f"{n} " + L("rows added"))
+        rows = FL.load()
+    if not rows:
+        st.info(L("No log yet. Collect from the button above, or run: python modules/flow_log.py collect BTC-USDT,ETH-USDT,SOL-USDT 3600 2"))
+        return
+    j = FL.judge(rows, float(cost))
+    st.markdown("<div class='xo-row'>" + U.indicators(L("Log") + f" · {src}", [
+        (L("Rows"), f"{j['rows']:,}", ", ".join(j["symbols"]), None),
+        (L("Hours covered"), f"{j['hours']}", L("a few hours is a pipeline test, not evidence"), "warn" if j["hours"] < 24 else "ok"),
+        (L("Rules x horizons tried"), j["trials"], L("every variant counts as a trial; t > 3 is the bar"), None),
+        (L("Passed the gate"), len(j["passed"]), L("n >= 100, t > 3, both halves positive, after cost"), "ok" if j["passed"] else "bad")]) + "</div>", unsafe_allow_html=True)
+    df = _pd.DataFrame([r for r in j["results"] if r["n"]])
+    if df.empty:
+        st.info(L("Not enough rows for any horizon yet."))
+        return
+    df["verdict"] = df["pass"].map(lambda p: L("passed") if p else L("not evidence"))
+    st.dataframe(df[["rule", "horizon", "n", "gross_bps", "net_bps", "t", "control_net_bps", "half1", "half2", "verdict"]].rename(columns={
+        "rule": L("Rule"), "horizon": L("Horizon (s)"), "gross_bps": L("gross bps"), "net_bps": L("net bps"), "control_net_bps": L("random-sign control"),
+        "half1": L("first half"), "half2": L("second half"), "verdict": L("Verdict")}), hide_index=True, use_container_width=True)
+    st.caption(L("Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice."))
+
+
 def _office_flow_manual():
     """Technical Office > Flow manual: chartless methods (order book, tape, funding / OI, options) - what each measures, how to read it,
     how it is used, where it breaks, the evidence, which tool shows it, the daily routine and the forward-test protocol."""
@@ -1634,7 +1686,7 @@ def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
     tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
         tabs.get(pick or "Control room", _office_overview)()

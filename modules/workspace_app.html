@@ -505,6 +505,11 @@ async function hlOkx(path){   // answers the OKX REST paths the widgets use, in 
   throw new Error("not available for Hyperliquid markets");
 }
 const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"13m":780,"1H":3600,"2H":7200,"3H":10800,"4H":14400,"6H":21600,"7H":25200,"8H":28800,"12H":43200,"1D":86400,"3D":259200,"1W":604800,"1M":2592000};
+// Fixed view per timeframe, aligned with CRT (owner 2026-10-21/22): Fit shows N candles of the higher "range" timeframe left of the latest
+// candle, e.g. 5m -> 5 x 4H candles (240 bars), 15m -> 7 x 4H, 1H -> 5 x 1D, 4H -> 4 x 1W. [range timeframe, how many of its candles]
+const CRT_VIEW = {"1m":["1H",4],"3m":["1H",5],"5m":["4H",5],"13m":["4H",6],"15m":["4H",7],"30m":["1D",4],"1H":["1D",5],"2H":["1D",8],"3H":["1D",10],"4H":["1W",4],
+  "6H":["1W",5],"8H":["1W",6],"12H":["1W",8],"1D":["1M",4],"3D":["1M",8],"1W":["1M",12],"1M":["1M",24]};
+const crtBars = tf => { const v = CRT_VIEW[tf], a = TFSEC[tf]; if (!v || !a) return 0; return Math.max(20, Math.round(v[1]*(TFSEC[v[0]] || a)/a)); };
 /* OKX bar sizes: 2H is native; 6H / 12H / 3D / 1M use its UTC variants; 13m, 3H, 7H and 8H do not exist on OKX, so they are built from 1m / 1H candles (buckets aligned to the UTC epoch) */
 const TF_OKX = {"2H":"2H","6H":"6Hutc","12H":"12Hutc","3D":"3Dutc","1M":"1Mutc"}, TF_AGG = {"13m":["1m",13],"3H":["1H",3],"7H":["1H",7],"8H":["1H",8]};
 const okxBar = tf => TF_OKX[tf] || tf;
@@ -1362,11 +1367,14 @@ class CandleChart {
     if (!isFinite(this.r)) return;   // no layout yet: keep the current view
     const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
-    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
+    // owner 2026-10-22: re-centring on EVERY tick moved the whole chart up and down (the "blinking"). The price centre now stays
+    // fixed and only moves when the price leaves the middle band (30 % of the visible height) or after Fit / a new symbol.
+    if (span > 0){ const c = this.data[n-1].c; if (this._acC == null || Math.abs(c - this._acC)/span > 0.3) this._acC = c; this.yShift = (this._acC - (hi+lo)/2) / span; }
     this.clampR();
   }
   fit(){
     const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    this._acC = null; const vb = crtBars(this.tf); if (vb && this.PR > 0) this.bw = Math.max(0.6, Math.min(600, 0.5*this.PR/vb));   // fixed window per timeframe (CRT table): the same number of candles every time
     this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.autoCenter) this.followLatest(); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   clampR(){
@@ -3139,7 +3147,7 @@ class Panel {
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
-    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
+    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; this.chart._acC = null; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
     const masterB = el("button",null,"⏻"); masterB.title = Lg("Master: turn all indicators off, click again to restore them","الماستر: إيقاف كل المؤشرات، والضغطة التانية ترجعهم");
     masterB.onclick = () => {

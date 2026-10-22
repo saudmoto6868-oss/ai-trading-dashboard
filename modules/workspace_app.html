@@ -472,8 +472,17 @@ const HL_LBL = {GOLD:"Gold",SILVER:"Silver",PLATINUM:"Platinum",PALLADIUM:"Palla
   SP500:"S&P 500",XYZ100:"Nasdaq 100 (XYZ100)",JP225:"Nikkei 225",KR200:"KOSPI 200",EUR:"EUR/USD",GBP:"GBP/USD",JPY:"USD/JPY",AUD:"AUD/USD",CAD:"USD/CAD",CHF:"USD/CHF",TLT:"US 20Y+ bonds (TLT)"};
 const hlBase = id => String(id).replace(/^HL:/, "").split(":").pop(), hlCoin = id => String(id).replace(/^HL:/, "");
 const hlCat = id => HL_CAT[hlBase(id)] || "Stocks", hlLabel = id => HL_LBL[hlBase(id)] || hlBase(id);
-const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0,
+const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:new Set(),
   async post(body){ const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}); if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status); return r.json(); },
+  /* trades: the REST recentTrades call gives only the last ~10 prints (~20 s on gold), so the footprint / tape stayed almost empty.
+     A "trades" subscription on the same socket keeps a rolling buffer (newest first, like OKX) of every print since the chart opened (2026-10-22). */
+  trSend(coin){ try { this.ws && this.ws.send(JSON.stringify({method:"subscribe", subscription:{type:"trades", coin}})); } catch(e){} },
+  trPush(x){ if (!x || !x.coin) return; const b = this.tr[x.coin] = this.tr[x.coin] || {ids:new Set(), rows:[]}, id = String(x.tid || x.hash || x.time);
+    if (b.ids.has(id)) return; b.ids.add(id); b.rows.push({tradeId:id, ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"});
+    if (b.rows.length > 600){ b.rows.sort((p, q) => +q.ts - +p.ts); b.rows.length = 400; b.ids = new Set(b.rows.map(r => r.tradeId)); } },
+  async trades(coin){ if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
+    const b = this.tr[coin]; if (!b || b.rows.length < 10){ const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // seed / socket down: REST
+    return (this.tr[coin] || {rows:[]}).rows.slice().sort((p, q) => +q.ts - +p.ts).slice(0, 300); },
   async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
     (meta.universe || []).forEach((u, i) => { const c = ctxs[i] || {}, id = "HL:"+u.name, px = +(c.midPx || c.markPx), vol = +c.dayNtlVlm || 0, oi = +c.openInterest || 0;
       if (u.isDelisted || !(px > 0) || (!vol && !oi)) return;
@@ -483,8 +492,10 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0,
     const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 4000); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
-    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
-    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
+    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+      if (m.channel === "trades" && Array.isArray(m.data)){ m.data.forEach(x => this.trPush(x)); return; }
+      const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
       Object.entries(mids).forEach(([k, v]) => { const id = "HL:"+k; if (this.q[id] && +v > 0) this.q[id].last = +v; }); };
     ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait); this.wait = Math.min(60000, this.wait*2); };
     ws.onerror = () => { try { ws.close(); } catch(e){} }; }
@@ -501,7 +512,7 @@ async function hlOkx(path){   // answers the OKX REST paths the widgets use, in 
   if (/\/market\/ticker/.test(path)){ if (!HL.t) await HL.ctx(); const x = HL.q[id]; if (!x) throw new Error("unknown Hyperliquid market "+coin); return [{instId:id, last:String(x.last), open24h:String(x.open || x.last), vol24h:String(x.vol || 0)}]; }
   if (/\/market\/books/.test(path)){ const b = await HL.post({type:"l2Book", coin}), lv = (b && b.levels) || [[], []], f = a => a.map(x => [String(x.px), String(x.sz), "0", String(x.n || 0)]);
     return [{bids:f(lv[0] || []), asks:f(lv[1] || []), ts:String(b.time || Date.now())}]; }
-  if (/\/market\/trades/.test(path)){ const t = await HL.post({type:"recentTrades", coin}); return (t || []).slice().reverse().map(x => ({tradeId:String(x.tid || x.hash || x.time), ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"})); }
+  if (/\/market\/trades/.test(path)) return HL.trades(coin);   // newest first, like OKX (the old REST-only version returned oldest first and only ~10 prints)
   throw new Error("not available for Hyperliquid markets");
 }
 const TFSEC = {"5s":5,"15s":15,"30s":30,"1m":60,"5m":300,"15m":900,"30m":1800,"13m":780,"1H":3600,"2H":7200,"3H":10800,"4H":14400,"6H":21600,"7H":25200,"8H":28800,"12H":43200,"1D":86400,"3D":259200,"1W":604800,"1M":2592000};

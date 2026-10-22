@@ -76,6 +76,19 @@ AR = {
     "Forward test: how a flow signal earns trust": "الاختبار الأمامي: إزاي الإشارة تكسب ثقة", "What is still missing": "اللي لسه ناقص",
     "Research sources are named per method (OPENED = read in full, otherwise a search snippet or background knowledge). Educational, not investment advice.":
         "مصادر البحث مكتوبة لكل طريقة (OPENED = اتقرأت كاملة، غير كده مقتطف بحث أو معرفة عامة). تعليمي، مش توصية استثمارية.",
+    # Flow lab (2026-10-22)
+    "Flow lab": "معمل الأوردر فلو", "Flow log (.jsonl)": "سجل الأوردر فلو (.jsonl)", "Cost per trade (bps)": "تكلفة الصفقة (نقطة أساس)",
+    "Taker fee both ways + half spread + slippage; a planning number. 10 bps = 0.10%": "رسوم تيكر للدخول والخروج + نص السبريد + الانزلاق؛ رقم تخطيط. 10 نقط = 0.10%",
+    "Collect now (seconds)": "اجمع دلوقتي (ثواني)", "Collect BTC / ETH / SOL now": "اجمع BTC / ETH / SOL دلوقتي", "Collecting from OKX ...": "بيجمع من OKX ...",
+    "rows added": "صف اتضاف", "No log yet. Collect from the button above, or run: python modules/flow_log.py collect BTC-USDT,ETH-USDT,SOL-USDT 3600 2":
+        "لسه مفيش سجل. اجمع من الزرار فوق، أو شغّل: python modules/flow_log.py collect BTC-USDT,ETH-USDT,SOL-USDT 3600 2",
+    "Log": "السجل", "Rows": "الصفوف", "Hours covered": "الساعات المغطاة", "a few hours is a pipeline test, not evidence": "كام ساعة = اختبار للمسار، مش دليل",
+    "Rules x horizons tried": "قواعد × آفاق اتجربت", "every variant counts as a trial; t > 3 is the bar": "كل نسخة بتتحسب محاولة؛ والحد t > 3",
+    "Passed the gate": "عدّت البوابة", "n >= 100, t > 3, both halves positive, after cost": "n ≥ 100، t > 3، والنصين موجبين، بعد التكلفة",
+    "Not enough rows for any horizon yet.": "الصفوف لسه مش كفاية لأي أفق.", "Rule": "القاعدة", "Horizon (s)": "الأفق (ث)", "gross bps": "الإجمالي bps", "net bps": "الصافي bps",
+    "random-sign control": "ضابط العلامة العشوائية", "first half": "النصف الأول", "second half": "النصف التاني",
+    "Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice.":
+        "القواعد مجمدة في modules/flow_log.py (RULES): imb = توازن الدفتر، ofi = عدم توازن تدفق الأوامر عند أفضل سعر، cvd = شراء المبادر ناقص البيع. فترة التسجيل بتحدد اللي بنشوفه. تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

@@ -11,9 +11,9 @@ checks = {
     "DOM heat fallback over candles removed": "if (this.domOn && !this.colOn) this.paintDom" not in source,
     "bubble fallback over candles removed": "if (this.bubOn && !this.colOn) this.paintBub" not in source,
     "DOM balance paint gated by dedicated column": "if (this.domOn && this.colOn) this.paintBal(c, PB, PR);" in source,
-    "combined Order Flow toggle enables column": 'if (v) c_.colOn = true; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v, col:v ? true : this.state.col});' in source,
-    "bubble toggle enables column": 'c_.bubOn = v; if (v) c_.colOn = true; this.state.bub = v; if (v) this.state.col = true;' in source,
-    "DOM toggle enables column": 'c_.domOn = v; if (v) c_.colOn = true; this.state.dom = v; if (v) this.state.col = true;' in source,
+    "combined Order Flow toggle enables column": 'if (v) c_.colOn = true; Object.assign(this.state, {bub:v, dot:v, dom:v, mk:v, dcol:v ? true : this.state.dcol});' in source,
+    "bubble toggle enables column": 'c_.bubOn = v; if (v) c_.colOn = true; this.state.bub = v; if (v) this.state.dcol = true;' in source,
+    "DOM toggle enables column": 'c_.domOn = v; if (v) c_.colOn = true; this.state.dom = v; if (v) this.state.dcol = true;' in source,
 }
 failed = [name for name, ok in checks.items() if not ok]
 for name, ok in checks.items():

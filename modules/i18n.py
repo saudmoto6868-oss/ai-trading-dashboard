@@ -77,6 +77,10 @@ AR = {
     "Control held / broke": "الكنترول ثبت / اتكسر", "mirror level, same rule": "مستوى مقلوب، نفس القاعدة", "Paired zones": "مناطق مقارنة",
     "both resolved; the gate needs 100": "الاتنين اتحسموا؛ البوابة محتاجة 100", "Zone minus control": "المنطقة ناقص الكنترول", "halves": "النصين",
     "t > 3, both halves positive, n >= 100": "t > 3، والنصين موجبين، n ≥ 100", "Sources agreeing": "مصادر متفقة",
+    "Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)": "بيحمّل شموع كل رموز الرادار (أول تحميل ممكن ياخد لحد دقيقة؛ بعد كده بيتخزّن)",
+    "No symbol matches the chosen filters, so ALL symbols are shown below, unfiltered. Loosen the filters or clear them.": "مفيش رمز مطابق للفلاتر المختارة، فبنعرض كل الرموز تحت من غير فلترة. خفّف الفلاتر أو امسحها.",
+    "Clear all filters": "امسح كل الفلاتر",
+    "Finviz screener": "سكرينر فينفيز", "Similar charts": "شارتات مشابهة",
     "Gaps: where the dashboard is thin": "الفجوات: فين اللوحة ضعيفة", "Gap": "الفجوة",
     "Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice.":
         "التصنيف من مصادر متداولين وأكاديمية (مكتوب مستوى الدليل لكل استراتيجية)؛ الأرقام من data/strategy_lab.json. تعليمي، مش توصية استثمارية.",

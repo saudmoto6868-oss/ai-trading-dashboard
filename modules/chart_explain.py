@@ -64,6 +64,11 @@ CANDLE_AR = {
     "three_black": ("3 غربان سود", "3 شمعات حمرا ورا بعض كل واحدة بتقفل أوطى: بيع مستمر ومنظم.", "sell"),
     "bull_marubozu": ("ماروبوزو صاعد", "شمعة خضرا كبيرة من غير ذيول تقريباً: المشترين مسيطرين من الفتح للإغلاق.", "buy"),
     "bear_marubozu": ("ماروبوزو هابط", "شمعة حمرا كبيرة من غير ذيول تقريباً: البياعين مسيطرين من الفتح للإغلاق.", "sell"),
+    "hanging_man": ("الرجل المشنوق", "نفس شكل المطرقة لكن بعد صعود: البياعين نزّلوا السعر جامد جوه الشمعة والمشترين لحقوه، علامة إن المشترين بيتعبوا.", "sell"),
+    "inverted_hammer": ("مطرقة مقلوبة", "ذيل علوي طويل بعد هبوط: المشترين حاولوا يطلّعوا السعر بقوة، ولو الشمعة اللي بعدها أخضر يبقى بداية رفض للهبوط.", "buy"),
+    "harami": ("هارامي", "شمعة صغيرة جوه جسم شمعة كبيرة قبلها: الزخم وقف ومحدش مسيطر، والاتجاه السابق بيتشكك فيه.", None),
+    "piercing": ("خط الاختراق", "بعد شمعة حمرا كبيرة تفتح خضرا تحت إغلاقها وتقفل فوق نصها: المشترين رجّعوا أكتر من نص الهبوط في شمعة واحدة.", "buy"),
+    "dark_cloud": ("الغطاء السحابي المظلم", "بعد شمعة خضرا كبيرة تفتح حمرا فوق إغلاقها وتقفل تحت نصها: البياعين رجّعوا أكتر من نص الصعود في شمعة واحدة.", "sell"),
 }
 
 
@@ -120,6 +125,17 @@ def candles(df: pd.DataFrame) -> list:
         out.append("bull_marubozu" if up(i) else "bear_marubozu")
     if body[i] <= 0.1 * rng[i] and rng[i] > 0.3 * avg_body:
         out.append("doji")
+    if lower >= 2 * body[i] and upper <= 0.35 * rng[i] and body[i] > 0.05 * rng[i] and trend_up:
+        out.append("hanging_man")
+    if upper >= 2 * body[i] and lower <= 0.35 * rng[i] and body[i] > 0.05 * rng[i] and trend_dn:
+        out.append("inverted_hammer")
+    top0, bot0, top1, bot1 = max(o[i - 1], c[i - 1]), min(o[i - 1], c[i - 1]), max(o[i], c[i]), min(o[i], c[i])
+    if body[i - 1] > avg_body and body[i] < 0.6 * body[i - 1] and top1 < top0 and bot1 > bot0:
+        out.append("harami")
+    if dn(i - 1) and up(i) and body[i - 1] > avg_body and o[i] < c[i - 1] and (o[i - 1] + c[i - 1]) / 2 < c[i] < o[i - 1]:
+        out.append("piercing")
+    if up(i - 1) and dn(i) and body[i - 1] > avg_body and o[i] > c[i - 1] and o[i - 1] < c[i] < (o[i - 1] + c[i - 1]) / 2:
+        out.append("dark_cloud")
     if h[i] <= h[i - 1] and l[i] >= l[i - 1]:
         out.append("inside")
     return out

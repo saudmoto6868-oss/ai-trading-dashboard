@@ -5,6 +5,17 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    # Radar screener + backtest agent (2026-10-22)
+    "Screener": "السكرينر", "Trend": "الاتجاه", "up": "صاعد", "down": "هابط", "mixed": "مختلط", "Volume ≥ × average": "الفوليوم ≥ × المتوسط",
+    "Signals ≥": "الإشارات ≥", "Trend up": "اتجاه صاعد", "Trend down": "اتجاه هابط", "Oversold (RSI ≤ 30)": "تشبع بيع (RSI ≤ 30)",
+    "Overbought (RSI ≥ 70)": "تشبع شراء (RSI ≥ 70)", "Top movers over 20 bars": "الأكثر حركة على آخر 20 شمعة",
+    "Educational, not investment advice. Same candles as the Charts tab; no automatic orders.": "تعليمي، مش توصية. نفس شموع تبويب الشارتات؛ مفيش أوامر تلقائية.",
+    "Explain your idea to the backtest agent": "اشرح فكرتك لوكيل الباك تيست", "Or build the rules by hand": "أو ابني القواعد بإيدك",
+    "The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand below.":
+        "الوكيل محتاج مفتاح Gemini مجاني (GEMINI_API_KEY في Streamlit secrets). لحد ما يتحط، ابني القواعد بإيدك تحت.",
+    "Your idea": "فكرتك", "e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart": "مثال: اشتري لما RSI 14 يبقى تحت 30 والإغلاق فوق EMA 200، على اليومي",
+    "Ask the agent": "اسأل الوكيل", "New conversation": "محادثة جديدة", "The agent asks": "الوكيل بيسأل",
+    "Assumptions / not testable here": "افتراضات / حاجات ماتتختبرش هنا", "Test the agent's rules": "اختبر قواعد الوكيل",
     "avg R by timeframe (dashed = 0.1R cost)": "متوسط R حسب الفريم (المتقطع = تكلفة 0.1R)", "avg R by school (dashed = 0.1R cost)": "متوسط R حسب المدرسة (المتقطع = تكلفة 0.1R)",
     "loaded (the dashboard fetch is capped; long histories run in GitHub Actions)": "اتحملت (الداشبورد بيجيب عدد محدود؛ التاريخ الطويل على GitHub Actions)",
     # Technical Office v2 tabs / control room / work board / backtest / operations, Radar tab bar (2026-10-22)

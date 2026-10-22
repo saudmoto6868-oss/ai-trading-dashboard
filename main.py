@@ -1170,11 +1170,87 @@ def _office_board():
     st.markdown(U.chips([(L(k), v, U.STATUS_TONE.get(k, "off")) for k, v in sorted(cnt.items())]), unsafe_allow_html=True)
     areas = sorted({t.get("area", "-") for t in tasks})
     pick = st.segmented_control(L("Area"), [L("All")] + areas, default=L("All"), key="to_board_area")
-    rows = [[U.esc(t.get("wbs", "")), U.esc(t.get("title", "")), U.esc(t.get("area", "")), U.esc(t.get("owner", "")),
+    rows = [[U.badge(t.get("p", "-"), {"P1": "bad", "P2": "warn", "P3": "info"}.get(t.get("p"), "off")), U.esc(t.get("wbs", "")), U.esc(t.get("title", "")), U.esc(t.get("area", "")), U.esc(t.get("owner", "")),
              U.badge(L(t.get("status", "open")), U.STATUS_TONE.get(t.get("status", "open"), "off")), U.esc(t.get("gate", "")), U.esc(t.get("next", ""))]
             for t in tasks if pick in (None, L("All")) or t.get("area") == pick]
-    st.markdown(U.table([L("WBS"), L("Task"), L("Area"), L("Owner"), L("Status"), L("Gate"), L("Next step")], rows), unsafe_allow_html=True)
+    st.markdown(U.table([L("Priority"), L("WBS"), L("Task"), L("Area"), L("Owner"), L("Status"), L("Gate"), L("Next step")], rows), unsafe_allow_html=True)
     st.caption(L("Work board updated") + f" {d.get('updated', '-')} · data/office_tasks.json · " + L("every change is also written in the meeting room"))
+
+
+def _bt_agent(sym, tf):
+    """Backtest agent (owner 2026-10-22): explain the idea in words, the agent turns it into rules, the dashboard tests them."""
+    import json
+    from modules import strategy_agent as A, strategy_rules as SR
+    from modules.guide_ai import gemini_key
+    st.markdown(f"**{L('Explain your idea to the backtest agent')}**")
+    hist = st.session_state.setdefault("bt_agent_hist", [])
+    for h in hist[-6:]:
+        with st.chat_message("user"):
+            st.write(h["q"])
+        with st.chat_message("assistant"):
+            st.write(h["a"])
+    key = gemini_key()
+    if not key:
+        st.info(L("The agent needs a free Gemini key (GEMINI_API_KEY in Streamlit secrets). Until then, build the rules by hand below."))
+        return
+    q = st.text_area(L("Your idea"), key="bt_agent_q", placeholder=L("e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart"))
+    c = st.columns([1, 1, 4])
+    if c[0].button(L("Ask the agent"), key="bt_agent_go") and q.strip():
+        try:
+            ans = A.ask(q.strip(), hist, key)
+        except Exception as e:
+            st.error(f"{type(e).__name__}: {e}")
+            return
+        hist.append({"q": q.strip(), "a": ans.get("reply", "")}); st.session_state["bt_agent_last"] = ans
+    if c[1].button(L("New conversation"), key="bt_agent_reset"):
+        st.session_state["bt_agent_hist"] = []; st.session_state.pop("bt_agent_last", None)
+    ans = st.session_state.get("bt_agent_last")
+    if not ans:
+        return
+    if ans.get("questions"):
+        st.markdown("**" + L("The agent asks") + ":** " + " · ".join(ans["questions"]))
+    if ans.get("assumptions"):
+        st.caption(L("Assumptions / not testable here") + ": " + " · ".join(ans["assumptions"]))
+    st.code(SR.to_json(ans["strategy"]) if not ans["errors"] else json.dumps(ans["strategy"], ensure_ascii=False, indent=1), language="json")
+    if ans["errors"]:
+        st.warning(" · ".join(ans["errors"]))
+        return
+    b = st.columns([1.4, 1, 3])
+    if b[0].button(L("Test the agent's rules"), type="primary", key="bt_agent_run"):
+        _bt_run_show(ans["strategy"], sym, tf)
+    if b[1].button(L("Save rule"), key="bt_agent_save"):
+        SR.SessionStore(st.session_state).save(ans["strategy"]); st.success(L("Saved for this session"))
+
+
+def _bt_run_show(strat, sym, tf):
+    """Run one strategy on real candles and show the verdict (out-of-sample), metrics, split and equity curve."""
+    from modules import strategy_rules as SR, strategy_bt as BT
+    from modules.market_cache import get_klines
+    side = strat["side"]
+    try:
+        df = get_klines(sym.strip(), tf, 1000)
+        res = BT.run(df, SR.evaluate(strat, df), side=side)
+    except Exception as e:
+        st.error(f"{type(e).__name__}: {e}")
+        return
+    ev = res.get("evidence") or {}; ins = res.get("in_sample") or {}
+    m = st.columns(5)
+    m[0].metric(L("Out-of-sample trades"), res.get("n", 0))
+    m[1].metric(L("net avg R"), "-" if not res.get("n") else f"{res['net_expectancy_r']:+.3f}")
+    m[2].metric(L("Win rate"), "-" if not res.get("n") else f"{res['win_rate'] * 100:.0f}%")
+    m[3].metric(L("Verdict"), L(ev.get("badge", "not evidence")))
+    m[4].metric(L("In-sample (info)"), f"{ins.get('n', 0)} · " + ("-" if not ins.get("n") else f"{ins['net_expectancy_r']:+.3f}R"))
+    sp = res.get("split") or {}
+    st.caption(L("Split frozen before any trade") + f": in-sample {sp.get('in_sample_bars')} / out-of-sample {sp.get('out_of_sample_bars')} " + L("candles")
+               + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
+    seq = [("in-sample", v) for v in ins.get("net_r", [])] + [("out-of-sample", v) for v in res.get("net_r", [])]
+    if seq:   # equity curve in R after costs: in-sample first (information), then the out-of-sample part the verdict uses
+        import altair as alt
+        import pandas as _pd
+        eq = _pd.DataFrame(seq, columns=["part", "net R"]); eq["trade"] = range(1, len(eq) + 1); eq["cumulative net R"] = eq["net R"].cumsum()
+        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x="trade:Q", y="cumulative net R:Q",
+                        color=alt.Color("part:N", scale=alt.Scale(domain=["in-sample", "out-of-sample"], range=["#93c5fd", "#2dd4bf"])),
+                        tooltip=["trade", "part", "net R", "cumulative net R"]).properties(height=240), use_container_width=True)
 
 
 def _office_backtest():
@@ -1189,6 +1265,8 @@ def _office_backtest():
     side = c[2].selectbox(L("Side"), list(SR.SIDES), key="bt_side")
     logic = c[3].selectbox(L("Logic"), list(SR.LOGIC), key="bt_logic")
     name = c[4].text_input(L("Name"), "my rule", key="bt_name")
+    _bt_agent(sym, tf)
+    st.markdown(f"**{L('Or build the rules by hand')}**")
     inds = list(SR.INDICATORS)
     rules = []
     for i in range(int(st.number_input(L("Rules"), 1, 6, 1, key="bt_nr"))):
@@ -1220,32 +1298,8 @@ def _office_backtest():
     run = b[1].button(L("Run backtest"), type="primary", key="bt_run")
     if store.names():
         st.caption(L("Saved this session") + ": " + ", ".join(store.names()))
-    if not run:
-        return
-    try:
-        df = get_klines(sym.strip(), tf, 1000)
-        res = BT.run(df, SR.evaluate(strat, df), side=side)
-    except Exception as e:
-        st.error(f"{type(e).__name__}: {e}")
-        return
-    ev = res.get("evidence") or {}; ins = res.get("in_sample") or {}
-    m = st.columns(5)
-    m[0].metric(L("Out-of-sample trades"), res.get("n", 0))
-    m[1].metric(L("net avg R"), "-" if not res.get("n") else f"{res['net_expectancy_r']:+.3f}")
-    m[2].metric(L("Win rate"), "-" if not res.get("n") else f"{res['win_rate'] * 100:.0f}%")
-    m[3].metric(L("Verdict"), L(ev.get("badge", "not evidence")))
-    m[4].metric(L("In-sample (info)"), f"{ins.get('n', 0)} · " + ("-" if not ins.get("n") else f"{ins['net_expectancy_r']:+.3f}R"))
-    sp = res.get("split") or {}
-    st.caption(L("Split frozen before any trade") + f": in-sample {sp.get('in_sample_bars')} / out-of-sample {sp.get('out_of_sample_bars')} " + L("candles")
-               + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
-    seq = [("in-sample", v) for v in ins.get("net_r", [])] + [("out-of-sample", v) for v in res.get("net_r", [])]
-    if seq:   # equity curve in R after costs: in-sample first (information), then the out-of-sample part the verdict uses
-        import altair as alt
-        import pandas as _pd
-        eq = _pd.DataFrame(seq, columns=["part", "net R"]); eq["trade"] = range(1, len(eq) + 1); eq["cumulative net R"] = eq["net R"].cumsum()
-        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x="trade:Q", y="cumulative net R:Q",
-                        color=alt.Color("part:N", scale=alt.Scale(domain=["in-sample", "out-of-sample"], range=["#93c5fd", "#2dd4bf"])),
-                        tooltip=["trade", "part", "net R", "cumulative net R"]).properties(height=240), use_container_width=True)
+    if run:
+        _bt_run_show(strat, sym, tf)
 
 
 def _office_ops():
@@ -1334,6 +1388,22 @@ RADAR_TAG = "<span title='Radar setup: suggestion only, no automatic orders' sty
 
 _CS_TFS = ["1m", "5m", "13m", "15m", "30m", "1h", "2h", "3h", "4h", "6h", "7h", "8h", "12h", "1d", "3d", "1w", "1mo"]
 
+def _screen_cols(df):
+    """Finviz-style screener numbers for one candle frame (Radar > Screener): last-candle and 20-bar change, volume vs its
+    20-bar average, ATR as % of price, trend vs EMA 20/50. Plain arithmetic on the candles already downloaded."""
+    import numpy as np
+    c, h, l, v = (df[k].astype(float) for k in ("close", "high", "low", "volume"))
+    last, prev = float(c.iloc[-1]), float(c.iloc[-2])
+    tr = np.maximum(h - l, np.maximum((h - c.shift()).abs(), (l - c.shift()).abs()))
+    e20, e50 = float(c.ewm(span=20, adjust=False).mean().iloc[-1]), float(c.ewm(span=50, adjust=False).mean().iloc[-1])
+    va = float(v.iloc[-21:-1].mean() or 0)
+    return {"chg": round((last / prev - 1) * 100, 2) if prev else None,
+            "chg20": round((last / float(c.iloc[-21]) - 1) * 100, 2) if len(c) > 21 and float(c.iloc[-21]) else None,
+            "volx": round(float(v.iloc[-1]) / va, 2) if va > 0 else None,
+            "atrp": round(float(tr.iloc[-14:].mean()) / last * 100, 2) if last else None,
+            "trend": "up" if last > e20 > e50 else "down" if last < e20 < e50 else "mixed"}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
@@ -1346,7 +1416,8 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             continue
         f = cs_features(df, look)
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
-        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags | move_flags(df)), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1])}
+        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags | move_flags(df)), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+                    **_screen_cols(df)}
     return out
 
 
@@ -1398,6 +1469,65 @@ def render_market_map():
     cls = by_class(df)
     st.dataframe(cls.rename(columns={"cls": L("Class"), "n": L("Markets"), "avg_chg": L("Avg change %"), "up_share": L("Share up")}).round(3),
                  hide_index=True)
+
+
+def render_radar_screener():
+    """Finviz-style screener (owner 2026-10-22): one sortable table for the whole Radar universe on one timeframe, quick
+    filters on top, and a top-movers bar chart. Same candles as the Charts tab (cached), so it adds no downloads."""
+    import pandas as _pd
+    c = st.columns([0.8, 1.2, 1, 1, 1])
+    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1h"), key="scr_tf")
+    trend = c[1].segmented_control(L("Trend"), ["All", "up", "down", "mixed"], default="All", format_func=L, key="scr_trend")
+    rsi_z = c[2].selectbox("RSI", ["All", "<= 30", "30-70", ">= 70"], key="scr_rsi", format_func=L)
+    vmin = c[3].number_input(L("Volume ≥ × average"), 0.0, 20.0, 0.0, 0.5, key="scr_vol")
+    sigmin = c[4].number_input(L("Signals ≥"), 0, 20, 0, key="scr_sig")
+    try:
+        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
+    except Exception as e:
+        st.warning(f"Could not load candles: {e}")
+        return
+    rows = []
+    for sym, d in data.items():
+        sig = [CS_SHORT.get(k, k) for k in d["flags"] if k in ALL_FILTERS]
+        rows.append({"Symbol": sym, "Price": d["price"], "Change %": d.get("chg"), "20-bar %": d.get("chg20"), "RSI": d["rsi"],
+                     "Volume ×avg": d.get("volx"), "ATR %": d.get("atrp"), "Trend": d.get("trend"), "Signals": len(sig), "Which": " · ".join(sig[:8])})
+    df = _pd.DataFrame(rows)
+    if df.empty:
+        st.info(L("No symbols match the selected conditions right now."))
+        return
+    if trend not in (None, "All"):
+        df = df[df["Trend"] == trend]
+    if rsi_z == "<= 30":
+        df = df[df["RSI"] <= 30]
+    elif rsi_z == ">= 70":
+        df = df[df["RSI"] >= 70]
+    elif rsi_z == "30-70":
+        df = df[(df["RSI"] > 30) & (df["RSI"] < 70)]
+    if vmin:
+        df = df[df["Volume ×avg"].fillna(0) >= vmin]
+    if sigmin:
+        df = df[df["Signals"] >= sigmin]
+    k = st.columns(5)
+    k[0].metric(L("Matched"), f"{len(df)} / {len(rows)}")
+    k[1].metric(L("Trend up"), int((df["Trend"] == "up").sum()))
+    k[2].metric(L("Trend down"), int((df["Trend"] == "down").sum()))
+    k[3].metric(L("Oversold (RSI ≤ 30)"), int((df["RSI"] <= 30).sum()))
+    k[4].metric(L("Overbought (RSI ≥ 70)"), int((df["RSI"] >= 70).sum()))
+    st.dataframe(df.sort_values("20-bar %", ascending=False, na_position="last"), hide_index=True, use_container_width=True,
+                 column_config={"Price": st.column_config.NumberColumn(format="%.4g"),
+                                "Change %": st.column_config.NumberColumn(format="%+.2f%%"), "20-bar %": st.column_config.NumberColumn(format="%+.2f%%"),
+                                "RSI": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
+                                "Volume ×avg": st.column_config.NumberColumn(format="%.2f×"), "ATR %": st.column_config.NumberColumn(format="%.2f%%")})
+    top = df.dropna(subset=["20-bar %"]).sort_values("20-bar %")
+    if len(top):
+        import altair as alt
+        top = _pd.concat([top.head(8), top.tail(8)]).drop_duplicates("Symbol")
+        st.markdown(f"**{L('Top movers over 20 bars')}**")
+        st.altair_chart(alt.Chart(top).mark_bar().encode(
+            x=alt.X("20-bar %:Q", title="%"), y=alt.Y("Symbol:N", sort="-x", title=None),
+            color=alt.condition("datum['20-bar %'] > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["Symbol", "20-bar %", "RSI", "Trend"]
+        ).properties(height=max(160, 18 * len(top))), use_container_width=True)
+    st.caption(L("Educational, not investment advice. Same candles as the Charts tab; no automatic orders."))
 
 
 def render_chart_scanner():
@@ -1574,9 +1704,12 @@ if PAGE == 0:   # workspace
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
 if PAGE == 1:   # cscan
     try:   # one tab bar (owner 2026-10-22: switch views without scrolling); only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Charts", "Heat map"], default="Charts", format_func=L, key="radar_view", label_visibility="collapsed")
+        _rv = st.segmented_control(L("Radar"), ["Charts", "Screener", "Heat map"], default="Charts", format_func=L, key="radar_view", label_visibility="collapsed")
         if _rv == "Heat map":
             render_market_map()
+        elif _rv == "Screener":
+            render_universe_controls()
+            render_radar_screener()
         else:
             render_universe_controls()
             render_chart_scanner()

@@ -34,3 +34,5 @@
 ## تنبيه
 - ده سجل لما الجلسة دي عملته بس. الذكاءات التانية لازم تسجل نفسها في الجدول.
 - نتايج الاختبارات على بيانات وهمية لازم تتكتب كده، ومايتكتبش إنها اتختبرت على شارت حقيقي.
+
+| 03:00–03:06 UTC | ChatGPT | مراجعة Order Flow وإصلاح حفظ الهيت ماب | `modules/workspace_app.html`, OKX/Bybit/Binance docs | `modules/workspace_app.html`, PR #63, سجلات المشروع | — | commits على `fix/orderflow-history-coverage-review` | نتائج اختبار معزول | syntax check للـ JS نجح؛ اختبارات `hmSave` و`hmInit` التخيلية نجحت؛ لا اختبار متصفح حي. اكتشاف cache REST لمدة 10s فوق polling 1.5s؛ لم يتغير مسار Order Flow الحالي. |

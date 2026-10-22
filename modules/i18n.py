@@ -32,6 +32,7 @@ AR = {
     "Trade card: no clear direction on this timeframe": "كارت الصفقة: مفيش اتجاه واضح على الفريم ده", "Buy": "شراء", "Sell": "بيع",
     "entry": "دخول", "stop": "وقف", "targets": "أهداف", "Against the side filter": "عكس فلتر الاتجاه المختار",
     "Suggestion from the rules, not an order; size by your risk per trade.": "اقتراح من القواعد، مش أمر؛ الحجم حسب مخاطرتك في الصفقة.",
+    "signals": "إشارات", "hover the chart for the explanation": "قف بالماوس على الشارت للشرح",
     # Stats page (2026-10-22)
     "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",

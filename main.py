@@ -1511,6 +1511,9 @@ def _screen_cols(df):
             "trend": "up" if last > e20 > e50 else "down" if last < e20 < e50 else "mixed"}
 
 
+from modules import chart_explain as _CX
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
@@ -1523,7 +1526,12 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             continue
         f = cs_features(df, look)
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
-        out[sym] = {"rsi": f["rsi"], "flags": sorted(f["flags"] | sflags | move_flags(df)), "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+        flags = sorted(f["flags"] | sflags | move_flags(df))
+        try:
+            expl = _CX.explain(df, flags)   # hover text: chart pattern, candle psychology, EMAs
+        except Exception:
+            expl = {}
+        out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
                     "t": time.time(), **_screen_cols(df)}
     return out
 
@@ -1603,25 +1611,96 @@ def _radar_state(tf, data):
 
 def _trade_card(sym, tf, want=None):
     """Task 17 trade card for a confirmed chart: side, entry, stop and 3 targets from the dashboard's own rule
-    (risk_engine.build_trade_plan on the scanner result: stop behind the nearest support / resistance). Never an order."""
+    (risk_engine.build_trade_plan on the scanner result: stop behind the nearest support / resistance). Never an order.
+    -> (one short line shown under the chart, the full card for the hover panel)."""
     try:
         r = _cs_result(sym, tf)
     except Exception:
         r = None
     if not r or r.get("direction") not in ("bullish", "bearish"):
-        return f"<div style='font-size:10px;color:#848e9c'>{html.escape(L('Trade card: no clear direction on this timeframe'))}</div>"
+        t = html.escape(L("Trade card: no clear direction on this timeframe"))
+        return f"<div style='font-size:10px;color:#848e9c'>{t}</div>", t
     p = build_trade_plan({**r, "trend_bias": r["direction"]})
     long_ = p["direction"] == "Long"
     against = want and want != ("buy" if long_ else "sell")
     col = "#0ecb81" if long_ else "#f6465d"
     rd = p["risk_distance"] or 1e-12
+    side = f"<b style='color:{col}'>{html.escape(L('Buy') if long_ else L('Sell'))}</b>"
     tps = " / ".join(f"{fmt_price(t)} ({abs(t - p['entry']) / rd:.1f}R)" for t in p["take_profits"])
-    return ("<div style='background:#161a1e;border:1px solid #2b3139;border-radius:6px;padding:4px 6px;margin-top:3px;font-size:10.5px;line-height:15px'>"
-            f"<b style='color:{col}'>{html.escape(L('Buy') if long_ else L('Sell'))}</b> · {html.escape(L('entry'))} {fmt_price(p['entry'])} · "
-            f"{html.escape(L('stop'))} {fmt_price(p['stop_loss'])} ({p['risk_distance'] / p['entry'] * 100:.2f}%)<br>"
-            f"{html.escape(L('targets'))} {tps}"
+    short = (f"<div style='font-size:10.5px;margin-top:2px'>{side} · {html.escape(L('entry'))} {fmt_price(p['entry'])} · "
+             f"{html.escape(L('stop'))} {fmt_price(p['stop_loss'])}" + (" · <span style='color:#f0b429'>⚠</span>" if against else "") + "</div>")
+    full = (f"{side} · {html.escape(L('entry'))} {fmt_price(p['entry'])} · {html.escape(L('stop'))} {fmt_price(p['stop_loss'])} "
+            f"({p['risk_distance'] / p['entry'] * 100:.2f}%)<br>{html.escape(L('targets'))} {tps}"
             + (f"<br><span style='color:#f0b429'>{html.escape(L('Against the side filter'))}</span>" if against else "")
-            + f"<br><span style='color:#848e9c'>{html.escape(L('Suggestion from the rules, not an order; size by your risk per trade.'))}</span></div>")
+            + f"<br><span style='color:#848e9c'>{html.escape(L('Suggestion from the rules, not an order; size by your risk per trade.'))}</span>")
+    return short, full
+
+
+_LADDER = {"1m": ("1h", "15m"), "3m": ("1h", "15m"), "5m": ("4h", "1h"), "13m": ("4h", "1h"), "15m": ("4h", "1h"), "30m": ("1d", "4h"),
+           "1h": ("1d", "4h"), "2h": ("1w", "1d"), "3h": ("1w", "1d"), "4h": ("1w", "1d"), "6h": ("1w", "1d"), "8h": ("1w", "1d"),
+           "12h": ("1w", "1d"), "1d": ("1w",), "3d": ("1w",)}   # Elder's triple screen: each step ~4-6x the one below
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _htf_trend(symbols: tuple, tf: str):
+    """Trend per symbol on a higher timeframe for the hover ladder: up (close > EMA 20 > EMA 50), down, or mixed."""
+    frames, _e = fetch_frames(list(symbols), [tf], limit=120)
+    out = {}
+    for s in symbols:
+        df = (frames.get(s) or {}).get(tf)
+        if df is not None and len(df) >= 50:
+            c = df["close"].astype(float)
+            last, e20, e50 = float(c.iloc[-1]), float(c.ewm(span=20, adjust=False).mean().iloc[-1]), float(c.ewm(span=50, adjust=False).mean().iloc[-1])
+            out[s] = "up" if last > e20 > e50 else "down" if last < e20 < e50 else "mixed"
+    return out
+
+
+_TREND_AR = {"up": "صاعد ↑", "down": "هابط ↓", "mixed": "مختلط ↔"}
+
+
+def _hover_panel(sym, tf, d, ladder, card_full=""):
+    """The text that opens when the mouse is on a Radar chart: timeframe ladder, chart patterns, candles, EMAs, signals,
+    lab evidence and the trade card - plain Arabic, so the tile itself stays clean (owner 2026-10-22)."""
+    from modules.chart_scan import ALL_FILTERS as _AF
+    ex = d.get("explain") or {}
+    e = html.escape
+    parts = []
+    lad = [(t, ladder.get(t, {}).get(sym)) for t in _LADDER.get(tf, ())] + [(tf, d.get("trend"))]
+    trs = [x for _t, x in lad if x]
+    agree = len(trs) > 1 and len(set(trs)) == 1 and trs[0] != "mixed"
+    parts.append("<b>تدرج الفريمات (من الأكبر):</b> " + " ← ".join(f"{t}: {_TREND_AR.get(x, '-')}" for t, x in lad)
+                 + ("<br><span style='color:#5eead4'>الفريمات متفقة: الدخول مع الاتجاه أقوى.</span>" if agree else
+                    "<br><span style='color:#f0b429'>الفريمات مش متفقة: الفريم الأكبر هو اللي يحكم، والصغير للتوقيت بس.</span>" if len(set(trs)) > 1 else ""))
+    for name, psy, conf in ex.get("patterns", []):
+        parts.append(f"<b>نموذج الشارت: {e(name)}</b><br>{e(psy)}<br><span style='color:#a3adba'>التأكيد: {e(conf)}</span>")
+    for name, psy, bias in ex.get("candles", []):
+        c = "#0ecb81" if bias == "buy" else "#f6465d" if bias == "sell" else "#a3adba"
+        parts.append(f"<b style='color:{c}'>الشمعة: {e(name)}</b><br>{e(psy)}")
+    if ex.get("ema"):
+        parts.append("<b>المتوسطات:</b><br>" + "<br>".join(e(x) for x in ex["ema"]))
+    sig = [_CX.FLAG_AR.get(k, L(_AF[k])) for k in d["flags"]   # EMA position / stacks are in the EMA block, patterns above
+           if k in _AF and not k.startswith(("px_", "ma_", "cp_", "chan_", "tl_", "dbl_", "stack_", "above_all", "below_all"))]
+    if sig:
+        parts.append("<b>إشارات تانية:</b> " + e(" · ".join(sig[:10])))
+    ev = _radar_evidence(d["flags"], tf)
+    if ev:
+        parts.append(ev)
+    if card_full:
+        parts.append("<b>كارت الصفقة:</b><br>" + card_full)
+    parts.append("<span style='color:#848e9c'>النموذج والشمعة = الانحياز المعروف في الكتب، مش دليل مقاس. تعليمي، مش توصية.</span>")
+    return "<div class='xr-tip' dir='rtl'>" + "<hr>".join(parts) + "</div>"
+
+
+_RADAR_CSS = """<style>
+.xr-tile{position:relative}
+.xr-tile img{display:block}
+.xr-tip{display:none;position:absolute;left:0;right:0;top:0;z-index:30;max-height:340px;overflow-y:auto;background:rgba(18,22,27,.97);
+ border:1px solid #2dd4bf66;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:18px;color:#e6e9ee;text-align:right;
+ box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.xr-tip hr{border:0;border-top:1px solid #2b3139;margin:6px 0}
+.xr-tile:hover .xr-tip,.xr-tile:focus-within .xr-tip{display:block}
+.xr-hint{font-size:10px;color:#848e9c}
+</style>"""
 
 
 def _radar_evidence(flags, tf):
@@ -1899,6 +1978,15 @@ def render_chart_scanner():
     def setup_tag(d):   # per chart, from its own conditions
         return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
     per_row = 5
+    st.markdown(_RADAR_CSS, unsafe_allow_html=True)
+    _top = [s for s, d_ in shown[:10] if sel and _confirmed(d_)]
+    if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
+        from concurrent.futures import ThreadPoolExecutor
+        try:
+            with ThreadPoolExecutor(4) as _ex:
+                list(_ex.map(lambda s: _cs_result(s, tf), _top))
+        except Exception:
+            pass
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
@@ -1913,8 +2001,13 @@ def render_chart_scanner():
                             tf_x, d_x = tf_pick, d_one
                     except Exception as e_tf:
                         st.caption(f"{tf_pick}: {e_tf}")
-                badges = ((RADAR_TAG + setup_tag(d_x)) if sel else "") + "".join(f"<span style='background:#2b3139;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px'>"
-                                 f"{html.escape(CS_SHORT.get(k, k))}</span>" for k in d_x["flags"] if k in ALL_FILTERS and (k in sel or not k.startswith(("px_above", "px_below", "ma_above", "ma_below"))))
+                # owner 2026-10-22: no row of small tags; one short line, and the explanation opens when the mouse is on the chart
+                n_sig = sum(1 for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_")))
+                tag = (RADAR_TAG + setup_tag(d_x)) if sel else ""
+                card_s = card_f = ""
+                if sel and _confirmed(d_x) and r0 + i_c < 10:   # task 17: trade card for the top 10 confirmed
+                    card_s, card_f = _trade_card(sym, tf_x, want)
+                ladder = {t: _htf_trend(tuple(SCAN_SYMBOLS) if tf_x == tf else (sym,), t) for t in _LADDER.get(tf_x, ())}
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
                 st.markdown(
@@ -1922,10 +2015,10 @@ def render_chart_scanner():
                     f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym)}</a> "
                     f"<span style='color:#848e9c'>{fmt_price(d_x['price'])}</span> "
                     f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span></div>"
-                    f"<img style='width:100%;border:1px solid #2b3139;border-radius:4px' src='{d_x['svg']}'/>"
-                    f"<div style='min-height:18px;margin-top:2px'>{badges}</div>" + _radar_evidence(d_x["flags"], tf_x), unsafe_allow_html=True)
-                if sel and _confirmed(d_x) and r0 + i_c < 5:
-                    st.markdown(_trade_card(sym, tf_x, want), unsafe_allow_html=True)   # task 17: top 5 confirmed only
+                    f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
+                    + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
+                    f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
+                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s, unsafe_allow_html=True)
                 if st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf_x)

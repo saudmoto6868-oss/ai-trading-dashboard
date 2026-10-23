@@ -920,6 +920,8 @@ const OKX_CACHE = {};
 // the rubik cooldown survives the workspace iframe being rebuilt (each rebuild used to re-hit OKX and reload the chart)
 let OKX_COOL = 0; try { OKX_COOL = +(sessionStorage.getItem("okx_cool") || 0); } catch(e){}
 const okxCoolSet = (t) => { OKX_COOL = t; try { sessionStorage.setItem("okx_cool", String(t)); } catch(e){} };
+let OKX_RUB_DEAD = 0; try { OKX_RUB_DEAD = +(localStorage.getItem("okx_rub_dead") || 0); } catch(e){}   // OKX sends no CORS header on /rubik/ to this page: after one real failure the browser stops asking for 6 h (shared by all tabs)
+let OKX_RUB_PROBE = null;   // the first /rubik/ request is a probe, the other coins wait for its answer instead of all firing (and failing) at once
 const OKX_COOL_P = {}; let OKX_COOL_ALL = 0;   // global pause for candle requests after any 429   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
@@ -934,6 +936,8 @@ function okx(path){
   const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
+  if (rub && Date.now() < OKX_RUB_DEAD) return Promise.reject(new Error("OKX stats are blocked from the browser (CORS): skipped"));
+  if (rub && OKX_RUB_PROBE) return OKX_RUB_PROBE.then(() => okx(path));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
     try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
   }
@@ -942,7 +946,7 @@ function okx(path){
     const ac = new AbortController(), tmo = setTimeout(() => ac.abort(), 15000);   // no answer in 15 s: give up, the polling loop tries again (a stuck request froze the chart until a refresh)
     try { r = await fetch(API + "/api/v5" + path, {cache:"no-store", signal:ac.signal}); clearTimeout(tmo); }
     catch(e){ clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("OKX timeout");   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
-      if (rub) okxCoolSet(Date.now() + 600000);
+      if (rub){ okxCoolSet(Date.now() + 600000); OKX_RUB_DEAD = Date.now() + 6*3600e3; try { localStorage.setItem("okx_rub_dead", String(OKX_RUB_DEAD)); } catch(e2){} }
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
     // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
@@ -954,6 +958,7 @@ function okx(path){
     if (rub) try { localStorage.setItem("okxc:"+path, JSON.stringify({t: Date.now(), v: j.data})); } catch(e){}
     return j.data;
   })();
+  if (rub && !OKX_RUB_PROBE){ const pr = p.catch(() => {}).then(() => { if (OKX_RUB_PROBE === pr) OKX_RUB_PROBE = null; }); OKX_RUB_PROBE = pr; }
   OKX_CACHE[path] = {t: Date.now(), p};
   p.catch(() => { if (OKX_CACHE[path] && OKX_CACHE[path].p === p) delete OKX_CACHE[path]; });   // failed calls are not cached
   return p;

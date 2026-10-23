@@ -685,6 +685,21 @@ def _world_news():
     return fetch_world()
 
 
+def _ws_universe(active):
+    """The symbols the Workspace scan covers: the chosen asset class PLUS a few liquid markets of the other classes (gold, silver, copper, S&P 500,
+    Nasdaq-100, JPY / EUR / GBP from Hyperliquid), so Setup / Signals / the chart's trade box also have data when the chart shows gold, an index or forex
+    (before, only the class picked in the Radar was scanned and everything else stayed empty)."""
+    out = list(active)
+    try:
+        for cls, n in (("Metals", 3), ("Indices", 2), ("Forex", 3)):
+            syms, _m = class_symbols(cls, CRYPTO_SYMBOLS)
+            out += [x for x in syms if x.startswith("HL:")][:n]
+    except Exception:
+        pass
+    seen = set()
+    return tuple(x for x in out if not (x in seen or seen.add(x)))
+
+
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 30-minute bucket changes or an empty result is older than 60 s."""
@@ -2742,7 +2757,7 @@ def render_chart_scanner(f):
                 from modules.symbol_icon import icon as _sic
                 _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
                 st.markdown(
-                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
                     f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
                     f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
                     + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
@@ -3058,7 +3073,7 @@ if PAGE == 0:   # workspace
     try:
         _ws_stat.caption("⏳ Workspace: scan state...")
         ws_lang = st.session_state.get("ws_lang", "en")
-        cached_ws = build_ws_payload(ACTIVE_SYMBOLS)
+        cached_ws = build_ws_payload(_ws_universe(ACTIVE_SYMBOLS))
         if tg_on and not cached_ws.get("loading"):
             from modules import telegram_alerts as _tga
             _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))

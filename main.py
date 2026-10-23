@@ -2731,6 +2731,42 @@ def _academy_path():
         st.caption(L("The full school curriculum is in the Schools tab") + f": {ls_cur['school']}")
 
 
+def _academy_refs():
+    """Research intake: every source the team gathered is a preliminary reference (not rejected, not approved); names map to ours; claims keep their verdict and sources."""
+    from modules import academy as AC, ui_kit as UK
+    import pandas as _pd
+    e = html.escape
+    R = AC.refs()
+    st.info(L("Every source below is a preliminary reference: kept open, neither rejected nor approved. Where names differ we keep ours and carry the concept into our schools and lessons."))
+    st.markdown(f"**{L('Sources gathered')}**")
+    for x in R["sources"]:
+        with st.expander(f"{x['title']}  ·  {x['origin']}"):
+            st.caption(f"{x.get('kind', '')} · {x.get('path', '')}")
+            if x.get("takeaways"):
+                st.markdown(chr(10).join(f"- {t}" for t in x["takeaways"]))
+            if x.get("open"):
+                st.warning(f"**{L('Still open')}**" + chr(10) + chr(10).join(f"- {t}" for t in x["open"]))
+    st.markdown(f"**{L('Naming map: their term, our term')}**")
+    st.dataframe(_pd.DataFrame([{L("Their term"): g["their"], L("Our term"): g["ours"], L("Where"): g.get("where", ""), L("Note"): g.get("note", "")} for g in R["glossary"]]), hide_index=True, use_container_width=True)
+    st.markdown(f"**{L('Claims checked against sources')}**")
+    if not R["claims"]:
+        st.caption(L("No claims checked yet."))
+        return
+    cnt = {}
+    for c in R["claims"]:
+        cnt[c["verdict"]] = cnt.get(c["verdict"], 0) + 1
+    st.markdown(UK.panel(L("Claim verdicts"), UK.donut([(AC.CLAIM_VERDICT[k][0], v, AC.CLAIM_VERDICT[k][1]) for k, v in cnt.items()], center=str(len(R["claims"])))), unsafe_allow_html=True)
+    for c in R["claims"]:
+        vl, vc = AC.CLAIM_VERDICT[c["verdict"]]
+        with st.expander(f"[{vl}] {c['claim'][:110]}"):
+            st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span><span class='uk-chip'>{e(str(c.get('origin', '')))}</span><span class='uk-chip'>{e(str(c.get('where', '')))}</span></div>", unsafe_allow_html=True)
+            st.markdown(c.get("evidence", ""))
+            if c.get("note"):
+                st.markdown(f"**{L('What to do')}:** {c['note']}")
+            if c["urls"]:
+                st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(c["urls"])))
+
+
 def render_academy_page():
     """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
     worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
@@ -2738,7 +2774,7 @@ def render_academy_page():
     st.markdown(kit_css(), unsafe_allow_html=True)
     e = html.escape
     sc, ls = AC.schools(), AC.load()
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "Backtest evidence", "Examples", "Our review"], default="Path", key="ac_view",
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "Backtest evidence", "Examples", "Our review", "References"], default="Path", key="ac_view",
                                 format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
         _academy_path()
@@ -2777,6 +2813,8 @@ def render_academy_page():
         st.markdown(AC.evidence() or L("No lessons yet."))
     elif view == "Examples":
         st.markdown(AC.examples() or L("No lessons yet."))
+    elif view == "References":
+        _academy_refs()
     else:
         sm = AC.summary(ls)
         st.markdown(UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)

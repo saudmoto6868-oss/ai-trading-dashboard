@@ -131,3 +131,25 @@ def learning_path(path: Path = PATH) -> dict:
         out.append({**ls, "mistakes": list(ls.get("mistakes", [])), "platform": list(ls.get("platform", [])), "bull": ls.get("bull", ""), "bear": ls.get("bear", ""), "school": ls.get("school", "")})
     out.sort(key=lambda x: (x["level"], [y["id"] for y in d["lessons"]].index(x["id"])))
     return {"levels": levels, "lessons": out}
+
+
+# ---- research intake (data/academy_refs.json): every source the team gathered is a preliminary reference; names map to ours; claims keep their verdict ---------
+
+REFS = Path(__file__).resolve().parent.parent / "data" / "academy_refs.json"
+CLAIM_VERDICT = {"confirmed": ("متحقق منه", "#0ecb81"), "partial": ("جزئي", "#f0b90b"), "unverified": ("غير متحقق", "#8d97a5"),
+                 "contradicted": ("متعارض", "#f6465d"), "idea": ("فكرة للبحث", "#6aa7ff")}
+
+
+def refs(path: Path = REFS) -> dict:
+    """-> {'sources': [...], 'glossary': [...], 'claims': [...]}; entries without the minimum fields are dropped, URLs must be https."""
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"sources": [], "glossary": [], "claims": []}
+    src = [x for x in d.get("sources", []) if x.get("id") and x.get("title") and x.get("origin")]
+    glo = [x for x in d.get("glossary", []) if x.get("their") and x.get("ours")]
+    cl = []
+    for c in d.get("claims", []):
+        if c.get("id") and c.get("claim") and c.get("verdict") in CLAIM_VERDICT:
+            cl.append({**c, "urls": [u for u in c.get("urls", []) if str(u).startswith("https://")]})
+    return {"sources": src, "glossary": glo, "claims": cl}

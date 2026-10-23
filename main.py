@@ -810,7 +810,7 @@ def render_header():
                 dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
                 if name == "Finviz Patterns":
                     links.append({"name": "Finviz", "url": url, "icon": site_icon_b64_uri("finviz.com"),
-                                  "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+                                  "patterns": [{"name": L(k), "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
                 else:
                     links.append({"name": name, "url": url, "icon": site_icon_b64_uri(dom)})
             try:
@@ -2217,7 +2217,12 @@ _QUICK_CHIPS = [   # (filter key, icon, short name): the same keys as the dropdo
     ("stack_bull", "🐂", "Bull stack"), ("stack_bear", "🐻", "Bear stack"), ("above_all", "☁️", "Above EMAs"), ("below_all", "🌧️", "Below EMAs"),
     ("st_elliott", "🌊", "Elliott"), ("st_msb", "🧱", "SMC MSB+OB"), ("st_unicorn", "🦄", "Unicorn"), ("st_ob", "📦", "Order block"),
 ]
-_QUICK_LBL = {k: f"{i} {n}" for k, i, n in _QUICK_CHIPS}
+_QUICK_NAME = {k: (i, n) for k, i, n in _QUICK_CHIPS}
+
+
+def _quick_lbl(k):
+    i, n = _QUICK_NAME[k]
+    return f"{i} {L(n)}"
 
 _RADAR_CSS = """<style>
 .xr-tile{position:relative}
@@ -2500,7 +2505,7 @@ def _radar_filters(view):
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
         r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
-        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_QUICK_LBL.get, key="cs_quick", label_visibility="collapsed")
+        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_quick_lbl, key="cs_quick", label_visibility="collapsed")
         with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
             r1 = st.columns([1.3, 1.1])
             look = r1[0].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
@@ -3010,7 +3015,7 @@ if PAGE == 0:   # workspace
         world_items, world_errs = _bg("world", _world_news, ([], ["world news loading..."]))
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
-                         "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+                         "patterns": [{"name": L(k), "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         _yf = {}
         if any(x.startswith("Y:") for x in ACTIVE_SYMBOLS):
             def _yf_job(syms=tuple(ACTIVE_SYMBOLS)):
@@ -3036,9 +3041,9 @@ if PAGE == 0:   # workspace
         except Exception:
             pass
         if world_errs:
-            st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
+            st.caption(L("World Monitor feeds unavailable:") + " " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
-            st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))
+            st.caption(L("Scan problems:") + " " + " | ".join(L(x_) for x_ in cached_ws["errs"][:3]))
         st.caption(L("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                    "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                    "Data comes straight from OKX in your browser, no refresh needed."))

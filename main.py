@@ -1281,6 +1281,19 @@ def _bt_run_show(strat, sym, tf):
                         tooltip=["trade", "part", "net R", "cumulative net R"]).properties(height=240), use_container_width=True)
 
 
+_RULE_IND = {"close": ("Close", "الإغلاق"), "open": ("Open", "الافتتاح"), "high": ("High", "القمة"), "low": ("Low", "القاع"), "volume": ("Volume", "الفوليوم"),
+             "sma": ("SMA", "متوسط بسيط SMA"), "ema": ("EMA", "متوسط أسي EMA"), "rsi": ("RSI", "RSI"), "atr": ("ATR", "ATR (المدى)"), "roc": ("ROC", "معدل التغير ROC"),
+             "hh": ("Highest high", "أعلى قمة"), "ll": ("Lowest low", "أقل قاع"), "macd_hist": ("MACD histogram", "هيستوجرام MACD"), "adx": ("ADX", "ADX (قوة الترند)"), "bbw": ("Bollinger width", "عرض بولينجر")}
+_RULE_OPS = {">": ("above", "أكبر من"), ">=": ("at least", "أكبر من أو يساوي"), "<": ("below", "أصغر من"), "<=": ("at most", "أصغر من أو يساوي"),
+             "crosses_above": ("crosses above", "يقطع لفوق"), "crosses_below": ("crosses below", "يقطع لتحت")}
+
+
+def _rl(table):
+    """format_func for the rule builder: readable names (Arabic when the page is Arabic) instead of the raw code names."""
+    ar = _ui_lang() == "ar"
+    return lambda k: (table.get(k, (k, k))[1 if ar else 0])
+
+
 def _office_backtest():
     """Build a strategy (rules) and backtest it on real candles: verdict on the frozen out-of-sample part only."""
     from modules import strategy_rules as SR, strategy_bt as BT
@@ -1299,10 +1312,10 @@ def _office_backtest():
     rules = []
     for i in range(int(st.number_input(L("Rules"), 1, 6, 1, key="bt_nr"))):
         r = st.columns([1, 0.6, 1, 1, 0.6])
-        ind = r[0].selectbox(L("Indicator") + f" {i + 1}", inds, index=inds.index("close") if i == 0 else inds.index("rsi"), key=f"bt_i{i}")
+        ind = r[0].selectbox(L("Indicator") + f" {i + 1}", inds, index=inds.index("close") if i == 0 else inds.index("rsi"), key=f"bt_i{i}", format_func=_rl(_RULE_IND))
         per = r[1].number_input(L("Period"), 2, 500, 14 if i == 0 else 20, key=f"bt_p{i}") if SR.INDICATORS[ind] else None
-        op = r[2].selectbox(L("Condition"), list(SR.OPS), index=SR.OPS.index("crosses_above") if i == 0 else SR.OPS.index("<"), key=f"bt_o{i}")
-        vk = r[3].selectbox(L("Compare with"), [L("number")] + inds, index=1 + inds.index("ema") if i == 0 else 0, key=f"bt_vk{i}")
+        op = r[2].selectbox(L("Condition"), list(SR.OPS), index=SR.OPS.index("crosses_above") if i == 0 else SR.OPS.index("<"), key=f"bt_o{i}", format_func=_rl(_RULE_OPS))
+        vk = r[3].selectbox(L("Compare with"), [L("number")] + inds, index=1 + inds.index("ema") if i == 0 else 0, key=f"bt_vk{i}", format_func=lambda k: k if k == L("number") else _rl(_RULE_IND)(k))
         if vk == L("number"):
             val = float(r[4].number_input(L("Value"), value=70.0, key=f"bt_v{i}"))
         else:
@@ -2517,7 +2530,7 @@ def render_chart_scanner(f):
                 title=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
         _UK.kpi("⏱️", L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}"),
     ]), unsafe_allow_html=True)
-    _cnt = [(n_, sum(1 for d_ in data.values() if k_ in d_["flags"])) for k_, _i, n_ in _QUICK_CHIPS]
+    _cnt = [(i_, sum(1 for d_ in data.values() if k_ in d_["flags"])) for k_, i_, n_ in _QUICK_CHIPS]   # icon as the bar label (full names are on the chips)
     _cnt = sorted([c_ for c_ in _cnt if c_[1]], key=lambda c_: -c_[1])[:10]
     _tr = [_htf_trend(tuple(SCAN_SYMBOLS), "1d").get(s_) for s_ in data]
     _mix = sum(1 for t_ in _tr if t_ == "mixed")

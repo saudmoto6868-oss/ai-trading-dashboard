@@ -22,7 +22,7 @@ def css() -> str:
 .uk-ic{{display:inline-flex;width:20px;height:20px;border-radius:7px;align-items:center;justify-content:center;font-size:12px;background:rgba(255,255,255,.07);border:1px solid var(--uk-line)}}
 .uk-card .uk-val{{font:700 22px/1.15 ui-monospace,Menlo,Consolas,monospace;margin-top:3px}}
 .uk-card .uk-sub{{font-size:10.5px;color:var(--uk-dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.uk-card .uk-ring{{position:absolute;right:8px;top:8px;width:46px;height:46px}}
+.uk-card .uk-ring{{position:absolute;inset-inline-end:8px;bottom:6px;width:40px;height:40px;opacity:.95}}.uk-card.has-ring .uk-sub{{padding-inline-end:46px}}
 .uk-card.up{{box-shadow:0 0 0 1px {UP}55,0 0 16px {UP}33}}.uk-card.down{{box-shadow:0 0 0 1px {DOWN}55,0 0 16px {DOWN}33}}.uk-card.warn{{box-shadow:0 0 0 1px {WARN}55,0 0 16px {WARN}2a}}
 .uk-panel{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:14px;padding:10px 12px;color:var(--uk-text);margin:4px 0 8px}}
 .uk-panel h4{{margin:0 0 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--uk-dim);font-weight:600}}
@@ -50,7 +50,7 @@ def ring(pct: float, color: str = "var(--uk-acc)", size: int = 46, w: int = 5) -
 def kpi(icon: str, label: str, value, sub: str = "", tone: str = "", pct: float | None = None, title: str = "") -> str:
     """One KPI card: icon badge, label, big value, small line, optional ring (pct) and a glow when tone is up / down / warn."""
     rg = ring(pct, _c(tone, "var(--uk-acc)")) if pct is not None else ""
-    return (f"<div class='uk-card {tone}' title='{html.escape(title, quote=True)}'><div class='uk-lbl'><span class='uk-ic'>{icon}</span>{html.escape(str(label))}</div>"
+    return (f"<div class='uk-card {tone}{' has-ring' if pct is not None else ''}' title='{html.escape(title, quote=True)}'><div class='uk-lbl'><span class='uk-ic'>{icon}</span>{html.escape(str(label))}</div>"
             f"<div class='uk-val' style='color:{_c(tone)}'>{html.escape(str(value))}</div><div class='uk-sub'>{html.escape(str(sub))}</div>{rg}</div>")
 
 
@@ -82,7 +82,7 @@ def gauge(pct: float, label: str = "", lo: str = "0", hi: str = "100", color: st
             f"<text x='{cx-r}' y='{cy+16}' text-anchor='middle' fill='var(--uk-dim)' font-size='8'>{html.escape(lo)}</text><text x='{cx+r}' y='{cy+16}' text-anchor='middle' fill='var(--uk-dim)' font-size='8'>{html.escape(hi)}</text></svg>")
 
 
-def bars(items: list, color: str = "var(--uk-acc)", h: int = 74, bw: int = 22) -> str:
+def bars(items: list, color: str = "var(--uk-acc)", h: int = 74, bw: int = 24) -> str:
     """Glowing vertical bars: items = [(label, value)]."""
     if not items:
         return ""
@@ -91,7 +91,7 @@ def bars(items: list, color: str = "var(--uk-acc)", h: int = 74, bw: int = 22) -
     for i, (l, v) in enumerate(items):
         bh = max(2.0, (h - 14) * v / mx); x = i * (bw + gap)
         out.append(f"<rect x='{x}' y='{h-14-bh:.1f}' width='{bw}' height='{bh:.1f}' rx='4' fill='{color}' opacity='.85' style='filter:drop-shadow(0 0 4px {color})'><title>{html.escape(str(l))}: {v}</title></rect>"
-                   f"<text x='{x+bw/2}' y='{h-3}' text-anchor='middle' fill='var(--uk-dim)' font-size='8'>{html.escape(str(l))[:5]}</text>"
+                   f"<text x='{x+bw/2}' y='{h-2}' text-anchor='middle' font-size='11'>{html.escape(str(l))}</text>"
                    f"<text x='{x+bw/2}' y='{h-17-bh:.1f}' text-anchor='middle' fill='var(--uk-text)' font-size='8'>{v}</text>")
     return f"<svg viewBox='0 0 {wd} {h}' width='{min(wd, 760)}' height='{h}'>{''.join(out)}</svg>"
 

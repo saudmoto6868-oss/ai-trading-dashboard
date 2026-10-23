@@ -1,6 +1,8 @@
 # 6868 X
 
 > **Start here (any new account or agent):** read `docs/AGENT_PROMPT.md` first, then `docs/NEW_ACCOUNT_GUIDE.md`, `docs/MEETING_ROOM.md` and `docs/WHITEBOARD.md`.
+>
+> **Academy (schools, indicators, setups):** `docs/academy/README.md` · Meeting: `docs/MEETING_ACADEMY.md`
 
 ## What this is
 A Streamlit dashboard with 5 tabs (Crypto, Forex, Metals, Stocks, Meme Coins).
@@ -11,6 +13,17 @@ sales feed that flags Smart/Whale prints, and Limit Tracking of big resting orde
 (data from OKX public API, no key needed). The page auto-refreshes every ~20s. Alerts fire
 with sound plus a full trade plan (entry, stop loss, 3 staged take profits)
 when a signal is strong.
+
+## Academy (project knowledge base)
+Dual-track reference for every trading school used in the product:
+
+| Track | Path | Audience |
+|-------|------|----------|
+| AI / code | `docs/academy/ai/` | Lab, detectors, agents |
+| Visual | `docs/academy/visual/` | Teaching UI, humans |
+
+Also: `INDICATOR_MAP.md` (radar layers ↔ indicators), `DEVELOPMENT_NOTES.md` (research R1–R10),
+`BACKTEST_EVIDENCE.md`, `EXAMPLES_MULTI.md`, full file list in `docs/academy/MANIFEST.md`.
 
 ## Folder structure
 main.py runs the app. config.py holds symbol lists, API keys, risk settings.
@@ -36,6 +49,7 @@ symbols. CoinGlass heatmap is a quick link only, no free embed available.
 Deploy on Streamlit Community Cloud for a permanent online link. Add a
 Telegram bot hook in modules/alerts.py. Split modules into independent
 scheduled jobs once the single script version is proven stable.
+Align scanner scoring with `docs/academy/INDICATOR_MAP.md` (context schools must not dominate grade).
 
 ## Scanner (Crypto tab watchlist)
 Pick a scan timeframe (1 min / 1 hour / 1 day / 1 week). Each coin is scored 0-7
@@ -45,4 +59,4 @@ Click a coin to see exactly which signals fired, the higher-timeframe
 confirmation, a trade plan and three scenarios. Trade type (Scalp / Day / Swing /
 Position) comes from which higher timeframe confirms the trigger, not from the
 tab. All detectors are own-built from the framework doc; Elliott counting is a
-rule-based heuristic, not a guarantee.
+rule-based heuristic, not a guarantee. Prefer academy roles: Levels/Trend as primary candidates; Elliott/Gann/Harmonic/SMC as context until Lab says otherwise.

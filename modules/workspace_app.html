@@ -3088,6 +3088,20 @@ Object.assign(CandleChart.prototype, {
         ex.querySelectorAll("span").forEach(z => { z.style.minWidth = "0"; z.style.margin = "0 6px 0 0"; });
         row(Lg("Extend","تمديد"), ex);
       }
+      if (d.type === "fib"){
+        if (!d.lv) d.lv = FIB_PRESETS.Retracement.slice();
+        const wrapL = el("div"); wrapL.style.cssText = "max-height:150px;overflow-y:auto;padding:2px 8px;display:flex;flex-direction:column;gap:3px";
+        const defCol = L_ => (d.lc && d.lc[L_]) || d.color || (L_ < 0 ? "#0ecb81" : L_ > 1 ? "#f6465d" : "#4aa3ff");
+        const build = () => { wrapL.innerHTML = ""; d.lv.forEach(L_ => {
+          const r = el("div"); r.style.cssText = "display:flex;align-items:center;gap:6px"; const on = el("input"); on.type = "checkbox"; on.checked = !(d.lh && d.lh[L_]); on.onchange = () => set(() => { d.lh = d.lh || {}; if (on.checked) delete d.lh[L_]; else d.lh[L_] = 1; });
+          const ci = el("input"); ci.type = "color"; ci.value = defCol(L_); ci.oninput = () => set(() => { d.lc = d.lc || {}; d.lc[L_] = ci.value; });
+          const lb = el("span", null, String(L_)); lb.style.cssText = "min-width:44px"; const x = el("button", null, "✕"); x.style.cssText = "background:none;border:0;color:#848e9c;cursor:pointer"; x.onclick = () => { set(() => { d.lv = d.lv.filter(z => z !== L_); if (d.lc) delete d.lc[L_]; if (d.lh) delete d.lh[L_]; }); build(); };
+          r.append(on, ci, lb, x); wrapL.append(r); }); };
+        build(); const add = el("input"); add.type = "number"; add.step = "0.001"; add.placeholder = Lg("new level, e.g. 0.786","مستوى جديد مثلاً 0.786"); add.style.cssText = "width:120px";
+        const ab = el("button", null, "+"); ab.onclick = () => { const v = parseFloat(add.value); if (isFinite(v) && !d.lv.includes(v)){ set(() => { d.lv.push(v); d.lv.sort((p, q) => p - q); }); add.value = ""; build(); } };
+        const ar = el("div"); ar.style.cssText = "display:flex;gap:6px;align-items:center"; ar.append(add, ab);
+        row(Lg("Levels","المستويات"), ar); const boxL = el("div", "dpr"); boxL.style.display = "block"; boxL.append(wrapL); box.append(boxL);
+      }
       if (["trend", "measure", "prange", "drange", "hline", "wave", "fib"].includes(d.type)){
         const lb = el("input"); lb.type = "checkbox"; lb.checked = !d.noLbl; lb.onchange = () => set(() => { d.noLbl = !lb.checked; });
         row(Lg("Labels","الأرقام"), lb);
@@ -3206,7 +3220,8 @@ Object.assign(CandleChart.prototype, {
       } else if (d.type === "fib"){
         const a = d.pts[0], b = d.pts[1], xs = Math.min(hs[0].x, hs[1].x), cols = ["#848e9c","#f6465d","#ff9800","#0ecb81","#26c6da","#4aa3ff","#a855f7","#f0b90b"];
         (d.lv || FIB_PRESETS.Retracement).forEach((L,i) => {
-          const pr = b.p - (b.p-a.p)*L, y = this.yp(pr); const col = d.color || (L < 0 ? "#0ecb81" : L > 1 ? "#f6465d" : cols[i % cols.length]); c.strokeStyle = col; c.lineWidth = d.w || 1; c.beginPath(); c.moveTo(xs,y); c.lineTo(this.PR,y); c.stroke();
+          if (d.lh && d.lh[L]) return;   // level switched off in the settings
+          const pr = b.p - (b.p-a.p)*L, y = this.yp(pr); const col = (d.lc && d.lc[L]) || d.color || (L < 0 ? "#0ecb81" : L > 1 ? "#f6465d" : cols[i % cols.length]); c.strokeStyle = col; c.lineWidth = d.w || 1; c.beginPath(); c.moveTo(xs,y); c.lineTo(this.PR,y); c.stroke();
           lab(L+"  "+pr.toFixed(dec), xs+3, y-8, col);
         });
         c.lineWidth = 1.5; c.strokeStyle = "rgba(234,236,239,.35)"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.stroke(); c.setLineDash([]);

@@ -25,6 +25,17 @@ from modules.signals import fp
 ISO_L, ISO_R = "⁨", "⁩"  # isolate numbers so they do not reorder inside Arabic text
 
 
+def _is_ar(ar=None) -> bool:
+    """True when Arabic should be produced: the explicit flag, else the page language (modules.i18n.lang())."""
+    if ar is not None:
+        return bool(ar)
+    try:
+        from modules.i18n import lang
+        return lang() == "ar"
+    except Exception:
+        return False
+
+
 def n_(x) -> str:
     return f"{ISO_L}{x}{ISO_R}"
 
@@ -77,14 +88,20 @@ KEY_TAGS = {
 }
 
 
-def tag_for(sig: dict) -> tuple:
-    return KEY_TAGS.get(sig.get("key")) or TAGS.get(sig.get("family"), (sig.get("family", "?"), "#555", "#fff"))
+def tag_for(sig: dict, ar: bool | None = None) -> tuple:
+    """(tag text, background, text colour); the text is Arabic or English by the page language."""
+    t = KEY_TAGS.get(sig.get("key")) or TAGS.get(sig.get("family"), (sig.get("family", "?"), "#555", "#fff"))
+    if _is_ar(ar):
+        return t
+    from modules import arabic_en as E
+    en = E.KEY_TAGS_EN.get(sig.get("key")) if sig.get("key") in KEY_TAGS else E.TAGS_EN.get(sig.get("family"))
+    return (en or t[0], t[1], t[2])
 
 
-def tip_for(sig: dict) -> str:
+def tip_for(sig: dict, ar: bool | None = None) -> str:
     """Plain-language tooltip for one signal instance, built from the detector data."""
     try:
-        name, detail = signal_ar(sig)
+        name, detail = signal_ar(sig, ar)
         return f"{name}: {detail}"
     except Exception:
         return sig.get("name", "")
@@ -108,18 +125,45 @@ def tags_html(signals: list, link: str | None = None) -> str:
     return "".join(out)
 
 
+def trade_name(trade_type: str, ar: bool | None = None) -> str:
+    """Trade-type name in the page language (Scalp / Day trade / Swing / Position, or the Arabic names)."""
+    if _is_ar(ar):
+        return TRADE_AR.get(trade_type, trade_type)
+    from modules import arabic_en as E
+    return E.TRADE_EN.get(trade_type, trade_type)
+
+
+def tf_name(tf: str, ar: bool | None = None) -> str:
+    """Timeframe label in the page language."""
+    if _is_ar(ar):
+        return TF_AR.get(tf, tf)
+    from modules import arabic_en as E
+    return E.TF_EN.get(tf, tf)
+
+
+def dir_name(direction: str, ar: bool | None = None) -> str:
+    """Direction word (Bullish / Bearish / Neutral, or the Arabic) in the page language; '' when unknown."""
+    if _is_ar(ar):
+        return DIR_AR.get(direction, "")
+    from modules import arabic_en as E
+    return E.DIR_EN.get(direction, "")
+
+
 def trade_chip_html(trade_type: str) -> str:
     col = TRADE_COLOR.get(trade_type, "#848e9c")
     return (f"<span style='display:inline-block;border:1px solid {col};color:{col};font-size:11px;"
-            f"font-weight:700;padding:0 6px;border-radius:9px'>{html.escape(TRADE_AR.get(trade_type, trade_type))}</span>")
+            f"font-weight:700;padding:0 6px;border-radius:9px'>{html.escape(trade_name(trade_type))}</span>")
 
 
 # --------------------------------------------------------------------------
 # Signals in Arabic
 # --------------------------------------------------------------------------
 
-def signal_ar(s: dict) -> tuple:
-    """(Arabic name, Arabic detail) for one finalized signal dict."""
+def signal_ar(s: dict, ar: bool | None = None) -> tuple:
+    """(name, detail) for one finalized signal dict: Arabic, or English when the page language is English (ar=False)."""
+    if not _is_ar(ar):
+        from modules.arabic_en import signal_en
+        return signal_en(s)
     k, p, v = s.get("key"), s.get("prices", {}), s.get("vals", {})
     bull = s["direction"] == "bullish"
     up, dn = ("فوق", "تحت") if bull else ("تحت", "فوق")
@@ -262,7 +306,10 @@ def signal_ar(s: dict) -> tuple:
     return (s.get("name", ""), s.get("detail", ""))
 
 
-def htf_lines_ar(res: dict) -> list:
+def htf_lines_ar(res: dict, ar: bool | None = None) -> list:
+    if not _is_ar(ar):
+        from modules.arabic_en import htf_lines_en
+        return htf_lines_en(res, lambda s: signal_ar(s, False))
     out = []
     for h in res.get("htf", []):
         label = TF_AR.get(h["tf"], h["tf"])
@@ -277,7 +324,10 @@ def htf_lines_ar(res: dict) -> list:
     return out
 
 
-def scenarios_ar(res: dict) -> list:
+def scenarios_ar(res: dict, ar: bool | None = None) -> list:
+    if not _is_ar(ar):
+        from modules.arabic_en import scenarios_en
+        return scenarios_en(res)
     d = res["direction"]
     if d == "neutral" or not res["signals"]:
         return ["لا يوجد اتجاه مسيطر - لا شيء للتخطيط له. انتظر التقاء الإشارات."]
@@ -300,11 +350,15 @@ def scenarios_ar(res: dict) -> list:
     return out
 
 
-def context_ar(res: dict) -> list:
-    """Arabic lines for the market-context layer (daily bias / premium-discount / NY window) with a tick or cross vs the trade direction."""
+def context_ar(res: dict, ar: bool | None = None) -> list:
+    """Lines for the market-context layer (daily bias / premium-discount / NY window) with a tick or cross vs the trade direction
+    (Arabic, or English when the page language is English)."""
     c = (res or {}).get("context") or {}
     if not c:
         return []
+    if not _is_ar(ar):
+        from modules.arabic_en import context_en
+        return context_en(c)
     ag = c.get("agree") or {}
     mark = lambda v: "" if v is None else (" ✓" if v else " ✗")
     out = []
@@ -326,38 +380,40 @@ def context_ar(res: dict) -> list:
     return out
 
 
-def analysis_ar(res: dict) -> dict:
-    """Plain-language Arabic analysis of one scanner result (same text as the Crypto tab's 'التحليل' panel),
-    as data so the Workspace and the Chart Scanner can show it too."""
+def analysis_ar(res: dict, ar: bool | None = None) -> dict:
+    """Plain-language analysis of one scanner result (same text as the Crypto tab's 'التحليل' panel), in the page language
+    (Arabic, or English when the site is in English), as data so the Workspace and the Chart Scanner can show it too."""
+    ar = _is_ar(ar)
     sig = []
     for s in res.get("signals", []):
         try:
-            name, detail = signal_ar(s)
-            sig.append(f"[{tag_for(s)[0]}] {name}: {detail}")
+            name, detail = signal_ar(s, ar)
+            sig.append(f"[{tag_for(s, ar)[0]}] {name}: {detail}")
         except Exception:
             continue
     against = ""
     if res.get("against"):
         try:
-            against = "ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in res["against"])
+            against = ("ضد الاتجاه: " + "، ".join(signal_ar(a, True)[0] for a in res["against"])) if ar else \
+                ("Against the direction: " + ", ".join(signal_ar(a, False)[0] for a in res["against"]))
         except Exception:
             against = ""
     try:
-        htf = htf_lines_ar(res) if res.get("htf") else []
+        htf = htf_lines_ar(res, ar) if res.get("htf") else []
     except Exception:
         htf = []
     try:
-        scen = scenarios_ar(res) if res.get("direction") in ("bullish", "bearish") else []
+        scen = scenarios_ar(res, ar) if res.get("direction") in ("bullish", "bearish") else []
     except Exception:
         scen = []
     if not sig:
-        sig = ["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ."]
+        sig = ["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ."] if ar else ["Mixed or no signals right now - nothing to act on."]
     try:
         from modules.mtf import lines_ar as _mtf_ar
-        mtf = _mtf_ar(res.get("mtf"))
+        mtf = _mtf_ar(res.get("mtf"), ar)
     except Exception:
         mtf = []
-    return {"sig": sig, "against": against, "htf": htf, "mtf": mtf, "scen": scen, "ctx": context_ar(res)}
+    return {"sig": sig, "against": against, "htf": htf, "mtf": mtf, "scen": scen, "ctx": context_ar(res, ar)}
 
 
 # --------------------------------------------------------------------------
@@ -372,11 +428,12 @@ def tv_link(symbol: str, tf: str) -> str:
     return f"https://www.tradingview.com/chart/?symbol={sym}&interval={TV_INTERVAL.get(tf, '60')}"
 
 
-def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, width: int = 640, height: int = 300) -> str:
+def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, width: int = 640, height: int = 300, ar: bool | None = None) -> str:
     """Self-contained SVG: recent candles + zones + key levels + entry/stop/targets
     + a dashed path from price to the first target. No dependencies."""
     if df is None or len(df) < 10:
         return ""
+    ar = _is_ar(ar)
     d = df.tail(bars).reset_index(drop=True)
     n = len(d)
     left, right, top, bot = 8, 74, 10, 18
@@ -388,14 +445,14 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
         if s.get("zone"):
             zones.append((s["zone"][0], s["zone"][1], tag_for(s)[1]))
     if plan:
-        levels.append((plan["entry"], "دخول", "#4aa3ff", ""))
-        levels.append((plan["stop_loss"], "وقف", "#f6465d", "5,4"))
+        levels.append((plan["entry"], "دخول" if ar else "Entry", "#4aa3ff", ""))
+        levels.append((plan["stop_loss"], "وقف" if ar else "Stop", "#f6465d", "5,4"))
         for i, tp in enumerate(plan["take_profits"], 1):
-            levels.append((tp, f"هدف {i}", "#0ecb81", "5,4"))
+            levels.append((tp, f"هدف {i}" if ar else f"Target {i}", "#0ecb81", "5,4"))
     for sup in (res.get("supports") or [])[:3]:
-        levels.append((float(sup), "دعم", "#848e9c", "2,4"))
+        levels.append((float(sup), "دعم" if ar else "Support", "#848e9c", "2,4"))
     for rs in (res.get("resistances") or [])[:3]:
-        levels.append((float(rs), "مقاومة", "#848e9c", "2,4"))
+        levels.append((float(rs), "مقاومة" if ar else "Resistance", "#848e9c", "2,4"))
     vals = list(d["high"]) + list(d["low"]) + [lv[0] for lv in levels if lv[2] != "#848e9c"]
     for z in zones:
         vals += [z[0], z[1]]
@@ -432,7 +489,7 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
             o.append(f"<line x1='{x0:.1f}' y1='{y0:.1f}' x2='{left + pw - 4}' y2='{y(tp1):.1f}' stroke='#f0b90b' "
                      f"stroke-width='2' stroke-dasharray='6,4'/>")
             o.append(f"<circle cx='{left + pw - 4}' cy='{y(tp1):.1f}' r='4' fill='#f0b90b'/>")
-    title = f"{res['symbol']} - {DIR_AR.get(res['direction'], '')} - {TRADE_AR.get(res['trade_type'], '')}"
+    title = f"{res['symbol']} - {dir_name(res['direction'], ar)} - {trade_name(res['trade_type'], ar) if res['trade_type'] in TRADE_AR else ''}"
     o.append(f"<text x='{width - 8}' y='{height - 5}' fill='#848e9c' font-size='10' text-anchor='end'>{html.escape(title)}</text>")
     o.append("</svg>")
     return "".join(o)
@@ -446,7 +503,10 @@ TF_CHART = {"1m": "1m", "13m": "13m", "1h": "1H", "2h": "2H", "3h": "3H", "6h": 
 TF_SECONDS = {"1m": 60, "13m": 780, "1h": 3600, "2h": 7200, "3h": 10800, "6h": 21600, "7h": 25200, "8h": 28800, "12h": 43200, "1d": 86400, "3d": 259200, "1w": 604800, "1mo": 2592000}
 
 
-def duration_ar(seconds: float) -> str:
+def duration_ar(seconds: float, ar: bool | None = None) -> str:
+    if not _is_ar(ar):
+        from modules.arabic_en import duration_en
+        return duration_en(seconds)
     if seconds < 90 * 60:
         return f"~{max(1, round(seconds / 60))} دقيقة"
     if seconds < 48 * 3600:
@@ -456,7 +516,7 @@ def duration_ar(seconds: float) -> str:
     return f"~{round(seconds / 604800)} أسبوع"
 
 
-def eta_ar(df: pd.DataFrame, plan: dict, tf: str) -> dict:
+def eta_ar(df: pd.DataFrame, plan: dict, tf: str, ar: bool | None = None) -> dict:
     """Rough time-to-target: a target one ATR away needs roughly two bars of
     noisy trading to be reached. A guide, not a promise."""
     from modules.signals import atr_series
@@ -471,25 +531,29 @@ def eta_ar(df: pd.DataFrame, plan: dict, tf: str) -> dict:
     out = {}
     for i in (0, 2):
         dist = abs(plan["take_profits"][i] - plan["entry"])
-        out[f"tp{i + 1}"] = duration_ar(max(1, 2 * dist / atr) * sec)
+        out[f"tp{i + 1}"] = duration_ar(max(1, 2 * dist / atr) * sec, ar)
     return out
 
 
-def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
+def scan_entry(r: dict, df: pd.DataFrame, ar: bool | None = None) -> dict | None:
     """Everything the Workspace needs for one scanner result. Entry uses the last
     CLOSED candle so the payload stays stable between candle closes."""
     from modules.risk_engine import build_trade_plan
 
+    ar = _is_ar(ar)
     if r["direction"] not in ("bullish", "bearish") or df is None or len(df) < 3:
         return None
     price = float(df["close"].iloc[-2])
     plan = build_trade_plan({**r, "price": price, "trend_bias": r["direction"]})
-    tags, seen = [], set()
-    for s in r["signals"]:
-        t = tag_for(s)
-        if t[0] not in seen:
-            seen.add(t[0])
-            tags.append([t[0], t[1], t[2], tip_for(s)])
+    def _tags(lang_ar):
+        out_, seen_ = [], set()
+        for s in r["signals"]:
+            t = tag_for(s, lang_ar)
+            if t[0] not in seen_:
+                seen_.add(t[0])
+                out_.append([t[0], t[1], t[2], tip_for(s, lang_ar)])
+        return out_
+    tags = _tags(ar)
     zones = [[round(float(s["zone"][0]), 6), round(float(s["zone"][1]), 6), tag_for(s)[1]] for s in r["signals"] if s.get("zone")]
     ew = None
     for sg in r["signals"]:
@@ -503,11 +567,11 @@ def scan_entry(r: dict, df: pd.DataFrame) -> dict | None:
                 ew = None
             break
     return {
-        "ew": ew, "ana": analysis_ar(r), "vol": r.get("vol"),
+        "ew": ew, "ana": analysis_ar(r, ar), "vol": r.get("vol"),
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
-        "trade": TRADE_AR.get(r["trade_type"], r["trade_type"]), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": TF_AR.get(r["timeframe"], r["timeframe"]),
-        "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "zones": zones,
+        "trade": trade_name(r["trade_type"], ar), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": tf_name(r["timeframe"], ar),
+        "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "tags_en": _tags(False), "zones": zones,
         "plan": {"entry": round(plan["entry"], 6), "stop": round(plan["stop_loss"], 6),
                  "tps": [round(x, 6) for x in plan["take_profits"]]},
-        "eta": eta_ar(df, plan, r["timeframe"]), "tv": tv_link(r["symbol"], r["timeframe"]),
+        "eta": eta_ar(df, plan, r["timeframe"], ar), "tv": tv_link(r["symbol"], r["timeframe"]),
     }

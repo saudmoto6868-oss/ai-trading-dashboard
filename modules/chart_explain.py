@@ -88,6 +88,96 @@ FLAG_AR = {
     "st_cisd": "سحب + CISD", "st_tl": "كسر خط ترند",
 }
 
+# ---- English versions (shown when the site language is English; same ids, same shapes) ----------------------------
+PATTERN_EN = {
+    "cp_channel_up": ("Rising channel", "Higher highs and higher lows between two parallel lines: buyers are in control and every dip gets bought.",
+                      "It holds while price stays inside the channel; a close below the lower line = the trend is weakening."),
+    "cp_channel_dn": ("Falling channel", "Lower highs and lower lows between two parallel lines: sellers are in control and every bounce gets sold.",
+                      "It holds while price stays inside the channel; a close above the upper line = a possible change."),
+    "cp_channel_h": ("Sideways range", "Price is boxed between support and resistance: the two sides are balanced and nobody has won yet.",
+                     "The real signal comes when price exits the range on a close with above-average volume."),
+    "cp_wedge_up": ("Rising wedge (usually bearish)", "Price keeps rising but every wave is weaker and the two lines narrow: buying is tiring.",
+                    "A close below the lower line; without a break it is still rising."),
+    "cp_wedge_dn": ("Falling wedge (usually bullish)", "Price keeps falling but every wave is weaker and the two lines narrow: selling is running out.",
+                    "A close above the upper line."),
+    "cp_tri_asc": ("Ascending triangle", "Flat resistance and rising lows: buyers step in earlier each time and press on the resistance.",
+                   "A close above resistance with volume; the textbook target = the height of the triangle."),
+    "cp_tri_desc": ("Descending triangle", "Flat support and falling highs: sellers sell cheaper each time and press on the support.",
+                    "A close below support with volume."),
+    "cp_tri_sym": ("Symmetrical triangle", "Falling highs and rising lows: hesitation and compression before a big move; the direction is not settled.",
+                   "Wait for a close outside either side; the previous trend is the more likely direction."),
+    "cp_hs": ("Head and shoulders", "3 peaks with the middle one highest: buyers failed to make a new high after the head.",
+              "A close below the neckline; before the break it is only a possibility."),
+    "cp_ihs": ("Inverse head and shoulders", "3 troughs with the middle one lowest: sellers failed to push lower.",
+               "A close above the neckline."),
+    "cp_multi_top": ("Multiple top (3+)", "Price was rejected at the same level 3 times or more: strong supply there.",
+                     "A break of the low between the peaks; a break above the level itself cancels the pattern."),
+    "cp_multi_bottom": ("Multiple bottom (3+)", "Price bounced from the same level 3 times or more: strong demand there.",
+                        "A break of the high between the troughs; a break below the level cancels the pattern."),
+    "cp_tl_support": ("On a support trendline", "Price has fallen to the rising trendline: the usual place for buyers.",
+                      "A bounce with a strong candle = continuation; a close below the line = trend break."),
+    "cp_tl_resist": ("On a resistance trendline", "Price has risen to the falling trendline: the usual place for sellers.",
+                     "A rejection with a strong candle = the decline continues; a close above the line = trend break."),
+    "chan_up": ("Breakout above a channel", "Price left above the regression channel: unusual buying momentum.", "Best if the line is retested from above and holds."),
+    "chan_dn": ("Breakdown below a channel", "Price left below the regression channel: unusual selling momentum.", "Best if the line is retested from below and rejected."),
+    "tl_up": ("Falling trendline broken upward", "The downtrend line broke: sellers lost control, at least for now.",
+              "A higher low after the break, or a successful retest."),
+    "tl_dn": ("Rising trendline broken downward", "The uptrend line broke: buyers lost control, at least for now.",
+              "A lower high after the break, or a failed retest."),
+    "dbl_top": ("Double top", "Two peaks at the same level: a second attempt failed to break the high.", "A break of the low in the middle."),
+    "dbl_bottom": ("Double bottom", "Two troughs at the same level: a second attempt failed to break the low.", "A break of the high in the middle."),
+}
+
+CANDLE_EN = {
+    "hammer": ("Hammer", "Sellers pushed price down hard inside the candle, buyers pushed it back and it closed near the high: rejection of lower prices.", "buy"),
+    "shooting_star": ("Shooting star", "Buyers pushed price up, sellers pushed it back and it closed near the low: rejection of higher prices.", "sell"),
+    "bull_engulf": ("Bullish engulfing", "A green candle whose body covers the previous red body: buyers took over completely in one candle.", "buy"),
+    "bear_engulf": ("Bearish engulfing", "A red candle whose body covers the previous green body: sellers took over completely in one candle.", "sell"),
+    "doji": ("Doji", "Open and close are almost the same: full indecision, neither side won. After a long trend it can mean fatigue.", None),
+    "inside": ("Inside candle", "The whole candle sits inside the previous candle's range: compression and rest before a move; leaving its range is the signal.", None),
+    "morning_star": ("Morning star", "A strong drop, then a small hesitating candle, then a strong rise: the selling is done and buyers are back.", "buy"),
+    "evening_star": ("Evening star", "A strong rise, then a small hesitating candle, then a strong drop: the buying is done and sellers are back.", "sell"),
+    "three_white": ("Three white soldiers", "3 green candles in a row, each closing higher: steady, orderly buying.", "buy"),
+    "three_black": ("Three black crows", "3 red candles in a row, each closing lower: steady, orderly selling.", "sell"),
+    "bull_marubozu": ("Bullish marubozu", "A large green candle with almost no wicks: buyers dominated from open to close.", "buy"),
+    "bear_marubozu": ("Bearish marubozu", "A large red candle with almost no wicks: sellers dominated from open to close.", "sell"),
+    "hanging_man": ("Hanging man", "The same shape as a hammer but after a rise: sellers pushed price down hard inside the candle and buyers caught it, a sign buyers are tiring.", "sell"),
+    "inverted_hammer": ("Inverted hammer", "A long upper wick after a drop: buyers tried hard to push price up; if the next candle is green it can be the start of a rejection of the decline.", "buy"),
+    "harami": ("Harami", "A small candle inside the body of a bigger candle before it: momentum stopped, nobody is in charge, and the previous direction is being questioned.", None),
+    "piercing": ("Piercing line", "After a big red candle, a green one opens below its close and closes above its midpoint: buyers took back more than half of the drop in one candle.", "buy"),
+    "dark_cloud": ("Dark cloud cover", "After a big green candle, a red one opens above its close and closes below its midpoint: sellers took back more than half of the rise in one candle.", "sell"),
+}
+
+FLAG_EN = {
+    "rsi_gt70": "RSI above 70 (overbought)", "rsi_gt80": "RSI above 80", "rsi_gt90": "RSI above 90",
+    "rsi_lt30": "RSI below 30 (oversold)", "rsi_lt20": "RSI below 20", "rsi_lt10": "RSI below 10",
+    "chg_up2": "Last candle +2% or more", "chg_dn2": "Last candle −2% or more", "vol_2x": "Volume 2x the average", "vol_3x": "Volume 3x the average",
+    "st_elliott": "Elliott waves", "st_ew3": "Start of wave 3 (Elliott)", "st_msb": "Market structure break + order block (SMC)", "st_ob": "Order block",
+    "st_unicorn": "Unicorn (ICT)", "st_breaker": "Breaker block", "st_fvg": "Fair value gap (FVG)", "st_ote": "OTE entry zone (ICT)",
+    "st_judas": "Judas swing (ICT)", "st_sweep": "Liquidity sweep", "st_ifvg": "Inverse FVG (IFVG)", "st_harm": "Harmonic patterns",
+    "st_mss": "Market structure shift MSS / CHoCH", "st_pd": "Discount / premium zone", "st_silver": "Silver Bullet (ICT)", "st_mit": "Mitigation block",
+    "st_bvd": "Breakout with delta volume", "st_smt": "SMT divergence between correlated pairs", "st_crt": "CRT (sweep of a larger candle's range and return)",
+    "st_sessamd": "Session AMD", "st_orb": "Opening range breakout", "st_kzs": "Kill zone sniper", "st_po3": "Power of Three",
+    "st_donch": "Donchian trend", "st_sma1040": "SMA 10/40 cross", "st_turtle55": "55-day breakout (Turtle)", "st_rsidiv": "RSI divergence",
+    "st_macddiv": "MACD divergence", "st_fib": "Fibonacci", "st_vwap": "VWAP", "st_ma": "Moving averages", "st_m2022": "ICT 2022 model",
+    "st_cisd": "Sweep + CISD", "st_tl": "Trendline break",
+}
+
+
+def _is_ar(ar) -> bool:
+    if ar is not None:
+        return bool(ar)
+    try:
+        from modules.i18n import lang
+        return lang() == "ar"
+    except Exception:
+        return False
+
+
+def flag_name(k: str, default: str = "", ar: bool | None = None) -> str:
+    """Short phrase for a Radar flag in the page language (default when the flag has no phrase)."""
+    return (FLAG_AR if _is_ar(ar) else FLAG_EN).get(k, default)
+
 
 def candles(df: pd.DataFrame) -> list:
     """Candlestick patterns on the last closed candles (the last row is treated as closed). -> list of ids, strongest first."""
@@ -141,35 +231,52 @@ def candles(df: pd.DataFrame) -> list:
     return out
 
 
-def ema_lines(df: pd.DataFrame) -> list:
-    """Plain Arabic lines: price vs EMA 9 / 20 / 50 / 200, their order, and a fresh 50/200 cross."""
+def ema_lines(df: pd.DataFrame, ar: bool | None = None) -> list:
+    """Plain lines (Arabic or English by the page language): price vs EMA 9 / 20 / 50 / 200, their order, and a fresh 50/200 cross."""
+    ar = _is_ar(ar)
     c = df["close"].astype(float)
     e = {n: c.ewm(span=n, adjust=False).mean() for n in (9, 20, 50, 200)}
     px = float(c.iloc[-1])
-    role = {9: "الزخم القصير", 20: "ترند قصير", 50: "ترند متوسط", 200: "ترند طويل"}
+    role = {9: "الزخم القصير", 20: "ترند قصير", 50: "ترند متوسط", 200: "ترند طويل"} if ar else         {9: "short-term momentum", 20: "short-term trend", 50: "medium-term trend", 200: "long-term trend"}
     above = [n for n in e if px > float(e[n].iloc[-1])]
-    lines = ["السعر " + ("فوق" if n in above else "تحت") + f" EMA {n} ({role[n]})" for n in (9, 20, 50, 200) if len(c) >= n]
+    if ar:
+        lines = ["السعر " + ("فوق" if n in above else "تحت") + f" EMA {n} ({role[n]})" for n in (9, 20, 50, 200) if len(c) >= n]
+    else:
+        lines = ["Price " + ("above" if n in above else "below") + f" EMA {n} ({role[n]})" for n in (9, 20, 50, 200) if len(c) >= n]
     v = {n: float(e[n].iloc[-1]) for n in e}
     if px > v[9] > v[20] > v[50]:
-        lines.append("ترتيب صاعد كامل (سعر > 9 > 20 > 50): ترند صاعد صحي، والشراء عند الرجوع لـ 20 أو 50.")
+        lines.append("ترتيب صاعد كامل (سعر > 9 > 20 > 50): ترند صاعد صحي، والشراء عند الرجوع لـ 20 أو 50." if ar else
+                     "Full bullish order (price > 9 > 20 > 50): a healthy uptrend, where buying is usually looked at on pullbacks to the 20 or 50.")
     elif px < v[9] < v[20] < v[50]:
-        lines.append("ترتيب هابط كامل (سعر < 9 < 20 < 50): ترند هابط صحي، والبيع عند الارتداد لـ 20 أو 50.")
+        lines.append("ترتيب هابط كامل (سعر < 9 < 20 < 50): ترند هابط صحي، والبيع عند الارتداد لـ 20 أو 50." if ar else
+                     "Full bearish order (price < 9 < 20 < 50): a healthy downtrend, where selling is usually looked at on bounces to the 20 or 50.")
     elif v[9] > v[20] > v[50]:
-        lines.append("المتوسطات مرتبة صاعدة (9 > 20 > 50) بس السعر تحت EMA 9: تراجع جوه ترند صاعد، مش رينج.")
+        lines.append("المتوسطات مرتبة صاعدة (9 > 20 > 50) بس السعر تحت EMA 9: تراجع جوه ترند صاعد، مش رينج." if ar else
+                     "The averages are in bullish order (9 > 20 > 50) but price is below EMA 9: a pullback inside an uptrend, not a range.")
     elif v[9] < v[20] < v[50]:
-        lines.append("المتوسطات مرتبة هابطة (9 < 20 < 50) بس السعر فوق EMA 9: ارتداد جوه ترند هابط، مش رينج.")
+        lines.append("المتوسطات مرتبة هابطة (9 < 20 < 50) بس السعر فوق EMA 9: ارتداد جوه ترند هابط، مش رينج." if ar else
+                     "The averages are in bearish order (9 < 20 < 50) but price is above EMA 9: a bounce inside a downtrend, not a range.")
     else:
-        lines.append("المتوسطات متلخبطة: مفيش ترند واضح على الفريم ده، الرينج أرجح.")
+        lines.append("المتوسطات متلخبطة: مفيش ترند واضح على الفريم ده، الرينج أرجح." if ar else
+                     "The averages are tangled: no clear trend on this timeframe, a range is more likely.")
     if len(c) >= 210:
         d = (e[50] - e[200]).tail(10)
         if d.iloc[0] < 0 < d.iloc[-1]:
-            lines.append("تقاطع ذهبي جديد (50 فوق 200) في آخر 10 شمعات.")
+            lines.append("تقاطع ذهبي جديد (50 فوق 200) في آخر 10 شمعات." if ar else "A new golden cross (50 above 200) in the last 10 candles.")
         elif d.iloc[0] > 0 > d.iloc[-1]:
-            lines.append("تقاطع موت جديد (50 تحت 200) في آخر 10 شمعات.")
+            lines.append("تقاطع موت جديد (50 تحت 200) في آخر 10 شمعات." if ar else "A new death cross (50 below 200) in the last 10 candles.")
     return lines
 
 
-def explain(df: pd.DataFrame, flags) -> dict:
-    """-> {'patterns': [(name, psychology, confirm)], 'candles': [(name, psychology, bias)], 'ema': [lines]} for one chart."""
-    pats = [PATTERN_AR[k] for k in flags if k in PATTERN_AR]
-    return {"patterns": pats, "candles": [CANDLE_AR[k] for k in candles(df)], "ema": ema_lines(df) if df is not None and len(df) >= 50 else []}
+def explain(df: pd.DataFrame, flags, ar: bool | None = None) -> dict:
+    """-> {'patterns': [(name, psychology, confirm)], 'candles': [(name, psychology, bias)], 'ema': [lines]} for one chart,
+    in the page language (ar=None) or the given one."""
+    ar = _is_ar(ar)
+    P, C = (PATTERN_AR, CANDLE_AR) if ar else (PATTERN_EN, CANDLE_EN)
+    pats = [P[k] for k in flags if k in P]
+    return {"patterns": pats, "candles": [C[k] for k in candles(df)], "ema": ema_lines(df, ar) if df is not None and len(df) >= 50 else []}
+
+
+def explain_both(df: pd.DataFrame, flags) -> dict:
+    """{'ar': explain(..), 'en': explain(..)} - language-neutral so a cached result can be shown in either language."""
+    return {"ar": explain(df, flags, True), "en": explain(df, flags, False)}

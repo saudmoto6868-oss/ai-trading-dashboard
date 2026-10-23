@@ -115,6 +115,21 @@ td{padding:1px 4px;white-space:nowrap}
 .dbar{position:absolute;display:none;gap:3px;align-items:center;background:#1e2329;border:1px solid #2b3139;border-radius:6px;padding:3px;z-index:6;box-shadow:0 4px 14px #0008;white-space:nowrap}
 .dbar button{min-width:22px;height:22px;padding:0 5px;font-size:11px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer}
 .dbar button.on{border-color:#f0b90b;color:#f0b90b}.dbar i{display:block;width:12px;height:12px;border-radius:50%;margin:auto}
+.dprop{position:absolute;z-index:8;width:262px;background:#1e2329;border:1px solid #2b3139;border-radius:8px;box-shadow:0 8px 26px #000a;color:#eaecef;font-size:11px;padding:0 0 6px;max-height:92%;overflow-y:auto}
+.dprop .dph{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #2b3139;font-size:12px}
+.dprop .dph button{background:none;border:0;color:#848e9c;font-size:14px;cursor:pointer}.dprop .dph button:hover{color:#f6465d}
+.dprop .dpr{display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap}.dprop .dpr>span{min-width:62px;color:#848e9c}
+.dprop input[type=color]{width:26px;height:22px;padding:0;border:1px solid #2b3139;border-radius:4px;background:#161a1e;cursor:pointer}
+.dprop input[type=range]{width:96px}.dprop select,.dprop textarea{background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;font-size:11px}
+.dprop textarea{width:100%;min-height:54px;padding:4px;resize:vertical;font-family:inherit}
+.dprop .sw{width:16px;height:16px;border-radius:50%;border:1px solid #0006;cursor:pointer;padding:0}.dprop .sw.on{outline:2px solid #f0b90b}
+.dprop .seg button{min-width:30px;height:22px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer;font-size:11px;margin-inline-end:3px}.dprop .seg button.on{border-color:#f0b90b;color:#f0b90b}
+.dprop .dpf{display:flex;gap:6px;padding:6px 8px 0}.dprop .dpf button{flex:1;height:24px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer;font-size:11px}.dprop .dpf button.bad:hover{border-color:#f6465d;color:#f6465d}
+.fibpop.gp{display:flex;flex-direction:column;min-width:190px;padding:3px}
+.fibpop.gp .gh{cursor:default;color:#848e9c;font-size:10px;letter-spacing:.4px;padding:7px 8px 2px;border-top:1px solid var(--line);margin-top:3px}.fibpop.gp .gh:first-child{border-top:0;margin-top:0}.fibpop.gp .gh:hover{background:none;color:#848e9c}
+.fibpop.gp button span.ic{display:inline-block;width:18px;text-align:center;color:#f0b90b}
+.fibpop.gp button{display:flex;align-items:center;gap:8px;width:100%;height:26px;justify-content:flex-start;padding:0 8px;background:none;border:0;color:#eaecef;cursor:pointer;border-radius:3px}
+.fibpop.gp button::after{content:attr(title);font-size:11px;white-space:nowrap}.fibpop.gp button:hover,.fibpop.gp button.on{background:var(--line);color:#f0b90b}
 .lk{display:flex;gap:4px;align-items:center;padding:4px 6px;flex-wrap:nowrap;overflow:hidden}
 .lk a{color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:1px 7px;font-size:11px;white-space:nowrap;background:var(--panel2)}
 .lk a:hover{border-color:var(--gold);color:var(--gold)}
@@ -429,7 +444,7 @@ const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
-const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };
+const acGet = () => { try { return sessionStorage.getItem("ai_ac") !== "0"; } catch(e){ return true; } };   // on by default: a chart opens with the latest candle in the middle, both ways, until the user turns it off
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
 /* ?ws_reset=1 on the page link = clear this browser's saved Workspace (layout, widget settings, drawings); the journal is kept */
 try { const q = new URLSearchParams(window.parent.location.search); if (q.get("ws_reset") === "1"){
@@ -912,7 +927,7 @@ function okx(path){
   const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
   const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
-  if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
+  if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
     try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
   }
@@ -1124,6 +1139,9 @@ const WSX = {
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
 const SIG_IND = ["zn", "bso", "rm", "r2"];   // indicators that draw BUY/SELL marks today (more join this list as the new indicators are added)
 const Lg = (a, b) => lang === "ar" ? b : a;
+const CATL = {"Crypto":["Crypto","كريبتو"], "Forex":["Forex","فوركس"], "Metals":["Metals","معادن"], "Oil & Gas":["Oil & Gas","نفط وغاز"], "Commodities":["Commodities","سلع"], "Indices":["Indices","مؤشرات"], "Stocks":["Stocks","أسهم"], "Bonds":["Bonds","سندات"],
+  "Options":["Options","خيارات"], "Meme coins":["Meme coins","عملات ميم"], "Egypt (EGX)":["Egypt (EGX)","مصر (EGX)"], "Saudi (Tadawul)":["Saudi (Tadawul)","السعودية (تداول)"]};
+const catL = c => CATL[c] ? Lg(CATL[c][0], CATL[c][1]) : c;   // market-category names: the value stays English (used for filtering), the label follows the language
 /* Item 23 (phase 1): read a trade explanation aloud with the browser's own speech engine (Web Speech API) - free, no key,
    nothing leaves the device. Arabic text uses an Arabic voice when the device has one (ar-EG preferred, then any ar-*). */
 const Voice = {
@@ -1317,7 +1335,7 @@ class CandleChart {
     cv.addEventListener("pointerup", e => this.up(e));
     cv.addEventListener("pointercancel", e => { (this.tp || new Map()).delete(e.pointerId); this.pinch = null; this.up(e); });   // the browser took the gesture (vertical page scroll)
     cv.addEventListener("pointerleave", () => { if (!this.drag){ this.mouse = null; this.draw(); } });
-    cv.addEventListener("dblclick", () => this.fit());
+    cv.addEventListener("dblclick", e => { const q = this.pt(e), d = this.drawingsVisible && this.tool === "cur" ? this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q.x, q.y)) : null; if (d){ this.sel = d; this.draw(); this.openEditor(d); } else this.fit(); });
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
     cv.tabIndex = 0; cv.style.outline = "none";
     cv.addEventListener("keydown", e => { if (e.key === "Delete" || e.key === "Backspace"){ this.deleteSel(); } else if (e.key === "Escape"){ this.cancelTool(); } });
@@ -1435,6 +1453,8 @@ class CandleChart {
     if (this.subMove){ const act = this.subActive(), i = act.indexOf(this.subMove.k), P = this._panes || [], me = P.find(q => q.k === this.subMove.k);
       if (me && i >= 0){ const my = this.mouse.y; if (i > 0 && my < me.y0 - 4) this.swapSub(this.subMove.k, -1); else if (i < act.length-1 && my > me.y0 + me.h + 8) this.swapSub(this.subMove.k, 1); } return; }
     { const hh = this.layoutHit(this.mouse.x, this.mouse.y); this.cv.style.cursor = hh ? ((hh.kind === "col" || hh.kind === "axw") ? "ew-resize" : hh.kind === "size" ? "ns-resize" : hh.kind === "move" ? "grab" : "pointer") : (this.tool === "cur" ? "" : "crosshair"); }
+    if (this.tool === "cur" && this.drawingsVisible && !this.drag && !this.dragD && this.mouse){ const q0 = this.pt(e);
+      if (q0.x <= this.PR && q0.y <= this.PB){ const hd = this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q0.x, q0.y)); if (hd) this.cv.style.cursor = hd.lock ? "not-allowed" : "move"; } }
     if (this.toolMove(e)){ this.draw(); return; }
     if (this.drag){
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
@@ -1446,7 +1466,7 @@ class CandleChart {
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
   saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
-  restoreView(){ try { const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  restoreView(){ try { if (this.autoCenter) return false; const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
@@ -2319,17 +2339,26 @@ Object.assign(CandleChart.prototype, {
   hit(d, x, y){
     const hs = this.handles(d);
     for (let i = 0; i < hs.length; i++) if (Math.hypot(hs[i].x-x, hs[i].y-y) < 8) return {h:i};
+    const cg = this.cgrip(d, hs); if (cg && Math.hypot(cg.x-x, cg.y-y) < 9) return {body:1};
     const seg = (x1,y1,x2,y2) => { const dx = x2-x1, dy = y2-y1, L = dx*dx+dy*dy || 1, u = Math.max(0, Math.min(1, ((x-x1)*dx+(y-y1)*dy)/L)); return Math.hypot(x1+u*dx-x, y1+u*dy-y) < 6; };
+    if (d.type === "cross") return (Math.abs(hs[0].x - x) < 6 || Math.abs(hs[0].y - y) < 6) ? {body:1} : null;
+    if (d.type === "ellipse"){ const cx = (hs[0].x+hs[1].x)/2, cy = (hs[0].y+hs[1].y)/2, rx = Math.abs(hs[0].x-hs[1].x)/2 + 4, ry = Math.abs(hs[0].y-hs[1].y)/2 + 4; return (((x-cx)/rx)**2 + ((y-cy)/ry)**2 <= 1) ? {body:1} : null; }
+    if (d.type === "triangle") return (this.inPoly(hs, x, y) || hs.some((h, i) => seg(h.x, h.y, hs[(i+1) % hs.length].x, hs[(i+1) % hs.length].y))) ? {body:1} : null;
+    if (d.type === "pitchfork"){ if (hs.length < 3) return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null; return (this.pfLines(hs).some(l => seg(l[0],l[1],l[2],l[3])) || seg(hs[1].x,hs[1].y,hs[2].x,hs[2].y)) ? {body:1} : null; }
+    if (d.type === "callout"){ const w = d._w || 60, h = d._h || 20; return ((x >= hs[1].x-2 && x <= hs[1].x+w && Math.abs(y-hs[1].y) < h/2+3) || seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y)) ? {body:1} : null; }
+    if (d.type === "plabel"){ const w = d._w || 50; return (x >= hs[0].x-2 && x <= hs[0].x+w+9 && Math.abs(y-hs[0].y) < 10) ? {body:1} : null; }
+    if (d.type === "arrup" || d.type === "arrdn" || d.type === "flag") return Math.hypot(hs[0].x-x, hs[0].y + (d.type === "arrup" ? 11 : d.type === "arrdn" ? -11 : -13) - y) < 15 ? {body:1} : null;
     if (d.type === "hline") return Math.abs(hs[0].y - y) < 6 ? {body:1} : null;
     if (d.type === "rect"){ const x1 = Math.min(hs[0].x,hs[1].x), x2 = Math.max(hs[0].x,hs[1].x), y1 = Math.min(hs[0].y,hs[1].y), y2 = Math.max(hs[0].y,hs[1].y); return (x >= x1-4 && x <= x2+4 && y >= y1-4 && y <= y2+4) ? {body:1} : null; }
     if (d.type === "channel"){ const o = this.chanOff(d), y2a = this.yp(d.pts[0].p+o), y2b = this.yp(d.pts[1].p+o); return (seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) || seg(hs[0].x,y2a,hs[1].x,y2b)) ? {body:1} : null; }
-    if (d.type === "text"){ const w = (d.txt||"").length*6+10; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < 9) ? {body:1} : null; }
+    if (d.type === "text"){ const w = d._w || ((d.txt||"").length*6+10), h = d._h || 18; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < h/2+3) ? {body:1} : null; }
     if (d.type === "vline") return Math.abs(hs[0].x - x) < 6 ? {body:1} : null;
     if (d.type === "brush"){ for (let i = 0; i + 1 < d.pts.length; i++){ if (seg(this.tx(d.pts[i].t), this.yp(d.pts[i].p), this.tx(d.pts[i+1].t), this.yp(d.pts[i+1].p))) return {body:1}; } return null; }
     if (d.type === "prange"){ const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y); return (y >= y1-4 && y <= y2+4) ? {body:1} : null; }
     if (d.type === "drange"){ const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x); return (x >= x1-4 && x <= x2+4) ? {body:1} : null; }
     if (d.type === "ray"){ const e = this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y); return seg(hs[0].x,hs[0].y,e.x,e.y) ? {body:1} : null; }
-    if (d.type === "trend" || d.type === "arrow" || d.type === "measure") return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null;
+    if (d.type === "trend"){ const ea = d.extL ? this.rayEnd(hs[1].x,hs[1].y,hs[0].x,hs[0].y) : hs[0], eb = d.extR ? this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y) : hs[1]; return seg(ea.x,ea.y,eb.x,eb.y) ? {body:1} : null; }
+    if (d.type === "arrow" || d.type === "measure") return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null;
     if (d.type === "wave"){ for (let i = 0; i < hs.length-1; i++) if (seg(hs[i].x,hs[i].y,hs[i+1].x,hs[i+1].y)) return {body:1}; return null; }
     if (d.type === "fib"){ const x0 = Math.min(hs[0].x, hs[1].x); if (x < x0-4) return null;
       for (const L of (d.lv || FIB_PRESETS.Retracement)){ if (Math.abs(this.yp(d.pts[1].p - (d.pts[1].p-d.pts[0].p)*L) - y) < 5) return {body:1}; } return null; }
@@ -2338,6 +2367,16 @@ Object.assign(CandleChart.prototype, {
       return (x >= Math.min(xa,xb) && x <= Math.max(xa,xb) && y >= y1 && y <= y2) ? {body:1} : null;
     }
     return null;
+  },
+  cgrip(d, hs){   // the centre grip of a selected drawing: grab it to move the whole drawing
+    if (!hs || hs.length < 2 || ["brush","hline","vline","cross","text","plabel","arrup","arrdn","flag","prange","drange"].includes(d.type)) return null;
+    if (d.type === "long" || d.type === "short") return {x:(hs[0].x + hs[1].x)/2, y:hs[0].y};
+    return {x:hs.reduce((a,h) => a + h.x, 0)/hs.length, y:hs.reduce((a,h) => a + h.y, 0)/hs.length};
+  },
+  inPoly(hs, x, y){ let r = false; for (let i = 0, j = hs.length-1; i < hs.length; j = i++){ if ((hs[i].y > y) !== (hs[j].y > y) && x < (hs[j].x-hs[i].x)*(y-hs[i].y)/(hs[j].y-hs[i].y) + hs[i].x) r = !r; } return r; },
+  pfLines(hs){   // Andrews pitchfork: median line from the pivot through the middle of B-C, and two parallels through B and C, all extended
+    const A = hs[0], B = hs[1], C = hs[2], M = {x:(B.x + C.x)/2, y:(B.y + C.y)/2}, vx = M.x - A.x, vy = M.y - A.y; if (!vx && !vy) return [];
+    return [[A, M], [B, {x:B.x + vx, y:B.y + vy}], [C, {x:C.x + vx, y:C.y + vy}]].map(([a, b]) => { const e = this.rayEnd(a.x, a.y, b.x, b.y); return [a.x, a.y, e.x, e.y]; });
   },
   chanOff(d){ const a = d.pts[0], b = d.pts[1], c = d.pts[2], dt = b.t-a.t || 1; return c.p - (a.p + (b.p-a.p)*(c.t-a.t)/dt); },
   toolDown(e){
@@ -2359,17 +2398,17 @@ Object.assign(CandleChart.prototype, {
     const t = this.tool;
     if (this.creating){            // next point of a multi-click drawing
       const c = this.creating; c.pts[c.pts.length-1] = {t:q.t, p:q.p};
-      const need = c.type === "wave" ? 6 : c.type === "channel" ? 3 : 2;
-      if (c.pts.length >= need){ this.creating = null; this.sel = c; this.saveDraws(); this.setTool("cur"); }
+      const need = c.type === "wave" ? 6 : (c.type === "channel" || c.type === "triangle" || c.type === "pitchfork") ? 3 : 2;
+      if (c.pts.length >= need){ this.creating = null; this.sel = c; this.saveDraws(); this.setTool("cur"); if (c.type === "callout") this.openEditor(c); }
       else c.pts.push({t:q.t, p:q.p});
       this.draw(); return true;
     }
     const id = Date.now() + Math.random();
-    if (t === "vline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
+    if (t === "vline" || t === "cross" || t === "plabel" || t === "arrup" || t === "arrdn" || t === "flag"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "brush"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.creating = d; }
     else if (t === "hline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
-    else if (t === "text"){ let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", ""); } catch(e){} if (tx === null){ this.setTool("cur"); return true; } const d = {id, type:t, txt:tx || "Note", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
-    else if (t === "trend" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure" || t === "prange" || t === "drange"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
+    else if (t === "text"){ const d = {id, type:t, txt:"", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.setTool("cur"); this.draw(); this.openEditor(d); return true; }
+    else if (t === "trend" || t === "info" || t === "extline" || t === "ellipse" || t === "triangle" || t === "pitchfork" || t === "callout" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure" || t === "prange" || t === "drange"){ const d = {id, type:t === "info" || t === "extline" ? "trend" : t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "info") d.info = true; if (t === "extline"){ d.extL = true; d.extR = true; } if (t === "callout") d.txt = ""; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
     else if (t === "long" || t === "short"){
       const a = this.avgRange()*1.5, dir = t === "long" ? 1 : -1, d = {id, type:t, t0:q.t, t1:q.t + this.secMs()*25, entry:q.p, stop:q.p - dir*a, tp:q.p + dir*a*2};
       this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur");
@@ -2954,23 +2993,93 @@ Object.assign(CandleChart.prototype, {
   dbar(){   // TradingView-style bar above the selected drawing: colour, width, dash, lock, copy, front, delete
     if (!this.host) return; let bar = this.host.querySelector(".dbar");
     const d = this.sel && !this.creating && this.draws.includes(this.sel) ? this.sel : null;
+    if (this.editor && this.editor.d !== d){ this.closeEditor(); }
     if (!d){ if (bar) bar.remove(); return; }
     if (!bar){ if (getComputedStyle(this.host).position === "static") this.host.style.position = "relative"; bar = document.createElement("div"); bar.className = "dbar"; this.host.append(bar); this.dbarBuild(bar); }
     const hs = this.handles(d), x = Math.max(4, Math.min(this.PR - 300, Math.min(...hs.map(h => h.x)))), y = Math.max(4, Math.min(...hs.map(h => h.y)) - 34);
     bar.style.left = x+"px"; bar.style.top = y+"px"; bar.style.display = "flex";
     bar.querySelectorAll("[data-col]").forEach(b => b.classList.toggle("on", b.dataset.col === (d.color || "")));
     bar.querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", +b.dataset.w === (d.w || 1.5)));
-    bar.querySelector("[data-dash]").classList.toggle("on", !!d.dash); bar.querySelector("[data-lock]").classList.toggle("on", !!d.lock);
+    bar.querySelector("[data-dash]").classList.toggle("on", d.ls ? d.ls !== "solid" : !!d.dash); bar.querySelector("[data-lock]").classList.toggle("on", !!d.lock);
+  },
+  dashOf(d){ return d.ls === "dot" ? [1.5, 3.5] : (d.ls === "dash" || (d.ls == null && d.dash)) ? [5, 4] : []; },   // line style: solid / dashed / dotted (old drawings only had dash on / off)
+  fillOf(d, base, hexA, fallback){   // fill of a box-like drawing: the chosen fill colour + opacity, else the line colour at its usual tint
+    if (d.fill){ const n = parseInt(d.fill.slice(1), 16), a = d.fo != null ? d.fo : (parseInt(hexA, 16) / 255 || .15); return "rgba("+((n >> 16) & 255)+","+((n >> 8) & 255)+","+(n & 255)+","+a+")"; }
+    return d.color ? base + hexA : fallback; },
+  closeEditor(){
+    const ed = this.editor; if (!ed) return; this.editor = null; ed.box.remove();
+    if (ed.d.type === "text" && !String(ed.d.txt || "").trim()){ this.draws = this.draws.filter(x => x !== ed.d); if (this.sel === ed.d) this.sel = null; }   // an empty note is not kept
+    this.saveDraws(); this.draw();
+  },
+  openEditor(d){   // TradingView-style settings of one drawing, inside the chart (browser dialogs are blocked inside the page frame, so the old text box never opened)
+    if (!this.host || !d) return; this.closeEditor();
+    if (getComputedStyle(this.host).position === "static") this.host.style.position = "relative";
+    const box = el("div", "dprop"), set = fn => { fn(d); this.saveDraws(); this.draw(); };
+    this.editor = {d, box};
+    const NAMES = {trend:Lg("Trend line","خط اتجاه"), hline:Lg("Horizontal line","خط أفقي"), vline:Lg("Vertical line","خط رأسي"), ray:Lg("Ray","شعاع"), arrow:Lg("Arrow","سهم"), rect:Lg("Rectangle","مستطيل"),
+      channel:Lg("Channel","قناة"), text:Lg("Text note","ملاحظة نصية"), fib:Lg("Fibonacci","فيبوناتشي"), wave:Lg("Elliott wave","موجات إليوت"), measure:Lg("Measure","قياس"), prange:Lg("Price range","مدى سعر"),
+      drange:Lg("Date range","مدى زمن"), brush:Lg("Brush","فرشاة"), ellipse:Lg("Ellipse","قطع ناقص"), triangle:Lg("Triangle","مثلث"), pitchfork:Lg("Andrews pitchfork","شوكة أندروز"), callout:Lg("Callout","تعليق"), plabel:Lg("Price label","علامة سعر"), arrup:Lg("Arrow up","سهم لأعلى"), arrdn:Lg("Arrow down","سهم لأسفل"), flag:Lg("Flag","علم"), cross:Lg("Cross line","خط متقاطع"), long:Lg("Long position","صفقة شراء"), short:Lg("Short position","صفقة بيع")};
+    const head = el("div", "dph"); head.append(el("b", null, NAMES[d.type] || d.type)); const xb = el("button", null, "✕"); xb.title = Lg("close","إغلاق"); xb.onclick = () => this.closeEditor(); head.append(xb); box.append(head);
+    const row = (label, ...kids) => { const r = el("div", "dpr"); r.append(el("span", null, label)); kids.forEach(k => r.append(k)); box.append(r); return r; };
+    const color = (get, put, def) => { const ci = el("input"); ci.type = "color"; ci.value = get() || def; ci.oninput = () => set(() => put(ci.value)); return ci; };
+    const PAL = ["#f0b90b", "#0ecb81", "#f6465d", "#4aa3ff", "#b57cff", "#ff9800", "#26c6da", "#eaecef", "#8a94a3"];
+    if (d.type === "text" || d.type === "callout"){
+      const ta = el("textarea"); ta.value = d.txt || ""; ta.placeholder = Lg("type your note here","اكتب ملاحظتك هنا"); ta.oninput = () => set(() => { d.txt = ta.value; });
+      ta.onkeydown = e => { e.stopPropagation(); if (e.key === "Escape"){ this.closeEditor(); } };
+      const wrap = el("div", "dpr"); wrap.style.display = "block"; wrap.append(ta); box.append(wrap); this.editor.ta = ta;
+      const fs = el("select"); [10, 11, 12, 14, 16, 20, 26, 34].forEach(n => { const o = el("option", null, String(n)); o.value = n; fs.append(o); }); fs.value = String(d.fs || 11); fs.onchange = () => set(() => { d.fs = +fs.value; });
+      row(Lg("Size","الحجم"), fs);
+      row(Lg("Text colour","لون النص"), color(() => d.tc, v => { d.tc = v; }, "#eaecef"));
+      const bg = el("input"); bg.type = "checkbox"; bg.checked = d.tb !== "none"; bg.onchange = () => set(() => { d.tb = bg.checked ? undefined : "none"; if (bg.checked) delete d.tb; });
+      row(Lg("Background","الخلفية"), bg, color(() => (d.tb && d.tb !== "none" ? d.tb : ""), v => { d.tb = v; bg.checked = true; }, "#2b3139"));
+      if (d.type === "callout") row(Lg("Line","الخط"), color(() => d.color, v => { d.color = v; }, "#f0b90b"));
+    } else if (d.type !== "long" && d.type !== "short"){
+      const pal = el("div"); pal.style.cssText = "display:flex;gap:4px;align-items:center;flex-wrap:wrap";
+      PAL.forEach(c0 => { const b = el("button", "sw"); b.style.background = c0; b.title = c0; b.onclick = () => { set(() => { d.color = c0; }); ci.value = c0; pal.querySelectorAll(".sw").forEach(x => x.classList.toggle("on", x === b)); }; if (d.color === c0) b.classList.add("on"); pal.append(b); });
+      const ci = color(() => d.color, v => { d.color = v; }, "#4aa3ff"); pal.append(ci); row(Lg("Line","الخط"), pal);
+      const wsel = el("select"); [1, 1.5, 2, 3, 4, 5, 6].forEach(n => { const o = el("option", null, String(n)); o.value = n; wsel.append(o); }); wsel.value = String(d.w || 1.5);
+      if (![...wsel.options].some(o => o.value === wsel.value)) wsel.value = "1.5"; wsel.onchange = () => set(() => { d.w = +wsel.value; });
+      const seg = el("div", "seg"); [["solid", "──"], ["dash", "╌╌"], ["dot", "···"]].forEach(([k, ic]) => { const b = el("button", null, ic); b.title = k; const cur = d.ls || (d.dash ? "dash" : "solid");
+        if (cur === k) b.classList.add("on"); b.onclick = () => { set(() => { d.ls = k; d.dash = k === "dash"; }); seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); }; seg.append(b); });
+      row(Lg("Width","السُمك"), wsel, seg);
+      if (["rect", "channel", "prange", "drange", "ellipse", "triangle"].includes(d.type)){
+        const op = el("input"); op.type = "range"; op.min = 0; op.max = 100; op.value = Math.round((d.fo != null ? d.fo : .15) * 100); op.oninput = () => set(() => { d.fo = op.value / 100; if (!d.fill) d.fill = d.color || ({rect:"#4aa3ff", channel:"#b57cff"}[d.type] || "#4aa3ff"); });
+        row(Lg("Fill","التعبئة"), color(() => d.fill || d.color, v => { d.fill = v; if (d.fo == null) d.fo = .18; }, "#4aa3ff"), op);
+      }
+      if (d.type === "trend"){
+        const l = el("input"); l.type = "checkbox"; l.checked = !!d.extL; l.onchange = () => set(() => { d.extL = l.checked; });
+        const r = el("input"); r.type = "checkbox"; r.checked = !!d.extR; r.onchange = () => set(() => { d.extR = r.checked; });
+        const ex = el("div"); ex.style.cssText = "display:flex;gap:4px;align-items:center;white-space:nowrap"; ex.append(l, el("span", null, Lg("left","يسار")), r, el("span", null, Lg("right","يمين")));
+        ex.querySelectorAll("span").forEach(z => { z.style.minWidth = "0"; z.style.margin = "0 6px 0 0"; });
+        row(Lg("Extend","تمديد"), ex);
+      }
+      if (["trend", "measure", "prange", "drange", "hline", "wave", "fib"].includes(d.type)){
+        const lb = el("input"); lb.type = "checkbox"; lb.checked = !d.noLbl; lb.onchange = () => set(() => { d.noLbl = !lb.checked; });
+        row(Lg("Labels","الأرقام"), lb);
+      }
+    } else {
+      row("", el("span", null, Lg("Move the three handles to change entry, stop and target.","حرّك المقابض التلاتة لتغيير الدخول والوقف والهدف.")));
+    }
+    const foot = el("div", "dpf");
+    const dup = el("button", null, Lg("Duplicate","نسخة")); dup.onclick = () => { const n = JSON.parse(JSON.stringify(d)), sh = this.secMs() * 3; n.id = Date.now() + Math.random(); (n.pts || []).forEach(q => { q.t += sh; }); if (n.t0 != null){ n.t0 += sh; n.t1 += sh; } this.draws.push(n); this.sel = n; this.closeEditor(); };
+    const del = el("button", "bad", Lg("Delete","حذف")); del.onclick = () => { this.draws = this.draws.filter(x => x !== d); this.sel = null; this.editor = null; box.remove(); this.saveDraws(); this.draw(); };
+    const ok = el("button", null, Lg("Done","تم")); ok.onclick = () => this.closeEditor(); foot.append(dup, del, ok); box.append(foot);
+    box.addEventListener("pointerdown", e => e.stopPropagation());
+    this.host.append(box);
+    const hs = this.handles(d), xs = hs.map(h => h.x), ys = hs.map(h => h.y);
+    const bw = 262, left = Math.max(4, Math.min(this.PR - bw - 4, Math.min(...xs))), top0 = Math.max(4, Math.min(...ys) + 34);
+    box.style.left = left + "px"; box.style.top = Math.min(top0, Math.max(4, this.PB - box.offsetHeight - 4)) + "px";
+    if ((d.type === "text" || d.type === "callout") && this.editor.ta) setTimeout(() => { try { this.editor.ta.focus(); this.editor.ta.select(); } catch(e){} }, 0);
   },
   dbarBuild(bar){
     const set = fn => { const d = this.sel; if (!d) return; fn(d); this.saveDraws(); this.draw(); };
     const add = (html, attrs, on) => { const b = document.createElement("button"); b.innerHTML = html; Object.entries(attrs).forEach(([k,v]) => b.setAttribute(k, v)); b.onpointerdown = e => { e.stopPropagation(); e.preventDefault(); on(); }; bar.append(b); };
     ["", "#f0b90b", "#0ecb81", "#f6465d", "#4aa3ff", "#b57cff", "#eaecef"].forEach(col => add('<i style="background:'+(col || "#8a94a3")+'"></i>', {"data-col":col, title:Lg("colour","لون")}, () => set(d => { if (col) d.color = col; else delete d.color; })));
     [1, 2, 3].forEach(w => add(String(w), {"data-w":w, title:Lg("width","سُمك")}, () => set(d => { d.w = w; })));
-    add("⋯", {"data-dash":1, title:Lg("dashed","متقطع")}, () => set(d => { d.dash = !d.dash; }));
+    add("⋯", {"data-dash":1, title:Lg("dashed","متقطع")}, () => set(d => { d.dash = !(d.ls ? d.ls === "dash" : d.dash); d.ls = d.dash ? "dash" : "solid"; }));
     add(Lg("Lock","قفل"), {"data-lock":1, title:Lg("lock: cannot be moved","قفل: ماينفعش يتحرك")}, () => set(d => { d.lock = !d.lock; }));
     add(Lg("Hide","إخفاء"), {"data-hide":1, title:Lg("hide (show again from the list: not yet)","إخفاء")}, () => set(d => { d.hidden = !d.hidden; this.sel = null; }));
-    add(Lg("Edit","تعديل"), {title:Lg("edit text (text tool only)","تعديل النص")}, () => { const d = this.sel; if (!d || d.type !== "text") return; let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", d.txt || ""); } catch(e){} if (tx === null) return; d.txt = tx || "Note"; this.saveDraws(); this.draw(); });
+    add("⚙", {title:Lg("settings: colour, line, fill, text","إعدادات: اللون والخط والتعبئة والنص")}, () => { const d = this.sel; if (d) this.openEditor(d); });
     add(Lg("Copy","نسخ"), {title:Lg("copy","نسخة")}, () => { const d = this.sel; if (!d) return; const n = JSON.parse(JSON.stringify(d)), sh = this.secMs()*3; n.id = Date.now() + Math.random();
       (n.pts || []).forEach(q => { q.t += sh; }); if (n.t0 != null){ n.t0 += sh; n.t1 += sh; } this.draws.push(n); this.sel = n; this.saveDraws(); this.draw(); });
     add(Lg("Front","للأمام"), {title:Lg("bring to front","للأمام")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d).concat([d]); this.saveDraws(); this.draw(); });
@@ -2979,27 +3088,28 @@ Object.assign(CandleChart.prototype, {
   paintDraws(c, py, dec){
     if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
-    const lab = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
+    const lab0 = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
       if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
+      const lab = d.noLbl && d.type !== "text" ? () => {} : lab0;
       const hs = this.handles(d), sel = d === this.sel;
       if (d.type === "brush"){
-        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 2; c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash(d.dash ? [5,4] : []); c.beginPath();
+        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 2; c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash(this.dashOf(d)); c.beginPath();
         d.pts.forEach((q,i) => { const x = this.tx(q.t), y = this.yp(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.stroke(); c.setLineDash([]);
       } else if (d.type === "prange"){
         const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y), col = d.color || "#4aa3ff", p0 = d.pts[0].p, p1 = d.pts[1].p;
-        c.fillStyle = col+"1f"; c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
+        c.fillStyle = this.fillOf(d, col, "1f", col+"1f"); c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
         const df = p1 - p0; lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0*100).toFixed(2)+"%)", 6, (y1+y2)/2, col);
       } else if (d.type === "drange"){
         const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x), col = d.color || "#4aa3ff", bars = Math.round(Math.abs(d.pts[1].t - d.pts[0].t)/this.secMs());
-        c.fillStyle = col+"1f"; c.fillRect(x1, 0, x2-x1, this.PB); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x1+.5,0); c.lineTo(x1+.5,this.PB); c.moveTo(x2+.5,0); c.lineTo(x2+.5,this.PB); c.stroke(); c.setLineDash([]);
+        c.fillStyle = this.fillOf(d, col, "1f", col+"1f"); c.fillRect(x1, 0, x2-x1, this.PB); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(x1+.5,0); c.lineTo(x1+.5,this.PB); c.moveTo(x2+.5,0); c.lineTo(x2+.5,this.PB); c.stroke(); c.setLineDash([]);
         lab(bars+" "+Lg("bars","شمعة"), x1+4, 12, col);
       } else if (d.type === "hline"){
-        const y = hs[0].y; c.strokeStyle = d.color || "#f0b90b"; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y); c.lineTo(this.PR,y); c.stroke(); lab(d.pts[0].p.toFixed(dec), 4, y-9, "#f0b90b");
+        const y = hs[0].y; c.strokeStyle = d.color || "#f0b90b"; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(0,y); c.lineTo(this.PR,y); c.stroke(); lab(d.pts[0].p.toFixed(dec), 4, y-9, "#f0b90b");
       } else if (d.type === "vline"){
-        const x = hs[0].x; c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x,0); c.lineTo(x,this.PB); c.stroke(); c.setLineDash([]);
+        const x = hs[0].x; c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(x,0); c.lineTo(x,this.PB); c.stroke(); c.setLineDash([]);
       } else if (d.type === "ray" || d.type === "arrow"){
-        const x0 = hs[0].x, y0 = hs[0].y, x1 = hs[1].x, y1 = hs[1].y, col = d.color || (d.type === "arrow" ? "#f0b90b" : "#4aa3ff"), dash = d.dash ? [5,4] : [];
+        const x0 = hs[0].x, y0 = hs[0].y, x1 = hs[1].x, y1 = hs[1].y, col = d.color || (d.type === "arrow" ? "#f0b90b" : "#4aa3ff"), dash = this.dashOf(d);
         const e = d.type === "ray" ? this.rayEnd(x0,y0,x1,y1) : {x:x1, y:y1};
         c.strokeStyle = col; c.lineWidth = d.w || 1.5; c.setLineDash(dash); c.beginPath(); c.moveTo(x0,y0); c.lineTo(e.x,e.y); c.stroke(); c.setLineDash([]);
         if (d.type === "arrow"){ const a = Math.atan2(y1-y0, x1-x0), L = 10; c.beginPath(); c.moveTo(x1,y1); c.lineTo(x1 - L*Math.cos(a-.4), y1 - L*Math.sin(a-.4)); c.moveTo(x1,y1); c.lineTo(x1 - L*Math.cos(a+.4), y1 - L*Math.sin(a+.4)); c.stroke(); }
@@ -3008,19 +3118,54 @@ Object.assign(CandleChart.prototype, {
         const df = p1.p - p0.p, bars = Math.round((p1.t - p0.t)/this.secMs()); lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0.p*100).toFixed(2)+"%) · "+bars+" "+Lg("bars","شمعة"), (hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2-10, col);
       } else if (d.type === "rect"){
         const x1 = Math.min(hs[0].x,hs[1].x), y1 = Math.min(hs[0].y,hs[1].y), w = Math.abs(hs[0].x-hs[1].x), h = Math.abs(hs[0].y-hs[1].y);
-        const rc = d.color || "#4aa3ff"; c.fillStyle = d.color ? rc+"24" : "rgba(74,163,255,.14)"; c.fillRect(x1,y1,w,h); c.strokeStyle = rc; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.strokeRect(x1,y1,w,h); c.setLineDash([]);
+        const rc = d.color || "#4aa3ff"; c.fillStyle = this.fillOf(d, rc, "24", "rgba(74,163,255,.14)"); c.fillRect(x1,y1,w,h); c.strokeStyle = rc; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.strokeRect(x1,y1,w,h); c.setLineDash([]);
       } else if (d.type === "channel"){
         const o = d.pts.length > 2 ? this.chanOff(d) : 0, ya = this.yp(d.pts[0].p+o), yb = this.yp(d.pts[1].p+o);
-        const cc = d.color || "#b57cff"; c.fillStyle = d.color ? cc+"1f" : "rgba(181,124,255,.12)"; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
-        c.strokeStyle = cc; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
+        const cc = d.color || "#b57cff"; c.fillStyle = this.fillOf(d, cc, "1f", "rgba(181,124,255,.12)"); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
+        c.strokeStyle = cc; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
         c.setLineDash([4,4]); c.lineWidth = 1; c.beginPath(); c.moveTo(hs[0].x,(hs[0].y+ya)/2); c.lineTo(hs[1].x,(hs[1].y+yb)/2); c.stroke(); c.setLineDash([]);
       } else if (d.type === "text"){
-        lab(d.txt || "Note", hs[0].x, hs[0].y, "#eaecef", "rgba(43,49,57,.9)");
+        const fs = d.fs || 11, lines = String(d.txt || (this.editor && this.editor.d === d ? " " : "Note")).split("\n"); c.font = fs+"px sans-serif"; c.textAlign = "left";
+        const tw = Math.max(...lines.map(z => c.measureText(z).width)) + 10, th = lines.length*(fs+3) + 6, x0 = hs[0].x, y0 = hs[0].y - th/2; d._w = tw; d._h = th;
+        if (d.tb !== "none"){ c.fillStyle = d.tb || "rgba(43,49,57,.9)"; c.fillRect(x0, y0, tw, th); }
+        c.fillStyle = d.tc || "#eaecef"; lines.forEach((z, i) => c.fillText(z, x0 + 5, y0 + 3 + (fs+3)*i + (fs+3)/2));
       } else if (d.type === "trend"){
-        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.stroke(); c.setLineDash([]);
-        const dp = d.pts[1].p-d.pts[0].p; lab((dp>=0?"+":"")+(dp/d.pts[0].p*100).toFixed(2)+"%", (hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2-10, "#4aa3ff");
+        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath();
+        const ea = d.extL ? this.rayEnd(hs[1].x,hs[1].y,hs[0].x,hs[0].y) : hs[0], eb = d.extR ? this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y) : hs[1];
+        c.moveTo(ea.x,ea.y); c.lineTo(eb.x,eb.y); c.stroke(); c.setLineDash([]);
+        const dp = d.pts[1].p-d.pts[0].p, mx_ = (hs[0].x+hs[1].x)/2, my_ = (hs[0].y+hs[1].y)/2-10;
+        if (d.info){ const bars = Math.round((d.pts[1].t-d.pts[0].t)/this.secMs()), ang = Math.atan2(hs[0].y-hs[1].y, Math.abs(hs[1].x-hs[0].x) || 1)*180/Math.PI; lab((dp>=0?"+":"")+dp.toFixed(dec)+" ("+(dp/d.pts[0].p*100).toFixed(2)+"%) · "+bars+" "+Lg("bars","شمعة")+" · "+ang.toFixed(0)+"°", mx_, my_, d.color || "#4aa3ff"); }
+        else lab((dp>=0?"+":"")+(dp/d.pts[0].p*100).toFixed(2)+"%", mx_, my_, "#4aa3ff");
+      } else if (d.type === "cross"){
+        c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(0,hs[0].y); c.lineTo(this.PR,hs[0].y); c.moveTo(hs[0].x,0); c.lineTo(hs[0].x,this.PB); c.stroke(); c.setLineDash([]);
+      } else if (d.type === "ellipse"){
+        const ec = d.color || "#26c6da"; c.beginPath(); c.ellipse((hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2, Math.max(1, Math.abs(hs[0].x-hs[1].x)/2), Math.max(1, Math.abs(hs[0].y-hs[1].y)/2), 0, 0, 6.2832);
+        c.fillStyle = this.fillOf(d, ec, "24", "rgba(38,198,218,.14)"); c.fill(); c.strokeStyle = ec; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.stroke(); c.setLineDash([]);
+      } else if (d.type === "triangle"){
+        const tg = d.color || "#ff9800"; c.beginPath(); hs.forEach((h, i) => i ? c.lineTo(h.x,h.y) : c.moveTo(h.x,h.y)); c.closePath();
+        c.fillStyle = this.fillOf(d, tg, "24", "rgba(255,152,0,.14)"); c.fill(); c.strokeStyle = tg; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.stroke(); c.setLineDash([]);
+      } else if (d.type === "pitchfork"){
+        const pc = d.color || "#b57cff"; c.strokeStyle = pc; c.lineWidth = d.w || 1.3; c.setLineDash(this.dashOf(d)); c.beginPath();
+        if (hs.length < 3){ c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); } else this.pfLines(hs).forEach(l => { c.moveTo(l[0],l[1]); c.lineTo(l[2],l[3]); });
+        c.stroke(); if (hs.length > 2){ c.setLineDash([4,3]); c.lineWidth = 1; c.beginPath(); c.moveTo(hs[1].x,hs[1].y); c.lineTo(hs[2].x,hs[2].y); c.stroke(); } c.setLineDash([]);
+      } else if (d.type === "callout"){
+        const fs = d.fs || 11, lines = String(d.txt || (this.editor && this.editor.d === d ? " " : "Note")).split("\n"), cc = d.color || "#f0b90b"; c.font = fs+"px sans-serif"; c.textAlign = "left";
+        const tw = Math.max(...lines.map(z => c.measureText(z).width)) + 12, th = lines.length*(fs+3) + 8, x0 = hs[1].x, y0 = hs[1].y - th/2; d._w = tw; d._h = th;
+        c.strokeStyle = cc; c.lineWidth = d.w || 1.2; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[0].x < x0 + tw/2 ? x0 : x0 + tw, hs[1].y); c.stroke();
+        c.fillStyle = cc; c.beginPath(); c.arc(hs[0].x,hs[0].y,3,0,6.3); c.fill();
+        if (d.tb !== "none"){ c.fillStyle = d.tb || "rgba(43,49,57,.95)"; c.fillRect(x0, y0, tw, th); } c.strokeRect(x0, y0, tw, th);
+        c.fillStyle = d.tc || "#eaecef"; lines.forEach((z, i) => c.fillText(z, x0 + 6, y0 + 4 + (fs+3)*i + (fs+3)/2));
+      } else if (d.type === "plabel"){
+        const txt = d.pts[0].p.toFixed(dec), pc = d.color || "#4aa3ff"; c.font = "11px sans-serif"; const tw = c.measureText(txt).width + 12; d._w = tw + 7; const x = hs[0].x, y = hs[0].y;
+        c.fillStyle = pc; c.beginPath(); c.moveTo(x,y); c.lineTo(x+7,y-9); c.lineTo(x+7+tw,y-9); c.lineTo(x+7+tw,y+9); c.lineTo(x+7,y+9); c.closePath(); c.fill(); c.fillStyle = "#0b0e11"; c.textAlign = "left"; c.fillText(txt, x+13, y);
+      } else if (d.type === "arrup" || d.type === "arrdn"){
+        const up = d.type === "arrup", ac = d.color || (up ? "#0ecb81" : "#f6465d"), x = hs[0].x, y = hs[0].y, sg = up ? 1 : -1;
+        c.fillStyle = ac; c.beginPath(); c.moveTo(x,y); c.lineTo(x-8,y+sg*10); c.lineTo(x-3,y+sg*10); c.lineTo(x-3,y+sg*22); c.lineTo(x+3,y+sg*22); c.lineTo(x+3,y+sg*10); c.lineTo(x+8,y+sg*10); c.closePath(); c.fill();
+      } else if (d.type === "flag"){
+        const fc = d.color || "#f0b90b", x = hs[0].x, y = hs[0].y; c.strokeStyle = fc; c.lineWidth = d.w || 1.5; c.beginPath(); c.moveTo(x,y); c.lineTo(x,y-26); c.stroke();
+        c.fillStyle = fc; c.beginPath(); c.moveTo(x,y-26); c.lineTo(x+16,y-21); c.lineTo(x,y-15); c.closePath(); c.fill();
       } else if (d.type === "wave"){
-        const wc = d.color || "#f0b90b"; c.strokeStyle = wc; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); hs.forEach((h,i) => i ? c.lineTo(h.x,h.y) : c.moveTo(h.x,h.y)); c.stroke(); c.setLineDash([]);
+        const wc = d.color || "#f0b90b"; c.strokeStyle = wc; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); hs.forEach((h,i) => i ? c.lineTo(h.x,h.y) : c.moveTo(h.x,h.y)); c.stroke(); c.setLineDash([]);
         hs.forEach((h,i) => { const up = i === 0 ? (hs[1] ? hs[1].y > h.y : true) : (hs[i-1].y > h.y); const lo = i % 2 === 0;
           c.fillStyle = wc; c.beginPath(); c.arc(h.x,h.y,3,0,6.3); c.fill(); lab(String(i), h.x-4, h.y + (up ? 10 : -10), wc); });
       } else if (d.type === "fib"){
@@ -3041,7 +3186,8 @@ Object.assign(CandleChart.prototype, {
         lab((long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(2), xa+4, yE + ((long_ ? yT : yS) < yE ? 9 : -9), "#4aa3ff");
         c.lineWidth = 1.5;
       }
-      if (sel || (this.creating === d)){ hs.forEach(h => { c.fillStyle = "#fff"; c.strokeStyle = "#4aa3ff"; c.lineWidth = 1.5; c.beginPath(); c.arc(h.x,h.y,4.5,0,6.3); c.fill(); c.stroke(); }); }
+      if (sel || (this.creating === d)){ hs.forEach(h => { c.fillStyle = "#fff"; c.strokeStyle = "#4aa3ff"; c.lineWidth = 1.5; c.beginPath(); c.arc(h.x,h.y,4.5,0,6.3); c.fill(); c.stroke(); });
+        const cg = this.cgrip(d, hs); if (cg){ c.fillStyle = "#4aa3ff"; c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.beginPath(); c.rect(cg.x-4.5, cg.y-4.5, 9, 9); c.fill(); c.stroke(); } }
     });
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.lineWidth = 1; c.textBaseline = "middle";
   }
@@ -3074,9 +3220,9 @@ class Panel {
     // per-widget colours: header/border accent + body tint (saved with the layout)
     const mkCol = (title, key) => { const i = el("input"); i.type = "color"; i.title = title; i.className = "pc"; i.value = this.state[key] || (key === "col" ? "#1e2329" : "#0b0e11");
       i.onpointerdown = e => e.stopPropagation(); i.oninput = () => { this.state[key] = i.value; this.paint(); }; i.onchange = () => Ws.save(); return i; };
-    const rc = el("button",null,"↺"); rc.title = "reset colours"; rc.onpointerdown = e => e.stopPropagation();
+    const rc = el("button",null,"↺"); rc.title = Lg("reset colours","رجّع الألوان"); rc.onpointerdown = e => e.stopPropagation();
     rc.onclick = () => { delete this.state.col; delete this.state.bg; this.paint(); Ws.save(); };
-    this.head.append(bLock, mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX); this.applyLock();
+    this.head.append(bLock, mkCol(Lg("header colour","لون العنوان"),"col"), mkCol(Lg("background colour","لون الخلفية"),"bg"), rc, this.grp, bMin, bMax, bX); this.applyLock();
     this.body = el("div","pb"); this.rz = el("div","rz");
     this.root.append(this.head, this.body, this.rz);
     // resize from every side and corner (thin invisible grips on the border; the old corner grip stays)
@@ -3147,7 +3293,7 @@ class Panel {
   /* ---- chart ---- */
   build_chart(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
-    this.tfSel = el("select"); this.tfSel.title = "Timeframe"; TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    this.tfSel = el("select"); this.tfSel.title = Lg("Timeframe","الفريم"); TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     this.tfSel.onchange = () => this.setTf(this.tfSel.value); tb.append(this.tfSel);
     if (MOB){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
         const b = el("button", null, l); b.dataset.tf = v; b.onclick = () => this.setTf(v); row.append(b); }); this._mtfPending = row; }   // MetaTrader's timeframe strip (phones)
@@ -3218,7 +3364,7 @@ class Panel {
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
-    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["prange","≡",Lg("Price range","نطاق سعري")],["drange","⫼",Lg("Date range","نطاق زمني")],["brush","✎",Lg("Brush (hold and drag)","فرشاة (اضغط واسحب)")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
+    [["cur","↖",T("tCur")],["trend","╱",T("tTrend")],["hline","─",T("tH")],["rect","▭",T("tRect")],["channel","⫽",T("tChan")],["text","T",T("tText")],["fib","Fib",T("tFib")],["wave","〰",T("tWave")],["vline","│",Lg("Vertical line","خط رأسي")],["ray","↗",Lg("Ray","شعاع")],["arrow","→",Lg("Arrow","سهم")],["measure","⟷",Lg("Measure: price and bars","قياس: سعر وشموع")],["prange","≡",Lg("Price range","نطاق سعري")],["drange","⫼",Lg("Date range","نطاق زمني")],["brush","✎",Lg("Brush (hold and drag)","فرشاة (اضغط واسحب)")],["info","ⓘ",Lg("Info line (price, %, bars, angle)","خط معلومات (سعر، نسبة، شموع، زاوية)")],["extline","↔",Lg("Extended line","خط ممتد")],["cross","✛",Lg("Cross line","خط متقاطع")],["ellipse","◯",Lg("Ellipse","قطع ناقص")],["triangle","△",Lg("Triangle (3 clicks)","مثلث (3 نقرات)")],["pitchfork","⑂",Lg("Andrews pitchfork (3 clicks)","شوكة أندروز (3 نقرات)")],["callout","💬",Lg("Callout","تعليق")],["plabel","🏷",Lg("Price label","علامة سعر")],["arrup","⬆",Lg("Arrow mark up","علامة سهم لأعلى")],["arrdn","⬇",Lg("Arrow mark down","علامة سهم لأسفل")],["flag","⚑",Lg("Flag mark","علامة علم")],["long","▲",T("tLong")],["short","▼",T("tShort")]].forEach(([k,ic,tt]) => {
       const b = el("button",null,ic); b.title = tt; this.toolBtns[k] = b; dt.append(b);
       if (k === "fib"){
         const closePop = () => { if (this.fibPop){ this.fibPop.remove(); this.fibPop = null; } };
@@ -3233,20 +3379,26 @@ class Panel {
         };
       } else b.onclick = () => this.chart.setTool(this.chart.tool === k && k !== "cur" ? "cur" : k);
     });
-    // task 25: tools grouped like TradingView: one button per group opens its tools (the tools themselves are unchanged)
-    const TOOL_GROUPS = [["lines", "╱", ["trend","hline","vline","ray","arrow"]], ["shapes", "▭", ["rect","channel","drange","prange","range"]]];
-    TOOL_GROUPS.forEach(([gk, gic, members]) => {
-      const present = members.filter(k => this.toolBtns[k]); if (present.length < 2) return;
-      const gb = el("button",null,gic); gb.title = Lg("Group: "+gk, "مجموعة: "+gk);
-      const gpop = el("div","fibpop"); gpop.style.left = "36px";
-      dt.insertBefore(gb, this.toolBtns[present[0]]);
-      present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); mb.addEventListener("click", () => { if (gpop.parentNode) gpop.remove(); }); });   // picking a tool closes the popup, so it does not cover the chart
-      const closeG = () => { if (gpop.parentNode) gpop.remove(); };
+    // tools grouped like TradingView: one button per category (it shows the tool used last), each popup lists its tools under headings, beside the button
+    const CATS = [
+      [Lg("Trend lines","خطوط الاتجاه"), [[Lg("Lines","خطوط"), ["trend","info","ray","extline","hline","vline","cross"]], [Lg("Channels and pitchforks","قنوات وشوكات"), ["channel","pitchfork"]]]],
+      [Lg("Projection and measure","التوقع والقياس"), [[Lg("Positions","صفقات"), ["long","short"]], [Lg("Measure","قياس"), ["measure","prange","drange"]]]],
+      [Lg("Brushes and shapes","فرش وأشكال"), [[Lg("Brushes","فرش"), ["brush"]], [Lg("Shapes","أشكال"), ["rect","ellipse","triangle"]]]],
+      [Lg("Text and marks","نصوص وعلامات"), [[Lg("Text","نص"), ["text","callout","plabel"]], [Lg("Arrows and marks","أسهم وعلامات"), ["arrow","arrup","arrdn","flag"]]]]];
+    this.catBtns = [];
+    const gbs = CATS.map(([cname, sections]) => {
+      const members = sections.flatMap(z => z[1]).filter(k => this.toolBtns[k]), gb = el("button", null, this.toolBtns[members[0]].textContent); gb.title = cname;
+      const gpop = el("div", "fibpop gp"), closeG = () => { if (gpop.parentNode) gpop.remove(); };
+      sections.forEach(([hd, ks]) => { const ms = ks.filter(k => this.toolBtns[k]); if (!ms.length) return; gpop.append(el("div", "gh", hd));
+        ms.forEach(k => { const mb = this.toolBtns[k], ic = mb.textContent; mb.textContent = ""; mb.append(el("span", "ic", ic)); gpop.append(mb); mb.addEventListener("click", () => { gb.firstChild.nodeValue = ic; closeG(); }); }); });
       gb.onclick = () => {
         if (gpop.parentNode){ closeG(); return; }
-        wrap.append(gpop); setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+        wrap.append(gpop); { const wr = wrap.getBoundingClientRect(), gr = gb.getBoundingClientRect(); gpop.style.left = "40px"; gpop.style.top = Math.max(0, Math.min(gr.top - wr.top - 3, wrap.clientHeight - gpop.offsetHeight - 4)) + "px"; }   // beside its own button, never off the window
+        setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
       };
+      this.catBtns.push([gb, members]); return gb;
     });
+    dt.append(this.toolBtns.cur, gbs[0], this.toolBtns.fib, this.toolBtns.wave, gbs[1], gbs[2], gbs[3]);
     // object tree (owner 2026-10-19: TradingView-style list): every drawing of this chart, newest first; click selects, eye hides, x deletes
     const ob = el("button",null,"≣"); ob.title = Lg("object tree","شجرة الكائنات"); dt.append(ob);
     const closeObj = () => { if (this.objPop){ this.objPop.remove(); this.objPop = null; } };
@@ -3283,7 +3435,7 @@ class Panel {
     const clr2 = el("button",null,"✕"); clr2.title = T("tClr"); let armed = 0;
     clr2.onclick = () => { if (Date.now() - armed < 2500){ this.chart.clearDraws(); armed = 0; clr2.textContent = "✕"; } else { armed = Date.now(); clr2.textContent = "?"; setTimeout(() => { if (Date.now() - armed >= 2400) clr2.textContent = "✕"; }, 2600); } };
     dt.append(del, clr2); wrap.append(dt);
-    this.chart.onToolChange = t => Object.entries(this.toolBtns).forEach(([k,b]) => b.classList.toggle("on", k === t));
+    this.chart.onToolChange = t => { Object.entries(this.toolBtns).forEach(([k,b]) => b.classList.toggle("on", k === t)); (this.catBtns || []).forEach(([gb, ms]) => gb.classList.toggle("on", ms.includes(t))); };
     this.chart.onToolChange("cur");
     this.chart.flowOn = this.state.flow !== false; fl.classList.toggle("on", this.chart.flowOn);
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
@@ -3579,7 +3731,7 @@ class Panel {
         if (first){
           this.chart.setData(rows, true);
           const v = this._refreshView;
-          if (v && v.sym === sym && v.tf === tf && this.chart.data.length){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
+          if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;
         }
         else {
@@ -3641,7 +3793,7 @@ class Panel {
   }
   build_tape(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("win", 300000));
-    const sg = el("button", null, "⚙"); sg.title = lang === "ar" ? "حساسية Smart / Big / Absorb" : "Smart / Big / Absorb sensitivity"; sg.onclick = e => { e.stopPropagation(); Ws.sensPop(sg); }; tb.append(sg);
+    const sg = el("button", null, "⚙"); sg.title = lang === "ar" ? "حساسية ذكي / كبير / امتصاص" : "Smart / Big / Absorb sensitivity"; sg.onclick = e => { e.stopPropagation(); Ws.sensPop(sg); }; tb.append(sg);
     const hd = el("div","hdr"); this.statBox = el("div"); this.depthCv = el("canvas"); this.depthCv.width = 240; this.depthCv.height = 84; this.depthCv.style.cssText = "width:120px;height:42px;flex:none;background:#0b0e11;border-radius:3px";
     hd.append(this.statBox, this.depthCv);
     this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
@@ -3671,10 +3823,10 @@ class Panel {
     const U = this.state.u = Object.assign({type:"SPOT", quote:"USDT", cat:(Object.keys(YF).length ? "__mine" : "All"), top:10}, this.state.u || {});   // Yahoo markets are not in OKX's universe -> "My list" by default
     const selU = (opts, key) => { const x = el("select"); opts.forEach(([v,l]) => x.append(Object.assign(el("option"), {value:v, textContent:l}))); x.value = U[key]; x.onchange = () => { U[key] = isNaN(+x.value) ? x.value : +x.value; Ws.save(); loadU(); }; return x; };
     const uTb = el("div","tb"), uBox = el("div"); const catSel = el("select"); catSel.onchange = () => { U.cat = catSel.value; if (!U.cat.startsWith("__")){ const want = U.cat === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(U.cat) ? "SPOT" : (U.cat === "All" ? U.type : (U.type === "SPOT" ? "SWAP" : U.type)); if (want !== U.type){ U.type = want; typeSel.value = want; if (!/^(Crypto|Meme|All)/.test(U.cat)) U.quote = "ALL"; Ws.save(); return loadU(); } } Ws.save(); renderU(); };
-    const typeSel = selU([["SPOT","Spot"],["SWAP","Perp (swap)"],["FUTURES","Futures"],["OPTION","Options"]], "type");
-    uTb.append(typeSel, selU([["ALL","All quotes"],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
+    const typeSel = selU([["SPOT",Lg("Spot","فوري")],["SWAP",Lg("Perp (swap)","دائم (Swap)")],["FUTURES",Lg("Futures","آجلة")],["OPTION",Lg("Options","خيارات")]], "type");
+    uTb.append(typeSel, selU([["ALL",Lg("All quotes","كل العملات المقابلة")],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
     // technical filters (team task 10): closes from OKX 1H candles, top-30 by volume only, cached 5 min
-    const TECH_OPTS = [["none","Technical: off"],["rsiLo","RSI(14) < 30"],["rsiHi","RSI(14) > 70"],["aboveEma","Price > EMA20 (1H)"],["belowEma","Price < EMA20 (1H)"],["brkUp","Breakout: close > 20-bar high (1H)"]];
+    const TECH_OPTS = [["none",Lg("Technical: off","فني: مقفول")],["rsiLo","RSI(14) < 30"],["rsiHi","RSI(14) > 70"],["aboveEma",Lg("Price > EMA20 (1H)","السعر > EMA20 (ساعة)")],["belowEma",Lg("Price < EMA20 (1H)","السعر < EMA20 (ساعة)")],["brkUp",Lg("Breakout: close > 20-bar high (1H)","اختراق: إغلاق > أعلى 20 شمعة (ساعة)")]];
     const techC = new Map(); let techBusy = false;
     const techCalc = cl => {   // cl: closes, oldest first; null when there is not enough history
       if (cl.length < 35) return null;
@@ -3721,7 +3873,7 @@ class Panel {
         const meta = {}; ins.forEach(i => meta[i.instId] = i);
         rowsU = tk.filter(x => (isO || U.quote === "ALL" || x.instId.split("-")[1] === U.quote) && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
           return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:isO ? (+x.vol24h || 0) : (+x.volCcy24h || 0) * (U.type !== "SPOT" ? last : 1), cat:isO ? "Options" : catOf(meta[x.instId], base)}; });
-        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Bonds","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
+        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Bonds","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : catL(c)})));
         if (CFG.cls && U.ucls !== CFG.cls){   // the page-level Asset class dropdown sets the default once; the selectors here stay usable
           U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = CFG.cls === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
@@ -3775,8 +3927,8 @@ class Panel {
     const F = this.state.af = Object.assign({tf:"", tt:"", dir:""}, this.state.af || {});
     const tb = el("div","tb"), clr = el("button",null,T("clear")); clr.onclick = () => Alerts.clear();
     const mkSel = (key, opts) => { const s2 = el("select"); opts.forEach(([v,l]) => { const o = el("option",null,esc(l)); o.value = v; s2.append(o); }); s2.value = F[key]; s2.onchange = () => { F[key] = s2.value; Ws.save(); draw(); }; return s2; };
-    tb.append(mkSel("dir", [["",T("fAll")],["bullish","Long"],["bearish","Short"]]),
-      mkSel("tt", [["",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]]),
+    tb.append(mkSel("dir", [["",T("fAll")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]]),
+      mkSel("tt", [["",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]]),
       mkSel("tf", [["",T("fAll")]].concat(TFK_OPTS)), clr);
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
@@ -3793,8 +3945,8 @@ class Panel {
   /* ---- ready trades (scanner trades + alerts, best confidence first) ---- */
   build_ready(){
     const sideSel = el("select"), ttSel = el("select"), snd = el("input");
-    [["All",T("fAll")],["Long","Long"],["Short","Short"]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
-    [["All",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    [["All",T("fAll")],["Long",Lg("Long","شراء")],["Short",Lg("Short","بيع")]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    [["All",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     const tfSel = el("select"); [["All",T("fAll")]].concat(TFK_OPTS).forEach(([v,l]) => tfSel.append(Object.assign(el("option"), {value:v, textContent:l}))); tfSel.title = lang === "ar" ? "الفريم" : "Timeframe"; tfSel.value = FILT.tf || "All"; tfSel.onpointerdown = e => e.stopPropagation(); tfSel.onchange = () => { FILT.tf = tfSel.value; sv(); };
     sideSel.value = FILT.side; ttSel.value = FILT.tt; snd.type = "checkbox"; snd.title = T("sound"); snd.checked = this.state.snd !== false;
     [sideSel, ttSel, snd].forEach(x => x.onpointerdown = e => e.stopPropagation());
@@ -3875,7 +4027,7 @@ class Panel {
     const F = this.state.sg = Object.assign({q:"", side:"", tf:"", min:0, sort:"pct", dir:-1}, this.state.sg || {});
     const tb = el("div","tb"), q = el("input"), side = el("select"), tf = el("select"), mn = el("select"), cnt = el("span","m");
     q.type = "search"; q.placeholder = T("sgSearch"); q.value = F.q; q.style.width = "140px";
-    [["",T("sgAny")],["bullish","Long"],["bearish","Short"]].forEach(([v,l]) => side.append(Object.assign(el("option"), {value:v, textContent:l}))); side.value = F.side;
+    [["",T("sgAny")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]].forEach(([v,l]) => side.append(Object.assign(el("option"), {value:v, textContent:l}))); side.value = F.side;
     [["",T("sgAny")]].concat(TFK_OPTS).forEach(([v,l]) => tf.append(Object.assign(el("option"), {value:v, textContent:l}))); tf.value = F.tf;
     [0,40,50,60,70,80].forEach(v => mn.append(Object.assign(el("option"), {value:v, textContent:v ? T("sgMin")+" "+v+"%" : T("sgMin")}))); mn.value = String(F.min);
     [q, side, tf, mn].forEach(x => x.onpointerdown = e => e.stopPropagation());
@@ -3975,7 +4127,7 @@ class Panel {
     [[0,T("fAll")],[50,"≥ 50%"],[70,"≥ 70%"]].forEach(([v,l]) => cf.append(Object.assign(el("option"), {value:v, textContent:T("conf")+" "+l}))); cf.value = S.jc;
     rng.onchange = () => { S.jr = rng.value; Ws.save(); draw(); }; cf.onchange = () => { S.jc = +cf.value; Ws.save(); draw(); };
     clr.onclick = () => { if (Date.now() - armed < 2500){ Journal.list = []; Journal.save(); armed = 0; clr.textContent = T("clear"); } else { armed = Date.now(); clr.textContent = "?"; setTimeout(() => clr.textContent = T("clear"), 2500); } };
-    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades with their context layers (for the Performance tab and the A+++ review)","صدّر الصفقات المقفولة مع طبقات السياق (للتاب Performance ومراجعة A+++)");
+    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades with their context layers (for the Performance tab and the A+++ review)","صدّر الصفقات المقفولة مع طبقات السياق (لتاب الأداء ومراجعة A+++)");
     // layer columns (order flow, session, news, funding, OI, score) let the lab-style review check which layers add R on YOUR trades
     const cell = v => { const x = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
     csvB.onclick = () => { const st = Journal.stats(+S.jc, S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3), rows = ["time,symbol,side,tf,r,entry_time,rr,score_pct,tags,of,session,news,funding,oi"].concat(st.closed.map(t => [new Date(t.t1).toISOString(), t.symbol || t.sym || "", t.dir === "bullish" ? "long" : "short", t.tfk || "", (+t.r).toFixed(3),
@@ -3994,7 +4146,7 @@ class Panel {
       let h = '<div class="jcards">'
         + card(T("jWin"), st.wr.toFixed(1)+"%", st.closed.length ? (st.wr >= 50 ? "#0ecb81" : "#f6465d") : "")
         + card(T("jNet"), f2(st.net)+" R", st.net >= 0 ? "#0ecb81" : "#f6465d") + card(T("jTrades"), st.wins+" / "+st.losses+" · "+st.open+" "+T("jOpen"))
-        + card(T("jAvg"), f2(st.avg)+" R") + card("Profit factor", st.pf === Infinity ? "∞" : st.pf.toFixed(2)) + card(T("jBest"), f2(st.best)+" R", "#0ecb81") + card(T("jWorst"), f2(st.worst)+" R", "#f6465d") + card(T("jDd"), "-"+st.dd.toFixed(2)+" R", "#f6465d") + '</div>';
+        + card(T("jAvg"), f2(st.avg)+" R") + card(Lg("Profit factor","معامل الربح"), st.pf === Infinity ? "∞" : st.pf.toFixed(2)) + card(T("jBest"), f2(st.best)+" R", "#0ecb81") + card(T("jWorst"), f2(st.worst)+" R", "#f6465d") + card(T("jDd"), "-"+st.dd.toFixed(2)+" R", "#f6465d") + '</div>';
       // equity curve
       const c = st.curve; let svg = '<div class="jl" style="margin:6px 4px 0">'+esc(T("jEq"))+'</div>';
       if (c.length > 1){ const W = 600, H = 120, vs = c.map(p => p.v).concat([0]), lo = Math.min(...vs), hi = Math.max(...vs), y = v => H-6-(v-lo)/((hi-lo)||1)*(H-12), x = i => i*W/(c.length-1);
@@ -4553,7 +4705,7 @@ Panel.prototype.resub = function(){
       const span = w ? w/1000 : (rows.length ? Math.max(1,(rows[rows.length-1].t-rows[0].t)/1000) : 1);
       const pace = rows.length/span, bp = buy+sell ? 100*buy/(buy+sell) : 50, d = buy-sell;
       const abr = rows.filter(r=>r.absorb), abDir = abr.length ? abr[abr.length-1].adir : "";
-      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(d>=0?"g":"rd")+'">'+(d>=0?"+":"-")+fmtQ(Math.abs(d))+'</b>'+(abDir ? ' · <b style="color:#b57cff" class="ab">ABSORB '+abDir+'</b>' : '')+'</div><div class="bar2"><div style="width:'+bp.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bp).toFixed(0)+'%;background:#f6465d"></div></div>';
+      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(d>=0?"g":"rd")+'">'+(d>=0?"+":"-")+fmtQ(Math.abs(d))+'</b>'+(abDir ? ' · <b style="color:#b57cff" class="ab">'+Lg("ABSORB ","امتصاص ")+Lg(abDir, abDir === "sellers" ? "بائعين" : "مشترين")+'</b>' : '')+'</div><div class="bar2"><div style="width:'+bp.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bp).toFixed(0)+'%;background:#f6465d"></div></div>';
       this.tapeBox.innerHTML = renderTape(this, rows.slice().reverse().slice(0, 80));
       drawDepth(this.depthCv, book);
     };
@@ -4621,7 +4773,7 @@ function renderDom(book, tape, prev){
     return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew) : "")+'</td></tr>';
   };
   asks.slice().reverse().forEach(x => rows += line(x,"ask"));
-  if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">spread '+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
+  if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">'+Lg("spread ","الفارق ")+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
   bids.forEach(x => rows += line(x,"bid"));
   return {html:'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
 }
@@ -4650,7 +4802,7 @@ function renderTape(panel, rows){
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
     const bg = r.absorb ? "rgba(181,124,255,.28)" : "rgba("+rgb+","+(r.tier === "whale" ? .38 : r.tier === "smart" ? .24 : .10)+")";
     const edge = r.tier !== "normal" ? "box-shadow:inset 3px 0 0 #f0b90b;" : "";
-    const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " ABSORB" : "");
+    const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " "+Lg("ABSORB","امتصاص") : "");
     h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
@@ -4696,7 +4848,7 @@ function renderEvents(panel, evAll){
   const ev = evAll.filter(e => (!w || e.t >= now - w) && (f === "all" || (f === "abs" ? e.ev === "ABSORB" : e.side === f)));
   if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
   const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff"};
-  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:"absorption"};
+  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:Lg("absorption","امتصاص")};
   let h = '<table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
   ev.slice(0,60).forEach(e => { const fr = now-e.t < 6000 ? ' class="cf"' : ""; h += '<tr style="background:rgba('+rgb[e.ev]+',.08);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td'+fr+' style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td'+fr+'>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';

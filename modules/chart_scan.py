@@ -281,7 +281,7 @@ SHORT = {
     **{f"px_xup_{n}": f"Px↑EMA{n}" for n in EMA_LENS}, **{f"px_xdn_{n}": f"Px↓EMA{n}" for n in EMA_LENS},
     **{f"ma_above_{a}_{b}": f"{a}>{b}" for a, b in EMA_PAIRS}, **{f"ma_below_{a}_{b}": f"{a}<{b}" for a, b in EMA_PAIRS},
     **{f"ma_xup_{a}_{b}": f"{a}×{b}↑" for a, b in EMA_PAIRS}, **{f"ma_xdn_{a}_{b}": f"{a}×{b}↓" for a, b in EMA_PAIRS},
-    "stack_bull": "Stack↑", "stack_bear": "Stack↓", "above_all": "فوق EMAs", "below_all": "تحت EMAs",
+    "stack_bull": "Stack↑", "stack_bear": "Stack↓", "above_all": "Above EMAs", "below_all": "Below EMAs",
     "chan_up": "Channel↑", "chan_dn": "Channel↓", "tl_up": "Trendline↑", "tl_dn": "Trendline↓",
     "dbl_top": "Double Top", "dbl_bottom": "Double Bottom",
 }

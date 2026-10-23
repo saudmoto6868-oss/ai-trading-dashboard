@@ -1,5 +1,5 @@
 """Teaching diagrams for the Academy (the animation classes .an / .dr / .pl live in ui_kit.css(): a <style> inside the SVG would make the page hide the whole element), drawn as SVG strings (owner 2026-10-23: the pictures were not clear). Every diagram is built from numbers, so the bearish
-version is the same drawing mirrored; colours come from the page's CSS variables (the Theme menu), with fallbacks. Labels are Arabic.
+version is the same drawing mirrored; colours come from the page's CSS variables (the Theme menu), with fallbacks. Labels are Arabic, or English when modules.i18n.lang() == 'en' (the _EN table).
 Nothing here is a price forecast: the candles are illustrations made from a few waypoints, not market data."""
 from __future__ import annotations
 
@@ -13,8 +13,147 @@ W, H = 400, 230
 PAD_L, PAD_R, PAD_T, PAD_B = 12, 12, 16, 16
 
 
+def _en() -> bool:
+    try:
+        from modules.i18n import lang
+        return lang() == "en"
+    except Exception:
+        return False
+
+
+_EN = {
+    'شمعة صاعدة': 'Bullish candle',
+    'شمعة هابطة': 'Bearish candle',
+    'أعلى سعر High': 'High',
+    'الإغلاق Close': 'Close',
+    'الافتتاح Open': 'Open',
+    'أقل سعر Low': 'Low',
+    'الجسم': 'Body',
+    'تشريح الشمعة اليابانية': 'Anatomy of a Japanese candle',
+    'دوجي': 'Doji',
+    'تردد': 'Hesitation',
+    'مطرقة': 'Hammer',
+    'رفض هبوط': 'Rejects lows',
+    'شهاب': 'Shooting star',
+    'رفض صعود': 'Rejects highs',
+    'ابتلاع صاعد': 'Bullish engulfing',
+    'جسم يغطي اللي قبله': 'Body covers prior',
+    'الشمعة وحدها إشارة ضعيفة: قيمتها من مكانها (مستوى) وسياقها (اتجاه)': 'A lone candle is weak: value comes from its level and trend context',
+    'أشكال شموع شائعة': 'Common candle shapes',
+    'هيكل السوق: قمم وقيعان أعلى': 'Market structure: higher highs and lows',
+    'هيكل السوق: قمم وقيعان أدنى': 'Market structure: lower highs and lows',
+    'كسر هذا القاع = تغيّر الهيكل (BOS)': 'Break of this low = structure change (BOS)',
+    'هيكل السوق': 'Market structure',
+    'دعم ومقاومة: مناطق مش خطوط': 'Support and resistance: zones, not lines',
+    'دعم ومقاومة (معكوسة)': 'Support and resistance (mirrored)',
+    'منطقة دعم': 'Support zone',
+    'منطقة مقاومة': 'Resistance zone',
+    'كسر': 'Break',
+    'الدعم صار مقاومة': 'Support became resistance',
+    'دعم ومقاومة': 'Support and resistance',
+    '7 صفقات: 3 رابحة و4 خاسرة (نسبة نجاح 43%) ومع ذلك الصافي +2.5R': '7 trades, 3 wins and 4 losses (43%), yet net +2.5R',
+    'التوقع = متوسط الصفقة = 2.5 ÷ 7 = +0.36R   |   الخط = الرصيد التراكمي': 'Expectancy = 2.5 ÷ 7 = +0.36R per trade  |  Line = running balance',
+    '1R = المبلغ اللي بتخسره لو الوقف ضرب (مثلاً 1% من الحساب)': '1R = the amount lost if the stop is hit (e.g. 1% of the account)',
+    'مضاعفات المخاطرة R': 'R risk multiples',
+    'اختراق ثم إعادة اختبار': 'Breakout then retest',
+    'كسر ثم إعادة اختبار': 'Break then retest',
+    'مقاومة': 'Resistance',
+    'اختراق بإغلاق وحجم': 'Breakout on a close and volume',
+    'إعادة اختبار = دخول': 'Retest = entry',
+    'وقف تحت المنطقة': 'Stop below the zone',
+    'اختراق وإعادة اختبار': 'Breakout and retest',
+    'اتجاه صاعد مع متوسط متحرك': 'Uptrend with a moving average',
+    'اتجاه هابط مع متوسط متحرك': 'Downtrend with a moving average',
+    'متوسط متحرك: مرجع الاتجاه': 'Moving average: the trend reference',
+    'دخول مع الاتجاه عند كسر آخر قمة': 'Entry with the trend on a break of the last high',
+    'وقف تحت آخر قاع (أو ATR)': 'Stop below the last low (or ATR)',
+    'تتبع الاتجاه': 'Trend following',
+    'العودة للمتوسط: شغّال في النطاق وبيفشل في الترند': 'Mean reversion: works in ranges, fails in trends',
+    'شراء عند الحد الأدنى': 'Buy at the lower edge',
+    'بيع عند الحد الأعلى': 'Sell at the upper edge',
+    'ترند قوي = ممنوع تعاند': 'Strong trend = do not fight it',
+    'العودة للمتوسط': 'Mean reversion',
+    'جلسات اليوم (توقيت نيويورك، تقريبي)': 'Sessions of the day (New York time, approximate)',
+    'آسيا: بناء نطاق': 'Asia: building a range',
+    'لندن: كنس سيولة وانعكاس': 'London: liquidity sweep and reversal',
+    'كنس قاع آسيا': 'Sweep of the Asia low',
+    'نيويورك: استمرار أو عكس': 'New York: continue or reverse',
+    'جلسات التداول': 'Trading sessions',
+    'الحجم عند كل سعر (Volume Profile)': 'Volume at each price (Volume Profile)',
+    'POC أعلى حجم': 'POC: highest volume',
+    'VAH حد المنطقة العليا': 'VAH: upper edge of the area',
+    'VAL حد المنطقة السفلى': 'VAL: lower edge of the area',
+    'منطقة القيمة ≈ 70% من الحجم، والسعر بيميل يرجع لـ POC': 'Value area ≈ 70% of the volume; price tends to return to the POC',
+    'بروفايل الحجم': 'Volume profile',
+    'Footprint: كل سعر داخل الشمعة = بيع (يسار) × شراء (يمين)': 'Footprint: each price inside the candle = sell (left) × buy (right)',
+    'شمعة 1': 'Candle 1',
+    'شمعة 2: شراء عدواني': 'Candle 2: aggressive buying',
+    'شمعة 3': 'Candle 3',
+    'الملوّن = خلل 3:1 (طرف أقوى بـ 3 أضعاف)': 'Colored = 3:1 imbalance (one side 3x stronger)',
+    'امتصاص: حجم كبير عند مستوى والسعر ما كملش': 'Absorption: large volume at a level and price did not continue',
+    'الفريم الكبير: الاتجاه': 'Large timeframe: direction',
+    'الفريم المتوسط: التراجع للمنطقة': 'Middle timeframe: pullback to the zone',
+    'الفريم الصغير: المحفز': 'Small timeframe: the trigger',
+    'منطقة': 'Zone',
+    'دخول': 'Entry',
+    'الفريمات المتعددة': 'Multiple timeframes',
+    'سحب سيولة ← إزاحة ← Order Block / FVG': 'Liquidity sweep → displacement → Order Block / FVG',
+    'سيولة تحت القاع': 'Liquidity under the low',
+    'كنس السيولة': 'Liquidity sweep',
+    'FVG فجوة': 'FVG gap',
+    'دخول عند الرجوع': 'Entry on the return',
+    'مفاهيم SMC': 'SMC concepts',
+    'نموذج Gartley (صعودي)': 'Gartley pattern (bullish)',
+    'نموذج Gartley (هبوطي)': 'Gartley pattern (bearish)',
+    'B = 0.618 من XA': 'B = 0.618 of XA',
+    'D = 0.786 من XA': 'D = 0.786 of XA',
+    'منطقة انعكاس PRZ': 'Reversal zone PRZ',
+    'نموذج هارمونيك': 'Harmonic pattern',
+    'موجة دافعة 1-2-3-4-5 ثم تصحيح A-B-C': 'Impulse wave 1-2-3-4-5 then correction A-B-C',
+    'الموجة 4 ما تدخلش تحت قمة 1': 'Wave 4 must not drop below the top of 1',
+    'الموجة 2 ما تنزلش تحت البداية': 'Wave 2 must not fall below the start',
+    'موجات إليوت': 'Elliott waves',
+    'مروحة جان من قاع مهم': 'Gann fan from an important low',
+    'فوق 1×1 = قوة، تحتها = ضعف (رأي، مش دليل)': 'Above 1×1 = strength, below it = weakness (opinion, not proof)',
+    'مروحة جان': 'Gann fan',
+    'عينة التدريب (تحسين الإعدادات)': 'Training (settings tuned)',
+    'عينة الاختبار: دي الوحيدة اللي بنصدّقها': 'Test sample: the only one we trust',
+    'خط منقط = قبل التكلفة | أخضر = بعد التكلفة | أحمر = نفس الاستراتيجية خارج العينة': 'Dotted = before cost | green = after cost | red = out of sample',
+    'الباك تست بأمانة': 'Honest backtesting',
+    'حالة السوق': 'Market state',
+    'ترند ولا نطاق؟': 'Trend or range?',
+    'الفريم الأكبر': 'Higher TF',
+    'مع الاتجاه؟': 'With the trend?',
+    'الموقع': 'Location',
+    'عند مستوى/منطقة؟': 'At a level?',
+    'المحفز': 'Trigger',
+    'اختراق/رفض/كنس': 'Break/sweep',
+    'تأكيد عند المستوى': 'Confirm at level',
+    'التوقيت': 'Timing',
+    'جلسة مناسبة؟': 'Right session?',
+    'الخطة': 'The plan',
+    'وقف وهدف وR≥1.5': 'Stop/TP, R≥1.5',
+    'أي «لا» = ماتدخلش': 'Any no = skip',
+    'سجّل كل صفقة (حتى الممتنع عنها): من غير سجل مفيش قياس': 'Log every trade (even skipped): no log, no measurement',
+    'قائمة التحقق قبل الصفقة': 'Pre-trade checklist',
+}
+_EN_KEYS = sorted(_EN, key=len, reverse=True)
+
+
+def _t(s: str) -> str:
+    """English-mode label (owner 2026-10-23: one language at a time); Arabic mode returns the label unchanged."""
+    if not _en():
+        return s
+    if s in _EN:
+        return _EN[s]
+    for k in _EN_KEYS:
+        if k in s:
+            s = s.replace(k, _EN[k])
+    return s
+
+
 def _e(s) -> str:
-    return html.escape(str(s))
+    return html.escape(_t(str(s)))
 
 
 def waypoints(points: list, per_leg: int = 5, seed: int = 7, noise: float = 0.18) -> list:
@@ -100,6 +239,7 @@ class Chart:
         return self
 
     def text(self, x, y, s, color=TXT, size=10.5, anchor="start", weight="600"):
+        s = _t(str(s))
         half = len(str(s)) * size * 0.52 / 2                         # rough text width, so labels never leave the panel
         lo, hi = self.x0 + 6, self.x0 + self.w - 6
         if anchor == "middle":
@@ -453,5 +593,13 @@ MIRRORED = {"structure", "sr", "breakout", "trend", "meanrev", "sessions", "mtf"
 
 
 def art(name: str, side: str = "bull") -> str:
+    """The drawing as an SVG string; in English mode every label (including the raw-text ones) is translated and the flow arrows point left to right."""
     fn = ART.get(name)
-    return fn(side) if fn else ""
+    if not fn:
+        return ""
+    out = fn(side)
+    if _en():
+        out = _t(out)
+        if name == "checklist":
+            out = out.replace(">←</text>", ">→</text>")
+    return out

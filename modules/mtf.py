@@ -78,11 +78,23 @@ _BI = {"bull": "شراء", "bear": "بيع", "neutral": "محايد"}
 _ST = {"aligned": "متوافقة ✓", "partial": "توافق جزئي", "conflict": "تعارض ✗", "unknown": "غير واضح"}
 
 
-def lines_ar(m: dict | None) -> list[str]:
-    """Short Arabic lines for the Setup Card / Telegram: one per timeframe + the verdict."""
+def lines_ar(m: dict | None, ar: bool | None = None) -> list[str]:
+    """Short lines for the Setup Card / Telegram: one per timeframe + the verdict (Arabic, or English when the page language is English)."""
     if not m:
         return []
-    from modules.arabic import TF_AR
+    from modules.arabic import TF_AR, _is_ar
+    if not _is_ar(ar):
+        from modules.arabic_en import TF_EN
+        _tr = {"up": "up", "down": "down", "range": "sideways"}
+        _bi = {"bull": "buy", "bear": "sell", "neutral": "neutral"}
+        _st = {"aligned": "aligned ✓", "partial": "partly aligned", "conflict": "conflict ✗", "unknown": "unclear"}
+        out = []
+        for r in m["rows"]:
+            role = {"bias": "overall bias", "setup": "setup", "timing": "timing"}[r["role"]]
+            out.append(f"{TF_EN.get(r['tf'], r['tf'])} ({role}): " + ("no data" if not r.get("available") else
+                       f"{_tr[r['trend']]}, price {'above' if r['ema'] == 'above' else 'below'} EMA50 → {_bi[r['bias']]}"))
+        out.append(f"Timeframe agreement: {_st[m['status']]} ({m['agree']}/{m['of']})")
+        return out
     out = []
     for r in m["rows"]:
         label = TF_AR.get(r["tf"], r["tf"])

@@ -1046,3 +1046,17 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 - **Design coordination:** request to ChatGPT (G2) to review the wide layout and the animation, and to Grok to propose lesson content for the empty slots; nothing blocks on them.
 - **Not verified:** the Radar at 1700px wide (the preview pane reverted to narrow, so only "loads without errors, 20 charts" was checked), the other 16 themes, phone width.
 - Branch for the next PR: `fix/radar-stale-module-academy-wide-2026-10-23` (bc2aee1).
+
+## 2026-10-23 (11) — Site manager: filter audit (Radar, Technical Office, Academy) — branch fix/radar-stale-module-academy-wide-2026-10-23 (5767842)
+**Owner report:** filters do not always work, e.g. the Radar heat map; wants the timeframe filters on top for the charts.
+**Causes found**
+1. **Heat map had no filters at all** and ignored the asset class / market / size controls shown above it (it reads Hyperliquid TradFi markets only).
+2. **Performance, Correlation, Signal list, Similar charts ignored the shared filter panel** and used their own fixed timeframe (1h) or their own selector.
+3. **Streamlit deletes the state of widgets that are not drawn in a run**, so any filter was reset when you left the page or the tab and came back.
+4. Scanner control (Technical Office) capped charts at 30 while the Radar allows 120.
+**Fixes**
+- One timeframe row (pills, all 17 timeframes) at the top of the Radar drives Chart grid, Screener, Performance, Correlation, Signal list and Similar charts. The shared filters (quick chips, RSI, EMA, patterns, strategies, technical lists) now select the symbols for all of them (`_radar_symbols`). Performance spans adapt to the timeframe (time spans up to 1d, candle counts above).
+- Heat map: its own filters (asset class pills, top N by volume, direction, minimum |change|, search, sort); pure function `market_map.apply_filters` with tests; universe controls hidden there.
+- Filter values are written back at the top of every run for the known non-button widget families (cs_, fv_f_, hm_, perf_, sm_, bt_, sc_, to_, lab_, ac_, fl_ ...), so they survive switching page or tab.
+**Checked in the browser:** heat map class pills change the tile count (115 -> 3 Forex -> 8 Forex+Metals, about 6 s per click once warm), the filters survive going to the Academy and back, Performance on the 4h timeframe shows 4h data (23/24 symbols), all 11 Technical Office tabs load without exceptions, all 6 Academy tabs load without exceptions. Unit tests: academy, ui_kit, fv_screen, market_map, market_map filters, chart_explain.
+**Not checked:** every individual Technical Office control (only that each tab opens), the Chart grid at 4h/1d with several filters at once, phone width. First load of a new timeframe is slow (candles download: about 1-2 min for 24 symbols).

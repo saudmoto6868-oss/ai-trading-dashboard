@@ -2436,14 +2436,15 @@ def _radar_filters(view):
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     with st.container(key="csfw"), st.container(key="csf"):
-        r1 = st.columns([1, 0.7, 1, 1, 1.4])
+        r1 = st.columns([1, 0.7, 0.8, 1, 1, 1.4])
         rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
         n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
-        r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        ncols = int(r1[4].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
+        r1[5].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
         quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_QUICK_LBL.get, key="cs_quick", label_visibility="collapsed")
         with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
             r1 = st.columns([1.3, 1.1])
@@ -2485,7 +2486,7 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
 
 
 def _radar_hits(d, f):
@@ -2566,7 +2567,7 @@ def render_chart_scanner(f):
     # task 17 (spec 25): a setup is "confirmed" when every chosen condition holds (match = All selected), otherwise "candidate"; never an order
     def setup_tag(d):   # per chart, from its own conditions
         return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
-    per_row = 5
+    per_row = int(f.get("cols", 6))   # wide screens: the owner's screen is wide, so six charts per row by default
     st.markdown(_RADAR_CSS, unsafe_allow_html=True)
     _top = [s for s, d_ in shown[:3] if nsel and _confirmed(d_)]
     if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
@@ -2917,7 +2918,11 @@ if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
         _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
         render_universe_controls()
-        SCAN_SYMBOLS, _ac_msg2 = class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
+        import importlib as _il
+        from modules import asset_classes as _acm
+        if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once
+            _acm = _il.reload(_acm)
+        SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
         _rf = _radar_filters(_rv)
         if _rv == "Heat map":

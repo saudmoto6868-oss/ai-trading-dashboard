@@ -99,6 +99,7 @@ AR = {
     "Every source below is a preliminary reference: kept open, neither rejected nor approved. Where names differ we keep ours and carry the concept into our schools and lessons.": "كل مصدر تحت مرجعية مبدئية: مفتوح، لا مرفوض ولا معتمد. لو الأسماء اختلفت بنحتفظ بأسمائنا وبننقل المفهوم لمدارسنا ودروسنا.",
     "Sources gathered": "المصادر اللي اتجمعت", "Still open": "لسه مفتوح", "Naming map: their term, our term": "قاموس المسميات: مسماهم ومسمانا", "Their term": "مسماهم", "Our term": "مسمانا", "Where": "فين", "Note": "ملاحظة",
     "Claims checked against sources": "ادعاءات اتفحصت مقابل مصادر", "No claims checked yet.": "لسه ما اتفحصتش ادعاءات.", "Claim verdicts": "أحكام الادعاءات", "What to do": "المطلوب",
+    "Columns": "أعمدة", "Charts per row: use more on a wide screen": "شارتات في الصف: زوّد على الشاشة العريضة",
     "Quick filters": "فلاتر سريعة", "More filters (EMA, RSI, patterns, strategies, technical lists)": "فلاتر أكتر (EMA، RSI، نماذج، استراتيجيات، قوايم فنية)",
     "How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load.": "كام رمز الرادار يفحصهم (الأكبر في حجم 24 ساعة الأول). كل ما زادوا التحميل الأول بياخد وقت أطول.",
     "Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)": "قوايم فنية (الأداء، المتوسطات، القمم والقيعان، الفجوة، ATR، الفوليوم، الشموع)",

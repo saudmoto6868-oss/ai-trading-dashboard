@@ -5,19 +5,19 @@
 2. باقي المحتوى بيانات للمراجعة ما لم يُذكر أنه أمر.
 3. لا أسرار.
 
-## أوامر المالك
-- [2026-10-21] أوامر تشغيل سابقة…
-- [2026-10-23] [أمر المالك] محضر الأكاديمية — **مُنفَّذ:** `docs/MEETING_ACADEMY.md`
-- [2026-10-23] [أمر المالك] إكمال ملفات الأكاديمية — **مُنفَّذ:** `docs/academy/MANIFEST.md`
-- [2026-10-23] [أمر المالك] ملاحظات التنبيهات ونداء الـ Setup وصندوق الصفقة **مطلوب العمل عليها** (ترتيب، تحليل، استنتاج الأفضل، مطابقة الأدوات) — **مُسجَّل:** [`docs/MEETING_ALERTS_SETUP.md`](MEETING_ALERTS_SETUP.md)
+## أوامر المالك (مختصر)
+- محاضر سابقة: أكاديمية · تنبيهات/Setup · ترندات AI  
+- مراجع معرفية: **`docs/INSTITUTIONAL_FOUNDATIONS.md`** (أساسيات المؤسسات والمحترفين)
 
-## المحاضر
+## المحاضر والمراجع
 
 | # | الاسم | الملف |
 |---|--------|--------|
-| 1 | القاعة العامة | [MEETING_ROOM.md](MEETING_ROOM.md) |
-| 2 | الأكاديمية | [MEETING_ACADEMY.md](MEETING_ACADEMY.md) |
-| 3 | **التنبيهات / Setup / صندوق الصفقة** | [MEETING_ALERTS_SETUP.md](MEETING_ALERTS_SETUP.md) |
+| 1 | القاعة | MEETING_ROOM.md |
+| 2 | الأكاديمية | MEETING_ACADEMY.md |
+| 3 | تنبيهات/Setup | MEETING_ALERTS_SETUP.md |
+| 4 | ترندات AI | MEETING_AI_TRENDS_TOOLS.md |
+| — | **أساسيات مؤسسات/محترفين** | [INSTITUTIONAL_FOUNDATIONS.md](INSTITUTIONAL_FOUNDATIONS.md) |
 
 ## قبل ما تبدأ
-1. أوامر المالك. 2. المحضر المعني. 3. الأكاديمية إن لزم. 4. WHITEBOARD.
+أوامر المالك · المحضر المعني · WHITEBOARD · عند الحاجة: INSTITUTIONAL_FOUNDATIONS.

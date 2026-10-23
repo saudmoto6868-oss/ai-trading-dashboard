@@ -45,7 +45,7 @@ def test_learning_path_and_art():
         for a in x["arts"]:
             for side in ("bull", "bear"):
                 s = ART.art(a, side)
-                assert s.startswith("<svg") and s.endswith("</svg>") and "NaN" not in s and "inf" not in s.lower().replace("info", ""), (x["id"], a, side)
+                assert "<style" not in s, "a <style> inside the SVG makes the page hide the element"; assert s.startswith("<svg") and s.endswith("</svg>") and "NaN" not in s and "Infinity" not in s and "nan" not in s.replace("an", ""), (x["id"], a, side)
     ids = [x["id"] for x in ls]
     assert len(ids) == len(set(ids))
 

@@ -83,5 +83,14 @@ def test_ordered_schools():
     assert A.sections("a\n## X\nb\n## Y\nc") == {"": "a", "X": "b", "Y": "c"}
 
 
+def test_deep_lessons():
+    d = A.deep()
+    assert set(d) == set(A.SCHOOL_ORDER)                                               # all nine schools have a full lesson
+    for sid, x in d.items():
+        assert len(x["parts"]) >= 3 and len(x["exercises"]) >= 3 and x["faq"] and x["glossary"], sid
+        assert sum(len(p["b"]) for p in x["parts"]) > 900, sid                          # a real explanation, not a stub
+        assert len(x["bull_story"]) > 80 and len(x["bear_story"]) > 30 and len(x["platform"]) >= 3, sid
+
+
 if __name__ == "__main__":
-    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); test_ordered_schools(); print("ok academy")
+    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); test_ordered_schools(); test_deep_lessons(); print("ok academy")

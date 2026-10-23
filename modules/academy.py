@@ -207,3 +207,21 @@ def ordered_schools(root: Path = ROOT) -> list:
                         "evidence": school_evidence(sid, root), "review": rev.get(sid, [])})
     out += [{**x, "pos": len(out) + k + 1, "why": "", "arts": [], "examples": "", "evidence": "", "review": []} for k, x in enumerate(by.values()) if x["id"] not in SCHOOL_ORDER]
     return out
+
+
+DEEP = Path(__file__).resolve().parent.parent / "data" / "academy_deep.json"
+DEEP_REQ = ("what", "parts", "bull_story", "bear_story", "platform", "mistakes", "exercises", "faq", "glossary")
+
+
+def deep(path: Path = DEEP) -> dict:
+    """-> {school id: full lesson} from data/academy_deep.json; a school missing a field or with an empty part is dropped."""
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8")).get("schools", {})
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for sid, x in d.items():
+        if not all(x.get(k) for k in DEEP_REQ) or not all(p.get("t") and p.get("b") for p in x["parts"]):
+            continue
+        out[sid] = x
+    return out

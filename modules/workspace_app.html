@@ -924,7 +924,10 @@ const OKX_COOL_P = {}; let OKX_COOL_ALL = 0;   // global pause for candle reques
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
-  const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
+  const rub = /\/rubik\//.test(path);
+  // Live order-book / trade snapshots are polled every 1.5 s by Hub. Do not reuse a 10 s cache entry for these endpoints.
+  // Keep a short 1.2 s in-flight/repeat guard to coalesce overlapping requests without serving stale snapshots across polling ticks.
+  const liveFlow = /\/market\/(?:books(?:-full)?|trades)\?/.test(path), ttl = rub ? 120000 : liveFlow ? 1200 : 10000, hit = OKX_CACHE[path];
   let shared = 0; try { shared = +(localStorage.getItem("okx_cool_all") || 0); } catch(e){}   // another tab of this browser hit the limit: this tab waits too (both tabs share one IP)
   if (shared > Date.now() + 20000) shared = 0;   // never trust a pause that is far in the future
   const liveTick = /\/market\/candles\?/.test(path) && /[?&]limit=(?:[1-9]|[1-3]\d|40)(?:&|$)/.test(path);   // the small refresh poll of an open chart (2 s loop): a healthy tab keeps it alive, only the big history loads wait for the other tab's pause

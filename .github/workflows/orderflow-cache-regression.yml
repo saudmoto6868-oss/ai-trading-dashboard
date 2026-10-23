@@ -1,0 +1,32 @@
+name: Order Flow cache regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "modules/workspace_app.html"
+      - "tests/test_orderflow_cache_policy.py"
+      - ".github/workflows/orderflow-cache-regression.yml"
+  push:
+    branches: ["fix/orderflow-live-cache-ttl"]
+    paths:
+      - "modules/workspace_app.html"
+      - "tests/test_orderflow_cache_policy.py"
+      - ".github/workflows/orderflow-cache-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cache-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run static cache-policy regression test
+        run: python tests/test_orderflow_cache_policy.py

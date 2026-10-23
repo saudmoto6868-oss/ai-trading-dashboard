@@ -1144,6 +1144,32 @@ const Lg = (a, b) => lang === "ar" ? b : a;
 const CATL = {"Crypto":["Crypto","كريبتو"], "Forex":["Forex","فوركس"], "Metals":["Metals","معادن"], "Oil & Gas":["Oil & Gas","نفط وغاز"], "Commodities":["Commodities","سلع"], "Indices":["Indices","مؤشرات"], "Stocks":["Stocks","أسهم"], "Bonds":["Bonds","سندات"],
   "Options":["Options","خيارات"], "Meme coins":["Meme coins","عملات ميم"], "Egypt (EGX)":["Egypt (EGX)","مصر (EGX)"], "Saudi (Tadawul)":["Saudi (Tadawul)","السعودية (تداول)"]};
 const catL = c => CATL[c] ? Lg(CATL[c][0], CATL[c][1]) : c;   // market-category names: the value stays English (used for filtering), the label follows the language
+/* Logo of a symbol (same rules as modules/symbol_icon.py): coin icon, flag(s) for forex, country flag for an index, company icon for a stock, drawn badge for metals / energy; a coloured letter if the image fails */
+const SI_CUR = {USD:"us",EUR:"eu",GBP:"gb",JPY:"jp",CHF:"ch",CAD:"ca",AUD:"au",NZD:"nz",CNH:"cn",CNY:"cn",KRW:"kr",MXN:"mx",TRY:"tr",INR:"in",BRL:"br",SAR:"sa",EGP:"eg",ZAR:"za",SEK:"se",NOK:"no",DKK:"dk",HKD:"hk",SGD:"sg",PLN:"pl",AED:"ae"};
+const SI_METAL = {XAU:["Au","#f0b90b"],GOLD:["Au","#f0b90b"],GC:["Au","#f0b90b"],XAG:["Ag","#aab2bd"],SILVER:["Ag","#aab2bd"],SI:["Ag","#aab2bd"],XPT:["Pt","#8fa3b5"],PLATINUM:["Pt","#8fa3b5"],PL:["Pt","#8fa3b5"],XPD:["Pd","#9aa7b3"],PALLADIUM:["Pd","#9aa7b3"],PA:["Pd","#9aa7b3"],COPPER:["Cu","#b87333"],XCU:["Cu","#b87333"],HG:["Cu","#b87333"]};
+const SI_ENERGY = new Set(["CL","WTI","BRENT","BZ","OIL","NG","NATGAS","USOIL","UKOIL","XTI","XBR","GAS"]);
+const SI_INDEX = {SPX:"us",SP500:"us",US500:"us",GSPC:"us",NDX:"us",XYZ100:"us",US100:"us",IXIC:"us",DJI:"us",US30:"us",RUT:"us",VIX:"us",SPY:"us",QQQ:"us",IWM:"us",DIA:"us",DX:"us",DAX:"de",GER40:"de",GDAXI:"de",FTSE:"gb",UK100:"gb",HSI:"hk",N225:"jp",JP225:"jp",KR200:"kr",CAC40:"fr",FCHI:"fr",CASE30:"eg",TASI:"sa"};
+const SI_STOCK = {AAPL:"apple.com",MSFT:"microsoft.com",NVDA:"nvidia.com",TSLA:"tesla.com",AMZN:"amazon.com",GOOGL:"google.com",GOOG:"google.com",META:"meta.com",AMD:"amd.com",INTC:"intel.com",MU:"micron.com",MRVL:"marvell.com",NET:"cloudflare.com",CRWD:"crowdstrike.com",MSTR:"strategy.com",COIN:"coinbase.com",MRNA:"modernatx.com",CRCL:"circle.com",NBIS:"nebius.com",CRWV:"coreweave.com",BE:"bloomenergy.com",SNDK:"sandisk.com",WDC:"westerndigital.com",AAOI:"ao-inc.com",LITE:"lumentum.com",SMSN:"samsung.com",SAMSUNG:"samsung.com",SKHX:"skhynix.com",SKHY:"skhynix.com",SKHYNIX:"skhynix.com",UNITREE:"unitree.com",CXMT:"cxmt.com",ZHIPU:"zhipuai.cn",NFLX:"netflix.com",PLTR:"palantir.com",HOOD:"robinhood.com",ORCL:"oracle.com",AVGO:"broadcom.com",TSM:"tsmc.com",BABA:"alibaba.com",UBER:"uber.com",DRAM:"roundhillinvestments.com",SOXL:"direxion.com",SOXS:"direxion.com",TLT:"ishares.com",SPCX:"spacex.com",EWY:"ishares.com",KORU:"direxion.com"};
+function symIcon(sym, px){
+  px = px || 14; sym = String(sym || "");
+  const b = (sym.indexOf(":") >= 0 ? sym.split(":").pop() : sym).replace("=X", "").replace("=F", "").replace("^", "").split("-")[0].toUpperCase();
+  const lt = b.slice(0, 1), col = "#" + (((b.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7) & 0xFFFFFF) | 0x404040)).toString(16).padStart(6, "0").slice(-6);
+  const base = "display:inline-block;width:"+px+"px;height:"+px+"px;border-radius:50%;vertical-align:middle;margin-inline-end:5px;";
+  const letter = "background:"+col+";color:#fff;font:700 "+Math.max(8, px - 7)+"px/"+px+"px sans-serif;text-align:center;";
+  const img = (url, extra) => '<img src="'+url+'" alt="" loading="lazy" style="'+base+'object-fit:cover;'+(extra || "")+'" data-l="'+esc(lt)+'" data-st="'+esc(base+letter)+'" onerror="var s=document.createElement(\'span\');s.textContent=this.dataset.l;s.style.cssText=this.dataset.st;this.replaceWith(s)">';
+  const badge = (t, c) => '<span style="'+base+'background:'+c+';color:#111;font:800 '+Math.max(8, Math.round(px*(t.length > 1 ? .5 : .62)))+'px/'+px+'px sans-serif;text-align:center">'+esc(t)+'</span>';
+  let pair = b.length === 6 && SI_CUR[b.slice(0, 3)] && SI_CUR[b.slice(3)] ? [b.slice(0, 3), b.slice(3)] : null;
+  if (!pair && /^HL:/.test(sym) && SI_CUR[b] && b !== "USD") pair = ["EUR","GBP","AUD","NZD"].includes(b) ? [b, "USD"] : ["USD", b];   // Hyperliquid names the pair by its non-dollar currency
+  const isYH = /^(Y|HL):/.test(sym);
+  if (SI_METAL[b]) return badge(SI_METAL[b][0], SI_METAL[b][1]);
+  if (SI_ENERGY.has(b)) return badge("◆", "#f0b90b");
+  if (SI_INDEX[b]) return img("https://flagcdn.com/w80/"+SI_INDEX[b]+".png");
+  if (SI_STOCK[b]) return img("https://www.google.com/s2/favicons?domain="+SI_STOCK[b]+"&sz=64");
+  if (pair && isYH){ const w = Math.round(px*1.5); return '<span style="display:inline-block;width:'+w+'px;height:'+px+'px;position:relative;vertical-align:middle;margin-inline-end:5px">'+img("https://flagcdn.com/w80/"+SI_CUR[pair[1]]+".png", "position:absolute;right:0;top:0;margin:0;")+img("https://flagcdn.com/w80/"+SI_CUR[pair[0]]+".png", "position:absolute;left:0;top:0;margin:0;box-shadow:0 0 0 1.5px #0b0e11;")+'</span>'; }
+  if (isYH && SI_CUR[b]) return img("https://flagcdn.com/w80/"+SI_CUR[b]+".png");
+  if (isYH) return badge(lt, "#4aa3ff");
+  return img("https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/32/color/"+b.toLowerCase()+".png");
+}
 /* Item 23 (phase 1): read a trade explanation aloud with the browser's own speech engine (Web Speech API) - free, no key,
    nothing leaves the device. Arabic text uses an Arabic voice when the device has one (ar-EG preferred, then any ar-*). */
 const Voice = {
@@ -3243,7 +3269,7 @@ class Panel {
     this.bindDrag(); this.setTitle(); this.build();
     this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
   }
-  setTitle(){ this.ttl.textContent = T(this.type) + (["chart","dom","tape","limits","fund","liq","posn","tvc"].includes(this.type) ? " · "+this.state.sym : ""); this.grp.title = T("group"); }
+  setTitle(){ { const hasS = ["chart","dom","tape","limits","fund","liq","posn","tvc"].includes(this.type); this.ttl.innerHTML = esc(T(this.type)) + (hasS ? " · "+symIcon(this.state.sym, 14)+esc(this.state.sym) : ""); } this.grp.title = T("group"); }
   paint(){ const c = this.state.col, b = this.state.bg;
     this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
@@ -4749,9 +4775,9 @@ Panel.prototype.resub = function(){
       groups.forEach(([title, list]) => { if (!list.length) return; h += '<tr class="wh"><td colspan="5">'+esc(title)+'</td></tr>';
         list.forEach(s => { shown.push(s); const x = M[s], p = this.pv[s] || {}, fav = F.includes(s), fl = this.flash.has(s) ? (p.dir > 0 ? " fu" : " fd") : "", col = p.dir > 0 ? "g" : p.dir < 0 ? "rd" : "";
           const st = '<td class="stc"><span class="st'+(fav ? " on" : "")+'" data-st="'+esc(s)+'">'+(fav ? "★" : "☆")+'</span></td>';
-          const nm = /^HL:/.test(s) ? esc(hlLabel(s))+' <span class="hlb" title="'+esc(L_("Hyperliquid perpetual "+hlCoin(s)+" - live, 24/7, can differ slightly from spot / futures", "عقد دائم على Hyperliquid "+hlCoin(s)+" - لحظي 24/7، ممكن يختلف شوية عن السبوت / الفيوتشرز"))+'">HL</span>'
+          const nm = symIcon(s, 13) + (/^HL:/.test(s) ? esc(hlLabel(s))+' <span class="hlb" title="'+esc(L_("Hyperliquid perpetual "+hlCoin(s)+" - live, 24/7, can differ slightly from spot / futures", "عقد دائم على Hyperliquid "+hlCoin(s)+" - لحظي 24/7، ممكن يختلف شوية عن السبوت / الفيوتشرز"))+'">HL</span>'
             : FH_MAP[s] ? esc(FH_MAP[s].label)+' <span class="m" title="Finnhub / OANDA CFD, live">●</span>'
-            : /^Y:/.test(s) ? esc(s.slice(2).replace(/^([A-Z]{3})([A-Z]{3})=X$/, "$1/$2").replace(/=F$/, " fut"))+' <span class="m" title="'+esc(L_("Yahoo Finance, delayed - refreshed when the page reloads","Yahoo Finance متأخر - بيتحدث مع تحديث الصفحة"))+'">Y</span>' : esc(s);
+            : /^Y:/.test(s) ? esc(s.slice(2).replace(/^([A-Z]{3})([A-Z]{3})=X$/, "$1/$2").replace(/=F$/, " fut"))+' <span class="m" title="'+esc(L_("Yahoo Finance, delayed - refreshed when the page reloads","Yahoo Finance متأخر - بيتحدث مع تحديث الصفحة"))+'">Y</span>' : esc(s));
           if (!x && FH_MAP[s]){ const cl = fxClosed(); h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m" title="'+esc(cl ? L_("Forex / CFD market closed (Fri 17:00 - Sun 17:00 New York); Finnhub sends no ticks until it reopens", "سوق الفوركس قافل (الجمعة 5 م - الأحد 5 م بتوقيت نيويورك)؛ Finnhub مش بيبعت أسعار لحد ما يفتح") : L_("waiting for the first tick (or this symbol is not on Finnhub's free plan)", "مستني أول سعر (أو الرمز ده مش في خطة Finnhub المجانية)"))+'">'+esc(cl ? L_("closed", "قافل") : "…")+'</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';

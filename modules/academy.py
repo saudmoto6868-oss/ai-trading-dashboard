@@ -42,3 +42,62 @@ def search(lessons: list, q: str = "", topic: str = "", verdict: str = "") -> li
     return [ls for ls in lessons
             if (not topic or ls["topic"] == topic) and (not verdict or ls["verdict"] == verdict)
             and (not q or q in " ".join([ls["title"], ls["summary"], ls["topic"], " ".join(ls["points"])]).lower())]
+
+
+# ---- the school curricula written by Grok (docs/academy) ------------------------------------------------------------------------------------
+
+import re
+
+ROOT = Path(__file__).resolve().parent.parent / "docs" / "academy"
+ICON = {"levels": "📏", "trend": "📈", "sessions": "🕒", "smc": "🧱", "elliott": "🌊", "gann": "🔭", "harmonic": "🦋", "orderflow": "💧", "meanrev": "↔️"}
+LAB_NOTE = ("في معمل المشروع لحد دلوقتي ولا كاشف عدّى البوابة الإحصائية (n ≥ 100، t > 3، صافي بعد التكلفة موجب، النصفين موجبين). "
+            "كلمة «مرشح» أو primary_candidate في المحتوى معناها قيد الاختبار، مش دليل.")
+
+
+def _read(p: Path) -> str:
+    try:
+        return p.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def schools(root: Path = ROOT) -> list:
+    """-> [{id, n, icon, title, visual, ai, curriculum}] from docs/academy/visual/NN-*.md (+ ai/NN-*.json.md and the long curriculum file NN-*.md)."""
+    out = []
+    for f in sorted((root / "visual").glob("[0-9][0-9]-*.md")):
+        n, sid = f.name[:2], f.stem[3:]
+        vis = _read(f)
+        title = next((ln.lstrip("# ").strip() for ln in vis.splitlines() if ln.startswith("# ")), sid)
+        ai = next(iter(sorted((root / "ai").glob(f"{n}-*.md"))), None)
+        cur = next(iter(sorted(root.glob(f"{n}-*.md"))), None)
+        out.append({"id": sid, "n": n, "icon": ICON.get(sid, "📘"), "title": title, "visual": vis, "ai": _read(ai) if ai else "", "curriculum": _read(cur) if cur else ""})
+    return out
+
+
+def badges(md: str) -> tuple:
+    """Split shields.io badge images off a lesson: -> (text without them, [(label, #hex)]). The labels carry the school's role and lab status."""
+    out = [(m.group(1).replace("_", " ").replace("-", ": ", 1), "#" + m.group(2)) for m in re.finditer(r"!\[[^\]]*\]\(https://img\.shields\.io/badge/([^)]*?)-([0-9a-fA-F]{6})\)", md)]
+    return re.sub(r"!\[[^\]]*\]\(https://img\.shields\.io/badge/[^)]*\)\s*", "", md), out
+
+
+def chains(md: str) -> tuple:
+    """Turn ```mermaid flowcharts into step lists (Streamlit cannot draw mermaid): -> (text with the diagrams removed, [[step, ...], ...])."""
+    found = []
+
+    def take(m):
+        steps = []
+        for lab in re.findall(r'\[\s*"?([^\]"]+?)"?\s*\]', m.group(1)):
+            if lab not in steps:
+                steps.append(lab.strip())
+        if steps:
+            found.append(steps)
+        return ""
+    return re.sub(r"```mermaid\n(.*?)```", take, md, flags=re.S), found
+
+
+def evidence(root: Path = ROOT) -> str:
+    return _read(root / "BACKTEST_EVIDENCE.md")
+
+
+def examples(root: Path = ROOT) -> str:
+    return _read(root / "EXAMPLES_MULTI.md")

@@ -143,7 +143,6 @@ def _openai(q: str, ctx_txt: str, hist: list, model: str) -> dict:
         "model": model,
         "messages": messages,
         "max_completion_tokens": 1024,
-        "reasoning_effort": _cfg("OPENAI_REASONING_EFFORT", "low"),
         "response_format": {"type": "json_schema", "json_schema": {
             "name": "xpix_guide_answer", "strict": True, "schema": SCHEMA
         }},

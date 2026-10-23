@@ -1,4 +1,4 @@
-# AI — Trend / Turtle / TSMOM
+# AI — Trend / Turtle / TSMOM (مفصّل)
 
 ```yaml
 id: trend
@@ -9,86 +9,92 @@ lab_status: primary_candidate
 
 branches:
   - id: donchian_turtle
-    title: Donchian / Turtle-style breakout
+    title: Donchian Turtle
     rules_hard:
-      - "Entry on close beyond N-day high/low (define N: 20 entry / 55 alternate; exit often 10 or 20 opposite)"
-      - "Position size from volatility unit N = ATR(20); risk fixed fraction per unit"
+      - "Entry: close beyond prior N-day high/low (N in {20,55} locked per test)"
+      - "Unit size from N_atr = ATR(20); stop distance often 2*N_atr"
+      - "No discretionary skip of valid breakout unless coded filter"
     rules_soft:
-      - "Pyramid limited units on favorable excursions"
-      - "Accept low win rate; edge in fat right tail"
-    confirmations:
-      - "Daily or higher timeframe"
-      - "No conflicting max correlation book limit"
-    invalidation:
-      - "Exit on opposite Donchian or trailing stop rule"
+      - "System 1 (20) more trades; System 2 (55) cleaner trends"
+      - "Pyramid +0.5N up to max units if playbook allows"
+      - "Original rules may underperform unmodified 2004–2026; test variants"
+    confirmations: ["Daily+ timeframe"]
+    invalidation: ["Exit on opposite channel or trailing rule"]
 
-  - id: ma_trend
+  - id: ma_stack
     title: Moving average trend
     rules_hard:
-      - "Long only when fast MA > slow MA (params fixed before test)"
-      - "Short only when fast MA < slow MA"
-    rules_soft:
-      - "Filter ADX or slope optional"
-    confirmations: ["Price above/below both MAs"]
-    invalidation: ["MA cross against position"]
+      - "Long when fast MA > slow MA; short when fast < slow; periods fixed"
+    rules_soft: ["Price filter above both MAs"]
+    confirmations: ["Slope optional"]
+    invalidation: ["Cross against"]
 
   - id: tsmom
-    title: Time-series momentum
+    title: Time series momentum
     rules_hard:
-      - "Signal from past return over lookback L; hold next period"
-    rules_soft:
-      - "Vol-scale position"
+      - "Signal = sign of past return over lookback L; hold horizon H"
+      - "Vol-scale positions"
+    rules_soft: ["Cross-asset diversification is the real edge"]
     confirmations: []
-    invalidation: ["Signal flips"]
+    invalidation: ["Sign flip"]
+
+  - id: costs_and_regime
+    title: Costs regime
+    rules_hard:
+      - "Backtest must include spread/slippage model"
+    rules_soft:
+      - "Intraday TF often negative net of costs"
+      - "Long-only on structurally rising assets may beat dual side"
+    confirmations: []
+    invalidation: []
 
 setups:
   - id: trend_long_turtle55
     direction: long
     name: Long 55-day breakout
-    context: "Daily chart; trend-following book"
-    entry_conditions:
-      - "Close > highest high of prior 55 days"
-    entry_trigger: "Close beyond 55-day high"
-    stop_rule: "2 * ATR(20) below entry or below 20-day low per playbook"
-    targets:
-      - "Trail; no fixed TP required"
-      - "Exit on close < 20-day low (classic variant)"
-    confirmations:
-      - "Optional: not into major HTF resistance without plan"
-    invalidation_price_rule: "Exit rule hit"
+    context: "Daily"
+    entry_conditions: ["Close > max high of prior 55 days"]
+    entry_trigger: "Breakout close"
+    stop_rule: "Entry - 2*ATR(20) or below 20-day low per variant"
+    targets: ["Trail until exit rule"]
+    confirmations: []
+    invalidation_price_rule: "Exit rule"
     example:
-      points: { entry_break: 110, atr20: 2.0, stop: 106 }
-      narrative: "Illustrative unit sizing with N=2"
-    risk_notes: "Whipsaw in ranges; disable or reduce in low ADX regime if policy says so"
+      points: { break: 110, atr: 2.0, stop: 106 }
     detector_hint: "turtle55"
+    research_option: R1
 
   - id: trend_short_turtle55
     direction: short
     name: Short 55-day breakdown
-    context: "Daily"
-    entry_conditions:
-      - "Close < lowest low of prior 55 days"
-    entry_trigger: "Close beyond 55-day low"
-    stop_rule: "2 * ATR(20) above entry or above 20-day high"
-    targets: ["Trail / 20-day high exit"]
-    confirmations: []
-    invalidation_price_rule: "Exit rule hit"
-    example:
-      narrative: "Mirror long"
+    entry_conditions: ["Close < min low of prior 55 days"]
+    entry_trigger: "Breakdown close"
+    stop_rule: "Entry + 2*ATR(20)"
+    targets: ["Trail"]
+    invalidation_price_rule: "Exit rule"
     detector_hint: "turtle55"
+    development_notes: ["Compare long-only vs long-short on each symbol class"]
 
-  - id: trend_long_sma
+  - id: trend_long_turtle20
     direction: long
-    name: Long SMA cross / stack
-    context: "Daily; e.g. 10/40 style if in project"
-    entry_conditions:
-      - "Fast SMA > slow SMA"
-    entry_trigger: "Cross up or first close while stacked"
-    stop_rule: "Opposite cross or ATR stop"
-    targets: ["Trail under swing / MA"]
-    confirmations: ["Price above both"]
-    invalidation_price_rule: "Fast < slow"
-    example:
-      narrative: "Params locked to Lab definition"
+    name: Long 20-day breakout
+    entry_conditions: ["Close > max high prior 20 days"]
+    entry_trigger: "Close"
+    stop_rule: "2*ATR or 10-day low variant"
+    targets: ["Trail"]
+    detector_hint: "turtle20"
+
+  - id: trend_long_sma1040
+    direction: long
+    name: SMA stack long
+    entry_conditions: ["SMA10 > SMA40"]
+    entry_trigger: "Cross or first bar stacked"
+    stop_rule: "Cross down or ATR"
+    targets: ["Trail under swing"]
     detector_hint: "sma1040"
+
+development_notes:
+  - "Run R1 with project cost model before raising size"
+  - "Portfolio of uncorrelated markets > single chart perfection"
+  - "Accept 30-45% win rate as normal"
 ```

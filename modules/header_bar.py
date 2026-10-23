@@ -18,6 +18,6 @@ def build_header_html(logo: str, links: list, news: list, no_news: str = "No new
 
 
 def render_header_bar(logo: str, links: list, news: list, height: int = 70, cal: list | None = None, ar: bool = False, theme: str = "classic", theme_vars: dict | None = None):
-    import streamlit.components.v1 as components
+    import streamlit as st
 
-    components.html(build_header_html(logo, links, news, cal=cal, ar=ar, theme=theme, theme_vars=theme_vars), height=height, scrolling=False)
+    st.iframe(build_header_html(logo, links, news, cal=cal, ar=ar, theme=theme, theme_vars=theme_vars), height=height)

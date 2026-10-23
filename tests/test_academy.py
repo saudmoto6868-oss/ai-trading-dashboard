@@ -92,5 +92,84 @@ def test_deep_lessons():
         assert len(x["bull_story"]) > 80 and len(x["bear_story"]) > 30 and len(x["platform"]) >= 3, sid
 
 
+# ---- one language at a time (owner 2026-10-23): English mode shows no Arabic, Arabic mode keeps the Arabic content exactly as it was --------------------------------------------------
+
+import contextlib, re  # noqa: E402
+AR_RE = re.compile("[؀-ۿ]")
+
+
+@contextlib.contextmanager
+def lang_as(code):
+    from modules import i18n
+    old = i18n.lang
+    i18n.lang = lambda: code
+    try:
+        yield
+    finally:
+        i18n.lang = old
+
+
+def _strings(o):
+    if isinstance(o, str):
+        yield o
+    elif isinstance(o, dict):
+        for k, v in o.items():
+            yield from _strings(k); yield from _strings(v)
+    elif isinstance(o, (list, tuple)):
+        for v in o:
+            yield from _strings(v)
+
+
+def _snap(code):
+    with lang_as(code):
+        return {"path": A.learning_path(), "deep": A.deep(), "refs": A.refs(), "lessons": A.load(), "schools": A.ordered_schools(), "lab": A.lab_note()}
+
+
+def test_english_mode_has_no_arabic():
+    from modules import academy_art as ART
+    en = _snap("en")
+    for name, part in en.items():
+        bad = [s for s in _strings(part) if AR_RE.search(s)]
+        assert not bad, (name, bad[:3])
+    with lang_as("en"):
+        for a in ART.ART:
+            for side in ("bull", "bear"):
+                svg = ART.art(a, side)
+                assert not AR_RE.search(svg), (a, side, AR_RE.findall(svg)[:5])
+        assert "Strong" in {x["grade_label"] for x in A.learning_path()["lessons"]}
+        assert A.status_label("draft")[0] == "Draft" and A.verdict_label("contradicted")[0] == "Contradicts our data" and A.claim_verdict_label("partial")[0] == "Partial"
+        assert A.origin_label("primary") == "Primary source" and A.origin_label("Grok") == "Grok"
+
+
+def test_english_matches_arabic_shape_and_honesty():
+    en, ar = _snap("en"), _snap("ar")
+    assert any(AR_RE.search(x["title"]) for x in ar["path"]["lessons"]) and any(AR_RE.search(x["what"]) for x in ar["deep"].values())   # Arabic mode keeps the Arabic
+    assert [x["id"] for x in en["path"]["lessons"]] == [x["id"] for x in ar["path"]["lessons"]] and len(en["path"]["levels"]) == len(ar["path"]["levels"]) == 5
+    for e_, a_ in zip(en["path"]["lessons"], ar["path"]["lessons"]):
+        assert (e_["level"], e_["grade"], e_["arts"], e_["school"]) == (a_["level"], A.GRADE_EN[a_["grade"]], a_["arts"], a_["school"]), e_["id"]
+        for k in ("steps", "mistakes", "platform", "refs", "quiz"):
+            assert len(e_[k]) == len(a_[k]), (e_["id"], k)
+        assert [(q["a"], len(q["opts"])) for q in e_["quiz"]] == [(q["a"], len(q["opts"])) for q in a_["quiz"]], e_["id"]
+        assert e_["bull"] and e_["bear"] and e_["grade_note"] and e_["idea"]
+    assert set(en["deep"]) == set(ar["deep"]) == set(A.SCHOOL_ORDER)                                               # all nine schools have a full English deep lesson
+    for sid, x in en["deep"].items():
+        y = ar["deep"][sid]
+        for k in ("parts", "exercises", "faq", "platform", "mistakes", "glossary"):
+            assert len(x[k]) == len(y[k]), (sid, k)
+        assert sum(len(p["b"]) for p in x["parts"]) > 900 and len(x["bull_story"]) > 80 and len(x["bear_story"]) > 30, sid
+    assert [len(en["refs"][k]) for k in ("sources", "glossary", "claims")] == [len(ar["refs"][k]) for k in ("sources", "glossary", "claims")]
+    assert {c["id"]: c["verdict"] for c in en["refs"]["claims"]} == {c["id"]: c["verdict"] for c in ar["refs"]["claims"]}      # a claim keeps its verdict: preliminary stays preliminary
+    assert [(l["id"], l["status"], l["verdict"]) for l in en["lessons"]] == [(l["id"], l["status"], l["verdict"]) for l in ar["lessons"]]
+    assert [(x["id"], x["pos"]) for x in en["schools"]] == [(x["id"], x["pos"]) for x in ar["schools"]]
+    assert all(x["visual"] and x["why"] and x["examples"] and x["evidence"] for x in en["schools"][:9])
+    assert [bool(x["review"]) for x in en["schools"]] == [bool(x["review"]) for x in ar["schools"]]
+    assert "candidate" in en["lab"] and "not evidence" in en["lab"]
+    assert not [s for s in list(_strings(en["deep"]) ) if re.search(r"risk-free|will make (you )?(money|profit)|guaranteed (profit|return)|sure profit", s, re.I)]   # no promise of profit
+
+
+if __name__ == "__main__":
+    test_english_mode_has_no_arabic(); test_english_matches_arabic_shape_and_honesty(); print("ok academy english")
+
+
 if __name__ == "__main__":
     test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); test_ordered_schools(); test_deep_lessons(); print("ok academy")

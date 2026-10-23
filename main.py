@@ -31,7 +31,7 @@ from modules.scorer import (
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
-    tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_, scan_entry,
+    trade_name, tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_, scan_entry, dir_name, tf_name,
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
@@ -39,6 +39,7 @@ from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
+from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
@@ -346,7 +347,7 @@ def render_scanner(results, notice, key):
     if notice:
         st.caption(notice)
     if not filtered and not notice:
-        st.info("لا توجد رموز مطابقة للفلتر الحالي.")
+        st.info(_xl("لا توجد رموز مطابقة للفلتر الحالي.", "No symbols match the current filter."))
     for r in sorted(filtered, key=lambda r: (-r["score"], r["symbol"])):
         arrow, acol = {"bullish": ("\u25B2", "#0ecb81"), "bearish": ("\u25BC", "#f6465d")}.get(r["direction"], ("\u25C6", "#848e9c"))
         ratio = r["score"] / r["max_score"] if r["max_score"] else 0
@@ -358,35 +359,47 @@ def render_scanner(results, notice, key):
             f"<span style='font-size:12px;color:#848e9c'>{fmt_price(r['price'])}</span></div>"
             "<div style='display:flex;justify-content:space-between;align-items:center;margin:2px 0'>"
             f"<span style='color:{scol};font-size:12px'>{_stars(r['score'], r['max_score'])}</span>"
-            f"<span style='color:{acol};font-size:12px'>{arrow} {DIR_AR.get(r['direction'], '')}</span>"
+            f"<span style='color:{acol};font-size:12px'>{arrow} {dir_name(r['direction'])}</span>"
             f"<span>{trade_chip_html(r['trade_type'])}</span></div>"
             f"<div>{tags_html(r['signals'], tv_link(r['symbol'], r['timeframe']))}</div></div>",
             unsafe_allow_html=True,
         )
-        with st.expander("التحليل"):
+        with st.expander(_xl("التحليل", "Analysis")):
             explain_symbol(r)
     with st.expander(L("Trade type filter")):
-        st.multiselect("نوع الصفقة", TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
-    st.caption("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.")
+        st.multiselect(_xl("نوع الصفقة", "Trade type"), TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
+    st.caption(_xl("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.",
+                   "Stars = how many of the 7 signal families agree. Coloured boxes = the strategy that gave the signal."))
     return filtered
+
+
+def _xl(ar_text, en_text):
+    """One language at a time: the Arabic text on the Arabic site, the English text otherwise."""
+    return ar_text if _ui_lang() == "ar" else en_text
 
 
 def _rtl(lines, bullets=True):
     items = "".join(f"<li>{html.escape(x)}</li>" for x in lines) if bullets else "".join(f"<div>{html.escape(x)}</div>" for x in lines)
     body = f"<ul style='margin:2px 0;padding-inline-start:18px'>{items}</ul>" if bullets else items
-    return f"<div dir='rtl' style='text-align:right;font-size:13px'>{body}</div>"
+    d_, a_ = ("rtl", "right") if _ui_lang() == "ar" else ("ltr", "left")
+    return f"<div dir='{d_}' style='text-align:{a_};font-size:13px'>{body}</div>"
 
 
 def explain_symbol(r):
-    """The 'why was this flagged' panel - written in Arabic."""
-    tf = TF_AR.get(r["timeframe"], r["timeframe"])
+    """The 'why was this flagged' panel - in the page language (Arabic or English)."""
+    tf = tf_name(r["timeframe"])
+    ar_ = _ui_lang() == "ar"
+    d_, a_ = ("rtl", "right") if ar_ else ("ltr", "left")
     st.markdown(
-        f"<div dir='rtl' style='text-align:right'><b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
-        f"&middot; فحص {tf} &middot; {DIR_AR.get(r['direction'], '')} &middot; {r['score']}/{r['max_score']} نجوم "
-        f"&middot; {trade_chip_html(r['trade_type'])}</div>", unsafe_allow_html=True)
+        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
+         f"&middot; فحص {tf} &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} نجوم "
+         f"&middot; {trade_chip_html(r['trade_type'])}</div>") if ar_ else
+        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; Price {fmt_price(r['price'])} "
+         f"&middot; {tf} scan &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} stars "
+         f"&middot; {trade_chip_html(r['trade_type'])}</div>"), unsafe_allow_html=True)
     if not r["signals"]:
-        st.markdown(_rtl(["إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ." if not r.get("mixed")
-                          else "الأدلة الصاعدة والهابطة تلغي بعضها - لا يوجد اتجاه مسيطر."], bullets=False), unsafe_allow_html=True)
+        st.markdown(_rtl([_xl("إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ.", "Mixed or no signals right now - nothing to act on.") if not r.get("mixed")
+                          else _xl("الأدلة الصاعدة والهابطة تلغي بعضها - لا يوجد اتجاه مسيطر.", "The bullish and bearish evidence cancel each other - no dominant direction.")], bullets=False), unsafe_allow_html=True)
     else:
         rows = []
         for s_ in r["signals"]:
@@ -394,19 +407,22 @@ def explain_symbol(r):
             rows.append(f"[{tag_for(s_)[0]}] {name}: {detail}")
         st.markdown(_rtl(rows), unsafe_allow_html=True)
     if r.get("against"):
-        st.markdown(_rtl(["ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in r["against"])], bullets=False), unsafe_allow_html=True)
+        st.markdown(_rtl([_xl("ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in r["against"]),
+                              "Against the direction: " + ", ".join(signal_ar(a)[0] for a in r["against"]))], bullets=False), unsafe_allow_html=True)
     if r["htf"]:
-        st.markdown("<div dir='rtl' style='text-align:right'><b>الفريمات الأعلى</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div dir='{d_}' style='text-align:{a_}'><b>{_xl('الفريمات الأعلى', 'Higher timeframes')}</b></div>", unsafe_allow_html=True)
         st.markdown(_rtl(htf_lines_ar(r)), unsafe_allow_html=True)
     plan = None
     if r["direction"] in ("bullish", "bearish"):
         plan = build_trade_plan({**r, "trend_bias": r["direction"]})
-        side = "شراء" if plan["direction"] == "Long" else "بيع"
+        side = _xl("شراء" if plan["direction"] == "Long" else "بيع", "Long" if plan["direction"] == "Long" else "Short")
         st.markdown(
-            f"<div dir='rtl' style='text-align:right'><b>الخطة ({side})</b> - دخول {n_(plan['entry'])} - وقف {n_(plan['stop_loss'])} - "
-            f"هدف 1 {n_(plan['take_profits'][0])} / هدف 2 {n_(plan['take_profits'][1])} / هدف 3 {n_(plan['take_profits'][2])}</div>",
+            (f"<div dir='{d_}' style='text-align:{a_}'><b>الخطة ({side})</b> - دخول {n_(plan['entry'])} - وقف {n_(plan['stop_loss'])} - "
+             f"هدف 1 {n_(plan['take_profits'][0])} / هدف 2 {n_(plan['take_profits'][1])} / هدف 3 {n_(plan['take_profits'][2])}</div>") if ar_ else
+            (f"<div dir='{d_}' style='text-align:{a_}'><b>Plan ({side})</b> - entry {plan['entry']} - stop {plan['stop_loss']} - "
+             f"target 1 {plan['take_profits'][0]} / target 2 {plan['take_profits'][1]} / target 3 {plan['take_profits'][2]}</div>"),
             unsafe_allow_html=True)
-        st.markdown("<div dir='rtl' style='text-align:right'><b>السيناريوهات</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div dir='{d_}' style='text-align:{a_}'><b>{_xl('السيناريوهات', 'Scenarios')}</b></div>", unsafe_allow_html=True)
         st.markdown(_rtl(scenarios_ar(r)), unsafe_allow_html=True)
     if r["symbol"] in TV_SYMBOL_MAP or "-" in r["symbol"]:
         try:
@@ -416,10 +432,11 @@ def explain_symbol(r):
         if svg:
             b64 = base64.b64encode(svg.encode('utf-8')).decode('ascii')
             st.markdown(f"<img style='width:100%;max-width:640px' src='data:image/svg+xml;base64,{b64}'/>", unsafe_allow_html=True)
-            st.caption("رسم تقريبي للسيناريو: الشموع الأخيرة + مناطق الإشارات + الدخول/الوقف/الأهداف (الخط الأصفر = مسار الهدف الأول).")
-        st.link_button("افتح الشارت على TradingView", tv_link(r["symbol"], r["timeframe"]))
+            st.caption(_xl("رسم تقريبي للسيناريو: الشموع الأخيرة + مناطق الإشارات + الدخول/الوقف/الأهداف (الخط الأصفر = مسار الهدف الأول).",
+                           "Rough sketch of the scenario: the latest candles + signal zones + entry/stop/targets (the yellow line = the path to the first target)."))
+        st.link_button(_xl("افتح الشارت على TradingView", "Open the chart on TradingView"), tv_link(r["symbol"], r["timeframe"]))
     if r.get("errors"):
-        st.caption("ملاحظات الكواشف: " + "; ".join(r["errors"]))
+        st.caption(_xl("ملاحظات الكواشف: ", "Detector notes: ") + "; ".join(r["errors"]))
 
 
 def fire_alerts(filtered):
@@ -600,7 +617,7 @@ def _scan_worker(store, ws_tf, ws_key):
                 if not e_:
                     continue
                 if e_.get("plan"):
-                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "plan", "score", "max", "tv", "spark")})
+                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")})
                 # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
@@ -722,7 +739,7 @@ def _spark_svg(vals, pl, long_, w=64, h=20):
     return f"<img width='{w}' height='{h}' src='data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}'/>"
 
 
-TT_OPTIONS = {"All": "الكل", "Scalp": "سكالب", "Day Trade": "داي تريد", "Swing": "سوينج", "Position": "بوزيشن"}
+TT_OPTIONS = {"All": ("All", "الكل"), "Scalp": ("Scalp", "سكالب"), "Day Trade": ("Day trade", "داي تريد"), "Swing": ("Swing", "سوينج"), "Position": ("Position", "بوزيشن")}   # (English, Arabic): pick with _ui_lang()
 
 
 def _strength_bar(pct):
@@ -747,12 +764,12 @@ def mini_scanner_html(mini, side="All", ttype="All", n=7):
         pct = round(100 * e.get("score", 0) / max(1, e.get("max", 7)))
         strat = "".join(f"<a class='tg' href='{html.escape(e.get('tv', '#'), quote=True)}' target='_blank' rel='noopener noreferrer' "
                         f"title='{html.escape(t[3] if len(t) > 3 else '', quote=True)}' style='background:{html.escape(t[1])};color:{html.escape(t[2])}'>{html.escape(t[0])}</a>"
-                        for t in e.get("tags", [])[:4]) or "-"
+                        for t in (e.get("tags") if _ui_lang() == "ar" else (e.get("tags_en") or []))[:4]) or "-"   # tags_en: English text + tooltip (the payload itself is Arabic)
         rows.append(
             "<tr>"
             f"<td><b>{html.escape(e['symbol'])}</b> <span style='color:#848e9c'>{html.escape(str(e.get('tfk', '')))}</span></td>"
             f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
-            f"<td style='color:#f0b90b'>{html.escape(str(e.get('trade', '')))}</td>"
+            f"<td style='color:#f0b90b'>{html.escape(str(e.get('trade', '')) if _ui_lang() == 'ar' else trade_name(str(e.get('ttype', '')), False))}</td>"
             f"<td>{strat}</td><td>{_spark_svg(e.get('spark'), pl, long_)}</td>"
             f"<td style='color:#f6465d'>{fmt_price(pl['stop'])}</td>"
             f"<td style='color:#0ecb81'>{fmt_price(pl['tps'][0])}</td>"
@@ -762,7 +779,7 @@ def mini_scanner_html(mini, side="All", ttype="All", n=7):
         if len(rows) >= n:
             break
     if not rows:
-        return "<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>لا توجد صفقات جاهزة الآن</div>"
+        return f"<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>{'لا توجد صفقات جاهزة الآن' if _ui_lang() == 'ar' else 'No ready trades right now'}</div>"
     return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Type</th><th>Setup</th><th>Shape</th><th>SL</th><th>TP1</th><th>Strength</th><th></th></tr>"
             + "".join(rows) + "</table></div>")
 
@@ -810,7 +827,7 @@ def render_header():
                 dom = url.split("//", 1)[-1].split("/", 1)[0].replace("www.", "")
                 if name == "Finviz Patterns":
                     links.append({"name": "Finviz", "url": url, "icon": site_icon_b64_uri("finviz.com"),
-                                  "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+                                  "patterns": [{"name": L(k), "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
                 else:
                     links.append({"name": name, "url": url, "icon": site_icon_b64_uri(dom)})
             try:
@@ -1132,7 +1149,7 @@ def _office_bars(rows, title):
     df["label"] = df["label"].map(L)
     df["after_costs"] = df["net"].apply(lambda v: "above the cost" if v > 0 else "below the cost")
     bars = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
-        x=alt.X("label:N", sort=None, title=None), y=alt.Y("avgR:Q", title="avg R"),
+        x=alt.X("label:N", sort=None, title=None), y=alt.Y("avgR:Q", title=L("avg R")),
         color=alt.Color("after_costs:N", scale=alt.Scale(domain=["above the cost", "below the cost"], range=["#2dd4bf", "#f87171"]), legend=None),
         tooltip=["label", "n", "avgR", "net"])
     cost = alt.Chart(_pd.DataFrame({"y": [_OK.COST_R]})).mark_rule(strokeDash=[6, 4], color="#f0b429").encode(y="y:Q")
@@ -1280,7 +1297,8 @@ def _bt_agent(sym, tf):
         st.caption(L("Assumptions / not testable here") + ": " + " · ".join(ans["assumptions"]))
     st.code(SR.to_json(ans["strategy"]) if not ans["errors"] else json.dumps(ans["strategy"], ensure_ascii=False, indent=1), language="json")
     if ans["errors"]:
-        st.warning(" · ".join(ans["errors"]))
+        from modules import office_ui as _OU
+        st.warning(" · ".join(_OU.rule_error(x, _ui_lang() == "ar") for x in ans["errors"]))
         return
     b = st.columns([1.4, 1, 3])
     if b[0].button(L("Test the agent's rules"), type="primary", key="bt_agent_run"):
@@ -1292,6 +1310,7 @@ def _bt_agent(sym, tf):
 def _bt_run_show(strat, sym, tf):
     """Run one strategy on real candles and show the verdict (out-of-sample), metrics, split and equity curve."""
     from modules import strategy_rules as SR, strategy_bt as BT
+    from modules import office_ui as _OU   # also registers the Arabic for the backtest note and chart labels
     from modules.market_cache import get_klines
     side = strat["side"]
     try:
@@ -1308,16 +1327,17 @@ def _bt_run_show(strat, sym, tf):
     m[3].metric(L("Verdict"), L(ev.get("badge", "not evidence")))
     m[4].metric(L("In-sample (info)"), f"{ins.get('n', 0)} · " + ("-" if not ins.get("n") else f"{ins['net_expectancy_r']:+.3f}R"))
     sp = res.get("split") or {}
-    st.caption(L("Split frozen before any trade") + f": in-sample {sp.get('in_sample_bars')} / out-of-sample {sp.get('out_of_sample_bars')} " + L("candles")
+    st.caption(L("Split frozen before any trade") + f": {L('in-sample')} {sp.get('in_sample_bars')} / {L('out-of-sample')} {sp.get('out_of_sample_bars')} " + L("candles")
                + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
     seq = [("in-sample", v) for v in ins.get("net_r", [])] + [("out-of-sample", v) for v in res.get("net_r", [])]
     if seq:   # equity curve in R after costs: in-sample first (information), then the out-of-sample part the verdict uses
         import altair as alt
         import pandas as _pd
-        eq = _pd.DataFrame(seq, columns=["part", "net R"]); eq["trade"] = range(1, len(eq) + 1); eq["cumulative net R"] = eq["net R"].cumsum()
-        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x="trade:Q", y="cumulative net R:Q",
-                        color=alt.Color("part:N", scale=alt.Scale(domain=["in-sample", "out-of-sample"], range=["#93c5fd", "#2dd4bf"])),
-                        tooltip=["trade", "part", "net R", "cumulative net R"]).properties(height=240), use_container_width=True)
+        _cp, _cr, _ct, _cc = L("part"), L("net R"), L("trade"), L("cumulative net R")   # column names shown in the chart and its tooltip
+        eq = _pd.DataFrame([(L(p_), v) for p_, v in seq], columns=[_cp, _cr]); eq[_ct] = range(1, len(eq) + 1); eq[_cc] = eq[_cr].cumsum()
+        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x=alt.X(f"{_ct}:Q"), y=alt.Y(f"{_cc}:Q"),
+                        color=alt.Color(f"{_cp}:N", scale=alt.Scale(domain=[L("in-sample"), L("out-of-sample")], range=["#93c5fd", "#2dd4bf"])),
+                        tooltip=[_ct, _cp, _cr, _cc]).properties(height=240), use_container_width=True)
 
 
 _RULE_IND = {"close": ("Close", "الإغلاق"), "open": ("Open", "الافتتاح"), "high": ("High", "القمة"), "low": ("Low", "القاع"), "volume": ("Volume", "الفوليوم"),
@@ -1342,7 +1362,7 @@ def _office_backtest():
     c = st.columns([1.2, 0.8, 0.8, 0.8, 1])
     sym = c[0].text_input(L("Symbol"), "BTC-USDT", key="bt_sym")
     tf = c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="bt_tf")   # the labels the data feeds use (see _CS_TFS)
-    side = c[2].selectbox(L("Side"), list(SR.SIDES), key="bt_side")
+    side = c[2].selectbox(L("Side"), list(SR.SIDES), format_func=L, key="bt_side")
     logic = c[3].selectbox(L("Logic"), list(SR.LOGIC), key="bt_logic")
     name = c[4].text_input(L("Name"), "my rule", key="bt_name")
     _bt_agent(sym, tf)
@@ -1370,7 +1390,8 @@ def _office_backtest():
     with st.expander("JSON", expanded=False):
         st.code(SR.to_json(strat) if not errs else str(strat), language="json")
     if errs:
-        st.error(" · ".join(errs))
+        from modules import office_ui as _OU
+        st.error(" · ".join(_OU.rule_error(x, _ui_lang() == "ar") for x in errs))
         return
     b = st.columns([1, 1, 4])
     if b[0].button(L("Save rule"), key="bt_save"):
@@ -1403,19 +1424,21 @@ def _office_lab():
     first = [k for k in lab if k.startswith("Gann zone trades OUT OF SAMPLE")] + [k for k in lab if k.startswith("Gann time cycles")] + \
             [k for k in lab if k.startswith("Gann astro")] + [k for k in lab if k.startswith("Trend filter")]
     filt = [k for k in flt if k.startswith("Filter on/off backtest")]
+    from modules import office_ui as _OU
+    _la = _ui_lang() == "ar"
     for k in first[:1]:
-        with st.expander(k, expanded=True):
-            st.markdown(lab[k])
+        with st.expander(_OU.lab_title(k, _la), expanded=True):
+            st.markdown(_OU.lab_md(lab[k], _la, L))
     for k in filt:
         with st.expander(L("Group-A filters ON vs OFF (item 1)"), expanded=True):
-            st.markdown(flt[k])
+            st.markdown(_OU.lab_md(flt[k], _la, L))
     for k in first[1:]:
-        with st.expander(k, expanded=False):
-            st.markdown(lab[k])
+        with st.expander(_OU.lab_title(k, _la), expanded=False):
+            st.markdown(_OU.lab_md(lab[k], _la, L))
     rest = [k for k in lab if k not in first]
     if rest:
-        pick = st.selectbox(L("More tables"), rest, key="lab_more")
-        st.markdown(lab[pick])
+        pick = st.selectbox(L("More tables"), rest, key="lab_more", format_func=lambda k_: _OU.lab_title(k_, _la))
+        st.markdown(_OU.lab_md(lab[pick], _la, L))
 
 
 def _strat_name(k):
@@ -1508,7 +1531,7 @@ def _office_detector():
         st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Frozen holdout on older candles (1d)'))}</div>", unsafe_allow_html=True)
         st.markdown("<div class='xo-row'>" + U.indicators(L("Holdout") + f" · {len(ho['per_symbol'])} " + L("symbols"), [
             ("n", hr["n"], L("signals"), None),
-            (L("net") + " avg R", f"{hr['net_avgR']:+.3f}", L("gross") + f" {hr['gross_avgR']:+.3f}", "ok" if hr["net_avgR"] > 0 else "bad"),
+            (L("net avg R"), f"{hr['net_avgR']:+.3f}", L("gross") + f" {hr['gross_avgR']:+.3f}", "ok" if hr["net_avgR"] > 0 else "bad"),
             (L("Random entries"), f"{hr['random_avgR']:+.3f}", L("gross avg R of random direction on the same bars"), "warn"),
             ("t", f"{hr['t_vs_random']}", L("vs random; the bar is 3"), "bad" if hr["t_vs_random"] <= 3 else "ok"),
             (L("Halves"), f"{hr['h1']['net_avgR']:+.3f} / {hr['h2']['net_avgR']:+.3f}", L("net, first / second half"), None),
@@ -1525,8 +1548,9 @@ def _office_detector():
             x=alt.X("tf:N", sort=order, title=None), y=alt.Y("net:Q", title=L("net") + " R"),
             color=alt.condition("datum.net > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["tf", "n", "net", "vs_random"]
         ).properties(height=200), use_container_width=True)
-    df = df.assign(win=df["win"].map(lambda w: None if w is None else f"{w:.0f}%"), gate=df["gate"].map(lambda g: L("passed") if g else "-"))
-    st.dataframe(df.rename(columns={"tf": L("Timeframe"), "side": L("Side"), "win": L("Win rate"), "net": L("net"), "vs_random": L("vs random"), "gate": L("Gate")}),
+    df = df.assign(win=df["win"].map(lambda w: None if w is None else f"{w:.0f}%"), gate=df["gate"].map(lambda g: L("passed") if g else "-"),
+                   side=df["side"].map(L), tf=df["tf"].map(L))
+    st.dataframe(df.rename(columns={"tf": L("Timeframe"), "side": L("Side"), "win": L("Win rate"), "avgR": L("avg R"), "net": L("net"), "vs_random": L("vs random"), "gate": L("Gate")}),
                  hide_index=True, use_container_width=True)
     st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
 
@@ -1596,26 +1620,29 @@ def _office_options():
     st.dataframe(df, hide_index=True, use_container_width=True)
     # plain reading of the nearest expiry: description, never a signal
     lines = []
+    _oa = _ui_lang() == "ar"
+    _ot = lambda e, a: a if _oa else e   # English / Arabic text of this reading, chosen by the site language
     if near["pc_oi"]:
-        lines.append(f"نسبة puts / calls بالـ open interest لأقرب استحقاق ({near['exp']}) = {near['pc_oi']}: " +
-                     ("puts أكتر من calls؛ غالباً حماية ومراكز هيدج، مش رهان هابط بالضرورة." if near["pc_oi"] > 1.1 else
-                      "calls أكتر من puts؛ بيحصل مع التفاؤل أو مع بيع calls مغطاة، مش بالضرورة صعود." if near["pc_oi"] < 0.8 else "متوازنة تقريباً."))
+        lines.append(_ot(f"Put / call ratio by open interest for the nearest expiry ({near['exp']}) = {near['pc_oi']}: ", f"نسبة puts / calls بالـ open interest لأقرب استحقاق ({near['exp']}) = {near['pc_oi']}: ") +
+                     (_ot("more puts than calls; often protection and hedge positions, not necessarily a bearish bet.", "puts أكتر من calls؛ غالباً حماية ومراكز هيدج، مش رهان هابط بالضرورة.") if near["pc_oi"] > 1.1 else
+                      _ot("more calls than puts; seen with optimism or with covered-call selling, not necessarily a rise.", "calls أكتر من puts؛ بيحصل مع التفاؤل أو مع بيع calls مغطاة، مش بالضرورة صعود.") if near["pc_oi"] < 0.8 else _ot("roughly balanced.", "متوازنة تقريباً.")))
     if near["max_pain"] and s["spot"]:
         dist = (near["max_pain"] / s["spot"] - 1) * 100
-        lines.append(f"الـ max pain = {near['max_pain']:,.0f} ({dist:+.1f}% عن السعر). نظرية الشد ناحيته بتبقى ذات معنى في آخر يوم أو يومين قبل الاستحقاق بس.")
+        lines.append(_ot(f"Max pain = {near['max_pain']:,.0f} ({dist:+.1f}% from the price). The pull toward it tends to matter only in the last day or two before expiry.",
+                         f"الـ max pain = {near['max_pain']:,.0f} ({dist:+.1f}% عن السعر). نظرية الشد ناحيته بتبقى ذات معنى في آخر يوم أو يومين قبل الاستحقاق بس."))
     wk = next((e for e in ex if e["days"] >= 7 and e["skew10"] is not None), None)   # the 1-day wings are illiquid, so skew is read from >= 7 days
     if wk:
-        lines.append(f"السكيو لاستحقاق {wk['exp']} (IV بوت 10% تحت ناقص IV كول 10% فوق) = " + f"{wk['skew10']:+.1f}: " +
-                     ("السوق بيدفع أكتر للحماية من النزول." if wk["skew10"] > 3 else "السوق بيدفع أكتر للصعود." if wk["skew10"] < -3 else "مفيش ميل واضح."))
+        lines.append(_ot(f"Skew for the {wk['exp']} expiry (put IV 10% below minus call IV 10% above) = ", f"السكيو لاستحقاق {wk['exp']} (IV بوت 10% تحت ناقص IV كول 10% فوق) = ") + f"{wk['skew10']:+.1f}: " +
+                     (_ot("the market pays more for protection against a fall.", "السوق بيدفع أكتر للحماية من النزول.") if wk["skew10"] > 3 else _ot("the market pays more for upside.", "السوق بيدفع أكتر للصعود.") if wk["skew10"] < -3 else _ot("no clear tilt.", "مفيش ميل واضح.")))
     if rk:
-        lines.append(f"الـ IV rank سنة = {rk['rank']:.0f}% (الـ DVOL {rk['now']} بين أقل {rk['min']} وأعلى {rk['max']}): " +
-                     ("التقلب الضمني رخيص نسبياً مقارنة بالسنة؛ الأوبشنز غير غالية، والسوق مش مسعّر توتر." if rk["rank"] < 25 else
-                      "التقلب الضمني غالي نسبياً؛ السوق مسعّر توتر أو حدث." if rk["rank"] > 75 else "وسط السنة.") + " (وصف، مش إشارة.)")
+        lines.append(_ot(f"IV rank over one year = {rk['rank']:.0f}% (DVOL {rk['now']} between a low of {rk['min']} and a high of {rk['max']}): ", f"الـ IV rank سنة = {rk['rank']:.0f}% (الـ DVOL {rk['now']} بين أقل {rk['min']} وأعلى {rk['max']}): ") +
+                     (_ot("implied volatility is cheap relative to the year; options are not expensive and the market is not pricing stress.", "التقلب الضمني رخيص نسبياً مقارنة بالسنة؛ الأوبشنز غير غالية، والسوق مش مسعّر توتر.") if rk["rank"] < 25 else
+                      _ot("implied volatility is expensive relative to the year; the market is pricing stress or an event.", "التقلب الضمني غالي نسبياً؛ السوق مسعّر توتر أو حدث.") if rk["rank"] > 75 else _ot("mid-range for the year.", "وسط السنة.")) + _ot(" (A description, not a signal.)", " (وصف، مش إشارة.)"))
     ivs = [e for e in ex if e["iv"] and e["days"] >= 1]
     if len(ivs) >= 3:
-        lines.append("هيكل الـ IV: " + ("مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير." if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
-                                       "طبيعي (البعيد أغلى): هدوء نسبي." if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else "مسطح."))
-    st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'><b>قراءة أقرب استحقاق (سياق مش إشارة)</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
+        lines.append(_ot("IV structure: ", "هيكل الـ IV: ") + (_ot("inverted (near expiries cost more than far ones): the market is tense in the short term.", "مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير.") if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
+                                       _ot("normal (far expiries cost more): relative calm.", "طبيعي (البعيد أغلى): هدوء نسبي.") if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else _ot("flat.", "مسطح.")))
+    st.markdown(f"<div class='xo-card' dir='{'rtl' if _oa else 'ltr'}' style='line-height:24px'><b>" + _ot("Reading of the nearest expiry (context, not a signal)", "قراءة أقرب استحقاق (سياق مش إشارة)") + "</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
     st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 
@@ -1654,9 +1681,14 @@ def _office_flow_lab():
     import pandas as _pd
     from modules import flow_log as FL, office_ui as U
     st.markdown(U.CSS, unsafe_allow_html=True)
-    st.markdown("<div class='xo-card' dir='rtl' style='line-height:25px'><b>الفكرة:</b> الدفتر والشريط ما لهمش تاريخ طويل نختبر عليه، فبنختبرهم <b>للأمام</b>: "
-                "الـ collector بيسجل كل ثواني مؤشرات الدفتر والشريط، والحكم بيقيس عائد السعر بعدها بـ 5 ثواني و30 ثانية و5 دقايق وساعة، "
-                "بقواعد مجمدة، بعد التكلفة، ومقارنة بإشارة عشوائية. القاعدة تعدّي بس لو <b>n ≥ 100 ، t > 3 ، والنصين موجبين</b>.</div>", unsafe_allow_html=True)
+    if _ui_lang() == "ar":
+        st.markdown("<div class='xo-card' dir='rtl' style='line-height:25px'><b>الفكرة:</b> الدفتر والشريط ما لهمش تاريخ طويل نختبر عليه، فبنختبرهم <b>للأمام</b>: "
+                    "الـ collector بيسجل كل ثواني مؤشرات الدفتر والشريط، والحكم بيقيس عائد السعر بعدها بـ 5 ثواني و30 ثانية و5 دقايق وساعة، "
+                    "بقواعد مجمدة، بعد التكلفة، ومقارنة بإشارة عشوائية. القاعدة تعدّي بس لو <b>n ≥ 100 ، t > 3 ، والنصين موجبين</b>.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='xo-card' dir='ltr' style='line-height:25px'><b>The idea:</b> the order book and the tape have no long history to test on, so they are tested <b>forward</b>: "
+                    "the collector records the book and tape indicators every few seconds, and the judge measures the price return 5 seconds, 30 seconds, 5 minutes and one hour later, "
+                    "with frozen rules, after costs, and against a random-sign control. A rule passes only if <b>n ≥ 100, t > 3 and both halves are positive</b>.</div>", unsafe_allow_html=True)
     _flow_zone_section()
     up = st.file_uploader(L("Flow log (.jsonl)"), type=["jsonl", "json", "txt"], key="fl_up")
     rows = []
@@ -1704,9 +1736,11 @@ def _office_flow_lab():
 def _office_flow_manual():
     """Technical Office > Flow manual: chartless methods (order book, tape, funding / OI, options) - what each measures, how to read it,
     how it is used, where it breaks, the evidence, which tool shows it, the daily routine and the forward-test protocol."""
-    from modules import flow_manual as FM, office_ui as U
+    from modules import flow_manual as _FMM, office_ui as U
+    from modules.i18n import lang as _lang
+    _ar = _lang() == "ar"; _dir = "rtl" if _ar else "ltr"; FM = type("FM", (), _FMM.get(_ar))
     st.markdown(U.CSS, unsafe_allow_html=True)
-    st.markdown("<div class='xo-card' dir='rtl' style='line-height:26px'><b style='font-size:16px'>الخلاصة: نعتمد عليها بإيه؟</b><br>"
+    st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:26px'><b style='font-size:16px'>" + ("الخلاصة: نعتمد عليها بإيه؟" if _ar else "Bottom line: what can we rely on them for?") + "</b><br>"
                 + "<br>".join("• " + x for x in FM.HEADLINE) + "</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Tools we have and their limits'))}</div>", unsafe_allow_html=True)
     st.markdown(U.table([L("Tool"), L("Shows"), L("Where"), L("Data"), L("Limits")], [[f"<b>{U.esc(a)}</b>", U.esc(b), U.esc(c), U.esc(d), U.esc(e)] for a, b, c, d, e in FM.TOOLS]), unsafe_allow_html=True)
@@ -1714,18 +1748,18 @@ def _office_flow_manual():
     for m in FM.METHODS:
         tt, tone = FM.TIERS[m["tier"]]
         with st.expander(m["title"] + " — " + tt.split(" · ")[0], expanded=False):
-            st.markdown(f"<div dir='rtl' style='line-height:25px'>{U.badge(tt, tone)}<br><b>بيقيس:</b> {U.esc(m['measures'])}<br><b>إزاي تقراه:</b><ol style='margin:4px 0'>"
-                        + "".join(f"<li>{U.esc(x)}</li>" for x in m["read"]) + f"</ol><b>الاستخدام:</b> {U.esc(m['setup'])}<br><b>بيفشل فين:</b> {U.esc(m['fails'])}<br>"
-                        f"<b>الدليل:</b> {U.esc(m['evidence'])}<br><b>الداتا عندنا:</b> {U.esc(m['data'])}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div dir='{_dir}' style='line-height:25px'>{U.badge(tt, tone)}<br><b>{'بيقيس:' if _ar else 'Measures:'}</b> {U.esc(m['measures'])}<br><b>{'إزاي تقراه:' if _ar else 'How to read it:'}</b><ol style='margin:4px 0'>"
+                        + "".join(f"<li>{U.esc(x)}</li>" for x in m["read"]) + f"</ol><b>{'الاستخدام:' if _ar else 'How it is used:'}</b> {U.esc(m['setup'])}<br><b>{'بيفشل فين:' if _ar else 'Where it fails:'}</b> {U.esc(m['fails'])}<br>"
+                        f"<b>{'الدليل:' if _ar else 'Evidence:'}</b> {U.esc(m['evidence'])}<br><b>{'الداتا عندنا:' if _ar else 'Our data:'}</b> {U.esc(m['data'])}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Daily routine'))}</div>", unsafe_allow_html=True)
     st.markdown(U.table([L("Step"), L("What to do")], [[f"<b>{U.esc(a)}</b>", U.esc(b)] for a, b in FM.ROUTINE]), unsafe_allow_html=True)
     a, b = st.columns(2)
     with a:
         st.markdown(f"<div class='xo-h'>{html.escape(L('Forward test: how a flow signal earns trust'))}</div>", unsafe_allow_html=True)
-        st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'>" + "<br>".join(f"{i}. {U.esc(x)}" for i, x in enumerate(FM.FORWARD_TEST, 1)) + "</div>", unsafe_allow_html=True)
+        st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:24px'>" + "<br>".join(f"{i}. {U.esc(x)}" for i, x in enumerate(FM.FORWARD_TEST, 1)) + "</div>", unsafe_allow_html=True)
     with b:
         st.markdown(f"<div class='xo-h'>{html.escape(L('What is still missing'))}</div>", unsafe_allow_html=True)
-        st.markdown("<div class='xo-card' dir='rtl' style='line-height:24px'>" + "<br>".join("• " + U.esc(x) for x in FM.MISSING) + "</div>", unsafe_allow_html=True)
+        st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:24px'>" + "<br>".join("• " + U.esc(x) for x in FM.MISSING) + "</div>", unsafe_allow_html=True)
     st.caption(L("Research sources are named per method (OPENED = read in full, otherwise a search snippet or background knowledge). Educational, not investment advice."))
 
 
@@ -1736,22 +1770,31 @@ def _office_strategy_map():
     from modules import office_kpi as _OK, office_ui as U, strategy_map as _SM
     st.markdown(U.CSS, unsafe_allow_html=True)
     lab = _OK.load()
-    st.markdown(
-        "<div class='xo-card' dir='rtl' style='line-height:24px'><b>القاعدة:</b> المؤشر قياس واحد (RSI مثلاً)، والكاشف حدث بيظهر على شمعة (زي FVG)، "
-        "والاستراتيجية مجموعة أجزاء كل جزء ليه وظيفة: <b>سياق ← إعداد ← زناد ← فلتر ← خروج ← حجم</b>. "
-        "<b>جزء واحد لكل وظيفة، وجزء واحد لكل عنقود</b>: لو اتنين بيقيسوا نفس الشيء فالتاني تكرار مش تأكيد. "
-        "مستوى الدليل مكتوب لكل استراتيجية بصراحة، والأرقام جاية من المعمل الأسبوعي بس.</div>", unsafe_allow_html=True)
+    from modules.i18n import lang as _lang
+    _ar = _lang() == "ar"; _dir = "rtl" if _ar else "ltr"
+    if _ar:
+        st.markdown(
+            "<div class='xo-card' dir='rtl' style='line-height:24px'><b>القاعدة:</b> المؤشر قياس واحد (RSI مثلاً)، والكاشف حدث بيظهر على شمعة (زي FVG)، "
+            "والاستراتيجية مجموعة أجزاء كل جزء ليه وظيفة: <b>سياق ← إعداد ← زناد ← فلتر ← خروج ← حجم</b>. "
+            "<b>جزء واحد لكل وظيفة، وجزء واحد لكل عنقود</b>: لو اتنين بيقيسوا نفس الشيء فالتاني تكرار مش تأكيد. "
+            "مستوى الدليل مكتوب لكل استراتيجية بصراحة، والأرقام جاية من المعمل الأسبوعي بس.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<div class='xo-card' dir='ltr' style='line-height:24px'><b>The rule:</b> an indicator is one measurement (RSI, for example), a detector is an event that shows on a candle (like FVG), "
+            "and a strategy is a set of parts where each part has a job: <b>context → setup → trigger → filter → exit → size</b>. "
+            "<b>One part per job, and one part per cluster</b>: if two measure the same thing, the second is a repeat, not a confirmation. "
+            "The evidence level is stated openly for each strategy, and the numbers come only from the weekly lab.</div>", unsafe_allow_html=True)
     # 1. clusters
     st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Clusters: what repeats what'))}</div>", unsafe_allow_html=True)
     rows = []
-    for cl, (name, meas, rule) in _SM.CLUSTERS.items():
+    for cl, (name, meas, rule) in _SM.clusters(_ar).items():
         mem = _SM.members(lab, cl); best = _SM.cluster_best(lab, cl)
-        names = " · ".join(m["name"] for m in mem)
+        names = " · ".join(_SM.comp_name(m["id"], _ar) for m in mem)
         if best:
             bb = best["best"]
-            rep = f"{U.esc(best['name'])} {U.esc(bb['tf'])} · {bb['net']:+.3f}R · n {bb['n']}" + ("" if bb["net"] > 0 else f" <span style='color:#f87171'>({html.escape(L('below the cost'))})</span>")
+            rep = f"{U.esc(_SM.comp_name(best['id'], _ar))} {U.esc(bb['tf'])} · {bb['net']:+.3f}R · n {bb['n']}" + ("" if bb["net"] > 0 else f" <span style='color:#f87171'>({html.escape(L('below the cost'))})</span>")
         else:
-            rep = "<span style='color:#a3adba'>مفيش عضو بـ n ≥ 100</span>"
+            rep = "<span style='color:#a3adba'>" + ("مفيش عضو بـ n ≥ 100" if _ar else "No member with n ≥ 100") + "</span>"
         rows.append([f"<b>{U.esc(name)}</b>", U.esc(meas), U.esc(names), rep, U.esc(rule)])
     st.markdown(U.table([L("Cluster"), L("Measures"), L("Members"), L("Strongest member (lab, n >= 100)"), L("Redundancy rule")], rows), unsafe_allow_html=True)
     # 2. agreement between detectors + does stacking help
@@ -1769,20 +1812,20 @@ def _office_strategy_map():
         st.caption(L("Rows without opposing signals. More agreeing families gave no clear improvement (4+ was the worst row), and every row with n >= 100 is below zero after costs."))
     # 3. strategies
     st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Strategies as parts by role'))}</div>", unsafe_allow_html=True)
-    names = {b["id"]: b["name"] for b in _SM.BLUEPRINTS}
+    names = {b["id"]: _SM.bp_text(b["id"], _ar)["name"] for b in _SM.BLUEPRINTS}
     pick = st.selectbox(L("Strategy"), list(names), format_func=names.get, key="sm_pick")
-    bp = _SM.BP[pick]
-    ev_t, ev_tone = _SM.EVIDENCE[bp["evidence"]]
-    st.markdown(f"<div class='xo-row'><div class='xo-card' dir='rtl' style='flex:1 1 100%'><b style='font-size:16px'>{U.esc(bp['name'])}</b> "
-                f"{U.badge(L(bp['style']), 'info')} {U.badge(ev_t, ev_tone)}<div class='xo-sub' style='margin-top:6px'>{U.esc(bp['evidence_note'])}</div></div></div>", unsafe_allow_html=True)
+    bp = _SM.BP[pick]; bpt = _SM.bp_text(pick, _ar)
+    ev_t, ev_tone = _SM.evidence(_ar)[bp["evidence"]]
+    st.markdown(f"<div class='xo-row'><div class='xo-card' dir='{_dir}' style='flex:1 1 100%'><b style='font-size:16px'>{U.esc(bpt['name'])}</b> "
+                f"{U.badge(L(bp['style']), 'info')} {U.badge(ev_t, ev_tone)}<div class='xo-sub' style='margin-top:6px'>{U.esc(bpt['evidence_note'])}</div></div></div>", unsafe_allow_html=True)
     prow = []
-    for role, cid, note in bp["parts"]:
+    for (role, cid, _note_ar), note in zip(bp["parts"], bpt["parts"]):
         c = _SM.component(cid); card = _OK.detector_card(lab, c["src"][1]) if c["src"][0] == "lab" and not c["src"][1].startswith("chain:") and lab else {}
         bb = card.get("best")
-        prow.append([U.esc(_SM.ROLES[role].split(" (")[0]), f"<b>{U.esc(c['name'])}</b>", U.esc(_SM.CLUSTERS[c["cluster"]][0]), U.esc(note),
+        prow.append([U.esc(_SM.roles(_ar)[role].split(" (")[0]), f"<b>{U.esc(_SM.comp_name(cid, _ar))}</b>", U.esc(_SM.clusters(_ar)[c["cluster"]][0]), U.esc(note),
                      f"{U.esc(bb['tf'])} {bb['net']:+.3f}R · n {bb['n']}" if bb else "<span style='color:#a3adba'>-</span>"])
     st.markdown(U.table([L("Role"), L("Part"), L("Cluster"), L("What it does here"), L("Lab (best timeframe)")], prow), unsafe_allow_html=True)
-    for w in _SM.check(bp["parts"]) + ([bp["warn"]] if bp.get("warn") else []):
+    for w in _SM.check(bp["parts"], _ar) + ([bpt["warn"]] if bpt.get("warn") else []):
         st.warning(w)
     if bp.get("lab"):
         lr = []
@@ -1805,9 +1848,9 @@ def _office_strategy_map():
             _bt_run_show(bp["rules"], sym, tf)
         st.caption(L("Exploratory run: every variant you try counts as another trial. A real verdict needs a frozen out-of-sample window recorded in the meeting room before the run. Exit here = the engine's standard ATR stop and 1.5R target."))
     else:
-        st.info(bp.get("needs", ""))
+        st.info(bpt.get("needs") or "")
     # 4. gaps
-    gp = _SM.gaps(lab)
+    gp = _SM.gaps(lab, _ar)
     if gp:
         st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Gaps: where the dashboard is thin'))}</div>", unsafe_allow_html=True)
         st.markdown(U.table([L("Cluster"), L("Gap")], [[U.esc(n), U.esc(t)] for n, t in gp]), unsafe_allow_html=True)
@@ -1836,12 +1879,15 @@ def _playbook_doc():
         return
     keys = list(pb)
     top = [k for k in keys if k.startswith("Schools ranked")] + [k for k in keys if k.startswith("Operating model")] + [k for k in keys if k.startswith("Lab results")]
+    from modules import office_ui as _OU
+    _pa = _ui_lang() == "ar"
+    _cl = (lambda x: x) if _pa else _OU.en_only   # English page: no quoted Arabic term from the source document
     for i, k in enumerate(top):
-        with st.expander(k, expanded=i == 0):
-            st.markdown(pb[k])
-    pick = st.selectbox(L("Section"), [k for k in keys if k not in top], key="pb_more")
+        with st.expander(_cl(_OU.lab_title(k, _pa)), expanded=i == 0):
+            st.markdown(_cl(_OU.lab_md(pb[k], _pa, L)))
+    pick = st.selectbox(L("Section"), [k for k in keys if k not in top], key="pb_more", format_func=lambda k_: _cl(_OU.lab_title(k_, _pa)))
     if pick:
-        st.markdown(pb[pick])
+        st.markdown(_cl(_OU.lab_md(pb[pick], _pa, L)))
 
 
 def _playbook_styles():
@@ -1878,8 +1924,9 @@ def _playbook_schools():
     pb = _md_sections("STRATEGIES.md")
     k = [x for x in pb if x.startswith("Schools ranked")]
     if k:
-        with st.expander(k[0], expanded=True):
-            st.markdown(pb[k[0]])
+        from modules import office_ui as _OU
+        with st.expander(_OU.lab_title(k[0], _ui_lang() == "ar"), expanded=True):
+            st.markdown(_OU.lab_md(pb[k[0]], _ui_lang() == "ar", L))
 
 
 def _playbook_rules():
@@ -1895,7 +1942,7 @@ def _playbook_rules():
         (L("Last lab run"), s.get("built") or "-", f"{s.get('symbols', 0)} " + L("symbols"), "info")]) + "</div>", unsafe_allow_html=True)
     if tod:
         st.markdown(f"**{L('Timing from the lab (UTC session and weekday, every detector pooled)')}**")
-        st.markdown(tod)
+        st.markdown(U.lab_md(tod, _ui_lang() == "ar", L))
 
 
 def render_playbook_page():
@@ -2015,7 +2062,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         sflags, ssides = strategy_flags(df, _peers_for(sym, tf, pfr))
         flags = sorted(f["flags"] | sflags | move_flags(df))
         try:
-            expl = _CX.explain(df, flags)   # hover text: chart pattern, candle psychology, EMAs
+            expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
         out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
@@ -2175,39 +2222,44 @@ def _htf_trend(symbols: tuple, tf: str):
 
 
 _TREND_AR = {"up": "صاعد ↑", "down": "هابط ↓", "mixed": "مختلط ↔"}
+_TREND_EN = {"up": "Up ↑", "down": "Down ↓", "mixed": "Mixed ↔"}
 
 
 def _hover_panel(sym, tf, d, ladder, card_full=""):
     """The text that opens when the mouse is on a Radar chart: timeframe ladder, chart patterns, candles, EMAs, signals,
-    lab evidence and the trade card - plain Arabic, so the tile itself stays clean (owner 2026-10-22)."""
+    lab evidence and the trade card - plain language in the page language (Arabic or English), so the tile itself stays clean (owner 2026-10-22)."""
     from modules.chart_scan import ALL_FILTERS as _AF
+    ar_ = _ui_lang() == "ar"
     ex = d.get("explain") or {}
+    ex = ex.get("ar" if ar_ else "en", ex if "patterns" in ex else {})   # cached as both languages; an older flat dict is used as is
     e = html.escape
     parts = []
     lad = [(t, ladder.get(t, {}).get(sym)) for t in _LADDER.get(tf, ())] + [(tf, d.get("trend"))]
     trs = [x for _t, x in lad if x]
     agree = len(trs) > 1 and len(set(trs)) == 1 and trs[0] != "mixed"
-    parts.append("<b>تدرج الفريمات (من الأكبر):</b> " + " ← ".join(f"{t}: {_TREND_AR.get(x, '-')}" for t, x in lad)
-                 + ("<br><span style='color:#5eead4'>الفريمات متفقة: الدخول مع الاتجاه أقوى.</span>" if agree else
-                    "<br><span style='color:#f0b429'>الفريمات مش متفقة: الفريم الأكبر هو اللي يحكم، والصغير للتوقيت بس.</span>" if len(set(trs)) > 1 else ""))
+    parts.append(_xl("<b>تدرج الفريمات (من الأكبر):</b> ", "<b>Timeframe ladder (largest first):</b> ") + " ← ".join(f"{t}: {(_TREND_AR if ar_ else _TREND_EN).get(x, '-')}" for t, x in lad)
+                 + ((_xl("<br><span style='color:#5eead4'>الفريمات متفقة: الدخول مع الاتجاه أقوى.</span>", "<br><span style='color:#5eead4'>The timeframes agree: an entry with the trend is stronger.</span>")) if agree else
+                    _xl("<br><span style='color:#f0b429'>الفريمات مش متفقة: الفريم الأكبر هو اللي يحكم، والصغير للتوقيت بس.</span>",
+                        "<br><span style='color:#f0b429'>The timeframes disagree: the larger one decides, the smaller one is for timing only.</span>") if len(set(trs)) > 1 else ""))
     for name, psy, conf in ex.get("patterns", []):
-        parts.append(f"<b>نموذج الشارت: {e(name)}</b><br>{e(psy)}<br><span style='color:#a3adba'>التأكيد: {e(conf)}</span>")
+        parts.append(f"<b>{_xl('نموذج الشارت', 'Chart pattern')}: {e(name)}</b><br>{e(psy)}<br><span style='color:#a3adba'>{_xl('التأكيد', 'Confirmation')}: {e(conf)}</span>")
     for name, psy, bias in ex.get("candles", []):
         c = "#0ecb81" if bias == "buy" else "#f6465d" if bias == "sell" else "#a3adba"
-        parts.append(f"<b style='color:{c}'>الشمعة: {e(name)}</b><br>{e(psy)}")
+        parts.append(f"<b style='color:{c}'>{_xl('الشمعة', 'Candle')}: {e(name)}</b><br>{e(psy)}")
     if ex.get("ema"):
-        parts.append("<b>المتوسطات:</b><br>" + "<br>".join(e(x) for x in ex["ema"]))
-    sig = [_CX.FLAG_AR.get(k, L(_AF[k])) for k in d["flags"]   # EMA position / stacks are in the EMA block, patterns above
+        parts.append(_xl("<b>المتوسطات:</b><br>", "<b>Moving averages:</b><br>") + "<br>".join(e(x) for x in ex["ema"]))
+    sig = [_CX.flag_name(k, L(_AF[k])) for k in d["flags"]   # EMA position / stacks are in the EMA block, patterns above
            if k in _AF and not k.startswith(("px_", "ma_", "cp_", "chan_", "tl_", "dbl_", "stack_", "above_all", "below_all"))]
     if sig:
-        parts.append("<b>إشارات تانية:</b> " + e(" · ".join(sig[:10])))
+        parts.append(_xl("<b>إشارات تانية:</b> ", "<b>Other signals:</b> ") + e(" · ".join(sig[:10])))
     ev = _radar_evidence(d["flags"], tf)
     if ev:
         parts.append(ev)
     if card_full:
-        parts.append("<b>كارت الصفقة:</b><br>" + card_full)
-    parts.append("<span style='color:#848e9c'>النموذج والشمعة = الانحياز المعروف في الكتب، مش دليل مقاس. تعليمي، مش توصية.</span>")
-    return "<div class='xr-tip' dir='rtl'>" + "<hr>".join(parts) + "</div>"
+        parts.append(_xl("<b>كارت الصفقة:</b><br>", "<b>Trade card:</b><br>") + card_full)
+    parts.append("<span style='color:#848e9c'>" + _xl("النموذج والشمعة = الانحياز المعروف في الكتب، مش دليل مقاس. تعليمي، مش توصية.",
+                                                     "Pattern and candle = the textbook bias, not a measured edge. Educational, not advice.") + "</span>")
+    return f"<div class='xr-tip' dir='{'rtl' if ar_ else 'ltr'}'{'' if ar_ else chr(32) + 'style=' + chr(34) + 'text-align:left' + chr(34)}>" +"<hr>".join(parts) + "</div>"
 
 
 _QUICK_CHIPS = [   # (filter key, icon, short name): the same keys as the dropdown filters, one click each (owner 2026-10-23: shapes and colours, not only buttons)
@@ -2217,7 +2269,12 @@ _QUICK_CHIPS = [   # (filter key, icon, short name): the same keys as the dropdo
     ("stack_bull", "🐂", "Bull stack"), ("stack_bear", "🐻", "Bear stack"), ("above_all", "☁️", "Above EMAs"), ("below_all", "🌧️", "Below EMAs"),
     ("st_elliott", "🌊", "Elliott"), ("st_msb", "🧱", "SMC MSB+OB"), ("st_unicorn", "🦄", "Unicorn"), ("st_ob", "📦", "Order block"),
 ]
-_QUICK_LBL = {k: f"{i} {n}" for k, i, n in _QUICK_CHIPS}
+_QUICK_NAME = {k: (i, n) for k, i, n in _QUICK_CHIPS}
+
+
+def _quick_lbl(k):
+    i, n = _QUICK_NAME[k]
+    return f"{i} {L(n)}"
 
 _RADAR_CSS = """<style>
 .xr-tile{position:relative}
@@ -2435,7 +2492,7 @@ def render_radar_screener(f):
         return
     rows = []
     for sym, d in data.items():
-        sig = [CS_SHORT.get(k, k) for k in d["flags"] if k in ALL_FILTERS]
+        sig = [(_CX.FLAG_AR[k] if _ui_lang() == "ar" and k in _CX.FLAG_AR else L(CS_SHORT.get(k, k))) for k in d["flags"] if k in ALL_FILTERS]
         rows.append({"Symbol": sym, "Price": d["price"], "Change %": d.get("chg"), "20-bar %": d.get("chg20"), "RSI": d["rsi"],
                      "Volume ×avg": d.get("volx"), "ATR %": d.get("atrp"), "Trend": d.get("trend"), "Signals": len(sig), "Which": " · ".join(sig[:8])})
     df = _pd.DataFrame(rows)
@@ -2500,7 +2557,7 @@ def _radar_filters(view):
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
         r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
-        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_QUICK_LBL.get, key="cs_quick", label_visibility="collapsed")
+        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_quick_lbl, key="cs_quick", label_visibility="collapsed")
         with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
             r1 = st.columns([1.3, 1.1])
             look = r1[0].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
@@ -2637,7 +2694,10 @@ def render_chart_scanner(f):
     shown = shown[:int(n_show)]
     # task 17 (spec 25): a setup is "confirmed" when every chosen condition holds (match = All selected), otherwise "candidate"; never an order
     def setup_tag(d):   # per chart, from its own conditions
-        return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
+        return ("<span title='" + _xl("مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ",
+                                      "Confirmed: every chosen condition holds. Candidate: only some of them. Not an order.")
+                + "' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>"
+                + (_xl("مؤكد", "Confirmed") if _confirmed(d) else _xl("مرشح", "Candidate")) + "</span>")
     per_row = int(f.get("cols", 6))   # wide screens: the owner's screen is wide, so six charts per row by default
     st.markdown(_RADAR_CSS, unsafe_allow_html=True)
     _top = [s for s, d_ in shown[:3] if nsel and _confirmed(d_)]
@@ -2697,7 +2757,7 @@ def render_chart_scanner(f):
                 if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
                     with st.popover("⋯", use_container_width=True):
                         st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", help=L("Own timeframe for this chart (— = same as the top Timeframe)"))
-                        _an = st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)"))
+                        _an = st.checkbox(_xl("التحليل", "Analysis"), key=f"cs_an_{sym}_{tf_x}", help=_xl("تحليل بلغة بسيطة للإعداد ده (زي تاب الكريبتو)", "Plain-language analysis of this setup (same as the Crypto tab)"))
                 if _an:
                     try:
                         r_ = _cs_result(sym, tf_x)
@@ -2766,7 +2826,7 @@ def _academy_path():
         gc = AC.GRADE[c_["grade"]]
         with mid:
             st.markdown(f"<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{e(c_['title'])}</span>"
-                        f"<span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(c_['grade'])}</span>"
+                        f"<span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(c_.get('grade_label', c_['grade']))}</span>"
                         f"<span class='ac-small'>{e(L('Level'))} {c_['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</span></div>", unsafe_allow_html=True)
             items = []
             for a in c_["arts"]:
@@ -2824,7 +2884,7 @@ def _academy_refs():
     if gen:
         st.markdown(f"**{L('Our review')}** · {L('general findings')}")
         for l_ in gen:
-            vl, vc = AC.VERDICT[l_["verdict"]]
+            vl, vc = AC.verdict_label(l_["verdict"])
             with st.expander(f"[{vl}] {l_['title']}"):
                 st.markdown(l_["summary"])
                 st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
@@ -2849,11 +2909,11 @@ def _academy_refs():
     cnt = {}
     for c in R["claims"]:
         cnt[c["verdict"]] = cnt.get(c["verdict"], 0) + 1
-    st.markdown(UK.panel(L("Claim verdicts"), UK.donut([(AC.CLAIM_VERDICT[k][0], v, AC.CLAIM_VERDICT[k][1]) for k, v in cnt.items()], center=str(len(R["claims"])))), unsafe_allow_html=True)
+    st.markdown(UK.panel(L("Claim verdicts"), UK.donut([(AC.claim_verdict_label(k)[0], v, AC.CLAIM_VERDICT[k][1]) for k, v in cnt.items()], center=str(len(R["claims"])))), unsafe_allow_html=True)
     for c in R["claims"]:
-        vl, vc = AC.CLAIM_VERDICT[c["verdict"]]
+        vl, vc = AC.claim_verdict_label(c["verdict"])
         with st.expander(f"[{vl}] {c['claim'][:110]}"):
-            st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span><span class='uk-chip'>{e(str(c.get('origin', '')))}</span><span class='uk-chip'>{e(str(c.get('where', '')))}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span><span class='uk-chip'>{e(AC.origin_label(c.get('origin', '')))}</span><span class='uk-chip'>{e(str(c.get('where', '')))}</span></div>", unsafe_allow_html=True)
             st.markdown(c.get("evidence", ""))
             if c.get("note"):
                 st.markdown(f"**{L('What to do')}:** {c['note']}")
@@ -2909,7 +2969,7 @@ def _academy_schools():
                         tag = f"<div class='uk-chipbar' style='margin:0 0 3px'><span class='uk-chip' style='border-color:{tc};color:{tc}'>{e(L('Bullish') if side == 'bull' else L('Bearish'))}</span></div>"
                     col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
             st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
-            st.warning(AC.LAB_NOTE)
+            st.warning(AC.lab_note())
             md = lambda t: t.replace(chr(10), "  " + chr(10))
             dp = DEEP.get(pick)
             if dp:
@@ -2946,7 +3006,7 @@ def _academy_schools():
                 if not x["review"]:
                     st.caption(L("No school-specific review yet; the general findings are in the References tab."))
                 for l_ in x["review"]:
-                    stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
+                    stl, stc = AC.status_label(l_["status"]); vl, vc = AC.verdict_label(l_["verdict"])
                     st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span></div>"
                                 f"<div style='font-weight:700;margin:6px 0'>{e(l_['title'])}</div>", unsafe_allow_html=True)
                     st.markdown(l_["summary"])
@@ -3010,7 +3070,7 @@ if PAGE == 0:   # workspace
         world_items, world_errs = _bg("world", _world_news, ([], ["world news loading..."]))
         ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
         ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
-                         "patterns": [{"name": k, "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
+                         "patterns": [{"name": L(k), "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
         _yf = {}
         if any(x.startswith("Y:") for x in ACTIVE_SYMBOLS):
             def _yf_job(syms=tuple(ACTIVE_SYMBOLS)):
@@ -3036,9 +3096,9 @@ if PAGE == 0:   # workspace
         except Exception:
             pass
         if world_errs:
-            st.caption("World Monitor feeds unavailable: " + ", ".join(world_errs[:4]))
+            st.caption(L("World Monitor feeds unavailable:") + " " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):
-            st.caption("Scan problems: " + " | ".join(cached_ws["errs"][:3]))
+            st.caption(L("Scan problems:") + " " + " | ".join(L(x_) for x_ in cached_ws["errs"][:3]))
         st.caption(L("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
                    "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
                    "Data comes straight from OKX in your browser, no refresh needed."))
@@ -3120,14 +3180,15 @@ def render_kpi_strip(jdf):
     c[0].metric(L("Trades"), k["n"])
     c[1].metric(L("Win rate"), f"{k['win_rate']*100:.0f}%" if k["n"] else "–")
     c[2].metric(L("Expectancy (R)"), f"{k['expectancy_r']:+.2f}" if k["n"] else "–")
-    c[3].metric("Profit factor", ("∞" if k["profit_factor"] == float("inf") else f"{k['profit_factor']:.2f}") if k["n"] else "–")
+    c[3].metric(L("Profit factor"), ("∞" if k["profit_factor"] == float("inf") else f"{k['profit_factor']:.2f}") if k["n"] else "–")
     c[4].metric(L("Max drawdown (R)"), f"{k['max_dd_r']:.1f}" if k["n"] else "–")
     c[5].metric(L("After costs (R)"), f"{k['net_expectancy_r']:+.2f}" if k["n"] else "–")
     st.caption(L("Costs = {c} R per trade (planning estimate, not measured). Grey = under {n} trades, not evidence.").format(c=COST_R, n=GATE_N))
     for key, label in (("symbol", L("By symbol")), ("strategy", L("By strategy"))):
         if key in jdf.columns:
             st.markdown(f"**{label}**")
-            st.dataframe(breakdown(jdf, key), hide_index=True)
+            _bd = breakdown(jdf, key).assign(badge=lambda x: x["badge"].map(L))
+            st.dataframe(_bd.rename(columns={key: L("Symbol" if key == "symbol" else "Strategy"), "win_rate": L("Win rate"), "expectancy_r": L("Expectancy (R)"), "badge": L("Evidence")}), hide_index=True)
 
 
 def _stats_lab():
@@ -3152,7 +3213,7 @@ def _stats_lab():
     rows = _OK.top_rows(d)
     fmt = lambda v, p="+.3f": "-" if v is None else format(v, p)
     st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Strongest detector x timeframe (n >= 100), by net avg R'))}</div>", unsafe_allow_html=True)
-    st.markdown(U.table([L("Detector"), L("Timeframe"), L("School"), "n", L("Win rate"), "avg R", L("net"), L("vs random"), "t", L("Gate")],
+    st.markdown(U.table([L("Detector"), L("Timeframe"), L("School"), "n", L("Win rate"), L("avg R"), L("net"), L("vs random"), "t", L("Gate")],
                         [[U.esc(r["key"]), U.esc(r["tf"]), U.esc(L(r["school"] or "-")), r["n"], "-" if r["win"] is None else f"{r['win']:.0f}%",   # the lab stores win as a percent
                           fmt(r["avgR"]), fmt(r["net"]), fmt(r["vs_random"]), fmt(r["t"], ".2f"),
                           U.badge(L("passed") if r["gate"] else (L("no t yet") if r["t"] is None else L("not yet")), "ok" if r["gate"] else "warn")]
@@ -3174,7 +3235,7 @@ def _stats_journal_kpis(jdf):
     st.markdown(U.CSS + "<div class='xo-row'>" + U.indicators(L("Journal in R"), [
         (L("Trades"), j["n"], L("closed"), None),
         (L("Win rate"), f"{j['win']*100:.0f}%", "", None),
-        ("avg R", f"{j['avgR']:+.3f}", L("net") + f" {j['net']:+.3f}", "ok" if j["net"] > 0 else "bad"),
+        (L("avg R"), f"{j['avgR']:+.3f}", L("net") + f" {j['net']:+.3f}", "ok" if j["net"] > 0 else "bad"),
         (L("Profit factor"), "-" if j["pf"] is None else j["pf"], L("gains / losses"), "ok" if (j["pf"] or 0) > 1 else "bad"),
         (L("Max drawdown"), f"{j['maxdd']}R", L("from the equity peak"), "warn" if j["maxdd"] < 0 else None),
         ("t", "-" if j["t"] is None else j["t"], L("evidence needs t > 3 and n >= 100"), "ok" if (j["t"] or 0) > 3 and j["n"] >= 100 else None),

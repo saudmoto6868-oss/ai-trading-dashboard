@@ -27,7 +27,12 @@ def test_doji_inside_and_texts():
     d = _df([(100, 102, 98, 100.05), (100.2, 101, 99, 100.1)])
     out = X.candles(d)
     assert "inside" in out
-    ex = X.explain(pd.concat([d] * 3, ignore_index=True), ["cp_hs", "tl_up", "rsi_lt30"])
+    d3 = pd.concat([d] * 3, ignore_index=True)
+    en = X.explain(d3, ["cp_hs", "tl_up", "rsi_lt30"])   # default language is English
+    assert [p[0] for p in en["patterns"]] == ["Head and shoulders", "Falling trendline broken upward"]
+    import re
+    assert not re.search("[؀-ۿ]", repr(en)) and all(k in X.CANDLE_EN for k in out)
+    ex = X.explain(d3, ["cp_hs", "tl_up", "rsi_lt30"], ar=True)
     assert [p[0] for p in ex["patterns"]] == ["رأس وكتفين", "كسر خط الترند الهابط لفوق"]
     assert ex["ema"] and all(isinstance(s, str) for s in ex["ema"])
     assert all(k in X.CANDLE_AR for k in out)

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "note": "English version of data/academy.json (our review of the Academy content and Grok's conversation): overlay by lesson id, same shape. Educational, not investment advice.",
+  "lessons": [
+    {
+      "id": "of-tools-reliability",
+      "title": "Order flow tools: what can we trust?",
+      "verdict_note": "Consistent with what we built in the Workspace (the order book gets pulled, executed trades are more honest). The ratings (high / medium) are the source's opinion from blog posts, not something we measured. The forward test of the zones has not produced a verdict yet.",
+      "summary": "Executed trades (Time & Sales) and delta are more honest than the order book (DOM) because resting orders get pulled. The proposed logic: a level fixed in advance, then price arrives, then absorption, then entry.",
+      "points": [
+        "DOM: the liquidity standing right now. Relatively lower trust because those orders get pulled.",
+        "Time & Sales: who actually traded. High trust.",
+        "Order tracker (PLACED / PULLED / FILLED): separates an order that was executed from one that was pulled. Medium trust because snapshots come only about every 20 seconds.",
+        "Heatmap: liquidity over time. Medium trust.",
+        "Footprint and delta: the aggression inside the candle. High trust when aggressor data exists.",
+        "Pressure counter: net of the last two minutes. Good for timing."
+      ],
+      "caveats": [
+        "Every rating comes from educational sources and was not measured on our data.",
+        "A full traditional footprint (bid x ask at every price) is not complete on every market in our data."
+      ]
+    },
+    {
+      "id": "layers-not-votes",
+      "title": "Layers, not votes: the decision chain",
+      "verdict_note": "The idea is reasonable, but the sentence \"more than 4 families hurts\" is attributed to the lab and I am not sure of it: my review of the lab found that not one row of the lab's chains passes the gate, so there is no positive evidence for any chain. Treat it as a hypothesis to test.",
+      "summary": "Instead of counting how many indicators agree, go in order: market state, then the higher timeframe, then location (level / zone), then the trigger, then order flow, then timing, then the plan.",
+      "points": [
+        "Each layer answers a different question and must pass before the next one.",
+        "Many agreeing families are not necessarily stronger evidence if they measure the same thing.",
+        "The Radar applies this gradually: a market-state strip, filters, and trade cards for the confirmed ones."
+      ],
+      "caveats": [
+        "We have no test showing that this ordering raises profit."
+      ]
+    },
+    {
+      "id": "sessions-killzones",
+      "title": "Sessions and Kill Zones (Asia, London, New York)",
+      "verdict_note": "The times come from educational ICT blogs and we have no statistical test showing that this timing makes a difference. Do not treat it as a rule before we test it on our own data. Caution: the times are New York time and shift with daylight saving.",
+      "summary": "Asia builds a range, London sweeps liquidity or makes the first move, the London-New York overlap has the highest liquidity, and New York continues or reverses.",
+      "points": [
+        "Asia is about 20:00-00:00 New York time.",
+        "London (Kill Zone) is about 02:00-05:00.",
+        "New York morning is about 07:00-10:00, and the overlap is about 08:00-12:00.",
+        "The Workspace already has session boxes and Kill Zones."
+      ],
+      "caveats": [
+        "The times are approximate and differ between sources.",
+        "Do not treat it as a profit filter before testing."
+      ]
+    },
+    {
+      "id": "claim-check-lab",
+      "title": "Claim check: \"the lab's best strategies\"",
+      "verdict_note": "Grok listed as best: turtle55, sma1040, liqline 1d, m2022 1d and ohl_break 1d, and said the Lab has no costs. My review: the cost exists (0.1R) and not one of the detectors passes the gate (n >= 100, t > 3, positive net, both halves positive). The detector rows have no t at all (0 of 186), and the chain rows do have t (221) and none of them passes. The first frozen test (holdout) is not evidence either. So this ranking must not be shown as evidence. One more note: the docs/academy/ai files carry lab_status: primary_candidate for trend and per_pattern for harmonic. That means under test, not success.",
+      "summary": "The numbers in the conversation about \"the best\" must not be turned into a recommendation. Our yardstick is the statistical gate in the lab, and so far no detector has passed it.",
+      "points": [
+        "The gate: n >= 100, t > 3, positive net after cost, and both halves positive.",
+        "The cost charged is 0.1R per trade.",
+        "Lab detectors: 0 of 186 have a t-stat. Chains: 221 have a t, and none passes."
+      ],
+      "caveats": [
+        "If the lab is re-run with more markets the result may change. It must be reviewed again."
+      ]
+    }
+  ]
+}

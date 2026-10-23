@@ -168,10 +168,12 @@ def component(cid: str) -> dict:
     return {"id": cid, "name": n, "kind": kind, "cluster": cl, "roles": roles, "src": src}
 
 
-def check(parts) -> list:
+def check(parts, ar: bool = True) -> list:
     """Redundancy / completeness warnings for a strategy's parts [(role, component id, note)] - Arabic, empty list = clean.
     Rules: at most one part per cluster (a repeat adds no information); a trigger or setup is required; an exit or sizing is advised.
     A component's `roles` are advisory (shown in the map), not enforced here."""
+    if not ar:
+        return check_en(parts)
     out, seen_cluster = [], {}
     for role, cid, _n in parts:
         c = component(cid)
@@ -225,8 +227,10 @@ def stacking(lab: dict) -> list:
     return out
 
 
-def gaps(lab: dict) -> list:
+def gaps(lab: dict, ar: bool = True) -> list:
     """Roles / clusters with no member that has evidence-size lab data and a positive net: where the dashboard is thin."""
+    if not ar:
+        return gaps_en(lab)
     out = []
     for cl, (name, _m, _r) in CLUSTERS.items():
         mem = members(lab, cl)
@@ -240,4 +244,157 @@ def gaps(lab: dict) -> list:
             out.append((name, "ولا عضو فيه n ≥ 100 وصافيه موجب"))
         if any(m["src"][0] in ("live", "data") for m in mem):
             out.append((name, "فيه بيانات عندنا (لايف / مصدر) مش متوصلة بالاختبار"))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# English version (one language at a time: owner rule 2026-10-23). The Arabic tables above are unchanged; English lives in the
+# *_EN tables below and the accessors pick by language. ar=None follows the site language (modules.i18n.lang()).
+# check() and gaps() keep Arabic as their default so existing callers and tests are unchanged.
+# ---------------------------------------------------------------------------------------------------------------------------
+ROLES_EN = {"context": "Context (trend / regime)", "setup": "Setup (a favourable place)", "trigger": "Trigger (entry timing)",
+            "filter": "Filter (when to avoid)", "exit": "Exit", "sizing": "Position size"}
+
+EVIDENCE_EN = {"peer": ("Published and peer reviewed", "ok"), "blog": ("Blogs / books only", "warn"), "folk": ("Widely used, no published test", "warn"),
+               "measured": ("Measured by our lab", "info")}
+
+CLUSTERS_EN = {
+    "trend_ma": ("Trend by moving averages", "Direction of the closing price after smoothing (lagging)", "SMA, EMA, MACD, MA crosses and MA stacking are all the same idea; take one."),
+    "breakout": ("Range breakout", "A break of the highest / lowest price of the last N candles", "Donchian, Turtle, level break and trendline break are the same idea with different numbers; take one."),
+    "momentum": ("Momentum", "Speed of change (overbought / oversold) and its divergence from price", "RSI, Stochastic, CCI and ROC measure the same thing; take one. (MACD-hist is counted in the Trend by moving averages cluster.)"),
+    "volatility": ("Volatility", "Size of the move (for stop, size and squeeze)", "ATR, Bollinger width and Keltner range are all volatility; take one."),
+    "trend_strength": ("Trend strength", "Whether there is a trend at all (not its direction)", "ADX is a market-regime filter, not a second confirmation of direction."),
+    "volume": ("Volume and flow", "Who is pushing the price (volume, delta, footprint)", "Relative volume, OBV and CMF are close to each other; the footprint is live only."),
+    "structure": ("Market structure", "A confirmed break of a high / low (MSS / CHoCH / BOS)", "All are names for the same highs-and-lows logic; take one."),
+    "zones": ("Imbalance zones", "A prior impulse zone price returns to (FVG / OB / Breaker / Unicorn)", "All are shapes of the same idea (an impulse zone); take one."),
+    "liquidity": ("Liquidity", "A sweep of an obvious high / low followed by a return (Sweep / CRT / liquidity line)", "Sweep, CRT and the liquidity line are the same event on a different range."),
+    "retrace": ("Retracement", "A retracement level of a swing (Fibonacci / OTE / discount-premium)", "All are ratios on the same swing; take one."),
+    "time": ("Time and sessions", "Timing (London / New York / Kill Zone)", "A timing filter; not a signal by itself."),
+    "waves": ("Waves and patterns", "Counting waves or a geometric shape (Elliott / harmonic / channel / triangle)", "Subjective and plentiful; all are treated as a setup, not a trigger."),
+    "intermarket": ("Intermarket", "Divergence between correlated markets (SMT)", "Context; does not duplicate the other clusters."),
+    "macro": ("Economy and news", "Calendar, funding, news", "An avoid-filter and context; not a trigger."),
+}
+
+COMPONENTS_EN = {
+    "sma": "SMA moving average", "ema": "EMA moving average", "macd_hist": "MACD histogram", "rsi": "RSI", "roc": "Rate of change (ROC)",
+    "atr": "ATR", "bbw": "Bollinger width", "adx": "ADX", "hh": "Donchian channel (highest / lowest N)", "volume": "Volume",
+    "ma_cross": "Moving-average cross", "ema_stack": "Moving-average stacking", "sma1040": "SMA 10/40 (hedge funds)", "vwap": "VWAP",
+    "donch": "Compound Donchian", "turtle55": "Turtle 55", "breakout": "Breakout", "level": "Level", "ohl_open": "Open level (OHL)",
+    "ohl_break": "OHL break", "tlbreak": "Trendline break", "rsi_div": "RSI divergence", "macd_div": "MACD divergence",
+    "msb_ob": "MSB + order block", "cisd": "CISD (change in state of delivery)", "m2022": "ICT 2022 model", "fvg": "FVG gap",
+    "ob": "Order block", "breaker": "Breaker block", "unicorn": "Unicorn", "sweep": "Liquidity sweep", "liqline": "Liquidity line",
+    "crt": "CRT", "zombie": "Zombie", "fib": "Fibonacci", "ote": "OTE zone", "judas": "Judas swing", "sess_amd": "Session AMD",
+    "kzs": "Kill Zone sniper", "po3": "Power of Three", "orb": "Opening range breakout", "ew3": "Elliott wave 3", "abc": "ABC correction",
+    "smt": "SMT between markets", "footprint": "Footprint / delta / order book", "funding": "Funding rate", "calendar": "Economic calendar",
+    "htf": "Higher-timeframe trend",
+}
+
+# live / data component sources (the 'src' text of the context components)
+SRC_EN = {
+    "footprint": "Live only: no long history to test on",
+    "funding": "OKX / Hyperliquid; not wired to the lab yet",
+    "calendar": "Wired to the Radar (a strong news event within an hour)",
+}
+
+# blueprint id -> English text; "parts" notes are in the same order as the Arabic parts
+BP_EN = {
+    "connors_rsi2": {"name": "Connors RSI2 (pullback inside a trend)",
+                     "evidence_note": "Blog / book tests on stocks and indices; weak on crypto, and short-term mean-reversion results are mixed.",
+                     "parts": ["Close above SMA 200: a big uptrend", "RSI(2) below 10: a sharp short pullback",
+                               "Close above SMA 5 (the original; our backtest uses an ATR stop and an R target)"]},
+    "turtle": {"name": "Turtle: Donchian breakout",
+               "evidence_note": "Books and historical experiments; there is general academic support for trend following, but the rule itself is not published with a recent test after costs.",
+               "parts": ["Close breaks the highest of 55 candles", "Position size by the ATR value (N)", "A break of the lowest of 20 candles (the original)"]},
+    "tsmom": {"name": "Time-series momentum",
+              "evidence_note": "Moskowitz-Ooi-Pedersen 2012 (Journal of Financial Economics): the last 12 months' return predicts next month's return across many contracts. Here is a short version because we have only about 300 candles.",
+              "parts": ["100-candle return positive (a short substitute for 12 months)", "Close above SMA 100", "Volatility-based size (a fixed volatility target)"],
+              "warn": "ROC and the moving average sit in two different clusters but both measure trend; in practice this is one repeated part. The original version uses only the sign of the 12-month return."},
+    "squeeze": {"name": "Bollinger squeeze then breakout",
+                "evidence_note": "Books and blogs (Bollinger / Carter); volatility clustering itself is well documented, but this rule has no published test.",
+                "parts": ["Bollinger width(20) narrower than its width(100): a squeeze", "Close breaks the highest of 20 candles"]},
+    "ma_adx": {"name": "Moving-average cross + ADX filter",
+               "evidence_note": "MA crosses have old studies (Brock et al. 1992) whose profits faded after costs (Park-Irwin 2007); ADX as a filter is blog-level.",
+               "parts": ["EMA 20 crosses EMA 50", "ADX above 20: there is a trend at all"]},
+    "macd_ema200": {"name": "MACD + EMA 200 (an example of a weak combination)",
+                    "evidence_note": "A common recipe; both come from the same cluster (trend by moving averages), so the second confirmation adds no new information.",
+                    "parts": ["Close above EMA 200", "MACD histogram crosses zero"]},
+    "ict_chain": {"name": "ICT / SMC chain",
+                  "evidence_note": "Widely used with no published peer-reviewed test; we only have the weekly lab test (a 5-layer chain).",
+                  "parts": ["Higher-timeframe trend", "Liquidity sweep", "CISD / structure break", "Return to an FVG gap", "Inside a Kill Zone", "The opposite liquidity"],
+                  "needs": "Measured in the weekly lab (grade A+++ = 5 layers), not in the rule engine."},
+    "crt": {"name": "CRT: a sweep of the higher-timeframe candle range",
+            "evidence_note": "Used among ICT traders; no published test.",
+            "parts": ["The higher-timeframe candle (4H / 1H)", "A sweep of its high or low", "Close returns inside the range", "The other end of the range"],
+            "needs": "Needs two timeframes in one rule (our rules are single-timeframe), and it is measured in the lab."},
+    "triple": {"name": "Elder: the Triple Screen",
+               "evidence_note": "Elder's book 'Trading for a Living'; no published peer-reviewed test.",
+               "parts": ["Weekly-timeframe trend", "A pullback on the daily against the trend", "A break of the previous candle's high on 4H"],
+               "needs": "Needs multiple timeframes inside a single rule; that is the next development of the rule engine."},
+}
+
+
+def _ar(ar):
+    if ar is None:
+        from modules.i18n import lang
+        return lang() == "ar"
+    return bool(ar)
+
+
+def roles(ar: bool | None = None) -> dict:
+    return ROLES if _ar(ar) else ROLES_EN
+
+
+def evidence(ar: bool | None = None) -> dict:
+    return EVIDENCE if _ar(ar) else EVIDENCE_EN
+
+
+def clusters(ar: bool | None = None) -> dict:
+    return CLUSTERS if _ar(ar) else CLUSTERS_EN
+
+
+def comp_name(cid: str, ar: bool | None = None) -> str:
+    return COMPONENTS[cid][0] if _ar(ar) else COMPONENTS_EN[cid]
+
+
+def bp_text(bid: str, ar: bool | None = None) -> dict:
+    """Language-specific text of one blueprint: {name, evidence_note, parts: [notes in parts order], warn, needs} (warn / needs may be absent)."""
+    b = BP[bid]
+    if _ar(ar):
+        return {"name": b["name"], "evidence_note": b["evidence_note"], "parts": [n for _r, _c, n in b["parts"]], "warn": b.get("warn"), "needs": b.get("needs")}
+    e = BP_EN[bid]
+    return {"name": e["name"], "evidence_note": e["evidence_note"], "parts": e["parts"], "warn": e.get("warn"), "needs": e.get("needs")}
+
+
+def check_en(parts) -> list:
+    """English version of check()."""
+    out, seen_cluster = [], {}
+    for role, cid, _n in parts:
+        k = component(cid)["cluster"]
+        if k in seen_cluster and seen_cluster[k] != cid:
+            out.append(f"\"{COMPONENTS_EN[cid]}\" and \"{COMPONENTS_EN[seen_cluster[k]]}\" come from the same cluster ({CLUSTERS_EN[k][0]}): a repeat, take one.")
+        seen_cluster.setdefault(k, cid)
+    roles_ = {r for r, _c, _n in parts}
+    if "trigger" not in roles_ and "setup" not in roles_:
+        out.append("No trigger and no setup: the strategy is incomplete.")
+    if not roles_ & {"exit", "sizing"}:
+        out.append("No exit and no position size: incomplete (the backtest uses an ATR stop and a uniform R target).")
+    return out
+
+
+def gaps_en(lab: dict) -> list:
+    """English version of gaps()."""
+    out = []
+    for cl, (_n, _m, _r) in CLUSTERS.items():
+        name = CLUSTERS_EN[cl][0]
+        mem = members(lab, cl)
+        if not mem:
+            continue
+        lab_mem = [m for m in mem if m["src"][0] == "lab"]
+        best = cluster_best(lab, cl)
+        if not lab_mem and any(m["src"][0] == "rule" for m in mem):
+            out.append((name, "Indicators in the rule engine only; no weekly test for them yet"))
+        elif lab_mem and (not best or best["best"]["net"] <= 0):
+            out.append((name, "No member has n ≥ 100 with a positive net"))
+        if any(m["src"][0] in ("live", "data") for m in mem):
+            out.append((name, "We have data (live / a source) that is not wired to the test"))
     return out

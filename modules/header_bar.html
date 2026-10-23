@@ -84,6 +84,7 @@
 </div>
 <script>
 const CFG = __CONFIG__;
+const HL = (e, a) => CFG.ar ? a : e;   // one language at a time: English text in English mode, Arabic in Arabic mode
 const $ = id => document.getElementById(id), esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 if (CFG.theme === "lux"){ const r = document.documentElement.style; [["--bg","#0d0c0a"],["--panel","rgba(24,21,18,.82)"],["--line","rgba(224,169,90,.20)"],["--txt","#efe6d6"],["--mut","#a8997f"],["--acc","#e0a95a"],["--logo-bg1","rgba(44,37,29,.97)"],["--logo-bg2","rgba(20,17,14,.97)"]].forEach(([k, v]) => r.setProperty(k, v));
   document.addEventListener("DOMContentLoaded", () => { const st = document.getElementById("strip"); if (st){ st.style.background = "transparent"; } }); }   // theme 1 "Less is More"
@@ -176,7 +177,12 @@ const fmtN = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour
 const tickClk = () => { const n = new Date(), k = window.innerWidth < 700 ? 5 : 8; $("tc").textContent = fmtC.format(n).slice(0, k); $("tn").textContent = fmtN.format(n).slice(0, k); };   // phones: no seconds
 tickClk(); setInterval(tickClk, 1000);
 /* ---- world map ---- */
-const CATS = {conflict:["#f6465d","Conflict / attack"], quake:["#ff9800","Earthquake"], fire:["#ffd54f","Wildfire"], storm:["#b57cff","Storm / cyclone"], volcano:["#a1887f","Volcano"], other:["#4aa3ff","Other"]};
+const CATS = {conflict:["#f6465d",HL("Conflict / attack","صراع / هجوم")], quake:["#ff9800",HL("Earthquake","زلزال")], fire:["#ffd54f",HL("Wildfire","حريق غابات")], storm:["#b57cff",HL("Storm / cyclone","عاصفة / إعصار")], volcano:["#a1887f",HL("Volcano","بركان")], other:["#4aa3ff",HL("Other","أخرى")]};
+{ const sv = (id, k, v) => { const e = $(id); if (e) e[k] = v; };   // static texts of the bar and the world-map popup
+  sv("tick", "title", HL("Click for the news list", "اضغط لقائمة الأخبار")); sv("bell", "title", HL("Next high-impact news (click for the calendar)", "الخبر القوي الجاي (اضغط للمفكرة)")); sv("wm", "title", HL("World map: events (Alt+W)", "خريطة العالم: الأحداث (Alt+W)")); sv("kb", "title", HL("Keyboard shortcuts", "اختصارات لوحة المفاتيح"));
+  const tg = document.querySelector("#tick .tag"); if (tg) tg.textContent = HL("NEWS ▾", "الأخبار ▾");
+  const rv = document.querySelectorAll('input[name="sv"]'); rv.forEach(r => { const t = r.nextSibling; if (t && t.nodeType === 3) t.nodeValue = r.value === "ev" ? HL("Events", "الأحداث") : HL("Economic calendar", "المفكرة الاقتصادية"); });
+  const dt = $("det"); if (dt && dt.firstChild && dt.firstChild.nodeType === 3) dt.firstChild.nodeValue = HL("Click a marker or an item: a popup opens with the news / video. ", "اضغط على علامة أو عنصر: بتفتح نافذة بالخبر / الفيديو. "); }
 const WM = {events:[], on:new Set(Object.keys(CATS)), sel:null, land:null, loaded:false, shape:null};
 $("leg").innerHTML = Object.entries(CATS).map(([k,[c,l]]) => '<label><input type="checkbox" checked data-k="'+k+'"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+c+'"></span>'+esc(l)+'</label>').join("");
 $("leg").addEventListener("change", e => { const k = e.target.dataset.k; e.target.checked ? WM.on.add(k) : WM.on.delete(k); wmDraw(); wmList(); });
@@ -207,7 +213,7 @@ $("cv").addEventListener("click", e => {
 async function wmSelect(e){
   if (!e) return; WM.sel = e; wmDraw(); wmList();
   const links = (safe(e.url) ? '<a target="_blank" rel="noopener noreferrer" href="'+esc(safe(e.url))+'">Source ↗</a> · ' : "")
-    +'<a target="_blank" rel="noopener noreferrer" href="https://news.google.com/search?q='+encodeURIComponent(e.title)+'">News ↗</a> · <a target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/results?search_query='+encodeURIComponent(e.title+" live")+'">Video ↗</a>';
+    +'<a target="_blank" rel="noopener noreferrer" href="https://news.google.com/search?q='+encodeURIComponent(e.title)+'">'+HL('News','أخبار')+' ↗</a> · <a target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/results?search_query='+encodeURIComponent(e.title+" live")+'">'+HL('Video','فيديو')+' ↗</a>';
   const pop = $("evpop"); pop.style.display = "block";
   pop.innerHTML = '<span class="x" id="evx">✕</span><h4 style="color:'+CATS[e.cat][0]+'">'+esc(e.title)+'</h4><div style="color:var(--mut);margin-bottom:6px">'+esc(CATS[e.cat][1])+' · '+esc(e.when||"")+' · '+e.lat.toFixed(2)+', '+e.lon.toFixed(2)+' · '+esc(e.src)+'</div>'+(e.desc ? '<div style="margin-bottom:6px">'+esc(e.desc)+'</div>' : "")+'<div>'+links+'</div><div id="hl" style="margin-top:8px;color:var(--mut)">Loading related headlines…</div>';
   $("evx").onclick = () => { pop.style.display = "none"; };
@@ -215,8 +221,8 @@ async function wmSelect(e){
     const q = encodeURIComponent(e.title.replace(/^M[\d.]+\s+/, "").slice(0, 80));
     const d = await jget("https://api.gdeltproject.org/api/v2/doc/doc?query="+q+"&mode=ArtList&format=json&maxrecords=6&sort=DateDesc");
     const arts = (d.articles || []).slice(0, 6);
-    $("hl").innerHTML = arts.length ? '<b style="color:var(--txt)">Related headlines</b>'+arts.map(a => '<div class="hl"><a target="_blank" rel="noopener noreferrer" href="'+esc(safe(a.url))+'">'+esc(a.title)+'</a><div style="font-size:10px">'+esc(a.domain||"")+'</div></div>').join("") : "No related headlines found.";
-  } catch(err){ const h = $("hl"); if (h) h.textContent = "Related headlines unavailable here — use the News / Video links."; }
+    $("hl").innerHTML = arts.length ? '<b style="color:var(--txt)">'+HL('Related headlines','عناوين ذات صلة')+'</b>'+arts.map(a => '<div class="hl"><a target="_blank" rel="noopener noreferrer" href="'+esc(safe(a.url))+'">'+esc(a.title)+'</a><div style="font-size:10px">'+esc(a.domain||"")+'</div></div>').join("") : "No related headlines found.";
+  } catch(err){ const h = $("hl"); if (h) h.textContent = HL("Related headlines unavailable here — use the News / Video links.","العناوين ذات الصلة مش متاحة هنا — استخدم رابطي الأخبار والفيديو."); }
 }
 function topoRings(t){   // minimal TopoJSON (world-atlas) decoder -> polygon rings in lon/lat
   const [sx,sy] = t.transform.scale, [tx,ty] = t.transform.translate;
@@ -254,8 +260,8 @@ async function calData(){
 document.querySelectorAll('input[name=sv]').forEach(r => r.onchange = () => { sideMode = r.value; if (sideMode === "cal") calLoad(); else wmList(); });
 const cairoFmt = new Intl.DateTimeFormat("en-GB", {timeZone:"Africa/Cairo", weekday:"short", hour:"2-digit", minute:"2-digit", hour12:false});
 async function calLoad(){
-  $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Loading…</div>';
-  let cal; try { cal = await calData(); } catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">Calendar feed not reachable ('+esc(e.message||e)+'). Use the ForexFactory link.</div>'; return; }
+  $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">'+HL('Loading…','جاري التحميل…')+'</div>';
+  let cal; try { cal = await calData(); } catch(e){ $("side").innerHTML = '<div style="padding:8px;color:var(--mut)">'+HL('Calendar feed not reachable ','المفكرة مش متاحة حالياً ')+'('+esc(e.message||e)+'). '+HL('Use the ForexFactory link.','استخدم رابط ForexFactory.')+'</div>'; return; }
   const now = Date.now();
   const opts = [[0, CFG.ar ? "بدون منبّه" : "no alarm"], [15, "15m"], [60, "1h"], [120, "2h"], [240, "4h"], [720, "12h"]];
   const head = '<div class="ev" style="cursor:default"><b>'+(CFG.ar ? "منبّه البث المباشر" : "Live-stream alarm")+'</b> <select id="naLead">'+opts.map(([v, t]) => '<option value="'+v+'"'+(NA.lead == v ? " selected" : "")+'>'+t+'</option>').join("")+'</select> '+
@@ -286,10 +292,10 @@ async function bellTick(){
   const b = $("bell"); b.classList.remove("hot","blink");
   const dkey = t => new Intl.DateTimeFormat("en-CA", {timeZone:"Africa/Cairo"}).format(t), hi = cal.filter(e => e.impact === "High" && e.ts > now - 300000),
     nToday = hi.filter(e => dkey(e.ts) === dkey(now)).length, nTom = hi.filter(e => dkey(e.ts) === dkey(now+86400000)).length, nWeek = hi.length;
-  const cnt = " · today "+nToday+" · tomorrow "+nTom+" · week "+nWeek;
-  if (!nx){ b.textContent = "🔔 no high-impact news"+cnt; return; }
-  const d = nx.ts - now, m = Math.round(d/60000), txt = d < 0 ? "now" : m < 60 ? m+"m" : Math.floor(m/60)+"h "+(m%60)+"m", day = new Date(nx.ts).toDateString() === new Date().toDateString() ? "today" : "later";
-  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? "NOW" : "in "+txt); b.textContent += cnt;  b.title = cairoFmt.format(nx.ts)+" Cairo — "+nx.title+" ("+day+"); high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek;
+  const cnt = HL(" · today "+nToday+" · tomorrow "+nTom+" · week "+nWeek, " · النهارده "+nToday+" · بكرة "+nTom+" · الأسبوع "+nWeek);
+  if (!nx){ b.textContent = HL("🔔 no high-impact news", "🔔 مفيش أخبار قوية")+cnt; return; }
+  const d = nx.ts - now, m = Math.round(d/60000), txt = d < 0 ? HL("now", "دلوقتي") : m < 60 ? m+HL("m", " د") : Math.floor(m/60)+HL("h ", " س ")+(m%60)+HL("m", " د"), day = new Date(nx.ts).toDateString() === new Date().toDateString() ? HL("today", "النهارده") : HL("later", "بعدين");
+  b.textContent = "🔔 "+nx.country+" "+nx.title+" · "+(d < 0 ? HL("NOW", "دلوقتي") : HL("in ", "بعد ")+txt); b.textContent += cnt;  b.title = cairoFmt.format(nx.ts)+HL(" Cairo", " بتوقيت القاهرة")+" — "+nx.title+" ("+day+") "+HL("; high-impact events: today "+nToday+", tomorrow "+nTom+", this week "+nWeek, "؛ أحداث قوية: النهارده "+nToday+"، بكرة "+nTom+"، الأسبوع ده "+nWeek);
   if (d < 3600000) b.classList.add("hot"); if (d < 900000) b.classList.add("blink");
   const k = nx.ts+"|15"; if (d < 900000 && d > 0 && !beeped[k]){ beeped[k] = 1; beep(); }
   // live-stream alarm: every high-impact event with a stream, NA.lead minutes before; at the start open the stream (or offer the button if the browser blocks it)

@@ -56,3 +56,17 @@ st = SessionStore({}); st.save(s); g = st.get("ema cross"); g["rules"].clear()
 assert st.names() == ["ema cross"] and len(st.get("ema cross")["rules"]) == 1
 st.delete("ema cross"); assert st.names() == []
 print("test_strategy_rules: all passed")
+
+# indicators added for the strategy map: no look-ahead (changing the LAST bar never changes an earlier value) and sane values
+from modules.strategy_rules import _series
+for ind, per in (("hh", 20), ("ll", 20), ("macd_hist", None), ("adx", 14), ("bbw", 20)):
+    a = _series(df, ind, per); d2 = df.copy(); d2.loc[299, ["open", "high", "low", "close"]] = 500.0
+    b = _series(d2, ind, per)
+    assert a.iloc[:299].equals(b.iloc[:299]) or np.allclose(a.iloc[:299].dropna(), b.iloc[:299].dropna()), ind
+    assert a.dropna().size > 200, ind
+assert (_series(df, "hh", 20).dropna() >= df["close"].shift(1).rolling(20).min().dropna().reindex(_series(df, "hh", 20).dropna().index)).all()
+assert 0 <= _series(df, "adx", 14).dropna().min() and _series(df, "adx", 14).dropna().max() <= 100
+brk = {"name": "donch", "side": "long", "rules": [{"indicator": "close", "op": "crosses_above", "value": {"indicator": "hh", "period": 20}}]}
+assert validate(brk) == [] and 0 < evaluate(brk, df).sum() < 40
+assert validate({"name": "m", "side": "long", "rules": [{"indicator": "macd_hist", "op": "crosses_above", "value": 0}]}) == []
+print("ok new indicators")

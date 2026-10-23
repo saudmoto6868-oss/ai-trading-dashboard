@@ -58,5 +58,16 @@ def test_path_validation_drops_bad():
     assert [x["id"] for x in A.learning_path(p)["lessons"]] == ["a"]
 
 
+def test_refs_loader():
+    R = A.refs()
+    assert len(R["sources"]) >= 6 and len(R["glossary"]) >= 12
+    assert any(x["id"] == "chatgpt" for x in R["sources"])                       # the missing ChatGPT conversation is tracked, not forgotten
+    assert all(u.startswith("https://") for c in R["claims"] for u in c["urls"])
+    p = os.path.join(tempfile.mkdtemp(), "r.json")
+    open(p, "w", encoding="utf-8").write(json.dumps({"sources": [{"id": "a", "title": "t"}], "glossary": [{"their": "x"}], "claims": [{"id": "c", "claim": "k", "verdict": "bogus"}, {"id": "d", "claim": "k", "verdict": "idea", "urls": ["http://no", "https://ok"]}]}))
+    R2 = A.refs(p)
+    assert R2["sources"] == [] and R2["glossary"] == [] and [c["id"] for c in R2["claims"]] == ["d"] and R2["claims"][0]["urls"] == ["https://ok"]
+
+
 if __name__ == "__main__":
-    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); print("ok academy")
+    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); print("ok academy")

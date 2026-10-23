@@ -940,6 +940,9 @@ ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Wo
 def render_universe_controls():
     """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
     _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
+    from modules import ui_kit as _UK
+    _u4.segmented_control(L("Theme"), list(_UK.THEMES), default="Ember", key="radar_look", label_visibility="collapsed")
+    st.markdown(_UK.css(st.session_state.get("radar_look") or "Ember"), unsafe_allow_html=True)
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -2043,6 +2046,7 @@ def _radar_state(tf, data):
             up, dn = tr.count("up"), tr.count("down")
             out["regime"] = "trend up" if up >= 0.6 * len(tr) else "trend down" if dn >= 0.6 * len(tr) else "range / mixed"
             out["regime_sub"] = f"↑{up} ↓{dn} / {len(tr)}"
+            out.update({"up": up, "dn": dn, "n": len(tr)})
     except Exception:
         pass
     now = time.time() * 1000
@@ -2499,16 +2503,28 @@ def render_chart_scanner(f):
     shown.sort(key=lambda sd: (0 if _confirmed(sd[1]) else 1, -_hits(sd[1]), sd[0]))
     # KPI strip (decision moment, owner's control-room images 2026-10-22): counts come from the charts on screen only
     n_conf = sum(1 for _s, _d in shown if _confirmed(_d)) if nsel else 0
-    k = st.columns(6)
-    k[0].metric(L("Matched"), f"{len(shown)} / {len(data)}")
-    k[1].metric(L("Confirmed"), n_conf if nsel else "-", help=L("Every chosen condition holds on this chart"))
-    k[2].metric(L("Candidates"), (len(shown) - n_conf) if nsel else "-", help=L("Some chosen conditions hold"))
     _rs = _radar_state(tf, data)
-    k[3].metric(L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], delta_color="off",
-                help=L("Share of the Radar symbols above / below their daily EMA 20 and 50"))
-    k[4].metric(L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or None, delta_color="off",
-                help=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them"))
-    k[5].metric(L("Data age"), _rs["age"], f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", delta_color="off")
+    from modules import ui_kit as _UK
+    _n_all = max(1, len(data))
+    _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
+    st.markdown(_UK.row([
+        _UK.kpi("🎯", L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", pct=100.0 * len(shown) / _n_all),
+        _UK.kpi("✅", L("Confirmed"), n_conf if nsel else "-", L("Every chosen condition holds on this chart"), tone="up" if n_conf else "", pct=(100.0 * n_conf / _n_all) if nsel else None),
+        _UK.kpi("🟡", L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("Some chosen conditions hold"), tone="warn" if nsel and len(shown) - n_conf else ""),
+        _UK.kpi("🧭", L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], tone="up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+                title=L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+        _UK.kpi("📰", L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", tone="warn" if _rs["news"] else "",
+                title=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+        _UK.kpi("⏱️", L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}"),
+    ]), unsafe_allow_html=True)
+    _cnt = [(n_, sum(1 for d_ in data.values() if k_ in d_["flags"])) for k_, _i, n_ in _QUICK_CHIPS]
+    _cnt = sorted([c_ for c_ in _cnt if c_[1]], key=lambda c_: -c_[1])[:10]
+    _tr = [_htf_trend(tuple(SCAN_SYMBOLS), "1d").get(s_) for s_ in data]
+    _mix = sum(1 for t_ in _tr if t_ == "mixed")
+    st.markdown(_UK.panel(L("Radar picture"), "<div class='uk-flex' style='gap:26px'>"
+        + _UK.donut([(L("up"), _rs.get("up", 0), _UK.UP), (L("down"), _rs.get("dn", 0), _UK.DOWN), (L("mixed"), _mix, _UK.WARN)], center=f"{_rs.get('n', 0)}")
+        + _UK.gauge(_up_pct, L("symbols in a daily up-trend"))
+        + (_UK.bars(_cnt) if _cnt else "") + "</div>"), unsafe_allow_html=True)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -2520,7 +2536,7 @@ def render_chart_scanner(f):
         return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
     per_row = 5
     st.markdown(_RADAR_CSS, unsafe_allow_html=True)
-    _top = [s for s, d_ in shown[:10] if nsel and _confirmed(d_)]
+    _top = [s for s, d_ in shown[:3] if nsel and _confirmed(d_)]
     if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
         from concurrent.futures import ThreadPoolExecutor
         try:
@@ -2554,15 +2570,16 @@ def render_chart_scanner(f):
                 n_sig = sum(1 for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_")))
                 tag = (RADAR_TAG + setup_tag(d_x)) if nsel else ""
                 card_s = card_f = ""
-                if nsel and _confirmed(d_x) and r0 + i_c < 10:   # task 17: trade card for the top 10 confirmed
+                if nsel and _confirmed(d_x) and r0 + i_c < 3:   # task 17: trade card for the top 10 confirmed
                     card_s, card_f = _trade_card(sym, tf_x, want)
                 ladder = {t: (_lad_main[t] if tf_x == tf else _htf_trend((sym,), t)) for t in _LADDER.get(tf_x, ())}
                 rsi_v = d_x["rsi"]
                 rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
                 _chg = d_x.get("chg"); _vx = d_x.get("volx")
                 from modules.symbol_icon import icon as _sic
+                _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
                 st.markdown(
-                    f"<div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
                     f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
                     f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
                     + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
@@ -2572,7 +2589,7 @@ def render_chart_scanner(f):
                     f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
                     + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
                     f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
-                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s, unsafe_allow_html=True)
+                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>", unsafe_allow_html=True)
                 if r0 + i_c < 20 and st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
                     try:
                         r_ = _cs_result(sym, tf_x)

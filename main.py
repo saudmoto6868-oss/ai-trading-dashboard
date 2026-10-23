@@ -1796,8 +1796,9 @@ def _office_strategy_map():
 def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
+            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
+            "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
@@ -2643,7 +2644,8 @@ def _ac_go(lesson_id: str, level: int):
 
 
 def _academy_path():
-    """The learning path: levels in order, one lesson at a time with its diagrams, steps, bullish / bearish setups, mistakes, where it lives in the platform, references and a short quiz."""
+    """The learning path, laid out for a wide screen (owner 2026-10-23): small chrome, large explanation, three columns on one screen:
+    lesson list | animated bullish / bearish diagrams + the idea | steps, setups, mistakes, platform, references, quiz."""
     from modules import academy as AC, academy_art as ART, ui_kit as UK
     e = html.escape
     lp = AC.learning_path()
@@ -2655,81 +2657,90 @@ def _academy_path():
     by_level = {lv["id"]: [x for x in ls if x["level"] == lv["id"]] for lv in lvs}
     n_done = sum(1 for x in ls if x["id"] in done)
     nxt = next((x for x in ls if x["id"] not in done), ls[0])
-    st.markdown(UK.row([
-        UK.kpi("🧭", L("Levels"), len(lvs), f"{len(ls)} {L('lessons')}"),
-        UK.kpi("✅", L("Done"), f"{n_done} / {len(ls)}", L("In this session"), tone="up" if n_done == len(ls) else "", pct=100.0 * n_done / len(ls)),
-        UK.kpi("➡️", L("Next lesson"), nxt["title"][:22], f"{L('Level')} {nxt['level']}"),
-        UK.kpi("📏", L("Evidence"), L("Graded"), L("Each lesson says how strong its evidence is")),
-    ]), unsafe_allow_html=True)
+    st.markdown("""<style>
+.st-key-acpath{--fs:15.5px}
+.st-key-acpath [data-testid="stWidgetLabel"] p,.st-key-acpath label p{font-size:12px!important}
+.st-key-acpath [data-testid="stRadio"] label p{font-size:13px!important;line-height:1.35}
+.st-key-acpath .ac-exp{font-size:var(--fs);line-height:1.9;color:var(--uk-text)}
+.st-key-acpath .ac-exp li{margin:0 0 6px}
+.st-key-acpath .ac-small{font-size:12px;color:var(--uk-dim);line-height:1.6}
+.st-key-acpath .ac-h{font-size:12px;letter-spacing:.06em;color:var(--uk-dim);text-transform:uppercase;margin:10px 0 4px;font-weight:700}
+.st-key-acpath svg{width:100%;height:auto}
+</style>""", unsafe_allow_html=True)
     lv_ids = [lv["id"] for lv in lvs]
     if "ac_level" not in st.session_state:
         st.session_state["ac_level"] = nxt["level"]
         st.session_state[f"ac_les_{nxt['level']}"] = nxt["id"]
-    lv = st.pills(L("Level"), lv_ids, key="ac_level", format_func=lambda i: f"{i} · " + next(x["title"].split(":")[0] for x in lvs if x["id"] == i) + f"  ({sum(1 for y in by_level[i] if y['id'] in done)}/{len(by_level[i])})",
-                  label_visibility="collapsed") or lv_ids[0]
-    lvl = next(x for x in lvs if x["id"] == lv)
-    st.caption(f"{lvl['title']} — {lvl.get('goal', '')}")
-    names = {x["id"]: ("✅ " if x["id"] in done else "") + x["title"] for x in by_level[lv]}
-    cur_id = st.pills(L("Lesson"), list(names), key=f"ac_les_{lv}", format_func=names.get, default=by_level[lv][0]["id"], label_visibility="collapsed") or by_level[lv][0]["id"]
-    ls_cur = next(x for x in by_level[lv] if x["id"] == cur_id)
-    i_cur = ls.index(ls_cur)
-    gc = AC.GRADE[ls_cur["grade"]]
-    st.markdown(f"<div class='uk-panel'><h4>{e(L('Level'))} {ls_cur['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</h4>"
-                f"<div style='font-size:20px;font-weight:800;margin:2px 0 8px'>{e(ls_cur['title'])}</div>"
-                f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(ls_cur['grade'])}</span></div>"
-                f"<div style='font-size:12px;color:var(--uk-dim);margin-top:6px'>{e(ls_cur['grade_note'])}</div></div>", unsafe_allow_html=True)
-    for a in ls_cur["arts"]:
-        if a in ART.MIRRORED:
-            c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.UP};color:{UK.UP}'>{e(L('Bullish'))}</span></div>" + ART.art(a, "bull"), unsafe_allow_html=True)
-            c2.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.DOWN};color:{UK.DOWN}'>{e(L('Bearish'))}</span></div>" + ART.art(a, "bear"), unsafe_allow_html=True)
-        else:
-            st.markdown(ART.art(a, "bull"), unsafe_allow_html=True)
-    st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
-    st.markdown(f"**{L('The idea')}**")
-    st.markdown(ls_cur["idea"])
-    st.markdown(f"**{L('Steps')}**")
-    st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(ls_cur["steps"])))
-    if ls_cur["bull"] or ls_cur["bear"]:
-        c1, c2 = st.columns(2)
-        c1.markdown(f"<div class='uk-panel' style='border-color:{UK.UP}'><h4 style='color:{UK.UP}'>📈 {e(L('Bullish setup'))}</h4>{e(ls_cur['bull'])}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='uk-panel' style='border-color:{UK.DOWN}'><h4 style='color:{UK.DOWN}'>📉 {e(L('Bearish setup'))}</h4>{e(ls_cur['bear'])}</div>", unsafe_allow_html=True)
-    if ls_cur["mistakes"]:
-        st.warning(f"**{L('Common mistakes')}**" + chr(10) + chr(10).join(f"- {t}" for t in ls_cur["mistakes"]))
-    if ls_cur["platform"]:
-        st.markdown(f"**{L('Where it lives in the platform')}**")
-        st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(t)}</span>" for t in ls_cur["platform"]) + "</div>", unsafe_allow_html=True)
-    with st.expander(L("References")):
-        st.markdown(chr(10).join(f"- {t}" for t in ls_cur["refs"]))
-        st.caption(L("Book and paper citations, given without links; check the edition. Educational, not investment advice."))
-    st.markdown(f"**{L('Quick quiz')}**")
-    picks = []
-    for k, q in enumerate(ls_cur["quiz"]):
-        picks.append(st.radio(q["q"], q["opts"], index=None, key=f"acq_{ls_cur['id']}_{k}"))
-    if st.button(L("Check answers"), key=f"acc_{ls_cur['id']}"):
-        right = 0
-        for q, pk in zip(ls_cur["quiz"], picks):
-            if pk is None:
-                st.info(f"{q['q']} — {L('Not answered')}")
-            elif q["opts"].index(pk) == q["a"]:
-                right += 1
-                st.success(f"✓ {q['why']}")
+    with st.container(key="acpath"):
+        top = st.columns([5, 1.4])
+        lv = top[0].pills(L("Level"), lv_ids, key="ac_level", format_func=lambda i: f"{i} · " + next(x["title"].split(":")[0] for x in lvs if x["id"] == i) + f"  ({sum(1 for y in by_level[i] if y['id'] in done)}/{len(by_level[i])})",
+                          label_visibility="collapsed") or lv_ids[0]
+        top[1].markdown(f"<div class='uk-chipbar' style='justify-content:flex-end'><span class='uk-chip'>✅ {n_done}/{len(ls)}</span><span class='uk-chip'>➡️ {e(nxt['title'][:18])}</span></div>", unsafe_allow_html=True)
+        lvl = next(x for x in lvs if x["id"] == lv)
+        left, mid, right = st.columns([1.0, 3.4, 2.5], gap="medium")
+        names = {x["id"]: ("✅ " if x["id"] in done else "") + x["title"] for x in by_level[lv]}
+        with left:
+            st.markdown(f"<div class='ac-small'><b>{e(lvl['title'])}</b><br>{e(lvl.get('goal', ''))}</div>", unsafe_allow_html=True)
+            cur_id = st.radio(L("Lesson"), list(names), key=f"ac_les_{lv}", format_func=names.get, label_visibility="collapsed")
+            c_ = next(x for x in by_level[lv] if x["id"] == cur_id)
+            i_cur = ls.index(c_)
+            n1, n2 = st.columns(2)
+            if i_cur > 0:
+                n1.button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]), use_container_width=True)
+            if i_cur < len(ls) - 1:
+                n2.button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]), use_container_width=True)
+            if c_["id"] in done:
+                st.button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(c_["id"]), use_container_width=True)
             else:
-                st.error(f"✗ {L('Correct answer')}: {q['opts'][q['a']]} — {q['why']}")
-        if right == len(ls_cur["quiz"]):
-            done.add(ls_cur["id"])
-            st.balloons()
-    nav = st.columns([1, 1, 1, 3])
-    if i_cur > 0:
-        nav[0].button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]))
-    if i_cur < len(ls) - 1:
-        nav[1].button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]))
-    if ls_cur["id"] in done:
-        nav[2].button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(ls_cur["id"]))
-    else:
-        nav[2].button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(ls_cur["id"]))
-    if ls_cur["school"]:
-        st.caption(L("The full school curriculum is in the Schools tab") + f": {ls_cur['school']}")
+                st.button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(c_["id"]), use_container_width=True)
+        gc = AC.GRADE[c_["grade"]]
+        with mid:
+            st.markdown(f"<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{e(c_['title'])}</span>"
+                        f"<span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(c_['grade'])}</span>"
+                        f"<span class='ac-small'>{e(L('Level'))} {c_['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</span></div>", unsafe_allow_html=True)
+            items = []
+            for a in c_["arts"]:
+                items += [(a, "bull"), (a, "bear")] if a in ART.MIRRORED else [(a, "bull")]
+            for r0 in range(0, len(items), 2):
+                row = items[r0:r0 + 2]
+                cc = st.columns(2) if len(row) == 2 else st.columns([1, 1])[:1]
+                for col, (a, side) in zip(cc, row):
+                    tag = ""
+                    if a in ART.MIRRORED:
+                        tc = UK.UP if side == "bull" else UK.DOWN
+                        tag = f"<div class='uk-chipbar' style='margin:0 0 3px'><span class='uk-chip' style='border-color:{tc};color:{tc}'>{e(L('Bullish') if side == 'bull' else L('Bearish'))}</span></div>"
+                    col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
+            st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
+            st.markdown(f"<div class='ac-h'>{e(L('The idea'))}</div><div class='ac-exp'>{e(c_['idea'])}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='ac-small' style='margin-top:8px;border-inline-start:3px solid {gc};padding-inline-start:8px'>{e(c_['grade_note'])}</div>", unsafe_allow_html=True)
+        with right:
+            st.markdown(f"<div class='ac-h'>{e(L('Steps'))}</div><ol class='ac-exp' style='padding-inline-start:20px;margin:0'>" + "".join(f"<li>{e(t)}</li>" for t in c_["steps"]) + "</ol>", unsafe_allow_html=True)
+            if c_["bull"] or c_["bear"]:
+                st.markdown(f"<div class='uk-panel' style='border-color:{UK.UP};padding:6px 10px'><div class='ac-small' style='color:{UK.UP};font-weight:700'>📈 {e(L('Bullish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.7'>{e(c_['bull'])}</div></div>"
+                            f"<div class='uk-panel' style='border-color:{UK.DOWN};padding:6px 10px'><div class='ac-small' style='color:{UK.DOWN};font-weight:700'>📉 {e(L('Bearish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.7'>{e(c_['bear'])}</div></div>", unsafe_allow_html=True)
+            if c_["mistakes"]:
+                st.markdown(f"<div class='ac-h'>⚠️ {e(L('Common mistakes'))}</div><ul class='ac-small' style='padding-inline-start:18px;margin:0'>" + "".join(f"<li>{e(t)}</li>" for t in c_["mistakes"]) + "</ul>", unsafe_allow_html=True)
+            if c_["platform"]:
+                st.markdown(f"<div class='ac-h'>{e(L('Where it lives in the platform'))}</div><div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(t)}</span>" for t in c_["platform"]) + "</div>", unsafe_allow_html=True)
+            with st.expander(L("References")):
+                st.markdown(chr(10).join(f"- {t}" for t in c_["refs"]))
+                st.caption(L("Book and paper citations, given without links; check the edition. Educational, not investment advice."))
+            with st.expander(L("Quick quiz"), expanded=False):
+                picks = [st.radio(q["q"], q["opts"], index=None, key=f"acq_{c_['id']}_{k}") for k, q in enumerate(c_["quiz"])]
+                if st.button(L("Check answers"), key=f"acc_{c_['id']}"):
+                    right_n = 0
+                    for q, pk in zip(c_["quiz"], picks):
+                        if pk is None:
+                            st.info(f"{q['q']} — {L('Not answered')}")
+                        elif q["opts"].index(pk) == q["a"]:
+                            right_n += 1
+                            st.success(f"✓ {q['why']}")
+                        else:
+                            st.error(f"✗ {L('Correct answer')}: {q['opts'][q['a']]} — {q['why']}")
+                    if right_n == len(c_["quiz"]):
+                        done.add(c_["id"])
+            if c_["school"]:
+                st.caption(L("The full school curriculum is in the Schools tab") + f": {c_['school']}")
 
 
 def _academy_refs():

@@ -31,6 +31,9 @@ def css(tokens: dict | None = None, rad: int = 14) -> str:
 .uk-leg{{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--uk-dim)}}.uk-leg i{{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}}
 .uk-chipbar{{display:flex;flex-wrap:wrap;gap:4px}}.uk-chip{{font-size:10.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--uk-line);background:rgba(255,255,255,.04);color:var(--uk-text)}}
 .xr-card{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{max(0, rad - 2)}px;padding:6px 7px 4px;margin-bottom:6px}}
+@keyframes acp{{from{{opacity:0;transform:translateY(5px)}}to{{opacity:1;transform:none}}}}@keyframes acd{{from{{stroke-dashoffset:900}}to{{stroke-dashoffset:0}}}}@keyframes acl{{50%{{transform:scale(1.7);opacity:.55}}}}
+.an{{animation:acp .5s ease both}}.dr{{stroke-dasharray:900;animation:acd 1.8s .5s ease both}}.pl{{animation:acl 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}}
+@media (prefers-reduced-motion:reduce){{.an,.dr,.pl{{animation:none!important}}}}
 .xr-card.conf{{box-shadow:0 0 0 1px {UP}66,0 0 14px {UP}33}}.xr-card.cand{{box-shadow:0 0 0 1px {WARN}55}}
 </style>"""
 

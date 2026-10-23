@@ -1,14 +1,4 @@
-# SMC / ICT — فرع الأكاديمية
+# [نقل] SMC
 
-**الدور:** تأكيد موقع لا primary افتراضي.
-
-## الفروع
-هيكل BOS/CHoCH · سيولة · Sweep · Order Block · FVG · Premium/Discount · OTE
-
-## سيتب صعودي
-تحيز صاعد + discount → كنس سيولة سفلية → BOS صاعد → رجوع لـ FVG أو OB → دخول → وقف تحت المنطقة → أهداف سيولة علوية
-
-## سيتب هبوطي — مرآة في premium
-
-## تأكيد
-قاعدة محددة قابلة للباك تست؛ ليس «أي OB».
+- AI: [ai/04-smc.json.md](ai/04-smc.json.md)
+- Visual: [visual/04-smc.md](visual/04-smc.md)

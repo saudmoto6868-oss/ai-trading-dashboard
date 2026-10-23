@@ -11,12 +11,13 @@ UP, DOWN, WARN = "#0ecb81", "#f6465d", "#f0b90b"
 _TONE = {"up": UP, "down": DOWN, "warn": WARN, "": None}
 
 
-def css() -> str:
-    t = TOKENS
+def css(tokens: dict | None = None, rad: int = 14) -> str:
+    """Stylesheet for the cards. tokens / rad come from the active dashboard theme (main._kit_theme) so every page follows the Theme menu."""
+    t = {**TOKENS, **(tokens or {})}
     return f"""<style>
 :root{{--uk-bg:{t['bg']};--uk-panel:{t['panel']};--uk-panel2:{t['panel2']};--uk-line:{t['line']};--uk-text:{t['text']};--uk-dim:{t['dim']};--uk-acc:{t['accent']};--uk-acc2:{t['accent2']}}}
 .uk-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:4px 0 8px}}
-.uk-card{{position:relative;background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:14px;padding:9px 11px;
+.uk-card{{position:relative;background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{rad}px;padding:9px 11px;
  box-shadow:0 4px 14px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04);color:var(--uk-text);min-height:64px;overflow:hidden}}
 .uk-card .uk-lbl{{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--uk-dim);display:flex;align-items:center;gap:6px}}
 .uk-ic{{display:inline-flex;width:20px;height:20px;border-radius:7px;align-items:center;justify-content:center;font-size:12px;background:rgba(255,255,255,.07);border:1px solid var(--uk-line)}}
@@ -24,12 +25,12 @@ def css() -> str:
 .uk-card .uk-sub{{font-size:10.5px;color:var(--uk-dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .uk-card .uk-ring{{position:absolute;inset-inline-end:8px;bottom:6px;width:40px;height:40px;opacity:.95}}.uk-card.has-ring .uk-sub{{padding-inline-end:46px}}
 .uk-card.up{{box-shadow:0 0 0 1px {UP}55,0 0 16px {UP}33}}.uk-card.down{{box-shadow:0 0 0 1px {DOWN}55,0 0 16px {DOWN}33}}.uk-card.warn{{box-shadow:0 0 0 1px {WARN}55,0 0 16px {WARN}2a}}
-.uk-panel{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:14px;padding:10px 12px;color:var(--uk-text);margin:4px 0 8px}}
+.uk-panel{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{rad}px;padding:10px 12px;color:var(--uk-text);margin:4px 0 8px}}
 .uk-panel h4{{margin:0 0 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--uk-dim);font-weight:600}}
 .uk-flex{{display:flex;gap:14px;align-items:center;flex-wrap:wrap}}
 .uk-leg{{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--uk-dim)}}.uk-leg i{{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}}
 .uk-chipbar{{display:flex;flex-wrap:wrap;gap:4px}}.uk-chip{{font-size:10.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--uk-line);background:rgba(255,255,255,.04);color:var(--uk-text)}}
-.xr-card{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:12px;padding:6px 7px 4px;margin-bottom:6px}}
+.xr-card{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{max(0, rad - 2)}px;padding:6px 7px 4px;margin-bottom:6px}}
 .xr-card.conf{{box-shadow:0 0 0 1px {UP}66,0 0 14px {UP}33}}.xr-card.cand{{box-shadow:0 0 0 1px {WARN}55}}
 </style>"""
 

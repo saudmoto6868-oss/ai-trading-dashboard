@@ -927,6 +927,24 @@ with header_box:
         st.error(f"Header error: {type(_e).__name__}: {_e}")
 
 
+def _kit_theme():
+    """(tokens, corner radius) of the card kit from the active dashboard theme, so Radar, Technical Office and Academy follow the same Theme menu as the Workspace."""
+    V = _ui_vars(UI_THEME)
+    if V:
+        return {"bg": V["bg"], "panel": V["solid"], "panel2": V["panel2"], "line": V["line"], "text": V["txt"], "dim": V["mut"], "accent": V["acc"], "accent2": V["up"]}, int(V["rad"])
+    if UI_THEME == "lux":
+        return {"panel": "#1b1814", "panel2": "#241f19", "line": "#4a3f2e", "text": "#efe6d6", "dim": "#a89c88", "accent": "#e0a95a", "accent2": "#f3cf85"}, 14
+    if UI_THEME == "hud":
+        return {"panel": "#0f161c", "panel2": "#16202a", "line": "#33414c", "text": "#e6ecef", "dim": "#8fa0aa", "accent": "#f0a43c", "accent2": "#ffd08a"}, 0
+    return {}, 14
+
+
+def kit_css():
+    from modules import ui_kit as _K
+    t, r = _kit_theme()
+    return _K.css(t, r)
+
+
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
@@ -941,7 +959,7 @@ def render_universe_controls():
     """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
     _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
     from modules import ui_kit as _UK
-    st.markdown(_UK.css(), unsafe_allow_html=True)
+    st.markdown(kit_css(), unsafe_allow_html=True)
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -1780,6 +1798,7 @@ def render_lab_page():
     analysis, backtest, operations, lab results)."""
     tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
             "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+    st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
         tabs.get(pick or "Control room", _office_overview)()
@@ -2620,7 +2639,7 @@ def render_academy_page():
     """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
     worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
     from modules import academy as AC, ui_kit as UK
-    st.markdown(UK.css(), unsafe_allow_html=True)
+    st.markdown(kit_css(), unsafe_allow_html=True)
     e = html.escape
     sc, ls = AC.schools(), AC.load()
     view = st.segmented_control(L("Academy"), ["Schools", "Backtest evidence", "Examples", "Our review"], default="Schools", key="ac_view",

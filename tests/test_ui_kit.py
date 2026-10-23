@@ -12,8 +12,7 @@ def test_pieces():
     assert U.donut([("a", 0, "#fff")], "0")                       # all-zero does not divide by zero
     g = U.gauge(140, "x"); assert "100%" in g
     assert U.bars([("a", 3), ("b", 0)]).count("<rect") == 2 and U.bars([]) == ""
-    for n in list(U.THEMES) + ["nope"]:
-        assert "--uk-acc" in U.css(n)
+    assert "--uk-acc" in U.css()
 
 
 if __name__ == "__main__":

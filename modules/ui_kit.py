@@ -1,4 +1,4 @@
-"""Shared look for the Radar and Technical Office (owner 2026-10-23, from his reference images: dark glass / ember / gold / neon panels, KPI cards
+"""Shared look for the Radar and Technical Office (owner 2026-10-23, taking IDEAS from his reference images, not a copied theme: KPI cards
 with an icon badge and a ring, donuts, half-circle gauges, glowing bars, status legends). Pure HTML / SVG strings so they can be tested without Streamlit.
 Colour semantics (kept from the desk conventions): green / red = direction only, amber = warning or stale, accent = the theme colour for flags."""
 from __future__ import annotations
@@ -6,22 +6,13 @@ from __future__ import annotations
 import html
 import math
 
-THEMES = {   # name -> tokens; Ember is the default
-    "Ember": {"bg": "#17110f", "panel": "#241a18", "panel2": "#2e2220", "line": "#4a3530", "text": "#f4e9e4", "dim": "#a8928a", "accent": "#f0865a", "accent2": "#ffb38a"},
-    "Gold": {"bg": "#0e0e0f", "panel": "#19191b", "panel2": "#222225", "line": "#3a3426", "text": "#f2ece0", "dim": "#9a927f", "accent": "#d9a441", "accent2": "#f3cf85"},
-    "Neon": {"bg": "#05070d", "panel": "#0b1020", "panel2": "#111833", "line": "#1f2c55", "text": "#e8f1ff", "dim": "#7d8db5", "accent": "#22e5ff", "accent2": "#ff3fa4"},
-    "Glass": {"bg": "#0d1024", "panel": "#161a38", "panel2": "#1e2348", "line": "#34397a", "text": "#ecefff", "dim": "#8c92c9", "accent": "#8b6cff", "accent2": "#ffb454"},
-}
+TOKENS = {"bg": "#12161b", "panel": "#1a2027", "panel2": "#212832", "line": "#323b47", "text": "#eaecef", "dim": "#8d97a5", "accent": "#f0b90b", "accent2": "#2dd4bf"}   # the site's own dark palette (amber accent), no copied theme
 UP, DOWN, WARN = "#0ecb81", "#f6465d", "#f0b90b"
 _TONE = {"up": UP, "down": DOWN, "warn": WARN, "": None}
 
 
-def tokens(name: str) -> dict:
-    return THEMES.get(name) or THEMES["Ember"]
-
-
-def css(name: str = "Ember") -> str:
-    t = tokens(name)
+def css() -> str:
+    t = TOKENS
     return f"""<style>
 :root{{--uk-bg:{t['bg']};--uk-panel:{t['panel']};--uk-panel2:{t['panel2']};--uk-line:{t['line']};--uk-text:{t['text']};--uk-dim:{t['dim']};--uk-acc:{t['accent']};--uk-acc2:{t['accent2']}}}
 .uk-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:4px 0 8px}}

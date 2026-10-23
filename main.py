@@ -941,8 +941,7 @@ def render_universe_controls():
     """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
     _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
     from modules import ui_kit as _UK
-    _u4.segmented_control(L("Theme"), list(_UK.THEMES), default="Ember", key="radar_look", label_visibility="collapsed")
-    st.markdown(_UK.css(st.session_state.get("radar_look") or "Ember"), unsafe_allow_html=True)
+    st.markdown(_UK.css(), unsafe_allow_html=True)
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -959,14 +958,15 @@ def render_universe_controls():
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts"]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy"]   # Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 5, 6]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
     except (TypeError, ValueError):
         st.session_state["page"] = 0
 with (NAV_BOX if NAV_BOX is not None else st.container()):
-    PAGE = st.radio(L("Page"), list(range(len(_PAGES))), format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+    PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 _focus = bool(st.session_state.get("focus_ws"))
@@ -2557,8 +2557,7 @@ def render_chart_scanner(f):
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
             with col:
                 tf_x, d_x = tf, d   # this chart's own timeframe (team task 16); "—" = same as the top Timeframe
-                tf_pick = st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", label_visibility="collapsed",
-                                       help=L("Own timeframe for this chart (— = same as the top Timeframe)")) if r0 + i_c < 20 else "—"   # per-chart widgets only on the first 20 (100+ charts stay fast)
+                tf_pick = st.session_state.get(f"cs_tf_{sym}", "—") if r0 + i_c < 20 else "—"   # chosen in the card's "⋯" menu below (value from the previous run)
                 if tf_pick != "—" and tf_pick != tf:
                     try:
                         d_one = _chart_scan_data((sym,), tf_pick, look).get(sym)
@@ -2590,13 +2589,58 @@ def render_chart_scanner(f):
                     + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
                     f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
                     f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>", unsafe_allow_html=True)
-                if r0 + i_c < 20 and st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)")):
+                _an = False
+                if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
+                    with st.popover("⋯", use_container_width=True):
+                        st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", help=L("Own timeframe for this chart (— = same as the top Timeframe)"))
+                        _an = st.checkbox("التحليل", key=f"cs_an_{sym}_{tf_x}", help=L("Plain-language Arabic analysis of this setup (same as the Crypto tab)"))
+                if _an:
                     try:
                         r_ = _cs_result(sym, tf_x)
                         if r_:
                             explain_symbol(r_)
                     except Exception as e_:
                         st.caption(f"Analysis unavailable: {e_}")
+
+
+def render_academy_page():
+    """Academy: reviewed teaching material. Every lesson shows where it came from, its status (draft / reviewed / approved) and our verdict against the project's own data."""
+    from modules import academy as AC, ui_kit as UK
+    st.markdown(UK.css(), unsafe_allow_html=True)
+    ls = AC.load()
+    if not ls:
+        st.info(L("No lessons yet."))
+        return
+    sm = AC.summary(ls)
+    n_bad = sm["verdict"].get("contradicted", 0)
+    st.markdown(UK.row([
+        UK.kpi("📚", L("Lessons"), sm["n"], f"{len(sm['topic'])} {L('topics')}"),
+        UK.kpi("📝", L("Drafts"), sm["status"].get("draft", 0), L("Not approved by the owner yet"), tone="warn" if sm["status"].get("draft") else ""),
+        UK.kpi("✅", L("Approved"), sm["status"].get("approved", 0), L("Approved by the owner"), tone="up" if sm["status"].get("approved") else ""),
+        UK.kpi("⚠️", L("Contradicted claims"), n_bad, L("Claims that disagree with the project's data"), tone="down" if n_bad else ""),
+    ]) + UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)
+    c = st.columns([1.2, 2, 1.4])
+    q = c[0].text_input(L("Search"), key="ac_q", label_visibility="collapsed", placeholder=L("Search"))
+    topic = c[1].pills(L("Topic"), list(sm["topic"]), key="ac_topic", label_visibility="collapsed")
+    vd = c[2].selectbox(L("Verdict"), [""] + list(AC.VERDICT), format_func=lambda k: L("All") if not k else AC.VERDICT[k][0], key="ac_vd", label_visibility="collapsed")
+    shown = AC.search(ls, q, topic or "", vd)
+    st.caption(f"{len(shown)} / {len(ls)}  ·  " + L("Educational, not investment advice. Lessons are drafts until the owner approves them."))
+    for l_ in shown:
+        stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
+        with st.expander(f"{l_['title']}", expanded=False):
+            e = html.escape
+            st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span>"
+                        f"<span class='uk-chip'>{e(l_['topic'])}</span><span class='uk-chip'>{e(l_['source'])}</span></div>", unsafe_allow_html=True)
+            st.markdown(l_["summary"])
+            st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+            if l_["points"]:
+                st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+            if l_["caveats"]:
+                st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
+            if l_["uses"]:
+                st.markdown(f"<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(u)}</span>" for u in l_["uses"]) + "</div>", unsafe_allow_html=True)
+            if l_["sources"]:
+                st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(l_["sources"])))
 
 
 def render_info_strip():
@@ -2700,6 +2744,9 @@ if PAGE == 1:   # cscan
 
 if PAGE == 2:   # lab
     render_lab_page()
+
+if PAGE == 7:   # academy (owner 2026-10-23): lessons from the team's research, each with a status and a review verdict
+    render_academy_page()
 
 if PAGE == 3:   # playbook
     render_playbook_page()

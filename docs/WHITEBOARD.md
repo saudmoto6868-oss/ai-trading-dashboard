@@ -1,31 +1,22 @@
 # اللوحة (Whiteboard)
 
-آخر مزامنة أكاديمية: 2026-10-23
-
 ## الآن / التركيز
 
-1. **أكاديمية 6868 X** — قاعدة مرجعية للمؤشرات والمدارس  
-   - فهرس: `docs/academy/README.md`  
-   - قائمة ملفات: `docs/academy/MANIFEST.md`  
-   - محضر: `docs/MEETING_ACADEMY.md`  
-2. مطابقة `INDICATOR_MAP` مع أسماء الكواشف في الكود  
-3. اختيار بحث Lab: R1 / R2 / R3 من `DEVELOPMENT_NOTES.md`
+1. **محضر 3 — مطلوب العمل:** `docs/MEETING_ALERTS_SETUP.md`  
+   (Alerts · Call Setup · صندوق الصفقة · مطابقة الأدوات)  
+2. أكاديمية: `docs/academy/` · محضر 2: `docs/MEETING_ACADEMY.md`  
+3. اختيار بحث Lab R1/R2/R3 عند التفرّغ
 
-## مكتمل (أكاديمية)
+## مفتوح من أمر المالك (محضر 3)
 
-- [x] مسار AI لكل 9 مدارس  
-- [x] مسار Visual لكل 9 مدارس  
-- [x] أمثلة متعددة + أدلة باك تست  
-- [x] خريطة مؤشرات  
-- [x] محضر قاعة المحاضرات  
-- [x] ربط SCHOOLS + README
+- [ ] T1 مواصفات WATCH vs CALL  
+- [ ] T2 عتبة تنبيه طبقية  
+- [ ] T3 stop/entry/TP حسب السيتب  
+- [ ] T4 scorer primary vs context  
+- [ ] T5 journal: grade / layers / setup_id / alert_kind
 
-## معلّق (يحتاج موافقة/شغل)
+## مكتمل
 
-- [ ] تبويب Academy في Streamlit  
-- [ ] parsers من `ai/` YAML  
-- [ ] قرارات ويدجت Decision Chain (قاعة الاجتماعات)
-
-## قواعد اللوحة
-
-أوامر التنفيذ من المالك فقط عبر MEETING_ROOM / MEETING_ACADEMY.
+- [x] أكاديمية AI + Visual + MANIFEST  
+- [x] محضر أكاديمية  
+- [x] محضر تنبيهات/Setup (تسجيل الملاحظات)

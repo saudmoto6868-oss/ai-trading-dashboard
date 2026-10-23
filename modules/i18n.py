@@ -106,6 +106,7 @@ AR = {
     "Pearson correlation of returns, last 260 candles. Correlation changes over time; it is not a forecast.": "ارتباط بيرسون للعوائد، آخر 260 شمعة. الارتباط بيتغير مع الوقت وده مش توقع.",
     "Teaching order": "ترتيب الدراسة", "Each school builds on the one before it.": "كل مدرسة بتبني على اللي قبلها.", "Why here": "ليه هنا",
     "No school-specific review yet; the general findings are in the References tab.": "مفيش مراجعة خاصة بالمدرسة دي لسه؛ النتائج العامة في تاب المراجع.", "general findings": "نتائج عامة",
+    "What it is": "إيه هي", "Exercises": "تمارين", "Questions": "أسئلة", "Glossary": "قاموس", "Grok's short visual notes (source)": "ملاحظات Grok البصرية المختصرة (المصدر)",
     "Quick filters": "فلاتر سريعة", "More filters (EMA, RSI, patterns, strategies, technical lists)": "فلاتر أكتر (EMA، RSI، نماذج، استراتيجيات، قوايم فنية)",
     "How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load.": "كام رمز الرادار يفحصهم (الأكبر في حجم 24 ساعة الأول). كل ما زادوا التحميل الأول بياخد وقت أطول.",
     "Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)": "قوايم فنية (الأداء، المتوسطات، القمم والقيعان، الفجوة، ATR، الفوليوم، الشموع)",

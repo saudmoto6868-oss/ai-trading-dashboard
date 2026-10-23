@@ -945,6 +945,15 @@ def kit_css():
     return _K.css(t, r)
 
 
+from modules import hot_reload as _hot   # a redeploy can leave OLD copies of modules in memory: reload the stale ones before anything imports from them
+try:
+    import importlib as _il0
+    if _hot.compiled_from_older_source(_hot):   # the helper itself can be an old copy
+        _il0.reload(_hot)
+    _hot.refresh_changed()
+    _hot.refresh()
+except Exception:
+    pass
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
@@ -2861,6 +2870,7 @@ def _academy_schools():
         st.info(L("No lessons yet."))
         return
     by = {x["id"]: x for x in sc}
+    DEEP = AC.deep()
     st.markdown("""<style>
 .st-key-acschools .ac-exp{font-size:15px;line-height:1.85}.st-key-acschools .ac-small{font-size:12px;color:var(--uk-dim);line-height:1.6}
 .st-key-acschools [data-testid="stRadio"] label p{font-size:13px!important}.st-key-acschools svg{width:100%;height:auto}
@@ -2900,11 +2910,33 @@ def _academy_schools():
                     col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
             st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
             st.warning(AC.LAB_NOTE)
-            for fl in flows:
-                st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
-            st.markdown(body)
+            md = lambda t: t.replace(chr(10), "  " + chr(10))
+            dp = DEEP.get(pick)
+            if dp:
+                st.markdown(f"<div class='ac-h'>{e(L('What it is'))}</div><div class='ac-exp'>{e(dp['what'])}</div>", unsafe_allow_html=True)
+                for p_ in dp["parts"]:
+                    st.markdown(f"<div class='ac-h'>{e(p_['t'])}</div>", unsafe_allow_html=True)
+                    st.markdown(md(p_["b"]))
+                c1, c2 = st.columns(2)
+                c1.markdown(f"<div class='uk-panel' style='border-color:{UK.UP};padding:6px 10px'><div class='ac-small' style='color:{UK.UP};font-weight:700'>📈 {e(L('Bullish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.75'>{e(dp['bull_story'])}</div></div>", unsafe_allow_html=True)
+                c2.markdown(f"<div class='uk-panel' style='border-color:{UK.DOWN};padding:6px 10px'><div class='ac-small' style='color:{UK.DOWN};font-weight:700'>📉 {e(L('Bearish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.75'>{e(dp['bear_story'])}</div></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='ac-h'>{e(L('Where it lives in the platform'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(dp["platform"])))
+                st.markdown(f"<div class='ac-h'>⚠️ {e(L('Common mistakes'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"- {t}" for t in dp["mistakes"]))
+                st.markdown(f"<div class='ac-h'>🧪 {e(L('Exercises'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(dp["exercises"])))
+                st.markdown(f"<div class='ac-h'>❓ {e(L('Questions'))}</div>", unsafe_allow_html=True)
+                for fq in dp["faq"]:
+                    with st.expander(fq["q"]):
+                        st.markdown(fq["a"])
+                st.markdown(f"<div class='ac-h'>{e(L('Glossary'))}</div><div class='uk-chipbar'>" + "".join(f"<span class='uk-chip' title='{e(g['def'])}'>{e(g['term'])}: {e(g['def'])}</span>" for g in dp["glossary"]) + "</div>", unsafe_allow_html=True)
+            with st.expander(L("Grok's short visual notes (source)")):
+                for fl in flows:
+                    st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
+                st.markdown(body)
         with right:
-            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Full curriculum"), L("Machine spec (AI track)")])
+            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")])
             with tabs[0]:
                 st.markdown(x["examples"] or L("No lessons yet."))
             with tabs[1]:
@@ -2924,8 +2956,6 @@ def _academy_schools():
                     if l_["caveats"]:
                         st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
             with tabs[3]:
-                st.markdown(x["curriculum"] or L("No lessons yet."))
-            with tabs[4]:
                 st.markdown(x["ai"] or L("No lessons yet."))
 
 

@@ -18,5 +18,16 @@ def test_editor_is_wired():
         assert k in H, k
 
 
+def test_tradingview_tool_set():
+    for k in ("ellipse", "triangle", "pitchfork", "callout", "plabel", "arrup", "arrdn", "flag", "cross", "info", "extline"):
+        assert f'["{k}",' in H, k                                                  # the tool button exists
+        assert f'd.type === "{k}"' in H or k in ("info", "extline"), k              # and has a painter / hit test
+    assert "cgrip(d, hs)" in H and "this.catBtns" in H                              # centre grip to move a drawing, categories with headings
+
+
+def test_chart_opens_centred():
+    assert 'getItem("ai_ac") !== "0"' in H                                          # auto-centre is on unless the user turned it off
+
+
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); print("ok workspace draw")

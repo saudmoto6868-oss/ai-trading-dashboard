@@ -58,12 +58,23 @@ def gemini_key() -> str:   # the usual names a Google AI Studio key is saved und
     return _cfg("GEMINI_API_KEY", "") or _cfg("GOOGLE_API_KEY", "") or _cfg("GEMINI_KEY", "")
 
 
+def openai_key() -> str:
+    """OpenAI API key from Streamlit Secrets or environment; never sent to the browser."""
+    return _cfg("OPENAI_API_KEY", "")
+
+
 def provider() -> str:
-    """Owner rule (2026-10-18): Mr X / AI page run on Gemini only; the Anthropic key is for project work, never spent here.
-    Claude is used only if GUIDE_PROVIDER = "claude" is set on purpose."""
-    if _cfg("GUIDE_PROVIDER", "gemini").lower() == "claude" and api_key():
-        return "claude"
-    return "gemini" if gemini_key() else ""
+    """Select the text provider; Gemini Live voice remains separate."""
+    requested = _cfg("GUIDE_PROVIDER", "").strip().lower()
+    if requested == "openai":
+        return "openai" if openai_key() else ""
+    if requested == "gemini":
+        return "gemini" if gemini_key() else ""
+    if requested == "claude":
+        if api_key():
+            return "claude"
+        return "gemini" if gemini_key() else ("openai" if openai_key() else "")
+    return "openai" if openai_key() else ("gemini" if gemini_key() else "")
 
 
 def _cfg(name: str, default: str) -> str:
@@ -119,9 +130,48 @@ def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (f
     return out
 
 
+def _openai(q: str, ctx_txt: str, hist: list, model: str) -> dict:
+    """OpenAI text provider. API key stays server-side."""
+    import requests
+
+    messages = [{"role": "system", "content": SYSTEM}]
+    for h in hist[-6:]:
+        messages.extend([{"role": "user", "content": h["q"]},
+                         {"role": "assistant", "content": h["a"]}])
+    messages.append({"role": "user", "content": "Screen context (data): " + ctx_txt + "\\n\\nQuestion: " + q})
+    body = {
+        "model": model,
+        "messages": messages,
+        "max_completion_tokens": 1024,
+        "reasoning_effort": _cfg("OPENAI_REASONING_EFFORT", "low"),
+        "response_format": {"type": "json_schema", "json_schema": {
+            "name": "xpix_guide_answer", "strict": True, "schema": SCHEMA
+        }},
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={"Authorization": "Bearer " + openai_key(), "Content-Type": "application/json"},
+        json=body, timeout=25,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    message = (((payload.get("choices") or [{}])[0]).get("message") or {})
+    if message.get("refusal"):
+        return {"say": "", "go": "none", "page": "none", "err": "refused"}
+    out = json.loads(message.get("content") or "{}")
+    if out.get("go") not in TARGETS:
+        out["go"] = "none"
+    if out.get("page") not in PAGES:
+        out["page"] = "none"
+    out["say"] = str(out.get("say", ""))[:900]
+    return out
+
+
 def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
     if model == "gemini":
         return _gemini(q, ctx_txt, hist)
+    if model.startswith("openai:"):
+        return _openai(q, ctx_txt, hist, model.split(":", 1)[1])
     import anthropic
     client = anthropic.Anthropic(api_key=api_key(), timeout=25.0, max_retries=1)
     msgs = []
@@ -203,7 +253,12 @@ def answer(req: dict, hist: list) -> dict:
         return {"id": rid, "err": "cap"}
     ctx = req.get("ctx") or {}
     ctx_txt = json.dumps({k: ctx[k] for k in sorted(ctx)}, ensure_ascii=False)[:1200]
-    model = _cfg("GUIDE_MODEL", "claude-haiku-5-5") if provider() == "claude" else "gemini"
+    selected_provider = provider()
+    model = (
+        _cfg("GUIDE_MODEL", "claude-haiku-5-5") if selected_provider == "claude"
+        else "openai:" + _cfg("OPENAI_MODEL", "gpt-4.1-mini") if selected_provider == "openai"
+        else "gemini"
+    )
     try:
         if hist:   # follow-up questions depend on the chat, so they are not cached
             out = _call(q, ctx_txt, hist, model)

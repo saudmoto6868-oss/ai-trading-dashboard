@@ -115,6 +115,19 @@ td{padding:1px 4px;white-space:nowrap}
 .dbar{position:absolute;display:none;gap:3px;align-items:center;background:#1e2329;border:1px solid #2b3139;border-radius:6px;padding:3px;z-index:6;box-shadow:0 4px 14px #0008;white-space:nowrap}
 .dbar button{min-width:22px;height:22px;padding:0 5px;font-size:11px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer}
 .dbar button.on{border-color:#f0b90b;color:#f0b90b}.dbar i{display:block;width:12px;height:12px;border-radius:50%;margin:auto}
+.dprop{position:absolute;z-index:8;width:262px;background:#1e2329;border:1px solid #2b3139;border-radius:8px;box-shadow:0 8px 26px #000a;color:#eaecef;font-size:11px;padding:0 0 6px;max-height:92%;overflow-y:auto}
+.dprop .dph{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #2b3139;font-size:12px}
+.dprop .dph button{background:none;border:0;color:#848e9c;font-size:14px;cursor:pointer}.dprop .dph button:hover{color:#f6465d}
+.dprop .dpr{display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap}.dprop .dpr>span{min-width:62px;color:#848e9c}
+.dprop input[type=color]{width:26px;height:22px;padding:0;border:1px solid #2b3139;border-radius:4px;background:#161a1e;cursor:pointer}
+.dprop input[type=range]{width:96px}.dprop select,.dprop textarea{background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;font-size:11px}
+.dprop textarea{width:100%;min-height:54px;padding:4px;resize:vertical;font-family:inherit}
+.dprop .sw{width:16px;height:16px;border-radius:50%;border:1px solid #0006;cursor:pointer;padding:0}.dprop .sw.on{outline:2px solid #f0b90b}
+.dprop .seg button{min-width:30px;height:22px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer;font-size:11px;margin-inline-end:3px}.dprop .seg button.on{border-color:#f0b90b;color:#f0b90b}
+.dprop .dpf{display:flex;gap:6px;padding:6px 8px 0}.dprop .dpf button{flex:1;height:24px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;cursor:pointer;font-size:11px}.dprop .dpf button.bad:hover{border-color:#f6465d;color:#f6465d}
+.fibpop.gp{display:flex;flex-direction:column;min-width:170px;padding:3px}
+.fibpop.gp button{display:flex;align-items:center;gap:8px;width:100%;height:26px;justify-content:flex-start;padding:0 8px;background:none;border:0;color:#eaecef;cursor:pointer;border-radius:3px}
+.fibpop.gp button::after{content:attr(title);font-size:11px;white-space:nowrap}.fibpop.gp button:hover,.fibpop.gp button.on{background:var(--line);color:#f0b90b}
 .lk{display:flex;gap:4px;align-items:center;padding:4px 6px;flex-wrap:nowrap;overflow:hidden}
 .lk a{color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:1px 7px;font-size:11px;white-space:nowrap;background:var(--panel2)}
 .lk a:hover{border-color:var(--gold);color:var(--gold)}
@@ -1317,7 +1330,7 @@ class CandleChart {
     cv.addEventListener("pointerup", e => this.up(e));
     cv.addEventListener("pointercancel", e => { (this.tp || new Map()).delete(e.pointerId); this.pinch = null; this.up(e); });   // the browser took the gesture (vertical page scroll)
     cv.addEventListener("pointerleave", () => { if (!this.drag){ this.mouse = null; this.draw(); } });
-    cv.addEventListener("dblclick", () => this.fit());
+    cv.addEventListener("dblclick", e => { const q = this.pt(e), d = this.drawingsVisible && this.tool === "cur" ? this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q.x, q.y)) : null; if (d){ this.sel = d; this.draw(); this.openEditor(d); } else this.fit(); });
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
     cv.tabIndex = 0; cv.style.outline = "none";
     cv.addEventListener("keydown", e => { if (e.key === "Delete" || e.key === "Backspace"){ this.deleteSel(); } else if (e.key === "Escape"){ this.cancelTool(); } });
@@ -2323,13 +2336,14 @@ Object.assign(CandleChart.prototype, {
     if (d.type === "hline") return Math.abs(hs[0].y - y) < 6 ? {body:1} : null;
     if (d.type === "rect"){ const x1 = Math.min(hs[0].x,hs[1].x), x2 = Math.max(hs[0].x,hs[1].x), y1 = Math.min(hs[0].y,hs[1].y), y2 = Math.max(hs[0].y,hs[1].y); return (x >= x1-4 && x <= x2+4 && y >= y1-4 && y <= y2+4) ? {body:1} : null; }
     if (d.type === "channel"){ const o = this.chanOff(d), y2a = this.yp(d.pts[0].p+o), y2b = this.yp(d.pts[1].p+o); return (seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) || seg(hs[0].x,y2a,hs[1].x,y2b)) ? {body:1} : null; }
-    if (d.type === "text"){ const w = (d.txt||"").length*6+10; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < 9) ? {body:1} : null; }
+    if (d.type === "text"){ const w = d._w || ((d.txt||"").length*6+10), h = d._h || 18; return (x >= hs[0].x-2 && x <= hs[0].x+w && Math.abs(y-hs[0].y) < h/2+3) ? {body:1} : null; }
     if (d.type === "vline") return Math.abs(hs[0].x - x) < 6 ? {body:1} : null;
     if (d.type === "brush"){ for (let i = 0; i + 1 < d.pts.length; i++){ if (seg(this.tx(d.pts[i].t), this.yp(d.pts[i].p), this.tx(d.pts[i+1].t), this.yp(d.pts[i+1].p))) return {body:1}; } return null; }
     if (d.type === "prange"){ const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y); return (y >= y1-4 && y <= y2+4) ? {body:1} : null; }
     if (d.type === "drange"){ const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x); return (x >= x1-4 && x <= x2+4) ? {body:1} : null; }
     if (d.type === "ray"){ const e = this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y); return seg(hs[0].x,hs[0].y,e.x,e.y) ? {body:1} : null; }
-    if (d.type === "trend" || d.type === "arrow" || d.type === "measure") return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null;
+    if (d.type === "trend"){ const ea = d.extL ? this.rayEnd(hs[1].x,hs[1].y,hs[0].x,hs[0].y) : hs[0], eb = d.extR ? this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y) : hs[1]; return seg(ea.x,ea.y,eb.x,eb.y) ? {body:1} : null; }
+    if (d.type === "arrow" || d.type === "measure") return seg(hs[0].x,hs[0].y,hs[1].x,hs[1].y) ? {body:1} : null;
     if (d.type === "wave"){ for (let i = 0; i < hs.length-1; i++) if (seg(hs[i].x,hs[i].y,hs[i+1].x,hs[i+1].y)) return {body:1}; return null; }
     if (d.type === "fib"){ const x0 = Math.min(hs[0].x, hs[1].x); if (x < x0-4) return null;
       for (const L of (d.lv || FIB_PRESETS.Retracement)){ if (Math.abs(this.yp(d.pts[1].p - (d.pts[1].p-d.pts[0].p)*L) - y) < 5) return {body:1}; } return null; }
@@ -2368,7 +2382,7 @@ Object.assign(CandleChart.prototype, {
     if (t === "vline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
     else if (t === "brush"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.creating = d; }
     else if (t === "hline"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
-    else if (t === "text"){ let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", ""); } catch(e){} if (tx === null){ this.setTool("cur"); return true; } const d = {id, type:t, txt:tx || "Note", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.setTool("cur"); }
+    else if (t === "text"){ const d = {id, type:t, txt:"", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.setTool("cur"); this.draw(); this.openEditor(d); return true; }
     else if (t === "trend" || t === "fib" || t === "wave" || t === "rect" || t === "channel" || t === "ray" || t === "arrow" || t === "measure" || t === "prange" || t === "drange"){ const d = {id, type:t, pts:[{t:q.t, p:q.p}, {t:q.t, p:q.p}]}; if (t === "fib") d.lv = (FIB_PRESETS[this.fibPreset] || FIB_PRESETS.Retracement).slice(); this.draws.push(d); this.creating = d; }
     else if (t === "long" || t === "short"){
       const a = this.avgRange()*1.5, dir = t === "long" ? 1 : -1, d = {id, type:t, t0:q.t, t1:q.t + this.secMs()*25, entry:q.p, stop:q.p - dir*a, tp:q.p + dir*a*2};
@@ -2954,23 +2968,92 @@ Object.assign(CandleChart.prototype, {
   dbar(){   // TradingView-style bar above the selected drawing: colour, width, dash, lock, copy, front, delete
     if (!this.host) return; let bar = this.host.querySelector(".dbar");
     const d = this.sel && !this.creating && this.draws.includes(this.sel) ? this.sel : null;
+    if (this.editor && this.editor.d !== d){ this.closeEditor(); }
     if (!d){ if (bar) bar.remove(); return; }
     if (!bar){ if (getComputedStyle(this.host).position === "static") this.host.style.position = "relative"; bar = document.createElement("div"); bar.className = "dbar"; this.host.append(bar); this.dbarBuild(bar); }
     const hs = this.handles(d), x = Math.max(4, Math.min(this.PR - 300, Math.min(...hs.map(h => h.x)))), y = Math.max(4, Math.min(...hs.map(h => h.y)) - 34);
     bar.style.left = x+"px"; bar.style.top = y+"px"; bar.style.display = "flex";
     bar.querySelectorAll("[data-col]").forEach(b => b.classList.toggle("on", b.dataset.col === (d.color || "")));
     bar.querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", +b.dataset.w === (d.w || 1.5)));
-    bar.querySelector("[data-dash]").classList.toggle("on", !!d.dash); bar.querySelector("[data-lock]").classList.toggle("on", !!d.lock);
+    bar.querySelector("[data-dash]").classList.toggle("on", d.ls ? d.ls !== "solid" : !!d.dash); bar.querySelector("[data-lock]").classList.toggle("on", !!d.lock);
+  },
+  dashOf(d){ return d.ls === "dot" ? [1.5, 3.5] : (d.ls === "dash" || (d.ls == null && d.dash)) ? [5, 4] : []; },   // line style: solid / dashed / dotted (old drawings only had dash on / off)
+  fillOf(d, base, hexA, fallback){   // fill of a box-like drawing: the chosen fill colour + opacity, else the line colour at its usual tint
+    if (d.fill){ const n = parseInt(d.fill.slice(1), 16), a = d.fo != null ? d.fo : (parseInt(hexA, 16) / 255 || .15); return "rgba("+((n >> 16) & 255)+","+((n >> 8) & 255)+","+(n & 255)+","+a+")"; }
+    return d.color ? base + hexA : fallback; },
+  closeEditor(){
+    const ed = this.editor; if (!ed) return; this.editor = null; ed.box.remove();
+    if (ed.d.type === "text" && !String(ed.d.txt || "").trim()){ this.draws = this.draws.filter(x => x !== ed.d); if (this.sel === ed.d) this.sel = null; }   // an empty note is not kept
+    this.saveDraws(); this.draw();
+  },
+  openEditor(d){   // TradingView-style settings of one drawing, inside the chart (browser dialogs are blocked inside the page frame, so the old text box never opened)
+    if (!this.host || !d) return; this.closeEditor();
+    if (getComputedStyle(this.host).position === "static") this.host.style.position = "relative";
+    const box = el("div", "dprop"), set = fn => { fn(d); this.saveDraws(); this.draw(); };
+    this.editor = {d, box};
+    const NAMES = {trend:Lg("Trend line","خط اتجاه"), hline:Lg("Horizontal line","خط أفقي"), vline:Lg("Vertical line","خط رأسي"), ray:Lg("Ray","شعاع"), arrow:Lg("Arrow","سهم"), rect:Lg("Rectangle","مستطيل"),
+      channel:Lg("Channel","قناة"), text:Lg("Text note","ملاحظة نصية"), fib:Lg("Fibonacci","فيبوناتشي"), wave:Lg("Elliott wave","موجات إليوت"), measure:Lg("Measure","قياس"), prange:Lg("Price range","مدى سعر"),
+      drange:Lg("Date range","مدى زمن"), brush:Lg("Brush","فرشاة"), long:Lg("Long position","صفقة شراء"), short:Lg("Short position","صفقة بيع")};
+    const head = el("div", "dph"); head.append(el("b", null, NAMES[d.type] || d.type)); const xb = el("button", null, "✕"); xb.title = Lg("close","إغلاق"); xb.onclick = () => this.closeEditor(); head.append(xb); box.append(head);
+    const row = (label, ...kids) => { const r = el("div", "dpr"); r.append(el("span", null, label)); kids.forEach(k => r.append(k)); box.append(r); return r; };
+    const color = (get, put, def) => { const ci = el("input"); ci.type = "color"; ci.value = get() || def; ci.oninput = () => set(() => put(ci.value)); return ci; };
+    const PAL = ["#f0b90b", "#0ecb81", "#f6465d", "#4aa3ff", "#b57cff", "#ff9800", "#26c6da", "#eaecef", "#8a94a3"];
+    if (d.type === "text"){
+      const ta = el("textarea"); ta.value = d.txt || ""; ta.placeholder = Lg("type your note here","اكتب ملاحظتك هنا"); ta.oninput = () => set(() => { d.txt = ta.value; });
+      ta.onkeydown = e => { e.stopPropagation(); if (e.key === "Escape"){ this.closeEditor(); } };
+      const wrap = el("div", "dpr"); wrap.style.display = "block"; wrap.append(ta); box.append(wrap); this.editor.ta = ta;
+      const fs = el("select"); [10, 11, 12, 14, 16, 20, 26, 34].forEach(n => { const o = el("option", null, String(n)); o.value = n; fs.append(o); }); fs.value = String(d.fs || 11); fs.onchange = () => set(() => { d.fs = +fs.value; });
+      row(Lg("Size","الحجم"), fs);
+      row(Lg("Text colour","لون النص"), color(() => d.tc, v => { d.tc = v; }, "#eaecef"));
+      const bg = el("input"); bg.type = "checkbox"; bg.checked = d.tb !== "none"; bg.onchange = () => set(() => { d.tb = bg.checked ? undefined : "none"; if (bg.checked) delete d.tb; });
+      row(Lg("Background","الخلفية"), bg, color(() => (d.tb && d.tb !== "none" ? d.tb : ""), v => { d.tb = v; bg.checked = true; }, "#2b3139"));
+    } else if (d.type !== "long" && d.type !== "short"){
+      const pal = el("div"); pal.style.cssText = "display:flex;gap:4px;align-items:center;flex-wrap:wrap";
+      PAL.forEach(c0 => { const b = el("button", "sw"); b.style.background = c0; b.title = c0; b.onclick = () => { set(() => { d.color = c0; }); ci.value = c0; pal.querySelectorAll(".sw").forEach(x => x.classList.toggle("on", x === b)); }; if (d.color === c0) b.classList.add("on"); pal.append(b); });
+      const ci = color(() => d.color, v => { d.color = v; }, "#4aa3ff"); pal.append(ci); row(Lg("Line","الخط"), pal);
+      const wsel = el("select"); [1, 1.5, 2, 3, 4, 5, 6].forEach(n => { const o = el("option", null, String(n)); o.value = n; wsel.append(o); }); wsel.value = String(d.w || 1.5);
+      if (![...wsel.options].some(o => o.value === wsel.value)) wsel.value = "1.5"; wsel.onchange = () => set(() => { d.w = +wsel.value; });
+      const seg = el("div", "seg"); [["solid", "──"], ["dash", "╌╌"], ["dot", "···"]].forEach(([k, ic]) => { const b = el("button", null, ic); b.title = k; const cur = d.ls || (d.dash ? "dash" : "solid");
+        if (cur === k) b.classList.add("on"); b.onclick = () => { set(() => { d.ls = k; d.dash = k === "dash"; }); seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); }; seg.append(b); });
+      row(Lg("Width","السُمك"), wsel, seg);
+      if (["rect", "channel", "prange", "drange"].includes(d.type)){
+        const op = el("input"); op.type = "range"; op.min = 0; op.max = 100; op.value = Math.round((d.fo != null ? d.fo : .15) * 100); op.oninput = () => set(() => { d.fo = op.value / 100; if (!d.fill) d.fill = d.color || ({rect:"#4aa3ff", channel:"#b57cff"}[d.type] || "#4aa3ff"); });
+        row(Lg("Fill","التعبئة"), color(() => d.fill || d.color, v => { d.fill = v; if (d.fo == null) d.fo = .18; }, "#4aa3ff"), op);
+      }
+      if (d.type === "trend"){
+        const l = el("input"); l.type = "checkbox"; l.checked = !!d.extL; l.onchange = () => set(() => { d.extL = l.checked; });
+        const r = el("input"); r.type = "checkbox"; r.checked = !!d.extR; r.onchange = () => set(() => { d.extR = r.checked; });
+        const ex = el("div"); ex.style.cssText = "display:flex;gap:4px;align-items:center;white-space:nowrap"; ex.append(l, el("span", null, Lg("left","يسار")), r, el("span", null, Lg("right","يمين")));
+        ex.querySelectorAll("span").forEach(z => { z.style.minWidth = "0"; z.style.margin = "0 6px 0 0"; });
+        row(Lg("Extend","تمديد"), ex);
+      }
+      if (["trend", "measure", "prange", "drange", "hline", "wave", "fib"].includes(d.type)){
+        const lb = el("input"); lb.type = "checkbox"; lb.checked = !d.noLbl; lb.onchange = () => set(() => { d.noLbl = !lb.checked; });
+        row(Lg("Labels","الأرقام"), lb);
+      }
+    } else {
+      row("", el("span", null, Lg("Move the three handles to change entry, stop and target.","حرّك المقابض التلاتة لتغيير الدخول والوقف والهدف.")));
+    }
+    const foot = el("div", "dpf");
+    const dup = el("button", null, Lg("Duplicate","نسخة")); dup.onclick = () => { const n = JSON.parse(JSON.stringify(d)), sh = this.secMs() * 3; n.id = Date.now() + Math.random(); (n.pts || []).forEach(q => { q.t += sh; }); if (n.t0 != null){ n.t0 += sh; n.t1 += sh; } this.draws.push(n); this.sel = n; this.closeEditor(); };
+    const del = el("button", "bad", Lg("Delete","حذف")); del.onclick = () => { this.draws = this.draws.filter(x => x !== d); this.sel = null; this.editor = null; box.remove(); this.saveDraws(); this.draw(); };
+    const ok = el("button", null, Lg("Done","تم")); ok.onclick = () => this.closeEditor(); foot.append(dup, del, ok); box.append(foot);
+    box.addEventListener("pointerdown", e => e.stopPropagation());
+    this.host.append(box);
+    const hs = this.handles(d), xs = hs.map(h => h.x), ys = hs.map(h => h.y);
+    const bw = 262, left = Math.max(4, Math.min(this.PR - bw - 4, Math.min(...xs))), top0 = Math.max(4, Math.min(...ys) + 34);
+    box.style.left = left + "px"; box.style.top = Math.min(top0, Math.max(4, this.PB - box.offsetHeight - 4)) + "px";
+    if (d.type === "text" && this.editor.ta) setTimeout(() => { try { this.editor.ta.focus(); this.editor.ta.select(); } catch(e){} }, 0);
   },
   dbarBuild(bar){
     const set = fn => { const d = this.sel; if (!d) return; fn(d); this.saveDraws(); this.draw(); };
     const add = (html, attrs, on) => { const b = document.createElement("button"); b.innerHTML = html; Object.entries(attrs).forEach(([k,v]) => b.setAttribute(k, v)); b.onpointerdown = e => { e.stopPropagation(); e.preventDefault(); on(); }; bar.append(b); };
     ["", "#f0b90b", "#0ecb81", "#f6465d", "#4aa3ff", "#b57cff", "#eaecef"].forEach(col => add('<i style="background:'+(col || "#8a94a3")+'"></i>', {"data-col":col, title:Lg("colour","لون")}, () => set(d => { if (col) d.color = col; else delete d.color; })));
     [1, 2, 3].forEach(w => add(String(w), {"data-w":w, title:Lg("width","سُمك")}, () => set(d => { d.w = w; })));
-    add("⋯", {"data-dash":1, title:Lg("dashed","متقطع")}, () => set(d => { d.dash = !d.dash; }));
+    add("⋯", {"data-dash":1, title:Lg("dashed","متقطع")}, () => set(d => { d.dash = !(d.ls ? d.ls === "dash" : d.dash); d.ls = d.dash ? "dash" : "solid"; }));
     add(Lg("Lock","قفل"), {"data-lock":1, title:Lg("lock: cannot be moved","قفل: ماينفعش يتحرك")}, () => set(d => { d.lock = !d.lock; }));
     add(Lg("Hide","إخفاء"), {"data-hide":1, title:Lg("hide (show again from the list: not yet)","إخفاء")}, () => set(d => { d.hidden = !d.hidden; this.sel = null; }));
-    add(Lg("Edit","تعديل"), {title:Lg("edit text (text tool only)","تعديل النص")}, () => { const d = this.sel; if (!d || d.type !== "text") return; let tx = null; try { tx = window.prompt(lang === "ar" ? "النص:" : "Text:", d.txt || ""); } catch(e){} if (tx === null) return; d.txt = tx || "Note"; this.saveDraws(); this.draw(); });
+    add("⚙", {title:Lg("settings: colour, line, fill, text","إعدادات: اللون والخط والتعبئة والنص")}, () => { const d = this.sel; if (d) this.openEditor(d); });
     add(Lg("Copy","نسخ"), {title:Lg("copy","نسخة")}, () => { const d = this.sel; if (!d) return; const n = JSON.parse(JSON.stringify(d)), sh = this.secMs()*3; n.id = Date.now() + Math.random();
       (n.pts || []).forEach(q => { q.t += sh; }); if (n.t0 != null){ n.t0 += sh; n.t1 += sh; } this.draws.push(n); this.sel = n; this.saveDraws(); this.draw(); });
     add(Lg("Front","للأمام"), {title:Lg("bring to front","للأمام")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d).concat([d]); this.saveDraws(); this.draw(); });
@@ -2979,27 +3062,28 @@ Object.assign(CandleChart.prototype, {
   paintDraws(c, py, dec){
     if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
-    const lab = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
+    const lab0 = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
       if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
+      const lab = d.noLbl && d.type !== "text" ? () => {} : lab0;
       const hs = this.handles(d), sel = d === this.sel;
       if (d.type === "brush"){
-        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 2; c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash(d.dash ? [5,4] : []); c.beginPath();
+        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 2; c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash(this.dashOf(d)); c.beginPath();
         d.pts.forEach((q,i) => { const x = this.tx(q.t), y = this.yp(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.stroke(); c.setLineDash([]);
       } else if (d.type === "prange"){
         const y1 = Math.min(hs[0].y, hs[1].y), y2 = Math.max(hs[0].y, hs[1].y), col = d.color || "#4aa3ff", p0 = d.pts[0].p, p1 = d.pts[1].p;
-        c.fillStyle = col+"1f"; c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
+        c.fillStyle = this.fillOf(d, col, "1f", col+"1f"); c.fillRect(0, y1, this.PR, y2-y1); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(0,y1+.5); c.lineTo(this.PR,y1+.5); c.moveTo(0,y2+.5); c.lineTo(this.PR,y2+.5); c.stroke(); c.setLineDash([]);
         const df = p1 - p0; lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0*100).toFixed(2)+"%)", 6, (y1+y2)/2, col);
       } else if (d.type === "drange"){
         const x1 = Math.min(hs[0].x, hs[1].x), x2 = Math.max(hs[0].x, hs[1].x), col = d.color || "#4aa3ff", bars = Math.round(Math.abs(d.pts[1].t - d.pts[0].t)/this.secMs());
-        c.fillStyle = col+"1f"; c.fillRect(x1, 0, x2-x1, this.PB); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x1+.5,0); c.lineTo(x1+.5,this.PB); c.moveTo(x2+.5,0); c.lineTo(x2+.5,this.PB); c.stroke(); c.setLineDash([]);
+        c.fillStyle = this.fillOf(d, col, "1f", col+"1f"); c.fillRect(x1, 0, x2-x1, this.PB); c.strokeStyle = col; c.lineWidth = d.w || 1; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(x1+.5,0); c.lineTo(x1+.5,this.PB); c.moveTo(x2+.5,0); c.lineTo(x2+.5,this.PB); c.stroke(); c.setLineDash([]);
         lab(bars+" "+Lg("bars","شمعة"), x1+4, 12, col);
       } else if (d.type === "hline"){
-        const y = hs[0].y; c.strokeStyle = d.color || "#f0b90b"; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(0,y); c.lineTo(this.PR,y); c.stroke(); lab(d.pts[0].p.toFixed(dec), 4, y-9, "#f0b90b");
+        const y = hs[0].y; c.strokeStyle = d.color || "#f0b90b"; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(0,y); c.lineTo(this.PR,y); c.stroke(); lab(d.pts[0].p.toFixed(dec), 4, y-9, "#f0b90b");
       } else if (d.type === "vline"){
-        const x = hs[0].x; c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(x,0); c.lineTo(x,this.PB); c.stroke(); c.setLineDash([]);
+        const x = hs[0].x; c.strokeStyle = d.color || "#eaecef"; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(x,0); c.lineTo(x,this.PB); c.stroke(); c.setLineDash([]);
       } else if (d.type === "ray" || d.type === "arrow"){
-        const x0 = hs[0].x, y0 = hs[0].y, x1 = hs[1].x, y1 = hs[1].y, col = d.color || (d.type === "arrow" ? "#f0b90b" : "#4aa3ff"), dash = d.dash ? [5,4] : [];
+        const x0 = hs[0].x, y0 = hs[0].y, x1 = hs[1].x, y1 = hs[1].y, col = d.color || (d.type === "arrow" ? "#f0b90b" : "#4aa3ff"), dash = this.dashOf(d);
         const e = d.type === "ray" ? this.rayEnd(x0,y0,x1,y1) : {x:x1, y:y1};
         c.strokeStyle = col; c.lineWidth = d.w || 1.5; c.setLineDash(dash); c.beginPath(); c.moveTo(x0,y0); c.lineTo(e.x,e.y); c.stroke(); c.setLineDash([]);
         if (d.type === "arrow"){ const a = Math.atan2(y1-y0, x1-x0), L = 10; c.beginPath(); c.moveTo(x1,y1); c.lineTo(x1 - L*Math.cos(a-.4), y1 - L*Math.sin(a-.4)); c.moveTo(x1,y1); c.lineTo(x1 - L*Math.cos(a+.4), y1 - L*Math.sin(a+.4)); c.stroke(); }
@@ -3008,19 +3092,24 @@ Object.assign(CandleChart.prototype, {
         const df = p1.p - p0.p, bars = Math.round((p1.t - p0.t)/this.secMs()); lab((df>=0?"+":"")+df.toFixed(dec)+" ("+(df/p0.p*100).toFixed(2)+"%) · "+bars+" "+Lg("bars","شمعة"), (hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2-10, col);
       } else if (d.type === "rect"){
         const x1 = Math.min(hs[0].x,hs[1].x), y1 = Math.min(hs[0].y,hs[1].y), w = Math.abs(hs[0].x-hs[1].x), h = Math.abs(hs[0].y-hs[1].y);
-        const rc = d.color || "#4aa3ff"; c.fillStyle = d.color ? rc+"24" : "rgba(74,163,255,.14)"; c.fillRect(x1,y1,w,h); c.strokeStyle = rc; c.lineWidth = d.w || 1.2; c.setLineDash(d.dash ? [5,4] : []); c.strokeRect(x1,y1,w,h); c.setLineDash([]);
+        const rc = d.color || "#4aa3ff"; c.fillStyle = this.fillOf(d, rc, "24", "rgba(74,163,255,.14)"); c.fillRect(x1,y1,w,h); c.strokeStyle = rc; c.lineWidth = d.w || 1.2; c.setLineDash(this.dashOf(d)); c.strokeRect(x1,y1,w,h); c.setLineDash([]);
       } else if (d.type === "channel"){
         const o = d.pts.length > 2 ? this.chanOff(d) : 0, ya = this.yp(d.pts[0].p+o), yb = this.yp(d.pts[1].p+o);
-        const cc = d.color || "#b57cff"; c.fillStyle = d.color ? cc+"1f" : "rgba(181,124,255,.12)"; c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
-        c.strokeStyle = cc; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
+        const cc = d.color || "#b57cff"; c.fillStyle = this.fillOf(d, cc, "1f", "rgba(181,124,255,.12)"); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.lineTo(hs[1].x,yb); c.lineTo(hs[0].x,ya); c.closePath(); c.fill();
+        c.strokeStyle = cc; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.moveTo(hs[0].x,ya); c.lineTo(hs[1].x,yb); c.stroke();
         c.setLineDash([4,4]); c.lineWidth = 1; c.beginPath(); c.moveTo(hs[0].x,(hs[0].y+ya)/2); c.lineTo(hs[1].x,(hs[1].y+yb)/2); c.stroke(); c.setLineDash([]);
       } else if (d.type === "text"){
-        lab(d.txt || "Note", hs[0].x, hs[0].y, "#eaecef", "rgba(43,49,57,.9)");
+        const fs = d.fs || 11, lines = String(d.txt || (this.editor && this.editor.d === d ? " " : "Note")).split("\n"); c.font = fs+"px sans-serif"; c.textAlign = "left";
+        const tw = Math.max(...lines.map(z => c.measureText(z).width)) + 10, th = lines.length*(fs+3) + 6, x0 = hs[0].x, y0 = hs[0].y - th/2; d._w = tw; d._h = th;
+        if (d.tb !== "none"){ c.fillStyle = d.tb || "rgba(43,49,57,.9)"; c.fillRect(x0, y0, tw, th); }
+        c.fillStyle = d.tc || "#eaecef"; lines.forEach((z, i) => c.fillText(z, x0 + 5, y0 + 3 + (fs+3)*i + (fs+3)/2));
       } else if (d.type === "trend"){
-        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); c.moveTo(hs[0].x,hs[0].y); c.lineTo(hs[1].x,hs[1].y); c.stroke(); c.setLineDash([]);
+        c.strokeStyle = d.color || "#4aa3ff"; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath();
+        const ea = d.extL ? this.rayEnd(hs[1].x,hs[1].y,hs[0].x,hs[0].y) : hs[0], eb = d.extR ? this.rayEnd(hs[0].x,hs[0].y,hs[1].x,hs[1].y) : hs[1];
+        c.moveTo(ea.x,ea.y); c.lineTo(eb.x,eb.y); c.stroke(); c.setLineDash([]);
         const dp = d.pts[1].p-d.pts[0].p; lab((dp>=0?"+":"")+(dp/d.pts[0].p*100).toFixed(2)+"%", (hs[0].x+hs[1].x)/2, (hs[0].y+hs[1].y)/2-10, "#4aa3ff");
       } else if (d.type === "wave"){
-        const wc = d.color || "#f0b90b"; c.strokeStyle = wc; c.lineWidth = d.w || 1.5; c.setLineDash(d.dash ? [5,4] : []); c.beginPath(); hs.forEach((h,i) => i ? c.lineTo(h.x,h.y) : c.moveTo(h.x,h.y)); c.stroke(); c.setLineDash([]);
+        const wc = d.color || "#f0b90b"; c.strokeStyle = wc; c.lineWidth = d.w || 1.5; c.setLineDash(this.dashOf(d)); c.beginPath(); hs.forEach((h,i) => i ? c.lineTo(h.x,h.y) : c.moveTo(h.x,h.y)); c.stroke(); c.setLineDash([]);
         hs.forEach((h,i) => { const up = i === 0 ? (hs[1] ? hs[1].y > h.y : true) : (hs[i-1].y > h.y); const lo = i % 2 === 0;
           c.fillStyle = wc; c.beginPath(); c.arc(h.x,h.y,3,0,6.3); c.fill(); lab(String(i), h.x-4, h.y + (up ? 10 : -10), wc); });
       } else if (d.type === "fib"){
@@ -3238,13 +3327,14 @@ class Panel {
     TOOL_GROUPS.forEach(([gk, gic, members]) => {
       const present = members.filter(k => this.toolBtns[k]); if (present.length < 2) return;
       const gb = el("button",null,gic); gb.title = Lg("Group: "+gk, "مجموعة: "+gk);
-      const gpop = el("div","fibpop"); gpop.style.left = "36px";
+      const gpop = el("div","fibpop gp"); gpop.style.left = "36px";
       dt.insertBefore(gb, this.toolBtns[present[0]]);
       present.forEach(k => { const mb = this.toolBtns[k]; gpop.append(mb); mb.addEventListener("click", () => { if (gpop.parentNode) gpop.remove(); }); });   // picking a tool closes the popup, so it does not cover the chart
       const closeG = () => { if (gpop.parentNode) gpop.remove(); };
       gb.onclick = () => {
         if (gpop.parentNode){ closeG(); return; }
-        wrap.append(gpop); setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+        wrap.append(gpop); { const wr = wrap.getBoundingClientRect(), gr = gb.getBoundingClientRect(); gpop.style.top = Math.max(0, Math.min(gr.top - wr.top - 3, wrap.clientHeight - gpop.offsetHeight - 4)) + "px"; }   // beside its own button, never off the widget
+        setTimeout(() => { const off = ev => { if (!gpop.contains(ev.target) && ev.target !== gb){ closeG(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
       };
     });
     // object tree (owner 2026-10-19: TradingView-style list): every drawing of this chart, newest first; click selects, eye hides, x deletes

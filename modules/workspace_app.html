@@ -2428,7 +2428,10 @@ Object.assign(CandleChart.prototype, {
     }
     dd.last = q; return true;
   },
-  toolUp(e){ if (this.planDrag){ this.planDrag = false; this.onPlanLen && this.onPlanLen(this.planLen); } if (this.dragD){ if (this.dragD.changed) this.saveDraws(); this.dragD = null; } },
+  toolUp(e){ if (this.planDrag){ this.planDrag = false; this.onPlanLen && this.onPlanLen(this.planLen); } if (this.dragD){ if (this.dragD.changed) this.saveDraws(); this.dragD = null; }
+    const c = this.creating;   // press, drag and release also draws a two-point tool (like TradingView): the release point is the end; a plain click keeps the click-click mode
+    if (c && c.type !== "brush" && c.type !== "wave" && c.type !== "channel" && c.type !== "triangle" && c.type !== "pitchfork" && c.pts.length === 2 && Math.hypot(this.tx(c.pts[1].t) - this.tx(c.pts[0].t), this.yp(c.pts[1].p) - this.yp(c.pts[0].p)) > 8){
+      const q = this.pt(e); c.pts[1] = {t:q.t, p:q.p}; this.creating = null; this.sel = c; this.saveDraws(); this.setTool("cur"); if (c.type === "callout") this.openEditor(c); this.draw(); } },
   nyMin(t){   // minutes since midnight in New York (DST-aware), cached per candle
     const m = this._ny || (this._ny = new Map()); let v = m.get(t); if (v != null) return v;
     if (!this._nyf) this._nyf = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false});

@@ -2,7 +2,9 @@
 
 Project: **6868 X** - multi-asset trading dashboard on Streamlit (crypto from OKX; forex / gold / indices / EGX / Tadawul from Yahoo with fallbacks).
 Owner: Saud (replies in Egyptian Arabic, short). Repo: `saudmoto6868-oss/ai-trading-dashboard`, work directly on `main`.
-Last updated: 2026-10-17. **Update this file after every finished item (status + date + commit).**
+Last updated: 2026-10-24. **Update this file after every finished item (status + date + commit).**
+
+> OpenAI text-provider change on branch `feat/openai-guide-provider`: set `OPENAI_API_KEY` in Streamlit Secrets and optionally `GUIDE_PROVIDER=openai`; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Gemini Live voice is unchanged; Claude remains opt-in. Mock tests only; no real API key was accessed.
 
 ## House rules (do not break)
 1. **Work the priority table below in order. No jumping ahead** until the item before it is finished (or the owner explicitly reorders it).

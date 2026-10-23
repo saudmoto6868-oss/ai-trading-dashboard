@@ -1,37 +1,33 @@
-# أكاديمية 6868 X — مساران
+# أكاديمية 6868 X — مساران (مكتمل الفروع الأساسية)
 
-الأكاديمية بجانب **الرادار** و**المكتب الفني**، ولها **نسختان متزامنتان** لكل محتوى:
+| المسار | المجلد | الجمهور |
+|--------|--------|--------|
+| **AI / برمجة** | [`ai/`](ai/) | كود، Lab، موديلات، رادار |
+| **عرض بصري** | [`visual/`](visual/) | واجهة الأكاديمية، شرح، mermaid |
 
-| المسار | المجلد | الجمهور | الشكل |
-|--------|--------|---------|--------|
-| **AI / برمجة** | [`ai/`](ai/) | الموديلات، الكود، الـ Lab، الرادار | قواعد صارمة، جداول، JSON schema، إبطال رقمي، بدون زخرفة |
-| **عرض بصري** | [`visual/`](visual/) | المتداول في واجهة الأكاديمية | رسوم، mermaid، بطاقات خطوات، ألوان، أمثلة بصرية صعود/هبوط |
+**مرجع التنفيذ = `ai/` دائماً.**
 
-**قاعدة ذهبية:** المصدر المنطقي واحد. أي تعارض → نسخة `ai/` هي المرجع للتنفيذ؛ `visual/` للشرح فقط.
+## فهرس المدارس
 
-```
-docs/academy/
-├── README.md                 ← أنت هنا
-├── ai/                       ← للفهم والبرمجة
-│   ├── SCHEMA.md             ← شكل البيانات الموحد
-│   ├── 05-elliott.json.md
-│   ├── 06-gann.json.md
-│   ├── 07-harmonic.json.md
-│   └── …
-└── visual/                   ← للعرض في الأكاديمية
-    ├── STYLE_GUIDE.md        ← ألوان، مكونات، تأثيرات
-    ├── 05-elliott.md
-    ├── 06-gann.md
-    ├── 07-harmonic.md
-    └── …
-```
+| id | المدرسة | AI | Visual | دور النظام |
+|----|---------|-----|--------|------------|
+| levels | مستويات / PA | [01-levels.json.md](ai/01-levels.json.md) | [01-levels.md](visual/01-levels.md) | primary |
+| trend | اتجاه / Turtle | [02-trend.json.md](ai/02-trend.json.md) | [02-trend.md](visual/02-trend.md) | primary |
+| sessions | سيولة / جلسات | [03-sessions.json.md](ai/03-sessions.json.md) | [03-sessions.md](visual/03-sessions.md) | timing |
+| smc | SMC / ICT | [04-smc.json.md](ai/04-smc.json.md) | [04-smc.md](visual/04-smc.md) | context |
+| elliott | إليوت | [05-elliott.json.md](ai/05-elliott.json.md) | [05-elliott.md](visual/05-elliott.md) | context |
+| gann | جان | [06-gann.json.md](ai/06-gann.json.md) | [06-gann.md](visual/06-gann.md) | context |
+| harmonic | توافقي | [07-harmonic.json.md](ai/07-harmonic.json.md) | [07-harmonic.md](visual/07-harmonic.md) | context |
+| orderflow | تدفق أوامر | [08-orderflow.json.md](ai/08-orderflow.json.md) | [08-orderflow.md](visual/08-orderflow.md) | execution_gate |
+| meanrev | عودة للمتوسط | [09-meanrev.json.md](ai/09-meanrev.json.md) | [09-meanrev.md](visual/09-meanrev.md) | separate_system |
 
-النسخ القديمة في جذر `docs/academy/0x-*.md` تُعتبر مسودة؛ اعتمد `ai/` + `visual/`.
+## ملفات مشتركة
 
-## ربط المنتج لاحقاً
+- [`ai/SCHEMA.md`](ai/SCHEMA.md) — شكل YAML للسيتبات
+- [`visual/STYLE_GUIDE.md`](visual/STYLE_GUIDE.md) — ألوان وتأثيرات العرض
 
-| مكوّن | يقرأ |
-|-------|------|
-| كاشف إشارات / Lab / Grade | `ai/*` |
-| تبويب Academy في Streamlit | `visual/*` (markdown + mermaid) |
-| صوت Guide | ملخص من `ai` + أمثلة من `visual` |
+## حالة
+
+- [x] كل المدارس التسع على المسارين
+- [ ] تبويب Streamlit يقرأ `visual/`
+- [ ] parsers تقرأ `ai/` للـ Lab

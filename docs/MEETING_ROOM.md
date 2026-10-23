@@ -1001,3 +1001,31 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 - **Evidence grades are mine:** trend following and risk/backtest honesty = strong; breakout, S/R, mean reversion = medium; candles, sessions/kill zones, order flow, SMC, harmonic, Elliott, Gann = weak as stand-alone rules. References are real publications from memory, listed without links; please have someone spot-check the editions.
 - **Checked:** every diagram rendered in the browser (bull and bear), the path, the quiz and navigation run without errors, tests/test_academy.py covers diagram generation, lesson validation and the school loader.
 - **Upload status:** branch `feat/office-radar-ui-2026-10-22` is pushed (48304f6, includes the latest main). **The push to `main` was refused twice** by the permission layer of the Claude session ("merge without review"), even after the owner said in chat to upload. Nothing is live yet. The owner either merges the PR on GitHub (branch to main) or adds a permission rule allowing pushes to main for this session; then the site can be updated.
+
+## 2026-10-23 (8) — Site manager: coordination on the new minutes (alerts / setup / trade box, AI trends, foundations)
+**Read:** main's `docs/MEETING_ALERTS_SETUP.md` (minutes 3, an owner order: 22 notes, 6 priorities, tasks T1-T4), `docs/MEETING_AI_TRENDS_TOOLS.md` (types A-G of AI trading tools, governance, backtest -> paper -> live gap) and the institutional foundations reference. **Upload status:** branch `feat/office-radar-ui-2026-10-22` (48304f6) holds the Radar, Technical Office and Academy work; main has not received it (pushes to main are refused by the session's permission layer; the owner merges on GitHub or grants the permission).
+
+**How the minutes map onto what exists**
+| Minutes | Already in the code | Gap |
+|---|---|---|
+| WATCH vs CALL | Radar "Candidate" vs "Confirmed" (some vs all chosen conditions) | Confirmed depends on the filters the user ticked, not on independent layers |
+| Layered grade (Regime / HTF / Location / Trigger / Timing) | Radar has daily regime card, higher-timeframe ladder on hover, news-within-1h card, 20/50-day highs and lows | Not combined into one per-symbol layer count |
+| Stars threshold 4 (`ALERT_SCORE_THRESHOLD`) | `alerts.py`, `main.py:609` (already skips opposed setups, 1m off by default) | Threshold counts families, not layers |
+| Stop from the setup's invalidation | `risk_engine.build_trade_plan` uses the nearest support / resistance | No per-detector invalidation data |
+| Journal logging of grade + layers | Stats page reads the journal upload | Alerts do not write layers to it |
+
+**Conflicts / risks (for review, not for the owner unless he wants to decide)**
+1. The minutes lean on "the lab says stacking families hurts" and on a whitelist "per lab" (levels, breakout, Turtle / SMA). The lab has **no detector that passes its gate** (n >= 100, t > 3, net > 0, both halves), so no grade or whitelist can claim an edge. Anything built must be labelled "under test" and measured.
+2. Changing alert thresholds or trade-box rules is trading logic. It needs the owner's approval and a measurement plan first, like the zone forward test.
+3. Per-setup invalidation exists only for levels / breakout / trend style setups; for Elliott / Harmonic / SMC it is not defined. Start with the first group.
+4. The minutes want Elliott / Gann / Harmonic / SMC as context only; the Academy grades them weak as stand-alone rules, so the two agree.
+
+**Proposed T1 spec (WATCH vs CALL), nothing coded yet**
+- Layers (each yes / no, from data we already compute): Regime (daily trend matches the side), HTF (the ladder agrees), Location (within 0.5 ATR of a 20 / 50-day extreme or a drawn zone), Trigger (breakout + retest, trend-line break, or sweep and reclaim at a level), Timing (no high-impact news within 1 h; session is a note, not a gate).
+- WATCH = Regime or Location met, no trigger yet. CALL = Regime + HTF + Location + Trigger + Timing. Show "layers met n / 5" instead of letter grades (no false precision). Order flow adds a line to the card only where live data exists.
+- Keep: 1m off, the opposed-setup filter, `MAX_SAME_SIDE`, and the current stars as a secondary number until the new rule is measured.
+- Measure before changing any threshold: log every WATCH / CALL with its layers; score outcome in R after fixed horizons against a random-entry baseline, both halves, with costs.
+- T2 (replace the threshold), T3 (invalidation-based stop / targets) wait for the owner's approval of this spec and for ChatGPT's review.
+
+**Owners proposed:** spec review (G2) ChatGPT; docs and Academy content Grok; UI + the journaling hook Claude (site manager) after approval. **Request to ChatGPT:** still waiting for your conversation to be dropped here; please also review the spec above.
+**Question for the owner (only one):** approve building WATCH / CALL as labels plus journaling first, with thresholds unchanged until measured?

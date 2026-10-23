@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "مواد الأكاديمية. كل درس له حالة (draft = مسودة من المصدر، reviewed = اتراجع، approved = اعتمده المالك) وحكم مراجعة. المحتوى تعليمي مش توصية.",
+  "note": "مراجعتنا لمحتوى الأكاديمية ومحادثة Grok: كل نقطة لها حالة وحكم. المدارس نفسها في تاب المدارس (docs/academy). المحتوى تعليمي مش توصية.",
   "lessons": [
     {
       "id": "of-tools-reliability",
@@ -23,8 +23,16 @@
         "كل التقييمات من مصادر تعليمية، ما اتقاسش على بياناتنا.",
         "Footprint التقليدي الكامل (bid × ask لكل سعر) عندنا مش كامل على كل الأسواق."
       ],
-      "sources": ["https://www.basischarts.com/docs/order-flow", "https://satotrades.com/guides/footprint-charts-explained", "https://tra-mada.de/en/blog/order-book-analysis-icebergs-spoofing"],
-      "uses": ["Workspace: Depth of Trade", "Workspace: Limit Tracking", "Technical Office: Flow lab"]
+      "sources": [
+        "https://www.basischarts.com/docs/order-flow",
+        "https://satotrades.com/guides/footprint-charts-explained",
+        "https://tra-mada.de/en/blog/order-book-analysis-icebergs-spoofing"
+      ],
+      "uses": [
+        "Workspace: Depth of Trade",
+        "Workspace: Limit Tracking",
+        "Technical Office: Flow lab"
+      ]
     },
     {
       "id": "layers-not-votes",
@@ -40,9 +48,16 @@
         "عائلات كتير متفقة مش بالضرورة دليل أقوى لو بتقيس نفس الحاجة.",
         "الرادار بيطبق ده تدريجياً: شريط حالة السوق، فلاتر، وكروت الصفقة للمؤكد."
       ],
-      "caveats": ["ما فيش اختبار عندنا بيثبت إن الترتيب ده بيرفع الربح."],
-      "sources": ["https://www.tradingview.com/script/13etGnbq-MTF-Dashboard-9-Timeframes-Signals/"],
-      "uses": ["Radar: Confirmed / Candidate", "Technical Office: Strategy map"]
+      "caveats": [
+        "ما فيش اختبار عندنا بيثبت إن الترتيب ده بيرفع الربح."
+      ],
+      "sources": [
+        "https://www.tradingview.com/script/13etGnbq-MTF-Dashboard-9-Timeframes-Signals/"
+      ],
+      "uses": [
+        "Radar: Confirmed / Candidate",
+        "Technical Office: Strategy map"
+      ]
     },
     {
       "id": "sessions-killzones",
@@ -59,46 +74,18 @@
         "نيويورك الصبح حوالي 07:00–10:00، والتداخل حوالي 08:00–12:00.",
         "الـ Workspace فيه أصلاً صناديق الجلسات وKill Zones."
       ],
-      "caveats": ["الأوقات تقريبية ومتفاوتة بين المصادر.", "ما تتعاملش كفلتر ربح قبل اختبار."],
-      "sources": ["https://grandalgo.com/blog/session-liquidity-asia-london-new-york", "https://kagels-trading.com/blog/trading-sessions/"],
-      "uses": ["Workspace: Sessions + Kill Zones", "Technical Office: Detector analysis"]
-    },
-    {
-      "id": "strategy-families",
-      "topic": "Strategies",
-      "title": "خريطة عائلات الاستراتيجيات",
-      "source": "Grok 2026-10-22",
-      "status": "draft",
-      "verdict": "consistent",
-      "verdict_note": "تصنيف عام ومعروف. الأوصاف تعليمية ومش أدلة أداء. ترتيب الأولوية المقترح للمشروع رأي، مش نتيجة اختبار.",
-      "summary": "الترند، الارتداد للمتوسط، الاختراق، الزخم، حركة السعر والمستويات، SMC/ICT، الـ order flow، والـ carry/الأخبار. الترند والارتداد بيفشلوا في أوقات مختلفة، فالأحسن أنظمة منفصلة.",
-      "points": [
-        "الترند: يكسب في الاتجاهات الطويلة ويخسر في النطاقات.",
-        "الارتداد للمتوسط: عكسه. نظام نطاق منفصل.",
-        "الاختراق: حساس لتكاليف التنفيذ والاختراقات الكاذبة.",
-        "الأولوية المقترحة: مستويات وهيكل يومي، ترند يومي، اختراق/سحب عند مستوى، موقع، جلسات، order flow كبوابة، SMC كتأكيد، Elliott/Gann كسياق."
+      "caveats": [
+        "الأوقات تقريبية ومتفاوتة بين المصادر.",
+        "ما تتعاملش كفلتر ربح قبل اختبار."
       ],
-      "caveats": ["ما فيش عائلة بتتفوق على كل الباقي. اللي بيفرق غالباً إدارة المخاطرة والتكاليف وفلتر حالة السوق."],
-      "sources": ["https://setup4alpha.substack.com/p/trend-mean-reversion-portfolio", "https://arrowalgo.com/mean-reversion-vs-trend-following/", "https://www.quantifiedstrategies.com/turtle-trading-strategy/"],
-      "uses": ["Radar: Quick filters", "Technical Office: Strategy map"]
-    },
-    {
-      "id": "elliott-gann-context",
-      "topic": "Elliott / Gann",
-      "title": "Elliott وGann: سياق مش إشارة",
-      "source": "Grok 2026-10-22",
-      "status": "draft",
-      "verdict": "consistent",
-      "verdict_note": "متوافق مع نتيجة المعمل عندنا (Elliott أضعف مدرسة). 'Zameni/Jan' في كلام المالك ما اتحددش معناه بعد: ممكن Gann أو Zamansky Dynamic Zones أو حاجة زمنية. محتاج توضيح من المالك.",
-      "summary": "Elliott: قواعد صلبة (من Frost وPrechter) والاستخدام الآمن هو سياق + عدّ بديل + نقطة إبطال. Gann: زوايا ومروحة ودورات، بصرية بس بدون دليل قوي.",
-      "points": [
-        "Elliott: دايماً عدّ بديل ونقطة إبطال واضحة.",
-        "Gann: Fan وSquare of Nine للمشاهدة، مش للقرار.",
-        "الـ Workspace فيه أدوات Elliott وGann ورسم يدوي."
+      "sources": [
+        "https://grandalgo.com/blog/session-liquidity-asia-london-new-york",
+        "https://kagels-trading.com/blog/trading-sessions/"
       ],
-      "caveats": ["المعمل ما فيهوش دليل قوي لأي منهم."],
-      "sources": ["https://ew-strategy.com/blog/elliott-wave-cheat-sheet-15-critical-rules", "https://www.technical-analysis-pro.com/strategies-gann-theory/"],
-      "uses": ["Workspace: Elliott waves", "Technical Office: Detector analysis"]
+      "uses": [
+        "Workspace: Sessions + Kill Zones",
+        "Technical Office: Detector analysis"
+      ]
     },
     {
       "id": "claim-check-lab",
@@ -107,51 +94,21 @@
       "source": "Grok 2026-10-22",
       "status": "draft",
       "verdict": "contradicted",
-      "verdict_note": "Grok ذكر أفضل: turtle55 وsma1040 وliqline 1d وm2022 1d وohl_break 1d، وقال إن Lab مفيش فيه تكاليف. مراجعتي: التكلفة موجودة (0.1R) وولا واحد من الكواشف بيعدّي البوابة (n ≥ 100، t > 3، صافي موجب، النصفين موجبين). صفوف الكواشف مفيهاش t أصلاً (0 من 186)، وصفوف السلاسل فيها t (221) وولا واحدة بتعدّي. والاختبار المجمّد الأول (holdout) مش دليل. فالترتيب ده ما يتعرضش كدليل.",
+      "verdict_note": "Grok ذكر أفضل: turtle55 وsma1040 وliqline 1d وm2022 1d وohl_break 1d، وقال إن Lab مفيش فيه تكاليف. مراجعتي: التكلفة موجودة (0.1R) وولا واحد من الكواشف بيعدّي البوابة (n ≥ 100، t > 3، صافي موجب، النصفين موجبين). صفوف الكواشف مفيهاش t أصلاً (0 من 186)، وصفوف السلاسل فيها t (221) وولا واحدة بتعدّي. والاختبار المجمّد الأول (holdout) مش دليل. فالترتيب ده ما يتعرضش كدليل. ملاحظة إضافية: ملفات docs/academy/ai فيها lab_status: primary_candidate للترند، و per_pattern للهارمونيك. ده معناه قيد الاختبار، مش نجاح.",
       "summary": "الأرقام اللي في المحادثة عن 'الأفضل' ما تتحوّلش لتوصية. المعيار عندنا هو البوابة الإحصائية في المعمل، ولحد دلوقتي ما فيش كاشف عدّاها.",
       "points": [
         "البوابة: n ≥ 100، t > 3، صافي بعد التكلفة موجب، والنصفين موجبين.",
         "التكلفة المحسوبة 0.1R لكل صفقة.",
         "كواشف المعمل: 0 من 186 فيها t-stat. سلاسل: 221 فيها t، ولا واحدة تعدّي."
       ],
-      "caveats": ["لو المعمل اتعاد تشغيله بأسواق أكتر النتيجة ممكن تتغير. لازم تتراجع من جديد."],
-      "sources": [],
-      "uses": ["Technical Office: Scanner control", "Technical Office: Strategy map"]
-    },
-    {
-      "id": "proposed-playbook",
-      "topic": "Playbook",
-      "title": "خطة اللعب المقترحة (مسودة)",
-      "source": "Grok 2026-10-22",
-      "status": "draft",
-      "verdict": "hypothesis",
-      "verdict_note": "ترتيب منطقي لكن ما اتختبرش كنظام. نعتبره قائمة تحقق قبل الصفقة، مش استراتيجية مثبتة.",
-      "summary": "اتجاه يومي ← مستويات واختراقات ← الموقع ← توقيت الـ Kill Zone ← زخم أو سحب سيولة ← order flow ← نسبة مخاطرة/عائد لا تقل عن 1.5 ← تسجيل في اليوميات.",
-      "points": [
-        "الخطوات بتتحول لقائمة تحقق قبل الدخول.",
-        "التسجيل في اليوميات مهم علشان نقيس بعدين.",
-        "حجم الصفقة حسب التقلب وحد خسارة يومي: مراحل لاحقة مقترحة."
+      "caveats": [
+        "لو المعمل اتعاد تشغيله بأسواق أكتر النتيجة ممكن تتغير. لازم تتراجع من جديد."
       ],
-      "caveats": ["مفيش نتيجة إحصائية بتقول إن الخطة دي تكسب."],
       "sources": [],
-      "uses": ["Playbook", "Stats: Journal"]
-    },
-    {
-      "id": "no-magic-strategy",
-      "topic": "Risk",
-      "title": "مفيش استراتيجية سحرية: إيه اللي بيفرق فعلاً؟",
-      "source": "Grok 2026-10-22",
-      "status": "draft",
-      "verdict": "consistent",
-      "verdict_note": "متوافق مع بحث المؤسسات اللي عملناه: إدارة المخاطرة والتكاليف وحالة السوق والتنفيذ. الفئات الإضافية المذكورة (CTA، momentum عبر الأصول، volatility targeting...) مجرد أسماء للمعرفة، مش جاهزة عندنا.",
-      "summary": "اللي بيتفوق غالباً هو إدارة المخاطرة والمحفظة، فلتر حالة السوق، التكاليف الحقيقية، التنفيذ، والفريمات الأعلى، مش اسم مدرسة أحدث.",
-      "points": [
-        "فئات مؤسسية: CTA متعدد الأصول، momentum عبر الأصول، استهداف التقلب، أحداث منظمة، stat arb، موسمية كفلتر.",
-        "معظمها محتاج بيانات أو بنية مش متاحة مجاناً."
-      ],
-      "caveats": ["تعليمي. مش توصية."],
-      "sources": ["https://velotrade.com/blog/algorithmic-trading-strategies"],
-      "uses": ["Radar: Market state", "Technical Office"]
+      "uses": [
+        "Technical Office: Scanner control",
+        "Technical Office: Strategy map"
+      ]
     }
   ]
 }

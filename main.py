@@ -2617,43 +2617,70 @@ def render_chart_scanner(f):
 
 
 def render_academy_page():
-    """Academy: reviewed teaching material. Every lesson shows where it came from, its status (draft / reviewed / approved) and our verdict against the project's own data."""
+    """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
+    worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(UK.css(), unsafe_allow_html=True)
-    ls = AC.load()
-    if not ls:
-        st.info(L("No lessons yet."))
-        return
-    sm = AC.summary(ls)
-    n_bad = sm["verdict"].get("contradicted", 0)
+    e = html.escape
+    sc, ls = AC.schools(), AC.load()
+    view = st.segmented_control(L("Academy"), ["Schools", "Backtest evidence", "Examples", "Our review"], default="Schools", key="ac_view",
+                                format_func=lambda v: L(v), label_visibility="collapsed") or "Schools"
+    n_bad = sum(1 for l_ in ls if l_["verdict"] == "contradicted")
     st.markdown(UK.row([
-        UK.kpi("📚", L("Lessons"), sm["n"], f"{len(sm['topic'])} {L('topics')}"),
-        UK.kpi("📝", L("Drafts"), sm["status"].get("draft", 0), L("Not approved by the owner yet"), tone="warn" if sm["status"].get("draft") else ""),
-        UK.kpi("✅", L("Approved"), sm["status"].get("approved", 0), L("Approved by the owner"), tone="up" if sm["status"].get("approved") else ""),
+        UK.kpi("🎓", L("Schools"), len(sc), L("Curricula in docs/academy")),
+        UK.kpi("📝", L("Status"), L("Draft"), L("Not approved by the owner yet"), tone="warn"),
+        UK.kpi("🧪", L("Lab"), L("No detector passes"), L("Gate: n ≥ 100, t > 3, net > 0, both halves"), tone="down"),
         UK.kpi("⚠️", L("Contradicted claims"), n_bad, L("Claims that disagree with the project's data"), tone="down" if n_bad else ""),
-    ]) + UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)
-    c = st.columns([1.2, 2, 1.4])
-    q = c[0].text_input(L("Search"), key="ac_q", label_visibility="collapsed", placeholder=L("Search"))
-    topic = c[1].pills(L("Topic"), list(sm["topic"]), key="ac_topic", label_visibility="collapsed")
-    vd = c[2].selectbox(L("Verdict"), [""] + list(AC.VERDICT), format_func=lambda k: L("All") if not k else AC.VERDICT[k][0], key="ac_vd", label_visibility="collapsed")
-    shown = AC.search(ls, q, topic or "", vd)
-    st.caption(f"{len(shown)} / {len(ls)}  ·  " + L("Educational, not investment advice. Lessons are drafts until the owner approves them."))
-    for l_ in shown:
-        stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
-        with st.expander(f"{l_['title']}", expanded=False):
-            e = html.escape
-            st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span>"
-                        f"<span class='uk-chip'>{e(l_['topic'])}</span><span class='uk-chip'>{e(l_['source'])}</span></div>", unsafe_allow_html=True)
-            st.markdown(l_["summary"])
-            st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
-            if l_["points"]:
-                st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
-            if l_["caveats"]:
-                st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
-            if l_["uses"]:
-                st.markdown(f"<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(u)}</span>" for u in l_["uses"]) + "</div>", unsafe_allow_html=True)
-            if l_["sources"]:
-                st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(l_["sources"])))
+    ]), unsafe_allow_html=True)
+    st.caption(L("Educational, not investment advice. Lessons are drafts until the owner approves them."))
+    if view == "Schools":
+        if not sc:
+            st.info(L("No lessons yet."))
+            return
+        names = {s_["id"]: f"{s_['icon']} {s_['title'].split('—')[0].strip()}" for s_ in sc}
+        pick = st.pills(L("School"), list(names), format_func=names.get, default=sc[0]["id"], key="ac_school", label_visibility="collapsed") or sc[0]["id"]
+        s_ = next(x for x in sc if x["id"] == pick)
+        body, chips = AC.badges(s_["visual"])
+        body, flows = AC.chains(body)
+        st.markdown(f"<div class='uk-panel'><h4>{e(s_['icon'])} {e(s_['title'])}</h4><div class='uk-chipbar'>"
+                    + "".join(f"<span class='uk-chip' style='border-color:{c};color:{c}'>{e(t)}</span>" for t, c in chips) + "</div></div>", unsafe_allow_html=True)
+        st.warning(AC.LAB_NOTE)
+        for fl in flows:
+            st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(x)}</span>" for x in fl) + "</div>", unsafe_allow_html=True)
+        st.markdown(body)
+        if s_["curriculum"]:
+            with st.expander(L("Full curriculum")):
+                st.markdown(s_["curriculum"])
+        if s_["ai"]:
+            with st.expander(L("Machine spec (AI track)")):
+                st.markdown(s_["ai"])
+    elif view == "Backtest evidence":
+        st.info(L("External evidence from published sources. It is context, not the project's lab result."))
+        st.markdown(AC.evidence() or L("No lessons yet."))
+    elif view == "Examples":
+        st.markdown(AC.examples() or L("No lessons yet."))
+    else:
+        sm = AC.summary(ls)
+        st.markdown(UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)
+        c = st.columns([1.2, 2, 1.4])
+        q = c[0].text_input(L("Search"), key="ac_q", label_visibility="collapsed", placeholder=L("Search"))
+        topic = c[1].pills(L("Topic"), list(sm["topic"]), key="ac_topic", label_visibility="collapsed")
+        vd = c[2].selectbox(L("Verdict"), [""] + list(AC.VERDICT), format_func=lambda k: L("All") if not k else AC.VERDICT[k][0], key="ac_vd", label_visibility="collapsed")
+        for l_ in AC.search(ls, q, topic or "", vd):
+            stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
+            with st.expander(l_["title"], expanded=False):
+                st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span>"
+                            f"<span class='uk-chip'>{e(l_['topic'])}</span><span class='uk-chip'>{e(l_['source'])}</span></div>", unsafe_allow_html=True)
+                st.markdown(l_["summary"])
+                st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+                if l_["points"]:
+                    st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+                if l_["caveats"]:
+                    st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
+                if l_["uses"]:
+                    st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(u)}</span>" for u in l_["uses"]) + "</div>", unsafe_allow_html=True)
+                if l_["sources"]:
+                    st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(l_["sources"])))
 
 
 def render_info_strip():

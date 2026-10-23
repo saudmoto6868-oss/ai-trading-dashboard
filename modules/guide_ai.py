@@ -59,10 +59,14 @@ def gemini_key() -> str:   # the usual names a Google AI Studio key is saved und
 
 
 def provider() -> str:
-    """Owner rule (2026-10-18): Mr X / AI page run on Gemini only; the Anthropic key is for project work, never spent here.
-    Claude is used only if GUIDE_PROVIDER = "claude" is set on purpose."""
-    if _cfg("GUIDE_PROVIDER", "gemini").lower() == "claude" and api_key():
+    """Owner rule (2026-10-18): the Anthropic key is for project work, never spent here; Claude only if GUIDE_PROVIDER = "claude" is set on purpose.
+    Owner 2026-10-23: ChatGPT answers the questions (text) when OPENAI_API_KEY is set; otherwise the free Gemini key, as before.
+    GUIDE_PROVIDER = "gemini" forces Gemini even when an OpenAI key exists. The live VOICE still runs on Gemini Live."""
+    want = _cfg("GUIDE_PROVIDER", "").lower()
+    if want == "claude" and api_key():
         return "claude"
+    if want != "gemini" and _cfg("OPENAI_API_KEY", ""):
+        return "openai"
     return "gemini" if gemini_key() else ""
 
 
@@ -119,7 +123,25 @@ def _gemini(q: str, ctx_txt: str, hist: list) -> dict:   # Google Gemini REST (f
     return out
 
 
+def _openai(q: str, ctx_txt: str, hist: list) -> dict:   # ChatGPT (modules/ai_provider.py); same JSON answer shape as Claude / Gemini
+    from modules import ai_provider as AP
+    msgs = []
+    for h in hist[-6:]:
+        msgs += [{"role": "user", "content": h["q"]}, {"role": "assistant", "content": h["a"]}]
+    msgs.append({"role": "user", "content": "Screen context (data): " + ctx_txt + "\n\nQuestion: " + q})
+    out = AP.chat_json(SYSTEM, msgs, AP.describe({"type": "OBJECT", "required": ["say", "go", "page"], "properties": {
+        "say": {"type": "STRING"}, "go": {"type": "STRING", "enum": TARGETS}, "page": {"type": "STRING", "enum": PAGES}}}), max_tokens=900)
+    if out.get("go") not in TARGETS:
+        out["go"] = "none"
+    if out.get("page") not in PAGES:
+        out["page"] = "none"
+    out["say"] = str(out.get("say", ""))[:900]
+    return out
+
+
 def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
+    if model == "openai":
+        return _openai(q, ctx_txt, hist)
     if model == "gemini":
         return _gemini(q, ctx_txt, hist)
     import anthropic
@@ -203,7 +225,7 @@ def answer(req: dict, hist: list) -> dict:
         return {"id": rid, "err": "cap"}
     ctx = req.get("ctx") or {}
     ctx_txt = json.dumps({k: ctx[k] for k in sorted(ctx)}, ensure_ascii=False)[:1200]
-    model = _cfg("GUIDE_MODEL", "claude-haiku-5-5") if provider() == "claude" else "gemini"
+    model = _cfg("GUIDE_MODEL", "claude-haiku-5-5") if provider() == "claude" else provider()   # "openai" or "gemini"
     try:
         if hist:   # follow-up questions depend on the chat, so they are not cached
             out = _call(q, ctx_txt, hist, model)

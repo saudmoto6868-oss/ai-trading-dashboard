@@ -319,22 +319,23 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
     rows = [r for r in rows if r["key"] != "*CHAIN*" and r["school"] != "exit"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
+    _net = lambda a: "" if a is None else round(a - COST_R, 3)   # owner rule: judge after 0.1R costs
     L = [f"# Strategy lab - real candles ({time.strftime('%Y-%m-%d', time.gmtime(meta['built']))})", "",
          f"Symbols: {', '.join(meta['symbols'])} · timeframes: {', '.join(meta['tfs'])} · stop {STOP_ATR} ATR, target {RR}R, "
-         f"break-even win rate {round(100 / (1 + RR))}% · no costs (real results are worse) · n < {MIN_N} = not evidence.", "",
-         "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|"]
+         f"break-even win rate {round(100 / (1 + RR))}% · avg R has no costs; the net column takes {COST_R}R per trade off (planning estimate) · n < {MIN_N} = not evidence.", "",
+         "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | net avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ok, 1):
-        L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
+        L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {_net(r.get('avgR'))} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
     sch = {}
     for r in ok:
         a = sch.setdefault(r["school"], [0, 0.0]); a[0] += r["n"]; a[1] += r["n"] * (r.get("avgR") or 0)
     L += ["", "## Schools of analysis (all their detectors pooled)", "", "| rank | school | n | avg R |", "|---|---|---|---|"]
     L += [f"| {i} | {k} | {v[0]} | {round(v[1] / v[0], 3)} |" for i, (k, v) in enumerate(sorted(sch.items(), key=lambda kv: -kv[1][1] / max(kv[1][0], 1)), 1)]
-    L += ["", "## Best timeframe per detector (n >= %d)" % MIN_N, "", "| key | tf | n | win % | avg R |", "|---|---|---|---|---|"]
+    L += ["", "## Best timeframe per detector (n >= %d)" % MIN_N, "", "| key | tf | n | win % | avg R | net avg R |", "|---|---|---|---|---|---|"]
     for k in sorted({r["key"] for r in rows}):
         c = [r for r in rows if r["key"] == k and r["tf"] != "all" and r["side"] == "all" and r["n"] >= MIN_N]
         if c:
-            b = max(c, key=lambda r: r["avgR"]); L.append(f"| {k} | {b['tf']} | {b['n']} | {b['win']} | {b['avgR']} |")
+            b = max(c, key=lambda r: r["avgR"]); L.append(f"| {k} | {b['tf']} | {b['n']} | {b['win']} | {b['avgR']} | {_net(b['avgR'])} |")
     L += ["", "## Long vs short", "", "| key | long n | long avg R | short n | short avg R |", "|---|---|---|---|---|"]
     for k in sorted({r["key"] for r in rows}):
         lo_ = next((r for r in rows if r["key"] == k and r["side"] == "long"), {}); sh = next((r for r in rows if r["key"] == k and r["side"] == "short"), {})

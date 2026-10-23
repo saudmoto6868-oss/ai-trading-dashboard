@@ -223,6 +223,6 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
-    import streamlit as st
+    import streamlit.components.v1 as components
 
-    st.iframe(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height)
+    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height, scrolling=False)

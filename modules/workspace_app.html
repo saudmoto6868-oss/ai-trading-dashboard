@@ -927,7 +927,7 @@ function okx(path){
   const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
   const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
-  if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error("OKX rate limit: paused for a few minutes"));
+  if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
     try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
   }
@@ -1139,6 +1139,9 @@ const WSX = {
 /* ---------------- data hub (one poll per symbol/kind, shared by all widgets) ---------------- */
 const SIG_IND = ["zn", "bso", "rm", "r2"];   // indicators that draw BUY/SELL marks today (more join this list as the new indicators are added)
 const Lg = (a, b) => lang === "ar" ? b : a;
+const CATL = {"Crypto":["Crypto","كريبتو"], "Forex":["Forex","فوركس"], "Metals":["Metals","معادن"], "Oil & Gas":["Oil & Gas","نفط وغاز"], "Commodities":["Commodities","سلع"], "Indices":["Indices","مؤشرات"], "Stocks":["Stocks","أسهم"], "Bonds":["Bonds","سندات"],
+  "Options":["Options","خيارات"], "Meme coins":["Meme coins","عملات ميم"], "Egypt (EGX)":["Egypt (EGX)","مصر (EGX)"], "Saudi (Tadawul)":["Saudi (Tadawul)","السعودية (تداول)"]};
+const catL = c => CATL[c] ? Lg(CATL[c][0], CATL[c][1]) : c;   // market-category names: the value stays English (used for filtering), the label follows the language
 /* Item 23 (phase 1): read a trade explanation aloud with the browser's own speech engine (Web Speech API) - free, no key,
    nothing leaves the device. Arabic text uses an Arabic voice when the device has one (ar-EG preferred, then any ar-*). */
 const Voice = {
@@ -3217,9 +3220,9 @@ class Panel {
     // per-widget colours: header/border accent + body tint (saved with the layout)
     const mkCol = (title, key) => { const i = el("input"); i.type = "color"; i.title = title; i.className = "pc"; i.value = this.state[key] || (key === "col" ? "#1e2329" : "#0b0e11");
       i.onpointerdown = e => e.stopPropagation(); i.oninput = () => { this.state[key] = i.value; this.paint(); }; i.onchange = () => Ws.save(); return i; };
-    const rc = el("button",null,"↺"); rc.title = "reset colours"; rc.onpointerdown = e => e.stopPropagation();
+    const rc = el("button",null,"↺"); rc.title = Lg("reset colours","رجّع الألوان"); rc.onpointerdown = e => e.stopPropagation();
     rc.onclick = () => { delete this.state.col; delete this.state.bg; this.paint(); Ws.save(); };
-    this.head.append(bLock, mkCol("header colour","col"), mkCol("background colour","bg"), rc, this.grp, bMin, bMax, bX); this.applyLock();
+    this.head.append(bLock, mkCol(Lg("header colour","لون العنوان"),"col"), mkCol(Lg("background colour","لون الخلفية"),"bg"), rc, this.grp, bMin, bMax, bX); this.applyLock();
     this.body = el("div","pb"); this.rz = el("div","rz");
     this.root.append(this.head, this.body, this.rz);
     // resize from every side and corner (thin invisible grips on the border; the old corner grip stays)
@@ -3290,7 +3293,7 @@ class Panel {
   /* ---- chart ---- */
   build_chart(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
-    this.tfSel = el("select"); this.tfSel.title = "Timeframe"; TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    this.tfSel = el("select"); this.tfSel.title = Lg("Timeframe","الفريم"); TFS.forEach(([v,l]) => this.tfSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     this.tfSel.onchange = () => this.setTf(this.tfSel.value); tb.append(this.tfSel);
     if (MOB){ const row = el("div","mtf"); this.mtfRow = row; [["1m","M1"],["5m","M5"],["15m","M15"],["30m","M30"],["1H","H1"],["4H","H4"],["1D","D1"],["1W","W1"],["1M","MN"]].forEach(([v, l]) => {
         const b = el("button", null, l); b.dataset.tf = v; b.onclick = () => this.setTf(v); row.append(b); }); this._mtfPending = row; }   // MetaTrader's timeframe strip (phones)
@@ -3790,7 +3793,7 @@ class Panel {
   }
   build_tape(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("win", 300000));
-    const sg = el("button", null, "⚙"); sg.title = lang === "ar" ? "حساسية Smart / Big / Absorb" : "Smart / Big / Absorb sensitivity"; sg.onclick = e => { e.stopPropagation(); Ws.sensPop(sg); }; tb.append(sg);
+    const sg = el("button", null, "⚙"); sg.title = lang === "ar" ? "حساسية ذكي / كبير / امتصاص" : "Smart / Big / Absorb sensitivity"; sg.onclick = e => { e.stopPropagation(); Ws.sensPop(sg); }; tb.append(sg);
     const hd = el("div","hdr"); this.statBox = el("div"); this.depthCv = el("canvas"); this.depthCv.width = 240; this.depthCv.height = 84; this.depthCv.style.cssText = "width:120px;height:42px;flex:none;background:#0b0e11;border-radius:3px";
     hd.append(this.statBox, this.depthCv);
     this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
@@ -3820,10 +3823,10 @@ class Panel {
     const U = this.state.u = Object.assign({type:"SPOT", quote:"USDT", cat:(Object.keys(YF).length ? "__mine" : "All"), top:10}, this.state.u || {});   // Yahoo markets are not in OKX's universe -> "My list" by default
     const selU = (opts, key) => { const x = el("select"); opts.forEach(([v,l]) => x.append(Object.assign(el("option"), {value:v, textContent:l}))); x.value = U[key]; x.onchange = () => { U[key] = isNaN(+x.value) ? x.value : +x.value; Ws.save(); loadU(); }; return x; };
     const uTb = el("div","tb"), uBox = el("div"); const catSel = el("select"); catSel.onchange = () => { U.cat = catSel.value; if (!U.cat.startsWith("__")){ const want = U.cat === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(U.cat) ? "SPOT" : (U.cat === "All" ? U.type : (U.type === "SPOT" ? "SWAP" : U.type)); if (want !== U.type){ U.type = want; typeSel.value = want; if (!/^(Crypto|Meme|All)/.test(U.cat)) U.quote = "ALL"; Ws.save(); return loadU(); } } Ws.save(); renderU(); };
-    const typeSel = selU([["SPOT","Spot"],["SWAP","Perp (swap)"],["FUTURES","Futures"],["OPTION","Options"]], "type");
-    uTb.append(typeSel, selU([["ALL","All quotes"],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
+    const typeSel = selU([["SPOT",Lg("Spot","فوري")],["SWAP",Lg("Perp (swap)","دائم (Swap)")],["FUTURES",Lg("Futures","آجلة")],["OPTION",Lg("Options","خيارات")]], "type");
+    uTb.append(typeSel, selU([["ALL",Lg("All quotes","كل العملات المقابلة")],["USDT","USDT"],["USDC","USDC"],["USD","USD"]], "quote"), catSel, selU([[5,"Top 5"],[10,"Top 10"],[20,"Top 20"],[50,"Top 50"],[100,"Top 100"],[9999,"All"]], "top"));
     // technical filters (team task 10): closes from OKX 1H candles, top-30 by volume only, cached 5 min
-    const TECH_OPTS = [["none","Technical: off"],["rsiLo","RSI(14) < 30"],["rsiHi","RSI(14) > 70"],["aboveEma","Price > EMA20 (1H)"],["belowEma","Price < EMA20 (1H)"],["brkUp","Breakout: close > 20-bar high (1H)"]];
+    const TECH_OPTS = [["none",Lg("Technical: off","فني: مقفول")],["rsiLo","RSI(14) < 30"],["rsiHi","RSI(14) > 70"],["aboveEma",Lg("Price > EMA20 (1H)","السعر > EMA20 (ساعة)")],["belowEma",Lg("Price < EMA20 (1H)","السعر < EMA20 (ساعة)")],["brkUp",Lg("Breakout: close > 20-bar high (1H)","اختراق: إغلاق > أعلى 20 شمعة (ساعة)")]];
     const techC = new Map(); let techBusy = false;
     const techCalc = cl => {   // cl: closes, oldest first; null when there is not enough history
       if (cl.length < 35) return null;
@@ -3870,7 +3873,7 @@ class Panel {
         const meta = {}; ins.forEach(i => meta[i.instId] = i);
         rowsU = tk.filter(x => (isO || U.quote === "ALL" || x.instId.split("-")[1] === U.quote) && meta[x.instId]).map(x => { const base = x.instId.split("-")[0], last = +x.last, o = +x.open24h;
           return {id:x.instId, last, chg:o ? (last-o)/o*100 : 0, vol:isO ? (+x.vol24h || 0) : (+x.volCcy24h || 0) * (U.type !== "SPOT" ? last : 1), cat:isO ? "Options" : catOf(meta[x.instId], base)}; });
-        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Bonds","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : c})));
+        cats = [...new Set(rowsU.map(x => x.cat).concat(["Crypto","Forex","Metals","Oil & Gas","Commodities","Indices","Stocks","Bonds","Options","Meme coins","Egypt (EGX)","Saudi (Tadawul)"]))]; catSel.innerHTML = ""; [["__fav", lang === "ar" ? "★ المفضلة" : "★ Favorites"], ["__mine", lang === "ar" ? "قائمتي" : "My list"]].forEach(([v, l]) => catSel.append(Object.assign(el("option"), {value:v, textContent:l}))); ["All"].concat(cats).forEach(c => catSel.append(Object.assign(el("option"), {value:c, textContent:c === "All" ? T("fAll") : catL(c)})));
         if (CFG.cls && U.ucls !== CFG.cls){   // the page-level Asset class dropdown sets the default once; the selectors here stay usable
           U.ucls = CFG.cls; U.cat = CFG.cls; if (!/^(Crypto|Meme)/.test(CFG.cls)) U.quote = "ALL"; const want = CFG.cls === "Options" ? "OPTION" : /^(Crypto|Meme)/.test(CFG.cls) ? "SPOT" : "SWAP";
           if (U.type !== want){ U.type = want; typeSel.value = want; Ws.save(); return loadU(); } Ws.save(); }
@@ -3924,8 +3927,8 @@ class Panel {
     const F = this.state.af = Object.assign({tf:"", tt:"", dir:""}, this.state.af || {});
     const tb = el("div","tb"), clr = el("button",null,T("clear")); clr.onclick = () => Alerts.clear();
     const mkSel = (key, opts) => { const s2 = el("select"); opts.forEach(([v,l]) => { const o = el("option",null,esc(l)); o.value = v; s2.append(o); }); s2.value = F[key]; s2.onchange = () => { F[key] = s2.value; Ws.save(); draw(); }; return s2; };
-    tb.append(mkSel("dir", [["",T("fAll")],["bullish","Long"],["bearish","Short"]]),
-      mkSel("tt", [["",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]]),
+    tb.append(mkSel("dir", [["",T("fAll")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]]),
+      mkSel("tt", [["",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]]),
       mkSel("tf", [["",T("fAll")]].concat(TFK_OPTS)), clr);
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
@@ -3942,8 +3945,8 @@ class Panel {
   /* ---- ready trades (scanner trades + alerts, best confidence first) ---- */
   build_ready(){
     const sideSel = el("select"), ttSel = el("select"), snd = el("input");
-    [["All",T("fAll")],["Long","Long"],["Short","Short"]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
-    [["All",T("fAll")],["Scalp","Scalp"],["Day Trade","Day"],["Swing","Swing"],["Position","Position"]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    [["All",T("fAll")],["Long",Lg("Long","شراء")],["Short",Lg("Short","بيع")]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
+    [["All",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     const tfSel = el("select"); [["All",T("fAll")]].concat(TFK_OPTS).forEach(([v,l]) => tfSel.append(Object.assign(el("option"), {value:v, textContent:l}))); tfSel.title = lang === "ar" ? "الفريم" : "Timeframe"; tfSel.value = FILT.tf || "All"; tfSel.onpointerdown = e => e.stopPropagation(); tfSel.onchange = () => { FILT.tf = tfSel.value; sv(); };
     sideSel.value = FILT.side; ttSel.value = FILT.tt; snd.type = "checkbox"; snd.title = T("sound"); snd.checked = this.state.snd !== false;
     [sideSel, ttSel, snd].forEach(x => x.onpointerdown = e => e.stopPropagation());
@@ -4024,7 +4027,7 @@ class Panel {
     const F = this.state.sg = Object.assign({q:"", side:"", tf:"", min:0, sort:"pct", dir:-1}, this.state.sg || {});
     const tb = el("div","tb"), q = el("input"), side = el("select"), tf = el("select"), mn = el("select"), cnt = el("span","m");
     q.type = "search"; q.placeholder = T("sgSearch"); q.value = F.q; q.style.width = "140px";
-    [["",T("sgAny")],["bullish","Long"],["bearish","Short"]].forEach(([v,l]) => side.append(Object.assign(el("option"), {value:v, textContent:l}))); side.value = F.side;
+    [["",T("sgAny")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]].forEach(([v,l]) => side.append(Object.assign(el("option"), {value:v, textContent:l}))); side.value = F.side;
     [["",T("sgAny")]].concat(TFK_OPTS).forEach(([v,l]) => tf.append(Object.assign(el("option"), {value:v, textContent:l}))); tf.value = F.tf;
     [0,40,50,60,70,80].forEach(v => mn.append(Object.assign(el("option"), {value:v, textContent:v ? T("sgMin")+" "+v+"%" : T("sgMin")}))); mn.value = String(F.min);
     [q, side, tf, mn].forEach(x => x.onpointerdown = e => e.stopPropagation());
@@ -4124,7 +4127,7 @@ class Panel {
     [[0,T("fAll")],[50,"≥ 50%"],[70,"≥ 70%"]].forEach(([v,l]) => cf.append(Object.assign(el("option"), {value:v, textContent:T("conf")+" "+l}))); cf.value = S.jc;
     rng.onchange = () => { S.jr = rng.value; Ws.save(); draw(); }; cf.onchange = () => { S.jc = +cf.value; Ws.save(); draw(); };
     clr.onclick = () => { if (Date.now() - armed < 2500){ Journal.list = []; Journal.save(); armed = 0; clr.textContent = T("clear"); } else { armed = Date.now(); clr.textContent = "?"; setTimeout(() => clr.textContent = T("clear"), 2500); } };
-    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades with their context layers (for the Performance tab and the A+++ review)","صدّر الصفقات المقفولة مع طبقات السياق (للتاب Performance ومراجعة A+++)");
+    const csvB = el("button", null, "CSV"); csvB.title = Lg("Export closed trades with their context layers (for the Performance tab and the A+++ review)","صدّر الصفقات المقفولة مع طبقات السياق (لتاب الأداء ومراجعة A+++)");
     // layer columns (order flow, session, news, funding, OI, score) let the lab-style review check which layers add R on YOUR trades
     const cell = v => { const x = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
     csvB.onclick = () => { const st = Journal.stats(+S.jc, S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3), rows = ["time,symbol,side,tf,r,entry_time,rr,score_pct,tags,of,session,news,funding,oi"].concat(st.closed.map(t => [new Date(t.t1).toISOString(), t.symbol || t.sym || "", t.dir === "bullish" ? "long" : "short", t.tfk || "", (+t.r).toFixed(3),
@@ -4143,7 +4146,7 @@ class Panel {
       let h = '<div class="jcards">'
         + card(T("jWin"), st.wr.toFixed(1)+"%", st.closed.length ? (st.wr >= 50 ? "#0ecb81" : "#f6465d") : "")
         + card(T("jNet"), f2(st.net)+" R", st.net >= 0 ? "#0ecb81" : "#f6465d") + card(T("jTrades"), st.wins+" / "+st.losses+" · "+st.open+" "+T("jOpen"))
-        + card(T("jAvg"), f2(st.avg)+" R") + card("Profit factor", st.pf === Infinity ? "∞" : st.pf.toFixed(2)) + card(T("jBest"), f2(st.best)+" R", "#0ecb81") + card(T("jWorst"), f2(st.worst)+" R", "#f6465d") + card(T("jDd"), "-"+st.dd.toFixed(2)+" R", "#f6465d") + '</div>';
+        + card(T("jAvg"), f2(st.avg)+" R") + card(Lg("Profit factor","معامل الربح"), st.pf === Infinity ? "∞" : st.pf.toFixed(2)) + card(T("jBest"), f2(st.best)+" R", "#0ecb81") + card(T("jWorst"), f2(st.worst)+" R", "#f6465d") + card(T("jDd"), "-"+st.dd.toFixed(2)+" R", "#f6465d") + '</div>';
       // equity curve
       const c = st.curve; let svg = '<div class="jl" style="margin:6px 4px 0">'+esc(T("jEq"))+'</div>';
       if (c.length > 1){ const W = 600, H = 120, vs = c.map(p => p.v).concat([0]), lo = Math.min(...vs), hi = Math.max(...vs), y = v => H-6-(v-lo)/((hi-lo)||1)*(H-12), x = i => i*W/(c.length-1);
@@ -4702,7 +4705,7 @@ Panel.prototype.resub = function(){
       const span = w ? w/1000 : (rows.length ? Math.max(1,(rows[rows.length-1].t-rows[0].t)/1000) : 1);
       const pace = rows.length/span, bp = buy+sell ? 100*buy/(buy+sell) : 50, d = buy-sell;
       const abr = rows.filter(r=>r.absorb), abDir = abr.length ? abr[abr.length-1].adir : "";
-      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(d>=0?"g":"rd")+'">'+(d>=0?"+":"-")+fmtQ(Math.abs(d))+'</b>'+(abDir ? ' · <b style="color:#b57cff" class="ab">ABSORB '+abDir+'</b>' : '')+'</div><div class="bar2"><div style="width:'+bp.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bp).toFixed(0)+'%;background:#f6465d"></div></div>';
+      this.statBox.innerHTML = '<div class="stat">'+esc(T("pace"))+' <b style="color:#eaecef">'+pace.toFixed(1)+'</b>/s · '+esc(T("delta"))+' <b class="'+(d>=0?"g":"rd")+'">'+(d>=0?"+":"-")+fmtQ(Math.abs(d))+'</b>'+(abDir ? ' · <b style="color:#b57cff" class="ab">'+Lg("ABSORB ","امتصاص ")+Lg(abDir, abDir === "sellers" ? "بائعين" : "مشترين")+'</b>' : '')+'</div><div class="bar2"><div style="width:'+bp.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bp).toFixed(0)+'%;background:#f6465d"></div></div>';
       this.tapeBox.innerHTML = renderTape(this, rows.slice().reverse().slice(0, 80));
       drawDepth(this.depthCv, book);
     };
@@ -4770,7 +4773,7 @@ function renderDom(book, tape, prev){
     return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew) : "")+'</td></tr>';
   };
   asks.slice().reverse().forEach(x => rows += line(x,"ask"));
-  if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">spread '+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
+  if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">'+Lg("spread ","الفارق ")+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
   bids.forEach(x => rows += line(x,"bid"));
   return {html:'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
 }
@@ -4799,7 +4802,7 @@ function renderTape(panel, rows){
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
     const bg = r.absorb ? "rgba(181,124,255,.28)" : "rgba("+rgb+","+(r.tier === "whale" ? .38 : r.tier === "smart" ? .24 : .10)+")";
     const edge = r.tier !== "normal" ? "box-shadow:inset 3px 0 0 #f0b90b;" : "";
-    const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " ABSORB" : "");
+    const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " "+Lg("ABSORB","امتصاص") : "");
     h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
@@ -4845,7 +4848,7 @@ function renderEvents(panel, evAll){
   const ev = evAll.filter(e => (!w || e.t >= now - w) && (f === "all" || (f === "abs" ? e.ev === "ABSORB" : e.side === f)));
   if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
   const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff"};
-  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:"absorption"};
+  const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:Lg("absorption","امتصاص")};
   let h = '<table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
   ev.slice(0,60).forEach(e => { const fr = now-e.t < 6000 ? ' class="cf"' : ""; h += '<tr style="background:rgba('+rgb[e.ev]+',.08);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td'+fr+' style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td'+fr+'>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';

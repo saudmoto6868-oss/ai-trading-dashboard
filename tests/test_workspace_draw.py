@@ -29,5 +29,15 @@ def test_chart_opens_centred():
     assert 'getItem("ai_ac") !== "0"' in H                                          # auto-centre is on unless the user turned it off
 
 
+def test_page_script_parses():
+    import shutil, subprocess
+    node = shutil.which("node")
+    if not node:
+        return                                                                       # no node here: skipped
+    js = "\n".join(re.findall(r"<script[^>]*>([\s\S]*?)</script>", H.replace("__CONFIG__", "{}")))
+    r = subprocess.run([node, "-e", "try{new Function(require('fs').readFileSync(0,'utf8'))}catch(e){console.log('ERR '+e.message);process.exit(1)}"], input=js.encode("utf-8"), capture_output=True)
+    assert r.returncode == 0, r.stdout.decode("utf-8", "replace")
+
+
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_page_script_parses(); print("ok workspace draw")

@@ -82,7 +82,7 @@ def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):
             if hit_tp:
                 res = "tp"
                 break
-        tags = sorted({tag_for(s)[0] for s in r["signals"]}) + ["*"]   # "*" = every signal together
+        tags = sorted({tag_for(s, True)[0] for s in r["signals"]}) + ["*"]   # "*" = every signal together
         out.append((tags, res))
     return out
 

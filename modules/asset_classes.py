@@ -69,7 +69,7 @@ def _load_options(base_url=OKX):
     return rows
 
 
-def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
+def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX, wide=False):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
     from modules import hl_feed, yahoo_feed
@@ -82,6 +82,15 @@ def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
             return [], f"OKX options list unavailable ({type(e).__name__})"
         return [r["id"] for r in rows[:top]], ("" if rows else "OKX lists no options right now")
     if cls == "Crypto" and mtype == "SPOT":
+        if wide and top > len(crypto_symbols):   # Radar: the biggest USDT spot pairs by 24h volume (the dashboard's own short list first)
+            try:
+                skip = {"USDC", "USDT", "DAI", "TUSD", "FDUSD", "USDD", "PYUSD", "EURT", "USDG", "USDE"}
+                rows = [r for r in _load("SPOT", base_url) if r["cls"] == "Crypto" and r["id"].endswith("-USDT") and r["id"].split("-")[0] not in skip]
+                rows.sort(key=lambda r: r["vol"], reverse=True)
+                out = list(crypto_symbols) + [r["id"] for r in rows if r["id"] not in crypto_symbols]
+                return out[:top], ""
+            except Exception:
+                pass
         return list(crypto_symbols), ""
     inst = mtype if (cls in ("Crypto", "Meme coins") or mtype != "SPOT") else "SWAP"
     hl = hl_feed.symbols(cls, top) if cls in ("Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds") else []   # Hyperliquid TradFi perps (live, no key)

@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "note": "المراجع المبدئية للفريق. كل مصدر داخل الأكاديمية كمرجعية مبدئية لحد ما يتراجع: لا هو مرفوض ولا هو معتمد. المسميات بنختار الأقرب لينا ونحتفظ بالمفهوم. الادعاءات اللي ما لهاش أصل بتفضل مفتوحة، مش بتتشال.",
+  "sources": [
+    {
+      "id": "grok-conv",
+      "title": "محادثة Grok مع المالك (2026-10-22/23)",
+      "origin": "Grok",
+      "path": "docs/sessions/grok-full-conversation-2026-10-22.md",
+      "kind": "محادثة",
+      "takeaways": [
+        "سلسلة القرار بالطبقات بدل عدّ الأصوات.",
+        "أدوات الـ order flow: الشريط والدلتا أوثق من الدفتر.",
+        "الجلسات وKill Zones كتوقيت.",
+        "عائلات الاستراتيجيات وأولوية المشروع."
+      ],
+      "open": [
+        "ادعاء ترتيب أفضل استراتيجيات المعمل (متعارض مع بوابة المعمل).",
+        "معنى «Zameni / Jan» لسه ما اتحددش."
+      ]
+    },
+    {
+      "id": "academy-docs",
+      "title": "docs/academy: 9 مدارس + أدلة الباك تست + أمثلة + خريطة المؤشرات",
+      "origin": "Grok",
+      "path": "docs/academy/README.md",
+      "kind": "منهج",
+      "takeaways": [
+        "مسارين: AI (للتنفيذ) وبصري (للتعلم).",
+        "أدلة خارجية: الترند الأقوى، SMC/Elliott/Gann/Harmonic الأضعف.",
+        "INDICATOR_MAP: ربط المدارس بالأدوات والرادار."
+      ],
+      "open": [
+        "تسميات Lab: مرشح / primary_candidate معناها قيد الاختبار.",
+        "أرقام الأدلة الخارجية محتاجة تتحقق من مصادرها (جاري)."
+      ]
+    },
+    {
+      "id": "minutes-alerts",
+      "title": "محضر 3: التنبيهات ونداء الـ Setup وصندوق الصفقة",
+      "origin": "Grok (أمر المالك)",
+      "path": "docs/MEETING_ALERTS_SETUP.md",
+      "kind": "محضر",
+      "takeaways": [
+        "WATCH مقابل CALL.",
+        "درجة بالطبقات بدل عدد العائلات.",
+        "وقف من إبطال السيتب، أهداف متدرجة، تسجيل في اليوميات."
+      ],
+      "open": [
+        "القائمة البيضاء «حسب المعمل» ما لهاش دليل في المعمل.",
+        "الإبطال لكل كاشف مش معرّف إلا للمستويات والاختراق والترند."
+      ]
+    },
+    {
+      "id": "minutes-ai",
+      "title": "محضر ترندات وأدوات التداول بالذكاء الاصطناعي (2025-2026)",
+      "origin": "Grok (أمر المالك)",
+      "path": "docs/MEETING_AI_TRENDS_TOOLS.md",
+      "kind": "محضر",
+      "takeaways": [
+        "سبعة أنواع أدوات (A–G): بوت قواعد، قواعد يبنيها AI، وكيل بروكر، متعدد الوكلاء، بطاقة إشارة، AgentFi، بنية مفتوحة.",
+        "حوكمة: kill switch وسقف يومي وموافقة بشرية وسجل قرارات.",
+        "فجوة باك تست ← paper ← لايف."
+      ],
+      "open": [
+        "أرقام مواسم موديلات اللغة ومعايير الكريبتو محتاجة أصل (جاري التحقق)."
+      ]
+    },
+    {
+      "id": "foundations",
+      "title": "مرجع أسس المؤسسات والمحترفين",
+      "origin": "Grok",
+      "path": "docs/academy/ (foundation reference)",
+      "kind": "مرجع",
+      "takeaways": [
+        "خريطة شاشات المؤسسات وأدوات المحترفين."
+      ],
+      "open": [
+        "اتراجع العناوين فقط، المحتوى لسه."
+      ]
+    },
+    {
+      "id": "desk-research",
+      "title": "بحث شاشات المؤسسات (Bloomberg EQS/WEI/HS/GP وغيرها)",
+      "origin": "Claude (وكيل بحث)",
+      "path": "meeting room 2026-10-23 (3)",
+      "kind": "بحث",
+      "takeaways": [
+        "10-15 عرض بتعتمد عليه المكاتب: ماسح قواعد، أنشط/متحركين، لوحة عبر الأصول، حرارة، نظام السوق، ترتيب التقلب، فلتر السيولة، ارتباطات، تمركز، أحداث، قائمة تنبيهات، لوحة مخاطر، قائمة تحقق."
+      ],
+      "open": [
+        "أجزاء كتير غير متحقق منها رسمياً (علّمها الوكيل)."
+      ]
+    },
+    {
+      "id": "chatgpt",
+      "title": "محادثة ChatGPT مع المالك",
+      "origin": "ChatGPT",
+      "path": "لسه ما اتنزلتش",
+      "kind": "محادثة",
+      "takeaways": [],
+      "open": [
+        "مطلوب من ChatGPT إنزالها في docs/sessions/ زي Grok، وبعدها تتقارن."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "their": "WATCH",
+      "ours": "مرشح (Candidate)",
+      "where": "الرادار: بعض الشروط المختارة متحققة",
+      "note": "نفس المفهوم؛ ما نغيّرش الاسم في الكود."
+    },
+    {
+      "their": "CALL",
+      "ours": "مؤكد (Confirmed)",
+      "where": "الرادار: كل الشروط المختارة متحققة",
+      "note": "لما نبني الطبقات يبقى «مؤكد» = كل الطبقات."
+    },
+    {
+      "their": "Grade طبقي",
+      "ours": "عدد الطبقات المتحققة (n / 5)",
+      "where": "لسه ما اتبناش",
+      "note": "بنعرض عدد بدل حرف علشان ما نوهمش بدقة."
+    },
+    {
+      "their": "Decision chain (Regime ← HTF ← Location ← Trigger ← OF ← Timing ← Plan)",
+      "ours": "قائمة التحقق + طبقات الرادار",
+      "where": "الأكاديمية: درس القائمة؛ الدليل (Playbook)",
+      "note": "نفس الفكرة."
+    },
+    {
+      "their": "Kill Zone",
+      "ours": "الجلسات (Sessions + Kill Zones)",
+      "where": "الـ Workspace: مؤشر الجلسات",
+      "note": "فرضية توقيت لسه ما اتختبرتش."
+    },
+    {
+      "their": "primary_candidate / Lab: مرشح",
+      "ours": "قيد الاختبار",
+      "where": "docs/academy (متروك زي ما هو)",
+      "note": "مفيش تغيير في ملفاتهم؛ الأكاديمية بتعرض تنبيه."
+    },
+    {
+      "their": "Context / Primary / Execution gate / Separate system",
+      "ours": "شارات الدور على كل مدرسة",
+      "where": "الأكاديمية ← المدارس",
+      "note": "نفس التصنيف."
+    },
+    {
+      "their": "Order Block (OB) / FVG / MSB / Sweep / Breaker",
+      "ours": "نفس الأسماء",
+      "where": "الـ Workspace: كاشفات SMC؛ الرادار: SMC MSB+OB, Order block, Unicorn",
+      "note": "متطابق."
+    },
+    {
+      "their": "Limit Track: PLACED / PULLED / FILLED",
+      "ours": "Limit Tracking (متتبع الأوامر)",
+      "where": "الـ Workspace + FlowRead",
+      "note": "متطابق."
+    },
+    {
+      "their": "POC / VAH / VAL",
+      "ours": "نفس الأسماء",
+      "where": "الـ Workspace: Volume Profile",
+      "note": "متطابق."
+    },
+    {
+      "their": "Setup card / نداء الـ Setup",
+      "ours": "Setup Card + كارت الصفقة في الرادار",
+      "where": "الـ Workspace + الرادار (أول 3 مؤكدة)",
+      "note": "setup_id لسه ما موجودش."
+    },
+    {
+      "their": "Score بالنجوم 0–7",
+      "ours": "Score (عدّ العائلات المتفقة)",
+      "where": "scorer.py وalerts.py (العتبة 4)",
+      "note": "هيفضل ثانوي لحد ما الطبقات تتقاس."
+    },
+    {
+      "their": "TSMOM / Turtle / Donchian / SMA 10-40",
+      "ours": "مدرسة الترند",
+      "where": "كاشفات st_turtle55 وst_donch وst_sma1040",
+      "note": "الأدلة الخارجية قوية، معمل المشروع لسه ما أثبتش."
+    },
+    {
+      "their": "نوع B: قواعد يبنيها AI ثم تُنفَّذ آلياً",
+      "ours": "وكيل الباك تيست",
+      "where": "الذكي ← وكيل الباك تيست (بدون أوامر تنفيذ)",
+      "note": "بنختبر قواعده بعد التكلفة فقط."
+    },
+    {
+      "their": "Zameni / Jan",
+      "ours": "غير محدد",
+      "where": "سؤال مفتوح للمالك",
+      "note": "ممكن Gann أو Zamansky Dynamic Zones."
+    }
+  ],
+  "claims": [
+    {
+      "id": "c01",
+      "claim": "موسم Alpha Arena الأول (أكتوبر–نوفمبر 2025): Qwen3 Max كسب، DeepSeek تاني، معظم النماذج خسرت وGPT-5 آخر واحد.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §8.2",
+      "verdict": "confirmed",
+      "origin": "reputable",
+      "evidence": "Forklog نقل الأرصدة النهائية: Qwen3 Max حوالي 12,231 دولار، DeepSeek 10,489، Claude Sonnet 4.5 حوالي 5,799، Gemini 2.5 Pro 5,445، Grok 4,208، GPT-5 4,126 (البداية 10,000 لكل نموذج). اتنين بس ربحوا. المنظمون قالوا إن رأس المال صغير والمدة قصيرة، فمش ترتيب إحصائي.",
+      "urls": [
+        "https://forklog.com/en/four-out-of-six-ai-models-suffer-losses-in-trading-tournament/"
+      ],
+      "note": "يتذكر كحكاية موسم واحد (n=1). المصدر الأصلي Nof1؛ الوكيل قرأ تغطية ثانوية مش صفحتهم."
+    },
+    {
+      "id": "c02",
+      "claim": "ترتيب نماذج اللغة في التداول غير ثابت بين المواسم، وأقل من نص المواسم رابحة.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §8.2",
+      "verdict": "partial",
+      "origin": "reputable",
+      "evidence": "الموسم 1.5 (أسهم أمريكية، حوالي ديسمبر 2025) كسبه «Mystery Model» (Grok 4.20، حوالي +12% متوسط) وGPT-5.1 تاني وGemini 3 تالت. GPT-5 كان آخر واحد في الموسم الأول، فعدم ثبات الترتيب حقيقي. ما لقاش مصدر بيحسب «نسبة المواسم الرابحة»، وفيه موسمين بس.",
+      "urls": [
+        "https://forklog.com/en/ai-model-grok-4-2-triumphs-in-trading-tournament/",
+        "https://forklog.com/en/four-out-of-six-ai-models-suffer-losses-in-trading-tournament/"
+      ],
+      "note": "الصياغة الأدق: في الموسمين المنشورين معظم النماذج خسرت والترتيب اتغيّر. نشيل رقم «أقل من نص المواسم» إلا لو فيه مصدر."
+    },
+    {
+      "id": "c03",
+      "claim": "المعايير الأكاديمية الحية بتلاقي إن ذكاء النموذج العام ما بيتحولش لمهارة تداول، وإدارة المخاطرة ضعيفة.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §8.2",
+      "verdict": "confirmed",
+      "origin": "primary",
+      "evidence": "AI-Trader (arXiv 2512.10971) لقى إن معظم الوكلاء عوائدهم ضعيفة وضبط المخاطرة ضعيف. TraderBench (12 نموذج) لقى استراتيجيات كريبتو ثابتة تقريباً وفايدة تفكير ممتد غير قابلة للقياس. Agent Market Arena لقى إن تصميم الإطار أهم من النموذج.",
+      "urls": [
+        "https://arxiv.org/abs/2512.10971v1",
+        "https://arxiv.org/pdf/2603.00285",
+        "https://arxiv.org/pdf/2510.11695"
+      ],
+      "note": "أوراق preprint والوكيل قرأ الملخصات بس. نذكرها بالاسم ونفضلها على لوحات الترتيب الإخبارية."
+    },
+    {
+      "id": "c04",
+      "claim": "معيار كريبتو متعدد المراحل بيبيّن فجوة باك تست ← paper ← لايف، والتعلم الآلي التقليدي بيغلب وكلاء اللغة على التاريخ.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §8.2",
+      "verdict": "unverified",
+      "origin": "none-found",
+      "evidence": "ما لقاش ورقة بتبيّن إن التعلم الآلي التقليدي بيغلب وكلاء اللغة على الكريبتو. الموجود «The Alpha Illusion» (arXiv 2605.16895): بيقول إن عائد وكلاء اللغة المنشور مش دليل جاهزية للتشغيل، وأعاد تجربة TradingAgents وQuantAgent لسنة مقابل الشراء والاحتفاظ.",
+      "urls": [
+        "https://www.alphaxiv.org/abs/2605.16895v1"
+      ],
+      "note": "نسأل كاتب البند عن عنوان الورقة بالظبط. لحد وقتها نستشهد بـ Alpha Illusion للادعاء الأضيق: باك تست قصير داخل العينة لوكلاء اللغة مش دليل تشغيل."
+    },
+    {
+      "id": "c05",
+      "claim": "ورقة Sepp و Lucic (2026) «The Science and Practice of Trend-Following Systems» بتدعم تتبع الاتجاه على العقود السائلة.",
+      "where": "docs/academy/BACKTEST_EVIDENCE.md §1",
+      "verdict": "confirmed",
+      "origin": "primary",
+      "evidence": "الورقة موجودة (arXiv 2607.19497): بتصنف أنظمة الترند (أوروبي، أمريكي، TSMOM) وبتبيّن إن الترند مربح لما الارتباط الذاتي طويل المدى موجب حتى مع ارتداد قصير المدى، وإن كل الأنظمة مرتبطة بقوة. الوكيل شاف وصف الملخص بس.",
+      "urls": [
+        "https://arxiv.org/pdf/2607.19497",
+        "https://ideas.repec.org/p/arx/papers/2607.19497.html"
+      ],
+      "note": "ادعاءات «الصافي يعتمد على فترة النظر» و«بيموت على الفريمات الصغيرة بعد التكاليف» ما اتحققتش من الورقة. نقرا الـ PDF قبل ما نذكر أرقام. دمج 50/50 ترند + ارتداد (Setup4Alpha) فرضية: المنشور بيدي ارتباط 0.32 بس من غير CAGR أو Sharpe أو فترة أو تكاليف."
+    },
+    {
+      "id": "c06",
+      "claim": "Donchian-55 (Turtle) على NQ: معامل ربح الشراء عالي، ومعامل ربح البيع أقل بكتير من 1.",
+      "where": "docs/academy/BACKTEST_EVIDENCE.md §1",
+      "verdict": "unverified",
+      "origin": "none-found",
+      "evidence": "ما لقاش مصدر بيعرض شراء وبيع NQ منفصلين. موقع QuantifiedStrategies اتحجب بفحص بوت. الأرقام اللي لقاها لأنظمة تانية (ETFs شهري، أو نسبة ربح 35% وعائد/مخاطرة 2.4 من غير أداة واضحة).",
+      "urls": [],
+      "note": "ما نقتبسش أرقام PF. نعمل تقسيم شراء/بيع بنفسنا على NQ بتكاليف في المعمل. تفسير الميل للشراء (مؤشر بيعلى هيكلياً) معقول بس ما اتختبرش."
+    },
+    {
+      "id": "c07",
+      "claim": "قواعد SMC/ICT الميكانيكية بتدي PF حوالي 1.2–1.5 بعد التكاليف، وبوت ICT كامل ممكن يخسر خلال سنة (Puravida Edge 2026, Raw Edge).",
+      "where": "docs/academy/BACKTEST_EVIDENCE.md §5",
+      "verdict": "unverified",
+      "origin": "reputable",
+      "evidence": "ما لقاش أي أثر لـ «Puravida Edge» أو «Raw Edge». أقرب مصدر مستقل: Mahadzva (2026، SSRN، لسه ما اتراجعش): ست قواعد ICT/SMC على أربعة أزواج فوركس، والملخص بيقول «لا دليل إن مفاهيم ICT/SMC بتشتغل زي ما بتتدرّس»، رغم إن أحسن حالة holdout أعطت PF 1.50 على 60 صفقة. مسح آخر لم يلاقِ اختبار محكّم.",
+      "urls": [
+        "https://thortradecopier.com/blog/does-ict-smart-money-concepts-work",
+        "https://doi.org/10.2139/ssrn.7430998"
+      ],
+      "note": "الاتجاه (حافة ضعيفة أو معدومة) مدعوم، لكن مصدر الرقم 1.2–1.5 مش مقدر نوصله. ننسبه لـ Mahadzva أو نشيل الأسماء. SMC يفضل سياق بس. أرقام نسب النجاح 78–92% من بائعين بدون بيانات: نتجاهلها."
+    },
+    {
+      "id": "c08",
+      "claim": "كنس السيولة / استرداد الجلسة بيدي حافة صغيرة (PF حوالي 1.3) على عينات كبيرة، مش نسب 70–80% اللي في التسويق.",
+      "where": "docs/academy/BACKTEST_EVIDENCE.md §4",
+      "verdict": "contradicted",
+      "origin": "vendor-marketing",
+      "evidence": "ما لقاش مصدر مستقل لـ PF 1.3. الأرقام الموجودة من بائع أو هاوي (Backtrex، أو EA واحد على ديمو). Mahadzva لقى إن ثلاث قواعد كنس أظهرت استمرار في 65 من 66 اختيار، عكس قصة الانعكاس.",
+      "urls": [
+        "https://thortradecopier.com/blog/does-ict-smart-money-concepts-work",
+        "https://backtrex.com/en/blog/liquidity-sweep-strategy-backtest-results"
+      ],
+      "note": "نعتبر «كنس ثم انعكاس» غير مثبت، ونختبر الانعكاس والاستمرار الاتنين في المعمل بتكاليف. نشيل «PF 1.3»."
+    },
+    {
+      "id": "c09",
+      "claim": "الـ order flow بيشتغل كبوابة عند مستوى، لكن دليله كنظام مستقل ضعيف.",
+      "where": "docs/academy/BACKTEST_EVIDENCE.md §6",
+      "verdict": "partial",
+      "origin": "primary",
+      "evidence": "الدعم الأكاديمي لتأثير السعر مش لربح قابل للتداول: Cont وKukanov وStoikov لقوا إن تغيرات السعر القصيرة بتتحرك أساساً بعدم توازن أوامر أفضل عرض وطلب، بعلاقة خطية ميلها عكس العمق (50 سهم NYSE). ما لقاش اختبار مستقل بتكاليف لقواعد footprint أو الامتصاص.",
+      "urls": [
+        "https://arxiv.org/abs/1011.6402",
+        "https://ideas.repec.org/a/oup/jfinec/v12y2013i1p47-88.html"
+      ],
+      "note": "عدم التوازن بيتنبأ بالحركة التالية مباشرة على مستوى الدفتر، ما بيثبتش إن قاعدة footprint مربحة بعد الرسوم. نخليه بوابة مسجّلة ونقيسه بنفسنا."
+    },
+    {
+      "id": "c10",
+      "claim": "توقيت الجلسات / الـ Kill Zones بيحسّن النتائج (مثلاً PF +0.47).",
+      "where": "docs/sessions/grok-full-conversation-2026-10-22.md + docs/academy/BACKTEST_EVIDENCE.md §4",
+      "verdict": "partial",
+      "origin": "reputable",
+      "evidence": "موسمية التقلب موثقة: دراسة EUR/USD ونشرة RBA (14 سنة AUD) بتلاقي أعلى تقلب في تداخل لندن–نيويورك. لكن +6.1 نقطة نسبة نجاح و+0.47 PF من الـ Kill Zones مصدرها Backtrex فقط (بائع). شغل GARCH أقدم على اليورو/دولار لقى عكس ده (أعلى في ساعات آسيا).",
+      "urls": [
+        "https://www.rba.gov.au/publications/bulletin/2007/dec/pdf/bu-1207-1.pdf",
+        "https://arxiv.org/pdf/1103.5664",
+        "https://backtrex.com/en/blog/liquidity-sweep-strategy-backtest-results"
+      ],
+      "note": "الجلسات كفلتر تقلب وسيولة مقبولة. «الـ Kill Zones بتضيف حافة» مش مثبتة. نستخدم توقيت البورصة المحلي علشان التوقيت الصيفي."
+    },
+    {
+      "id": "c11",
+      "claim": "Coinbase for Agents بيخلي مساعدين الذكاء الاصطناعي يتداولوا حساب المستخدم عبر MCP/CLI بحدود صرف.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §6.1–6.2",
+      "verdict": "confirmed",
+      "origin": "primary",
+      "evidence": "اتطلق 11 يونيو 2026: خادم MCP (ChatGPT وClaude) وCLI (Claude Code وغيره). المستخدم بيحدد حدود صرف وفيه محفظة معزولة. كريبتو سبوت ومشتقات عند الإطلاق، وأسهم أمريكية بعدين حسب تقرير. ما اتعلنش إجمالي حجم؛ الوحيد المنشور أسبوع واحد (14–21 سبتمبر) بنسب حسب العميل.",
+      "urls": [
+        "https://www.coinbase.com/blog/coinbase-for-agents",
+        "https://decrypt.co/370835/coinbase-tool-ai-agents-trade-crypto-make-payments",
+        "https://yellow.com/news/grok-chatgpt-coinbase-ai-agent-volume"
+      ],
+      "note": "مدونة Coinbase رجعت 403 للوكيل فالتفاصيل من ملخصات بحث وDecrypt. ما نقتبسش «إجمالي حجم»."
+    },
+    {
+      "id": "c12",
+      "claim": "Robinhood أطلقت Agentic Trading (حساب وكيل منفصل، MCP، أسهم فقط في البيتا).",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §6.1",
+      "verdict": "confirmed",
+      "origin": "reputable",
+      "evidence": "اتطلقت 27 مايو 2026 مع بطاقة ائتمان وكيلية. الوكلاء بيتصلوا بخوادم MCP والأموال في حساب وكيل منفصل، والمستخدم بيستلم تنبيهات وبيقدر يوقف أو يفصل. أسهم فقط حالياً وباقي الأدوات «قريباً». مصدر واحد بيقول إن الوكلاء ينفذوا صفقات أسهم من غير موافقة لكل صفقة.",
+      "urls": [
+        "https://www.axios.com/2026/05/27/robinhood-ai-trading-credit-card",
+        "https://decrypt.co/369153/robinhood-opens-platform-ai-agents-stock-trading-credit-card-spending",
+        "https://www.financemagnates.com/forex/robinhood-launches-ai-agent-accounts-for-automated-trading-and-payments/"
+      ],
+      "note": "ده بيطابق نقطة المحضر «منتج مش دليل أداء». نمط الموافقة مهم: Robinhood وCoinbase بيسمحوا باستقلالية محدودة مش مساعد فقط."
+    },
+    {
+      "id": "c13",
+      "claim": "IBKR وWebull وeToro وغيرهم بيقدموا تكامل وكلاء/MCP (المحضر بيصنفهم نوع C).",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §4",
+      "verdict": "partial",
+      "origin": "reputable",
+      "evidence": "Webull: خادم MCP من أبريل 2026 واتعلن 11 يونيو 2026، بيدعم ChatGPT وClaude وGrok وبيقدر ينفذ ويعدل أوامر. IBKR: تكامل MCP رسمي (FOW، أواخر يوليو 2026)، لكن مصدرين ثانويين بيقولوا إن الذكاء بيجهز الصفقة والعميل بيقدم الأمر يدوياً. eToro: مصادر ضعيفة بس.",
+      "urls": [
+        "https://www.nasdaq.com/press-release/webull-launches-model-context-protocol-enabling-investors-trade-through-ai-plain",
+        "https://www.fow.com/insights/interactive-brokers-adds-mcp-compatible-ai-tool-integration-for-traders",
+        "https://goodmoneyguide.com/?p=171979",
+        "https://www.finder.com/stock-trading/best-agentic-trading-platforms"
+      ],
+      "note": "ما نجمعهمش كنمط موافقة واحد: Webull بينفذ أوامر، IBKR تحليل وتقديم يدوي، eToro غير مؤكد."
+    },
+    {
+      "id": "c14",
+      "claim": "Composer التابع لـ SoFi بيحوّل أفكار بالإنجليزي لاستراتيجيات قواعد بتتختبر وتتنشر، مع كتالوج مجتمع.",
+      "where": "docs/MEETING_AI_TRENDS_TOOLS.md §5.2, §8.3",
+      "verdict": "confirmed",
+      "origin": "reputable",
+      "evidence": "SoFi استحوذت على Composer (الشروط غير معلنة). المستخدم بيصف فكرة والذكاء بيطلع قواعد تتختبر وتتنشر، وفيه أكتر من 2,000 استراتيجية مجتمع. Composer بيكمل كمنتج مستقل.",
+      "urls": [
+        "https://www.ksl.com/article/news/business/sofi-deepens-ai-powered-trading-ambitions-with-composer-deal/51534919",
+        "https://thepaypers.com/mergers-aquisitions-and-investments/news/sofi-acquires-ai-startup-composer-to-democratise-trading-strategies",
+        "https://betakit.com/us-finance-app-sofi-acquires-composer-to-add-ai-investing-strategies/"
+      ],
+      "note": "وصف المنتج مؤكد؛ ما فيش تدقيق مستقل لعوائد استراتيجيات المجتمع، فتحذير الإفراط في الضبط يفضل."
+    },
+    {
+      "id": "i01",
+      "claim": "فكرة: مستويات السعر في الفوركس وتجمعات أوامر الوقف (Osler، بنك نيويورك الفيدرالي) كأساس تجريبي لوحدة «المستويات».",
+      "where": "بحث إضافي",
+      "verdict": "idea",
+      "origin": "primary",
+      "evidence": "حسب مسح: مستويات دعم ومقاومة منشورة من 6 شركات ارتدّت 60.8% من الوقت مقابل 56.2% لمستويات عشوائية (1996–1998). ودراسة 9,667 أمر لتجار لقت إن أوامر الوقف بتتجمع بعد الأرقام الدائرية. دعم محكّم نادر للمستويات، ويتماشى مع إن المستويات أحسن عائلة في معملنا.",
+      "urls": [
+        "https://www.newyorkfed.org/medialibrary/media/research/epr/00v06n2/0007osle.pdf",
+        "https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr125.pdf"
+      ],
+      "note": "الوكيل شاف الأرقام من صفحة مسح مش من الـ PDF. البيانات من فوركس التسعينات: نعيد الاختبار على أصولنا. الفرق 4.6 نقطة صغير."
+    },
+    {
+      "id": "i02",
+      "claim": "فكرة: حماية من الاختبارات المتعددة في المعمل: Deflated Sharpe وProbability of Backtest Overfitting وعتبة t فوق 3.",
+      "where": "بحث إضافي",
+      "verdict": "idea",
+      "origin": "primary",
+      "evidence": "Bailey وLópez de Prado: Deflated Sharpe بيصحح تحيز الاختيار عبر محاولات كتيرة. Bailey وأصحابه: PBO بالتحقق المتقاطع المتماثل (فيه حزمة CRAN اسمها pbo). Harvey وLiu وZhu (2016): t فوق 3. المعمل بيقارن عائلات كتير فكل ما جرّبنا أكتر لقينا رابحين زايفين أكتر.",
+      "urls": [
+        "https://papers.ssrn.com/abstract=2460551",
+        "https://papers.ssrn.com/abstract=2326253",
+        "https://www.nber.org/papers/w20592"
+      ],
+      "note": "نطبقها على عدد محاولات المعمل (كل مدرسة وفريم ومعامل). رابط Harvey-Liu-Zhu اتشاف عبر المسح بس. بوابة معملنا (t > 3) أصلاً قريبة من ده."
+    },
+    {
+      "id": "i03",
+      "claim": "فكرة: اختبار بوابة الـ order flow بباك تستر على مستوى التيك بيحاكي موقع الأمر في الطابور والتأخير (hftbacktest مفتوح المصدر).",
+      "where": "بحث إضافي",
+      "verdict": "idea",
+      "origin": "primary",
+      "evidence": "hftbacktest إطار Python/Rust مفتوح بيعيد بناء الدفتر من بيانات المستوى 2 و3 وبيحاكي تيك بتيك مع موقع الطابور وتأخير الأوامر. فيه بوت لايف لـ Binance Futures وBybit، وأجزاء Rust وصفت بالتجريبية.",
+      "urls": [
+        "https://github.com/nkaz001/hftbacktest",
+        "https://hftbacktest.readthedocs.io/"
+      ],
+      "note": "مفيد بس لو بنخزن بيانات L2/L3 حقيقية؛ مع شموع بس مش هيضيف حاجة. بيكمل NautilusTrader المذكور في المحضر."
+    },
+    {
+      "id": "i04",
+      "claim": "فكرة: عمود «خط أساس عشوائي» لكل إشارة في الماسح، وبروتوكول Alpha Illusion للإبلاغ الأدنى.",
+      "where": "بحث إضافي",
+      "verdict": "idea",
+      "origin": "reputable",
+      "evidence": "محاكاة عشوائية في تحليل thortradecopier: فجوات FVG اتزارت 83.4% مقابل 83.5% لمستويات عشوائية، فالنمط لازم يغلب خط أساس عشوائي بعد التكاليف على بيانات غير مشوفة. ورقة Alpha Illusion بتقترح اختبارات هيكلية وبروتوكول إبلاغ P1–P6، وإن نماذج اللغة تشتغل كواجهة معلومات قابلة للتدقيق بتغذي وحدات مخاطرة وتنفيذ منفصلة.",
+      "urls": [
+        "https://thortradecopier.com/blog/does-ict-smart-money-concepts-work",
+        "https://www.alphaxiv.org/abs/2605.16895v1"
+      ],
+      "note": "رقم 83.4% مقابل 83.5% محاكاة كاتب المدونة، مش محكّمة. عمود خط الأساس العشوائي رخيص ويتماشى مع معمل صادق."
+    }
+  ]
+}

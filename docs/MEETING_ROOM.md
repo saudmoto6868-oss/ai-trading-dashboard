@@ -7,9 +7,9 @@
 
 ## أوامر المالك
 - [2026-10-21] أوامر تشغيل سابقة…
-- [2026-10-23] [أمر المالك] محضر الأكاديمية — **مُنفَّذ:** `docs/MEETING_ACADEMY.md`
-- [2026-10-23] [أمر المالك] إكمال ملفات الأكاديمية — **مُنفَّذ:** `docs/academy/MANIFEST.md`
-- [2026-10-23] [أمر المالك] ملاحظات التنبيهات ونداء الـ Setup وصندوق الصفقة **مطلوب العمل عليها** (ترتيب، تحليل، استنتاج الأفضل، مطابقة الأدوات) — **مُسجَّل:** [`docs/MEETING_ALERTS_SETUP.md`](MEETING_ALERTS_SETUP.md)
+- [2026-10-23] [أمر المالك] محضر الأكاديمية — `docs/MEETING_ACADEMY.md`
+- [2026-10-23] [أمر المالك] ملاحظات التنبيهات/Setup — `docs/MEETING_ALERTS_SETUP.md`
+- [2026-10-23] [أمر المالك] محضر ترندات وأدوات AI للتداول (المادة كاملة للشغل) — **مُسجَّل:** [`docs/MEETING_AI_TRENDS_TOOLS.md`](MEETING_AI_TRENDS_TOOLS.md)
 
 ## المحاضر
 
@@ -17,7 +17,8 @@
 |---|--------|--------|
 | 1 | القاعة العامة | [MEETING_ROOM.md](MEETING_ROOM.md) |
 | 2 | الأكاديمية | [MEETING_ACADEMY.md](MEETING_ACADEMY.md) |
-| 3 | **التنبيهات / Setup / صندوق الصفقة** | [MEETING_ALERTS_SETUP.md](MEETING_ALERTS_SETUP.md) |
+| 3 | التنبيهات / Setup / صندوق الصفقة | [MEETING_ALERTS_SETUP.md](MEETING_ALERTS_SETUP.md) |
+| 4 | **ترندات وأدوات AI للتداول** | [MEETING_AI_TRENDS_TOOLS.md](MEETING_AI_TRENDS_TOOLS.md) |
 
 ## قبل ما تبدأ
-1. أوامر المالك. 2. المحضر المعني. 3. الأكاديمية إن لزم. 4. WHITEBOARD.
+1. أوامر المالك. 2. المحضر المعني. 3. WHITEBOARD.

@@ -26,7 +26,8 @@ assert mtf.analyse({"1w": frame("up", freq="7D")}, "bullish", "1w") is None     
 # the trigger frame stands in for its own tf
 only = {"1w": frame("up", freq="7D")}; d1 = frame("up")
 assert mtf.analyse(only, "bullish", "1d", d1)["of"] == 2
-ar = mtf.lines_ar(m); assert len(ar) == 4 and "متوافقة" in ar[-1] and "صاعد" in ar[0], ar
+en = mtf.lines_ar(m); assert len(en) == 4 and "aligned" in en[-1] and not any("؀" <= ch <= "ۿ" for ch in "".join(en)), en   # default language = English
+ar = mtf.lines_ar(m, True); assert len(ar) == 4 and "متوافقة" in ar[-1] and "صاعد" in ar[0], ar
 
 # scorer: fetch plan + result carries mtf
 assert scorer.fetch_tfs("1d") == ["1d", "1w", "4h"] and scorer.fetch_tfs("1h") == ["1h", "1d", "1w"] and "4h" not in scorer.fetch_tfs("1m")

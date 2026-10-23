@@ -134,3 +134,143 @@ MISSING = [
     "تصنيف تدفق الأوبشنز فتح / قفل (محتاج بيانات مدفوعة).",
     "تدفق الأوامر الحقيقي على مستوى كل تغيير (OKX tick-by-tick غالباً بمستويات VIP).",
 ]
+
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# English version (one language at a time: owner rule 2026-10-23). The Arabic constants above are unchanged; `get(ar)` returns
+# the set for the requested language. Same structure, same sources and evidence labels, no new numbers.
+# ---------------------------------------------------------------------------------------------------------------------------
+TIERS_EN = {
+    "B": ("B · evidence exists but is not actionable for an individual trader", "warn"),
+    "C": ("C · context and risk filter", "info"),
+    "D": ("D · no evidence, or easily misleading", "bad"),
+}
+
+HEADLINE_EN = [
+    "None of these tools has been shown to make money after costs for an individual trader on free data. That is the research conclusion, not an opinion.",
+    "What is academically established: order flow imbalance (OFI) explains price moves over a few seconds on excellent equity data, and the horizon is seconds, so fees and latency for an individual trader are most likely larger than the edge (an estimate, not measured). The put/call ratio that predicts stocks is computed from internal data (new position opened + buyer) that is not available to the public.",
+    "In practice we use them like this: as <b>context</b> (who is crowded, is the market stressed), as a <b>risk filter</b> (cut size or stay out), and as <b>execution timing</b> (how to place the entry order). Not as a standalone entry trigger.",
+    "Any bigger use has to be proven by a forward test under: logged trades with a frozen rule, a large n, t > 3 after costs, and both halves positive.",
+]
+
+TOOLS_EN = [
+    ("Order book (DOM)", "Resting buy and sell orders at each price level",
+     "Crypto tab (price ladder) + the order-flow column in the Workspace (Bookmap-style heatmap)", "OKX / Hyperliquid; snapshots, not every change",
+     "Hyperliquid sends snapshots per block (20 levels slow / 5 fast), so there is no real-time tracking of every cancel. Displayed depth can be fake."),
+    ("Order tracking (placed / pulled / filled)", "Large orders that were placed, vanished without filling, or were filled",
+     "Price ladder + heatmap flashes (white = pulled, purple = filled / absorbed)", "Difference between two snapshots",
+     "A vanished order is a hint, not proof of spoofing: we only see the difference between snapshots, not the cancel time."),
+    ("Time & Sales (the tape)", "Every trade: price, size and the aggressor side (buyer or seller)",
+     "Trades table (Smart / Whale classification by multiples of the average) + the footprint", "OKX live trades; gold via the Hyperliquid WebSocket (the hl-trades-ws branch is not merged yet)",
+     "The aggressor side comes from the exchange (no Lee-Ready guessing needed). One exchange is not the whole market. Large trades can be split."),
+    ("Footprint / delta / absorption", "Buy volume vs sell volume at each price inside the candle, and absorption marks",
+     "The Workspace (order-flow column + ▲▼ marks)", "Live in the browser; no long history to test on",
+     "No published evidence that footprint patterns or CVD divergence make money after costs."),
+    ("Funding, OI and liquidations", "Position crowding on perpetual contracts, and forced liquidations",
+     "The Workspace (sync card + funding) and OKX liquidation-orders", "OKX public, no key",
+     "Liquidation maps are estimates (built on an assumed leverage). The Long/Short ratio is a sample of accounts on one exchange."),
+    ("Options desk (new)", "Every BTC / ETH options market: put/call, max pain, IV, skew, IV term structure, biggest strikes",
+     "Technical Office > Options desk", "Deribit public, no key, about 2 minutes delayed",
+     "OI and volume do not say whether a trade opened or closed, nor whether it was a hedge or a bet. IV rank is computed from the daily DVOL history (30-day implied volatility index), not from all strikes."),
+    ("US equity options (Cboe)", "Options chain delayed 15 minutes", "The code exists (modules/cboe_options.py) and is not wired to the UI",
+     "Cboe public, unofficial, 15 minutes delayed", "Paths can change without notice; reuse terms were not verified."),
+    ("Unusual options flow (Unusual Whales)", "Alerts on large options orders", "The code exists (modules/options_flow.py)", "Needs a paid key and was not tried against the real API",
+     "Not running here. And even if it ran: it cannot tell opening from closing."),
+]
+
+METHODS_EN = [
+    {"id": "book", "title": "1. Order book imbalance (Order flow imbalance)", "tier": "B",
+     "measures": "Buy vs sell pressure at the best book levels, and the change in sizes there between one update and the next.",
+     "read": ["Sum the size of the top 5 bid (B) and ask (A) levels and compute I = (B − A) ÷ (B + A).",
+              "More precise: compute the change in sizes at the best price between two updates (OFI) and aggregate it over 1–30 seconds.",
+              "Compare with the actual price change, and scale by depth, because the same pressure moves price more in a thin book."],
+     "setup": "A timing filter, not a strategy: if you are buying, place your order when pressure goes your way, and do not enter at market against one-sided pressure. Invalidation: the direction flips or a large size disappears without filling. Horizon: 5–60 seconds.",
+     "fails": "Cost: taker fees on entry and exit (about 2–5 basis points for perpetuals, from memory) ≥ the expected effect. Latency. Fake depth. One exchange = a partial view.",
+     "evidence": "Published (equities): Cont-Kukanov-Stoikov 2014 — OFI explains short-horizon price change (OPENED: arxiv.org/abs/1011.6402). Kolm-Turiel-Westray 2023 — the forecast horizon is about two price changes, seconds (OPENED: ideas.repec.org/a/bla/mathfi/v33y2023i4p1044-1081.html). No crypto study net of costs was found.",
+     "data": "Enough to compute, not enough to compete on speed."},
+    {"id": "walls", "title": "2. Liquidity walls, absorption and hidden orders", "tier": "D",
+     "measures": "Large resting sizes (a wall), and repeated execution at a level while the displayed size refills (absorption / iceberg).",
+     "read": ["A wall that stays for minutes and gets traded into is more credible than one that appears and disappears.",
+              "Absorption: lots of aggressive selling at a level and price does not drop, while the displayed size refills.",
+              "An order that vanishes before price touches it = possible spoofing (a hint, not proof, here)."],
+     "setup": "Context for a level you picked from the chart (support / resistance / liquidity sweep). If the wall is pulled before price arrives: do not build on it. Horizon: minutes.",
+     "fails": "Spoofing / layering: orders are placed to be cancelled. No published evidence that walls work as support / resistance. Hidden orders are not visible at all.",
+     "evidence": "Trader practice only; no peer-reviewed study found. (Elliptic on spoofing: SEARCH only, a commercial source.)",
+     "data": "Weak: snapshots instead of tracking every cancel."},
+    {"id": "tape", "title": "3. The tape (Time & Sales), CVD and footprint", "tier": "D",
+     "measures": "Signed trade flow (aggressor side), trade sizes, and tape speed.",
+     "read": ["CVD = cumulative (aggressive buy volume − aggressive sell volume).",
+              "Divergence: price makes a new high and CVD does not.",
+              "Tape speed: trades per second against its recent median; a jump = an event, not a trend.",
+              "Absorption: huge aggressive selling and no progress lower. Exhaustion: a volume spike with the delta flipping."],
+     "setup": "Confirmation at a level you defined beforehand (for example a confirmed setup in the Radar): enter when aggression in your trade direction calms and opposite aggression appears. Invalidation: a new high with confirmed CVD. Horizon: 1–15 minutes.",
+     "fails": "CVD from one exchange is not the market. Large trades can be split or be wash trades. The absolute CVD value depends on the starting point. The tape shows only what executed, not what is hidden.",
+     "evidence": "Studies support signed flow as a very-short-horizon input (the same OFI studies above), but no evidence was found that CVD divergence or footprint patterns make money after costs.",
+     "data": "Enough for live display, and there is no long history for testing."},
+    {"id": "oi", "title": "4. Funding, OI and liquidations (perpetuals)", "tier": "C",
+     "measures": "Who is crowded in which direction and who got liquidated.",
+     "read": ["OI up and price up = new long positions (confirmation and crowding).",
+              "OI up and price down = new short positions.",
+              "OI down and price up = short covering.",
+              "OI down and price down = long liquidation / capitulation.",
+              "Extreme funding + rising OI = a crowded trade and squeeze risk."],
+     "setup": "A risk filter: extreme funding and crowding = cut size or widen the stop. Fade only after the liquidation cascade stops; invalidation: OI starts rising again in the same direction. Horizon: hours to days.",
+     "fails": "Liquidation maps are estimates. The Long/Short ratio is a one-exchange sample. Funding is not proven to predict direction after costs.",
+     "evidence": "An arXiv working paper (the page does not say it is peer reviewed) on Binance contracts: a large deviation from no-arbitrage, with most of the return coming from convergence rather than funding payments (arxiv.org/html/2212.06888v5; platform and refereeing details come from the researcher's description and are not confirmed). No peer-reviewed study was found showing funding / OI predicts BTC returns after costs.",
+     "data": "Enough (public REST), history is limited."},
+    {"id": "iv", "title": "5. Implied volatility, skew and term structure (Options)", "tier": "C",
+     "measures": "How much the market pays for insurance, whether for downside or upside, and near-term or far-term.",
+     "read": ["ATM IV: the level of expected volatility (annualised).",
+              "Skew = far out-of-the-money put IV − far call IV: a large positive value = they pay more for downside protection. (Expiries closer than a day are distorted, so we compute on 7 days or more.)",
+              "Term structure: near-term more expensive than far-term (inverted) = short-term stress.",
+              "Expected move before an event = straddle price ÷ price; it helps with sizing, not direction."],
+     "setup": "A market-regime filter: skew or an inverted structure intensifying before an event = cut leverage, widen the stop, or sit out. Do not open a directional trade from options alone.",
+     "fails": "An IV level alone says nothing; IV rank (from DVOL, one year) puts the number in context. No crypto evidence that IV rank predicts direction.",
+     "evidence": "Cremers-Weinbaum 2010: the IV difference between calls and puts predicts weekly stock returns (OPENED: ideas.repec.org/a/cup/jfinqa/v45y2010i02p335-367_00.html). No crypto evidence was found.",
+     "data": "Enough (Deribit is free, no key)."},
+    {"id": "pos", "title": "6. Put/Call, max pain, GEX and unusual options flow", "tier": "D",
+     "measures": "Open options positions and the expected hedging by market makers.",
+     "read": ["Put/Call by OI or volume: a ratio, not a direction (many puts are usually protection).",
+              "max pain: the strike with the least loss to option holders at expiry; a pinning theory, meaningful only in the last day or two.",
+              "GEX: a model estimate of market-maker hedging, assuming who is buying and who is selling."],
+     "setup": "Context only (a volatility-regime marker). No trade comes from it.",
+     "fails": "The public cannot tell whether a trade opened or closed, or whether it was a buy or a sell. GEX is an estimate that differs between providers and relies on stale OI. Cboe's own study of 0DTE found the flow balanced and market-maker gamma small (OPENED: cboe.com/insights/posts/volatility-insights-evaluating-the-market-impact-of-spx-0-dte-options; the author has a commercial interest).",
+     "evidence": "Pan-Poteshman 2006: a put/call ratio computed from internal data (opening + buyer) predicts stocks, but the public version cannot make that distinction (OPENED: nber.org/papers/w10925). The GEX provider itself says it does not predict direction (OPENED: spotgamma.com/what-is-gex-gamma-exposure). No peer-reviewed test that GEX predicts pinning or volatility.",
+     "data": "put/call and max pain from our data; GEX and trade classification are not available for free."},
+]
+
+ROUTINE_EN = [
+    ("Before the session (2 minutes)", "Options desk: IV structure and skew for BTC / ETH + the economic calendar (Radar strip). Extreme funding or an inverted structure = cut size today."),
+    ("Picking the setup", "Radar: confirmed with the highest rank + the trade card (entry / stop / targets) + the detector evidence from the Lab. The decision is made here, not from order flow."),
+    ("At the level", "The Workspace: tape and footprint. Confirmation: aggression in your direction calming + absorption. If the wall is pulled or the delta conflicts: wait."),
+    ("Execution", "The book: place a limit order when pressure is on your side; do not enter at market against one-sided pressure. Your stop comes from the chart, not from the wall."),
+    ("After the trade", "Log it (journal / CSV) with a note: was the confirmation present? This is the data that will judge later."),
+]
+
+FORWARD_TEST_EN = [
+    "Freeze the rule before logging (for example: \"enter when absorption shows at a confirmed level\") and keep a written copy.",
+    "Log every time the rule triggered, not only the ones you traded: exchange time and receive time, the symbol, the features (top-5 level sizes, spread, CVD, funding, OI), and the price return after 5 seconds, 30 seconds, 5 minutes and one hour.",
+    "Keep a baseline: the same timing without a signal + a run with randomly shuffled labels.",
+    "Cost: we use a flat 10 basis points per trade (a planning minimum: taker fees on entry and exit + spread + slippage), adjustable from the UI. Next development: slippage from the recorded book and a maker scenario with an adverse-selection haircut.",
+    "Sample size: non-overlapping trades within the same symbol (not across symbols: BTC, ETH and SOL move together, so our t is optimistic), and the requirement t > 3 after the number of variants you tried (every variant is an attempt). Next development: t with Newey-West errors.",
+    "The verdict: net after costs positive and stable in both halves, t > 3, and the forward period ≥ the discovery period. Otherwise it stays display-only (context).",
+    "Note: Hyperliquid snapshots are per block; and the absence of cancel data biases any feature built on spoofing.",
+]
+
+MISSING_EN = [
+    "A daily history of put/call and max pain (Deribit does not provide it; it needs a scheduled daily snapshot that updates the repo. IV rank was solved with DVOL, so it is not needed now).",
+    "Continuous order-flow recording for days: the recorder and the verdict exist (Order-flow lab) but run manually; continuous recording needs a machine that stays on or a scheduled task.",
+    "Equity and index options (Cboe): the code exists, is not wired in and was not tried.",
+    "Classifying options flow as opening / closing (needs paid data).",
+    "True per-change order flow (OKX tick-by-tick, usually at VIP tiers).",
+]
+
+
+def get(ar: bool | None = None) -> dict:
+    """The manual's text in one language: {TIERS, HEADLINE, TOOLS, METHODS, ROUTINE, FORWARD_TEST, MISSING}. ar=None follows the site language."""
+    if ar is None:
+        from modules.i18n import lang
+        ar = lang() == "ar"
+    if ar:
+        return {"TIERS": TIERS, "HEADLINE": HEADLINE, "TOOLS": TOOLS, "METHODS": METHODS, "ROUTINE": ROUTINE, "FORWARD_TEST": FORWARD_TEST, "MISSING": MISSING}
+    return {"TIERS": TIERS_EN, "HEADLINE": HEADLINE_EN, "TOOLS": TOOLS_EN, "METHODS": METHODS_EN, "ROUTINE": ROUTINE_EN, "FORWARD_TEST": FORWARD_TEST_EN, "MISSING": MISSING_EN}

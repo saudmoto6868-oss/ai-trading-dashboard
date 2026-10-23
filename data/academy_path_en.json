@@ -1,0 +1,870 @@
+{
+ "version": 1,
+ "note": "A learning path in order, from zero to advanced. Each lesson: an idea, a drawing, steps, a bullish and a bearish setup, common mistakes, where it lives in the platform, real references, and a small quiz. The evidence grade is written frankly. Educational, not an investment recommendation.",
+ "levels": [
+  {
+   "id": 1,
+   "title": "Foundations: how to read the chart",
+   "goal": "Understand what is in front of you before you enter any trade."
+  },
+  {
+   "id": 2,
+   "title": "Core systems: ideas worth testing",
+   "goal": "Three simple ideas with better evidence than the rest, all of them still needing a test on our own data."
+  },
+  {
+   "id": 3,
+   "title": "Execution: timing and liquidity",
+   "goal": "Know when and where to execute, and understand what happens inside the candle."
+  },
+  {
+   "id": 4,
+   "title": "Advanced context: tools, with caution",
+   "goal": "Tools you learn for understanding and context; their evidence as stand-alone entry rules is weak."
+  },
+  {
+   "id": 5,
+   "title": "Truth and discipline",
+   "goal": "How to know an idea really works, and how to stick to it."
+  }
+ ],
+ "lessons": [
+  {
+   "id": "candles",
+   "title": "The Japanese candle and its shapes",
+   "grade_note": "A single candle is a weak signal. Pattern reviews (such as Bulkowski's encyclopedia) find modest performance for most patterns, and their value comes from location and context.",
+   "idea": "A candle summarizes a fight between buyers and sellers over a period: where price opened, how high and how low it went, and where it closed. The body says who won, and the wick says where price was rejected.",
+   "steps": [
+    "Read the body: large = decisive, small = hesitation.",
+    "Read the wicks: a long lower wick = rejection of the downside, a long upper wick = rejection of the upside.",
+    "Ask: where did the candle appear? At an important level or in the middle of nowhere?",
+    "Ask: did it close near its high or near its low? (closing strength).",
+    "Do not trade a single candle. Wait for confirmation from the next candle or from volume."
+   ],
+   "bull": "A hammer or bullish engulfing at support after a decline: rejection of lower prices. Confirmed when the next candle closes above its high.",
+   "bear": "A shooting star or bearish engulfing at resistance after a rise: rejection of higher prices. Confirmed when the next candle closes below its low.",
+   "mistakes": [
+    "Trading a candle pattern in the middle of a range with no level.",
+    "Ignoring the trend: a hammer in a strong decline can be a trap.",
+    "Over-memorizing names instead of understanding the meaning: rejection, decisiveness or hesitation."
+   ],
+   "platform": [
+    "Radar: the candle list in the technical filters (doji, hammer, engulfing, ...).",
+    "Radar: hovering over the chart explains the psychology of the latest candle in words."
+   ],
+   "refs": [
+    "Nison, S., Japanese Candlestick Charting Techniques (1991 / 2001).",
+    "Bulkowski, T., Encyclopedia of Candlestick Charts (2008): performance statistics for each pattern."
+   ],
+   "quiz": [
+    {
+     "q": "A candle with a small body and a long lower wick appears at strong support after a decline. The most suitable reading?",
+     "opts": [
+      "Sell immediately because the candle is small",
+      "Possible rejection of the decline, needing confirmation before entering",
+      "A guaranteed buy signal"
+     ],
+     "why": "A long lower wick at support = possible rejection, but the pattern alone is weak and needs confirmation."
+    },
+    {
+     "q": "What gives a candle pattern more value?",
+     "opts": [
+      "Its Japanese name",
+      "Its location at a level and in the trend's context",
+      "The number of candles in it"
+     ],
+     "why": "Location and context are what separate a useful pattern from noise."
+    }
+   ]
+  },
+  {
+   "id": "structure",
+   "title": "Market structure: highs and lows",
+   "grade_note": "A well-known foundation from Dow theory. Its definition varies from trader to trader, so you need a clear rule (for example, a low is recognized after N candles).",
+   "idea": "An uptrend = higher highs and higher lows. A downtrend = lower highs and lower lows. Breaking the last low in an uptrend (or the last high in a downtrend) is the first warning that the structure has changed.",
+   "steps": [
+    "Mark the last clear high and low (agreed by a fixed rule).",
+    "Know the structure: HH/HL is up, LH/LL is down, anything else is a range.",
+    "A structure break (BOS) = a possible change, not a confirmation.",
+    "Work with the structure on the higher timeframe and take the details from the smaller one."
+   ],
+   "bull": "HH then HL then HH: we look for a buy at the HL. Invalidation: a close below the last HL.",
+   "bear": "LL then LH then LL: we look for a sell at the LH. Invalidation: a close above the last LH.",
+   "mistakes": [
+    "The definition of a high and a low changes from chart to chart.",
+    "Treating any wick as a structure break instead of a close.",
+    "Ignoring the higher timeframe."
+   ],
+   "platform": [
+    "Workspace: the trend line, horizontal line and rectangle tools.",
+    "Radar: the \"rising order\" and \"falling order\" strips (price and moving averages)."
+   ],
+   "refs": [
+    "Edwards, R. & Magee, J., Technical Analysis of Stock Trends.",
+    "Murphy, J., Technical Analysis of the Financial Markets (1999): Dow theory and trends."
+   ],
+   "quiz": [
+    {
+     "q": "In an uptrend, what is the first warning that the structure is changing?",
+     "opts": [
+      "A red candle appears",
+      "A close below the last higher low (HL)",
+      "Volume rises"
+     ],
+     "why": "Breaking the last HL with a close means the chain of higher lows has been cut."
+    },
+    {
+     "q": "Why set a fixed rule for defining a high and a low?",
+     "opts": [
+      "So the chart looks nice",
+      "So the same chart is read the same way every time and we can measure",
+      "To increase the number of trades"
+     ],
+     "why": "Without a fixed rule there is no measurement and no backtest."
+    }
+   ]
+  },
+  {
+   "id": "sr",
+   "title": "Support and resistance as zones",
+   "grade_note": "There is academic evidence that support and resistance levels predict stalls and bounces better than chance in some markets (such as Osler's 2000 paper on forex), but the effect is limited and sensitive to the definition.",
+   "idea": "Support and resistance are zones, not thin lines: places where price was rejected before, which people remember and place orders at. The more often they were touched and the more volume there was, the more important they become.",
+   "steps": [
+    "Look for places where price was rejected two or more times.",
+    "Draw a zone (a rectangle) of reasonable thickness (for example half an ATR), not a single line.",
+    "A level broken by a clear close flips: support becomes resistance (and the reverse).",
+    "The higher timeframe matters more: a daily level is stronger than a 5-minute one."
+   ],
+   "bull": "A bounce from a support zone with a rejection candle, or a breakout of resistance and a retest of it as support.",
+   "bear": "A bounce from a resistance zone with a rejection candle, or a break of support and a retest of it as resistance.",
+   "mistakes": [
+    "Drawing dozens of lines (every chart becomes a grid).",
+    "Treating the first touch as a guaranteed opportunity.",
+    "Entering in the middle of the zone with no stop below it."
+   ],
+   "platform": [
+    "Radar: the 20-day, 50-day and 52-week high/low lists.",
+    "Workspace: Value Levels and Volume Profile to locate volume zones."
+   ],
+   "refs": [
+    "Osler, C., Support for Resistance: Technical Analysis and Intraday Exchange Rates, FRBNY Economic Policy Review (2000).",
+    "Murphy, J., Technical Analysis of the Financial Markets: the chapter on support and resistance."
+   ],
+   "quiz": [
+    {
+     "q": "Why is it better to draw support as a zone?",
+     "opts": [
+      "Because price touches areas, not exact numbers",
+      "Because a thin line looks ugly",
+      "Because a zone guarantees a bounce"
+     ],
+     "why": "Orders cluster around a level, not at one exact number, so a zone is closer to reality."
+    },
+    {
+     "q": "A support was broken by a clear close, then price came back to touch it from below. It most likely behaves as:",
+     "opts": [
+      "Support",
+      "Resistance",
+      "Has no effect"
+     ],
+     "why": "Role reversal: broken support becomes resistance after the retest."
+    }
+   ]
+  },
+  {
+   "id": "risk",
+   "title": "Risk and position size (R)",
+   "grade_note": "This is mathematics, not opinion: a positive expectancy plus a small fixed size is what keeps you alive. Any strategy without it goes broke, however accurate it is.",
+   "idea": "1R is the amount you lose if the stop is hit (for example 1% of the account). Every trade is measured in R. Expectancy = the average you make per trade. Win rate alone is misleading: a 43% win rate can still profit if the winners are 3R.",
+   "steps": [
+    "Set the initial stop (from the chart, not from an amount you like).",
+    "Position size = the amount risked divided by the distance to the stop.",
+    "Never risk more than 1% (or less) per trade.",
+    "Compute R:R before entering: at least 1.5 if your win rate is average.",
+    "Record the result in R, not in money, so you can compare trades."
+   ],
+   "bull": "Buy at 100, stop 98, target 106: risk 2, reward 6, so R:R = 3.",
+   "bear": "Sell at 100, stop 102, target 94: the same arithmetic, risk 2 and reward 6.",
+   "mistakes": [
+    "Moving the stop further away so it does not get hit.",
+    "Increasing size after a loss to recover it.",
+    "Sizing by the money you wish for instead of the distance to the stop.",
+    "Ignoring costs (commission and slippage) in the R calculation."
+   ],
+   "platform": [
+    "Workspace: the trade tool (Long / Short) shows R:R, and the Risk Manager widget.",
+    "Technical Office > Backtest: results in R after a 0.1R cost.",
+    "Performance: the trade journal in R."
+   ],
+   "refs": [
+    "Tharp, V., Trade Your Way to Financial Freedom (R-multiples and expectancy).",
+    "Kelly, J. (1956), A New Interpretation of Information Rate.",
+    "Vince, R., The Mathematics of Money Management (1992)."
+   ],
+   "quiz": [
+    {
+     "q": "7 trades: -1R, -1R, +3R, -1R, +2R, -1R, +1.5R. The expectancy per trade?",
+     "opts": [
+      "+0.36R",
+      "-0.36R",
+      "+2.5R"
+     ],
+     "why": "The total is 2.5R over 7 trades = 0.357R per trade."
+    },
+    {
+     "q": "An account of 10,000, risk of 1%, and a stop distance of 2 dollars per share. The position size?",
+     "opts": [
+      "50 shares",
+      "100 shares",
+      "500 shares"
+     ],
+     "why": "Risk of 100 dollars divided by 2 = 50 shares."
+    }
+   ]
+  },
+  {
+   "id": "breakout",
+   "title": "Breakout and retest",
+   "grade_note": "The Donchian channel and breakouts are the foundation of the historical trend systems (the Turtles). The evidence is stronger on daily and higher timeframes, and it weakens with costs on small timeframes.",
+   "idea": "When price closes clearly above resistance (or below support) on decent volume, it says the balance of supply and demand has changed. A retest gives you an entry with a closer and clearer stop.",
+   "steps": [
+    "Identify a zone that was touched at least twice.",
+    "Wait for a close outside it (not a wick) and volume above average.",
+    "Enter either on the close (faster and riskier) or on the retest (slower and cleaner).",
+    "The stop goes below the zone (or below the retest low).",
+    "If price returns inside the zone on a close = a false breakout, exit."
+   ],
+   "bull": "A close above resistance on volume, then a return to the zone and a bounce from it as support.",
+   "bear": "A close below support on volume, then a return to the zone and a rejection from it as resistance.",
+   "mistakes": [
+    "Entering on the wick before the close.",
+    "Ignoring false breakouts (they are common in tight ranges).",
+    "A breakout on weak volume.",
+    "Entering late after a long move (chasing)."
+   ],
+   "platform": [
+    "Radar: the \"channel breakout\", \"trend line break\" and \"volume 2x\" strips.",
+    "Radar: the 20-day high / 50-day high filter from the technical lists."
+   ],
+   "refs": [
+    "Covel, M., The Complete TurtleTrader (2007).",
+    "Faith, C., Way of the Turtle (2007).",
+    "Brock, Lakonishok & LeBaron (1992), Simple Technical Trading Rules, Journal of Finance."
+   ],
+   "quiz": [
+    {
+     "q": "What is the most suitable confirmation of a resistance breakout?",
+     "opts": [
+      "A candle wick above resistance",
+      "A close above the zone with above-average volume",
+      "A small candle above resistance"
+     ],
+     "why": "A close plus volume is stronger than a mere wick touch."
+    },
+    {
+     "q": "Price returned inside the zone on a close after the breakout. That most likely means:",
+     "opts": [
+      "A successful retest",
+      "A false breakout, and the plan is cancelled",
+      "A stronger buy signal"
+     ],
+     "why": "A close inside the zone cancels the breakout idea."
+    }
+   ]
+  },
+  {
+   "id": "trend",
+   "title": "Trend following",
+   "grade_note": "Among the strongest published evidence: time-series momentum (Moskowitz and co-authors 2012) and a century of evidence on trend systems (Hurst and co-authors 2017). On condition of liquid assets, a daily or higher timeframe, and costs accounted for.",
+   "idea": "We ride the trend until it ends instead of predicting it. We take small repeated losses in ranges, and win a few big times in strong trends.",
+   "steps": [
+    "Define the trend with a simple rule: price above an average, or a break of the N-day high.",
+    "Enter with the trend only (buy in an uptrend, sell in a downtrend).",
+    "The stop comes from ATR or below the last low.",
+    "Exit with an opposite rule (a break of the M-day low) or a trailing stop.",
+    "Accept that the win rate is low (35-45%): the profit comes from the right tail."
+   ],
+   "bull": "A close above the 55-day high with price above the 50 average: a buy entry, stop 2x ATR, exit below the 20-day low.",
+   "bear": "A close below the 55-day low with price below the 50 average: a sell entry. (Warning: selling assets in a long-term uptrend is usually weaker.)",
+   "mistakes": [
+    "Applying it on very small timeframes, so costs kill it.",
+    "Cutting the winning trade early.",
+    "Changing the rules after every losing streak.",
+    "Leaving size fixed instead of adjusting it to volatility."
+   ],
+   "platform": [
+    "Radar: the \"rising / falling order\" and \"above / below all averages\" strips.",
+    "Workspace: the Moving averages indicator.",
+    "Technical Office > Strategy map: the families ranked by evidence."
+   ],
+   "refs": [
+    "Moskowitz, Ooi & Pedersen (2012), Time Series Momentum, Journal of Financial Economics.",
+    "Hurst, Ooi & Pedersen (2017), A Century of Evidence on Trend-Following Investing.",
+    "Brock, Lakonishok & LeBaron (1992), Journal of Finance."
+   ],
+   "quiz": [
+    {
+     "q": "A trend system with a 40% win rate is still profitable. The closest explanation?",
+     "opts": [
+      "Win rate does not matter at all",
+      "The average win is much bigger than the average loss",
+      "Costs are zero"
+     ],
+     "why": "The profit comes from the few big trades that cover small repeated losses."
+    },
+    {
+     "q": "Why does a trend system weaken on the 1-minute timeframe?",
+     "opts": [
+      "Because trends do not exist",
+      "Because costs and slippage eat the small edge",
+      "Because the candles are smaller"
+     ],
+     "why": "Trading often on a small timeframe multiplies the effect of costs."
+    }
+   ]
+  },
+  {
+   "id": "meanrev",
+   "title": "Mean reversion",
+   "grade_note": "There is evidence of short-term reversal in some markets and timeframes, but it fails badly during strong trends (left-tail losses). It is combined with trend as a separate system, not on the same signal.",
+   "idea": "After price moves far from its average, it tends to return in ranges. We buy the lower extreme and sell the upper extreme, but only if the market is in a range, not in a trend.",
+   "steps": [
+    "First make sure the market is in a range (for example low ADX, or a flat average).",
+    "Define the extreme: outside Bollinger, or RSI < 30 / > 70.",
+    "Enter against the extreme with small size and a clear stop.",
+    "The target is the average or the opposite edge, no more.",
+    "If a trend starts (a close outside the range on volume) exit and do not fight it."
+   ],
+   "bull": "Price at the lower edge of a sideways range, low RSI, and a rejection candle: a buy targeting the average.",
+   "bear": "Price at the upper edge of a range, high RSI, and a rejection: a sell targeting the average.",
+   "mistakes": [
+    "Buying in a strong decline because it is \"cheap\".",
+    "No stop (a high win rate tempts you).",
+    "Mixing it with trend signals in the same trade.",
+    "A distant target after it has already returned to the average."
+   ],
+   "platform": [
+    "Radar: the RSI<30 and RSI>70 strips.",
+    "Technical Office > Backtest: the RSI and Bollinger width indicators in the rule builder."
+   ],
+   "refs": [
+    "Connors, L. & Alvarez, C., Short Term Trading Strategies That Work (2008).",
+    "Bollinger, J., Bollinger on Bollinger Bands (2001).",
+    "Poterba & Summers (1988), Mean Reversion in Stock Prices, Journal of Financial Economics."
+   ],
+   "quiz": [
+    {
+     "q": "What is the most dangerous condition for mean reversion?",
+     "opts": [
+      "A sideways market",
+      "A strong trend on volume",
+      "Low volatility"
+     ],
+     "why": "In a strong trend the extreme continues and grows, and fighting it loses heavily."
+    },
+    {
+     "q": "Why separate the trend system from the reversion one?",
+     "opts": [
+      "So they lose at different times and balance each other",
+      "To increase the number of signals",
+      "There is no reason"
+     ],
+     "why": "The two fail in different conditions, so combining two separate systems reduces the swings."
+    }
+   ]
+  },
+  {
+   "id": "sessions",
+   "title": "Sessions and timing",
+   "grade_note": "There is documented evidence that volatility and volume differ across the day (Andersen & Bollerslev 1997). But ICT's \"kill zones\" with their exact marking have no independent statistical test: the PF improvement figure (+0.47) comes only from a backtest vendor, and their times are approximate and shift with daylight saving. It is better to use sessions as a volatility and liquidity filter (RBA bulletin).",
+   "idea": "The market has a rhythm through the day: Asia is quiet and builds a range, London starts the move and sweeps liquidity, the London-New York overlap has the highest liquidity, and New York continues or reverses. Timing tells you when to expect activity, not a direction.",
+   "steps": [
+    "Mark the Asia range (high and low).",
+    "Watch for a sweep of the Asia high or low in London and then a return inside the range.",
+    "Use timing as a filter: do not trade when liquidity is thin.",
+    "Convert the time to New York and account for daylight saving.",
+    "Test the idea on your own data before relying on it."
+   ],
+   "bull": "A sweep of the Asia low in London, then a return above it and a strong close: a possible reversal upward.",
+   "bear": "A sweep of the Asia high in London, then a return below it and a weak close: a possible reversal downward.",
+   "mistakes": [
+    "Treating timing as an entry signal on its own.",
+    "Forgetting the daylight-saving difference.",
+    "Applying forex sessions to crypto without checking that they matter.",
+    "Believing exaggerated win rates from blogs."
+   ],
+   "platform": [
+    "Workspace: the Sessions + Kill Zones indicator (session boxes and H/M/L lines).",
+    "Workspace: the Kill Zone Sniper detector."
+   ],
+   "refs": [
+    "Andersen, T. & Bollerslev, T. (1997), Intraday periodicity and volatility persistence in financial markets, Journal of Empirical Finance.",
+    "Ito, T. & Hashimoto, Y. (2006), Intraday seasonality in activities of the foreign exchange markets."
+   ],
+   "quiz": [
+    {
+     "q": "We usually expect the highest liquidity of the day in:",
+     "opts": [
+      "The Asia session only",
+      "The London-New York overlap",
+      "After the New York close"
+     ],
+     "why": "In the overlap the number of active participants is highest."
+    },
+    {
+     "q": "What is the safest use of timing?",
+     "opts": [
+      "An entry signal on its own",
+      "An extra filter after the idea is proven by testing",
+      "Ignoring it completely"
+     ],
+     "why": "Timing says when to expect activity, but it must be tested before it becomes a rule."
+    }
+   ]
+  },
+  {
+   "id": "mtf",
+   "title": "Multiple timeframes",
+   "grade_note": "Sound logic and widely used (Elder's triple screen), but direct statistical evidence is limited. We use it as a layer in the decision chain, not as an extra vote.",
+   "idea": "The large timeframe gives the direction, the middle one shows where the pullback is, and the small one gives the trigger. Each timeframe answers a different question, and they all must agree before you enter.",
+   "steps": [
+    "Define the direction on the large timeframe (for example daily).",
+    "Wait for a pullback to a zone or level (for example on 4 hours).",
+    "Enter when the small timeframe gives a trigger (a breakout or a rejection).",
+    "The stop comes from the middle or small timeframe, and the target is toward the higher timeframe's high.",
+    "If the large timeframe is against the trade, reduce size or do not enter."
+   ],
+   "bull": "Daily up, 4 hours returned to a support zone, 1 hour broke above the last pullback high: a buy entry.",
+   "bear": "Daily down, 4 hours returned to resistance, 1 hour broke below the last bounce low: a sell entry.",
+   "mistakes": [
+    "Comparing 7 timeframes that conflict and ending up with no decision.",
+    "Treating agreement of two small timeframes as if it were a large one.",
+    "Changing the timeframe after entry to justify the trade."
+   ],
+   "platform": [
+    "Radar: hovering over the chart shows the higher-timeframe ladder (up / down / mixed).",
+    "Radar: the \"...\" menu under each chart changes its timeframe."
+   ],
+   "refs": [
+    "Elder, A., Trading for a Living (1993): the Triple Screen.",
+    "Murphy, J., Intermarket / Multiple Time Frame Analysis."
+   ],
+   "quiz": [
+    {
+     "q": "The correct order of duties for the three timeframes?",
+     "opts": [
+      "The small one sets the direction and the large one enters",
+      "The large one sets the direction, the middle one the pullback location, the small one the trigger",
+      "All of them set the direction"
+     ],
+     "why": "Each timeframe has a question: the large one direction, the middle one location, the small one timing."
+    },
+    {
+     "q": "The large timeframe is against your trade. The most suitable action?",
+     "opts": [
+      "Ignore it",
+      "Reduce size or do not enter",
+      "Double the size"
+     ],
+     "why": "A trade against the bigger trend has a lower probability, so you must risk less."
+    }
+   ]
+  },
+  {
+   "id": "vp",
+   "title": "Volume profile and value areas",
+   "grade_note": "From the auction-market toolkit (Steidlmayer, Dalton). Useful for locating liquidity, acceptance and rejection zones, but the published profitability evidence is limited. We use it as a levels reference.",
+   "idea": "A volume profile shows how much traded at each price. The POC is the most-traded price (a magnet), and the value area holds about 70% of the volume. Outside the area = price is rejecting or starting a new move.",
+   "steps": [
+    "Mark the POC, VAH and VAL for a session or period.",
+    "Price inside the area = balance, expect movement between the two edges.",
+    "Acceptance outside the area (closes outside it) = a possible new move.",
+    "A return to the POC is a natural target for reversion trades.",
+    "Use them as levels with the rest of the chain, not on their own."
+   ],
+   "bull": "A rejection from the VAL with a bounce inside the area: target the POC, then the VAH.",
+   "bear": "A rejection from the VAH with a return inside the area: target the POC, then the VAL.",
+   "mistakes": [
+    "Reading the profile of a very small timeframe (noise).",
+    "Treating the POC as a price that must be touched.",
+    "Forgetting that crypto volume is split across exchanges."
+   ],
+   "platform": [
+    "Workspace: the Volume Profile indicator (POC/VA) and Value Levels."
+   ],
+   "refs": [
+    "Dalton, J., Jones, E. & Dalton, R., Mind Over Markets (1990).",
+    "Steidlmayer, J., Markets and Market Logic (1986)."
+   ],
+   "quiz": [
+    {
+     "q": "What is the POC?",
+     "opts": [
+      "The highest price of the day",
+      "The price at which the most volume traded",
+      "The average of the closes"
+     ],
+     "why": "POC = Point of Control = the most-traded price."
+    },
+    {
+     "q": "The value area represents roughly:",
+     "opts": [
+      "50% of the volume",
+      "70% of the volume",
+      "100% of the volume"
+     ],
+     "why": "The common definition of the Value Area is about 70% of the period's volume."
+    }
+   ]
+  },
+  {
+   "id": "orderflow",
+   "title": "Order flow: the book, the tape and the footprint",
+   "grade_note": "The academic literature supports that order imbalance carries information (Cont and co-authors 2014, VPIN). But as a stand-alone trading system the evidence is weak. We use it as a confirmation gate at a prepared level.",
+   "idea": "Actual trades (the tape) are more honest than resting orders (the book) because the book gets pulled. The footprint shows, at each price inside the candle, who was more aggressive: the buyer or the seller.",
+   "steps": [
+    "Start with a level fixed in advance (not with the flow).",
+    "When price arrives, look at the tape: buy or sell aggression?",
+    "Look for absorption: large volume and price did not continue.",
+    "A 3:1 imbalance in the footprint at the level = stronger confirmation.",
+    "Do not enter on a wall in the book alone: it can be pulled."
+   ],
+   "bull": "At support: aggressive selling gets absorbed (large volume and price holds), then aggressive buying pushes price back up.",
+   "bear": "At resistance: aggressive buying gets absorbed, then aggressive selling pushes price back down.",
+   "mistakes": [
+    "Entering on a liquidity wall in the book.",
+    "Reading flow without a level.",
+    "Relying on delta alone.",
+    "Ignoring that the Workspace's tape data is built while you have the chart open."
+   ],
+   "platform": [
+    "Workspace: Depth of Trade (heatmap, book, tape, order tracker, footprint, delta).",
+    "Technical Office: the \"Flow lab\" and the \"Flow guide\"."
+   ],
+   "refs": [
+    "Cont, R., Kukanov, A. & Stoikov, S. (2014), The Price Impact of Order Book Events, Journal of Financial Econometrics.",
+    "Easley, López de Prado & O'Hara (2012), Flow Toxicity and Liquidity in a High-Frequency World, Review of Financial Studies."
+   ],
+   "quiz": [
+    {
+     "q": "Why is the tape (Time & Sales) more reliable than a wall in the book?",
+     "opts": [
+      "Because it is faster",
+      "Because the trades actually happened while resting orders can be pulled",
+      "Because it is colored"
+     ],
+     "why": "An executed trade is a real commitment, while a resting order can be cancelled at any moment."
+    },
+    {
+     "q": "What does absorption mean?",
+     "opts": [
+      "Large volume at a level and price did not continue",
+      "Volume disappearing",
+      "A breakout on small volume"
+     ],
+     "why": "Large resting orders absorb the attack, so price does not move."
+    }
+   ]
+  },
+  {
+   "id": "smc",
+   "title": "SMC / ICT concepts",
+   "grade_note": "The concepts themselves (liquidity above highs and below lows, price gaps) are logical. There is academic research on clusters of stop orders (Osler 2003). But the best independent test we found (Mahadzva 2026, an SSRN preprint not yet peer reviewed) found no evidence that ICT/SMC rules work as they are taught. And the PF figures (1.2-1.5) copied around from blogs have no traceable source. See the References tab.",
+   "idea": "The idea is that liquidity (stop and pending orders) gathers above highs and below lows, and price goes to sweep it and then moves the other way. After the sweep we look for a strong displacement (leaving an FVG gap) and a return zone (Order Block).",
+   "steps": [
+    "Identify a clear high or low that holds liquidity.",
+    "Wait for a sweep (a wick beyond it) and then a return with a close inside the range.",
+    "Look for a violent displacement that leaves a gap (3 candles).",
+    "Enter on the return to the Order Block or the gap with a stop behind the sweep.",
+    "Set a target at the opposite liquidity, and make sure R:R >= 1.5."
+   ],
+   "bull": "A sweep of a low, a bullish displacement with a gap, a return to the OB zone and a bounce.",
+   "bear": "A sweep of a high, a bearish displacement with a gap, a return to the OB zone and a rejection.",
+   "mistakes": [
+    "Drawing OBs and FVGs everywhere after the move is over.",
+    "Ignoring the bigger trend.",
+    "Believing many terms with no fixed, measurable definition.",
+    "Treating it as a complete system instead of a context tool."
+   ],
+   "platform": [
+    "Radar: the \"SMC MSB+OB\", \"Order block\" and \"Unicorn\" strips.",
+    "Workspace: the Order Block, FVG, Sweep and Breaker detectors."
+   ],
+   "refs": [
+    "Osler, C. (2003), Currency Orders and Exchange Rate Dynamics: An Explanation for the Predictive Success of Technical Analysis, Journal of Finance.",
+    "Mahadzva (2026), a test of ICT/SMC rules on four forex pairs, SSRN (preprint, not yet peer reviewed).",
+    "ICT's own teaching material: educational, not research; treat it as hypotheses."
+   ],
+   "quiz": [
+    {
+     "q": "What does a liquidity sweep mean?",
+     "opts": [
+      "Price breaks a level that holds stop orders and then reverses",
+      "Zero volume",
+      "The chart closing"
+     ],
+     "why": "Price takes the stop orders gathered beyond the level and then reverses."
+    },
+    {
+     "q": "What is the safest condition before we adopt an SMC rule?",
+     "opts": [
+      "A measurable definition and a test after costs",
+      "A successful YouTube video",
+      "A famous school name"
+     ],
+     "why": "Without a fixed definition and a test there is no difference between a real pattern and an after-the-fact interpretation."
+    }
+   ]
+  },
+  {
+   "id": "harmonic",
+   "title": "Harmonic patterns (Gartley and its siblings)",
+   "grade_note": "Published tests of chart patterns (head and shoulders, for example, Osler & Chang 1995) find limited and unstable predictive power. For harmonics specifically, independent evidence is scarce.",
+   "idea": "Patterns based on Fibonacci ratios between five points X-A-B-C-D. The idea is that D gives you a potential reversal zone (PRZ) with a clear, defined stop.",
+   "steps": [
+    "Define the points X, A, B and C with fixed rules (highs and lows on a fixed scale).",
+    "Check the ratios: for example Gartley: B is about 0.618 of XA and D about 0.786 of XA.",
+    "The D zone is the waiting zone, not an automatic entry.",
+    "Enter after a rejection at D (a candle or a trigger on the smaller timeframe).",
+    "The stop goes behind X or behind D, and you accept invalidation quickly."
+   ],
+   "bull": "A bullish pattern: X a low, A a high, D a low at 0.786 of XA, then a rejection and a bounce.",
+   "bear": "A bearish pattern: a mirror image of the bullish one.",
+   "mistakes": [
+    "Rounding the ratios until anything becomes a pattern.",
+    "Entering as soon as D is reached with no confirmation.",
+    "Ignoring the trend and the levels.",
+    "Relying on it as a main strategy."
+   ],
+   "platform": [
+    "Workspace: the Harmonic patterns indicator (Gartley, Bat, Butterfly, Crab and Cypher).",
+    "Workspace: target boxes and expiry handling."
+   ],
+   "refs": [
+    "Carney, S., Harmonic Trading, Vol. 1 (2010).",
+    "Pesavento, L., Fibonacci Ratios with Pattern Recognition (1997).",
+    "Osler, C. & Chang, P. (1995), Head and Shoulders: Not Just a Flaky Pattern, FRBNY Staff Report."
+   ],
+   "quiz": [
+    {
+     "q": "In a Gartley, D is usually at what ratio of XA?",
+     "opts": [
+      "0.382",
+      "0.786",
+      "1.618"
+     ],
+     "why": "The classic Gartley: D is about 0.786 of the XA leg."
+    },
+    {
+     "q": "Price reaching the D zone means:",
+     "opts": [
+      "A guaranteed immediate entry",
+      "A waiting zone that needs confirmation",
+      "The pattern is cancelled"
+     ],
+     "why": "D is a potential reversal zone, but you enter after a rejection or a trigger."
+    }
+   ]
+  },
+  {
+   "id": "elliott",
+   "title": "Elliott waves",
+   "grade_note": "A descriptive theory that is hard to automate, and the wave count changes after the fact. Research by Lo and co-authors (2000) found that some chart patterns carry extra information, but that does not prove Elliott. We use it for context and invalidation only.",
+   "idea": "The impulse moves in 5 waves (1-2-3-4-5) and the correction in 3 (A-B-C). It has hard rules that decide when the count is wrong: that is its most important part.",
+   "steps": [
+    "Try one count and an alternative count.",
+    "Check the rules: wave 2 must not go below the start of 1.",
+    "Wave 3 must not be the shortest among 1, 3 and 5.",
+    "Wave 4 must not enter the territory of wave 1.",
+    "If any rule is broken: the count is wrong, start again."
+   ],
+   "bull": "A bullish impulse 1-5 followed by an A-B-C correction: the correction is a buying chance in the bigger trend at the end of C.",
+   "bear": "A mirror image for the bearish impulse.",
+   "mistakes": [
+    "Counting late after the move (tailoring to fit).",
+    "Ignoring the hard rules.",
+    "One count only, with no alternative.",
+    "Using it as an entry signal on its own."
+   ],
+   "platform": [
+    "Workspace: the Elliott waves indicator (automatic) and the manual Elliott tool (6 clicks).",
+    "Radar: the \"Elliott\" strip."
+   ],
+   "refs": [
+    "Frost, A. & Prechter, R., Elliott Wave Principle (1978).",
+    "Lo, Mamaysky & Wang (2000), Foundations of Technical Analysis, Journal of Finance."
+   ],
+   "quiz": [
+    {
+     "q": "Wave 4 entered the territory of wave 1. What does it mean?",
+     "opts": [
+      "The count is sound",
+      "The count is most likely wrong and we redo it",
+      "A buy signal"
+     ],
+     "why": "The hard rule: wave 4 must not overlap the top of wave 1 in an impulse."
+    },
+    {
+     "q": "What is the most suitable use of Elliott?",
+     "opts": [
+      "Automatic entry and exit",
+      "Context, an alternative count and an invalidation point",
+      "Ignoring the stop"
+     ],
+     "why": "Its value is in giving context and a clear point where the idea is cancelled."
+    }
+   ]
+  },
+  {
+   "id": "gann",
+   "title": "Gann: angles and the fan",
+   "grade_note": "There is no peer-reviewed academic support for Gann's geometric tools. They are useful as a visual tool for distance and time, not as a decision signal.",
+   "idea": "Gann angles link price to time: the 1x1 line moves one price unit per one time unit. The idea is that price above 1x1 is strong and below it weak, with 1x2 and 2x1 lines alongside.",
+   "steps": [
+    "Pick an important low or high as the starting point.",
+    "Fix the price and time scale (because the angle changes with the screen).",
+    "Draw the 1x1 and the fan lines.",
+    "Use them as a reference: a break of 1x1 is an alert, not a signal.",
+    "Do not build on them alone."
+   ],
+   "bull": "Price above 1x1 respects 2x1 as support in a steady uptrend.",
+   "bear": "Price below 1x1 respects a falling fan as resistance.",
+   "mistakes": [
+    "Forgetting that the angle depends on the scale.",
+    "Interpreting every touch as confirmation.",
+    "Copying Gann tables without testing."
+   ],
+   "platform": [
+    "Workspace: the Gann drawing tools."
+   ],
+   "refs": [
+    "Gann, W.D., How to Make Profits in Commodities (1942).",
+    "Aronson, D., Evidence-Based Technical Analysis (2006): the statistical-skepticism approach."
+   ],
+   "quiz": [
+    {
+     "q": "Why does a Gann angle change if you change the chart zoom?",
+     "opts": [
+      "Because it is tied to the price and time scale on the screen",
+      "Because price changes",
+      "Because the timeframe changes"
+     ],
+     "why": "A geometric angle depends on the ratio of units on the two axes."
+    },
+    {
+     "q": "The best use of the fan?",
+     "opts": [
+      "Automatic entry and exit",
+      "A visual reference alongside other tools",
+      "A test of account strength"
+     ],
+     "why": "Without evidence, it stays a helper for the eye."
+    }
+   ]
+  },
+  {
+   "id": "backtest",
+   "title": "Backtesting honestly",
+   "grade_note": "This is one of the areas with the most solid research: Bailey, Lopez de Prado, Harvey and co-authors. The conclusion is that an in-sample result is worth nothing, and the minimum is t > 3 to correct for the number of attempts.",
+   "idea": "Any strategy can be tuned to the past until it looks profitable. The real test is the part that was not touched during tuning, after costs.",
+   "steps": [
+    "Split the data: training and test (and do not touch the test).",
+    "Compute the result after costs and slippage.",
+    "Require enough trades (n >= 100) and a t value > 3 if you tried many ideas.",
+    "Make sure both halves are positive (it does not depend on one period).",
+    "The more settings you try, the less your result is worth: count the attempts."
+   ],
+   "bull": "A strategy profitable in and out of sample after costs and in two different halves: a candidate to follow.",
+   "bear": "Profitable in sample and losing out of sample: over-fitting, reject it.",
+   "mistakes": [
+    "Judging from the part it was tuned on.",
+    "Ignoring costs.",
+    "Trying hundreds of ideas and keeping the best one.",
+    "A small number of trades."
+   ],
+   "platform": [
+    "Technical Office > Backtest: judged on the out-of-sample part only, with a 0.1R cost.",
+    "Technical Office > Lab results: the gate (n >= 100, t > 3, positive net, both halves positive)."
+   ],
+   "refs": [
+    "Bailey, Borwein, López de Prado & Zhu (2014), Pseudo-Mathematics and Financial Charlatanism, Notices of the AMS.",
+    "Harvey, Liu & Zhu (2016), ...and the Cross-Section of Expected Returns, Review of Financial Studies.",
+    "White, H. (2000), A Reality Check for Data Snooping, Econometrica."
+   ],
+   "quiz": [
+    {
+     "q": "A strategy is very profitable in the training sample and losing in the test. The decision?",
+     "opts": [
+      "Adopt it because training is longer",
+      "Reject it: most likely over-fitting",
+      "Increase the size"
+     ],
+     "why": "We rely on the out-of-sample part, and it says the edge is not real."
+    },
+    {
+     "q": "Why do we require t > 3 and not 2?",
+     "opts": [
+      "Because it changes with the month",
+      "Because trying many ideas creates pretty results by chance",
+      "Because 3 is a nice number"
+     ],
+     "why": "Many attempts raise the chance of a result by luck, so the threshold is tightened."
+    }
+   ]
+  },
+  {
+   "id": "checklist",
+   "title": "The checklist and the journal",
+   "grade_note": "Checklists reduce procedural errors in high-risk fields (Gawande). Applying them to trading is logical, and the journal is the only source for measuring your real performance.",
+   "idea": "You turn everything you learned into a chain of questions before any trade. Any \"no\" = do not enter. After the trade you record everything, even the trades you skipped.",
+   "steps": [
+    "Market state: trend or range?",
+    "The higher timeframe: with the trade?",
+    "Location: at a level or zone?",
+    "Trigger: breakout, rejection or sweep?",
+    "Order flow: confirmation at the level?",
+    "Timing: a suitable session and no strong news?",
+    "The plan: stop, target and R:R >= 1.5.",
+    "Record: the reason, the result in R, and the mistake if there was one."
+   ],
+   "bull": "Every item is \"yes\" on a buy: enter with the planned size.",
+   "bear": "Every item is \"yes\" on a sell: enter with the planned size.",
+   "mistakes": [
+    "A list so long it gets forgotten.",
+    "Breaking the rule after two losses.",
+    "Not recording the trades that were not taken.",
+    "Judging performance by money instead of R."
+   ],
+   "platform": [
+    "Radar: \"confirmed\" means all the chosen conditions are met, and \"candidate\" means some of them.",
+    "Playbook: the approved plan.",
+    "Performance: uploading the journal and measuring performance."
+   ],
+   "refs": [
+    "Gawande, A., The Checklist Manifesto (2009).",
+    "Douglas, M., Trading in the Zone (2000).",
+    "Tharp, V., Trade Your Way to Financial Freedom."
+   ],
+   "quiz": [
+    {
+     "q": "One item on the list is \"no\". The decision?",
+     "opts": [
+      "Always enter with a smaller size",
+      "Do not enter and record the reason",
+      "Swap the item"
+     ],
+     "why": "The rule: any \"no\" = do not enter. And that too gets recorded."
+    },
+    {
+     "q": "Why do we record the trades we skipped?",
+     "opts": [
+      "For decoration",
+      "To measure whether the list filters correctly",
+      "It is not necessary"
+     ],
+     "why": "Without a record of what was skipped we cannot know whether the list improves the result or not."
+    }
+   ]
+  }
+ ]
+}

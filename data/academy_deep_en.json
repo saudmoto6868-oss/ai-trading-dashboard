@@ -1,0 +1,608 @@
+{
+ "version": 1,
+ "note": "English version of data/academy_deep.json: a full explanation of each of the nine schools (written by the platform from Grok's files and the path lessons). The numbers in the scenarios are illustrative, not market data. Educational, not an investment recommendation.",
+ "schools": {
+  "levels": {
+   "what": "Levels and price action means reading the chart from the places where price matters: highs and lows that price was rejected from before, round numbers, and range edges. The whole decision is built on one question: is price now at an important place, or in the middle of nowhere?",
+   "parts": [
+    {
+     "t": "The components",
+     "b": "• Major highs and lows (the last 20 or 50 days, 52 weeks).\n• Support and resistance zones touched two or more times.\n• Round numbers (for example 100 or 50,000).\n• The high and low of the previous day and week.\n• The edges of a sideways range (its top and bottom)."
+    },
+    {
+     "t": "The hard rules",
+     "b": "1) A level is a zone, not a line: draw it about half an ATR thick.\n2) The more often it was touched and the more volume there was, the more important it is, but after the fourth or fifth touch the chance of a break rises.\n3) The close decides: a wick outside the zone is not a break.\n4) The higher timeframe is stronger: a daily level matters more than a 15-minute one.\n5) A level broken by a clear close flips (support becomes resistance)."
+    },
+    {
+     "t": "The soft rules",
+     "b": "• A confluence of two levels (for example an old high + a round number) strengthens the zone.\n• The first touch after a long time is usually cleaner than a repeated touch.\n• Price that enters the zone with small compressed candles usually breaks it, while a large fast candle is usually rejected."
+    },
+    {
+     "t": "Entry, invalidation and target",
+     "b": "Entry: a bounce (a rejection candle at the zone) or a break and then a retest.\nInvalidation: a close on the other side of the zone (below the support zone for a buy).\nTarget: the next important level, provided R:R >= 1.5. If the nearest distant level gives less than that, the setup is not worth it."
+    },
+    {
+     "t": "Preparing the chart step by step",
+     "b": "1) Open the daily timeframe and draw the two nearest zones above and below price.\n2) Drop to the smaller timeframe (4 hours or 1 hour) and decide whether price is inside a zone or outside it.\n3) Write on the side: the possible entry price, the stop, the target, and R:R.\n4) If R:R is below 1.5, leave the trade. Organization before entry matters more than a pretty picture."
+    },
+    {
+     "t": "The failure scenario and how to handle it",
+     "b": "If the zone is broken by a close and on volume, do not cling to the idea: the stop is executed. After the break we can watch for a retest from the other side for an opposite entry. The most dangerous thing is moving the stop away to avoid the loss; that turns a small loss into a big one."
+    }
+   ],
+   "bull_story": "Price fell to a daily support zone around 100 (touched twice before and bounced). A candle appeared with a long lower wick and closed near its high, and volume was above average. Entry above the candle's high (for example 101.5), stop below the zone at 98.5, so the risk is 3. The nearest resistance is 110, so the reward is 8.5 and R:R is about 2.8. If a daily candle closes below 98.5 the support is broken and the idea is cancelled.",
+   "bear_story": "Price rose to resistance at 110 (a round number + last month's high). A bearish engulfing candle on high volume. Entry is a sell below the candle's low at 108.8, the stop above the zone at 111.2, and the target the support at 100. If price closes above 111.2 on volume, the resistance is broken and the trade closes.",
+   "platform": [
+    "Open the Workspace and draw a rectangle (Rectangle) on the zone instead of a line, and color it by support or resistance.",
+    "Turn on Volume Profile and Value Levels to see where the real volume is.",
+    "In the Radar choose \"20-day high/low\" or \"50-day\" from the technical lists, and see who is close to a high or a low.",
+    "Use the \"channel breakout\" and \"trend line break\" strips in the Radar to filter the symbols that broke a level."
+   ],
+   "mistakes": [
+    "Drawing 15 lines on the same chart.",
+    "Entering in the middle of the zone instead of at its edges.",
+    "Treating the first touch as a guaranteed opportunity.",
+    "A stop inside the zone itself (it gets hit by noise)."
+   ],
+   "exercises": [
+    "Open 5 symbols on the daily timeframe and draw the two nearest zones for each, then measure the distance between them in ATR.",
+    "Look for a level break in the last week: did price come back to test it? How many candles did it take?",
+    "Compute R:R for five imagined setups before you think about entering."
+   ],
+   "faq": [
+    {
+     "q": "How many touches are enough to treat a level as important?",
+     "a": "Two touches at least, from two different directions, is a good start, and that is not a fixed number."
+    },
+    {
+     "q": "The level was broken by a wick only, what do I do?",
+     "a": "That is not a break. Wait for a close outside the zone. A wick sweep is known (a liquidity grab) and is treated as a separate event."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "Zone",
+     "def": "A price range (not a number) where supply and demand gather."
+    },
+    {
+     "term": "Retest",
+     "def": "Price coming back to a broken level to test it from the other side."
+    },
+    {
+     "term": "R:R",
+     "def": "The ratio of expected reward to risk."
+    }
+   ]
+  },
+  "trend": {
+   "what": "Trend following: we enter with the prevailing trend and let the profit run, and accept small repeated losses in ranges. Its published evidence is among the strongest, on condition of liquid assets, a daily or higher timeframe and costs accounted for.",
+   "parts": [
+    {
+     "t": "Defining the trend (pick one and fix it)",
+     "b": "• A break of the N-day high (Donchian): N=20 for a fast entry and 55 for the stronger one.\n• Price above the 50 or 200 average.\n• Two averages: 10 above 40 (SMA 10/40).\n• A positive return over the last 12 months (time-series momentum)."
+    },
+    {
+     "t": "Managing the trade",
+     "b": "• The stop: 2 x ATR(20) from the entry, or below the last important low.\n• The exit: a break of the M-day low (M=10 or 20) or a trailing stop at 3 x ATR.\n• Size from volatility: the bigger the ATR, the smaller the size, so that every trade's risk is similar.\n• Adding (Pyramid): one extra unit every 0.5 ATR in the trade's direction up to a maximum of 3-4 units, and the stop of the whole position moves."
+    },
+    {
+     "t": "How we measure that it works",
+     "b": "The expected win rate is 35-45%, meaning many small losses. What matters is the average win against the average loss (it must be >= 2) and the net expectancy after cost. We judge on at least 100 trades, not 10."
+    },
+    {
+     "t": "When it fails",
+     "b": "In long sideways ranges, and in sharp reversals after a long trend. That is why we separate it from mean reversion and use a market-state filter."
+    },
+    {
+     "t": "Preparing the chart",
+     "b": "Daily timeframe, the 50 and 200 averages, a Donchian channel (20 and 55). Mark the last high and low. Compute ATR(20) and record it next to the symbol. Before every trade ask: is the trend agreed on the daily and the weekly? If they conflict, reduce size or leave the trade."
+    },
+    {
+     "t": "The failure scenario",
+     "b": "In a sideways range the signal fails several times in a row (whipsaw). This is normal and expected in the system. The fix is not changing the rules; the fix is a market-state filter (low ADX = reduce size) and patience through a streak of small losses. You must calculate in advance the longest possible losing streak and make sure your account can bear it."
+    }
+   ],
+   "bull_story": "A stock closed above its highest price of 55 days at 120 and above the 50 average. ATR = 2.5. Entry 120.2 and the stop of 2 x ATR = 115.2 (risk 5). Exit if it closes below the 20-day low. Two weeks later price is 135: the trailing stop is now 128, so the trade is protected and holds at least +1.5R.",
+   "bear_story": "A coin closed below its lowest price of 55 days and below the 50 average, and the whole market is falling. Entry is a sell, the stop 2 x ATR above, the exit above the 20-day high. Note: selling assets in a long-term uptrend is usually weaker than buying in the Turtle studies.",
+   "platform": [
+    "Radar: press \"rising order\" or \"above all averages\" or \"20-day high\" in the quick strips.",
+    "Workspace: turn on the Moving averages indicator (averages 9/21/50).",
+    "Technical Office > Backtest: build the rule \"the close crosses above the EMA\" and test it with cost.",
+    "Technical Office > Strategy map: see where trend stands in the evidence."
+   ],
+   "mistakes": [
+    "Applying it on the minute timeframe (costs kill it).",
+    "Cutting the winning trade early.",
+    "Changing the rules after every losing streak.",
+    "Fixed size instead of adjusting it to volatility."
+   ],
+   "exercises": [
+    "Pick 10 symbols and for each work out: is it above the 50 average on the daily? How many symbols are in an uptrend and how many in a downtrend?",
+    "On one symbol, mark the 55-day high breaks over the last year, and see how many trades were winners and how many losers.",
+    "Compute the risk and position size for a 2 x ATR stop for a 10,000 account at 1% risk."
+   ],
+   "faq": [
+    {
+     "q": "Why do we lose often and still profit?",
+     "a": "Because the profit comes from a right tail: a few trades cover many small losses."
+    },
+    {
+     "q": "Which timeframe is best?",
+     "a": "Daily and higher in general, because costs are lower and the edge is clearer (momentum studies)."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "Donchian",
+     "def": "The highest and lowest price over N periods, and a break of it is an entry signal."
+    },
+    {
+     "term": "ATR",
+     "def": "Average true range: a measure of volatility."
+    },
+    {
+     "term": "Pyramid",
+     "def": "Adding to a winning trade in stages."
+    }
+   ]
+  },
+  "sessions": {
+   "what": "Sessions: the market has a rhythm through the day (Asia, London, New York). The idea is that volatility and liquidity differ from one hour to the next, so timing tells us when to expect movement. The proven evidence that volatility differs between sessions is strong, but that \"kill zones\" add a profit edge is not proven.",
+   "parts": [
+    {
+     "t": "The daily chain (approximate New York time)",
+     "b": "• Asia 20:00-00:00: a quiet range being built.\n• London 02:00-05:00: the first move, and often a sweep of the Asia high or low.\n• New York morning 07:00-10:00: continuation or reversal.\n• London-New York overlap 08:00-12:00: the highest liquidity.\n• Afternoon: relative calm."
+    },
+    {
+     "t": "How we use it",
+     "b": "1) Mark the high and low of the Asia range.\n2) In London watch for a sweep (a wick outside the range) and then a close back inside.\n3) Enter against the sweep if there is a clear rejection, with a stop outside the wick.\n4) The target is the other side of the range or the first important level.\n5) If the sweep continues with a close outside on volume, treat it as a break, not a sweep."
+    },
+    {
+     "t": "Warnings",
+     "b": "• Daylight saving shifts the hours, so use the local exchange time.\n• Crypto trades 24 hours, so the effect of sessions is weaker and differs from asset to asset.\n• Win-rate improvement figures copied from blogs have no independent source."
+    },
+    {
+     "t": "The failure scenario",
+     "b": "A sweep that did not reverse and kept going: this happens often on news days or in a strong trend. That is why the stop must sit right behind the wick, and the trade closes if an hourly candle closes outside the range. And it is better to avoid entering an hour before high-impact news."
+    },
+    {
+     "t": "How to measure whether sessions matter for you",
+     "b": "Record for each trade: the session you entered in, and the result in R. After 50 trades compare the average R in each session. If there is no clear difference, do not build rules on timing. That keeps the hypothesis testable instead of becoming a belief."
+    }
+   ],
+   "bull_story": "The Asia range is between 100 and 102.5. In London price fell to 98.4 (a wick below the low) and an hourly candle closed at 101 inside the range. Entry is a buy at 101.2, the stop below the wick at 98.2, and the target the top of the range at 102.5 and then 105. If an hourly candle closes below 98.2 the idea is cancelled.",
+   "bear_story": "The mirror image: a sweep of the range high in London and then a close back inside the range, and the entry is a sell with a stop above the wick.",
+   "platform": [
+    "Workspace: turn on Sessions + Kill Zones (session boxes and H/M/L lines).",
+    "Workspace: the Kill Zone Sniper detector on the 1-hour timeframe or lower.",
+    "Use sessions as a filter: do not enter when liquidity is thin.",
+    "Record every trade with its session in the journal to measure whether timing matters for you."
+   ],
+   "mistakes": [
+    "Treating the time as an entry signal on its own.",
+    "Forgetting daylight saving.",
+    "Copying forex timings onto crypto without testing."
+   ],
+   "exercises": [
+    "Mark the Asia range for the last 10 days on one pair, and count how many times it got swept in London.",
+    "For every sweep case, record: did it reverse or continue?",
+    "Compare the average candle size in the Asia, London and New York hours on the same symbol."
+   ],
+   "faq": [
+    {
+     "q": "Do kill zones guarantee profit?",
+     "a": "No. The evidence is that volatility differs by hour, but an added edge was not proven in any independent test we found."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "Kill Zone",
+     "def": "A time window in which ICT traders expect activity."
+    },
+    {
+     "term": "Sweep",
+     "def": "A wick that goes outside a level and comes back, taking stop orders."
+    }
+   ]
+  },
+  "orderflow": {
+   "what": "Order flow reads what is actually happening in the book and the tape: who is attacking (buying / selling) and where the resting orders are. The literature supports that order imbalance predicts the very short move, but as a stand-alone profit system its evidence is weak. We use it as a confirmation gate at a prepared level.",
+   "parts": [
+    {
+     "t": "The reading tools in order of trust",
+     "b": "1) The tape, Time & Sales: trades that actually happened (highest trust).\n2) Delta / Footprint: who the aggressor is inside each candle.\n3) The pressure gauge: net of the last two minutes.\n4) The Limit Track order tracker: an order that was placed, pulled or executed.\n5) The DOM book and the heatmap: resting liquidity (lowest trust because it gets pulled)."
+    },
+    {
+     "t": "Absorption",
+     "b": "Large volume executes at a level and price does not move: that means large resting orders are absorbing the attack. If this happens at support after violent selling, and aggressive buying follows, it is a possible confirmation of a bounce."
+    },
+    {
+     "t": "Imbalance",
+     "b": "In the footprint, if one side is 3 times stronger than the other on two consecutive prices, that counts as an imbalance. A buy imbalance at support = stronger confirmation. What matters is that it is at a prepared level."
+    },
+    {
+     "t": "Book mistakes",
+     "b": "A large wall in the book can be pulled when price approaches (Spoofing). That is why we treat the pulled (PULLED) and the executed (FILLED) differently: the executed is information, and the pulled may be deception."
+    },
+    {
+     "t": "The failure scenario",
+     "b": "An apparent absorption and then price breaks the level: the resting orders may have been pulled or exhausted. The fix: enter after confirmation (a break of the candle's high), not on the absorption itself, with a small stop behind the level. And if the book has a huge wall that was pulled as price approached, treat it as a warning, not a confirmation."
+    },
+    {
+     "t": "Preparing the screen",
+     "b": "Open Depth of Trade on a liquid symbol (BTC or ETH). Turn on the tape, delta and the heatmap. Define a level on the higher timeframe first. Then wait for price to approach and watch 3 things: the tape's aggression, an imbalance in the footprint, and the behavior of the walls (executed or pulled)."
+    }
+   ],
+   "bull_story": "Price reached support at 100. The tape shows violent selling for two minutes but price holds at 100 (absorption). In the footprint, the next minute's candle has a 3:1 buy imbalance at 100.1 and 100.2. Entry is a buy after a break of 100.3, the stop below 99.8, the target 101.5. If selling returns on bigger volume and breaks 99.8, the idea is cancelled.",
+   "bear_story": "At resistance: violent buying gets absorbed (price holds), then a 3:1 sell imbalance and a sell wall in the book that was not pulled. Entry is a sell.",
+   "platform": [
+    "Workspace: turn on Depth of Trade (heatmap, book, tape, order tracker, Footprint, delta).",
+    "The Order Flow card under the column holds the signals and the OI, and you can hide it with the x and bring it back from the indicators list.",
+    "Note: the Workspace's tape data is built while you have the chart open.",
+    "Technical Office: the Flow lab and the Flow guide."
+   ],
+   "mistakes": [
+    "Entering on a wall in the book alone.",
+    "Reading flow without a level.",
+    "Relying on delta alone.",
+    "Ignoring that the data is limited to the time the chart was open."
+   ],
+   "exercises": [
+    "Open a liquid symbol and watch the tape for 10 minutes at a level: record whether absorption happened.",
+    "Compare a wall that was placed and pulled with a wall that was executed in the order tracker.",
+    "Record 20 times a 3:1 imbalance appeared: how many of them reversed?"
+   ],
+   "faq": [
+    {
+     "q": "Why is the tape more reliable than the book?",
+     "a": "Because a trade is a real commitment, while a resting order can be cancelled."
+    },
+    {
+     "q": "Is this enough on its own?",
+     "a": "No. Its evidence as a stand-alone system is weak; we use it as a gate at a level."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "Footprint",
+     "def": "A display of selling and buying at each price inside the candle."
+    },
+    {
+     "term": "Delta",
+     "def": "Aggressive buying minus aggressive selling."
+    },
+    {
+     "term": "Spoofing",
+     "def": "Placing large orders with the intent to pull them."
+    }
+   ]
+  },
+  "meanrev": {
+   "what": "Mean reversion: after price moves far from its average in a sideways market, it tends to come back. The high win rate (60-70%) deceives, because the rare loss is big. It needs a separate system, a range filter and a stop.",
+   "parts": [
+    {
+     "t": "Defining the extreme",
+     "b": "• Outside Bollinger (20, 2).\n• RSI below 30 or above 70 (or 10/90 in faster systems).\n• A distance from the 20 average of more than 2 x ATR."
+    },
+    {
+     "t": "The range filter (mandatory)",
+     "b": "Do not do reversion unless the market is sideways: ADX below 20-25, or a flat 50 average, or price still inside a clear range. In a strong trend we switch the system off."
+    },
+    {
+     "t": "Management",
+     "b": "• Enter with small size.\n• A stop is a must (for example 1.5 x ATR behind the extreme).\n• The target is the average or the opposite edge, we do not get greedy.\n• A time exit: if it has not returned within N candles we exit."
+    },
+    {
+     "t": "Combining with trend",
+     "b": "Trend and reversion lose at different times, so combining them as separate systems reduces the swings. Merging them into one signal cancels the advantage of each."
+    },
+    {
+     "t": "The failure scenario: the break",
+     "b": "Price breaks the range on a close and on volume, and continues. Here the stop saves you. The lesson: do not add to the losing trade. You must also know in advance the maximum loss of the whole system in a month, because the left tail in reversion is longer than in trend."
+    },
+    {
+     "t": "Measuring success",
+     "b": "Do not judge by the win rate alone. Compute the average win divided by the average loss and the expectancy after cost on at least 100 trades, and compare against a random entry in the same ranges. And split the sample into two halves: if the second half loses, the idea depends on one period."
+    }
+   ],
+   "bull_story": "A sideways range between 100 and 110 for two weeks, ADX = 15. Price fell to 100.5 and closed below the lower Bollinger and then came back inside, RSI = 27. Entry is a buy at 101, the stop 98.5, the target the average at 105. If it closes below 98.5 it is a range break and the trade closes.",
+   "bear_story": "The mirror image at the upper edge, RSI above 70, a rejection with a bearish candle. Entry is a sell and the target is the average.",
+   "platform": [
+    "Radar: the RSI<30 and RSI>70 strips.",
+    "Technical Office > Backtest: the RSI and Bollinger width indicators in the rule builder.",
+    "Check the market state in the \"Market state\" card in the Radar."
+   ],
+   "mistakes": [
+    "Buying in a strong decline because it is \"cheap\".",
+    "No stop.",
+    "Adding to a loss (Averaging down).",
+    "A distant target after the return to the average."
+   ],
+   "exercises": [
+    "Mark 5 sideways ranges in the last year on one symbol, and see how many times the bounce from the edge worked.",
+    "Mark 3 times the range broke: how big would the loss have been without a stop?",
+    "Compute the average R for a system with a 65% win rate, an average loss of 3R and an average win of 1R."
+   ],
+   "faq": [
+    {
+     "q": "What is the difference between reversion and trend?",
+     "a": "Trend bets that the move continues, and reversion bets that it comes back."
+    },
+    {
+     "q": "Why does a high win rate still fail?",
+     "a": "Because the rare loss is big and wipes out the small profits."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "ADX",
+     "def": "A measure of trend strength."
+    },
+    {
+     "term": "Bollinger",
+     "def": "An average with two bands at a standard deviation."
+    },
+    {
+     "term": "Averaging down",
+     "def": "Buying more while losing, which is dangerous."
+    }
+   ]
+  },
+  "smc": {
+   "what": "SMC/ICT are concepts that explain price from the angle of liquidity: stop orders gather above highs and below lows, and price goes to sweep them. The concepts are logical, but the best independent test we found found no evidence that they work as taught, and PF figures copied from blogs have no traceable source. We treat them as context, not as a system.",
+   "parts": [
+    {
+     "t": "The concepts",
+     "b": "• Liquidity: stop orders above highs and below lows.\n• The sweep (Sweep): price goes outside a level and comes back.\n• Market structure: BOS a structure break, MSS a change in structure.\n• Displacement: a violent move that leaves a gap.\n• The FVG gap: the empty space between the first candle's wick and the third's.\n• Order Block: the last opposite candle before the displacement.\n• Breaker and Unicorn: blocks that flip after a break."
+    },
+    {
+     "t": "The sequence",
+     "b": "1) The higher timeframe's direction.\n2) A sweep of liquidity in the opposite direction.\n3) A violent displacement and a structure break with the direction.\n4) A return to an OB or an FVG.\n5) Entry with a stop behind the sweep.\n6) A target at the opposite liquidity, R:R >= 1.5."
+    },
+    {
+     "t": "The evidence warning",
+     "b": "The independent test's result: the sweep often continues instead of reversing (in a preprint not yet peer reviewed: continuation in 65 of 66 choices). So we test both reversal and continuation in the lab and ignore the 70-90% win rates that are marketed."
+    },
+    {
+     "t": "Linking it to the other schools",
+     "b": "SMC works better as context on top of the levels from the first school: the sweep at an important level from the levels, the timing from sessions, and the confirmation from order flow. Without a prepared level, the OB and the FVG are just drawings."
+    },
+    {
+     "t": "Honest measurement",
+     "b": "Define every concept with a numeric rule (for example a sweep = a wick >= 0.5 ATR beyond the 20-candle high and then a close inside). Test after costs on data that was not touched, and compare with a random entry. Without that we are measuring after-the-fact interpretations."
+    }
+   ],
+   "bull_story": "A rising daily trend. On 15 minutes price fell and swept the low at 100.4 (a wick to 99.2), then a bullish displacement with large candles left a gap between 103.6 and 105.4. Price returned to an OB at 100.5-101.6 and bounced. Entry 101.8, stop 98.9 (below the sweep), target the previous high at 108.",
+   "bear_story": "The reverse: a sweep of a high, a bearish displacement with a gap, a return to an OB and the rise is rejected.",
+   "platform": [
+    "Radar: the \"SMC MSB+OB\", \"Order block\" and \"Unicorn\" strips.",
+    "Workspace: the Order Block, FVG, Sweep and Breaker detectors.",
+    "Turn on Sessions + Kill Zones to know where the Asia range was swept.",
+    "Technical Office > Detector analysis: see the lab number for each detector before you trust it."
+   ],
+   "mistakes": [
+    "Drawing OBs and FVGs after the move (tailoring to fit).",
+    "Ignoring the bigger trend.",
+    "Many terms with no measurable definition.",
+    "Treating it as a complete system."
+   ],
+   "exercises": [
+    "Mark 10 sweeps of clear highs and lows on one symbol: how many reversed and how many continued?",
+    "On every displacement draw the FVG and see whether price came back to it and how many candles it took.",
+    "Compare the result with a random entry at the same times."
+   ],
+   "faq": [
+    {
+     "q": "Does ICT work?",
+     "a": "The independent evidence we found is weak or absent. We treat it as hypotheses and measure it."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "FVG",
+     "def": "Fair value gap: a price space between the wicks of 3 candles."
+    },
+    {
+     "term": "BOS",
+     "def": "Break of structure."
+    },
+    {
+     "term": "OB",
+     "def": "Order Block: the last opposite candle before a displacement."
+    }
+   ]
+  },
+  "harmonic": {
+   "what": "Harmonic patterns rely on Fibonacci ratios between five points X-A-B-C-D to define a potential reversal zone (PRZ). Independent evidence for them is scarce, so we treat them as context with a defined stop.",
+   "parts": [
+    {
+     "t": "The common patterns (approximate ratios)",
+     "b": "• Gartley: B ≈ 0.618 of XA, D ≈ 0.786 of XA.\n• Bat: B 0.382-0.5, D ≈ 0.886 of XA.\n• Butterfly: D ≈ 1.27 of XA (beyond X).\n• Crab: D ≈ 1.618 of XA.\n• Cypher: C exceeds A, D ≈ 0.786 of XC."
+    },
+    {
+     "t": "The rules",
+     "b": "1) Define the points with a fixed rule (highs and lows on a defined time scale).\n2) The ratios must match within a small margin (for example +/-3%): too much rounding makes anything a pattern.\n3) D is a waiting zone, not an entry.\n4) Enter after a rejection on the smaller timeframe.\n5) The stop goes behind X or behind D."
+    },
+    {
+     "t": "Who relies on it",
+     "b": "As a context tool alongside a strong level or zone that D coincides with. Without a confluence its value is weak."
+    },
+    {
+     "t": "Defining the points with an objective rule",
+     "b": "Use a ZigZag with a fixed deviation threshold (for example 3 x ATR) or highs and lows after N candles. If you change the threshold until the pattern appears, you are tailoring to fit. Write the setting before you look at the result, and apply it to all symbols in the same way."
+    },
+    {
+     "t": "The failure scenario",
+     "b": "Price breaks D and continues: the pattern is cancelled, and the stop behind D or X executes. It is better to enter a small trade after the rejection, not at the touch of D. And do not treat the Fibonacci ratios as magic; they are points where orders may gather because many people use them."
+    },
+    {
+     "t": "The pattern's relation to the trend",
+     "b": "A pattern in line with the higher timeframe's trend (for example a bullish Gartley in a daily uptrend) is logically stronger than a pattern that goes against the trend. If it goes against the trend, reduce size or treat it as a watch idea only."
+    }
+   ],
+   "bull_story": "X=100 and the high A=130. B fell to 111.5 (0.618 of XA). C came back to 122.9. D reached 106.4 (0.786 of XA) and that intersects a daily support. A rejection candle appeared on 15 minutes. Entry 107.2, stop below 105, target C at 122.9.",
+   "bear_story": "A bearish Gartley: X=130 (a high), A=100 (a low), B bounced to 118.5 (0.618 of XA), C fell to 107, D rose to 123.6 (0.786 of XA). A rejection at D, a sell entry at 122.8 with a stop above 126.5 and the target C.",
+   "platform": [
+    "Workspace: the Harmonic patterns indicator (Gartley, Bat, Butterfly, Crab and Cypher).",
+    "The target boxes turn a muted yellow when the pattern expires, and the History button shows the old ones.",
+    "Radar: there is no direct harmonic filter; use the chart."
+   ],
+   "mistakes": [
+    "Rounding the ratios until anything becomes a pattern.",
+    "Entering as soon as D is reached.",
+    "Ignoring the trend and the levels.",
+    "Relying on it as a main strategy."
+   ],
+   "exercises": [
+    "Mark 5 historical Gartley patterns: how many matched within +/-3% accuracy?",
+    "How many of them bounced from D?",
+    "Compare with a random entry at a support level."
+   ],
+   "faq": [
+    {
+     "q": "Why Fibonacci ratios?",
+     "a": "Because they are popular among traders, so orders may gather at them; this is not a law of nature."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "PRZ",
+     "def": "The potential reversal zone."
+    },
+    {
+     "term": "XABCD",
+     "def": "The pattern's five points."
+    }
+   ]
+  },
+  "elliott": {
+   "what": "Elliott's theory says the impulsive move is 5 waves and the corrective one is 3. It is hard to automate as described, and the count changes after the fact. Its practical value: context, an alternative count and a clear invalidation point from hard rules.",
+   "parts": [
+    {
+     "t": "The hard rules for an impulse",
+     "b": "1) Wave 2 must not go below the start of wave 1.\n2) Wave 3 must not be the shortest among 1, 3 and 5.\n3) Wave 4 must not enter the territory of wave 1.\nIf any rule is broken = the count is wrong, start again."
+    },
+    {
+     "t": "The correction",
+     "b": "Common patterns: Zigzag (a sharp A-B-C), Flat (sideways), Triangle. B decides the type, and wave C usually exceeds the end of A."
+    },
+    {
+     "t": "How to use it safely",
+     "b": "• A main count and an alternative count, always.\n• The invalidation point written in advance.\n• We enter at the end of a correction (wave 2 or 4) in the direction of the impulse, we do not predict the top.\n• We do not rely on it alone."
+    },
+    {
+     "t": "Common ratios (indicative)",
+     "b": "Wave 2 is often 50-61.8% of 1. Wave 3 is often 1.618 of 1. Wave 4 is often 23.6-38.2% of 3. This is approximate, not a rule."
+    },
+    {
+     "t": "Dealing with multiple counts",
+     "b": "The same move can be counted in different ways. Write the main and the alternative count, and for each one an invalidation point. If price breaks the main count's invalidation, move to the alternative instead of clinging. The goal is to know when the idea is wrong, not to prove you are usually right."
+    },
+    {
+     "t": "Measuring the benefit",
+     "b": "Test one objective rule, for example \"buy at the 61.8% retracement of wave 2 provided a close above the low of wave 1\", with a clear stop. Compare it with a random entry. Here we measure a defined rule, not the whole theory."
+    },
+    {
+     "t": "A daily reading example",
+     "b": "Every day open a daily timeframe for one symbol, write the main count in one line, the alternative in one line, and the invalidation in a third. After a month review how many times your count was invalidated before it played out. This is an objective exercise that shows you the tool's real value for you."
+    }
+   ],
+   "bull_story": "After a low at 100, wave 1 to 112, correction 2 to 106 (it did not break 100), wave 3 to 134 (the longest), correction 4 to 122 (above 112, so it did not enter wave 1's territory), wave 5 to 142. Then an A-B-C correction. Entry with the bigger trend at the end of C, invalidation if it breaks the low of wave 4.",
+   "bear_story": "A bearish impulse from a high at 142: wave 1 to 130, correction 2 to 136 (it did not break 142), wave 3 to 108 (the longest), bounce 4 to 120 (below 130, so it did not enter wave 1's territory), wave 5 to 100. Then an A-B-C bounce. A sell entry at the end of C with a stop above the high of wave 4.",
+   "platform": [
+    "Workspace: the Elliott waves indicator (automatic 1-2-3-4-5 and A-B-C).",
+    "The manual Elliott tool (6 clicks 0-5).",
+    "Radar: the \"Elliott\" strip in the quick strips."
+   ],
+   "mistakes": [
+    "Counting late after the move.",
+    "Ignoring the hard rules.",
+    "One count with no alternative.",
+    "Using it as an entry signal on its own."
+   ],
+   "exercises": [
+    "Count a clear historical move, then test the three hard rules.",
+    "Write an alternative count and define its invalidation.",
+    "Compare the platform's automatic count with your manual count."
+   ],
+   "faq": [
+    {
+     "q": "Why does the lab say Elliott is weak?",
+     "a": "Because the count is not objective and changes after the fact, which makes measurement hard."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "Impulse",
+     "def": "A move of 5 waves in the direction of the bigger trend."
+    },
+    {
+     "term": "Corrective",
+     "def": "A counter move of 3 waves."
+    }
+   ]
+  },
+  "gann": {
+   "what": "Gann links price to time through angles, fan lines and cycles. There is no peer-reviewed academic support for the geometric tools, so we use them as a visual tool for distance and time, not as a decision signal.",
+   "parts": [
+    {
+     "t": "The tools",
+     "b": "• The 1x1 angle: one price unit per one time unit (45 degrees on a given scale).\n• The fan: 1x2, 2x1, 1x4 and others from an important low or high.\n• The Square of Nine: a table of levels.\n• Time cycles: repeating periods."
+    },
+    {
+     "t": "The practical rule",
+     "b": "Price above 1x1 counts as strong, and below it as weak. A break of 1x1 is an alert, not a signal. The fan is affected by the price and time scale on the screen, meaning the same angle can change when the zoom changes."
+    },
+    {
+     "t": "The safest use",
+     "b": "Fix the scale, draw from an important point, and use the lines as a reference for sloping support and resistance alongside other tools. Do not build a decision on them alone."
+    },
+    {
+     "t": "How to know whether it helps",
+     "b": "Test one rule: for example \"buy at a touch of a rising 1x1 after a pullback with a rejection\". Define the scale as fixed, set the stop and target, and compare against entering randomly on an ordinary trend line. If there is no difference, the lines are just drawing."
+    },
+    {
+     "t": "Linking it to the other schools",
+     "b": "The most practical use is a sloping trend line drawn in an organized way: 1x1 as a reference for direction, and its intersection with a horizontal level gives a stronger confluence zone. A confluence of time and price can alert you to a zone worth watching."
+    },
+    {
+     "t": "The tool's limits",
+     "b": "Gann lines change with the zoom and the chart's scale, so they will not match someone else who uses a different scale. There is also no rigorous test proving they predict, so use them as a visual reference and base your decision on other levels and confirmations."
+    }
+   ],
+   "bull_story": "From a low at 100 we drew 1x1, 2x1 and 1x2. Price is above 1x1 and respects 2x1 as support in a steady rise. A break of 2x1 is an alert, and a break of 1x1 on a close says momentum has weakened. There is no automatic entry signal.",
+   "bear_story": "From an important high at 150 we drew a falling 1x1 and its fan. Price is below 1x1 and respects it as sloping resistance in a steady decline. A bounce and a touch of 1x1 with a rejection gives a watch zone for selling, and invalidation is a close above it on volume. There is no automatic signal.",
+   "platform": [
+    "Workspace: the Gann drawing tools.",
+    "Use them with the trend line and the levels.",
+    "Technical Office > Detector analysis: see any lab number if there is one."
+   ],
+   "mistakes": [
+    "Forgetting that the angle depends on the scale.",
+    "Interpreting every touch as confirmation.",
+    "Copying Gann tables without testing."
+   ],
+   "exercises": [
+    "Draw 1x1 from a low on one symbol, change the zoom, and notice the change.",
+    "Mark how many times price respected 2x1.",
+    "Compare with an ordinary trend line."
+   ],
+   "faq": [
+    {
+     "q": "Is Gann scientifically proven?",
+     "a": "No, there is no rigorous support; so keep it a visual tool."
+    }
+   ],
+   "glossary": [
+    {
+     "term": "1x1",
+     "def": "Gann's basic angle."
+    },
+    {
+     "term": "Fan",
+     "def": "A set of angles from one point."
+    }
+   ]
+  }
+ }
+}

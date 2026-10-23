@@ -1,4 +1,4 @@
-# AI — Mean Reversion
+# AI — Mean Reversion (مفصّل)
 
 ```yaml
 id: meanrev
@@ -8,58 +8,71 @@ role_in_system: separate_system
 lab_status: candidate
 
 branches:
-  - id: range_regime
-    title: Range regime filter
+  - id: regime_gate
+    title: Regime gate
     rules_hard:
-      - "Mean-reversion book disabled when trend regime flag on (e.g. ADX high / Donchian expansion)"
+      - "Enable only when regime_flag == range (e.g. ADX(14) < threshold T or price inside Donchian width percentile)"
+      - "Disable entire MR book when regime_flag == trend"
     rules_soft:
-      - "Works best inside defined range highs/lows"
+      - "External evidence: MR + Trend portfolio improves MAR when both funded separately"
     confirmations: []
-    invalidation: ["Regime flip to trend"]
+    invalidation: ["Regime flips to trend mid-trade — optional early exit rule"]
+
+  - id: range_geometry
+    title: Range geometry
+    rules_hard:
+      - "Range high/low from last confirmed pivots or rolling W-day max/min with acceptance rule"
+    rules_soft: ["Midpoint and VWAP as first targets"]
+    confirmations: []
+    invalidation: ["Accepted close outside range"]
 
   - id: oscillators
-    title: Oscillator extremes
+    title: Oscillators
     rules_hard:
-      - "Fixed thresholds (e.g. RSI period and levels) before Lab"
-    rules_soft:
-      - "Combine with band touch not RSI alone"
-    confirmations: ["Price at range boundary"]
-    invalidation: ["Close outside range with momentum"]
+      - "RSI length and thresholds fixed before test (e.g. 2-period or 14-period — pick one family)"
+    rules_soft: ["Band touch + oscillator better than oscillator alone"]
+    confirmations: []
+    invalidation: []
 
 setups:
   - id: meanrev_long_range_low
     direction: long
-    name: Buy range low exhaustion
-    context: "ADX low / ranging; clear range low"
+    name: Range low exhaustion long
+    context: "regime_flag range"
     entry_conditions:
-      - "Regime = range"
-      - "Price at or slightly beyond range low"
-      - "RSI (or chosen oscillator) oversold per fixed param"
-    entry_trigger: "Reversal candle back inside range"
-    stop_rule: "Below range low by buffer or ATR fraction"
-    targets:
-      - "Range midpoint or VWAP"
-      - "Range high partial"
+      - "regime_flag == range"
+      - "Price at range low band"
+      - "Oscillator oversold per fixed params"
+    entry_trigger: "Close back inside range"
+    stop_rule: "Below range low - buffer"
+    targets: ["Mid", "VWAP", "Range high partial"]
     confirmations: ["Optional OF absorption"]
     invalidation_price_rule: "Close below range low with follow-through"
-    example:
-      points: { range_low: 100, range_high: 110, mid: 105, entry: 100.5 }
-      narrative: "Separate system from trend book"
-    risk_notes: "Do not run full size trend + meanrev same symbol without hedge policy"
+    research_option: R3
     detector_hint: null
 
   - id: meanrev_short_range_high
     direction: short
-    name: Sell range high exhaustion
-    context: "Range regime"
-    entry_conditions:
-      - "At range high + oscillator overbought"
-    entry_trigger: "Rejection back inside"
-    stop_rule: "Above range high"
-    targets: ["Mid", "range low"]
-    confirmations: []
+    name: Range high exhaustion short
+    entry_conditions: ["regime range", "At range high", "Overbought"]
+    entry_trigger: "Close back inside"
+    stop_rule: "Above range high + buffer"
+    targets: ["Mid", "Range low"]
     invalidation_price_rule: "Close above range high with follow-through"
-    example:
-      narrative: "Mirror"
     detector_hint: null
+
+  - id: meanrev_long_bb
+    direction: long
+    name: Bollinger lower band in range
+    entry_conditions: ["regime range", "Close below lower BB then close back above"]
+    entry_trigger: "Reentry close"
+    stop_rule: "Below recent extreme"
+    targets: ["Middle band"]
+    invalidation_price_rule: "New low after entry"
+    detector_hint: null
+
+development_notes:
+  - "Never merge MR signals into trend Grade without portfolio layer"
+  - "Research R10 after R1 and R3 stable"
+  - "Expect higher win rate lower payoff than trend"
 ```

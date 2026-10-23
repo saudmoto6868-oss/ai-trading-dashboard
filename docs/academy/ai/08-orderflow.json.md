@@ -1,4 +1,4 @@
-# AI — Order Flow
+# AI — Order Flow (مفصّل)
 
 ```yaml
 id: orderflow
@@ -8,64 +8,86 @@ role_in_system: execution_gate
 lab_status: candidate
 
 branches:
-  - id: tape
-    title: Time and Sales
+  - id: hierarchy
+    title: Reliability hierarchy
     rules_hard:
-      - "Prefer actual prints over resting DOM size"
+      - "Prefer Time&Sales / aggressor prints over resting DOM size"
+      - "Pulled liquidity != support"
     rules_soft:
-      - "Speed and size clusters matter near pre-defined level"
-    confirmations: ["Aggressive buys into support hold"]
-    invalidation: ["Aggressive sells breaking level"]
+      - "Rank: Tape > Delta/Footprint > Gauge > LimitTrack > DOM walls"
+    confirmations: []
+    invalidation: []
 
-  - id: delta_footprint
-    title: Delta and footprint
+  - id: absorption
+    title: Absorption
     rules_hard:
-      - "Delta sign convention fixed in code"
+      - "Absorption candidate: high opposing volume at level with limited price progress over W window"
+      - "Must co-locate with preset chart level from parent school"
     rules_soft:
-      - "Absorption: large opposing volume, little price progress"
-    confirmations: ["Delta divergence vs price at level"]
-    invalidation: ["Delta and price both break level"]
+      - "Then require delta flip or hold for entry"
+    confirmations: ["Level from levels/sessions"]
+    invalidation: ["Price closes through level with rising aggressor pressure"]
 
-  - id: dom_limit_track
-    title: DOM and limit track
+  - id: delta
+    title: Delta conventions
     rules_hard:
-      - "Pulled liquidity is not filled liquidity"
+      - "delta = aggressive buy volume - aggressive sell volume; sign convention documented"
     rules_soft:
-      - "Snapshots lag; do not treat single wall as truth"
-    confirmations: ["Refresh after pull still holds"]
-    invalidation: ["Wall pulled and price through"]
+      - "CVD divergence at level is confirmation not standalone signal"
+    confirmations: []
+    invalidation: []
+
+  - id: limit_track_dom
+    title: Limit track DOM
+    rules_hard:
+      - "Track PLACED/PULLED/FILLED separately"
+      - "Snapshot interval known (e.g. ~20s) — do not overfit micro changes"
+    rules_soft: ["Refresh after pull more meaningful than single wall"]
+    confirmations: []
+    invalidation: []
 
 setups:
   - id: of_long_absorption_at_level
     direction: long
-    name: Absorption at preset demand
-    context: "Level from Levels/Sessions already valid; OF is gate"
+    name: Absorption at demand
+    context: "Parent long level active"
     entry_conditions:
-      - "Price at demand level"
-      - "Selling absorbed (tape/delta) without new low close"
-    entry_trigger: "Delta flips up or gauge positive + price holds"
+      - "At demand level"
+      - "Absorption criteria true"
+      - "Delta non-negative or flipping up"
+    entry_trigger: "Hold above level + gauge optional green"
     stop_rule: "Below level"
-    targets: ["From parent setup"]
-    confirmations:
-      - "Limit track: bids refill not only pull"
+    targets: ["Parent targets"]
+    confirmations: ["Tape speed slows on sells"]
     invalidation_price_rule: "Close below level"
-    example:
-      narrative: "No standalone OF scalp without level in this academy policy"
-    risk_notes: "Crypto/FX feed quality varies"
+    research_option: R6
     detector_hint: "absorption"
 
   - id: of_short_absorption_at_level
     direction: short
-    name: Absorption at preset supply
-    context: "Preset resistance"
-    entry_conditions:
-      - "Buying absorbed at level"
-    entry_trigger: "Delta flips down; hold below level"
+    name: Absorption at supply
+    entry_conditions: ["At supply", "Buy absorption", "Delta flipping down"]
+    entry_trigger: "Hold below level"
     stop_rule: "Above level"
-    targets: ["From parent setup"]
-    confirmations: []
+    targets: ["Parent"]
     invalidation_price_rule: "Close above level"
-    example:
-      narrative: "Mirror"
     detector_hint: "absorption"
+
+  - id: of_long_delta_thrust
+    direction: long
+    name: Delta thrust continuation
+    context: "Trend day parent long; pullback to VWAP/level"
+    entry_conditions:
+      - "Pullback with weak counter delta"
+      - "Thrust delta resumes with price"
+    entry_trigger: "Resume bar"
+    stop_rule: "Below pullback low"
+    targets: ["Session extreme"]
+    invalidation_price_rule: "Close below pullback low"
+    detector_hint: null
+
+development_notes:
+  - "No OF-only Grade path in academy policy"
+  - "Crypto/FX synthetic delta quality differs from futures footprint"
+  - "Journal every OF-tagged trade for R6"
 ```

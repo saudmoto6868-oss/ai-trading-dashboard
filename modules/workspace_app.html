@@ -1081,7 +1081,7 @@ function setupHtml(e){
   const ar = lang === "ar", long_ = e.direction === "bullish", col = long_ ? "#0ecb81" : "#f6465d", pl = e.plan || null, a = e.ana || null, pct = Math.round(100*e.score/Math.max(1, e.max));
   let rr = null; try { const r0 = Math.abs(pl.entry - pl.stop); rr = r0 ? Math.abs(pl.tps[0] - pl.entry)/r0 : null; } catch(x){}
   const H = t => '<div style="margin-top:9px;font-weight:700;color:#f0b90b">'+esc(t)+'</div>', li = arr => '<ul dir="rtl" style="margin:3px 0;padding-inline-start:16px;text-align:right;line-height:1.55">'+arr.map(x => '<li>'+esc(x)+'</li>').join("")+'</ul>';
-  let h = '<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b><span style="color:'+col+';font-weight:700">'+(long_ ? "▲ "+Lg("BUY","شراء") : "▼ "+Lg("SELL","بيع"))+'</span><span class="m">'+esc(ttTxt(e.ttype))+' · '+esc(e.tfk || "")+'</span><span style="margin-inline-start:auto;font-weight:700;color:'+(pct >= 70 ? col : "#eaecef")+'">'+e.score+'/'+e.max+' · '+pct+'%</span></div>';
+  let h = '<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+symIcon(e.symbol,17)+'<b style="font-size:15px">'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b><span style="color:'+col+';font-weight:700">'+(long_ ? "▲ "+Lg("BUY","شراء") : "▼ "+Lg("SELL","بيع"))+'</span><span class="m">'+esc(ttTxt(e.ttype))+' · '+esc(e.tfk || "")+'</span><span style="margin-inline-start:auto;font-weight:700;color:'+(pct >= 70 ? col : "#eaecef")+'">'+e.score+'/'+e.max+' · '+pct+'%</span></div>';
   if (e.q != null && e.q > 0) h += '<div class="m" style="margin-top:2px">'+esc(Lg("Evidence quality","جودة الأدلة"))+': <b style="color:#eaecef">'+e.q+'/100</b>'+((e.qwhy || []).length ? ' · '+esc(e.qwhy.join(" · ")) : "")+'</div>';
   { const c = Ctx.cache[e.symbol]; if (!c || Date.now() - c.t > 60000) Ctx.get(e.symbol).then(() => Setup.subs.forEach(f => f()));
     const R = (Ws.radar && Ws.radar.d[e.symbol]) || null, fr = R && !R.err ? (R.verdict === "up" ? (long_ ? "ok" : "bad") : R.verdict === "down" ? (long_ ? "bad" : "ok") : "mid") : "na";
@@ -1362,6 +1362,7 @@ class CandleChart {
     cv.addEventListener("pointermove", e => this.move(e));
     cv.addEventListener("pointerup", e => this.up(e));
     cv.addEventListener("pointercancel", e => { (this.tp || new Map()).delete(e.pointerId); this.pinch = null; this.up(e); });   // the browser took the gesture (vertical page scroll)
+    ["pointermove", "pointerdown", "wheel", "keydown"].forEach(ev => cv.addEventListener(ev, () => { this._mAt = performance.now(); }, {capture:true, passive:true}));
     cv.addEventListener("pointerleave", () => { if (!this.drag){ this.mouse = null; this.draw(); } });
     cv.addEventListener("dblclick", e => { const q = this.pt(e), d = this.drawingsVisible && this.tool === "cur" ? this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q.x, q.y)) : null; if (d){ this.sel = d; this.draw(); this.openEditor(d); } else this.fit(); });
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
@@ -1370,7 +1371,7 @@ class CandleChart {
     this.draws = []; this.drawingsVisible = true; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
-  destroy(){ this.ro.disconnect(); }
+  destroy(){ this.ro.disconnect(); clearTimeout(this._pt); }
   cw(){ if (!this.colOn) return 0; return this.colW ? Math.max(60, Math.min(Math.round(this.W*0.85), this.colW)) : Math.max(120, Math.min(200, Math.round(this.W*0.26))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
   subActive(){ return this.subOrd.filter(k => this[k+"On"]); }
   get axw(){ return this._axw || (this._axw = Math.max(44, Math.min(200, +store.get(LS+"_axw", 62) || 62))); } set axw(v){ this._axw = v; store.set(LS+"_axw", v); }
@@ -1531,8 +1532,11 @@ class CandleChart {
     const now = performance.now(); if (now - (this._dd || 0) >= 140){ this._dd = now; this.draw(); return; }
     if (!this._ddT) this._ddT = setTimeout(() => { this._ddT = 0; this._dd = performance.now(); this.draw(); }, 140 - (now - this._dd)); }
   draw(){
-    if (this._raf) return;
-    this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
+    if (this._raf || this._pt || document.hidden) return;   // hidden tab: nothing to paint (the tab repaints when it comes back)
+    // live ticks arrive many times a second: while nobody is touching the chart it repaints at most ~4 times a second (two busy tabs used to starve each other and freeze); touching it paints at full speed
+    const now = performance.now(), idle = now - (this._mAt || 0) > 1500, wait = idle ? Math.max(0, (this._lastPaint || 0) + 250 - now) : 0;
+    const go = () => { this._raf = requestAnimationFrame(() => { this._raf = 0; this._lastPaint = performance.now(); this.paint(); }); };
+    if (wait > 8) this._pt = setTimeout(() => { this._pt = 0; go(); }, wait); else go();
   }
   paint(){
     const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length; this._gChip = null;
@@ -3228,6 +3232,7 @@ Object.assign(CandleChart.prototype, {
 { let lastWake = 0;
   const wake = () => { if (document.hidden || Date.now() - lastWake < 3000) return; lastWake = Date.now();
     try { Object.values(WSX.conns).forEach(c => { if (c.ws && (c.ws.readyState > 1 || (c.last && Date.now() - c.last > 30000))) try { c.ws.close(); } catch(e){} }); } catch(e){}
+    try { XH_CHARTS.forEach(c => c.draw()); } catch(e){}
     try { Ws.panels.forEach(p => { if (p.type === "chart" && p.kick && (!p._okAt || Date.now() - p._okAt > 15000 || !p.chart.data.length)) p.kick(); }); } catch(e){} };
   document.addEventListener("visibilitychange", wake); window.addEventListener("focus", wake); window.addEventListener("online", wake); window.addEventListener("pageshow", wake); }
 /* ---------------- widget panels ---------------- */
@@ -3758,7 +3763,7 @@ class Panel {
     this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     if (subMin){ this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; }; return; }
     const loop = async first => {
-      if (tok !== this.tok) return;
+      if (tok !== this.tok) return; const gen = this._lg = this._lg || 0;   // one polling chain per chart: a kick starts a new generation and the old chain stops after its current request
       try {
         const rows = await Promise.race([candlesTf(sym, tf, first), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
         if (tok !== this.tok) return;
@@ -3781,9 +3786,10 @@ class Panel {
         const sd = CFG.seed;
         if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
       }
+      if (gen !== this._lg) return;
       this.timer = setTimeout(() => loop(!this.chart.data.length), this.state.rf || 2000);
     };
-    this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
+    this.kick = () => { if (tok !== this.tok) return; this._lg = (this._lg || 0) + 1; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);
   }
   async smtFetch(sym, tf, tok){
@@ -4011,7 +4017,7 @@ class Panel {
       let h = '<table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("rdSetup"))+'</th><th></th><th>'+esc(T("stop"))+'</th><th>TP1</th><th>'+esc(T("rdStr"))+'</th><th></th></tr>';
       rows.slice(0, 40).forEach((e, i) => {
         const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
-        h += '<tr data-i="'+i+'"><td><b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span> <button class="ana" title="'+esc(lang === "ar" ? "التحليل" : "Analysis")+'">ⓘ</button></td>'
+        h += '<tr data-i="'+i+'"><td>'+symIcon(e.symbol,13)+'<b>'+esc(e.symbol)+'</b> <span class="m">'+esc(e.tfk||"")+'</span> <span style="color:'+(long_?"#0ecb81":"#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</span> <button class="ana" title="'+esc(lang === "ar" ? "التحليل" : "Analysis")+'">ⓘ</button></td>'
           +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags||[]).slice(0,4).map(t => '<a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" title="'+esc(tagTip(t))+'" style="background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'</td>'
           +'<td>'+spark(e, long_)+'</td><td style="color:#f6465d">'+fmtP(e.plan.stop)+'</td><td style="color:#0ecb81">'+fmtP(e.plan.tps[0])+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%<div class="m" style="font-size:10px" title="'+esc(lang === "ar" ? "نسبة ضرب الهدف الأول تاريخياً لهذه الاستراتيجية على هذا التايم فريم" : "Historical TP1 hit-rate of this strategy on this timeframe")+'">'+esc(tfTxt(e))+'</div></td><td><a class="tg" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(e.tv||"") ? e.tv : "#")+'" style="border:1px solid #2b3139;color:#4aa3ff">TV</a></td></tr>';
@@ -4085,7 +4091,7 @@ class Panel {
       box.innerHTML = ""; if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(CFG.scanning ? T("scanning") : T("sgNone"))+'</div>'; return; }
       let h = '<table class="rdt"><tr>'+COLS.map(([k,l]) => '<th data-k="'+k+'" style="cursor:pointer"'+(k === "tm" ? ' title="'+esc(T("sgTimeTip"))+'"' : '')+'>'+esc(l)+(F.sort === k ? (F.dir < 0 ? " ▾" : " ▴") : "")+'</th>').join("")+'</tr>';
       rows.slice(0, 120).forEach((e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
-        h += '<tr data-i="'+i+'" style="cursor:pointer"><td><b>'+esc(e.symbol)+'</b>'+(pipSetup(e) ? ' <span title="'+esc(T("sgPipTip"))+' ('+pipSetup(e).st+' / '+pipSetup(e).tp+')" style="background:#f0b90b;color:#000;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">★120</span>' : '')+'</td><td class="m">'+esc(e.tfk || "")+'</td><td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</td>'
+        h += '<tr data-i="'+i+'" style="cursor:pointer"><td>'+symIcon(e.symbol,13)+'<b>'+esc(e.symbol)+'</b>'+(pipSetup(e) ? ' <span title="'+esc(T("sgPipTip"))+' ('+pipSetup(e).st+' / '+pipSetup(e).tp+')" style="background:#f0b90b;color:#000;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">★120</span>' : '')+'</td><td class="m">'+esc(e.tfk || "")+'</td><td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</td>'
           +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags || []).slice(0, 4).map(t => '<span class="tg" title="'+esc(tagTip(t))+'" style="margin-inline-end:3px;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td><td>'+rr(e).toFixed(1)+'</td><td style="color:'+TMC[planTiming(e, pxOf(e.symbol)).k]+'">'+esc(T(planTiming(e, pxOf(e.symbol)).k))+'</td><td class="m">'+esc(ageTxt(e._t))+'</td><td class="m">'+esc(e._t ? T("sgAlert") : T("sgScan"))+'</td></tr>'; });
       box.innerHTML = h+"</table>";
@@ -4093,7 +4099,7 @@ class Panel {
       box.querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { const e = rows[+tr.dataset.i]; if (e) Ws.showOnChart(Object.assign({tfc: TFC_ALL[e.tfk] || "1H"}, e)); });
     };
     [q, side, tf, mn].forEach(x => x.oninput = x.onchange = () => { Ws.save(); draw(); });
-    draw(); Alerts.subs.add(draw); const un = Hub.sub("tickers", "all", () => draw()); this.unwatch = () => { Alerts.subs.delete(draw); un(); };
+    draw(); Alerts.subs.add(draw); const un = Hub.sub("tickers", "all", () => { if (!document.hidden) draw(); }); this.unwatch = () => { Alerts.subs.delete(draw); un(); };
   }
   /* ---- Settings: theme presets (Dark / Midnight / Day) + candle / background colours, applied to every chart and panel ---- */
   build_settings(){
@@ -4234,7 +4240,7 @@ class Panel {
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);
       h += '<div class="jl" style="margin:6px 4px 0">'+esc(T("jLog"))+'</div><table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th>'+esc(T("rdType"))+'</th><th>'+esc(T("entry"))+'</th><th>'+esc(T("jRes"))+'</th><th>R</th><th>'+esc(T("time"))+'</th></tr>'
         + last.map(t => { const lg = t.dir === "bullish", col = t.status === "tp" ? "#0ecb81" : t.status === "sl" ? "#f6465d" : "#848e9c", lab = t.status === "tp" ? "TP1 ✓" : t.status === "sl" ? "SL ✗" : t.status === "nf" ? Lg("no fill","ما اتنفذتش") : t.status === "exp" ? T("jExp") : T("jOpen");
-          return '<tr data-tid="'+esc(t.id)+'" style="cursor:pointer"><td><b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
+          return '<tr data-tid="'+esc(t.id)+'" style="cursor:pointer"><td>'+symIcon(t.symbol,13)+'<b>'+esc(t.symbol)+'</b> <span class="m">'+esc(t.tfk)+'</span> <span style="color:'+(lg?"#0ecb81":"#f6465d")+'">'+esc(lg ? T("long") : T("short"))+'</span> <span class="m">'+t.pct+'%</span></td><td>'+esc(ttTxt(t.ttype))+'</td><td>'+fmtP(t.entry)+'</td><td style="color:'+col+'">'+esc(lab)+'</td><td style="color:'+col+'">'+(t.status === "open" || t.status === "exp" ? "–" : f2(t.r))+'</td><td class="m">'+new Date(t.t0).toLocaleDateString()+" "+hms(t.t0).slice(0,5)+'</td></tr>'; }).join("") + '</table>';
       box.innerHTML = h; box.onclick = e => { const r = e.target.closest && e.target.closest("tr[data-tid]"); if (r) Ws.focusTrade(r.dataset.tid); };   // a journal row jumps the chart to that trade in the past
       const mv = dlt => { const d = new Date(cy, cm+dlt, 1); S.jm = d.getFullYear()+"-"+d.getMonth(); Ws.save(); draw(); };
       box.querySelector(".jp").onclick = () => mv(-1); box.querySelector(".jn").onclick = () => mv(1);
@@ -4730,7 +4736,7 @@ Panel.prototype.resub = function(){
       if (book.error){ this.domBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
       const res = renderDom(book, tape && !tape.error ? tape : null, prevSizes); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
     };
-    this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b; if (!document.hidden) draw(); }));   // a tab in the background keeps the data but skips the drawing (two busy tabs used to starve each other)
     this.unsubs.push(Hub.sub("trades", sym, () => {}));
   } else if (this.type === "tape"){
     let last = null, book = null;
@@ -4747,14 +4753,14 @@ Panel.prototype.resub = function(){
       this.tapeBox.innerHTML = renderTape(this, rows.slice().reverse().slice(0, 80));
       drawDepth(this.depthCv, book);
     };
-    this.unsubs.push(Hub.sub("trades", sym, p => { last = p; this.rerender(); }));
-    this.unsubs.push(Hub.sub("book", sym, b => { book = b.error ? null : b; drawDepth(this.depthCv, book); }));
+    this.unsubs.push(Hub.sub("trades", sym, p => { last = p; if (!document.hidden) this.rerender(); }));
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b.error ? null : b; if (!document.hidden) drawDepth(this.depthCv, book); }));
   } else if (this.type === "limits"){
     this.lt = {prev:null, events:[], sym, abs:new Set()}; let book = null;
     this.rerender = () => { this.evBox.innerHTML = renderEvents(this, this.lt.events); };
     const run = () => { const tp = Hub.last["trades|"+sym]; if (book && !book.error) limitUpdate(this.lt, book, tp && !tp.error ? tp.rows : null); this.rerender(); };
-    this.unsubs.push(Hub.sub("book", sym, b => { book = b && !b.error && b.deep && b.deep.bids && b.deep.bids.length ? Object.assign({}, b, {bids:b.deep.bids, asks:b.deep.asks}) : b; run(); }));   // same deep book (up to 400 levels per side) the order-flow heat map uses, so big orders far from the price are tracked too (before: only the nearest 50 levels)
-    this.unsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.lt, p.rows); this.rerender(); } }));
+    this.unsubs.push(Hub.sub("book", sym, b => { book = b && !b.error && b.deep && b.deep.bids && b.deep.bids.length ? Object.assign({}, b, {bids:b.deep.bids, asks:b.deep.asks}) : b; if (!document.hidden) run(); }));   // same deep book (up to 400 levels per side) the order-flow heat map uses, so big orders far from the price are tracked too (before: only the nearest 50 levels)
+    this.unsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.lt, p.rows); if (!document.hidden) this.rerender(); } }));
   } else if (this.type === "watch"){
     this.amd = this.amd || {}; this.pv = this.pv || {}; this.flash = new Set(); let M = null;
     const favs = () => store.get(LS+"_fav", []), SYMS_ = () => SYMS;
@@ -4792,7 +4798,7 @@ Panel.prototype.resub = function(){
     this.wRender = m => { if (!m) return; M = m; this.fhUpd && this.fhUpd(); if (!m.error){ const seen = new Set(SYMS.concat(favs(), this.uSyms || []));
         seen.forEach(s => { const x = m[s]; if (!x) return; const p = this.pv[s] = this.pv[s] || {last:x.last, dir:0}; if (x.last !== p.last){ p.dir = x.last > p.last ? 1 : -1; p.last = x.last; this.flash.add(s); } }); }
       this.wDraw(); };
-    this.unsubs.push(Hub.sub("tickers", "all", m => this.wRender(m)));
+    this.unsubs.push(Hub.sub("tickers", "all", m => { if (!document.hidden) this.wRender(m); }));
   }
 };
 
@@ -4955,7 +4961,7 @@ Ws.anaPop = (anchor, e) => {
   const long_ = e.direction === "bullish";
   const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-460))+"px"; pop.style.top = Math.min(r.bottom+3, innerHeight-320)+"px"; pop.style.display = "block"; pop.style.width = "450px"; pop.style.maxHeight = "70vh"; pop.style.overflow = "auto";
   const sec = (t, lines) => lines && lines.length ? '<div style="margin-top:6px"><b style="color:#f0b90b">'+esc(t)+'</b>'+lines.map(x => '<div style="margin:2px 0;padding-inline-start:8px">'+esc(x)+'</div>').join("")+'</div>' : "";
-  let h = '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal"><b>'+esc(e.symbol)+'</b> · '+esc(long_ ? "شراء" : "بيع")+' · '+e.score+'/'+e.max+' · '+esc(e.trade || e.ttype || "")+' · '+esc(e.tf || e.tfk || "");
+  let h = '<div dir="rtl" style="text-align:right;font-size:12px;line-height:1.6;white-space:normal">'+symIcon(e.symbol,13)+'<b>'+esc(e.symbol)+'</b> · '+esc(long_ ? "شراء" : "بيع")+' · '+e.score+'/'+e.max+' · '+esc(e.trade || e.ttype || "")+' · '+esc(e.tf || e.tfk || "");
   const ti = tfTxt(e); if (ti) h += ' · <span style="color:#0ecb81">'+esc(ti)+'</span>';
   h += '</div>';
   if (!a){ h += '<div class="m" style="padding:8px">'+esc(ar ? "التحليل غير متاح لهذه الصفقة (قديمة) — هيظهر في المسح الجاي." : "No analysis stored for this older trade — it appears after the next scan.")+'</div>'; }

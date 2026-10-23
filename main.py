@@ -391,10 +391,10 @@ def explain_symbol(r):
     ar_ = _ui_lang() == "ar"
     d_, a_ = ("rtl", "right") if ar_ else ("ltr", "left")
     st.markdown(
-        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
+        (f"<div dir='{d_}' style='text-align:{a_}'>{_sym_icon(r['symbol'], 14)}<b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
          f"&middot; فحص {tf} &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} نجوم "
          f"&middot; {trade_chip_html(r['trade_type'])}</div>") if ar_ else
-        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; Price {fmt_price(r['price'])} "
+        (f"<div dir='{d_}' style='text-align:{a_}'>{_sym_icon(r['symbol'], 14)}<b>{html.escape(r['symbol'])}</b> &middot; Price {fmt_price(r['price'])} "
          f"&middot; {tf} scan &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} stars "
          f"&middot; {trade_chip_html(r['trade_type'])}</div>"), unsafe_allow_html=True)
     if not r["signals"]:
@@ -700,6 +700,14 @@ def _ws_universe(active):
     return tuple(x for x in out if not (x in seen or seen.add(x)))
 
 
+def _sym_icon(sym, size=14):
+    try:
+        from modules.symbol_icon import icon
+        return icon(sym, size)
+    except Exception:
+        return ""
+
+
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 30-minute bucket changes or an empty result is older than 60 s."""
@@ -782,7 +790,7 @@ def mini_scanner_html(mini, side="All", ttype="All", n=7):
                         for t in (e.get("tags") if _ui_lang() == "ar" else (e.get("tags_en") or []))[:4]) or "-"   # tags_en: English text + tooltip (the payload itself is Arabic)
         rows.append(
             "<tr>"
-            f"<td><b>{html.escape(e['symbol'])}</b> <span style='color:#848e9c'>{html.escape(str(e.get('tfk', '')))}</span></td>"
+            f"<td>{_sym_icon(e['symbol'], 12)}<b>{html.escape(e['symbol'])}</b> <span style='color:#848e9c'>{html.escape(str(e.get('tfk', '')))}</span></td>"
             f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
             f"<td style='color:#f0b90b'>{html.escape(str(e.get('trade', '')) if _ui_lang() == 'ar' else trade_name(str(e.get('ttype', '')), False))}</td>"
             f"<td>{strat}</td><td>{_spark_svg(e.get('spark'), pl, long_)}</td>"

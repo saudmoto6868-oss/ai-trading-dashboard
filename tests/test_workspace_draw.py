@@ -50,5 +50,11 @@ def test_two_tabs_do_not_freeze_the_chart():
     assert 'addEventListener("visibilitychange", wake)' in H and "p.kick()" in H      # a tab that comes back restarts its charts
 
 
+def test_busy_tabs_stay_light():
+    assert "+ 250 - now" in H and "document.hidden) return;   // hidden tab" in H       # idle charts repaint at most ~4 times a second, hidden tabs not at all
+    assert H.count("if (!document.hidden)") >= 6                                       # DOM ladder, tape, limits, watch list skip their drawing in a background tab
+    assert "const gen = this._lg" in H and "this._lg = (this._lg || 0) + 1" in H        # one polling chain per chart, a kick replaces it
+
+
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); test_busy_tabs_stay_light(); print("ok workspace draw")

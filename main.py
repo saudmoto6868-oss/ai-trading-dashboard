@@ -971,6 +971,18 @@ def render_universe_controls():
         st.warning(_ac_msg + " - showing Crypto instead.")
 
 
+# ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
+# that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
+_KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
+_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
+for _k in list(st.session_state.keys()):
+    if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
+        try:
+            st.session_state[_k] = st.session_state[_k]
+        except Exception:
+            pass
+
+
 # ---- Tabs -------------------------------------------------------------------------
 # Page selector instead of st.tabs: st.tabs runs EVERY tab's code on every run (~1100 candle downloads + scans per run, which got
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
@@ -1424,7 +1436,7 @@ def _office_scanner():
     p = _SCAN_PRESETS.get(style or "Manual", {})
     c = st.columns(4)
     tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(p.get("tf") or cur.get("tf") or "1h"), key=f"sc_tf_{style}")
-    n = c[1].number_input(L("Charts"), 1, 30, int(cur.get("n", 10)), key="sc_n")
+    n = c[1].number_input(L("Charts"), 1, 120, int(cur.get("n", 20)), key="sc_n")
     modes = ["All selected", "Any selected"]
     mode = c[2].selectbox(L("Match"), modes, index=modes.index(p.get("mode") or cur.get("mode") or "All selected"), format_func=L, key=f"sc_mode_{style}")
     sides = ["Both", "Buy only", "Sell only"]
@@ -2033,6 +2045,20 @@ def render_market_map():
     if df.empty:
         st.caption(L("Market map: no markets with a reference price right now."))
         return
+    from modules.market_map import apply_filters as _mm_filter
+    _all = df
+    fc = st.columns([2.4, 0.8, 1, 1, 1.2, 1.2])
+    _cls_opts = sorted(_all["cls"].unique())
+    sel_cls = fc[0].pills(L("Class"), _cls_opts, selection_mode="multi", key="hm_cls", label_visibility="collapsed") or []
+    top_n = int(fc[1].number_input(L("Top N by volume"), 0, 300, 0, 10, key="hm_top", help=L("0 = all markets")))
+    direction = fc[2].selectbox(L("Direction"), ["all", "up", "down"], key="hm_dir", format_func=lambda k: {"all": L("All"), "up": L("Up"), "down": L("Down")}[k])
+    min_abs = float(fc[3].number_input(L("Min |change| %"), 0.0, 50.0, 0.0, 0.5, key="hm_abs"))
+    q = fc[4].text_input(L("Search"), key="hm_q", label_visibility="collapsed", placeholder=L("Search"))
+    sort = fc[5].selectbox(L("Sort"), ["vol", "chg", "chg_abs", "rel"], key="hm_sort", format_func=lambda k: {"vol": L("Volume"), "chg": L("Change"), "chg_abs": L("Biggest move"), "rel": L("vs class")}[k])
+    df = _mm_filter(_all, sel_cls, top_n, direction, min_abs, q, sort)
+    if df.empty:
+        st.info(f"{L('No markets match these filters.')} ({len(_all)} {L('markets')})")
+        return
     bd = breadth(df)
     st.markdown(f"**{L('Market map')}** · {L('markets')}: {bd['n']} · {L('up')}: {bd['up_share']*100:.0f}% · "
                 f"{L('down')}: {bd['down_share']*100:.0f}% · {L('median change')}: {bd['median_chg']:+.2f}%")
@@ -2233,7 +2259,7 @@ def _fv_frames(symbols: tuple, tf: str):
     return {s: f[tf] for s, f in frames.items() if f.get(tf) is not None and len(f[tf]) >= 30}
 
 
-def render_radar_similar():
+def render_radar_similar(f):
     """Find similar charts (Finviz, Sep 2026): rank the symbols and past stretches whose recent price path looks like the chosen one."""
     import altair as alt
     import pandas as _pd
@@ -2241,13 +2267,16 @@ def render_radar_similar():
     from modules import fv_screen as FV
     ar = _ui_lang() == "ar"
     A = lambda e, a: a if ar else e
-    c = st.columns([0.9, 1.2, 1.3, 1.3])
-    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1d"), key="sm_tf")
+    c = st.columns([0.2, 1.2, 1.3, 1.3])
+    tf = f["tf"]
+    c[0].markdown(f"<div class='uk-chip' style='margin-top:26px'>{html.escape(tf)}</div>", unsafe_allow_html=True)
     with st.spinner(L("Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)")):
-        frames = _fv_frames(tuple(SCAN_SYMBOLS), tf)
+        frames = _fv_frames(tuple(_radar_symbols(f)), tf)
     if not frames:
         st.info(L("No candles yet."))
         return
+    if st.session_state.get("sm_sym") not in frames:   # the filters changed the list: forget a target that is no longer in it
+        st.session_state.pop("sm_sym", None)
     target = c[1].selectbox(A("Chart to match", "الشارت المطلوب مشابهته"), sorted(frames), key="sm_sym")
     win = int(c[2].slider(A("Window (bars)", "النافذة (شموع)"), 10, 120, 40, 5, key="sm_win"))
     ahead = int(c[3].slider(A("Bars to look ahead", "شموع للمتابعة بعدها"), 5, 40, 10, 5, key="sm_ahead"))
@@ -2275,25 +2304,37 @@ def render_radar_similar():
                  "التطابق = معامل ارتباط بيرسون بين مسارين للسعر (1 = نفس الشكل، -1 = مقلوب). «أحسن فترة» بتختار أحسن نافذة في التاريخ كله فبتطلع عالية دايماً على الأسعار المتذبذبة: قارنها بـ«التطابق دلوقتي». «اللي حصل بعدها» تاريخ الشبيه ده، وصف مش توقع. تعليمي، مش توصية استثمارية."))
 
 
-def render_radar_perf():
-    """Finviz 'Performance' view: % change over 1 h, 4 h, 24 h, 3 d, 1 w and 10 d per symbol (1h candles), plus the leaders."""
+def render_radar_perf(f):
+    """Finviz 'Performance' view: % change over fixed spans per symbol on the panel's timeframe, for the symbols that pass the panel's filters."""
     import pandas as _pd
     import altair as alt
-    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    tf = f["tf"]
+    syms = _radar_symbols(f)
+    if not syms:
+        st.info(L("No symbol meets ALL the chosen filters right now."))
+        return
+    px = _radar_closes(tuple(syms), tf)
     if px.empty:
         st.info(L("No candles yet."))
         return
-    spans = {"1 h": 1, "4 h": 4, "24 h": 24, "3 d": 72, "1 w": 168, "10 d": 240}
+    mins = _tf_bars(tf)
+    if mins <= 1440:   # time spans: 1 h, 4 h, 24 h, 3 d, 1 w, 10 d, counted in candles of this timeframe
+        spans = {k_: max(1, round(h_ * 60 / mins)) for k_, h_ in (("1 h", 1), ("4 h", 4), ("24 h", 24), ("3 d", 72), ("1 w", 168), ("10 d", 240))}
+    else:              # daily and longer: candle counts
+        spans = {"1 bar": 1, "5 bars": 5, "20 bars": 20, "60 bars": 60, "120 bars": 120, "250 bars": 250}
+    sort_default = "24 h" if "24 h" in spans else "20 bars"
     rows = []
     for s in px.columns:
         c = px[s].dropna()
         r = {"Symbol": s, "Price": float(c.iloc[-1])}
         for k, n in spans.items():
             r[k] = round((c.iloc[-1] / c.iloc[-1 - n] - 1) * 100, 2) if len(c) > n else None
-        r["Volatility 24 h %"] = round(float(c.pct_change().tail(24).std() * 100), 2) if len(c) > 25 else None
+        r["Volatility 24 h %"] = round(float(c.pct_change().tail(24).std() * 100), 2) if len(c) > 25 else None   # last 24 candles of the chosen timeframe
         rows.append(r)
     df = _pd.DataFrame(rows)
-    sort_by = st.segmented_control(L("Sort by"), list(spans), default="24 h", key="perf_sort") or "24 h"
+    sort_by = st.segmented_control(L("Sort by"), list(spans), default=sort_default, key="perf_sort") or sort_default
+    if sort_by not in spans:
+        sort_by = sort_default
     df = df.sort_values(sort_by, ascending=False, na_position="last")
     k = st.columns(4)
     v = df[sort_by].dropna()
@@ -2308,13 +2349,17 @@ def render_radar_perf():
         x=alt.X("span:N", sort=list(spans), title=None), y=alt.Y("Symbol:N", sort=list(df["Symbol"]), title=None),
         color=alt.Color("pct:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0), title="%"), tooltip=["Symbol", "span", "pct"]
     ).properties(height=max(200, 20 * len(df))), use_container_width=True)
-    st.caption(L("1h candles from the same source as the charts. Educational, not investment advice."))
+    st.caption(f"{tf} · {len(df)} / {len(SCAN_SYMBOLS)} " + L("symbols") + " · " + L("Candles from the same source as the charts. Educational, not investment advice."))
 
 
-def render_radar_corr():
-    """Correlation of 1h returns over the last ~10 days: which symbols move together (one trade, not two) and which hedge."""
+def render_radar_corr(f):
+    """Correlation of returns on the panel's timeframe, for the symbols that pass the panel's filters: which move together (one trade, not two) and which hedge."""
     import altair as alt
-    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    syms = _radar_symbols(f)
+    px = _radar_closes(tuple(syms), f["tf"]) if syms else None
+    if px is None:
+        st.info(L("No symbol meets ALL the chosen filters right now."))
+        return
     if px.shape[1] < 2:
         st.info(L("Need at least two symbols with candles."))
         return
@@ -2332,20 +2377,19 @@ def render_radar_corr():
     a.dataframe(pairs[pairs["corr"] >= 0.8].sort_values("corr", ascending=False).head(12), hide_index=True, use_container_width=True)
     b.markdown(f"**{L('Lowest correlation (diversify / hedge)')}**")
     b.dataframe(pairs.head(12), hide_index=True, use_container_width=True)
-    st.caption(L("Pearson correlation of 1h returns, last 260 candles. Correlation changes over time; it is not a forecast."))
+    st.caption(f"{f['tf']} · " + L("Pearson correlation of returns, last 260 candles. Correlation changes over time; it is not a forecast."))
 
 
-def render_radar_signals():
+def render_radar_signals(f):
     """Finviz 'Signal' list: every pattern / strategy signal live now, the symbols it fired on, its side, and the lab's number."""
     import pandas as _pd
     from modules import office_kpi as _OK
     from modules.chart_scan import STRATEGY_FILTERS as _SF, PATTERN_FILTERS as _PF, flag_side
-    tf = st.selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1h"), key="sig_tf")
-    try:
-        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
-    except Exception as e:
-        st.warning(f"Could not load candles: {e}")
+    tf = f["tf"]
+    data = _radar_data(f)
+    if data is None:
         return
+    data = {s_: d_ for s_, d_ in data.items() if _radar_pass(d_, f)}   # only the symbols that pass the shared filters
     lab = _OK.load()
     by = {}
     for sym, d in data.items():
@@ -2433,19 +2477,20 @@ def _radar_filters(view):
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view not in ("Chart grid", "Screener")   # one button: hides the filter block; widgets stay rendered so selections are kept
+    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     with st.container(key="csfw"), st.container(key="csf"):
-        r1 = st.columns([1, 0.7, 0.8, 1, 1, 1.4])
         rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
+        _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
+        tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
+        r1 = st.columns([0.7, 0.8, 1, 1, 1.4])
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
-        tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
-        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+        n_show = r1[0].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+        ncols = int(r1[1].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
-        ncols = int(r1[4].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
-        r1[5].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
         quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_QUICK_LBL.get, key="cs_quick", label_visibility="collapsed")
         with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
             r1 = st.columns([1.3, 1.1])
@@ -2505,6 +2550,22 @@ def _radar_pass(d, f):
     if not n:
         return match_filters(d, [], f["want"], False)
     return h > 0 if f["any"] else h == n
+
+
+def _radar_symbols(f):
+    """Symbols of the universe that pass the shared panel (all of them when no filter is set). Every Radar view uses this, so the filters work everywhere."""
+    if not (f["sel"] or f["fv"] or f["want"]):
+        return list(SCAN_SYMBOLS)
+    data = _radar_data(f)
+    return [s_ for s_, d_ in (data or {}).items() if _radar_pass(d_, f)]
+
+
+def _tf_bars(tf):
+    """Candle length of a timeframe label in minutes (for the performance spans)."""
+    import re as _re
+    m = _re.match(r"(\d+)(m|h|d|w|mo)$", tf)
+    n, u = (int(m.group(1)), m.group(2)) if m else (1, "h")
+    return n * {"m": 1, "h": 60, "d": 1440, "w": 10080, "mo": 43200}[u]
 
 
 def _radar_data(f):
@@ -2928,7 +2989,8 @@ if PAGE == 0:   # workspace
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
         _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
-        render_universe_controls()
+        if _rv != "Heat map":   # the market map has its own filters; the universe / timeframe controls do not apply to it
+            render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
         if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once
@@ -2939,9 +3001,9 @@ if PAGE == 1:   # cscan
         if _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":
-            render_radar_similar()
+            render_radar_similar(_rf)
         elif _rv in ("Performance", "Correlation", "Signal list"):
-            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv]()
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv](_rf)
         elif _rv == "Screener":
             render_radar_screener(_rf)
         else:

@@ -925,7 +925,8 @@ function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
   if (/instId=HL%3A/i.test(path)) return hlOkx(path);
   const rub = /\/rubik\//.test(path), ttl = rub ? 120000 : 10000, hit = OKX_CACHE[path];
-  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
+  let shared = 0; try { shared = +(localStorage.getItem("okx_cool_all") || 0); } catch(e){}   // another tab of this browser hit the limit: this tab waits too (both tabs share one IP)
+  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, shared); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
@@ -933,13 +934,14 @@ function okx(path){
   }
   const p = (async () => {
     let r;
-    try { r = await fetch(API + "/api/v5" + path, {cache:"no-store"}); }
-    catch(e){   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
+    const ac = new AbortController(), tmo = setTimeout(() => ac.abort(), 15000);   // no answer in 15 s: give up, the polling loop tries again (a stuck request froze the chart until a refresh)
+    try { r = await fetch(API + "/api/v5" + path, {cache:"no-store", signal:ac.signal}); clearTimeout(tmo); }
+    catch(e){ clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("OKX timeout");   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
       if (rub) okxCoolSet(Date.now() + 600000);
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
     // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); } throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); try { localStorage.setItem("okx_cool_all", String(OKX_COOL_ALL)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
@@ -1117,7 +1119,7 @@ const WSX = {
       ws.onopen = () => { c.ready = true; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
         c.ping = setInterval(() => { try{ ws.send("ping"); }catch(e){} }, 20000); };
       ws.onmessage = ev => {
-        if (ev.data === "pong") return;
+        c.last = Date.now(); if (ev.data === "pong") return;
         let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
         if (!m.arg || !m.data) return;
         const x = this.subs[JSON.stringify(m.arg)]; if (x) x.cbs.forEach(cb => { try{ cb(m.data); }catch(e){ console.error(e); } });
@@ -3196,6 +3198,12 @@ Object.assign(CandleChart.prototype, {
   }
 });
 
+/* a tab in the background is throttled by the browser (timers, sockets); when it comes back or the network returns, restart the charts and recycle stale sockets */
+{ let lastWake = 0;
+  const wake = () => { if (document.hidden || Date.now() - lastWake < 3000) return; lastWake = Date.now();
+    try { Object.values(WSX.conns).forEach(c => { if (c.ws && (c.ws.readyState > 1 || (c.last && Date.now() - c.last > 30000))) try { c.ws.close(); } catch(e){} }); } catch(e){}
+    try { Ws.panels.forEach(p => { if (p.type === "chart" && p.kick && (!p._okAt || Date.now() - p._okAt > 15000 || !p.chart.data.length)) p.kick(); }); } catch(e){} };
+  document.addEventListener("visibilitychange", wake); window.addEventListener("focus", wake); window.addEventListener("online", wake); window.addEventListener("pageshow", wake); }
 /* ---------------- widget panels ---------------- */
 const Ws = { panels:[], z:10, el:null, seq:1 };
 
@@ -3726,9 +3734,9 @@ class Panel {
     const loop = async first => {
       if (tok !== this.tok) return;
       try {
-        const rows = await candlesTf(sym, tf, first);
+        const rows = await Promise.race([candlesTf(sym, tf, first), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
         if (tok !== this.tok) return;
-        setStatus(true); this.msg.textContent = "";
+        this._okAt = Date.now(); setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         if (first){
@@ -3749,6 +3757,7 @@ class Panel {
       }
       this.timer = setTimeout(() => loop(!this.chart.data.length), this.state.rf || 2000);
     };
+    this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);
   }
   async smtFetch(sym, tf, tok){

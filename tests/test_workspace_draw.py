@@ -40,5 +40,11 @@ def test_page_script_parses():
     assert r.returncode == 0, r.stdout.decode("utf-8", "replace")
 
 
+def test_two_tabs_do_not_freeze_the_chart():
+    assert "new AbortController()" in H and 'throw new Error("OKX timeout")' in H     # a request with no answer is abandoned, the polling loop goes on
+    assert 'localStorage.getItem("okx_cool_all")' in H                                # the rate-limit pause is shared by the tabs of one browser
+    assert 'addEventListener("visibilitychange", wake)' in H and "p.kick()" in H      # a tab that comes back restarts its charts
+
+
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_page_script_parses(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")

@@ -21,9 +21,6 @@ def test_bad_lessons_dropped():
     assert A.load(os.path.join(tempfile.mkdtemp(), "missing.json")) == []
 
 
-if __name__ == "__main__":
-    test_shipped_and_filters(); test_bad_lessons_dropped(); print("ok academy")
-
 
 def test_schools_and_helpers():
     sc = A.schools()
@@ -36,5 +33,30 @@ def test_schools_and_helpers():
     assert ch == [["x", "y z"]] and "mermaid" not in t
 
 
+
+def test_learning_path_and_art():
+    from modules import academy_art as ART
+    lp = A.learning_path()
+    ls, lv = lp["lessons"], {x["id"] for x in lp["levels"]}
+    assert len(ls) >= 17 and len(lv) == 5
+    assert [x["level"] for x in ls] == sorted(x["level"] for x in ls)                 # teaching order: level 1 first
+    for x in ls:
+        assert x["refs"] and x["steps"] and x["quiz"] and x["bull"] and x["bear"], x["id"]
+        for a in x["arts"]:
+            for side in ("bull", "bear"):
+                s = ART.art(a, side)
+                assert s.startswith("<svg") and s.endswith("</svg>") and "NaN" not in s and "inf" not in s.lower().replace("info", ""), (x["id"], a, side)
+    ids = [x["id"] for x in ls]
+    assert len(ids) == len(set(ids))
+
+
+def test_path_validation_drops_bad():
+    good = {"id": "a", "level": 1, "title": "t", "grade": "قوي", "grade_note": "n", "arts": ["candles"], "idea": "i", "steps": ["s"], "refs": ["r"], "quiz": [{"q": "q", "opts": ["x", "y"], "a": 1}]}
+    bad = [dict(good, id="b", arts=["nope"]), dict(good, id="c", quiz=[{"q": "q", "opts": ["x", "y"], "a": 5}]), dict(good, id="d", level=9), dict(good, id="e", grade="؟")]
+    p = os.path.join(tempfile.mkdtemp(), "p.json")
+    open(p, "w", encoding="utf-8").write(json.dumps({"levels": [{"id": 1, "title": "L"}], "lessons": [good] + bad}))
+    assert [x["id"] for x in A.learning_path(p)["lessons"]] == ["a"]
+
+
 if __name__ == "__main__":
-    test_schools_and_helpers()
+    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); print("ok academy")

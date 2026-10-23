@@ -101,3 +101,33 @@ def evidence(root: Path = ROOT) -> str:
 
 def examples(root: Path = ROOT) -> str:
     return _read(root / "EXAMPLES_MULTI.md")
+
+
+# ---- the learning path (data/academy_path.json): ordered levels, lessons with a diagram, steps, bullish / bearish setups, quiz ---------------------
+
+PATH = Path(__file__).resolve().parent.parent / "data" / "academy_path.json"
+GRADE = {"قوي": "#0ecb81", "متوسط": "#f0b90b", "ضعيف": "#f6465d", "تعليمي": "#8d97a5"}
+LESSON_REQ = ("id", "level", "title", "grade", "grade_note", "arts", "idea", "steps", "refs", "quiz")
+
+
+def learning_path(path: Path = PATH) -> dict:
+    """-> {'levels': [...], 'lessons': [...]} in teaching order. A lesson missing a field, with an unknown diagram, a bad level, or a quiz whose answer index is
+    out of range is dropped, so the page never shows a half-built lesson."""
+    from modules import academy_art as ART
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"levels": [], "lessons": []}
+    levels = [lv for lv in d.get("levels", []) if lv.get("id") and lv.get("title")]
+    ids, out, seen = {lv["id"] for lv in levels}, [], set()
+    for ls in d.get("lessons", []):
+        if not all(ls.get(k) for k in LESSON_REQ) or ls["level"] not in ids or ls["grade"] not in GRADE or ls["id"] in seen:
+            continue
+        if any(a not in ART.ART for a in ls["arts"]):
+            continue
+        if any(not (isinstance(q.get("opts"), list) and len(q["opts"]) >= 2 and isinstance(q.get("a"), int) and 0 <= q["a"] < len(q["opts"]) and q.get("q")) for q in ls["quiz"]):
+            continue
+        seen.add(ls["id"])
+        out.append({**ls, "mistakes": list(ls.get("mistakes", [])), "platform": list(ls.get("platform", [])), "bull": ls.get("bull", ""), "bear": ls.get("bear", ""), "school": ls.get("school", "")})
+    out.sort(key=lambda x: (x["level"], [y["id"] for y in d["lessons"]].index(x["id"])))
+    return {"levels": levels, "lessons": out}

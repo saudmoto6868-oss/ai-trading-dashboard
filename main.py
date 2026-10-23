@@ -2635,6 +2635,102 @@ def render_chart_scanner(f):
                         st.caption(f"Analysis unavailable: {e_}")
 
 
+def _ac_go(lesson_id: str, level: int):
+    """Callback: jump to a lesson (sets the level pills and that level's lesson pills before the widgets are drawn)."""
+    st.session_state["ac_level"] = level
+    st.session_state[f"ac_les_{level}"] = lesson_id
+
+
+def _academy_path():
+    """The learning path: levels in order, one lesson at a time with its diagrams, steps, bullish / bearish setups, mistakes, where it lives in the platform, references and a short quiz."""
+    from modules import academy as AC, academy_art as ART, ui_kit as UK
+    e = html.escape
+    lp = AC.learning_path()
+    ls, lvs = lp["lessons"], lp["levels"]
+    if not ls:
+        st.info(L("No lessons yet."))
+        return
+    done = st.session_state.setdefault("ac_done", set())
+    by_level = {lv["id"]: [x for x in ls if x["level"] == lv["id"]] for lv in lvs}
+    n_done = sum(1 for x in ls if x["id"] in done)
+    nxt = next((x for x in ls if x["id"] not in done), ls[0])
+    st.markdown(UK.row([
+        UK.kpi("🧭", L("Levels"), len(lvs), f"{len(ls)} {L('lessons')}"),
+        UK.kpi("✅", L("Done"), f"{n_done} / {len(ls)}", L("In this session"), tone="up" if n_done == len(ls) else "", pct=100.0 * n_done / len(ls)),
+        UK.kpi("➡️", L("Next lesson"), nxt["title"][:22], f"{L('Level')} {nxt['level']}"),
+        UK.kpi("📏", L("Evidence"), L("Graded"), L("Each lesson says how strong its evidence is")),
+    ]), unsafe_allow_html=True)
+    lv_ids = [lv["id"] for lv in lvs]
+    if "ac_level" not in st.session_state:
+        st.session_state["ac_level"] = nxt["level"]
+        st.session_state[f"ac_les_{nxt['level']}"] = nxt["id"]
+    lv = st.pills(L("Level"), lv_ids, key="ac_level", format_func=lambda i: f"{i} · " + next(x["title"].split(":")[0] for x in lvs if x["id"] == i) + f"  ({sum(1 for y in by_level[i] if y['id'] in done)}/{len(by_level[i])})",
+                  label_visibility="collapsed") or lv_ids[0]
+    lvl = next(x for x in lvs if x["id"] == lv)
+    st.caption(f"{lvl['title']} — {lvl.get('goal', '')}")
+    names = {x["id"]: ("✅ " if x["id"] in done else "") + x["title"] for x in by_level[lv]}
+    cur_id = st.pills(L("Lesson"), list(names), key=f"ac_les_{lv}", format_func=names.get, default=by_level[lv][0]["id"], label_visibility="collapsed") or by_level[lv][0]["id"]
+    ls_cur = next(x for x in by_level[lv] if x["id"] == cur_id)
+    i_cur = ls.index(ls_cur)
+    gc = AC.GRADE[ls_cur["grade"]]
+    st.markdown(f"<div class='uk-panel'><h4>{e(L('Level'))} {ls_cur['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</h4>"
+                f"<div style='font-size:20px;font-weight:800;margin:2px 0 8px'>{e(ls_cur['title'])}</div>"
+                f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(ls_cur['grade'])}</span></div>"
+                f"<div style='font-size:12px;color:var(--uk-dim);margin-top:6px'>{e(ls_cur['grade_note'])}</div></div>", unsafe_allow_html=True)
+    for a in ls_cur["arts"]:
+        if a in ART.MIRRORED:
+            c1, c2 = st.columns(2)
+            c1.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.UP};color:{UK.UP}'>{e(L('Bullish'))}</span></div>" + ART.art(a, "bull"), unsafe_allow_html=True)
+            c2.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.DOWN};color:{UK.DOWN}'>{e(L('Bearish'))}</span></div>" + ART.art(a, "bear"), unsafe_allow_html=True)
+        else:
+            st.markdown(ART.art(a, "bull"), unsafe_allow_html=True)
+    st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
+    st.markdown(f"**{L('The idea')}**")
+    st.markdown(ls_cur["idea"])
+    st.markdown(f"**{L('Steps')}**")
+    st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(ls_cur["steps"])))
+    if ls_cur["bull"] or ls_cur["bear"]:
+        c1, c2 = st.columns(2)
+        c1.markdown(f"<div class='uk-panel' style='border-color:{UK.UP}'><h4 style='color:{UK.UP}'>📈 {e(L('Bullish setup'))}</h4>{e(ls_cur['bull'])}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div class='uk-panel' style='border-color:{UK.DOWN}'><h4 style='color:{UK.DOWN}'>📉 {e(L('Bearish setup'))}</h4>{e(ls_cur['bear'])}</div>", unsafe_allow_html=True)
+    if ls_cur["mistakes"]:
+        st.warning(f"**{L('Common mistakes')}**" + chr(10) + chr(10).join(f"- {t}" for t in ls_cur["mistakes"]))
+    if ls_cur["platform"]:
+        st.markdown(f"**{L('Where it lives in the platform')}**")
+        st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(t)}</span>" for t in ls_cur["platform"]) + "</div>", unsafe_allow_html=True)
+    with st.expander(L("References")):
+        st.markdown(chr(10).join(f"- {t}" for t in ls_cur["refs"]))
+        st.caption(L("Book and paper citations, given without links; check the edition. Educational, not investment advice."))
+    st.markdown(f"**{L('Quick quiz')}**")
+    picks = []
+    for k, q in enumerate(ls_cur["quiz"]):
+        picks.append(st.radio(q["q"], q["opts"], index=None, key=f"acq_{ls_cur['id']}_{k}"))
+    if st.button(L("Check answers"), key=f"acc_{ls_cur['id']}"):
+        right = 0
+        for q, pk in zip(ls_cur["quiz"], picks):
+            if pk is None:
+                st.info(f"{q['q']} — {L('Not answered')}")
+            elif q["opts"].index(pk) == q["a"]:
+                right += 1
+                st.success(f"✓ {q['why']}")
+            else:
+                st.error(f"✗ {L('Correct answer')}: {q['opts'][q['a']]} — {q['why']}")
+        if right == len(ls_cur["quiz"]):
+            done.add(ls_cur["id"])
+            st.balloons()
+    nav = st.columns([1, 1, 1, 3])
+    if i_cur > 0:
+        nav[0].button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]))
+    if i_cur < len(ls) - 1:
+        nav[1].button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]))
+    if ls_cur["id"] in done:
+        nav[2].button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(ls_cur["id"]))
+    else:
+        nav[2].button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(ls_cur["id"]))
+    if ls_cur["school"]:
+        st.caption(L("The full school curriculum is in the Schools tab") + f": {ls_cur['school']}")
+
+
 def render_academy_page():
     """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
     worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
@@ -2642,8 +2738,11 @@ def render_academy_page():
     st.markdown(kit_css(), unsafe_allow_html=True)
     e = html.escape
     sc, ls = AC.schools(), AC.load()
-    view = st.segmented_control(L("Academy"), ["Schools", "Backtest evidence", "Examples", "Our review"], default="Schools", key="ac_view",
-                                format_func=lambda v: L(v), label_visibility="collapsed") or "Schools"
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "Backtest evidence", "Examples", "Our review"], default="Path", key="ac_view",
+                                format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    if view == "Path":
+        _academy_path()
+        return
     n_bad = sum(1 for l_ in ls if l_["verdict"] == "contradicted")
     st.markdown(UK.row([
         UK.kpi("🎓", L("Schools"), len(sc), L("Curricula in docs/academy")),

@@ -45,7 +45,7 @@ def test_learning_path_and_art():
         for a in x["arts"]:
             for side in ("bull", "bear"):
                 s = ART.art(a, side)
-                assert s.startswith("<svg") and s.endswith("</svg>") and "NaN" not in s and "inf" not in s.lower().replace("info", ""), (x["id"], a, side)
+                assert "<style" not in s, "a <style> inside the SVG makes the page hide the element"; assert s.startswith("<svg") and s.endswith("</svg>") and "NaN" not in s and "Infinity" not in s and "nan" not in s.replace("an", ""), (x["id"], a, side)
     ids = [x["id"] for x in ls]
     assert len(ids) == len(set(ids))
 
@@ -69,5 +69,28 @@ def test_refs_loader():
     assert R2["sources"] == [] and R2["glossary"] == [] and [c["id"] for c in R2["claims"]] == ["d"] and R2["claims"][0]["urls"] == ["https://ok"]
 
 
+def test_ordered_schools():
+    sc = A.ordered_schools()
+    if not sc:
+        return
+    assert [x["id"] for x in sc][:9] == A.SCHOOL_ORDER and [x["pos"] for x in sc][:9] == list(range(1, 10))
+    assert all(x["why"] and x["arts"] for x in sc[:9])
+    from modules import academy_art as ART
+    assert all(a in ART.ART for x in sc[:9] for a in x["arts"])
+    byid = {x["id"]: x for x in sc}
+    assert byid["trend"]["evidence"].startswith("## 1)") and byid["trend"]["examples"]
+    assert byid["orderflow"]["review"] and byid["sessions"]["review"]                  # our review sits next to the school it is about
+    assert A.sections("a\n## X\nb\n## Y\nc") == {"": "a", "X": "b", "Y": "c"}
+
+
+def test_deep_lessons():
+    d = A.deep()
+    assert set(d) == set(A.SCHOOL_ORDER)                                               # all nine schools have a full lesson
+    for sid, x in d.items():
+        assert len(x["parts"]) >= 3 and len(x["exercises"]) >= 3 and x["faq"] and x["glossary"], sid
+        assert sum(len(p["b"]) for p in x["parts"]) > 900, sid                          # a real explanation, not a stub
+        assert len(x["bull_story"]) > 80 and len(x["bear_story"]) > 30 and len(x["platform"]) >= 3, sid
+
+
 if __name__ == "__main__":
-    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); print("ok academy")
+    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); test_ordered_schools(); test_deep_lessons(); print("ok academy")

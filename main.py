@@ -945,6 +945,15 @@ def kit_css():
     return _K.css(t, r)
 
 
+from modules import hot_reload as _hot   # a redeploy can leave OLD copies of modules in memory: reload the stale ones before anything imports from them
+try:
+    import importlib as _il0
+    if _hot.compiled_from_older_source(_hot):   # the helper itself can be an old copy
+        _il0.reload(_hot)
+    _hot.refresh_changed()
+    _hot.refresh()
+except Exception:
+    pass
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
@@ -969,6 +978,18 @@ def render_universe_controls():
         del st.query_params["cls"]
     if _ac_msg:
         st.warning(_ac_msg + " - showing Crypto instead.")
+
+
+# ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
+# that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
+_KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
+_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
+for _k in list(st.session_state.keys()):
+    if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
+        try:
+            st.session_state[_k] = st.session_state[_k]
+        except Exception:
+            pass
 
 
 # ---- Tabs -------------------------------------------------------------------------
@@ -1424,7 +1445,7 @@ def _office_scanner():
     p = _SCAN_PRESETS.get(style or "Manual", {})
     c = st.columns(4)
     tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(p.get("tf") or cur.get("tf") or "1h"), key=f"sc_tf_{style}")
-    n = c[1].number_input(L("Charts"), 1, 30, int(cur.get("n", 10)), key="sc_n")
+    n = c[1].number_input(L("Charts"), 1, 120, int(cur.get("n", 20)), key="sc_n")
     modes = ["All selected", "Any selected"]
     mode = c[2].selectbox(L("Match"), modes, index=modes.index(p.get("mode") or cur.get("mode") or "All selected"), format_func=L, key=f"sc_mode_{style}")
     sides = ["Both", "Buy only", "Sell only"]
@@ -1796,8 +1817,9 @@ def _office_strategy_map():
 def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Backtest": _office_backtest, "Operations": _office_ops, "Lab results": _office_lab}
+    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
+            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
+            "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
@@ -2032,6 +2054,20 @@ def render_market_map():
     if df.empty:
         st.caption(L("Market map: no markets with a reference price right now."))
         return
+    from modules.market_map import apply_filters as _mm_filter
+    _all = df
+    fc = st.columns([2.4, 0.8, 1, 1, 1.2, 1.2])
+    _cls_opts = sorted(_all["cls"].unique())
+    sel_cls = fc[0].pills(L("Class"), _cls_opts, selection_mode="multi", key="hm_cls", label_visibility="collapsed") or []
+    top_n = int(fc[1].number_input(L("Top N by volume"), 0, 300, 0, 10, key="hm_top", help=L("0 = all markets")))
+    direction = fc[2].selectbox(L("Direction"), ["all", "up", "down"], key="hm_dir", format_func=lambda k: {"all": L("All"), "up": L("Up"), "down": L("Down")}[k])
+    min_abs = float(fc[3].number_input(L("Min |change| %"), 0.0, 50.0, 0.0, 0.5, key="hm_abs"))
+    q = fc[4].text_input(L("Search"), key="hm_q", label_visibility="collapsed", placeholder=L("Search"))
+    sort = fc[5].selectbox(L("Sort"), ["vol", "chg", "chg_abs", "rel"], key="hm_sort", format_func=lambda k: {"vol": L("Volume"), "chg": L("Change"), "chg_abs": L("Biggest move"), "rel": L("vs class")}[k])
+    df = _mm_filter(_all, sel_cls, top_n, direction, min_abs, q, sort)
+    if df.empty:
+        st.info(f"{L('No markets match these filters.')} ({len(_all)} {L('markets')})")
+        return
     bd = breadth(df)
     st.markdown(f"**{L('Market map')}** · {L('markets')}: {bd['n']} · {L('up')}: {bd['up_share']*100:.0f}% · "
                 f"{L('down')}: {bd['down_share']*100:.0f}% · {L('median change')}: {bd['median_chg']:+.2f}%")
@@ -2232,7 +2268,7 @@ def _fv_frames(symbols: tuple, tf: str):
     return {s: f[tf] for s, f in frames.items() if f.get(tf) is not None and len(f[tf]) >= 30}
 
 
-def render_radar_similar():
+def render_radar_similar(f):
     """Find similar charts (Finviz, Sep 2026): rank the symbols and past stretches whose recent price path looks like the chosen one."""
     import altair as alt
     import pandas as _pd
@@ -2240,13 +2276,16 @@ def render_radar_similar():
     from modules import fv_screen as FV
     ar = _ui_lang() == "ar"
     A = lambda e, a: a if ar else e
-    c = st.columns([0.9, 1.2, 1.3, 1.3])
-    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1d"), key="sm_tf")
+    c = st.columns([0.2, 1.2, 1.3, 1.3])
+    tf = f["tf"]
+    c[0].markdown(f"<div class='uk-chip' style='margin-top:26px'>{html.escape(tf)}</div>", unsafe_allow_html=True)
     with st.spinner(L("Loading the candles of every Radar symbol (the first load can take up to a minute; later loads are cached)")):
-        frames = _fv_frames(tuple(SCAN_SYMBOLS), tf)
+        frames = _fv_frames(tuple(_radar_symbols(f)), tf)
     if not frames:
         st.info(L("No candles yet."))
         return
+    if st.session_state.get("sm_sym") not in frames:   # the filters changed the list: forget a target that is no longer in it
+        st.session_state.pop("sm_sym", None)
     target = c[1].selectbox(A("Chart to match", "الشارت المطلوب مشابهته"), sorted(frames), key="sm_sym")
     win = int(c[2].slider(A("Window (bars)", "النافذة (شموع)"), 10, 120, 40, 5, key="sm_win"))
     ahead = int(c[3].slider(A("Bars to look ahead", "شموع للمتابعة بعدها"), 5, 40, 10, 5, key="sm_ahead"))
@@ -2274,25 +2313,37 @@ def render_radar_similar():
                  "التطابق = معامل ارتباط بيرسون بين مسارين للسعر (1 = نفس الشكل، -1 = مقلوب). «أحسن فترة» بتختار أحسن نافذة في التاريخ كله فبتطلع عالية دايماً على الأسعار المتذبذبة: قارنها بـ«التطابق دلوقتي». «اللي حصل بعدها» تاريخ الشبيه ده، وصف مش توقع. تعليمي، مش توصية استثمارية."))
 
 
-def render_radar_perf():
-    """Finviz 'Performance' view: % change over 1 h, 4 h, 24 h, 3 d, 1 w and 10 d per symbol (1h candles), plus the leaders."""
+def render_radar_perf(f):
+    """Finviz 'Performance' view: % change over fixed spans per symbol on the panel's timeframe, for the symbols that pass the panel's filters."""
     import pandas as _pd
     import altair as alt
-    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    tf = f["tf"]
+    syms = _radar_symbols(f)
+    if not syms:
+        st.info(L("No symbol meets ALL the chosen filters right now."))
+        return
+    px = _radar_closes(tuple(syms), tf)
     if px.empty:
         st.info(L("No candles yet."))
         return
-    spans = {"1 h": 1, "4 h": 4, "24 h": 24, "3 d": 72, "1 w": 168, "10 d": 240}
+    mins = _tf_bars(tf)
+    if mins <= 1440:   # time spans: 1 h, 4 h, 24 h, 3 d, 1 w, 10 d, counted in candles of this timeframe
+        spans = {k_: max(1, round(h_ * 60 / mins)) for k_, h_ in (("1 h", 1), ("4 h", 4), ("24 h", 24), ("3 d", 72), ("1 w", 168), ("10 d", 240))}
+    else:              # daily and longer: candle counts
+        spans = {"1 bar": 1, "5 bars": 5, "20 bars": 20, "60 bars": 60, "120 bars": 120, "250 bars": 250}
+    sort_default = "24 h" if "24 h" in spans else "20 bars"
     rows = []
     for s in px.columns:
         c = px[s].dropna()
         r = {"Symbol": s, "Price": float(c.iloc[-1])}
         for k, n in spans.items():
             r[k] = round((c.iloc[-1] / c.iloc[-1 - n] - 1) * 100, 2) if len(c) > n else None
-        r["Volatility 24 h %"] = round(float(c.pct_change().tail(24).std() * 100), 2) if len(c) > 25 else None
+        r["Volatility 24 h %"] = round(float(c.pct_change().tail(24).std() * 100), 2) if len(c) > 25 else None   # last 24 candles of the chosen timeframe
         rows.append(r)
     df = _pd.DataFrame(rows)
-    sort_by = st.segmented_control(L("Sort by"), list(spans), default="24 h", key="perf_sort") or "24 h"
+    sort_by = st.segmented_control(L("Sort by"), list(spans), default=sort_default, key="perf_sort") or sort_default
+    if sort_by not in spans:
+        sort_by = sort_default
     df = df.sort_values(sort_by, ascending=False, na_position="last")
     k = st.columns(4)
     v = df[sort_by].dropna()
@@ -2307,13 +2358,17 @@ def render_radar_perf():
         x=alt.X("span:N", sort=list(spans), title=None), y=alt.Y("Symbol:N", sort=list(df["Symbol"]), title=None),
         color=alt.Color("pct:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0), title="%"), tooltip=["Symbol", "span", "pct"]
     ).properties(height=max(200, 20 * len(df))), use_container_width=True)
-    st.caption(L("1h candles from the same source as the charts. Educational, not investment advice."))
+    st.caption(f"{tf} · {len(df)} / {len(SCAN_SYMBOLS)} " + L("symbols") + " · " + L("Candles from the same source as the charts. Educational, not investment advice."))
 
 
-def render_radar_corr():
-    """Correlation of 1h returns over the last ~10 days: which symbols move together (one trade, not two) and which hedge."""
+def render_radar_corr(f):
+    """Correlation of returns on the panel's timeframe, for the symbols that pass the panel's filters: which move together (one trade, not two) and which hedge."""
     import altair as alt
-    px = _radar_closes(tuple(SCAN_SYMBOLS), "1h")
+    syms = _radar_symbols(f)
+    px = _radar_closes(tuple(syms), f["tf"]) if syms else None
+    if px is None:
+        st.info(L("No symbol meets ALL the chosen filters right now."))
+        return
     if px.shape[1] < 2:
         st.info(L("Need at least two symbols with candles."))
         return
@@ -2331,20 +2386,19 @@ def render_radar_corr():
     a.dataframe(pairs[pairs["corr"] >= 0.8].sort_values("corr", ascending=False).head(12), hide_index=True, use_container_width=True)
     b.markdown(f"**{L('Lowest correlation (diversify / hedge)')}**")
     b.dataframe(pairs.head(12), hide_index=True, use_container_width=True)
-    st.caption(L("Pearson correlation of 1h returns, last 260 candles. Correlation changes over time; it is not a forecast."))
+    st.caption(f"{f['tf']} · " + L("Pearson correlation of returns, last 260 candles. Correlation changes over time; it is not a forecast."))
 
 
-def render_radar_signals():
+def render_radar_signals(f):
     """Finviz 'Signal' list: every pattern / strategy signal live now, the symbols it fired on, its side, and the lab's number."""
     import pandas as _pd
     from modules import office_kpi as _OK
     from modules.chart_scan import STRATEGY_FILTERS as _SF, PATTERN_FILTERS as _PF, flag_side
-    tf = st.selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index("1h"), key="sig_tf")
-    try:
-        data = _chart_scan_data(tuple(SCAN_SYMBOLS), tf, 3)
-    except Exception as e:
-        st.warning(f"Could not load candles: {e}")
+    tf = f["tf"]
+    data = _radar_data(f)
+    if data is None:
         return
+    data = {s_: d_ for s_, d_ in data.items() if _radar_pass(d_, f)}   # only the symbols that pass the shared filters
     lab = _OK.load()
     by = {}
     for sym, d in data.items():
@@ -2432,15 +2486,17 @@ def _radar_filters(view):
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view not in ("Chart grid", "Screener")   # one button: hides the filter block; widgets stay rendered so selections are kept
+    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     with st.container(key="csfw"), st.container(key="csf"):
-        r1 = st.columns([1, 0.7, 1, 1, 1.4])
         rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
+        _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
+        tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
+        r1 = st.columns([0.7, 0.8, 1, 1, 1.4])
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
-        tf = r1[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(rd["tf"]) if rd.get("tf") in _CS_TFS else 5, key="cs_tf")
-        n_show = r1[1].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+        n_show = r1[0].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+        ncols = int(r1[1].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
         side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
         mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
         r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
@@ -2485,7 +2541,7 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
 
 
 def _radar_hits(d, f):
@@ -2503,6 +2559,22 @@ def _radar_pass(d, f):
     if not n:
         return match_filters(d, [], f["want"], False)
     return h > 0 if f["any"] else h == n
+
+
+def _radar_symbols(f):
+    """Symbols of the universe that pass the shared panel (all of them when no filter is set). Every Radar view uses this, so the filters work everywhere."""
+    if not (f["sel"] or f["fv"] or f["want"]):
+        return list(SCAN_SYMBOLS)
+    data = _radar_data(f)
+    return [s_ for s_, d_ in (data or {}).items() if _radar_pass(d_, f)]
+
+
+def _tf_bars(tf):
+    """Candle length of a timeframe label in minutes (for the performance spans)."""
+    import re as _re
+    m = _re.match(r"(\d+)(m|h|d|w|mo)$", tf)
+    n, u = (int(m.group(1)), m.group(2)) if m else (1, "h")
+    return n * {"m": 1, "h": 60, "d": 1440, "w": 10080, "mo": 43200}[u]
 
 
 def _radar_data(f):
@@ -2566,7 +2638,7 @@ def render_chart_scanner(f):
     # task 17 (spec 25): a setup is "confirmed" when every chosen condition holds (match = All selected), otherwise "candidate"; never an order
     def setup_tag(d):   # per chart, from its own conditions
         return "<span title='مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>" + ("مؤكد" if _confirmed(d) else "مرشح") + "</span>"
-    per_row = 5
+    per_row = int(f.get("cols", 6))   # wide screens: the owner's screen is wide, so six charts per row by default
     st.markdown(_RADAR_CSS, unsafe_allow_html=True)
     _top = [s for s, d_ in shown[:3] if nsel and _confirmed(d_)]
     if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
@@ -2642,7 +2714,8 @@ def _ac_go(lesson_id: str, level: int):
 
 
 def _academy_path():
-    """The learning path: levels in order, one lesson at a time with its diagrams, steps, bullish / bearish setups, mistakes, where it lives in the platform, references and a short quiz."""
+    """The learning path, laid out for a wide screen (owner 2026-10-23): small chrome, large explanation, three columns on one screen:
+    lesson list | animated bullish / bearish diagrams + the idea | steps, setups, mistakes, platform, references, quiz."""
     from modules import academy as AC, academy_art as ART, ui_kit as UK
     e = html.escape
     lp = AC.learning_path()
@@ -2654,81 +2727,90 @@ def _academy_path():
     by_level = {lv["id"]: [x for x in ls if x["level"] == lv["id"]] for lv in lvs}
     n_done = sum(1 for x in ls if x["id"] in done)
     nxt = next((x for x in ls if x["id"] not in done), ls[0])
-    st.markdown(UK.row([
-        UK.kpi("🧭", L("Levels"), len(lvs), f"{len(ls)} {L('lessons')}"),
-        UK.kpi("✅", L("Done"), f"{n_done} / {len(ls)}", L("In this session"), tone="up" if n_done == len(ls) else "", pct=100.0 * n_done / len(ls)),
-        UK.kpi("➡️", L("Next lesson"), nxt["title"][:22], f"{L('Level')} {nxt['level']}"),
-        UK.kpi("📏", L("Evidence"), L("Graded"), L("Each lesson says how strong its evidence is")),
-    ]), unsafe_allow_html=True)
+    st.markdown("""<style>
+.st-key-acpath{--fs:15.5px}
+.st-key-acpath [data-testid="stWidgetLabel"] p,.st-key-acpath label p{font-size:12px!important}
+.st-key-acpath [data-testid="stRadio"] label p{font-size:13px!important;line-height:1.35}
+.st-key-acpath .ac-exp{font-size:var(--fs);line-height:1.9;color:var(--uk-text)}
+.st-key-acpath .ac-exp li{margin:0 0 6px}
+.st-key-acpath .ac-small{font-size:12px;color:var(--uk-dim);line-height:1.6}
+.st-key-acpath .ac-h{font-size:12px;letter-spacing:.06em;color:var(--uk-dim);text-transform:uppercase;margin:10px 0 4px;font-weight:700}
+.st-key-acpath svg{width:100%;height:auto}
+</style>""", unsafe_allow_html=True)
     lv_ids = [lv["id"] for lv in lvs]
     if "ac_level" not in st.session_state:
         st.session_state["ac_level"] = nxt["level"]
         st.session_state[f"ac_les_{nxt['level']}"] = nxt["id"]
-    lv = st.pills(L("Level"), lv_ids, key="ac_level", format_func=lambda i: f"{i} · " + next(x["title"].split(":")[0] for x in lvs if x["id"] == i) + f"  ({sum(1 for y in by_level[i] if y['id'] in done)}/{len(by_level[i])})",
-                  label_visibility="collapsed") or lv_ids[0]
-    lvl = next(x for x in lvs if x["id"] == lv)
-    st.caption(f"{lvl['title']} — {lvl.get('goal', '')}")
-    names = {x["id"]: ("✅ " if x["id"] in done else "") + x["title"] for x in by_level[lv]}
-    cur_id = st.pills(L("Lesson"), list(names), key=f"ac_les_{lv}", format_func=names.get, default=by_level[lv][0]["id"], label_visibility="collapsed") or by_level[lv][0]["id"]
-    ls_cur = next(x for x in by_level[lv] if x["id"] == cur_id)
-    i_cur = ls.index(ls_cur)
-    gc = AC.GRADE[ls_cur["grade"]]
-    st.markdown(f"<div class='uk-panel'><h4>{e(L('Level'))} {ls_cur['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</h4>"
-                f"<div style='font-size:20px;font-weight:800;margin:2px 0 8px'>{e(ls_cur['title'])}</div>"
-                f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(ls_cur['grade'])}</span></div>"
-                f"<div style='font-size:12px;color:var(--uk-dim);margin-top:6px'>{e(ls_cur['grade_note'])}</div></div>", unsafe_allow_html=True)
-    for a in ls_cur["arts"]:
-        if a in ART.MIRRORED:
-            c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.UP};color:{UK.UP}'>{e(L('Bullish'))}</span></div>" + ART.art(a, "bull"), unsafe_allow_html=True)
-            c2.markdown(f"<div class='uk-chipbar' style='margin-bottom:4px'><span class='uk-chip' style='border-color:{UK.DOWN};color:{UK.DOWN}'>{e(L('Bearish'))}</span></div>" + ART.art(a, "bear"), unsafe_allow_html=True)
-        else:
-            st.markdown(ART.art(a, "bull"), unsafe_allow_html=True)
-    st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
-    st.markdown(f"**{L('The idea')}**")
-    st.markdown(ls_cur["idea"])
-    st.markdown(f"**{L('Steps')}**")
-    st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(ls_cur["steps"])))
-    if ls_cur["bull"] or ls_cur["bear"]:
-        c1, c2 = st.columns(2)
-        c1.markdown(f"<div class='uk-panel' style='border-color:{UK.UP}'><h4 style='color:{UK.UP}'>📈 {e(L('Bullish setup'))}</h4>{e(ls_cur['bull'])}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='uk-panel' style='border-color:{UK.DOWN}'><h4 style='color:{UK.DOWN}'>📉 {e(L('Bearish setup'))}</h4>{e(ls_cur['bear'])}</div>", unsafe_allow_html=True)
-    if ls_cur["mistakes"]:
-        st.warning(f"**{L('Common mistakes')}**" + chr(10) + chr(10).join(f"- {t}" for t in ls_cur["mistakes"]))
-    if ls_cur["platform"]:
-        st.markdown(f"**{L('Where it lives in the platform')}**")
-        st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(t)}</span>" for t in ls_cur["platform"]) + "</div>", unsafe_allow_html=True)
-    with st.expander(L("References")):
-        st.markdown(chr(10).join(f"- {t}" for t in ls_cur["refs"]))
-        st.caption(L("Book and paper citations, given without links; check the edition. Educational, not investment advice."))
-    st.markdown(f"**{L('Quick quiz')}**")
-    picks = []
-    for k, q in enumerate(ls_cur["quiz"]):
-        picks.append(st.radio(q["q"], q["opts"], index=None, key=f"acq_{ls_cur['id']}_{k}"))
-    if st.button(L("Check answers"), key=f"acc_{ls_cur['id']}"):
-        right = 0
-        for q, pk in zip(ls_cur["quiz"], picks):
-            if pk is None:
-                st.info(f"{q['q']} — {L('Not answered')}")
-            elif q["opts"].index(pk) == q["a"]:
-                right += 1
-                st.success(f"✓ {q['why']}")
+    with st.container(key="acpath"):
+        top = st.columns([5, 1.4])
+        lv = top[0].pills(L("Level"), lv_ids, key="ac_level", format_func=lambda i: f"{i} · " + next(x["title"].split(":")[0] for x in lvs if x["id"] == i) + f"  ({sum(1 for y in by_level[i] if y['id'] in done)}/{len(by_level[i])})",
+                          label_visibility="collapsed") or lv_ids[0]
+        top[1].markdown(f"<div class='uk-chipbar' style='justify-content:flex-end'><span class='uk-chip'>✅ {n_done}/{len(ls)}</span><span class='uk-chip'>➡️ {e(nxt['title'][:18])}</span></div>", unsafe_allow_html=True)
+        lvl = next(x for x in lvs if x["id"] == lv)
+        left, mid, right = st.columns([1.0, 3.4, 2.5], gap="medium")
+        names = {x["id"]: ("✅ " if x["id"] in done else "") + x["title"] for x in by_level[lv]}
+        with left:
+            st.markdown(f"<div class='ac-small'><b>{e(lvl['title'])}</b><br>{e(lvl.get('goal', ''))}</div>", unsafe_allow_html=True)
+            cur_id = st.radio(L("Lesson"), list(names), key=f"ac_les_{lv}", format_func=names.get, label_visibility="collapsed")
+            c_ = next(x for x in by_level[lv] if x["id"] == cur_id)
+            i_cur = ls.index(c_)
+            n1, n2 = st.columns(2)
+            if i_cur > 0:
+                n1.button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]), use_container_width=True)
+            if i_cur < len(ls) - 1:
+                n2.button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]), use_container_width=True)
+            if c_["id"] in done:
+                st.button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(c_["id"]), use_container_width=True)
             else:
-                st.error(f"✗ {L('Correct answer')}: {q['opts'][q['a']]} — {q['why']}")
-        if right == len(ls_cur["quiz"]):
-            done.add(ls_cur["id"])
-            st.balloons()
-    nav = st.columns([1, 1, 1, 3])
-    if i_cur > 0:
-        nav[0].button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]))
-    if i_cur < len(ls) - 1:
-        nav[1].button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]))
-    if ls_cur["id"] in done:
-        nav[2].button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(ls_cur["id"]))
-    else:
-        nav[2].button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(ls_cur["id"]))
-    if ls_cur["school"]:
-        st.caption(L("The full school curriculum is in the Schools tab") + f": {ls_cur['school']}")
+                st.button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(c_["id"]), use_container_width=True)
+        gc = AC.GRADE[c_["grade"]]
+        with mid:
+            st.markdown(f"<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{e(c_['title'])}</span>"
+                        f"<span class='uk-chip' style='border-color:{gc};color:{gc}'>{e(L('Evidence'))}: {e(c_['grade'])}</span>"
+                        f"<span class='ac-small'>{e(L('Level'))} {c_['level']} · {e(L('Lesson'))} {i_cur + 1}/{len(ls)}</span></div>", unsafe_allow_html=True)
+            items = []
+            for a in c_["arts"]:
+                items += [(a, "bull"), (a, "bear")] if a in ART.MIRRORED else [(a, "bull")]
+            for r0 in range(0, len(items), 2):
+                row = items[r0:r0 + 2]
+                cc = st.columns(2) if len(row) == 2 else st.columns([1, 1])[:1]
+                for col, (a, side) in zip(cc, row):
+                    tag = ""
+                    if a in ART.MIRRORED:
+                        tc = UK.UP if side == "bull" else UK.DOWN
+                        tag = f"<div class='uk-chipbar' style='margin:0 0 3px'><span class='uk-chip' style='border-color:{tc};color:{tc}'>{e(L('Bullish') if side == 'bull' else L('Bearish'))}</span></div>"
+                    col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
+            st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
+            st.markdown(f"<div class='ac-h'>{e(L('The idea'))}</div><div class='ac-exp'>{e(c_['idea'])}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='ac-small' style='margin-top:8px;border-inline-start:3px solid {gc};padding-inline-start:8px'>{e(c_['grade_note'])}</div>", unsafe_allow_html=True)
+        with right:
+            st.markdown(f"<div class='ac-h'>{e(L('Steps'))}</div><ol class='ac-exp' style='padding-inline-start:20px;margin:0'>" + "".join(f"<li>{e(t)}</li>" for t in c_["steps"]) + "</ol>", unsafe_allow_html=True)
+            if c_["bull"] or c_["bear"]:
+                st.markdown(f"<div class='uk-panel' style='border-color:{UK.UP};padding:6px 10px'><div class='ac-small' style='color:{UK.UP};font-weight:700'>📈 {e(L('Bullish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.7'>{e(c_['bull'])}</div></div>"
+                            f"<div class='uk-panel' style='border-color:{UK.DOWN};padding:6px 10px'><div class='ac-small' style='color:{UK.DOWN};font-weight:700'>📉 {e(L('Bearish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.7'>{e(c_['bear'])}</div></div>", unsafe_allow_html=True)
+            if c_["mistakes"]:
+                st.markdown(f"<div class='ac-h'>⚠️ {e(L('Common mistakes'))}</div><ul class='ac-small' style='padding-inline-start:18px;margin:0'>" + "".join(f"<li>{e(t)}</li>" for t in c_["mistakes"]) + "</ul>", unsafe_allow_html=True)
+            if c_["platform"]:
+                st.markdown(f"<div class='ac-h'>{e(L('Where it lives in the platform'))}</div><div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(t)}</span>" for t in c_["platform"]) + "</div>", unsafe_allow_html=True)
+            with st.expander(L("References")):
+                st.markdown(chr(10).join(f"- {t}" for t in c_["refs"]))
+                st.caption(L("Book and paper citations, given without links; check the edition. Educational, not investment advice."))
+            with st.expander(L("Quick quiz"), expanded=False):
+                picks = [st.radio(q["q"], q["opts"], index=None, key=f"acq_{c_['id']}_{k}") for k, q in enumerate(c_["quiz"])]
+                if st.button(L("Check answers"), key=f"acc_{c_['id']}"):
+                    right_n = 0
+                    for q, pk in zip(c_["quiz"], picks):
+                        if pk is None:
+                            st.info(f"{q['q']} — {L('Not answered')}")
+                        elif q["opts"].index(pk) == q["a"]:
+                            right_n += 1
+                            st.success(f"✓ {q['why']}")
+                        else:
+                            st.error(f"✗ {L('Correct answer')}: {q['opts'][q['a']]} — {q['why']}")
+                    if right_n == len(c_["quiz"]):
+                        done.add(c_["id"])
+            if c_["school"]:
+                st.caption(L("The full school curriculum is in the Schools tab") + f": {c_['school']}")
 
 
 def _academy_refs():
@@ -2738,6 +2820,18 @@ def _academy_refs():
     e = html.escape
     R = AC.refs()
     st.info(L("Every source below is a preliminary reference: kept open, neither rejected nor approved. Where names differ we keep ours and carry the concept into our schools and lessons."))
+    gen = [l_ for l_ in AC.load() if l_["id"] not in AC.REVIEW_OF]
+    if gen:
+        st.markdown(f"**{L('Our review')}** · {L('general findings')}")
+        for l_ in gen:
+            vl, vc = AC.VERDICT[l_["verdict"]]
+            with st.expander(f"[{vl}] {l_['title']}"):
+                st.markdown(l_["summary"])
+                st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+                if l_["points"]:
+                    st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+                if l_["caveats"]:
+                    st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
     st.markdown(f"**{L('Sources gathered')}**")
     for x in R["sources"]:
         with st.expander(f"{x['title']}  ·  {x['origin']}"):
@@ -2767,76 +2861,116 @@ def _academy_refs():
                 st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(c["urls"])))
 
 
+def _academy_schools():
+    """Grok's nine schools in teaching order, wide layout: ordered list | diagrams + the lesson | tabs for examples, evidence, our review, curriculum, machine spec."""
+    from modules import academy as AC, academy_art as ART, ui_kit as UK
+    e = html.escape
+    sc = AC.ordered_schools()
+    if not sc:
+        st.info(L("No lessons yet."))
+        return
+    by = {x["id"]: x for x in sc}
+    DEEP = AC.deep()
+    st.markdown("""<style>
+.st-key-acschools .ac-exp{font-size:15px;line-height:1.85}.st-key-acschools .ac-small{font-size:12px;color:var(--uk-dim);line-height:1.6}
+.st-key-acschools [data-testid="stRadio"] label p{font-size:13px!important}.st-key-acschools svg{width:100%;height:auto}
+.st-key-acschools [data-testid="stMarkdownContainer"] table{font-size:12.5px}
+.st-key-acschools [data-testid="stMarkdownContainer"] p,.st-key-acschools [data-testid="stMarkdownContainer"] li{font-size:14.5px;line-height:1.8}
+</style>""", unsafe_allow_html=True)
+    with st.container(key="acschools"):
+        left, mid, right = st.columns([0.95, 3.0, 2.7], gap="medium")
+        with left:
+            st.markdown(f"<div class='ac-small'><b>{e(L('Teaching order'))}</b><br>{e(L('Each school builds on the one before it.'))}</div>", unsafe_allow_html=True)
+            pick = st.radio(L("School"), [x["id"] for x in sc], key="ac_school_r", label_visibility="collapsed",
+                            format_func=lambda k: f"{by[k]['pos']}. {by[k]['icon']} {by[k]['title'].split('—')[0].strip()}")
+            nav = st.columns(2)
+            i0 = [x["id"] for x in sc].index(pick)
+            if i0 > 0:
+                nav[0].button("→", key="ac_sprev", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 - 1]["id"]), use_container_width=True)
+            if i0 < len(sc) - 1:
+                nav[1].button("←", key="ac_snext", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 + 1]["id"]), use_container_width=True)
+        x = by[pick]
+        body, chips = AC.badges(x["visual"])
+        body, flows = AC.chains(body)
+        with mid:
+            st.markdown(f"<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{x['pos']}. {e(x['icon'])} {e(x['title'])}</span>"
+                        + "".join(f"<span class='uk-chip' style='border-color:{c};color:{c}'>{e(t)}</span>" for t, c in chips) + "</div>"
+                        f"<div class='ac-small' style='margin:4px 0 8px'>{e(L('Why here'))}: {e(x['why'])}</div>", unsafe_allow_html=True)
+            items = []
+            for a in x["arts"]:
+                items += [(a, "bull"), (a, "bear")] if a in ART.MIRRORED else [(a, "bull")]
+            for r0 in range(0, len(items), 2):
+                row = items[r0:r0 + 2]
+                cc = st.columns(2) if len(row) == 2 else st.columns([1, 1])[:1]
+                for col, (a, side) in zip(cc, row):
+                    tag = ""
+                    if a in ART.MIRRORED:
+                        tc = UK.UP if side == "bull" else UK.DOWN
+                        tag = f"<div class='uk-chipbar' style='margin:0 0 3px'><span class='uk-chip' style='border-color:{tc};color:{tc}'>{e(L('Bullish') if side == 'bull' else L('Bearish'))}</span></div>"
+                    col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
+            st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
+            st.warning(AC.LAB_NOTE)
+            md = lambda t: t.replace(chr(10), "  " + chr(10))
+            dp = DEEP.get(pick)
+            if dp:
+                st.markdown(f"<div class='ac-h'>{e(L('What it is'))}</div><div class='ac-exp'>{e(dp['what'])}</div>", unsafe_allow_html=True)
+                for p_ in dp["parts"]:
+                    st.markdown(f"<div class='ac-h'>{e(p_['t'])}</div>", unsafe_allow_html=True)
+                    st.markdown(md(p_["b"]))
+                c1, c2 = st.columns(2)
+                c1.markdown(f"<div class='uk-panel' style='border-color:{UK.UP};padding:6px 10px'><div class='ac-small' style='color:{UK.UP};font-weight:700'>📈 {e(L('Bullish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.75'>{e(dp['bull_story'])}</div></div>", unsafe_allow_html=True)
+                c2.markdown(f"<div class='uk-panel' style='border-color:{UK.DOWN};padding:6px 10px'><div class='ac-small' style='color:{UK.DOWN};font-weight:700'>📉 {e(L('Bearish setup'))}</div><div class='ac-exp' style='font-size:14px;line-height:1.75'>{e(dp['bear_story'])}</div></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='ac-h'>{e(L('Where it lives in the platform'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(dp["platform"])))
+                st.markdown(f"<div class='ac-h'>⚠️ {e(L('Common mistakes'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"- {t}" for t in dp["mistakes"]))
+                st.markdown(f"<div class='ac-h'>🧪 {e(L('Exercises'))}</div>", unsafe_allow_html=True)
+                st.markdown(chr(10).join(f"{k + 1}. {t}" for k, t in enumerate(dp["exercises"])))
+                st.markdown(f"<div class='ac-h'>❓ {e(L('Questions'))}</div>", unsafe_allow_html=True)
+                for fq in dp["faq"]:
+                    with st.expander(fq["q"]):
+                        st.markdown(fq["a"])
+                st.markdown(f"<div class='ac-h'>{e(L('Glossary'))}</div><div class='uk-chipbar'>" + "".join(f"<span class='uk-chip' title='{e(g['def'])}'>{e(g['term'])}: {e(g['def'])}</span>" for g in dp["glossary"]) + "</div>", unsafe_allow_html=True)
+            with st.expander(L("Grok's short visual notes (source)")):
+                for fl in flows:
+                    st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
+                st.markdown(body)
+        with right:
+            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")])
+            with tabs[0]:
+                st.markdown(x["examples"] or L("No lessons yet."))
+            with tabs[1]:
+                st.info(L("External evidence from published sources. It is context, not the project's lab result."))
+                st.markdown(x["evidence"] or L("No lessons yet."))
+            with tabs[2]:
+                if not x["review"]:
+                    st.caption(L("No school-specific review yet; the general findings are in the References tab."))
+                for l_ in x["review"]:
+                    stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
+                    st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span></div>"
+                                f"<div style='font-weight:700;margin:6px 0'>{e(l_['title'])}</div>", unsafe_allow_html=True)
+                    st.markdown(l_["summary"])
+                    st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+                    if l_["points"]:
+                        st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+                    if l_["caveats"]:
+                        st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
+            with tabs[3]:
+                st.markdown(x["ai"] or L("No lessons yet."))
+
+
 def render_academy_page():
-    """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
-    worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
+    """Academy (owner 2026-10-23): three tabs only. Path = our ordered course; Schools = Grok's nine schools in teaching order, each with its diagrams, examples, evidence
+    and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(kit_css(), unsafe_allow_html=True)
-    e = html.escape
-    sc, ls = AC.schools(), AC.load()
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "Backtest evidence", "Examples", "Our review", "References"], default="Path", key="ac_view",
-                                format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
         _academy_path()
-        return
-    n_bad = sum(1 for l_ in ls if l_["verdict"] == "contradicted")
-    st.markdown(UK.row([
-        UK.kpi("🎓", L("Schools"), len(sc), L("Curricula in docs/academy")),
-        UK.kpi("📝", L("Status"), L("Draft"), L("Not approved by the owner yet"), tone="warn"),
-        UK.kpi("🧪", L("Lab"), L("No detector passes"), L("Gate: n ≥ 100, t > 3, net > 0, both halves"), tone="down"),
-        UK.kpi("⚠️", L("Contradicted claims"), n_bad, L("Claims that disagree with the project's data"), tone="down" if n_bad else ""),
-    ]), unsafe_allow_html=True)
-    st.caption(L("Educational, not investment advice. Lessons are drafts until the owner approves them."))
-    if view == "Schools":
-        if not sc:
-            st.info(L("No lessons yet."))
-            return
-        names = {s_["id"]: f"{s_['icon']} {s_['title'].split('—')[0].strip()}" for s_ in sc}
-        pick = st.pills(L("School"), list(names), format_func=names.get, default=sc[0]["id"], key="ac_school", label_visibility="collapsed") or sc[0]["id"]
-        s_ = next(x for x in sc if x["id"] == pick)
-        body, chips = AC.badges(s_["visual"])
-        body, flows = AC.chains(body)
-        st.markdown(f"<div class='uk-panel'><h4>{e(s_['icon'])} {e(s_['title'])}</h4><div class='uk-chipbar'>"
-                    + "".join(f"<span class='uk-chip' style='border-color:{c};color:{c}'>{e(t)}</span>" for t, c in chips) + "</div></div>", unsafe_allow_html=True)
-        st.warning(AC.LAB_NOTE)
-        for fl in flows:
-            st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(x)}</span>" for x in fl) + "</div>", unsafe_allow_html=True)
-        st.markdown(body)
-        if s_["curriculum"]:
-            with st.expander(L("Full curriculum")):
-                st.markdown(s_["curriculum"])
-        if s_["ai"]:
-            with st.expander(L("Machine spec (AI track)")):
-                st.markdown(s_["ai"])
-    elif view == "Backtest evidence":
-        st.info(L("External evidence from published sources. It is context, not the project's lab result."))
-        st.markdown(AC.evidence() or L("No lessons yet."))
-    elif view == "Examples":
-        st.markdown(AC.examples() or L("No lessons yet."))
-    elif view == "References":
-        _academy_refs()
+    elif view == "Schools":
+        _academy_schools()
     else:
-        sm = AC.summary(ls)
-        st.markdown(UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)
-        c = st.columns([1.2, 2, 1.4])
-        q = c[0].text_input(L("Search"), key="ac_q", label_visibility="collapsed", placeholder=L("Search"))
-        topic = c[1].pills(L("Topic"), list(sm["topic"]), key="ac_topic", label_visibility="collapsed")
-        vd = c[2].selectbox(L("Verdict"), [""] + list(AC.VERDICT), format_func=lambda k: L("All") if not k else AC.VERDICT[k][0], key="ac_vd", label_visibility="collapsed")
-        for l_ in AC.search(ls, q, topic or "", vd):
-            stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
-            with st.expander(l_["title"], expanded=False):
-                st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span>"
-                            f"<span class='uk-chip'>{e(l_['topic'])}</span><span class='uk-chip'>{e(l_['source'])}</span></div>", unsafe_allow_html=True)
-                st.markdown(l_["summary"])
-                st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
-                if l_["points"]:
-                    st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
-                if l_["caveats"]:
-                    st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
-                if l_["uses"]:
-                    st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(u)}</span>" for u in l_["uses"]) + "</div>", unsafe_allow_html=True)
-                if l_["sources"]:
-                    st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(l_["sources"])))
+        _academy_refs()
 
 
 def render_info_strip():
@@ -2916,16 +3050,21 @@ if PAGE == 0:   # workspace
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
         _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
-        render_universe_controls()
-        SCAN_SYMBOLS, _ac_msg2 = class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
+        if _rv != "Heat map":   # the market map has its own filters; the universe / timeframe controls do not apply to it
+            render_universe_controls()
+        import importlib as _il
+        from modules import asset_classes as _acm
+        if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once
+            _acm = _il.reload(_acm)
+        SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
         _rf = _radar_filters(_rv)
         if _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":
-            render_radar_similar()
+            render_radar_similar(_rf)
         elif _rv in ("Performance", "Correlation", "Signal list"):
-            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv]()
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv](_rf)
         elif _rv == "Screener":
             render_radar_screener(_rf)
         else:

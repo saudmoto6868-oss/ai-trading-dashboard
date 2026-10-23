@@ -1,4 +1,4 @@
-"""Teaching diagrams for the Academy, drawn as SVG strings (owner 2026-10-23: the pictures were not clear). Every diagram is built from numbers, so the bearish
+"""Teaching diagrams for the Academy (the animation classes .an / .dr / .pl live in ui_kit.css(): a <style> inside the SVG would make the page hide the whole element), drawn as SVG strings (owner 2026-10-23: the pictures were not clear). Every diagram is built from numbers, so the bearish
 version is the same drawing mirrored; colours come from the page's CSS variables (the Theme menu), with fallbacks. Labels are Arabic.
 Nothing here is a price forecast: the candles are illustrations made from a few waypoints, not market data."""
 from __future__ import annotations
@@ -65,8 +65,8 @@ class Chart:
             col = UP if up else DN
             x = self.x(i)
             top, bot = sorted((self.y(o), self.y(c)))
-            self.add(f"<line x1='{x:.1f}' x2='{x:.1f}' y1='{self.y(h):.1f}' y2='{self.y(l):.1f}' stroke='{col}' stroke-width='1.2'/>"
-                     f"<rect x='{x - bw / 2:.1f}' y='{top:.1f}' width='{bw:.1f}' height='{max(1.2, bot - top):.1f}' fill='{col}' rx='1'/>")
+            self.add(f"<g class='an' style='animation-delay:{i * 0.03:.2f}s'><line x1='{x:.1f}' x2='{x:.1f}' y1='{self.y(h):.1f}' y2='{self.y(l):.1f}' stroke='{col}' stroke-width='1.2'/>"
+                     f"<rect x='{x - bw / 2:.1f}' y='{top:.1f}' width='{bw:.1f}' height='{max(1.2, bot - top):.1f}' fill='{col}' rx='1'/></g>")
         return self
 
     def hline(self, p, label="", color=ACC, dash="5 4", x1=0, x2=None):
@@ -81,7 +81,7 @@ class Chart:
         ya, yb = sorted((self.y(p1), self.y(p2)))
         xa = self.x(i1) - self.step / 2
         xb = (self.x(i2) + self.step / 2) if i2 is not None else self.x0 + self.w - PAD_R
-        self.add(f"<rect x='{xa:.1f}' y='{ya:.1f}' width='{xb - xa:.1f}' height='{max(2.0, yb - ya):.1f}' fill='{color}' opacity='{op}' stroke='{color}' stroke-opacity='.6' rx='2'/>")
+        self.add(f"<rect class='an' style='animation-delay:.9s' x='{xa:.1f}' y='{ya:.1f}' width='{xb - xa:.1f}' height='{max(2.0, yb - ya):.1f}' fill='{color}' opacity='{op}' stroke='{color}' stroke-opacity='.6' rx='2'/>")
         if label:
             self.text(xa + 4, ya + 11, label, color)
         return self
@@ -96,7 +96,7 @@ class Chart:
 
     def poly(self, pts, color=ACC, width=2.0, dash=""):
         d = " ".join(f"{self.x(i):.1f},{self.y(p):.1f}" for i, p in pts)
-        self.add(f"<polyline points='{d}' fill='none' stroke='{color}' stroke-width='{width}' stroke-linejoin='round' {'stroke-dasharray=' + repr(dash) if dash else ''}/>")
+        self.add(f"<polyline {'class=' + repr('dr') if not dash else ''} points='{d}' fill='none' stroke='{color}' stroke-width='{width}' stroke-linejoin='round' {'stroke-dasharray=' + repr(dash) if dash else ''}/>")
         return self
 
     def text(self, x, y, s, color=TXT, size=10.5, anchor="start", weight="600"):
@@ -118,7 +118,11 @@ class Chart:
         if self.mirror:
             dy = 6 - dy if dy < 0 else -dy - 2
         if dot:
-            self.add(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='3.2' fill='{color}'/>")
+            self.add(f"<circle class='pl' cx='{x:.1f}' cy='{y:.1f}' r='3.4' fill='{color}'/>")
+            if abs(dy) >= 8:                                           # arrow from the label to the point it explains
+                ya = y + (dy + (3 if dy < 0 else -11))
+                yb = y + (-5 if dy < 0 else 5)
+                self.add(f"<line x1='{x:.1f}' y1='{ya:.1f}' x2='{x:.1f}' y2='{yb:.1f}' stroke='{color}' stroke-width='1.3' marker-end='url(#ar)' opacity='.85'/>")
         return self.text(x, y + dy, s, color, anchor="middle")
 
     def body(self) -> str:

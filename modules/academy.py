@@ -153,3 +153,75 @@ def refs(path: Path = REFS) -> dict:
         if c.get("id") and c.get("claim") and c.get("verdict") in CLAIM_VERDICT:
             cl.append({**c, "urls": [u for u in c.get("urls", []) if str(u).startswith("https://")]})
     return {"sources": src, "glossary": glo, "claims": cl}
+
+
+# ---- Grok's schools in teaching order, each with its own examples, evidence and our review (owner 2026-10-23: no loose tabs) -----------------------------
+
+SCHOOL_ORDER = ["levels", "trend", "sessions", "orderflow", "meanrev", "smc", "harmonic", "elliott", "gann"]   # docs/academy/visual/LESSONS_INDEX.md: Levels -> Trend -> Sessions -> OF -> MR -> SMC -> Harmonic -> Elliott -> Gann
+WHY = {"levels": "الأساس: من غير مستويات مفيش موقع ولا وقف واضح.", "trend": "النظام اليومي الأقوى دليلاً، وبيحدد الاتجاه اللي بنشتغل معاه.",
+       "sessions": "التوقيت: إمتى نتوقع نشاط (فرضية لسه بتتختبر).", "orderflow": "بوابة تنفيذ عند مستوى جاهز، مش نظام لوحده.",
+       "meanrev": "كتاب منفصل: بيشتغل في النطاق وبيخسر في الترند.", "smc": "سياق بعد ما نعرف نقيس: مفاهيم السيولة والفجوات.",
+       "harmonic": "سياق متقدم: نماذج نسب، دليلها ضعيف.", "elliott": "سياق وإبطال: عدّ بديل وقواعد صلبة.", "gann": "أداة بصرية للمسافة والوقت، بدون دليل قوي."}
+ART_OF = {"levels": ["sr", "breakout"], "trend": ["trend"], "sessions": ["sessions"], "orderflow": ["orderflow", "vp"], "meanrev": ["meanrev"], "smc": ["smc"],
+          "harmonic": ["harmonic"], "elliott": ["elliott"], "gann": ["gann"]}
+_EVID_N = {"trend": "1)", "meanrev": "2)", "levels": "3)", "sessions": "4)", "smc": "5)", "orderflow": "6)", "elliott": "7)", "harmonic": "8)", "gann": "8)"}
+_EX_NAME = {"levels": "Levels", "trend": "Trend", "sessions": "Sessions", "smc": "SMC", "elliott": "Elliott", "gann": "Gann", "harmonic": "Harmonic", "orderflow": "Order flow", "meanrev": "Mean reversion"}
+REVIEW_OF = {"of-tools-reliability": "orderflow", "sessions-killzones": "sessions"}   # our review lessons that belong to one school; the others are general (References tab)
+
+
+def sections(md: str) -> dict:
+    """Split markdown into {H2 heading: body}; text before the first H2 is under ''."""
+    out, cur, buf = {}, "", []
+    for ln in md.splitlines():
+        if ln.startswith("## "):
+            out[cur] = "\n".join(buf).strip(); cur, buf = ln[3:].strip(), []
+        else:
+            buf.append(ln)
+    out[cur] = "\n".join(buf).strip()
+    return out
+
+
+def school_evidence(sid: str, root: Path = ROOT) -> str:
+    """The part of BACKTEST_EVIDENCE.md that is about one school ('' if none)."""
+    n = _EVID_N.get(sid)
+    return next((f"## {h}\n\n{b}" for h, b in sections(evidence(root)).items() if n and h.startswith(n)), "")
+
+
+def school_examples(sid: str, root: Path = ROOT) -> str:
+    name = _EX_NAME.get(sid)
+    return next((b for h, b in sections(examples(root)).items() if h == name), "")
+
+
+def ordered_schools(root: Path = ROOT) -> list:
+    """schools() in teaching order, each with its diagrams, reason for its place, examples, evidence and our own review lessons."""
+    by = {x["id"]: x for x in schools(root)}
+    rev = {}
+    for ls in load():
+        sid = REVIEW_OF.get(ls["id"])
+        if sid:
+            rev.setdefault(sid, []).append(ls)
+    out = []
+    for i, sid in enumerate(SCHOOL_ORDER, 1):
+        if sid in by:
+            out.append({**by[sid], "pos": i, "why": WHY.get(sid, ""), "arts": ART_OF.get(sid, []), "examples": school_examples(sid, root),
+                        "evidence": school_evidence(sid, root), "review": rev.get(sid, [])})
+    out += [{**x, "pos": len(out) + k + 1, "why": "", "arts": [], "examples": "", "evidence": "", "review": []} for k, x in enumerate(by.values()) if x["id"] not in SCHOOL_ORDER]
+    return out
+
+
+DEEP = Path(__file__).resolve().parent.parent / "data" / "academy_deep.json"
+DEEP_REQ = ("what", "parts", "bull_story", "bear_story", "platform", "mistakes", "exercises", "faq", "glossary")
+
+
+def deep(path: Path = DEEP) -> dict:
+    """-> {school id: full lesson} from data/academy_deep.json; a school missing a field or with an empty part is dropped."""
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8")).get("schools", {})
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for sid, x in d.items():
+        if not all(x.get(k) for k in DEEP_REQ) or not all(p.get("t") and p.get("b") for p in x["parts"]):
+            continue
+        out[sid] = x
+    return out

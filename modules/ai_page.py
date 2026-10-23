@@ -30,7 +30,7 @@ def chart_summary(df) -> dict:
 def render_ai_page(symbols, L):
     st.subheader(L("Mr X - AI analyst"))
     if not guide_ai.provider():
-        st.info(L("Add GEMINI_API_KEY (free) or ANTHROPIC_API_KEY in Streamlit Secrets to talk to Mr X."))
+        st.info(L("Add OPENAI_API_KEY, GEMINI_API_KEY (free), or ANTHROPIC_API_KEY in Streamlit Secrets to talk to Mr X."))
         return
     c1, c2, c3 = st.columns([2, 1, 1])
     sym = c1.selectbox(L("Symbol"), symbols, key="ai_sym")

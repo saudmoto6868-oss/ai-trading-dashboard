@@ -22,6 +22,7 @@ def test_tradingview_tool_set():
     for k in ("ellipse", "triangle", "pitchfork", "callout", "plabel", "arrup", "arrdn", "flag", "cross", "info", "extline"):
         assert f'["{k}",' in H, k                                                  # the tool button exists
         assert f'd.type === "{k}"' in H or k in ("info", "extline"), k              # and has a painter / hit test
+    assert "press, drag and release also draws" in H                                  # drag-to-draw like TradingView, besides click-click
     assert "cgrip(d, hs)" in H and "this.catBtns" in H                              # centre grip to move a drawing, categories with headings
 
 

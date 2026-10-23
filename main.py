@@ -974,7 +974,7 @@ def render_universe_controls():
 # ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
 # that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
 _KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
-_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
+_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
 for _k in list(st.session_state.keys()):
     if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
         try:
@@ -2811,6 +2811,18 @@ def _academy_refs():
     e = html.escape
     R = AC.refs()
     st.info(L("Every source below is a preliminary reference: kept open, neither rejected nor approved. Where names differ we keep ours and carry the concept into our schools and lessons."))
+    gen = [l_ for l_ in AC.load() if l_["id"] not in AC.REVIEW_OF]
+    if gen:
+        st.markdown(f"**{L('Our review')}** · {L('general findings')}")
+        for l_ in gen:
+            vl, vc = AC.VERDICT[l_["verdict"]]
+            with st.expander(f"[{vl}] {l_['title']}"):
+                st.markdown(l_["summary"])
+                st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+                if l_["points"]:
+                    st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+                if l_["caveats"]:
+                    st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
     st.markdown(f"**{L('Sources gathered')}**")
     for x in R["sources"]:
         with st.expander(f"{x['title']}  ·  {x['origin']}"):
@@ -2840,76 +2852,95 @@ def _academy_refs():
                 st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(c["urls"])))
 
 
+def _academy_schools():
+    """Grok's nine schools in teaching order, wide layout: ordered list | diagrams + the lesson | tabs for examples, evidence, our review, curriculum, machine spec."""
+    from modules import academy as AC, academy_art as ART, ui_kit as UK
+    e = html.escape
+    sc = AC.ordered_schools()
+    if not sc:
+        st.info(L("No lessons yet."))
+        return
+    by = {x["id"]: x for x in sc}
+    st.markdown("""<style>
+.st-key-acschools .ac-exp{font-size:15px;line-height:1.85}.st-key-acschools .ac-small{font-size:12px;color:var(--uk-dim);line-height:1.6}
+.st-key-acschools [data-testid="stRadio"] label p{font-size:13px!important}.st-key-acschools svg{width:100%;height:auto}
+.st-key-acschools [data-testid="stMarkdownContainer"] table{font-size:12.5px}
+.st-key-acschools [data-testid="stMarkdownContainer"] p,.st-key-acschools [data-testid="stMarkdownContainer"] li{font-size:14.5px;line-height:1.8}
+</style>""", unsafe_allow_html=True)
+    with st.container(key="acschools"):
+        left, mid, right = st.columns([0.95, 3.0, 2.7], gap="medium")
+        with left:
+            st.markdown(f"<div class='ac-small'><b>{e(L('Teaching order'))}</b><br>{e(L('Each school builds on the one before it.'))}</div>", unsafe_allow_html=True)
+            pick = st.radio(L("School"), [x["id"] for x in sc], key="ac_school_r", label_visibility="collapsed",
+                            format_func=lambda k: f"{by[k]['pos']}. {by[k]['icon']} {by[k]['title'].split('—')[0].strip()}")
+            nav = st.columns(2)
+            i0 = [x["id"] for x in sc].index(pick)
+            if i0 > 0:
+                nav[0].button("→", key="ac_sprev", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 - 1]["id"]), use_container_width=True)
+            if i0 < len(sc) - 1:
+                nav[1].button("←", key="ac_snext", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 + 1]["id"]), use_container_width=True)
+        x = by[pick]
+        body, chips = AC.badges(x["visual"])
+        body, flows = AC.chains(body)
+        with mid:
+            st.markdown(f"<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{x['pos']}. {e(x['icon'])} {e(x['title'])}</span>"
+                        + "".join(f"<span class='uk-chip' style='border-color:{c};color:{c}'>{e(t)}</span>" for t, c in chips) + "</div>"
+                        f"<div class='ac-small' style='margin:4px 0 8px'>{e(L('Why here'))}: {e(x['why'])}</div>", unsafe_allow_html=True)
+            items = []
+            for a in x["arts"]:
+                items += [(a, "bull"), (a, "bear")] if a in ART.MIRRORED else [(a, "bull")]
+            for r0 in range(0, len(items), 2):
+                row = items[r0:r0 + 2]
+                cc = st.columns(2) if len(row) == 2 else st.columns([1, 1])[:1]
+                for col, (a, side) in zip(cc, row):
+                    tag = ""
+                    if a in ART.MIRRORED:
+                        tc = UK.UP if side == "bull" else UK.DOWN
+                        tag = f"<div class='uk-chipbar' style='margin:0 0 3px'><span class='uk-chip' style='border-color:{tc};color:{tc}'>{e(L('Bullish') if side == 'bull' else L('Bearish'))}</span></div>"
+                    col.markdown(tag + ART.art(a, side), unsafe_allow_html=True)
+            st.caption(L("The drawings are illustrations built from a few price points, not market data and not a forecast."))
+            st.warning(AC.LAB_NOTE)
+            for fl in flows:
+                st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
+            st.markdown(body)
+        with right:
+            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Full curriculum"), L("Machine spec (AI track)")])
+            with tabs[0]:
+                st.markdown(x["examples"] or L("No lessons yet."))
+            with tabs[1]:
+                st.info(L("External evidence from published sources. It is context, not the project's lab result."))
+                st.markdown(x["evidence"] or L("No lessons yet."))
+            with tabs[2]:
+                if not x["review"]:
+                    st.caption(L("No school-specific review yet; the general findings are in the References tab."))
+                for l_ in x["review"]:
+                    stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
+                    st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span></div>"
+                                f"<div style='font-weight:700;margin:6px 0'>{e(l_['title'])}</div>", unsafe_allow_html=True)
+                    st.markdown(l_["summary"])
+                    st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
+                    if l_["points"]:
+                        st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
+                    if l_["caveats"]:
+                        st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
+            with tabs[3]:
+                st.markdown(x["curriculum"] or L("No lessons yet."))
+            with tabs[4]:
+                st.markdown(x["ai"] or L("No lessons yet."))
+
+
 def render_academy_page():
-    """Academy (owner 2026-10-23): the nine school curricula from docs/academy (Grok's material, opened for review), the external backtest evidence,
-    worked examples, and OUR review of it (verdict per claim against the project's own lab). Nothing here is approved until the owner says so."""
+    """Academy (owner 2026-10-23): three tabs only. Path = our ordered course; Schools = Grok's nine schools in teaching order, each with its diagrams, examples, evidence
+    and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(kit_css(), unsafe_allow_html=True)
-    e = html.escape
-    sc, ls = AC.schools(), AC.load()
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "Backtest evidence", "Examples", "Our review", "References"], default="Path", key="ac_view",
-                                format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
         _academy_path()
-        return
-    n_bad = sum(1 for l_ in ls if l_["verdict"] == "contradicted")
-    st.markdown(UK.row([
-        UK.kpi("🎓", L("Schools"), len(sc), L("Curricula in docs/academy")),
-        UK.kpi("📝", L("Status"), L("Draft"), L("Not approved by the owner yet"), tone="warn"),
-        UK.kpi("🧪", L("Lab"), L("No detector passes"), L("Gate: n ≥ 100, t > 3, net > 0, both halves"), tone="down"),
-        UK.kpi("⚠️", L("Contradicted claims"), n_bad, L("Claims that disagree with the project's data"), tone="down" if n_bad else ""),
-    ]), unsafe_allow_html=True)
-    st.caption(L("Educational, not investment advice. Lessons are drafts until the owner approves them."))
-    if view == "Schools":
-        if not sc:
-            st.info(L("No lessons yet."))
-            return
-        names = {s_["id"]: f"{s_['icon']} {s_['title'].split('—')[0].strip()}" for s_ in sc}
-        pick = st.pills(L("School"), list(names), format_func=names.get, default=sc[0]["id"], key="ac_school", label_visibility="collapsed") or sc[0]["id"]
-        s_ = next(x for x in sc if x["id"] == pick)
-        body, chips = AC.badges(s_["visual"])
-        body, flows = AC.chains(body)
-        st.markdown(f"<div class='uk-panel'><h4>{e(s_['icon'])} {e(s_['title'])}</h4><div class='uk-chipbar'>"
-                    + "".join(f"<span class='uk-chip' style='border-color:{c};color:{c}'>{e(t)}</span>" for t, c in chips) + "</div></div>", unsafe_allow_html=True)
-        st.warning(AC.LAB_NOTE)
-        for fl in flows:
-            st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(x)}</span>" for x in fl) + "</div>", unsafe_allow_html=True)
-        st.markdown(body)
-        if s_["curriculum"]:
-            with st.expander(L("Full curriculum")):
-                st.markdown(s_["curriculum"])
-        if s_["ai"]:
-            with st.expander(L("Machine spec (AI track)")):
-                st.markdown(s_["ai"])
-    elif view == "Backtest evidence":
-        st.info(L("External evidence from published sources. It is context, not the project's lab result."))
-        st.markdown(AC.evidence() or L("No lessons yet."))
-    elif view == "Examples":
-        st.markdown(AC.examples() or L("No lessons yet."))
-    elif view == "References":
-        _academy_refs()
+    elif view == "Schools":
+        _academy_schools()
     else:
-        sm = AC.summary(ls)
-        st.markdown(UK.panel(L("Review verdicts"), UK.donut([(AC.VERDICT[k][0], v, AC.VERDICT[k][1]) for k, v in sm["verdict"].items()], center=str(sm["n"]))), unsafe_allow_html=True)
-        c = st.columns([1.2, 2, 1.4])
-        q = c[0].text_input(L("Search"), key="ac_q", label_visibility="collapsed", placeholder=L("Search"))
-        topic = c[1].pills(L("Topic"), list(sm["topic"]), key="ac_topic", label_visibility="collapsed")
-        vd = c[2].selectbox(L("Verdict"), [""] + list(AC.VERDICT), format_func=lambda k: L("All") if not k else AC.VERDICT[k][0], key="ac_vd", label_visibility="collapsed")
-        for l_ in AC.search(ls, q, topic or "", vd):
-            stl, stc = AC.STATUS[l_["status"]]; vl, vc = AC.VERDICT[l_["verdict"]]
-            with st.expander(l_["title"], expanded=False):
-                st.markdown(f"<div class='uk-chipbar'><span class='uk-chip' style='border-color:{stc};color:{stc}'>{e(stl)}</span><span class='uk-chip' style='border-color:{vc};color:{vc}'>{e(vl)}</span>"
-                            f"<span class='uk-chip'>{e(l_['topic'])}</span><span class='uk-chip'>{e(l_['source'])}</span></div>", unsafe_allow_html=True)
-                st.markdown(l_["summary"])
-                st.markdown(f"<div class='uk-panel' style='border-color:{vc}'><h4>{e(L('Our review'))}</h4>{e(l_['verdict_note'])}</div>", unsafe_allow_html=True)
-                if l_["points"]:
-                    st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
-                if l_["caveats"]:
-                    st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
-                if l_["uses"]:
-                    st.markdown("<div class='uk-chipbar'>" + "".join(f"<span class='uk-chip'>🔗 {e(u)}</span>" for u in l_["uses"]) + "</div>", unsafe_allow_html=True)
-                if l_["sources"]:
-                    st.markdown(" · ".join(f"[{i + 1}]({u})" for i, u in enumerate(l_["sources"])))
+        _academy_refs()
 
 
 def render_info_strip():

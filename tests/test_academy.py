@@ -69,5 +69,19 @@ def test_refs_loader():
     assert R2["sources"] == [] and R2["glossary"] == [] and [c["id"] for c in R2["claims"]] == ["d"] and R2["claims"][0]["urls"] == ["https://ok"]
 
 
+def test_ordered_schools():
+    sc = A.ordered_schools()
+    if not sc:
+        return
+    assert [x["id"] for x in sc][:9] == A.SCHOOL_ORDER and [x["pos"] for x in sc][:9] == list(range(1, 10))
+    assert all(x["why"] and x["arts"] for x in sc[:9])
+    from modules import academy_art as ART
+    assert all(a in ART.ART for x in sc[:9] for a in x["arts"])
+    byid = {x["id"]: x for x in sc}
+    assert byid["trend"]["evidence"].startswith("## 1)") and byid["trend"]["examples"]
+    assert byid["orderflow"]["review"] and byid["sessions"]["review"]                  # our review sits next to the school it is about
+    assert A.sections("a\n## X\nb\n## Y\nc") == {"": "a", "X": "b", "Y": "c"}
+
+
 if __name__ == "__main__":
-    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); print("ok academy")
+    test_shipped_and_filters(); test_bad_lessons_dropped(); test_schools_and_helpers(); test_learning_path_and_art(); test_path_validation_drops_bad(); test_refs_loader(); test_ordered_schools(); print("ok academy")

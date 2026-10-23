@@ -160,6 +160,7 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 .nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
 .wn{animation:flb 1.4s ease-out 1,blink .5s linear 4}.sn{animation:blink .6s linear 2}
 .ab{animation:absb 1.1s ease-in-out infinite}.glow{animation:glow 1.8s ease-in-out infinite}.hot{animation:hot 1.4s ease-in-out infinite}.cf{animation:cellfl 1.6s ease-out 1}
+.gsel{background:#1b2027;color:#b7bdc6;border:1px solid #2b3139;border-radius:3px;font-size:10px;height:17px;padding:0 2px;max-width:64px}.gsel:hover{border-color:#4a5568}
 .hb{animation:flb 1.2s ease-out 1}.hs{animation:fls 1.2s ease-out 1}.gr{animation:grow 1.3s ease-out 1}.evn{animation:blink .5s linear 4}
 .rtl #bar,.rtl .ph,.rtl .news-detail,.rtl .news-item,.rtl textarea{direction:rtl}
 .vid{width:100%;height:100%;border:0;background:#000}
@@ -1699,7 +1700,7 @@ class CandleChart {
     c.textAlign = "left"; c.fillStyle = "#848e9c";
     const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";
     c.fillText(txt, 8, 10); c.fillStyle = dcol; c.fillText((chg>=0?"+":"")+chg.toFixed(2)+"%", 8+c.measureText(txt).width, 10);
-    if (this.colOn){ this.paintCol(c, py, PB, PR, i0, i1); this.paintXhCol(c, PR, PB); }
+    if (this.colOn){ this.paintCol(c, py, PB, PR, i0, i1); this.paintXhCol(c, PR, PB); } else this.placeGroupSel(false);
     this.paintSub(c, PB, i0, i1);
   }
   paintSub(c, PB, i0, i1){
@@ -1825,7 +1826,7 @@ Object.assign(CandleChart.prototype, {
     catch(e){ try { Object.keys(localStorage).filter(k => k.indexOf(LS+"_hm_") === 0 && k !== LS+"_hm_"+this.sym).forEach(k => localStorage.removeItem(k)); } catch(e2){} }
   },
   paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, last 24 h); the column only chooses how much time it shows
-    const H = this.hm; if (!H || !H.step || !H.b.size) return null; const OF = this.st.of, scheme = OF.hm || "book", lo = this._lo, hi = this._hi, mult = Math.max(1, Math.ceil((hi - lo)/Math.max(1, PB/5)/H.step)), sR = mult*H.step, rowH = Math.max(1.5, Math.abs(py(0) - py(sR)));
+    const H = this.hm; if (!H || !H.step || !H.b.size) return null; const OF = this.st.of, scheme = OF.hm || "book", lo = this._lo, hi = this._hi, mult = this.ofStepNow() > 0 ? Math.max(1, Math.round(this.ofStepNow()/H.step)) : Math.max(1, Math.ceil((hi - lo)/Math.max(1, PB/5)/H.step)), sR = mult*H.step, rowH = Math.max(1.5, Math.abs(py(0) - py(sR)));
     const bs = []; H.b.forEach((o, t) => { if (t + o.w >= tL && t <= tR) bs.push([t, o]); }); if (!bs.length) return null; bs.sort((a, b) => a[0] - b[0]);
     let mx = 0; bs.forEach(([t, o]) => { if (o._mu !== mult){ const r = new Map(); o.c.forEach((q, k) => { const kr = Math.floor(k/mult), v = r.get(kr); if (v == null || q > v) r.set(kr, q); }); o._r = r; o._mu = mult; let m = 0; r.forEach(q => { if (q > m) m = q; }); o._mx = m; } if (o._mx > mx) mx = o._mx; });
     // more time buckets than ~2 px columns (a long window): merge them per pixel column (max per row), cached while the window stands still.
@@ -1956,15 +1957,20 @@ Object.assign(CandleChart.prototype, {
     if (own && y != null){ c.moveTo(PR, y+.5); c.lineTo(PR + CW, y+.5); }
     c.stroke(); c.setLineDash([]); if (off){ c.fillStyle = c.strokeStyle; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = x < PR + CW/2 ? "left" : "right"; c.fillText(off + this.fmtTime(t), x + (x < PR + CW/2 ? 4 : -4), 26); }
     c.restore(); },
+  ofStepNow(){ return (this.ofStepMap && this.ofStepMap[this.sym]) || 0; },   // 0 = Auto
+  placeGroupSel(on){   // the price-grouping list lives in the chart toolbar (next to Fit) and shows only while the order-flow column is on
+    if (!on) return this.onGroupSel && this.onGroupSel(false);
+    const tick = tickOfLevels(((this.flowB && this.flowB.length && this.flowB[this.flowB.length-1].lv) || []).map(a => ({p:a[0], q:a[1]})));
+    this.onGroupSel && this.onGroupSel(true, this.ofStepNow(), tick); },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 && (this.flowSpan || span > 900000) ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
     const tx = t => gx1 - (anchor - t)/span*gw;   // time -> x
-    this._colTx = tx;
+    this._colTx = tx; this.placeGroupSel(true);
     c.save(); c.fillStyle = (this.st.of.hm || "book") === "book" && this.domOn ? "rgb(1,3,8)" : "#0d1116"; c.fillRect(X0, 0, CW, PB);   // heat-map base colour fills the column top to bottom; the book itself only exists where the exchange lists orders c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(X0 + .5, 0); c.lineTo(X0 + .5, PB); c.moveTo(XE + .5, 0); c.lineTo(XE + .5, PB); c.stroke();
     c.fillStyle = "#3a424b"; c.fillRect(X0 + 1, Math.round(PB/2) - 12, 3, 24);   // grip: drag to resize, double-click = default
     c.beginPath(); c.rect(X0 + 5, 0, CW - 7, PB); c.clip();
-    const raw = Math.max((hi-lo)/Math.max(1, PB/6), this.bk || 0), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw, rowH = Math.max(2, Math.abs(py(0) - py(step)));
+    const raw = Math.max((hi-lo)/Math.max(1, PB/6), this.bk || 0), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = this.ofStepNow() > 0 ? Math.max(this.ofStepNow(), this.bk || 0) : ([1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw), rowH = Math.max(2, Math.abs(py(0) - py(step)));
     const B = (this.flowB || []).filter(x => x.t >= anchor - span*1.05), T_ = (this.flowT || []).filter(x => x.t >= anchor - span);
     // 1) heat map: each book snapshot is a vertical slice that lasts until the next snapshot; colour = resting size at that price (scheme: Bookmap thermal / bid-ask colours / amber). The per-snapshot price rows are computed once and cached.
     let hm = 0; const rows = B.map(sn => { if (sn._rs !== step){ const m = new Map(); sn.lv.forEach(([p, q]) => { const k = Math.round(p/step), o = m.get(k); if (o) o.q += q; else m.set(k, {q, bid:sn.bb ? p <= sn.bb : true}); }); let mx = 0; m.forEach(v => { if (v.q > mx) mx = v.q; }); sn._r = m; sn._mx = mx; sn._rs = step; } if (sn._mx > hm) hm = sn._mx; return sn._r; });
@@ -3388,7 +3394,8 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
+    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, this.gSelTb, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -3398,6 +3405,8 @@ class Panel {
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = this.state.lock || null; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
+    this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
+    this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
     this.chart.gaOn = this.state.ofg !== false; this.chart.scOn = this.state.ofs !== false; this.chart.onOfX = () => { this.state.ofg = this.chart.gaOn; this.state.ofs = this.chart.scOn; Ws.save(); };   // ✕ on the order-flow gauge / sync card: hidden per chart, restored from the Order-flow menu
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)
     this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; this.chart.colOn = !!this.state.dcol; this.chart.colW = this.state.colW || 0; { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
@@ -3823,6 +3832,8 @@ class Panel {
   /* ---- DOM ---- */
   build_dom(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
+    const gm = () => (this.state.gstep = this.state.gstep || {});   // price grouping, saved per symbol in the panel state
+    this.gSel = groupSelect(gm()[this.state.sym], 0, v => { gm()[this.state.sym] = v; Ws.save(); this.gRedraw && this.gRedraw(); }); tb.append(this.gSel);
     this.domBox = el("div"); this.body.append(tb, this.domBox); this.resub();
   }
   /* ---- tape ---- */
@@ -4731,8 +4742,12 @@ Panel.prototype.resub = function(){
       const tape = Hub.last["trades|"+sym];
       if (!book) return;
       if (book.error){ this.domBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
-      const res = renderDom(book, tape && !tape.error ? tape : null, prevSizes); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
+      const gm = (this.state.gstep || {})[sym] || 0, tick = tickOfLevels(book.bids.concat(book.asks)), gs = groupStepFor(gm, tick);
+      this.gSel && this.gSel.sync(gm, tick);
+      const bk = gs ? Object.assign({}, book, {bids:groupBook(book.bids, gs, "bid"), asks:groupBook(book.asks, gs, "ask")}) : book;
+      const res = renderDom(bk, tape && !tape.error ? tape : null, prevSizes); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
     };
+    this.gRedraw = () => { prevSizes = null; draw(); };
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
     this.unsubs.push(Hub.sub("trades", sym, () => {}));
   } else if (this.type === "tape"){
@@ -4799,6 +4814,23 @@ Panel.prototype.resub = function(){
   }
 };
 
+/* ---- price grouping (order book / heat rows): ONE control and ONE rule, reused by the DOM panel and the order-flow column ---- */
+const GROUP_STEPS = [1000, 100, 10, 1, 0.1, 0.01, 0.001];
+function tickOfLevels(levels){   // smallest gap between neighbouring book prices = the instrument tick (estimate); 0 when unknown
+  const ps = [...new Set(levels.map(x => +x.p))].filter(Number.isFinite).sort((a, b) => a - b); let t = 0;
+  for (let i = 1; i < ps.length; i++){ const d = ps[i] - ps[i-1]; if (d > 1e-12 && (!t || d < t)) t = d; }
+  return t ? +t.toPrecision(6) : 0; }
+function groupBook(levels, step, side){   // [{p,q}] -> [{p,q}] summed per price bucket; bids round down, asks round up, so a bucket never crosses the spread
+  if (!(step > 0)) return levels; const m = new Map(), r = x => +x.toFixed(10);
+  levels.forEach(x => { const k = r((side === "ask" ? Math.ceil(x.p/step - 1e-9) : Math.floor(x.p/step + 1e-9))*step); m.set(k, (m.get(k) || 0) + x.q); });
+  return [...m].map(([p, q]) => ({p, q})).sort((a, b) => side === "ask" ? a.p - b.p : b.p - a.p); }
+const groupStepFor = (want, tick) => want > 0 ? Math.max(want, tick || 0) : 0;   // a value below the tick is clamped to the tick
+function groupSelect(cur, tick, onChange){
+  const sel = el("select"); sel.className = "gsel"; sel.title = Lg("Price grouping (Auto = automatic)", "تجميع السعر (Auto = تلقائي)"); const o0 = el("option", null, "Auto"); o0.value = "0"; sel.append(o0);
+  GROUP_STEPS.forEach(v => { const o = el("option", null, String(v)); o.value = String(v); sel.append(o); });
+  sel.sync = (c, t) => { [...sel.options].forEach(o => { o.disabled = +o.value > 0 && t > 0 && +o.value < t*0.999; }); sel.value = String(c || 0); if (sel.selectedIndex < 0) sel.value = "0"; };
+  sel.sync(cur, tick); sel.onchange = () => onChange(+sel.value || 0);
+  ["mousedown", "pointerdown", "click", "wheel", "dblclick"].forEach(ev => sel.addEventListener(ev, e => e.stopPropagation())); return sel; }
 function renderDom(book, tape, prev){
   const asks = book.asks.slice().sort((a,b)=>a.p-b.p).slice(0,12), bids = book.bids.slice().sort((a,b)=>b.p-a.p).slice(0,12);
   const all = asks.concat(bids).map(x=>x.q), mx = Math.max(...all, 1e-12), med = median(book.asks.concat(book.bids).map(x=>x.q));

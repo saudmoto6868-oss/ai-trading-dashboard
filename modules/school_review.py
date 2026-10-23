@@ -77,7 +77,7 @@ def _gemini(prompt: str) -> str:
 
 def _openai_compat(url: str, key: str, model: str, prompt: str) -> str:
     r = requests.post(url, headers={"authorization": "Bearer " + key}, timeout=120,
-                      json={"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.3, "max_tokens": 3000})
+                      json={"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.3, "max_tokens": 3000, "thinking": {"type": "disabled"}})
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
 
@@ -122,7 +122,7 @@ def _openrouter(prompt: str) -> str:
 PROVIDERS = {
     "openrouter": _openrouter,
     "gemini": _gemini,
-    "deepseek": lambda p: _openai_compat("https://api.deepseek.com/chat/completions", os.environ.get("DEEPSEEK_API_KEY", ""), "deepseek-chat", p) if os.environ.get("DEEPSEEK_API_KEY") else "",
+    "deepseek": lambda p: _openai_compat("https://api.deepseek.com/chat/completions", os.environ.get("DEEPSEEK_API_KEY", ""), "deepseek-flash", p) if os.environ.get("DEEPSEEK_API_KEY") else "",
 }
 
 

@@ -691,7 +691,8 @@ def _ws_universe(active):
     (before, only the class picked in the Radar was scanned and everything else stayed empty)."""
     out = list(active)
     try:
-        for cls, n in (("Metals", 3), ("Indices", 2), ("Forex", 3)):
+        from modules.asset_classes import WS_EXTRA
+        for cls, n in WS_EXTRA:
             syms, _m = class_symbols(cls, CRYPTO_SYMBOLS)
             out += [x for x in syms if x.startswith("HL:")][:n]
     except Exception:

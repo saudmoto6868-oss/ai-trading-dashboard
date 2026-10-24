@@ -1819,14 +1819,14 @@ class CandleChart {
 /* ---------------- drawing tools (TradingView-style) ---------------- */
 Object.assign(CandleChart.prototype, {
   /* order flow: every live trade is added to the candle it belongs to, per price, split into sells (hit the bid) and buys (lifted the ask) */
-  fpAdd(r){
+  fpAdd(r, quiet){
     const d = this.data; if (!d.length || r.t < d[0].t) return;
     let i = d.length-1; while (i > 0 && d[i].t > r.t) i--;
     const key = d[i].t; let m = this.fp.get(key); if (!m){ m = {px:new Map(), b:0, s:0}; this.fp.set(key, m); }
     const k = r.p, o = m.px.get(k) || (m.px.set(k, {b:0, s:0}), m.px.get(k));
     if (r.side === "Buy"){ o.b += r.q; m.b += r.q; } else { o.s += r.q; m.s += r.q; }
-    this.bub.push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (this.bub.length > 500) this.bub.splice(0, 100);
-    (this.flowT = this.flowT || []).push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (this.flowT.length > 4000) this.flowT.splice(0, 800);   // Bookmap column: every print with its own timestamp
+    if (!quiet){ this.bub.push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (this.bub.length > 500) this.bub.splice(0, 100); }
+    if (!quiet) (this.flowT = this.flowT || []).push({t:r.t, p:r.p, q:r.q, side:r.side, tier:r.tier || "normal"}); if (!quiet && this.flowT.length > 4000) this.flowT.splice(0, 800);   // Bookmap column: every print with its own timestamp
     if (this.fp.size > 600){ const ks = [...this.fp.keys()].sort((a,b) => a-b); for (let j = 0; j < 100; j++) this.fp.delete(ks[j]); }
   },
   bkTrack(b){   // limit tracking for the profile: each price level's size is smoothed over snapshots, n = how many polls in a row it stayed; flickering (spoof) orders fade, resting walls build up
@@ -2003,6 +2003,7 @@ Object.assign(CandleChart.prototype, {
         c.strokeStyle = bk > 0 ? FB : FS; c.lineWidth = 1.2; c.strokeRect(x_ - bwid/2 + .5, yT2 + .5, bwid - 1, hB - 1); c.lineWidth = 1;
         if (bw >= 14){ const bps = Math.round(bp*100), tx = (est ? "~" : "")+Lg("Buy ", "شراء ")+bps+"% · "+Lg("Sell ", "بيع ")+(100 - bps)+"%"; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillStyle = bp >= .5 ? FB : FS; c.fillText(tx, x_, Math.min(PB - 6, py(cd.l) + 12)); c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; } }
       if (!m) continue; const x = this.x(i), w = Math.max(6, bw-3), delta = m.b - m.s, dcol = delta >= 0 ? FB : FS;
+      if (m.part && this.fpOn && big){ c.fillStyle = "#f0b90b"; c.textAlign = "center"; c.font = "9px sans-serif"; c.fillText(Lg("partial", "جزئي"), x, Math.max(8, py(cd.h) - 8)); c.font = fs + "px ui-monospace,Menlo,Consolas,monospace"; }
       if (OF.fpDelta !== 0 && this.fpOn && big){ c.fillStyle = dcol; c.textAlign = "center"; c.font = "bold " + Math.max(9, fs - 1) + "px ui-monospace,Menlo,Consolas,monospace"; c.fillText("Δ " + (delta >= 0 ? "+" : "−") + fmt(Math.abs(delta)), x, Math.min(PB - 5, py(cd.l) + (isBo ? 26 : 13))); c.font = fs + "px ui-monospace,Menlo,Consolas,monospace"; }
       if (this.fpOn && (big || mid)){
         const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
@@ -3639,7 +3640,7 @@ class Panel {
       {id:"dot", label:T("indDot"), tip:T("dotTip"), get:() => ch().dotOn, set:v => { ch().dotOn = v; this.state.dot = v; }},
       {id:"dom", label:T("indDom"), tip:T("domTip"), get:() => ch().domOn, set:v => { const c_ = ch(); c_.domOn = v; if (v) c_.colOn = true; this.state.dom = v; if (v) this.state.dcol = true; }},
       {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
-      {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; }},
+      {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; if (v && this.fpFill) this.fpFill(); }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
       {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; if (v){ this.smtT = 0; setTimeout(() => this.smtKick(), 0); } this.smtT = 0; if (!v) ch().smtD = null; }},
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }, sty:"vp", params:[
@@ -3835,6 +3836,16 @@ class Panel {
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn || this.chart.vpOn) this.chart.drawData(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
       (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
+    this.fpFill = async () => {   // footprint of the newest candles from OKX history-trades (a refresh or a new tab used to start with an empty footprint): newest trades first, stops at the start of the previous candle or after 40 calls
+      if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpFilled === sym+"|"+tf) return; const ch = this.chart, d = ch.data; if (d.length < 3) return; this._fpFilled = sym+"|"+tf;
+      const stopT = d[d.length-2].t; let after = "", lastTs = 0;
+      for (let pg = 0; pg < 40; pg++){ if (tok !== this.tok || !ch.fpOn) { this._fpFilled = null; return; }
+        let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ return; }
+        if (!rows || !rows.length) return; let reached = false;
+        rows.forEach(x => { const t = +x.ts; if (t < stopT){ reached = true; return; } lastTs = t; if (seenF.has(x.tradeId)) return; seenF.add(x.tradeId); ch.fpAdd({id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}, true); });
+        ch.drawData(); if (reached) return; after = rows[rows.length-1].tradeId; await new Promise(r => setTimeout(r, 180)); }
+      { let i = d.length - 1; while (i > 0 && d[i].t > lastTs) i--; const mm = lastTs && ch.fp.get(d[i].t); if (mm && lastTs > d[i].t + 1000) mm.part = true; ch.draw(); } };   // the call cap ended inside a candle: that candle is only partly filled and says so
+    if (this.chart.fpOn) setTimeout(() => this.fpFill && this.fpFill(), 2500);
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (!p.error){ absorbEvents(this.flt, p.rows); this.syncMarks(); } }));
     if (subMin){

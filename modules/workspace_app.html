@@ -4804,7 +4804,8 @@ Panel.prototype.resub = function(){
           const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';
           h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });
       if (!shown.length) h += '<tr><td colspan="5" class="m">'+esc(only ? L_("No favorites yet — tap ☆ next to a symbol","لا توجد مفضلة — اضغط ☆ بجانب أي رمز") : T("uniNone"))+'</td></tr>';
-      this.wBox.innerHTML = h+'</table>'; this.flash.clear();
+      const full = h+'</table>'; if (full !== this._wbHtml){ this._wbHtml = full; this.wBox.innerHTML = full; }   // rebuild only when the table really changed: an identical rebuild reloads every coin icon and makes the rows blink
+      this.flash.clear();
       this.wBox.querySelectorAll(".wr").forEach(r => r.onclick = () => { const f = FH_MAP[r.dataset.s]; if (!f) return Ws.broadcast(this, r.dataset.s); if (f.y && YF[f.y]) Ws.broadcast(this, f.y); else r.title = L_("Chart: pick this market's Asset class in the Chart Scanner tab first (Yahoo candles)","الشارت: اختار فئة السوق ده من Asset class في تاب Chart Scanner الأول"); });
       this.wBox.querySelectorAll(".st").forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.st, f = favs(), i = f.indexOf(k); i < 0 ? f.push(k) : f.splice(i, 1); store.set(LS+"_fav", f); this.wDraw(); });
       Hub.extra = new Set(); Ws.panels.forEach(p => { if (p.type === "watch") favs().concat(p.uSyms || []).forEach(z => Hub.extra.add(z)); });
@@ -4812,7 +4813,8 @@ Panel.prototype.resub = function(){
     };
     this.wRender = m => { if (!m) return; M = m; this.fhUpd && this.fhUpd(); if (!m.error){ const seen = new Set(SYMS.concat(favs(), this.uSyms || []));
         seen.forEach(s => { const x = m[s]; if (!x) return; const p = this.pv[s] = this.pv[s] || {last:x.last, dir:0}; if (x.last !== p.last){ p.dir = x.last > p.last ? 1 : -1; p.last = x.last; this.flash.add(s); } }); }
-      this.wDraw(); };
+      this.wDrawSoon(); };
+    this.wDrawSoon = () => { if (this._wdPend) return; this._wdPend = true; setTimeout(() => { this._wdPend = false; this.wDraw(); }, 1000); };   // at most one table rebuild per second
     this.unsubs.push(Hub.sub("tickers", "all", m => this.wRender(m)));
   }
 };

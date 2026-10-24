@@ -1398,6 +1398,7 @@ class CandleChart {
   get PR(){ return this.W - this.axw - this.cw(); } subHs(){ const a = this.subActive().map(k => Math.max(18, Math.round(this.H*this.st[k].hp/100))); const tot = a.reduce((x,y) => x+y, 0), cap = Math.max(0, this.H - 70); /* a pane can shrink to its title strip (18 px) or grow until the price area is 70 px */ return tot > cap && tot ? a.map(v => v*cap/tot) : a; }
   get subH(){ return this.subHs().reduce((x,y) => x+y, 0); }
   get PB(){ return this.H - 20 - this.subH; }
+  drawSoon(){ if (this._rq) return; this._rq = requestAnimationFrame(() => { this._rq = 0; this.draw(); }); }   // live ticks can arrive dozens of times a second per chart: at most one full repaint per frame
   resize(){
     const dpr = window.devicePixelRatio || 1, hw = this.host.clientWidth, hh = this.host.clientHeight; this.S = CHART_S;
     this.W = hw/this.S; this.H = hh/this.S;   // the chart is laid out in its own units: at 50 % zoom it has twice the room, so more candles fit
@@ -3715,7 +3716,7 @@ class Panel {
     const ch = this.chart; if (!ch.data.length) return;
     const last = ch.data[ch.data.length-1];
     if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); if (ch.autoCenter) ch.followLatest(); ch.draw(); this.showPx(row.c, "ws");
+    ch.calcEma(); if (ch.autoCenter) ch.followLatest(); ch.drawSoon(); this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
@@ -3774,7 +3775,7 @@ class Panel {
       if (tok !== this.tok || !this.chart.data.length) return;
       const px = +data[0].last, ch = this.chart, last = ch.data[ch.data.length-1];
       if (!(px > 0)) return;
-      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); ch.calcEma(); ch.draw(); this.showPx(px, "ws");
+      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); ch.calcEma(); ch.drawSoon(); this.showPx(px, "ws");
     }));
     this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     if (subMin){ this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; }; return; }

@@ -52,4 +52,4 @@ def test_two_tabs_do_not_freeze_the_chart():
 
 
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_is_free_by_default(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")

@@ -130,6 +130,7 @@ td{padding:1px 4px;white-space:nowrap}
 .fibpop.gp button span.ic{display:inline-block;width:18px;text-align:center;color:#f0b90b}
 .fibpop.gp button{display:flex;align-items:center;gap:8px;width:100%;height:26px;justify-content:flex-start;padding:0 8px;background:none;border:0;color:#eaecef;cursor:pointer;border-radius:3px}
 .fibpop.gp button::after{content:attr(title);font-size:11px;white-space:nowrap}.fibpop.gp button:hover,.fibpop.gp button.on{background:var(--line);color:#f0b90b}
+.fl{font-size:9px;border-radius:3px;padding:0 3px;margin-inline-start:4px;border:1px solid;font-weight:700}.fl.np{color:#f0b90b;border-color:#f0b90b}.fl.sb{color:#0ecb81;border-color:#0ecb81}.fl.ss{color:#f6465d;border-color:#f6465d}
 .lk{display:flex;gap:4px;align-items:center;padding:4px 6px;flex-wrap:nowrap;overflow:hidden}
 .lk a{color:var(--txt);text-decoration:none;border:1px solid var(--line);border-radius:4px;padding:1px 7px;font-size:11px;white-space:nowrap;background:var(--panel2)}
 .lk a:hover{border-color:var(--gold);color:var(--gold)}
@@ -1976,6 +1977,14 @@ Object.assign(CandleChart.prototype, {
     (pl.tps || []).slice(0, 3).forEach((v, n) => { const ty = py(v); c.fillStyle = col; c.beginPath(); c.arc(x, ty, 3, 0, 6.3); c.fill(); c.fillText("TP"+(n+1)+" "+v.toFixed(dc), x+9, ty); });
     c.fillStyle = "#f6465d"; c.beginPath(); c.arc(x, py(pl.stop), 3, 0, 6.3); c.fill(); c.fillText("SL "+pl.stop.toFixed(dc), x+9, py(pl.stop));
   },
+  flowLevels(ft){   // ft = first touch: ignore the current bar, so a level the price is reaching right now still counts as untouched. Footprint levels price has not traded back into yet (naked POC, stacked imbalance zones) over the last 40 bars: shared with the DOM, tape and limit tracker
+    const now = performance.now(), ck = ft ? "_flF" : "_flC"; if (this[ck] && now - this[ck].t < 1000) return this[ck].v; const out = [], d = this.data, step = this._fpStep, OF = this.st.of;
+    if (step && d.length && this.fpOn){ for (let i = Math.max(0, d.length - 41); i < d.length; i++){ const m = this.fp.get(d[i].t); if (!m || !m.px.size) continue;
+        const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
+        const an = this.fpAn(m, rows, step, OF), touched = (lo, hi) => { for (let j = i + 1; j < (ft ? d.length - 1 : d.length); j++) if (d[j].l <= hi && d[j].h >= lo) return true; return false; };
+        if (OF.fpNaked !== 0 && an.poc != null && i < d.length - 1){ const pp = an.poc*step; if (!touched(pp - step/2, pp + step/2)) out.push({kind:"npoc", lo:pp, hi:pp, t:d[i].t}); }
+        if (OF.fpStack !== 0) an.runs.forEach(rn => { const lo = (rn.k0 - .5)*step, hi = (rn.k1 + .5)*step; if (!touched(lo, hi)) out.push({kind:"stack", side:rn.side, lo, hi, t:d[i].t}); }); } }
+    this[ck] = {t:now, v:out}; return out; },
   fpAn(m, rows, step, OF){   // rule-based reading of one footprint bar (descriptions only): diagonal imbalances, stacked runs, POC, unfinished extremes
     const R = OF.fpImb || 3, MS = OF.fpStk || 3, ck = [step, R, MS, OF.fpMin || 0, OF.fpDiag, m.b + m.s, rows.size].join("|"); if (m._an && m._ck === ck) return m._an;
     const ks = [...rows.keys()].sort((a, b) => a - b), tot = ks.reduce((a, k) => a + rows.get(k).b + rows.get(k).s, 0), minV = (OF.fpMin || 0)/100*(tot/Math.max(1, ks.length));
@@ -1996,7 +2005,7 @@ Object.assign(CandleChart.prototype, {
     const big = this.fpOn && bw >= 44, mid = bw >= 20, fs = Math.max(9, Math.min(15, Math.round(bw/9)));
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step0 = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
-    const OF = this.st.of, FM = OF.fpMode || "bidask", step = step0*(OF.fpRow || 1); c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
+    const OF = this.st.of, FM = OF.fpMode || "bidask", step = step0*(OF.fpRow || 1); this._fpStep = step; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
     const FB = OF.fpBuy || OF.color, FS = OF.fpSell || OF.color2;   // footprint colours: own override, else the Depth-of-Trade buy / sell colours (added 2026-10-19)
     const BO = 20, brk = i => { if (i < BO) return 0; let hh = -Infinity, ll = Infinity; for (let j = i-BO; j < i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return d[i].c > hh ? 1 : d[i].c < ll ? -1 : 0; };   // closed beyond the previous 20-bar range
     for (let i = i0; i <= i1; i++){
@@ -3966,7 +3975,7 @@ class Panel {
     { const lv = el("select"); lv.title = Lg("Levels shown on each side","عدد المستويات على كل جهة"); [6, 12, 20, 30, 40].forEach(n => { const o = el("option", null, String(n)); o.value = n; lv.append(o); }); lv.value = String(this.state.dlev || 12);
       lv.onchange = () => { this.state.dlev = +lv.value; Ws.save(); this.gRedraw && this.gRedraw(); }; ["mousedown", "pointerdown", "click", "wheel"].forEach(ev => lv.addEventListener(ev, e => e.stopPropagation())); tb.append(lv);
       const cu = el("button", null, "Σ"); cu.title = Lg("Cumulative size from the best price outward","الحجم التراكمي من أفضل سعر للخارج"); cu.classList.toggle("on", !!this.state.dcum); cu.onclick = () => { this.state.dcum = !this.state.dcum; cu.classList.toggle("on", !!this.state.dcum); Ws.save(); this.gRedraw && this.gRedraw(); }; tb.append(cu); }
-    tb.append(Ws.fmtBtn());
+    tb.append(Ws.fmtBtn(), Ws.ftBtn());
     this.domBox = el("div"); this.body.append(tb, this.domBox); this.resub();
   }
   /* ---- tape ---- */
@@ -4881,7 +4890,7 @@ Panel.prototype.resub = function(){
       const gm = (this.state.gstep || {})[sym] || 0, tick = tickOfLevels(book.bids.concat(book.asks)), gs = groupStepFor(gm, tick);
       this.gSel && this.gSel.sync(gm, tick);
       const bk = gs ? Object.assign({}, book, {bids:groupBook(book.bids, gs, "bid"), asks:groupBook(book.asks, gs, "ask")}) : book;
-      const res = renderDom(bk, tape && !tape.error ? tape : null, prevSizes, {lev:this.state.dlev || 12, cum:!!this.state.dcum}); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
+      const res = renderDom(bk, tape && !tape.error ? tape : null, prevSizes, {lev:this.state.dlev || 12, cum:!!this.state.dcum, sym:this.state.sym, tol:gs || tick || 0, conf:Ws.flowConf(this.state.sym)}); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
     };
     this.gRedraw = () => { prevSizes = null; draw(); };
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
@@ -4992,13 +5001,14 @@ function renderDom(book, tape, prev, opts){
   const line = (x, side) => {
     sizes[x.p] = x.q; const big = med && x.q >= settings.big*med, hit = hits[x.p], grew = prev && (prev[x.p] == null || x.q >= prev[x.p]*1.25);
     const isAsk = side === "ask", pc = ab.has(x.p) ? "ab" : hit ? (hit==="Buy" ? "hb" : "hs") : "";
-    return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew,cumOf[x.p]))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew,cumOf[x.p]) : "")+'</td></tr>';
+    return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew,cumOf[x.p]))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+flowTag(opts && opts.sym, x.p, (opts && opts.tol) || 0)+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew,cumOf[x.p]) : "")+'</td></tr>';
   };
   asks.slice().reverse().forEach(x => rows += line(x,"ask"));
   if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">'+Lg("spread ","الفارق ")+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
   bids.forEach(x => rows += line(x,"bid"));
   const sB = bids.reduce((a, x) => a + x.q, 0), sA = asks.reduce((a, x) => a + x.q, 0), im = (sA + sB) ? (sB - sA)/(sA + sB)*100 : 0, bpc = (sA + sB) ? 100*sB/(sA + sB) : 50;
-  const strip = '<div class="stat" style="padding:2px 6px">'+Lg("Bids ","طلب ")+'<b class="g">'+fmtQ(sB)+'</b> · '+Lg("Asks ","عرض ")+'<b class="rd">'+fmtQ(sA)+'</b> · '+Lg("imbalance ","اختلال ")+'<b class="'+(im >= 0 ? "g" : "rd")+'">'+(im >= 0 ? "+" : "")+im.toFixed(0)+'%</b> <span class="m">('+LV+' '+Lg("levels","مستوى")+')</span></div><div class="bar2"><div style="width:'+bpc.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bpc).toFixed(0)+'%;background:#f6465d"></div></div>';
+  const cf = opts && opts.conf, confHtml = cf && cf.dir ? ' · <b style="color:'+(cf.dir > 0 ? "#0ecb81" : "#f6465d")+'" title="'+esc(Lg("Flow confluence v1 (a reading, not advice): level + delta + tape + absorption","توافق الفلو v1 (قراءة مش نصيحة): مستوى + دلتا + شريط + امتصاص"))+'">'+Lg("Flow ","فلو ")+(cf.dir > 0 ? "▲" : "▼")+' '+cf.n+'/4 <span class="m" style="font-weight:400">'+cf.parts.join("+")+'</span></b>' : "";
+  const strip = '<div class="stat" style="padding:2px 6px">'+Lg("Bids ","طلب ")+'<b class="g">'+fmtQ(sB)+'</b> · '+Lg("Asks ","عرض ")+'<b class="rd">'+fmtQ(sA)+'</b> · '+Lg("imbalance ","اختلال ")+'<b class="'+(im >= 0 ? "g" : "rd")+'">'+(im >= 0 ? "+" : "")+im.toFixed(0)+'%</b> <span class="m">('+LV+' '+Lg("levels","مستوى")+')</span>'+confHtml+'</div><div class="bar2"><div style="width:'+bpc.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bpc).toFixed(0)+'%;background:#f6465d"></div></div>';
   return {html:strip+'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
 }
 const TAPE_COLS = [24,20,22,18,16], LIM_COLS = [14,10,20,16,28,12];
@@ -5026,7 +5036,7 @@ function renderTape(panel, rows){
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
     const bg = "rgba("+rgb+",.07)", edge = "", mk = r.absorb ? '<i class="mk a"></i>' : r.tier === "whale" ? '<i class="mk w"></i>' : r.tier === "smart" ? '<i class="mk s"></i>' : "";   // no filled rows: the marker carries the meaning
     const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " "+Lg("ABSORB","امتصاص") : "");
-    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+mk+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
+    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+mk+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+flowTag(panel.state.sym, r.p, r.p*0.0001)+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
 }
@@ -5074,7 +5084,7 @@ function renderEvents(panel, evAll){
   const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:Lg("absorption","امتصاص")};
   const gly = {PLACED:"●", PULLED:"✕", FILLED:"■", ABSORB:"◆"}, nm = {PLACED:"NEW", PULLED:"PULL", FILLED:"FILL", ABSORB:"ABS"}, ev0 = {PLACED:Lg("new","جديد"), PULLED:Lg("pulled (possible fake wall)","اتشال (جدار وهمي محتمل)"), FILLED:Lg("traded","اتنفذ"), ABSORB:Lg("absorbed","امتصاص")};
   let h = '<div class="evl">'+["PLACED","PULLED","FILLED","ABSORB"].map(k => '<b style="color:'+col[k]+'">'+gly[k]+'</b> '+ev0[k]).join(" &nbsp; ")+'</div><table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
-  ev.slice(0,60).forEach(e => { const key = e.ev === "ABSORB" || e.ev === "PULLED"; h += '<tr'+(now-e.t < 1500 ? ' class="evf"' : "")+(key ? ' style="box-shadow:inset 2px 0 0 '+col[e.ev]+'"' : "")+'><td title="'+esc(note[e.ev])+'"><b style="color:'+col[e.ev]+'">'+gly[e.ev]+'</b> '+nm[e.ev]+'</td><td class="'+(e.side==="bid"?"g":"rd")+'">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
+  ev.slice(0,60).forEach(e => { const key = e.ev === "ABSORB" || e.ev === "PULLED"; h += '<tr'+(now-e.t < 1500 ? ' class="evf"' : "")+(key ? ' style="box-shadow:inset 2px 0 0 '+col[e.ev]+'"' : "")+'><td title="'+esc(note[e.ev])+'"><b style="color:'+col[e.ev]+'">'+gly[e.ev]+'</b> '+nm[e.ev]+'</td><td class="'+(e.side==="bid"?"g":"rd")+'">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+flowTag(panel.state.sym, e.p, e.p*0.0001)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';
 }
 
@@ -5118,6 +5128,42 @@ Ws.fmtPop = anchor => {
   { const c1 = el("input"); c1.type = "checkbox"; c1.checked = Fmt.sep; c1.onchange = () => { Fmt.sep = c1.checked; apply(); }; row(Lg("Thousands separators","فواصل الآلاف"), c1);
     const c2 = el("input"); c2.type = "checkbox"; c2.checked = Fmt.cmp; c2.onchange = () => { Fmt.cmp = c2.checked; apply(); }; row(Lg("Compact sizes (K / M)","أحجام مختصرة (K / M)"), c2); }
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+};
+/* ---- Flow confluence v1 (frozen rules) + its forward test. DESCRIPTION, not advice: it counts how many of four readings agree at a footprint level, writes every firing to a log and measures what price did afterwards.
+   Rules (do not edit in place; a change makes a new version): 1) price is inside an untouched stacked-imbalance zone of the chart's footprint (gives the side: buy stack = up, sell stack = down);
+   2) the current bar's delta has the same sign; 3) the last 60 s of tape is > 55 % in that direction; 4) an absorption by the same side within 3 rows in the last 2 min. Fires at 3 of 4 with rule 1 required; 5 min cool-down per symbol and side. ---- */
+Ws.flowConf = sym => {
+  const P = Ws.panels.find(p => p.chart && p.chart.sym === sym && p.chart.fpOn); if (!P) return null; const c = P.chart, d = c.data; if (!d.length) return null;
+  const px = d[d.length - 1].c, tol = c._fpStep || 0, hit = c.flowLevels(true).filter(l => l.kind === "stack" && px >= l.lo - tol && px <= l.hi + tol);
+  if (!hit.length) return {n:0, dir:0, parts:[], px};
+  const dir = hit[0].side === "b" ? 1 : -1, parts = ["level"], m = c.fp.get(d[d.length - 1].t); if (m && (m.b - m.s)*dir > 0) parts.push("delta");
+  const tp = Hub.last["trades|"+sym]; if (tp && !tp.error){ const now = Date.now(), rows = (tp.all || tp.rows || []).filter(r => now - r.t < 60000); let b = 0, sl = 0; rows.forEach(r => { if (r.side === "Buy") b += r.q; else sl += r.q; });
+    if (b + sl > 0 && ((dir > 0 && b/(b + sl) > .55) || (dir < 0 && sl/(b + sl) > .55))) parts.push("tape"); }
+  if (P.flt && P.flt.events && P.flt.events.some(e => e.ev === "ABSORB" && Date.now() - e.t < 120000 && ((dir > 0 && e.side === "bid") || (dir < 0 && e.side === "ask")) && Math.abs(e.p - px) <= tol*3)) parts.push("absorb");
+  return {n:parts.length, dir, parts, px};
+};
+const FlowTest = (() => { let log = []; try { log = JSON.parse(localStorage.getItem(LS+"_ft") || "[]"); } catch(e){}
+  const save = () => { try { localStorage.setItem(LS+"_ft", JSON.stringify(log.slice(-400))); } catch(e){} }, HZ = [["m5", 300000], ["m30", 1800000], ["h1", 3600000]];
+  const lastPx = sym => { const P = Ws.panels.find(p => p.chart && p.chart.sym === sym && p.chart.data.length); return P ? P.chart.data[P.chart.data.length - 1].c : null; };
+  const tick = () => { if (document.hidden) return; Ws.panels.forEach(P => { if (!P.chart || !P.chart.fpOn) return; const sym = P.chart.sym, cf = Ws.flowConf(sym); if (!cf || cf.n < 3 || !cf.dir) return;
+      if (log.some(e => e.sym === sym && e.dir === cf.dir && Date.now() - e.t < 300000)) return; log.push({t:Date.now(), sym, dir:cf.dir, px:cf.px, parts:cf.parts.join("+"), v:1, r:{}}); save(); }); };
+  const evalPending = () => { let ch = false; const now = Date.now(); log.forEach(e => HZ.forEach(([k, ms]) => { if (e.r[k] == null && now - e.t >= ms){ const px = lastPx(e.sym); if (px != null){ e.r[k] = +(((px - e.px)/e.px)*1e4*e.dir).toFixed(2); ch = true; } } })); if (ch) save(); };   // signed move in bps in the direction of the reading
+  const stats = k => { const a = log.filter(e => e.r[k] != null).map(e => e.r[k]), n = a.length; if (!n) return {n:0}; const mean = a.reduce((x, y) => x + y, 0)/n, sd = Math.sqrt(a.reduce((x, y) => x + (y - mean)**2, 0)/Math.max(1, n - 1)), t = n > 1 && sd > 0 ? mean/(sd/Math.sqrt(n)) : 0;
+    const h = Math.floor(n/2), m1 = h ? a.slice(0, h).reduce((x, y) => x + y, 0)/h : 0, m2 = n - h ? a.slice(h).reduce((x, y) => x + y, 0)/(n - h) : 0;
+    return {n, mean, hit:100*a.filter(v => v > 0).length/n, t, ok:n >= 100 && t > 3 && m1 > 0 && m2 > 0}; };
+  setInterval(tick, 5000); setInterval(evalPending, 10000);
+  return {log:() => log, stats, HZ, clear(){ log = []; save(); }}; })();
+Ws.ftBtn = () => { const b = el("button", null, "📊"); b.title = Lg("Flow confluence: log and forward test","توافق الفلو: السجل والاختبار الأمامي"); b.onclick = e => { e.stopPropagation(); Ws.ftPop(b); }; b.onpointerdown = e => e.stopPropagation(); return b; };
+Ws.ftPop = anchor => {
+  document.querySelectorAll(".stpop").forEach(x => x.remove()); const pop = el("div", "stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth - 380))+"px"; pop.style.top = (r.bottom + 3)+"px"; pop.style.minWidth = "400px"; pop.style.maxHeight = "70vh"; pop.style.overflowY = "auto"; pop.style.display = "block";
+  const L = FlowTest.log(), nm = {m5:"5m", m30:"30m", h1:"1h"};
+  let h = '<div style="font-weight:700;margin-bottom:4px">'+esc(Lg("Flow confluence v1: forward test","توافق الفلو v1: الاختبار الأمامي"))+'</div><div class="m" style="font-size:10px;line-height:1.5;margin-bottom:6px">'+esc(Lg("Fires when 3 of 4 agree at an untouched stacked-imbalance zone: level, bar delta, tape share, absorption. A reading, not advice. It counts as evidence only with n ≥ 100, t > 3 and both halves positive.","بتسجّل لما 3 من 4 يتفقوا عند منطقة إمبالانس مكدّس لسه ما اتلمستش: المستوى، دلتا الشمعة، حصة الشريط، الامتصاص. قراءة مش نصيحة. بتعتبر دليل بس لما n ≥ 100 وt > 3 والنصين موجبين."))+'</div>';
+  h += '<table class="fx"><tr><th>'+esc(Lg("after","بعد"))+'</th><th class="r">n</th><th class="r">'+esc(Lg("avg bps","متوسط نقطة"))+'</th><th class="r">'+esc(Lg("hit %","نجاح %"))+'</th><th class="r">t</th><th>'+esc(Lg("verdict","الحكم"))+'</th></tr>';
+  FlowTest.HZ.forEach(([k]) => { const st = FlowTest.stats(k); h += '<tr><td>'+nm[k]+'</td><td class="r">'+st.n+'/100</td>'+(st.n ? '<td class="r '+(st.mean >= 0 ? "g" : "rd")+'">'+st.mean.toFixed(1)+'</td><td class="r">'+st.hit.toFixed(0)+'</td><td class="r">'+st.t.toFixed(1)+'</td><td style="font-size:10px">'+esc(st.ok ? Lg("passes the gate","عدّى البوابة") : Lg("not evidence yet","لسه مش دليل"))+'</td>' : '<td class="r m">–</td><td class="r m">–</td><td class="r m">–</td><td class="m" style="font-size:10px">'+esc(Lg("waiting","مستني"))+'</td>')+'</tr>'; });
+  h += '</table><div style="margin-top:6px;font-weight:600">'+esc(Lg("Latest firings","آخر التسجيلات"))+' ('+L.length+')</div>';
+  h += L.length ? '<table class="fx">'+L.slice(-8).reverse().map(e => '<tr><td>'+hms(e.t)+'</td><td>'+esc(e.sym)+'</td><td class="'+(e.dir > 0 ? "g" : "rd")+'">'+(e.dir > 0 ? "▲" : "▼")+'</td><td class="r">'+fmtP(e.px)+'</td><td class="m" style="font-size:10px">'+esc(e.parts)+'</td><td class="r m">'+["m5", "m30", "h1"].map(k => e.r[k] == null ? "–" : e.r[k]).join(" / ")+'</td></tr>').join("")+'</table>' : '<div class="m">'+esc(Lg("Nothing yet. Turn the footprint on for a chart and let it run.","لسه مفيش. شغّل الفوت برنت على شارت وسيبه شغال."))+'</div>';
+  const clr = el("button", null, Lg("Clear the log","امسح السجل")); clr.style.marginTop = "6px"; clr.onclick = () => { FlowTest.clear(); pop.remove(); }; clr.onpointerdown = e => e.stopPropagation();
+  pop.innerHTML = h; pop.append(clr); document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
 Ws.sensPop = anchor => {
   document.querySelectorAll(".stpop").forEach(x => x.remove()); const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-300))+"px"; pop.style.top = (r.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "240px";
@@ -5170,6 +5216,11 @@ document.addEventListener("contextmenu", e => {
   if (!items.length) items.push([Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
   ctxShow(e.clientX, e.clientY, items);
 }, true);
+Ws.flowLevels = sym => { const c = Ws.panels.find(p => p.chart && p.chart.sym === sym && p.chart.fpOn); return c ? c.chart.flowLevels() : []; };
+function flowTag(sym, p, tol){   // a small badge when this price sits on a footprint level of the chart (nPOC = naked POC, SI = stacked imbalance, with its side)
+  if (!sym) return ""; const L = Ws.flowLevels(sym); if (!L.length) return ""; const hit = L.filter(l => p >= l.lo - tol && p <= l.hi + tol); if (!hit.length) return "";
+  return hit.slice(0, 2).map(l => l.kind === "npoc" ? '<b class="fl np" title="'+esc(Lg("Naked POC of an earlier footprint bar: price has not traded back through it","POC أعزل لشمعة سابقة: السعر ما رجعش عدّى عليه"))+'">nPOC</b>'
+    : '<b class="fl '+(l.side === "b" ? "sb" : "ss")+'" title="'+esc(Lg("Stacked imbalance zone of an earlier footprint bar: price has not traded back into it","منطقة إمبالانس مكدّس لشمعة سابقة: السعر ما رجعلهاش"))+'">SI'+(l.side === "b" ? "▲" : "▼")+'</b>').join(""); }
 /* Depth-of-Trade settings (colours + sizes), ATAS-style */
 Ws.ofPanel = (anchor, chart, onChange) => {
   document.querySelectorAll(".stpop").forEach(x => x.remove()); const OF = chart.st.of, ar = lang === "ar", L = (e, a) => ar ? a : e;

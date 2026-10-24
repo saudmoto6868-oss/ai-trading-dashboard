@@ -1,0 +1,32 @@
+name: Order Flow render regression
+
+on:
+  push:
+    branches: ["fix/orderflow-dedicated-panel-clean"]
+    paths:
+      - "modules/workspace_app.html"
+      - "tests/test_orderflow_render_policy.py"
+      - ".github/workflows/orderflow-render-regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "modules/workspace_app.html"
+      - "tests/test_orderflow_render_policy.py"
+      - ".github/workflows/orderflow-render-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Order Flow render policy regression
+        run: python tests/test_orderflow_render_policy.py

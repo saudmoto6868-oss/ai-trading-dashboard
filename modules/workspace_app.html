@@ -2000,6 +2000,15 @@ Object.assign(CandleChart.prototype, {
     const hi = ks.length ? rows.get(ks[ks.length - 1]) : null, lo = ks.length ? rows.get(ks[0]) : null;
     m._ck = ck; return (m._an = {imb, runs, poc, hiK:ks[ks.length - 1], loK:ks[0], hiUnf:!!(hi && hi.b > 0 && hi.s > 0), loUnf:!!(lo && lo.b > 0 && lo.s > 0)});
   },
+  cvdAn(d, fp, N){   // cumulative delta over the bars that have footprint data, and divergences on CLOSED bars: price makes a new N-bar extreme but CVD does not confirm it (a description of the past N bars, not a forecast)
+    const cvd = new Array(d.length).fill(null), div = []; let acc = 0, seen = false;
+    for (let i = 0; i < d.length; i++){ const m = fp.get(d[i].t); if (!m) continue; acc += m.b - m.s; cvd[i] = acc; seen = true; }
+    if (!seen) return {cvd, div};
+    for (let i = N; i < d.length - 1; i++){ if (cvd[i] == null) continue; let hh = -Infinity, ll = Infinity, ch = -Infinity, cl = Infinity, n = 0;
+      for (let j = i - N; j < i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); if (cvd[j] != null){ ch = Math.max(ch, cvd[j]); cl = Math.min(cl, cvd[j]); n++; } }
+      if (n < N/2) continue;
+      if (d[i].h > hh && cvd[i] < ch) div.push({i, side:"bear"}); else if (d[i].l < ll && cvd[i] > cl) div.push({i, side:"bull"}); }
+    return {cvd, div}; },
   paintFp(c, py, dec, i0, i1, PB){
     const bw = this.bw, d = this.data, fmt = v => v >= 1000 ? (v/1000).toFixed(1)+"k" : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
     const big = this.fpOn && bw >= 44, mid = bw >= 20, fs = Math.max(9, Math.min(15, Math.round(bw/9)));
@@ -2050,6 +2059,15 @@ Object.assign(CandleChart.prototype, {
             c.strokeStyle = "#c8ced6"; c.beginPath(); c.arc(x, yy + dir*(-5), 3, 0, 6.3); c.stroke(); }); }
       }
     }
+    if (OF.fpCvd !== 0 && PB > 160){   // CVD strip at the bottom of the plot + divergence marks on the candles
+      const N = 12, A = this.cvdAn(d, this.fp, N), yT = PB*0.8, yB = PB - 6; let mn = Infinity, mx2 = -Infinity;
+      for (let i = i0; i <= i1; i++) if (A.cvd[i] != null){ mn = Math.min(mn, A.cvd[i]); mx2 = Math.max(mx2, A.cvd[i]); }
+      if (mn < mx2){ const yy = v => yB - (v - mn)/(mx2 - mn)*(yB - yT); c.strokeStyle = "#4aa3ff"; c.globalAlpha = .85; c.lineWidth = 1.4; c.beginPath(); let st = false;
+        for (let i = i0; i <= i1; i++){ if (A.cvd[i] == null) continue; const X = this.x(i); if (!st){ c.moveTo(X, yy(A.cvd[i])); st = true; } else c.lineTo(X, yy(A.cvd[i])); } c.stroke(); c.globalAlpha = 1; c.lineWidth = 1;
+        c.fillStyle = "#4aa3ff"; c.font = "9px sans-serif"; c.textAlign = "left"; c.fillText("CVD", this.x(i0) + 2, yT - 2); }
+      A.div.forEach(({i, side}) => { if (i < i0 || i > i1) return; const X = this.x(i), up = side === "bull", yy = up ? py(d[i].l) + 9 : py(d[i].h) - 9; c.fillStyle = up ? "#0ecb81" : "#f6465d"; c.beginPath();
+        if (up){ c.moveTo(X, yy - 5); c.lineTo(X - 4, yy + 2); c.lineTo(X + 4, yy + 2); } else { c.moveTo(X, yy + 5); c.lineTo(X - 4, yy - 2); c.lineTo(X + 4, yy - 2); } c.fill();
+        if (bw >= 14){ c.font = "bold 9px sans-serif"; c.textAlign = "center"; c.fillText(Lg("CVD div", "تباعد CVD"), X, up ? yy + 12 : yy - 8); } }); }
     c.restore();
   },
   paintXhCol(c, PR, PB){   // crosshair on the order-flow column: the time (and price) of this chart's pointer, or the time shared from a linked chart
@@ -5254,7 +5272,7 @@ Ws.ofPanel = (anchor, chart, onChange) => {
     const mv = el("select"); [0, 10, 25, 50, 100].forEach(v => mv.append(Object.assign(el("option"), {value:v, textContent:v ? v + "%" : L("off","مقفول")}))); mv.value = String(OF.fpMin || 0); mv.onchange = () => { OF.fpMin = +mv.value; onChange(); }; row(L("Imbalance: min row volume (% of the bar's average row)","الإمبالانس: أقل حجم للصف (% من متوسط صف الشمعة)"), mv);
     { const fm_ = el("select"); [["bidask", L("Sell × Buy per row","بيع × شراء لكل صف")], ["delta", L("Delta per row (heat)","دلتا كل صف (حراري)")], ["volume", L("Total volume per row (heat)","إجمالي حجم الصف (حراري)")]].forEach(([v, l]) => fm_.append(Object.assign(el("option"), {value:v, textContent:l}))); fm_.value = OF.fpMode || "bidask"; fm_.onchange = () => { OF.fpMode = fm_.value; onChange(); }; row(L("Footprint cells show","خلايا الفوتبرنت تعرض"), fm_);
       const fr_ = el("select"); [[1, L("Auto","تلقائي")], [2, "×2"], [5, "×5"], [10, "×10"]].forEach(([v, l]) => fr_.append(Object.assign(el("option"), {value:v, textContent:l}))); fr_.value = String(OF.fpRow || 1); fr_.onchange = () => { OF.fpRow = +fr_.value; onChange(); }; row(L("Footprint row size (prices grouped)","حجم صف الفوتبرنت (تجميع الأسعار)"), fr_); }
-    chk("fpDiag", L("Diagonal imbalance (off = same row)","إمبالانس قُطري (مقفول = نفس الصف)")); chk("fpStack", L("Stacked imbalance zones","مناطق الإمبالانس المكدّس")); chk("fpNaked", L("Naked POC (runs on until traded)","POC الأعزل (يمتد لحد ما يتلمس)")); chk("fpAuc", L("Unfinished auction marks","علامات المزاد غير المنتهي")); chk("fpDelta", L("Bar delta label","رقم دلتا الشمعة")); }
+    chk("fpDiag", L("Diagonal imbalance (off = same row)","إمبالانس قُطري (مقفول = نفس الصف)")); chk("fpStack", L("Stacked imbalance zones","مناطق الإمبالانس المكدّس")); chk("fpNaked", L("Naked POC (runs on until traded)","POC الأعزل (يمتد لحد ما يتلمس)")); chk("fpAuc", L("Unfinished auction marks","علامات المزاد غير المنتهي")); chk("fpDelta", L("Bar delta label","رقم دلتا الشمعة")); chk("fpCvd", L("CVD strip + divergence marks","شريط CVD وعلامات التباعد")); }
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);

@@ -63,8 +63,30 @@ def test_linked_panels_and_forward_test():
         assert k in H, k
 
 
+def test_cvd_and_divergence():
+    for k in ("cvdAn(d, fp, N){", "this.cvdAn(d, this.fp, N)", "OF.fpCvd !== 0", "chk(\"fpCvd\""):   # CVD strip and divergence marks are wired into the painter and the settings
+        assert k in H, k
+    node = shutil.which("node")
+    if not node:
+        return
+    i = H.index("cvdAn(d, fp, N){"); j = H.index("
+  paintFp(c, py", i)
+    js = "const O = {" + H[i:j].strip().rstrip(",") + """};
+const mk = rows => { const d = [], fp = new Map(); rows.forEach(([h, l, b, s], t) => { d.push({t, h, l}); fp.set(t, {b, s}); }); return {d, fp}; };
+const bear = []; for (let t = 0; t < 14; t++) bear.push([100 + t, 99 + t, t < 12 ? 10 : 1, t < 12 ? 2 : 9]);
+const ok = []; for (let t = 0; t < 14; t++) ok.push([100 + t, 99 + t, 10, 2]);
+let a = mk(bear), b = mk(ok);
+console.log(JSON.stringify([O.cvdAn(a.d, a.fp, 12).div, O.cvdAn(b.d, b.fp, 12).div, O.cvdAn(a.d, new Map(), 12).div]));""" 
+    r = subprocess.run([node, "-e", js], capture_output=True)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")
+    bear, ok, none = json.loads(r.stdout.decode("utf-8"))
+    assert bear == [{"i": 12, "side": "bear"}]   # new high in price, CVD does not confirm; the live (last) bar is never flagged
+    assert ok == [] and none == []               # a confirmed move or no data: no mark
+
+
 if __name__ == "__main__":
     test_rules()
     test_wired_into_the_painter()
     test_linked_panels_and_forward_test()
+    test_cvd_and_divergence()
     print("ok footprint rules")

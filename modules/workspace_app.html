@@ -142,7 +142,7 @@ td{padding:1px 4px;white-space:nowrap}
 th.cx-over{box-shadow:inset 2px 0 0 #f0b90b}
 .cx-h{position:absolute;top:0;inset-inline-end:0;width:6px;height:100%;cursor:col-resize;user-select:none;touch-action:none}
 .cx-h:hover{background:rgba(240,185,11,.35)}
-table.colx.fx td,table.colx.fx th{white-space:nowrap}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif}
+table.colx.fx td,table.colx.fx th{white-space:nowrap}.wt td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}.wt tr.wr{cursor:pointer}.wt tr.wr:hover{background:rgba(255,255,255,.04)}.wt tr.wh td{color:#f0b90b;font-size:10px;background:var(--panel);border-top:0}.wt .fu{animation:wfu .9s}.wt .fd{animation:wfd .9s}.wt .ar{font-size:9px}.wt .st{cursor:pointer;color:#5a6b7d;font-size:13px}.wt .st.on{color:#f0b90b}.wt .stc{width:16px;padding:0}.amd{border:1px solid;border-radius:8px;padding:0 5px;font-size:10px;font-family:sans-serif;background:transparent;opacity:.8;font-weight:400}
 @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .pop{position:absolute;inset:0;background:var(--panel);z-index:5;overflow:auto;padding:8px}
 table.fx{table-layout:fixed}table.fx td,table.fx th{overflow:hidden;text-overflow:ellipsis}
@@ -975,7 +975,7 @@ function okx(path){
   let shared = 0; try { shared = +(localStorage.getItem("okx_cool_all") || 0); } catch(e){}   // another tab of this browser hit the limit: this tab waits too (both tabs share one IP)
   if (shared > Date.now() + 20000) shared = 0;   // never trust a pause that is far in the future
   const liveTick = /\/market\/candles\?/.test(path) && /[?&]limit=(?:[1-9]|[1-3]\d|40)(?:&|$)/.test(path);   // the small refresh poll of an open chart (2 s loop): a healthy tab keeps it alive, only the big history loads wait for the other tab's pause
-  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
+  const tickP = /\/market\/tickers\?/.test(path), cool = tickP ? (OKX_COOL_P[path] || 0) : Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared);   // the price-list poll is not held back by a candle 429 pause (that left every row empty) if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
   if (rub && Date.now() < OKX_RUB_DEAD) return Promise.reject(new Error("OKX stats are blocked from the browser (CORS): skipped"));
@@ -993,7 +993,7 @@ function okx(path){
     }
     // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
     // the shared (cross-tab) pause is set once and never extended by repeated 429s (a blocked tab used to keep the other tab frozen), with jitter so two tabs do not retry together
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; const until = Date.now() + 8000 + Math.floor(Math.random()*7000); OKX_COOL_ALL = Math.max(OKX_COOL_ALL, until); try { if ((+(localStorage.getItem("okx_cool_all") || 0)) < Date.now()) localStorage.setItem("okx_cool_all", String(until)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + (tickP ? 4000 : 30000); const until = Date.now() + 8000 + Math.floor(Math.random()*7000); OKX_COOL_ALL = Math.max(OKX_COOL_ALL, until); try { if ((+(localStorage.getItem("okx_cool_all") || 0)) < Date.now()) localStorage.setItem("okx_cool_all", String(until)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
@@ -1287,6 +1287,12 @@ const Hub = {
     if (!this.timers[key]) this.start(key, kind, sym);
     return () => { const s = this.subs[key]; s.delete(cb); if (!s.size){ clearTimeout(this.timers[key]); delete this.timers[key]; delete this.last[key]; if (kind === "trades") delete this.an[sym]; } };
   },
+  tkKeep(m, AS){   // last good price per symbol (also kept in this browser): a failed / rate-limited OKX ticker call shows the previous number with a 'delayed' marker instead of an empty row
+    if (!this.tkGood){ this.tkGood = {}; try { this.tkGood = JSON.parse(localStorage.getItem(LS+"_tk") || "{}") || {}; } catch(e){} }
+    const now = Date.now(), G = this.tkGood; let n = 0;
+    AS.forEach(s => { const x = m[s]; if (x && x.last > 0){ G[s] = {last:x.last, open:x.open || 0, hi:x.hi || 0, lo:x.lo || 0, t:now}; n++; } else { const g = G[s]; if (g && now - g.t < 86400000) m[s] = Object.assign({}, g, {stale:1}); } });
+    if (n && now - (this.tkSaved || 0) > 30000){ this.tkSaved = now; try { const o = {}; AS.forEach(s => { if (G[s]) o[s] = G[s]; }); localStorage.setItem(LS+"_tk", JSON.stringify(o)); } catch(e){} }
+    return m; },
   kick(key){ if (this.busy && this.busy[key]) return; clearTimeout(this.timers[key]); this.tickFns && this.tickFns[key] && this.tickFns[key](); },
   start(key, kind, sym){
     const every = kind === "tickers" ? 3000 : 1500;
@@ -1306,7 +1312,8 @@ const Hub = {
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
-          const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h, bid:+x.bidPx || 0, ask:+x.askPx || 0, hi:+x.high24h || 0, lo:+x.low24h || 0})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; }); payload = m;
+          const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h, bid:+x.bidPx || 0, ask:+x.askPx || 0, hi:+x.high24h || 0, lo:+x.low24h || 0})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; });
+          payload = this.tkKeep(m, AS);
         }
         this.last[key] = payload; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
@@ -4970,7 +4977,7 @@ Panel.prototype.resub = function(){
     this.amd = this.amd || {}; this.pv = this.pv || {}; this.flash = new Set(); let M = null;
     const favs = () => store.get(LS+"_fav", []), SYMS_ = () => SYMS;
     const L_ = (a, b) => lang === "ar" ? b : a;
-    const PH = {A:["#4aa3ff", L_("Accum","تجميع")], M:["#f0b90b", L_("Manip","تلاعب")], D:["#b57cff", L_("Distrib","توزيع")]};
+    const PH = {A:["#4aa3ff", L_("Accum","تجميع")], M:["#b9a76a", L_("Manip","تلاعب")], D:["#b57cff", L_("Distrib","توزيع")]};
     const amdChip = s => { const a = this.amd[s]; if (!a || !a.phase || a.phase === "?") return '<span class="m">'+(a && a.phase ? "–" : "…")+'</span>'; if (a.phase === "-") return '<span class="m">–</span>'; const [c, n] = PH[a.phase];
       return '<span class="amd" style="color:'+c+';border-color:'+c+'" title="'+esc(L_("Phase on the "+(this.state.wtf||"1H")+" chart (ICT AMD / Power of 3)","المرحلة على فريم "+(this.state.wtf||"1H")+" (ICT AMD)"))+'">'+n+(a.dir ? (a.dir === "up" ? " ▲" : " ▼") : "")+'</span>'; };
     const amdLoad = async list => { const bar = this.state.wtf || "1H"; let chg = false;
@@ -4995,7 +5002,7 @@ Panel.prototype.resub = function(){
           if (!x && FH_MAP[s]){ const cl = fxClosed(); h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m" title="'+esc(cl ? L_("Forex / CFD market closed (Fri 17:00 - Sun 17:00 New York); Finnhub sends no ticks until it reopens", "سوق الفوركس قافل (الجمعة 5 م - الأحد 5 م بتوقيت نيويورك)؛ Finnhub مش بيبعت أسعار لحد ما يفتح") : L_("waiting for the first tick (or this symbol is not on Finnhub's free plan)", "مستني أول سعر (أو الرمز ده مش في خطة Finnhub المجانية)"))+'">'+esc(cl ? L_("closed", "قافل") : "…")+'</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           if (!x){ h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r m">…</td><td class="r m">–</td><td>'+amdChip(s)+'</td></tr>'; return; }
           const ch = x.open ? (x.last-x.open)/x.open*100 : 0, chC = x.open ? '<td class="r '+(ch>=0?"g":"rd")+'">'+(ch>=0?"▲ +":"▼ ")+ch.toFixed(2)+'%</td>' : '<td class="r m" title="'+esc(L_("no reference close for this feed","مفيش سعر إغلاق مرجعي للمصدر ده"))+'">–</td>';
-          h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });
+          h += '<tr class="wr" data-s="'+esc(s)+'">'+st+'<td>'+nm+'</td><td class="r '+col+fl+'">'+fmtP(x.last)+(x.stale ? ' <span class="m" title="'+esc(L_("Delayed: last good price (OKX did not answer)","متأخر: آخر سعر سليم (OKX ما ردّش)"))+'">⏱</span>' : "")+(p.dir ? ' <span class="ar">'+(p.dir > 0 ? "▲" : "▼")+'</span>' : "")+'</td>'+chC+'<td>'+amdChip(s)+'</td></tr>'; }); });
       if (!shown.length) h += '<tr><td colspan="5" class="m">'+esc(only ? L_("No favorites yet — tap ☆ next to a symbol","لا توجد مفضلة — اضغط ☆ بجانب أي رمز") : T("uniNone"))+'</td></tr>';
       const full = h+'</table>', sig = (this.state.wtf || "") + "|" + (this.state.u || {}).cat + "|" + shown.map(z => z + (F.includes(z) ? "*" : "")).join(",") + "|" + lang;
       if (full !== this._wbHtml){ this._wbHtml = full; const old = this.wBox.querySelector("table.wt");

@@ -1867,7 +1867,7 @@ Object.assign(CandleChart.prototype, {
     if (!H.step){ const raw = Math.max(mid*0.0001, this.bk || 0), mag = Math.pow(10, Math.floor(Math.log10(raw))); H.step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw; }
     const tb = Math.floor(sn.t/60000)*60000; let o = H.b.get(tb); if (!o){ o = {w:60000, m:mid, c:new Map()}; H.b.set(tb, o); } o.m = mid;
     sn.lv.forEach(([p, q]) => { const k = Math.round(p/H.step), v = o.c.get(k); if (v == null || q > v) o.c.set(k, q); });
-    if (sn.t - this._hmSv > 30000) this.hmSave(sn.t);
+    if (sn.t - this._hmSv > 120000){ this._hmSv = sn.t; const go = () => this.hmSave(sn.t); if (window.requestIdleCallback) requestIdleCallback(go, {timeout:8000}); else setTimeout(go, 50); }   // was 30 s: compaction + JSON.stringify of up to 1.4 MB + a synchronous localStorage write per chart is a visible main-thread stall
   },
   hmSave(now){   // compact (older than 3 h -> 5 min buckets, keep the biggest walls only), keep 7 days, write to localStorage
     this._hmSv = now; const H = this.hm; if (!H) return; const nb = new Map();
@@ -1887,9 +1887,13 @@ Object.assign(CandleChart.prototype, {
         cutCount++;
         txt = JSON.stringify(j);
       }
-      localStorage.setItem(LS+"_hm_"+this.sym, txt);
+      // QuotaExceeded (all symbols + the rest of the app share ~5 MB): do not give up silently (history would stop growing for good): drop the oldest 30 % and retry, up to 8 times; other symbols' keys are never touched
+      for (let tries = 0; ; tries++){
+        try { localStorage.setItem(LS+"_hm_"+this.sym, txt); break; }
+        catch(e){ if (tries >= 8 || keys.length <= 12) break; const rm = Math.max(1, Math.ceil(keys.length*0.3)); for (let i = 0; i < rm && keys.length; i++) delete j.b[keys.shift()]; txt = JSON.stringify(j); }
+      }
     } catch(e) {
-      // Quota errors are non-destructive: keep all existing localStorage keys intact.
+      // JSON / storage unavailable: keep every existing localStorage key intact.
     }
   },
   paintHeatCol(c, py, PB, tx, gx0, gx1, tL, tR){   // fixed heat map inside the order-flow column: cells are pinned to their real price and real time (saved history, up to 7 days subject to browser storage); the column only chooses how much time it shows

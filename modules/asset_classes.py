@@ -10,6 +10,9 @@ import requests
 
 CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds", "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
 MARKET_TYPES = {"Spot": "SPOT", "Perp (swap)": "SWAP", "Futures": "FUTURES"}
+# Liquid Hyperliquid markets of the OTHER classes that the Workspace scan always adds to the chosen class, so Ready / Signals / Alerts / Setup Card have
+# setups for the class filter (class -> how many). Options are NOT scanned (no candle feed for them), EGX / Tadawul have no live feed.
+WS_EXTRA = (("Metals", 3), ("Indices", 2), ("Forex", 3), ("Oil & Gas", 2), ("Stocks", 4), ("Bonds", 1))
 NO_FEED = {"Egypt (EGX)", "Saudi (Tadawul)"}   # no verified free live feed yet (needs an API key); never show invented numbers
 MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", "MEME", "BOME", "POPCAT", "MEW", "PNUT", "ACT", "GOAT", "TRUMP", "FARTCOIN", "MOODENG", "PENGU", "1000SATS"]
 _CAT = {"3": "Stocks", "4": "Commodities", "5": "Forex"}

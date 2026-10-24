@@ -4934,7 +4934,7 @@ Panel.prototype.resub = function(){
     const draw = () => {
       const tape = Hub.last["trades|"+sym];
       if (!book) return;
-      if (book.error){ this.domBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      if (book.error){ this.domBox.innerHTML = '<div class="err">'+esc(T("offline"))+'<br><small>'+esc(String(book.error).slice(0,140))+'</small></div>'; return; }
       const gm = (this.state.gstep || {})[sym] || 0, tick = tickOfLevels(book.bids.concat(book.asks)), gs = groupStepFor(gm, tick);
       this.gSel && this.gSel.sync(gm, tick);
       const bk = gs ? Object.assign({}, book, {bids:groupBook(book.bids, gs, "bid"), asks:groupBook(book.asks, gs, "ask")}) : book;
@@ -4947,7 +4947,7 @@ Panel.prototype.resub = function(){
     let last = null, book = null;
     this.rerender = () => {
       if (!last) return;
-      if (last.error){ this.tapeBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      if (last.error){ this.tapeBox.innerHTML = '<div class="err">'+esc(T("offline"))+'<br><small>'+esc(String(last.error).slice(0,140))+'</small></div>'; return; }
       const w = this.state.win != null ? this.state.win : 300000, now = Date.now();
       const rows = (last.all || last.rows).filter(r => !w || r.t >= now - w);
       const buy = rows.filter(r=>r.side==="Buy").reduce((a,r)=>a+r.q,0), sell = rows.filter(r=>r.side==="Sell").reduce((a,r)=>a+r.q,0);
@@ -4982,7 +4982,7 @@ Panel.prototype.resub = function(){
         if (/rate limit|429|Too Many/i.test(String(this.amd[s].err || ""))) break; } } finally { this._amdRun = false; this._amdNext = Date.now() + (nReq >= 12 ? 4000 : 0); }
       if (chg) this.wDraw(); };
     this.wDraw = () => {
-      if (!M) return; if (M.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
+      if (!M) return; if (M.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'<br><small>'+esc(String(M.error).slice(0,140))+'</small></div>'; return; }
       const F = favs(), UC = (this.state.u || {}).cat || (Object.keys(YF).length ? "__mine" : "All"), only = UC === "__fav";   // Yahoo markets (forex / EGX / ...) are not in OKX's universe: show "My list" by default
       const groups = UC === "__fav" ? [[L_("★ Favorites","★ المفضلة"), F]] : UC === "__mine" ? [[L_("My list","قائمتي"), SYMS.slice()]] : [[(this.uTitle || L_("Market","السوق")), this.uSyms || []]];
       const shown = []; let h = '<table class="wt"><tr><th></th><th>'+esc(T("symbol"))+'</th><th class="r">'+esc(T("last"))+'</th><th class="r">'+esc(T("chg"))+'</th><th>AMD '+esc(this.state.wtf || "1H")+'</th></tr>';

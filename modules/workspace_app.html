@@ -757,9 +757,13 @@ const T = k => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
 /* ---------------- helpers ---------------- */
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-const fmtP = p => p >= 1000 ? p.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) : p >= 1 ? p.toFixed(4) : p.toFixed(6);
+const Fmt = (() => { const o = {pd:null, qd:null, sep:true, cmp:false}; try { Object.assign(o, JSON.parse(localStorage.getItem(LS+"_fmt") || "{}")); } catch(e){}
+  o.save = () => { try { localStorage.setItem(LS+"_fmt", JSON.stringify({pd:o.pd, qd:o.qd, sep:o.sep, cmp:o.cmp})); } catch(e){} }; return o; })();   // pd / qd: decimals of prices / sizes (null = automatic)
+const fmtP = p => { if (Fmt.pd != null) return Fmt.sep ? p.toLocaleString("en-US",{minimumFractionDigits:Fmt.pd,maximumFractionDigits:Fmt.pd}) : p.toFixed(Fmt.pd);
+  return p >= 1000 ? (Fmt.sep ? p.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) : p.toFixed(2)) : p >= 1 ? p.toFixed(4) : p.toFixed(6); };
 const fmtV = v => v >= 1e9 ? (v/1e9).toFixed(1)+"B" : v >= 1e6 ? (v/1e6).toFixed(1)+"M" : v >= 1e3 ? (v/1e3).toFixed(1)+"K" : v >= 10 ? Math.round(v)+"" : v.toFixed(1);
-const fmtQ = q => q >= 1000 ? Math.round(q).toLocaleString("en-US") : q >= 1 ? q.toFixed(2) : q.toFixed(4);
+const fmtQ = q => { if (Fmt.cmp && q >= 1000) return fmtV(q); if (Fmt.qd != null) return Fmt.sep ? q.toLocaleString("en-US",{minimumFractionDigits:Fmt.qd,maximumFractionDigits:Fmt.qd}) : q.toFixed(Fmt.qd);
+  return q >= 1000 ? (Fmt.sep ? Math.round(q).toLocaleString("en-US") : String(Math.round(q))) : q >= 1 ? q.toFixed(2) : q.toFixed(4); };
 const median = a => { if (!a.length) return 0; const s = [...a].sort((x,y)=>x-y), m = s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
 const pad2 = n => String(n).padStart(2,"0");
 const hms = ms => { const d = new Date(ms); return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds()); };
@@ -3959,6 +3963,10 @@ class Panel {
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel);
     const gm = () => (this.state.gstep = this.state.gstep || {});   // price grouping, saved per symbol in the panel state
     this.gSel = groupSelect(gm()[this.state.sym], 0, v => { gm()[this.state.sym] = v; Ws.save(); this.gRedraw && this.gRedraw(); }); tb.append(this.gSel);
+    { const lv = el("select"); lv.title = Lg("Levels shown on each side","عدد المستويات على كل جهة"); [6, 12, 20, 30, 40].forEach(n => { const o = el("option", null, String(n)); o.value = n; lv.append(o); }); lv.value = String(this.state.dlev || 12);
+      lv.onchange = () => { this.state.dlev = +lv.value; Ws.save(); this.gRedraw && this.gRedraw(); }; ["mousedown", "pointerdown", "click", "wheel"].forEach(ev => lv.addEventListener(ev, e => e.stopPropagation())); tb.append(lv);
+      const cu = el("button", null, "Σ"); cu.title = Lg("Cumulative size from the best price outward","الحجم التراكمي من أفضل سعر للخارج"); cu.classList.toggle("on", !!this.state.dcum); cu.onclick = () => { this.state.dcum = !this.state.dcum; cu.classList.toggle("on", !!this.state.dcum); Ws.save(); this.gRedraw && this.gRedraw(); }; tb.append(cu); }
+    tb.append(Ws.fmtBtn());
     this.domBox = el("div"); this.body.append(tb, this.domBox); this.resub();
   }
   /* ---- tape ---- */
@@ -3969,7 +3977,7 @@ class Panel {
     return sel;
   }
   build_tape(){
-    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("win", 300000));
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("win", 300000), Ws.fmtBtn());
     const sg = el("button", null, "⚙"); sg.title = lang === "ar" ? "حساسية ذكي / كبير / امتصاص" : "Smart / Big / Absorb sensitivity"; sg.onclick = e => { e.stopPropagation(); Ws.sensPop(sg); }; tb.append(sg);
     const hd = el("div","hdr"); this.statBox = el("div"); this.depthCv = el("canvas"); this.depthCv.width = 240; this.depthCv.height = 84; this.depthCv.style.cssText = "width:120px;height:42px;flex:none;background:#0b0e11;border-radius:3px";
     hd.append(this.statBox, this.depthCv);
@@ -3978,7 +3986,7 @@ class Panel {
   }
   /* ---- limits ---- */
   build_limits(){
-    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("lwin", 900000));
+    const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("lwin", 900000), Ws.fmtBtn());
     const seg = el("div","seg"); this.fltBtns = {};
     [["all","fAll"],["bid","fBid"],["ask","fAsk"],["abs","fAbs"]].forEach(([k,l]) => { const b = el("button",null,T(l)); b.onclick = () => { this.state.flt = k; Object.entries(this.fltBtns).forEach(([kk,bb]) => bb.classList.toggle("on", kk===k)); Ws.save(); this.rerender(); }; this.fltBtns[k] = b; seg.append(b); });
     this.state.flt = this.state.flt || "all"; this.fltBtns[this.state.flt].classList.add("on"); tb.append(seg);
@@ -4873,7 +4881,7 @@ Panel.prototype.resub = function(){
       const gm = (this.state.gstep || {})[sym] || 0, tick = tickOfLevels(book.bids.concat(book.asks)), gs = groupStepFor(gm, tick);
       this.gSel && this.gSel.sync(gm, tick);
       const bk = gs ? Object.assign({}, book, {bids:groupBook(book.bids, gs, "bid"), asks:groupBook(book.asks, gs, "ask")}) : book;
-      const res = renderDom(bk, tape && !tape.error ? tape : null, prevSizes); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
+      const res = renderDom(bk, tape && !tape.error ? tape : null, prevSizes, {lev:this.state.dlev || 12, cum:!!this.state.dcum}); prevSizes = res.sizes; this.domBox.innerHTML = res.html;
     };
     this.gRedraw = () => { prevSizes = null; draw(); };
     this.unsubs.push(Hub.sub("book", sym, b => { book = b; draw(); }));
@@ -4955,7 +4963,7 @@ Panel.prototype.resub = function(){
 };
 
 /* ---- price grouping (order book / heat rows): ONE control and ONE rule, reused by the DOM panel and the order-flow column ---- */
-const GROUP_STEPS = [1000, 100, 10, 1, 0.1, 0.01, 0.001];
+const GROUP_STEPS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001];
 function tickOfLevels(levels){   // smallest gap between neighbouring book prices = the instrument tick (estimate); 0 when unknown
   const ps = [...new Set(levels.map(x => +x.p))].filter(Number.isFinite).sort((a, b) => a - b); let t = 0;
   for (let i = 1; i < ps.length; i++){ const d = ps[i] - ps[i-1]; if (d > 1e-12 && (!t || d < t)) t = d; }
@@ -4971,24 +4979,27 @@ function groupSelect(cur, tick, onChange){
   sel.sync = (c, t) => { [...sel.options].forEach(o => { o.disabled = +o.value > 0 && t > 0 && +o.value < t*0.999; }); sel.value = String(c || 0); if (sel.selectedIndex < 0) sel.value = "0"; };
   sel.sync(cur, tick); sel.onchange = () => onChange(+sel.value || 0);
   ["mousedown", "pointerdown", "click", "wheel", "dblclick"].forEach(ev => sel.addEventListener(ev, e => e.stopPropagation())); return sel; }
-function renderDom(book, tape, prev){
-  const asks = book.asks.slice().sort((a,b)=>a.p-b.p).slice(0,12), bids = book.bids.slice().sort((a,b)=>b.p-a.p).slice(0,12);
+function renderDom(book, tape, prev, opts){
+  const LV = (opts && opts.lev) || 12, asks = book.asks.slice().sort((a,b)=>a.p-b.p).slice(0,LV), bids = book.bids.slice().sort((a,b)=>b.p-a.p).slice(0,LV), cumOf = {};
+  if (opts && opts.cum){ let c1 = 0; asks.forEach(x => cumOf[x.p] = (c1 += x.q)); c1 = 0; bids.forEach(x => cumOf[x.p] = (c1 += x.q)); }
   const all = asks.concat(bids).map(x=>x.q), mx = Math.max(...all, 1e-12), med = median(book.asks.concat(book.bids).map(x=>x.q));
   const hits = tape ? tape.hits : {}, ab = tape ? tape.ab : new Set(), sizes = {};
-  const cell = (q, color, align, big, hot, grew) => {
+  const cell = (q, color, align, big, hot, grew, cum) => {
     const w = Math.max(4, Math.round(100*q/mx)), cls = (big ? "big " : "") + (hot ? "hot" : big ? "glow" : grew ? "gr" : "");
-    return '<div class="cell '+cls+'"><div class="f" style="'+(align==="right"?"right":"left")+':0;width:'+w+'%;background:'+color+'"></div><div class="t" style="text-align:'+align+'">'+(big?"★ ":"")+fmtQ(q)+'</div></div>';
+    return '<div class="cell '+cls+'"><div class="f" style="'+(align==="right"?"right":"left")+':0;width:'+w+'%;background:'+color+'"></div><div class="t" style="text-align:'+align+'">'+(big?"★ ":"")+fmtQ(q)+(cum != null ? ' <span style="opacity:.55;font-size:10px">Σ'+fmtQ(cum)+'</span>' : "")+'</div></div>';
   };
   let rows = "";
   const line = (x, side) => {
     sizes[x.p] = x.q; const big = med && x.q >= settings.big*med, hit = hits[x.p], grew = prev && (prev[x.p] == null || x.q >= prev[x.p]*1.25);
     const isAsk = side === "ask", pc = ab.has(x.p) ? "ab" : hit ? (hit==="Buy" ? "hb" : "hs") : "";
-    return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew) : "")+'</td></tr>';
+    return '<tr><td style="width:38%">'+(isAsk ? "" : cell(x.q,"#0ecb81","right",big,big&&hit,grew,cumOf[x.p]))+'</td><td class="'+pc+'" style="width:24%;text-align:center;font-weight:600;color:'+(isAsk?"#f6465d":"#0ecb81")+'">'+fmtP(x.p)+(ab.has(x.p)?' <b style="color:#b57cff">ABS</b>':"")+'</td><td style="width:38%">'+(isAsk ? cell(x.q,"#f6465d","left",big,big&&hit,grew,cumOf[x.p]) : "")+'</td></tr>';
   };
   asks.slice().reverse().forEach(x => rows += line(x,"ask"));
   if (asks.length && bids.length) rows += '<tr><td colspan="3" style="text-align:center;color:#f0b90b;font-size:11px;border-top:1px solid #2b3139;border-bottom:1px solid #2b3139">'+Lg("spread ","الفارق ")+fmtP(asks[0].p-bids[0].p)+'</td></tr>';
   bids.forEach(x => rows += line(x,"bid"));
-  return {html:'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
+  const sB = bids.reduce((a, x) => a + x.q, 0), sA = asks.reduce((a, x) => a + x.q, 0), im = (sA + sB) ? (sB - sA)/(sA + sB)*100 : 0, bpc = (sA + sB) ? 100*sB/(sA + sB) : 50;
+  const strip = '<div class="stat" style="padding:2px 6px">'+Lg("Bids ","طلب ")+'<b class="g">'+fmtQ(sB)+'</b> · '+Lg("Asks ","عرض ")+'<b class="rd">'+fmtQ(sA)+'</b> · '+Lg("imbalance ","اختلال ")+'<b class="'+(im >= 0 ? "g" : "rd")+'">'+(im >= 0 ? "+" : "")+im.toFixed(0)+'%</b> <span class="m">('+LV+' '+Lg("levels","مستوى")+')</span></div><div class="bar2"><div style="width:'+bpc.toFixed(0)+'%;background:#0ecb81"></div><div style="width:'+(100-bpc).toFixed(0)+'%;background:#f6465d"></div></div>';
+  return {html:strip+'<table><tr><th>'+esc(T("bid"))+'</th><th style="text-align:center">'+esc(T("price"))+'</th><th>'+esc(T("ask"))+'</th></tr>'+rows+'</table>', sizes};
 }
 const TAPE_COLS = [24,20,22,18,16], LIM_COLS = [14,10,20,16,28,12];
 function colGroup(panel, key, def){ const w = (panel.state.cw && panel.state.cw[key]) || def; return '<colgroup>'+w.map(x => '<col style="width:'+x+'%">').join("")+'</colgroup>'; }
@@ -5096,6 +5107,18 @@ function alertCard(a){
 Ws.sensRows = (pop, row) => { const ar = lang === "ar";
   [["smart", ar ? "حساسية Smart ×" : "Smart × (T&S smart threshold)"],["big", ar ? "حساسية Big ×" : "Big × (T&S big threshold)"],["absorb", ar ? "حساسية Absorb ×" : "Absorb × (absorption)"]].forEach(([k,lab]) => {
     const i = el("input"); i.type = "number"; i.step = "0.5"; i.min = "1"; i.value = settings[k]; i.style.width = "60px"; i.onchange = () => { settings[k] = Math.max(1, +i.value || settings[k]); i.value = settings[k]; saveSettings(); }; row(lab, i); }); };
+Ws.fmtBtn = () => { const b = el("button", null, "#.#"); b.title = Lg("Number format: decimals, thousands separators, compact sizes (all tables)","تنسيق الأرقام: العشري والفواصل والاختصار (كل الجداول)"); b.onclick = e => { e.stopPropagation(); Ws.fmtPop(b); }; b.onpointerdown = e => e.stopPropagation(); return b; };
+Ws.fmtPop = anchor => {
+  document.querySelectorAll(".stpop").forEach(x => x.remove()); const pop = el("div", "stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth - 300))+"px"; pop.style.top = (r.bottom + 3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px";
+  const h = el("div", "full"); h.style.cursor = "default"; h.textContent = Lg("Number format (all tables)","تنسيق الأرقام (كل الجداول)"); pop.append(h);
+  const apply = () => { Fmt.save(); Ws.panels.forEach(p => { try { p.gRedraw && p.gRedraw(); p.rerender && p.rerender(); p.wDraw && p.wDraw(); p.chart && p.chart.draw(); } catch(e){} }); };
+  const row = (lab, input) => { const l = el("span"); l.textContent = lab; pop.append(l, input); input.onpointerdown = e => e.stopPropagation(); };
+  const dsel = (key) => { const sel = el("select"); [["", Lg("Auto","تلقائي")], 0, 1, 2, 3, 4, 5, 6].forEach(v => { const o = el("option"); o.value = typeof v === "object" ? v[0] : v; o.textContent = typeof v === "object" ? v[1] : v + " " + Lg("decimals","أرقام عشرية"); sel.append(o); }); sel.value = Fmt[key] == null ? "" : String(Fmt[key]); sel.onchange = () => { Fmt[key] = sel.value === "" ? null : +sel.value; apply(); }; return sel; };
+  row(Lg("Price decimals","العشري في السعر"), dsel("pd")); row(Lg("Size decimals","العشري في الحجم"), dsel("qd"));
+  { const c1 = el("input"); c1.type = "checkbox"; c1.checked = Fmt.sep; c1.onchange = () => { Fmt.sep = c1.checked; apply(); }; row(Lg("Thousands separators","فواصل الآلاف"), c1);
+    const c2 = el("input"); c2.type = "checkbox"; c2.checked = Fmt.cmp; c2.onchange = () => { Fmt.cmp = c2.checked; apply(); }; row(Lg("Compact sizes (K / M)","أحجام مختصرة (K / M)"), c2); }
+  document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
+};
 Ws.sensPop = anchor => {
   document.querySelectorAll(".stpop").forEach(x => x.remove()); const pop = el("div","stpop"), r = anchor.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r.left, innerWidth-300))+"px"; pop.style.top = (r.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "240px";
   const h = el("div","full"); h.style.cursor = "default"; h.textContent = lang === "ar" ? "إعدادات Time & Sales" : "Time & Sales settings"; pop.append(h);

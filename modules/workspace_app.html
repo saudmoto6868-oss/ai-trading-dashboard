@@ -3489,7 +3489,7 @@ class Panel {
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
-    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 300);
+    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -3651,7 +3651,7 @@ class Panel {
     const d = this.chart.data; if (!d.length) { this.cdEl.textContent = ""; return; }
     let rem = candleRem(d[d.length-1].t, this.state.tf);
     const sec = Math.floor(rem/1000), h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), ss = sec%60;
-    this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss)); this.chart.draw();
+    this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss));   // DOM text only: no full chart repaint each second
   }
   syncMarks(){
     const ch = this.chart, d = ch.data; if (!d.length || !this.flt) return;

@@ -2347,7 +2347,7 @@ Object.assign(CandleChart.prototype, {
   pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
   saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
-  setTool(t){ this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
+  setTool(t){ this.tool = t; this.creating = null; if (t !== "cur" && !this.drawingsVisible){ this.drawingsVisible = true; this.onDrawVis && this.onDrawVis(); } /* picking a drawing tool while drawings are hidden used to draw invisibly: it switches them back on */ if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
   cancelTool(){ if (this.creating){ this.draws = this.draws.filter(d => d !== this.creating); this.creating = null; } this.setTool("cur"); },
   ctxMenu(e){
     e.preventDefault(); document.querySelectorAll(".ctxm").forEach(m => m.remove());
@@ -3418,7 +3418,7 @@ class Panel {
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
-    this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
     else if (this.state.ema){ const E = this.state.ema, S0 = this.state.st || {}, DC = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};   // older saves: the three fixed EMA lines
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }

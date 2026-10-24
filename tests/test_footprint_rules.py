@@ -84,6 +84,11 @@ console.log(JSON.stringify([O.cvdAn(a.d, a.fp, 12).div, O.cvdAn(b.d, b.fp, 12).d
     assert ok == [] and none == []               # a confirmed move or no data: no mark
 
 
+def test_divergence_in_forward_test():
+    for k in ("ty:\"div\"", "c.cvdAn(d, c.fp, 12)", "x.i === d.length - 2", "FlowTest.stats(k, ty)", "(e.ty || \"conf\") === (ty || \"conf\")"):   # CVD divergence is logged on the just-closed bar and measured by the same gate, apart from the confluence
+        assert k in H, k
+
+
 def test_value_area():
     for k in ("vaOf(rows, pct){", "this.vaOf(rows, .7)", "OF.fpVA !== 0", "chk(\"fpVA\""):
         assert k in H, k
@@ -108,4 +113,5 @@ if __name__ == "__main__":
     test_linked_panels_and_forward_test()
     test_cvd_and_divergence()
     test_value_area()
+    test_divergence_in_forward_test()
     print("ok footprint rules")

@@ -1026,11 +1026,11 @@ async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest f
   const ag = TF_AGG[tf];
   if (!ag){   // native timeframe: task 55, the first load also walks back in history until `want` candles (same loop as the aggregated ones)
     let nat = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&limit="+(first ? 300 : 3)));
-    if (first){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 8 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }
+    if (first === true){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 8 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }
     return nat;
   }
   const [bb, n] = ag, unit = TFSEC[bb]*1000; let base = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&limit="+(first ? 300 : 100)));
-  if (first){ const need = (want || 120)*n; let guard = 0; while (base.length < need && guard++ < 8){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&after="+base[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; base = more.concat(base); } }
+  if (first === true){ const need = (want || 120)*n; let guard = 0; while (base.length < need && guard++ < 8){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+bb+"&after="+base[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; base = more.concat(base); } }
   const out = aggBars(base, n, unit); if (out.length) out.shift();   // the oldest bucket is usually incomplete
   return out.map(({n:_n, ...r}) => r);
 }
@@ -3779,16 +3779,22 @@ class Panel {
     }));
     this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     if (subMin){ this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; }; return; }
+    let fails = 0;   // first paint = ONE request ("quick"); the history walk runs afterwards in the background; failed first loads back off 2 s -> 4 -> 8 -> 15 s
+    const fillHist = async () => { if (this._fillTok === tok) return; this._fillTok = tok;
+      try { const full = await candlesTf(sym, tf, true); if (tok !== this.tok || !full.length) return; const cur = this.chart.data;
+        if (cur.length && full[0].t < cur[0].t){ const old = full.filter(k => k.t < cur[0].t); if (old.length){ this.chart.r += old.length; this.chart.setData(old.concat(cur), false); } } } catch(e){} };
     const loop = async first => {
       if (tok !== this.tok) return;
+      if (first && !fails && !this.chart.data.length) this.msg.textContent = T("loading");
       try {
-        const rows = await Promise.race([candlesTf(sym, tf, first), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
+        const rows = await Promise.race([candlesTf(sym, tf, first ? "quick" : false), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
         if (tok !== this.tok) return;
         this._okAt = Date.now(); setStatus(true); this.msg.textContent = "";
         if (rows.length) this.showPx(rows[rows.length-1].c, "rest");
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
+        fails = 0;
         if (first){
-          this.chart.setData(rows, true);
+          this.chart.setData(rows, true); fillHist();
           const v = this._refreshView;
           if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;
@@ -3803,7 +3809,8 @@ class Panel {
         const sd = CFG.seed;
         if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
       }
-      this.timer = setTimeout(() => loop(!this.chart.data.length), this.state.rf || 2000);
+      if (!this.chart.data.length) fails++;
+      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || 2000));
     };
     this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);

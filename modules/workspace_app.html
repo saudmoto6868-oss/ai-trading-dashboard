@@ -2044,8 +2044,8 @@ Object.assign(CandleChart.prototype, {
     // sync card: in the empty space UNDER the order-flow column (next to the indicator panes) when there is room, else inside the column above the legend
     this._scX = null;
     if (this.syncOn && this.scOn !== false){ const room = this.H - 20 - PB - 6;
-      if (room >= 96){ this.paintSyncCard(c, X0 + 4, XE - 3, PB, {top:PB + 3, h:room}); this.paintOfX(c, XE - 17, PB + 4, "_scX"); }
-      else { const sx1 = this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2; this.paintSyncCard(c, gx0 + 2, sx1, PB); } }   // narrow layout: no ✕ (hide it from the Order-flow menu)
+      if (room >= 96){ this.paintSyncCard(c, X0 + 4, XE - 3, PB, {top:PB + 3, h:room}); }
+      else { const sx1 = this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2; this.paintSyncCard(c, gx0 + 2, sx1, PB); } }   // the ✕ is drawn by the card itself (both layouts)
   },
   gaugeData(now){   // buy/sell pressure from REAL data only: aggressor volume of the last 2 min of prints, and bid vs ask size resting within 0.5 % of the mid (latest book snapshot)
     const W = 120000, T = (this.flowT || []).filter(x => x.t >= now - W); let b = 0, s = 0; T.forEach(x => { if (x.side === "Buy") b += x.q; else s += x.q; });
@@ -2666,8 +2666,8 @@ Object.assign(CandleChart.prototype, {
     const tx = (t, x, y) => { if (lang !== "ar" || !/[\u0600-\u06FF]/.test(t)){ c.fillText(t, x, y); return; }
       c.save(); c.direction = "rtl"; c.textAlign = "right"; c.fillText(t.replace(/[+\-]?[0-9A-Za-z][0-9A-Za-z.,%:+\-]*(?: +[A-Za-z][A-Za-z.\-]*)*/g, m => "\u2066"+m+"\u2069"), x1 - 7, y); c.restore(); };
     // header: title left, live stats chip right
-    c.fillStyle = "rgba(255,255,255,.04)"; c.fillRect(x0 + 1, y0 + 1, w - 2, 17); c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; tx(Lg("ORDER-FLOW SYNC","تزامن الأوردر فلو"), x0 + 7, y0 + 10);
-    if (chip){ const cx0 = lang === "ar" ? x0 + 5 : x1 - stw - 5; c.font = mono; c.fillStyle = !st.n ? "#2b3139" : st.n < 30 ? "rgba(240,185,11,.18)" : st.avg > 0 ? "rgba(14,203,129,.2)" : "rgba(246,70,93,.2)"; c.fillRect(cx0, y0 + 3, stw, 13);
+    c.fillStyle = "rgba(255,255,255,.04)"; c.fillRect(x0 + 1, y0 + 1, w - 2, 17); c.font = "bold 10px sans-serif"; c.fillStyle = "#eaecef"; tx(Lg("ORDER-FLOW SYNC","تزامن الأوردر فلو"), x0 + 7, y0 + 10); this.paintOfX(c, x0 + w - 16, y0 + 3, "_scX");   // ✕ on the card header, in the wide and in the narrow layout
+    if (chip){ const cx0 = lang === "ar" ? x0 + 5 : x1 - stw - 20; c.font = mono; c.fillStyle = !st.n ? "#2b3139" : st.n < 30 ? "rgba(240,185,11,.18)" : st.avg > 0 ? "rgba(14,203,129,.2)" : "rgba(246,70,93,.2)"; c.fillRect(cx0, y0 + 3, stw, 13);
       c.fillStyle = stc; c.fillText(stx, cx0 + 5, y0 + 10); }
     let y = y0 + 18;
     rows.forEach(r => {

@@ -104,7 +104,9 @@ UI_PALETTES = {
                             "button[data-variant='pills'][aria-checked='true'],button[data-variant='segmented_control'][aria-checked='true']{background:rgba(255,74,28,.14)!important;border-color:#ff4a1c!important}"
                             "button[data-variant='pills'][aria-checked='true'] p,button[data-variant='segmented_control'][aria-checked='true'] p{color:#ff4a1c!important}"
                             "[data-testid='stSelectbox'] [role='group'],[data-testid='stNumberInputContainer']{background:#1a1918!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important}"
-                            "[data-testid='stSelectbox'] [role='group'] *,[data-testid='stNumberInputContainer'] *{color:#ededed!important}"),
+                            "[data-testid='stSelectbox'] [role='group'] *,[data-testid='stNumberInputContainer'] *{color:#ededed!important}"
+                            "body.ui-deerflow .wt img,body.ui-deerflow .ph img,body.ui-deerflow td img{-webkit-mask-image:radial-gradient(circle,#000 46%,transparent 54%);-webkit-mask-size:2.6px 2.6px;mask-image:radial-gradient(circle,#000 46%,transparent 54%);mask-size:2.6px 2.6px;filter:contrast(1.25) saturate(1.1)}"
+                            "body.ui-deerflow .logo,body.ui-deerflow .chip{font-family:'Doto','DotGothic16',ui-monospace,monospace}"),
     "nogray":    dict(bg="#000000", panel="rgba(10,10,10,.92)", panel2="rgba(20,20,20,.94)", solid="rgba(5,5,5,.98)", line="rgba(255,255,255,.14)", txt="#ffffff", mut="#9a9a9a",
                       acc="#19e6c1", ink="#00231d", up="#19e6c1", dn="#f2f2f2", rad=0, font="", tt="uppercase", ls=".08em", glow="0 14px 30px rgba(0,0,0,.6)"),
 }

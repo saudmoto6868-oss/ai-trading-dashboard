@@ -4784,11 +4784,12 @@ Panel.prototype.resub = function(){
     const PH = {A:["#4aa3ff", L_("Accum","تجميع")], M:["#f0b90b", L_("Manip","تلاعب")], D:["#b57cff", L_("Distrib","توزيع")]};
     const amdChip = s => { const a = this.amd[s]; if (!a || !a.phase || a.phase === "?") return '<span class="m">'+(a && a.phase ? "–" : "…")+'</span>'; if (a.phase === "-") return '<span class="m">–</span>'; const [c, n] = PH[a.phase];
       return '<span class="amd" style="color:'+c+';border-color:'+c+'" title="'+esc(L_("Phase on the "+(this.state.wtf||"1H")+" chart (ICT AMD / Power of 3)","المرحلة على فريم "+(this.state.wtf||"1H")+" (ICT AMD)"))+'">'+n+(a.dir ? (a.dir === "up" ? " ▲" : " ▼") : "")+'</span>'; };
-    const amdLoad = async list => { const bar = this.state.wtf || "1H";
-      for (const s of list.slice(0, 40)){ const c = this.amd[s]; if (c && (c.busy || (c.bar === bar && Date.now() - c.t < 120000))) continue; this.amd[s] = {busy:true, bar, t:Date.now()};
+    const amdLoad = async list => { const bar = this.state.wtf || "1H"; let chg = false;
+      for (const s of list.slice(0, 40)){ const c = this.amd[s]; if (c && (c.busy || (c.bar === bar && Date.now() - c.t < 120000))) continue; this.amd[s] = Object.assign({}, c && c.bar === bar && c.phase ? c : {}, {busy:true, bar, t:Date.now()});   // keep the last phase visible while refreshing (no "…" blink)
         try { const d = (await okx("/market/candles?instId="+encodeURIComponent(s)+"&bar="+bar+"&limit=60")).map(r => ({o:+r[1], h:+r[2], l:+r[3], c:+r[4]})).reverse(); this.amd[s] = Object.assign(amdPhase(d), {bar, t:Date.now()}); }
-        catch(e){ this.amd[s] = {phase:"?", bar, t:Date.now() - 100000}; }
-        this.wDraw(); } };
+        catch(e){ const o = c && c.bar === bar && c.phase && c.phase !== "?" ? c : {phase:"?"}; this.amd[s] = Object.assign({}, o, {bar, t:Date.now() - 100000, busy:false}); }
+        if (!c || c.phase !== this.amd[s].phase || c.dir !== this.amd[s].dir) chg = true; }
+      if (chg) this.wDraw(); };
     this.wDraw = () => {
       if (!M) return; if (M.error){ this.wBox.innerHTML = '<div class="err">'+esc(T("offline"))+'</div>'; return; }
       const F = favs(), UC = (this.state.u || {}).cat || (Object.keys(YF).length ? "__mine" : "All"), only = UC === "__fav";   // Yahoo markets (forex / EGX / ...) are not in OKX's universe: show "My list" by default

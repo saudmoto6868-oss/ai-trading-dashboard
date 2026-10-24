@@ -88,7 +88,7 @@ td{padding:1px 4px;white-space:nowrap}
 .stat{padding:3px 6px;color:var(--mut)}
 .bar2{display:flex;height:5px;margin:3px 6px;border-radius:2px;overflow:hidden}
 .cell{position:relative;height:17px}.cell .f{position:absolute;top:0;bottom:0;opacity:.3}.cell .t{position:relative;padding:0 4px;line-height:17px}
-.big{border:1px solid var(--gold)}
+.big{border:1px solid rgba(240,185,11,.22)}
 .card{margin:6px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
 .card .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.card .grow{flex:1}
 .logo{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex:none}
@@ -159,7 +159,7 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
 .nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
 .wn{animation:flb 1.4s ease-out 1,blink .5s linear 2}.sn{animation:blink .6s linear 1}
-.ab{background:rgba(181,124,255,.3)}.glow{box-shadow:0 0 3px 1px rgba(240,185,11,.25)}.hot{box-shadow:0 0 4px 1px rgba(255,255,255,.25)}   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
+td.ab::before{content:"";display:inline-block;width:6px;height:6px;margin-inline-end:4px;vertical-align:middle;background:#b57cff;border-radius:1px}.mk{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}.mk.w{background:#f0b90b}.mk.s{background:rgba(240,185,11,.5)}.mk.a{border-radius:1px;background:#b57cff}   /* markers instead of filled cells / rows: a small dot (gold = whale, dim gold = smart) or square (violet = absorption) beside the number */   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
 .evf{animation:evfl 1s ease-out 1}@keyframes evfl{0%{background:rgba(255,255,255,.12)}100%{background:transparent}}
 .evl{font-size:10px;color:#848e9c;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.evl b{font-weight:400}
 .gsel{background:#1b2027;color:#b7bdc6;border:1px solid #2b3139;border-radius:3px;font-size:10px;height:17px;padding:0 2px;max-width:64px}.gsel:hover{border-color:#4a5568}
@@ -1181,7 +1181,7 @@ const SI_STOCK = {AAPL:"apple.com",MSFT:"microsoft.com",NVDA:"nvidia.com",TSLA:"
 function symIcon(sym, px){
   px = px || 14; sym = String(sym || "");
   const b = (sym.indexOf(":") >= 0 ? sym.split(":").pop() : sym).replace("=X", "").replace("=F", "").replace("^", "").split("-")[0].toUpperCase();
-  const lt = b.slice(0, 1), col = "#" + (((b.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7) & 0xFFFFFF) | 0x404040)).toString(16).padStart(6, "0").slice(-6);
+  const lt = b.slice(0, 1), col = "hsl(" + (Math.abs(b.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7)) % 360) + ",55%,36%)";   // fixed lightness: the old hash could give a pale colour under the white letter = an "empty" icon
   const base = "display:inline-block;width:"+px+"px;height:"+px+"px;border-radius:50%;vertical-align:middle;margin-inline-end:5px;";
   const letter = "background:"+col+";color:#fff;font:700 "+Math.max(8, px - 7)+"px/"+px+"px sans-serif;text-align:center;";
   const img = (url, extra) => '<img src="'+url+'" alt="" loading="lazy" style="'+base+'object-fit:cover;'+(extra || "")+'" data-l="'+esc(lt)+'" data-st="'+esc(base+letter)+'" onerror="var s=document.createElement(\'span\');s.textContent=this.dataset.l;s.style.cssText=this.dataset.st;this.replaceWith(s)">';
@@ -1568,7 +1568,11 @@ class CandleChart {
     if (this._raf) return;
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
-  paint(){
+  paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
+    if (!this.pal) return this._paint();
+    const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); }
+  }
+  _paint(){
     const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length; this._gChip = null;
     c.clearRect(0,0,W,H); c.fillStyle = TH.bg; c.fillRect(0,0,W,H);   // clear first: a dashboard theme may use a see-through background
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textBaseline = "middle";
@@ -3365,6 +3369,17 @@ class Panel {
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    const palB = el("button",null,"🎨"); palB.title = Lg("Chart colours: candles, background, grid, presets","ألوان الشارت: الشموع، الخلفية، الشبكة، قوالب جاهزة");
+    palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid}, ch_.pal || {});
+      const pop = el("div","stpop"), r_ = palB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-280))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px"; pop.onpointerdown = e => e.stopPropagation();
+      const apply = pal => { ch_.pal = pal; this.state.pal = pal; Ws.save(); ch_.draw(); };
+      const ins = {}, put = (k, lab) => { const l = el("span"); l.textContent = lab; const i = el("input"); i.type = "color"; i.value = base()[k] || "#000000"; i.oninput = () => { apply(Object.assign(base(), {[k]: i.value})); }; ins[k] = i; pop.append(l, i); };
+      const PRE = [[Lg("Theme default","افتراضي الثيم"), null], ["TradingView", {up:"#26a69a", dn:"#ef5350"}], [Lg("Blue / Orange","أزرق / برتقالي"), {up:"#2196f3", dn:"#ff9800"}], [Lg("Mono","أبيض / رمادي"), {up:"#e6e6e6", dn:"#6b6b6b"}], [Lg("Neon","نيون"), {up:"#00ff9d", dn:"#ff3d71", bg:"#05070d", grid:"#101522"}]];
+      const sel = el("select"); PRE.forEach(([n], i) => sel.append(Object.assign(el("option"), {value:i, textContent:n}))); sel.onchange = () => { const v = PRE[+sel.value][1]; apply(v ? Object.assign({}, v) : null); const b = base(); Object.keys(ins).forEach(k => { ins[k].value = b[k] || "#000000"; }); };
+      const l0 = el("span"); l0.textContent = Lg("Preset","قالب"); pop.append(l0, sel);
+      put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة"));
+      const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
+      document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
     ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
@@ -3410,7 +3425,7 @@ class Panel {
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, this.gSelTb, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -3418,7 +3433,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
@@ -4907,10 +4922,9 @@ function renderTape(panel, rows){
   rows.forEach(r => {
     const buy = r.side === "Buy", col = buy ? "#0ecb81" : "#f6465d", rgb = buy ? "14,203,129" : "246,70,93";
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
-    const bg = r.absorb ? "rgba(181,124,255,.28)" : "rgba("+rgb+","+(r.tier === "whale" ? .38 : r.tier === "smart" ? .24 : .10)+")";
-    const edge = r.tier !== "normal" ? "box-shadow:inset 3px 0 0 #f0b90b;" : "";
+    const bg = "rgba("+rgb+",.07)", edge = "", mk = r.absorb ? '<i class="mk a"></i>' : r.tier === "whale" ? '<i class="mk w"></i>' : r.tier === "smart" ? '<i class="mk s"></i>' : "";   // no filled rows: the marker carries the meaning
     const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " "+Lg("ABSORB","امتصاص") : "");
-    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
+    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+mk+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
 }

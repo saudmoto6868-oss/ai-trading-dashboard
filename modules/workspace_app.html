@@ -1406,8 +1406,9 @@ class CandleChart {
   resize(){
     const dpr = window.devicePixelRatio || 1, hw = this.host.clientWidth, hh = this.host.clientHeight; this.S = CHART_S;
     this.W = hw/this.S; this.H = hh/this.S;   // the chart is laid out in its own units: at 50 % zoom it has twice the room, so more candles fit
-    this.cv.width = Math.round(this.W*dpr); this.cv.height = Math.round(this.H*dpr); this.cv.style.width = hw+"px"; this.cv.style.height = hh+"px";
-    this.ctx.setTransform(dpr,0,0,dpr,0,0); this.draw();
+    const cw_ = Math.round(this.W*dpr), ch_ = Math.round(this.H*dpr); if (this.cv.width !== cw_) this.cv.width = cw_; if (this.cv.height !== ch_) this.cv.height = ch_;   // assigning width/height clears the canvas even when the value is the same
+    this.cv.style.width = hw+"px"; this.cv.style.height = hh+"px";
+    this.ctx.setTransform(dpr,0,0,dpr,0,0); this.paint();   // paint NOW, not draw(): ResizeObserver runs after the frame's rAF callbacks, so a rAF-deferred repaint leaves one blank canvas frame on screen = the blink
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();

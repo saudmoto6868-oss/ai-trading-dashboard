@@ -25,7 +25,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 #strip.drag{cursor:grabbing}
 #strip .chip{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:11px;padding:1px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--txt)}
 #strip .chip:hover{background:var(--line)}
-#strip .chip.hot{animation:hotg 1.1s ease-in-out infinite;font-weight:700}
+#strip .chip.hot{box-shadow:0 0 8px var(--hc,#0ecb81);font-weight:700}
 @keyframes hotg{0%,100%{box-shadow:0 0 0 0 var(--hc,#0ecb81);background:var(--panel)}50%{box-shadow:0 0 9px 2px var(--hc,#0ecb81);background:#202a26}}
 .jperf{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:4px;margin:4px}
 .jperf .jc{padding:4px 6px}
@@ -159,7 +159,7 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 .nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
 .wn{animation:flb 1.4s ease-out 1,blink .5s linear 4}.sn{animation:blink .6s linear 2}
-.ab{animation:absb 1.1s ease-in-out infinite}.glow{animation:glow 1.8s ease-in-out infinite}.hot{animation:hot 1.4s ease-in-out infinite}.cf{animation:cellfl 1.6s ease-out 1}
+.ab{background:rgba(181,124,255,.4)}.glow{box-shadow:0 0 4px 1px rgba(240,185,11,.4)}.hot{box-shadow:0 0 5px 1px rgba(255,255,255,.4)}   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
 .hb{animation:flb 1.2s ease-out 1}.hs{animation:fls 1.2s ease-out 1}.gr{animation:grow 1.3s ease-out 1}.evn{animation:blink .5s linear 4}
 .rtl #bar,.rtl .ph,.rtl .news-detail,.rtl .news-item,.rtl textarea{direction:rtl}
 .vid{width:100%;height:100%;border:0;background:#000}

@@ -1398,7 +1398,7 @@ class CandleChart {
     this.data = []; this.S = 1; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
     this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
     this.st = {vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
-      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",hmBright:1,color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5, fpImb:3, fpStk:3, fpMin:10, fpDiag:1, fpStack:1, fpNaked:1, fpDelta:1, fpAuc:1}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
+      rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",hmBright:1,color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5, fpMode:"bidask", fpRow:1, fpImb:3, fpStk:3, fpMin:10, fpDiag:1, fpStack:1, fpNaked:1, fpDelta:1, fpAuc:1}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
       gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
@@ -1991,8 +1991,8 @@ Object.assign(CandleChart.prototype, {
     const bw = this.bw, d = this.data, fmt = v => v >= 1000 ? (v/1000).toFixed(1)+"k" : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
     const big = this.fpOn && bw >= 44, mid = bw >= 20, fs = Math.max(9, Math.min(15, Math.round(bw/9)));
     // price step of one footprint row ~ 11px tall
-    const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
-    const OF = this.st.of; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
+    const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step0 = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
+    const OF = this.st.of, FM = OF.fpMode || "bidask", step = step0*(OF.fpRow || 1); c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
     const FB = OF.fpBuy || OF.color, FS = OF.fpSell || OF.color2;   // footprint colours: own override, else the Depth-of-Trade buy / sell colours (added 2026-10-19)
     const BO = 20, brk = i => { if (i < BO) return 0; let hh = -Infinity, ll = Infinity; for (let j = i-BO; j < i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return d[i].c > hh ? 1 : d[i].c < ll ? -1 : 0; };   // closed beyond the previous 20-bar range
     for (let i = i0; i <= i1; i++){
@@ -2007,11 +2007,13 @@ Object.assign(CandleChart.prototype, {
       if (this.fpOn && (big || mid)){
         const rows = new Map(); m.px.forEach((v, p) => { const k = Math.round(p/step); const o = rows.get(k) || (rows.set(k, {b:0, s:0}), rows.get(k)); o.b += v.b; o.s += v.s; });
         let mx = 0, poc = null; rows.forEach((v, k) => { const t = v.b + v.s; if (t > mx){ mx = t; poc = k; } });
+        let mxd = 0; rows.forEach(v => { mxd = Math.max(mxd, Math.abs(v.b - v.s)); });   // the biggest |delta| of the bar: scales the colour in the delta mode
         const an = this.fpAn(m, rows, step, OF), PRx = this.PR;
         const touched = (j0, lo_, hi_) => { for (let j = j0; j < d.length; j++) if (d[j].l <= hi_ && d[j].h >= lo_) return j; return -1; };   // first later candle that trades inside [lo_, hi_]
         rows.forEach((v, k) => {
           const y = py(k*step), h = Math.max(2, Math.abs(py(k*step) - py((k+1)*step)) - 1), a = (v.b + v.s)/(mx || 1);
-          c.fillStyle = hexA(v.b >= v.s ? FB : FS, .12+.5*a); c.fillRect(x-w/2, y-h/2, w, h);
+          if (FM === "delta") c.fillStyle = hexA(v.b >= v.s ? FB : FS, .1 + .6*Math.abs(v.b - v.s)/(mxd || 1)); else if (FM === "volume") c.fillStyle = hexA("#4aa3ff", .1 + .6*a); else c.fillStyle = hexA(v.b >= v.s ? FB : FS, .12+.5*a);
+          c.fillRect(x-w/2, y-h/2, w, h);
           if (k === poc){ c.strokeStyle = v.b >= v.s ? FB : FS; c.lineWidth = 2; c.strokeRect(x-w/2, y-h/2, w, h); c.lineWidth = 1; }
           if (big && (v.b + v.s) >= OF.bigx*(m.b + m.s)/Math.max(1, rows.size) && h >= 6){   // large order: dot + offset + radius proportional to its size, same colour as the cell
             const ratio = Math.min(1, (v.b + v.s)/(mx || 1)), bc = v.b >= v.s ? FB : FS, ox = x+w/2+5+ratio*22, rr = 2.5+ratio*5;
@@ -2019,7 +2021,8 @@ Object.assign(CandleChart.prototype, {
             c.fillStyle = bc; c.beginPath(); c.arc(ox, y, rr, 0, 6.3); c.fill(); c.textAlign = "left"; c.font = "bold "+fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.b + v.s), ox+rr+3, y);
             if (i === i1){ const last = d[d.length-1].c, dist = k*step - last; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((dist >= 0 ? "+" : "")+dist.toFixed(dec), ox+rr+3+26, y); } }
           const im_ = an.imb.get(k), imbB = im_ === "b", imbS = im_ === "s";
-          if (big && h >= 8){ c.textAlign = "right"; c.fillStyle = imbS ? "#ff8a97" : "#c7ccd3"; c.font = (imbS ? "bold " : "") + fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.s), x-2, y);
+          if (big && h >= 8 && FM !== "bidask"){ const dv = v.b - v.s, tv = FM === "delta" ? dv : v.b + v.s; c.textAlign = "center"; c.fillStyle = FM === "delta" ? (dv >= 0 ? "#6df0b5" : "#ff8a97") : "#c7ccd3"; c.font = ((imbB || imbS) ? "bold " : "") + fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText((tv < 0 ? "−" : (FM === "delta" && tv > 0 ? "+" : "")) + fmt(Math.abs(tv)), x, y); }
+          else if (big && h >= 8){ c.textAlign = "right"; c.fillStyle = imbS ? "#ff8a97" : "#c7ccd3"; c.font = (imbS ? "bold " : "") + fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.s), x-2, y);
             c.textAlign = "left"; c.fillStyle = imbB ? "#6df0b5" : "#c7ccd3"; c.font = (imbB ? "bold " : "") + fs+"px ui-monospace,Menlo,Consolas,monospace"; c.fillText(fmt(v.b), x+2, y); }
         });
         if (OF.fpStack !== 0) an.runs.forEach(rn => {   // stacked imbalance: a bar beside the cells and a faint zone to the right until price trades back into it
@@ -5108,6 +5111,8 @@ Ws.ofPanel = (anchor, chart, onChange) => {
   { const chk = (k, lab) => { const i = el("input"); i.type = "checkbox"; i.checked = OF[k] !== 0; i.onchange = () => { OF[k] = i.checked ? 1 : 0; onChange(); }; row(lab, i); };
     num("fpImb", L("Footprint imbalance ratio (× vs the diagonal row)","نسبة الإمبالانس في الفوتبرنت (× مقابل الصف القُطري)"), 1.5, 10, 0.5); num("fpStk", L("Stacked imbalance: min rows","الإمبالانس المكدّس: أقل عدد صفوف"), 2, 8, 1);
     const mv = el("select"); [0, 10, 25, 50, 100].forEach(v => mv.append(Object.assign(el("option"), {value:v, textContent:v ? v + "%" : L("off","مقفول")}))); mv.value = String(OF.fpMin || 0); mv.onchange = () => { OF.fpMin = +mv.value; onChange(); }; row(L("Imbalance: min row volume (% of the bar's average row)","الإمبالانس: أقل حجم للصف (% من متوسط صف الشمعة)"), mv);
+    { const fm_ = el("select"); [["bidask", L("Sell × Buy per row","بيع × شراء لكل صف")], ["delta", L("Delta per row (heat)","دلتا كل صف (حراري)")], ["volume", L("Total volume per row (heat)","إجمالي حجم الصف (حراري)")]].forEach(([v, l]) => fm_.append(Object.assign(el("option"), {value:v, textContent:l}))); fm_.value = OF.fpMode || "bidask"; fm_.onchange = () => { OF.fpMode = fm_.value; onChange(); }; row(L("Footprint cells show","خلايا الفوتبرنت تعرض"), fm_);
+      const fr_ = el("select"); [[1, L("Auto","تلقائي")], [2, "×2"], [5, "×5"], [10, "×10"]].forEach(([v, l]) => fr_.append(Object.assign(el("option"), {value:v, textContent:l}))); fr_.value = String(OF.fpRow || 1); fr_.onchange = () => { OF.fpRow = +fr_.value; onChange(); }; row(L("Footprint row size (prices grouped)","حجم صف الفوتبرنت (تجميع الأسعار)"), fr_); }
     chk("fpDiag", L("Diagonal imbalance (off = same row)","إمبالانس قُطري (مقفول = نفس الصف)")); chk("fpStack", L("Stacked imbalance zones","مناطق الإمبالانس المكدّس")); chk("fpNaked", L("Naked POC (runs on until traded)","POC الأعزل (يمتد لحد ما يتلمس)")); chk("fpAuc", L("Unfinished auction marks","علامات المزاد غير المنتهي")); chk("fpDelta", L("Bar delta label","رقم دلتا الشمعة")); }
   num("dom", L("Depth-map heat ×","حرارة خريطة العمق ×"), 0.3, 3, 0.1); num("bigx", L("Big-order dot: × avg row","نقطة الأوردر الكبير: × متوسط الصف"), 1.5, 10, 0.5);
   Ws.sensRows(pop, row);

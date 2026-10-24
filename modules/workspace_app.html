@@ -488,7 +488,17 @@ const HL_LBL = {GOLD:"Gold",SILVER:"Silver",PLATINUM:"Platinum",PALLADIUM:"Palla
 const hlBase = id => String(id).replace(/^HL:/, "").split(":").pop(), hlCoin = id => String(id).replace(/^HL:/, "");
 const hlCat = id => HL_CAT[hlBase(id)] || "Stocks", hlLabel = id => HL_LBL[hlBase(id)] || hlBase(id);
 const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:new Set(),
-  async post(body){ const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}); if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status); return r.json(); },
+  /* one shared path for every /info call: identical calls share a short cache and one in-flight request, and a 429 stops ALL calls for a while (Retry-After, capped) instead of every widget retrying */
+  cache:new Map(), inflight:new Map(), cool:0,
+  async post(body){ const key = JSON.stringify(body), now = Date.now();
+    if (now < this.cool) throw new Error("Hyperliquid rate limit: waiting before retry");
+    const hit = this.cache.get(key); if (hit && now - hit.t < 1500) return hit.v;
+    if (this.inflight.has(key)) return this.inflight.get(key);
+    const p = (async () => { try { const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:key});
+        if (r.status === 429){ const ra = +r.headers.get("Retry-After") || 0, wait = Math.min(60000, Math.max(15000, ra*1000)); this.cool = Date.now() + wait + Math.random()*2000; throw new Error("Hyperliquid HTTP 429"); }
+        if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status);
+        const v = await r.json(); this.cache.set(key, {t:Date.now(), v}); return v; } finally { this.inflight.delete(key); } })();
+    this.inflight.set(key, p); return p; },
   /* trades: the REST recentTrades call gives only the last ~10 prints (~20 s on gold), so the footprint / tape stayed almost empty.
      A "trades" subscription on the same socket keeps a rolling buffer (newest first, like OKX) of every print since the chart opened (2026-10-22). */
   trSend(coin){ try { this.ws && this.ws.send(JSON.stringify({method:"subscribe", subscription:{type:"trades", coin}})); } catch(e){} },

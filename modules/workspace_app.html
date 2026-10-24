@@ -1567,7 +1567,11 @@ class CandleChart {
     if (this._raf) return;
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
-  paint(){
+  paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
+    if (!this.pal) return this._paint();
+    const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); }
+  }
+  _paint(){
     const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length; this._gChip = null;
     c.clearRect(0,0,W,H); c.fillStyle = TH.bg; c.fillRect(0,0,W,H);   // clear first: a dashboard theme may use a see-through background
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textBaseline = "middle";
@@ -3374,6 +3378,17 @@ class Panel {
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    const palB = el("button",null,"🎨"); palB.title = Lg("Chart colours: candles, background, grid, presets","ألوان الشارت: الشموع، الخلفية، الشبكة، قوالب جاهزة");
+    palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid}, ch_.pal || {});
+      const pop = el("div","stpop"), r_ = palB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-280))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px"; pop.onpointerdown = e => e.stopPropagation();
+      const apply = pal => { ch_.pal = pal; this.state.pal = pal; Ws.save(); ch_.draw(); };
+      const ins = {}, put = (k, lab) => { const l = el("span"); l.textContent = lab; const i = el("input"); i.type = "color"; i.value = base()[k] || "#000000"; i.oninput = () => { apply(Object.assign(base(), {[k]: i.value})); }; ins[k] = i; pop.append(l, i); };
+      const PRE = [[Lg("Theme default","افتراضي الثيم"), null], ["TradingView", {up:"#26a69a", dn:"#ef5350"}], [Lg("Blue / Orange","أزرق / برتقالي"), {up:"#2196f3", dn:"#ff9800"}], [Lg("Mono","أبيض / رمادي"), {up:"#e6e6e6", dn:"#6b6b6b"}], [Lg("Neon","نيون"), {up:"#00ff9d", dn:"#ff3d71", bg:"#05070d", grid:"#101522"}]];
+      const sel = el("select"); PRE.forEach(([n], i) => sel.append(Object.assign(el("option"), {value:i, textContent:n}))); sel.onchange = () => { const v = PRE[+sel.value][1]; apply(v ? Object.assign({}, v) : null); const b = base(); Object.keys(ins).forEach(k => { ins[k].value = b[k] || "#000000"; }); };
+      const l0 = el("span"); l0.textContent = Lg("Preset","قالب"); pop.append(l0, sel);
+      put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة"));
+      const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
+      document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
     ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
@@ -3418,7 +3433,7 @@ class Panel {
     lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -3426,7 +3441,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.gaOn = this.state.ofg !== false; this.chart.scOn = this.state.ofs !== false; this.chart.onOfX = () => { this.state.ofg = this.chart.gaOn; this.state.ofs = this.chart.scOn; Ws.save(); };   // ✕ on the order-flow gauge / sync card: hidden per chart, restored from the Order-flow menu
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)

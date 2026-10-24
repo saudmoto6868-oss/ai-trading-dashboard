@@ -160,6 +160,8 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 .nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
 .wn{animation:flb 1.4s ease-out 1,blink .5s linear 2}.sn{animation:blink .6s linear 1}
 .ab{background:rgba(181,124,255,.3)}.glow{box-shadow:0 0 3px 1px rgba(240,185,11,.25)}.hot{box-shadow:0 0 4px 1px rgba(255,255,255,.25)}   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
+.evf{animation:evfl 1s ease-out 1}@keyframes evfl{0%{background:rgba(255,255,255,.12)}100%{background:transparent}}
+.evl{font-size:10px;color:#848e9c;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.evl b{font-weight:400}
 .hb{animation:flb 1.2s ease-out 1}.hs{animation:fls 1.2s ease-out 1}.gr{animation:grow 1.3s ease-out 1}.evn{animation:blink .5s linear 2}
 .rtl #bar,.rtl .ph,.rtl .news-detail,.rtl .news-item,.rtl textarea{direction:rtl}
 .vid{width:100%;height:100%;border:0;background:#000}
@@ -4933,8 +4935,9 @@ function renderEvents(panel, evAll){
   if (!ev.length) return '<div class="err" style="color:#848e9c">'+esc(T("watching"))+'</div>';
   const rgb = {PLACED:"74,163,255", PULLED:"240,185,11", FILLED:"132,142,156", ABSORB:"181,124,255"}, col = {PLACED:"#4aa3ff", PULLED:"#f0b90b", FILLED:"#9aa3ad", ABSORB:"#c9a3ff"};
   const note = {PLACED:T("placed"), PULLED:T("pulled"), FILLED:T("filled"), ABSORB:Lg("absorption","امتصاص")};
-  let h = '<table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
-  ev.slice(0,60).forEach(e => { const fr = now-e.t < 6000 ? ' class="cf"' : ""; h += '<tr style="background:rgba('+rgb[e.ev]+',.08);box-shadow:inset 3px 0 0 '+col[e.ev]+'"><td'+fr+' style="color:'+col[e.ev]+';font-weight:700">'+e.ev+'</td><td class="'+(e.side==="bid"?"g":"rd")+'" style="font-weight:700">'+e.side.toUpperCase()+'</td><td'+fr+'>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
+  const gly = {PLACED:"●", PULLED:"✕", FILLED:"■", ABSORB:"◆"}, nm = {PLACED:"NEW", PULLED:"PULL", FILLED:"FILL", ABSORB:"ABS"}, ev0 = {PLACED:Lg("new","جديد"), PULLED:Lg("pulled (possible fake wall)","اتشال (جدار وهمي محتمل)"), FILLED:Lg("traded","اتنفذ"), ABSORB:Lg("absorbed","امتصاص")};
+  let h = '<div class="evl">'+["PLACED","PULLED","FILLED","ABSORB"].map(k => '<b style="color:'+col[k]+'">'+gly[k]+'</b> '+ev0[k]).join(" &nbsp; ")+'</div><table class="fx">'+colGroup(panel,"lim",LIM_COLS)+headRow([T("event"),T("side"),T("price"),T("size"),T("note"),T("time")],["","","","r","","r"]);
+  ev.slice(0,60).forEach(e => { const key = e.ev === "ABSORB" || e.ev === "PULLED"; h += '<tr'+(now-e.t < 1500 ? ' class="evf"' : "")+(key ? ' style="box-shadow:inset 2px 0 0 '+col[e.ev]+'"' : "")+'><td title="'+esc(note[e.ev])+'"><b style="color:'+col[e.ev]+'">'+gly[e.ev]+'</b> '+nm[e.ev]+'</td><td class="'+(e.side==="bid"?"g":"rd")+'">'+e.side.toUpperCase()+'</td><td>'+fmtP(e.p)+'</td><td class="r">'+fmtQ(e.q)+'</td><td class="m" style="font-size:10px">'+esc(note[e.ev])+'</td><td class="r m">'+hms(e.t)+'</td></tr>'; });
   return h+'</table>';
 }
 

@@ -2064,12 +2064,23 @@ def _last_ts(df):
         return ""
 
 
+def _fv_with_ref(df, sym, ref_sym, ref_df):
+    """Finviz-style metrics + beta / correlation against the reference symbol (none for the reference itself or when no reference is in the universe)."""
+    from modules import fv_screen as _FV
+    m = _FV.metrics(df)
+    if m is not None and ref_df is not None and sym != ref_sym:
+        m.update(_FV.relation(df, ref_df))
+    return m
+
+
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260, workers=8)
     pfr = _peer_frames(symbols, tf)
     out = {}
+    _ref_sym = next((x for x in ("BTC-USDT", "BTC-USDT-SWAP", "HL:xyz:SP500", "Y:^GSPC", "HL:BTC") if (frames.get(x) or {}).get(tf) is not None), None)   # beta / correlation reference: BTC for crypto, the S&P 500 for TradFi
+    _ref_df = (frames.get(_ref_sym) or {}).get(tf) if _ref_sym else None
     for sym in symbols:
         df = (frames.get(sym) or {}).get(tf)
         if df is None or len(df) < 60:
@@ -2082,7 +2093,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
         except Exception:
             expl = {}
         out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
-                    "t": time.time(), "ts": _last_ts(df), "fv": _FV.metrics(df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
+                    "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
 
@@ -2637,7 +2648,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20")):
+        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2646,7 +2657,7 @@ def _radar_filters(view):
             c_ = st.columns([1.3, 0.7])
             rel_ma = c_[0].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
             pair = c_[1].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-            for k_ in ("sma20", "sma50", "sma200", "adx", "sar", "dist20"):
+            for k_ in ("sma20", "sma50", "sma200", "adx", "sar", "dist20", "ichi"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
@@ -2670,8 +2681,8 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price")):
-            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price"):
+        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]

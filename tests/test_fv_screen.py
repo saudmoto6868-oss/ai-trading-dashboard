@@ -101,5 +101,20 @@ def test_extra_candle_only_lists():
     print("ok extra lists")
 
 
+def test_ichimoku_beta_and_correlation():
+    up = F.metrics(_frame(np.linspace(100, 200, 270))); dn = F.metrics(_frame(np.linspace(200, 100, 270)))
+    assert F.test("ichi", "above", up) and F.test("ichi", "green", up) and not F.test("ichi", "below", up)
+    assert F.test("ichi", "below", dn) and F.test("ichi", "red", dn) and not F.test("ichi", "above", dn)
+    rng = np.random.default_rng(7); r = rng.normal(0, 0.01, 200); ref = _frame(100 * np.exp(np.cumsum(r)))
+    twice = _frame(100 * np.exp(np.cumsum(2 * r))); inv = _frame(100 * np.exp(np.cumsum(-r))); other = _frame(100 * np.exp(np.cumsum(rng.normal(0, 0.01, 200))))
+    a = F.relation(twice, ref); b = F.relation(inv, ref); c = F.relation(other, ref)
+    assert abs(a["beta"] - 2) < 0.05 and a["corr"] > 0.99 and b["beta"] < -0.95 and b["corr"] < -0.99 and abs(c["corr"]) < 0.45, (a, b, c)
+    assert F.relation(twice.head(10), ref) == {} and F.relation(_frame(np.full(100, 5.0)), ref) == {}                    # too short / flat: nothing, no error
+    m = dict(up); m.update(a)
+    assert F.test("beta", "o1", m) and F.test("beta", "o2", {"beta": 2.4}) and F.test("beta", "neg", dict(up, **b)) and F.test("corr", "o08", m) and F.test("corr", "n05", dict(up, **b))
+    assert not F.test("beta", "o1", up) and not F.test("corr", "o08", up)                                                # no reference in the universe: never matches
+    print("ok ichimoku beta corr")
+
+
 if __name__ == "__main__":
-    test_metrics_and_filters(); test_cross_and_relvol(); test_candle_set_and_every_filter_has_a_test(); test_similar_finds_the_scaled_copy_and_not_itself(); test_extra_candle_only_lists(); print("ok fv_screen")
+    test_metrics_and_filters(); test_cross_and_relvol(); test_candle_set_and_every_filter_has_a_test(); test_similar_finds_the_scaled_copy_and_not_itself(); test_extra_candle_only_lists(); test_ichimoku_beta_and_correlation(); print("ok fv_screen")

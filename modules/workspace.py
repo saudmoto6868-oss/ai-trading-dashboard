@@ -57,7 +57,7 @@ _OOS_CACHE: dict = {}
 UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("ember", "3 · Ember"), ("sunset", "4 · Sunset"),
              ("emerald", "5 · Emerald"), ("neon", "6 · Neon"), ("mono", "7 · Mono Data"), ("grafana", "8 · Grafana"), ("blueprint", "9 · Blueprint"),
              ("slate", "10 · Slate Mint"), ("frost", "11 · Frost Glass"), ("gold", "12 · Black Gold"), ("amber", "13 · Amber Cockpit"), ("dusk", "14 · Dusk"),
-             ("cyber", "15 · Cyber"), ("nogray", "16 · No Gray")]
+             ("cyber", "15 · Cyber"), ("nogray", "16 · No Gray"), ("deerflow", "17 · DeerFlow Dot Matrix")]
 # themes 3-9 (owner pictures 2026-10-18) share one engine: a palette -> CSS variables for the page, the top bar and the Workspace (+ chart colours).
 # keys: bg page, panel/panel2 cards (see-through over the blurred picture), solid = card in front, line, txt, mut, acc accent, ink text on accent,
 # up/dn candles, rad corner radius px, font, tt text-transform of titles, ls letter-spacing, glow card shadow
@@ -89,6 +89,25 @@ UI_PALETTES = {
                       acc="#f4a07a", ink="#2a1208", up="#ffc29a", dn="#b97cff", rad=16, font="", tt="none", ls="0", glow="0 12px 32px rgba(0,0,0,.4)"),
     "cyber":     dict(bg="#071216", panel="rgba(8,22,27,.88)", panel2="rgba(12,32,38,.9)", solid="rgba(6,16,20,.98)", line="rgba(0,229,255,.16)", txt="#dff9ff", mut="#6f9aa4",
                       acc="#00e5ff", ink="#001a20", up="#00e5ff", dn="#ff9f1c", rad=2, font="", tt="uppercase", ls=".1em", glow="0 0 20px rgba(0,229,255,.10)"),
+    # theme 17 (owner picture 2026-10-24, "DeerFlow AIoT dashboard"): warm peach-to-charcoal page, near-black rounded cards, off-white text, ONE vivid orange-red accent, mono labels with dot-matrix numbers.
+    # `extra` = raw CSS appended after the palette stylesheet (Streamlit page + Workspace): the dot-matrix display font for big numbers / titles, numbered small caps labels, a glowing status dot.
+    "deerflow":  dict(bg="#1c1a18", panel="rgba(20,19,18,.93)", panel2="rgba(32,30,28,.95)", solid="rgba(15,14,13,.98)", line="rgba(255,255,255,.07)", txt="#ededed", mut="#8d8a86",
+                      acc="#ff4a1c", ink="#1a0600", up="#e9e9e9", dn="#ff4a1c", rad=18, font="'JetBrains Mono','Space Mono','DotGothic16',ui-monospace,Menlo,Consolas,monospace", tt="uppercase", ls=".07em",
+                      glow="0 16px 36px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)",
+                      extra="@import url('https://fonts.googleapis.com/css2?family=Doto:wght@500;800&family=JetBrains+Mono:wght@400;600&display=swap');"
+                            ".uk-val,.uk-sv,[data-testid='stMetricValue'],.stApp h1{font-family:'Doto','DotGothic16',ui-monospace,monospace!important;font-weight:800!important;letter-spacing:.04em}"
+                            ".uk-card,.uk-strip,.uk-panel{border-radius:18px!important}.uk-lbl,.uk-sl{color:#8d8a86!important}"
+                            ".uk-card.up,.uk-card.down,.uk-card.warn{box-shadow:0 14px 30px rgba(0,0,0,.5)!important}"
+                            ".uk-sv[style*='0ecb81'],.uk-val[style*='0ecb81']{color:#ededed!important}"
+                            "button[data-variant='pills'],button[data-variant='segmented_control']{background:#1a1918!important;border:1px solid rgba(255,255,255,.12)!important}"
+                            "button[data-variant='pills'] p,button[data-variant='pills'] span,button[data-variant='segmented_control'] p,button[data-variant='segmented_control'] span{color:#ededed!important}"
+                            "button[data-variant='pills'][aria-checked='true'],button[data-variant='segmented_control'][aria-checked='true']{background:rgba(255,74,28,.14)!important;border-color:#ff4a1c!important}"
+                            "button[data-variant='pills'][aria-checked='true'] p,button[data-variant='segmented_control'][aria-checked='true'] p{color:#ff4a1c!important}"
+                            "[data-testid='stSelectbox'] [role='group'],[data-testid='stNumberInputContainer']{background:#1a1918!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important}"
+                            "[data-testid='stSelectbox'] [role='group'] *,[data-testid='stNumberInputContainer'] *{color:#ededed!important}"
+                            "body.ui-deerflow svg{-webkit-mask-image:radial-gradient(circle,#000 46%,transparent 54%);-webkit-mask-size:2.4px 2.4px;mask-image:radial-gradient(circle,#000 46%,transparent 54%);mask-size:2.4px 2.4px}"
+                            "body.ui-deerflow .wt img,body.ui-deerflow .ph img,body.ui-deerflow td img{-webkit-mask-image:radial-gradient(circle,#000 46%,transparent 54%);-webkit-mask-size:2.6px 2.6px;mask-image:radial-gradient(circle,#000 46%,transparent 54%);mask-size:2.6px 2.6px;filter:contrast(1.25) saturate(1.1)}"
+                            "body.ui-deerflow .logo,body.ui-deerflow .chip{font-family:'Doto','DotGothic16',ui-monospace,monospace}"),
     "nogray":    dict(bg="#000000", panel="rgba(10,10,10,.92)", panel2="rgba(20,20,20,.94)", solid="rgba(5,5,5,.98)", line="rgba(255,255,255,.14)", txt="#ffffff", mut="#9a9a9a",
                       acc="#19e6c1", ink="#00231d", up="#19e6c1", dn="#f2f2f2", rad=0, font="", tt="uppercase", ls=".08em", glow="0 14px 30px rgba(0,0,0,.6)"),
 }
@@ -100,7 +119,7 @@ def ui_vars(theme: str) -> dict:
 
 
 _UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint",
-                                                                                     "slate", "frost", "gold", "amber", "dusk", "cyber", "nogray")}}
+                                                                                     "slate", "frost", "gold", "amber", "dusk", "cyber", "nogray", "deerflow")}}
 
 
 @functools.lru_cache(maxsize=1)

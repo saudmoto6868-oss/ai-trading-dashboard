@@ -1418,7 +1418,9 @@ class CandleChart {
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
   destroy(){ this.ro.disconnect(); }
-  cw(){ if (!this.colOn) return 0; return this.colW ? Math.max(60, Math.min(Math.round(this.W*0.85), this.colW)) : Math.max(120, Math.min(200, Math.round(this.W*0.26))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
+  cw(){ if (!this.colOn) return 0; const mx = Math.max(60, Math.round(this.W*0.65 - this.axw));   // the candle area keeps at least 35 % of the chart (owner 2026-10-24)
+    if (this.colW) return Math.max(60, Math.min(mx, this.colW)); const big = (TFSEC[this.tf] || 3600) >= 14400;   // 4H / 1D / 1W: the default column is slimmer so it does not cover levels
+    return Math.min(mx, big ? Math.max(90, Math.min(140, Math.round(this.W*0.16))) : Math.max(120, Math.min(200, Math.round(this.W*0.26)))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
   subActive(){ return this.subOrd.filter(k => this[k+"On"]); }
   get axw(){ return this._axw || (this._axw = Math.max(44, Math.min(200, +store.get(LS+"_axw", 62) || 62))); } set axw(v){ this._axw = v; store.set(LS+"_axw", v); }
   get PR(){ return this.W - this.axw - this.cw(); } subHs(){ const a = this.subActive().map(k => Math.max(18, Math.round(this.H*this.st[k].hp/100))); const tot = a.reduce((x,y) => x+y, 0), cap = Math.max(0, this.H - 70); /* a pane can shrink to its title strip (18 px) or grow until the price area is 70 px */ return tot > cap && tot ? a.map(v => v*cap/tot) : a; }
@@ -1529,7 +1531,7 @@ class CandleChart {
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.drawSoon(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)/this.S))); this.drawSoon(); return; }
-    if (this.colDrag){ this.colW = Math.max(60, Math.min(Math.round(this.W*0.85), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)/this.S))); /* order-flow column: 60 px .. 85 % */ this.drawSoon(); return; }
+    if (this.colDrag){ this.colW = Math.max(60, Math.min(Math.round(this.W*0.65 - this.axw), Math.round(this.colDrag.w + (this.colDrag.x - e.clientX)/this.S))); /* order-flow column: 60 px .. 85 % */ this.drawSoon(); return; }
     if (this.subDrag){ const dh = ((this.subDrag.y - e.clientY)/this.S)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(1, Math.min(92, Math.round((this.subDrag.hp + dh)*10)/10)); /* drag the divider all the way down or up */ this.resize(); this.drawSoon(); return; }
     if (this.subMove){ const act = this.subActive(), i = act.indexOf(this.subMove.k), P = this._panes || [], me = P.find(q => q.k === this.subMove.k);
       if (me && i >= 0){ const my = this.mouse.y; if (i > 0 && my < me.y0 - 4) this.swapSub(this.subMove.k, -1); else if (i < act.length-1 && my > me.y0 + me.h + 8) this.swapSub(this.subMove.k, 1); } return; }
@@ -1588,8 +1590,8 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
-    if (!this.pal) return this._paint();
-    const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); }
+    if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
+    const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
   _paint(){
     const c = this.ctx, W = this.W, H = this.H, PR = this.PR, PB = this.PB, n = this.data.length; this._gChip = null;
@@ -2477,7 +2479,8 @@ Object.assign(CandleChart.prototype, {
   },
   chanOff(d){ const a = d.pts[0], b = d.pts[1], c = d.pts[2], dt = b.t-a.t || 1; return c.p - (a.p + (b.p-a.p)*(c.t-a.t)/dt); },
   toolDown(e){
-    const q = this.pt(e); if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
+    const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
+    if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }

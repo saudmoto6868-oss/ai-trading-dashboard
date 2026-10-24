@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">
+<script>
+/* XPiX Radar preset store (hidden Streamlit component): keeps the user's own Radar presets in THIS browser's localStorage (key xpix_radar_presets),
+   so they survive a server restart. Python sends one command per user action {id, action:"save"|"delete", name, data}; every render sends back {presets}.
+   Presets are per browser / per person: another browser starts empty. */
+(function(){
+  const KEY = "xpix_radar_presets", send = (type, extra) => window.parent.postMessage(Object.assign({isStreamlitMessage:true, type}, extra || {}), "*");
+  const read = () => { try { const d = JSON.parse(localStorage.getItem(KEY) || "{}"); return d && typeof d === "object" ? d : {}; } catch(e){ return {}; } };
+  const write = d => { try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch(e){ return false; } };
+  let lastCmd = null, lastSent = null;
+  window.addEventListener("message", ev => {
+    const d = ev.data || {}; if (d.type !== "streamlit:render") return;
+    const c = (d.args || {}).cmd; let ok = true;
+    if (c && c.id && c.id !== lastCmd){ lastCmd = c.id; const cur = read();
+      if (c.action === "save" && c.name && c.data && typeof c.data === "object"){ cur[String(c.name).slice(0, 40)] = c.data; ok = write(cur); }
+      else if (c.action === "delete" && c.name){ delete cur[String(c.name).slice(0, 40)]; ok = write(cur); } }
+    const val = {presets:read(), ok}, s = JSON.stringify(val);
+    if (s !== lastSent){ lastSent = s; send("streamlit:setComponentValue", {value:val, dataType:"json"}); }
+  });
+  send("streamlit:componentReady", {apiVersion:1}); send("streamlit:setFrameHeight", {height:0});
+})();
+</script></body></html>

@@ -69,8 +69,7 @@ def test_cvd_and_divergence():
     node = shutil.which("node")
     if not node:
         return
-    i = H.index("cvdAn(d, fp, N){"); j = H.index("
-  paintFp(c, py", i)
+    i = H.index("cvdAn(d, fp, N){"); j = H.index("\n  paintFp(c, py", i)
     js = "const O = {" + H[i:j].strip().rstrip(",") + """};
 const mk = rows => { const d = [], fp = new Map(); rows.forEach(([h, l, b, s], t) => { d.push({t, h, l}); fp.set(t, {b, s}); }); return {d, fp}; };
 const bear = []; for (let t = 0; t < 14; t++) bear.push([100 + t, 99 + t, t < 12 ? 10 : 1, t < 12 ? 2 : 9]);
@@ -90,8 +89,7 @@ def test_value_area():
     node = shutil.which("node")
     if not node:
         return
-    i = H.index("vaOf(rows, pct){"); j = H.index("
-  cvdAn(d, fp, N){", i)
+    i = H.index("vaOf(rows, pct){"); j = H.index("\n  cvdAn(d, fp, N){", i)
     js = "const O = {" + H[i:j].strip().rstrip(",") + """};
 const R = a => new Map(a.map(([k, v]) => [k, {b: v, s: 0}]));
 console.log(JSON.stringify([O.vaOf(R([[1,5],[2,10],[3,40],[4,30],[5,10],[6,5]]), .7), O.vaOf(R([[7,100]]), .7), O.vaOf(new Map(), .7)]));"""

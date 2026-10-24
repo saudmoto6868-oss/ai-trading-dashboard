@@ -488,7 +488,18 @@ const HL_LBL = {GOLD:"Gold",SILVER:"Silver",PLATINUM:"Platinum",PALLADIUM:"Palla
 const hlBase = id => String(id).replace(/^HL:/, "").split(":").pop(), hlCoin = id => String(id).replace(/^HL:/, "");
 const hlCat = id => HL_CAT[hlBase(id)] || "Stocks", hlLabel = id => HL_LBL[hlBase(id)] || hlBase(id);
 const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:new Set(),
-  async post(body){ const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}); if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status); return r.json(); },
+  /* /info rate limit (429 storm seen 2026-10-24): same body within its TTL = one request (cache + in-flight share); after a 429 every /info call fails fast until the cooldown ends
+     (Retry-After, 5-60 s, doubles on repeats; shared across frames via localStorage); no caller retries in a loop. */
+  ttl:{metaAndAssetCtxs:3000, l2Book:700, recentTrades:1500, candleSnapshot:1500}, cache:new Map(), cool:0, coolN:0,
+  coolUntil(){ let c = this.cool; try { c = Math.max(c, +localStorage.getItem("hl_cool") || 0); } catch(e){} return c; },
+  async post(body){ const now = Date.now(), cu = this.coolUntil(); if (cu > now) throw new Error("Hyperliquid rate limit - waiting "+Math.ceil((cu-now)/1000)+" s");
+    const k = JSON.stringify(body), h = this.cache.get(k), ttl = this.ttl[body.type] || 1000; if (h && (h.p || now - h.t < ttl)) return h.p || h.v;
+    const p = (async () => { const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+      if (r.status === 429){ const ra = +r.headers.get("Retry-After") || 0; this.coolN = Math.min(this.coolN+1, 4); const ms = Math.min(60000, Math.max(ra*1000, 5000*Math.pow(2, this.coolN-1)));
+        this.cool = Date.now() + ms; try { localStorage.setItem("hl_cool", String(this.cool)); } catch(e){} throw new Error("Hyperliquid HTTP 429"); }
+      if (!r.ok) throw new Error("Hyperliquid HTTP "+r.status); this.coolN = 0; return r.json(); })();
+    this.cache.set(k, {p, t:now}); if (this.cache.size > 60) this.cache.delete(this.cache.keys().next().value);
+    try { const v = await p; this.cache.set(k, {v, t:Date.now()}); return v; } catch(e){ this.cache.delete(k); throw e; } },
   /* trades: the REST recentTrades call gives only the last ~10 prints (~20 s on gold), so the footprint / tape stayed almost empty.
      A "trades" subscription on the same socket keeps a rolling buffer (newest first, like OKX) of every print since the chart opened (2026-10-22). */
   trSend(coin){ try { this.ws && this.ws.send(JSON.stringify({method:"subscribe", subscription:{type:"trades", coin}})); } catch(e){} },
@@ -504,7 +515,7 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
       const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
     this.list = L; this.t = Date.now(); },
   start(){ if (this.on) return; this.on = true; this.state = "connecting";
-    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 4000); };
+    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : Math.max(4000, this.coolUntil() - Date.now() + 500)); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
     ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };

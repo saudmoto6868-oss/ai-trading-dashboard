@@ -3298,10 +3298,9 @@ if PAGE == 4:   # perf
                 _c = st.columns(3)
                 _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric(L("Stats source"), _st["source"])
                 st.line_chart((1 + _ret).cumprod().rename("equity"))
-                import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
-                    _components.html(_html, height=900, scrolling=True)
+                    st.iframe(_html, height=900)
                 else:
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:

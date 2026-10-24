@@ -88,7 +88,7 @@ td{padding:1px 4px;white-space:nowrap}
 .stat{padding:3px 6px;color:var(--mut)}
 .bar2{display:flex;height:5px;margin:3px 6px;border-radius:2px;overflow:hidden}
 .cell{position:relative;height:17px}.cell .f{position:absolute;top:0;bottom:0;opacity:.3}.cell .t{position:relative;padding:0 4px;line-height:17px}
-.big{border:1px solid var(--gold)}
+.big{border:1px solid rgba(240,185,11,.22)}
 .card{margin:6px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
 .card .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.card .grow{flex:1}
 .logo{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex:none}
@@ -159,7 +159,7 @@ th .rzh:hover{background:var(--gold);opacity:.5}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
 .nb{animation:flb 1.4s ease-out 1}.ns{animation:fls 1.4s ease-out 1}
 .wn{animation:flb 1.4s ease-out 1,blink .5s linear 2}.sn{animation:blink .6s linear 1}
-.ab{background:rgba(181,124,255,.3)}.glow{box-shadow:0 0 3px 1px rgba(240,185,11,.25)}.hot{box-shadow:0 0 4px 1px rgba(255,255,255,.25)}   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
+td.ab::before{content:"";display:inline-block;width:6px;height:6px;margin-inline-end:4px;vertical-align:middle;background:#b57cff;border-radius:1px}.mk{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}.mk.w{background:#f0b90b}.mk.s{background:rgba(240,185,11,.5)}.mk.a{border-radius:1px;background:#b57cff}   /* markers instead of filled cells / rows: a small dot (gold = whale, dim gold = smart) or square (violet = absorption) beside the number */   /* static highlights: the order-book table is rebuilt on every poll, which restarted these infinite pulses and looked like constant blinking (was animation:absb / glow / hot ... infinite) */.cf{animation:cellfl 1.6s ease-out 1}
 .evf{animation:evfl 1s ease-out 1}@keyframes evfl{0%{background:rgba(255,255,255,.12)}100%{background:transparent}}
 .evl{font-size:10px;color:#848e9c;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.evl b{font-weight:400}
 .hb{animation:flb 1.2s ease-out 1}.hs{animation:fls 1.2s ease-out 1}.gr{animation:grow 1.3s ease-out 1}.evn{animation:blink .5s linear 2}
@@ -4886,10 +4886,9 @@ function renderTape(panel, rows){
   rows.forEach(r => {
     const buy = r.side === "Buy", col = buy ? "#0ecb81" : "#f6465d", rgb = buy ? "14,203,129" : "246,70,93";
     let cls = r.absorb ? "ab" : r.isNew && r.tier === "whale" ? "wn" : r.isNew && r.tier === "smart" ? "sn "+(buy?"nb":"ns") : r.isNew ? (buy ? "nb" : "ns") : "";
-    const bg = r.absorb ? "rgba(181,124,255,.28)" : "rgba("+rgb+","+(r.tier === "whale" ? .38 : r.tier === "smart" ? .24 : .10)+")";
-    const edge = r.tier !== "normal" ? "box-shadow:inset 3px 0 0 #f0b90b;" : "";
+    const bg = "rgba("+rgb+",.07)", edge = "", mk = r.absorb ? '<i class="mk a"></i>' : r.tier === "whale" ? '<i class="mk w"></i>' : r.tier === "smart" ? '<i class="mk s"></i>' : "";   // no filled rows: the marker carries the meaning
     const tag = (r.tier === "whale" ? "WHALE" : r.tier === "smart" ? "SMART" : "") + (r.absorb ? " "+Lg("ABSORB","امتصاص") : "");
-    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
+    h += '<tr class="'+cls+'" style="background:'+bg+';'+edge+'color:'+col+';font-weight:'+(r.tier!=="normal"?700:400)+'"><td>'+mk+fmtP(r.p)+'</td><td class="r">'+fmtQ(r.q)+'</td><td class="r" style="color:#eaecef;font-weight:400">$'+Math.round(r.notional).toLocaleString("en-US")+'</td><td style="color:'+(r.absorb?"#e0c9ff":"#f0b90b")+';font-size:10px">'+tag.trim()+'</td><td class="r m" style="font-weight:400">'+hms(r.t)+'</td></tr>';
   });
   return h+'</table>';
 }

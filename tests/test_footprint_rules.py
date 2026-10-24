@@ -84,9 +84,28 @@ console.log(JSON.stringify([O.cvdAn(a.d, a.fp, 12).div, O.cvdAn(b.d, b.fp, 12).d
     assert ok == [] and none == []               # a confirmed move or no data: no mark
 
 
+def test_value_area():
+    for k in ("vaOf(rows, pct){", "this.vaOf(rows, .7)", "OF.fpVA !== 0", "chk(\"fpVA\""):
+        assert k in H, k
+    node = shutil.which("node")
+    if not node:
+        return
+    i = H.index("vaOf(rows, pct){"); j = H.index("
+  cvdAn(d, fp, N){", i)
+    js = "const O = {" + H[i:j].strip().rstrip(",") + """};
+const R = a => new Map(a.map(([k, v]) => [k, {b: v, s: 0}]));
+console.log(JSON.stringify([O.vaOf(R([[1,5],[2,10],[3,40],[4,30],[5,10],[6,5]]), .7), O.vaOf(R([[7,100]]), .7), O.vaOf(new Map(), .7)]));"""
+    r = subprocess.run([node, "-e", js], capture_output=True)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")
+    a, b, c = json.loads(r.stdout.decode("utf-8"))
+    assert a == {"poc": 3, "vah": 5, "val": 3}      # POC row 40; the side with more volume (rows 4-5: 40) is added first: 80 of 100 is inside
+    assert b == {"poc": 7, "vah": 7, "val": 7} and c is None
+
+
 if __name__ == "__main__":
     test_rules()
     test_wired_into_the_painter()
     test_linked_panels_and_forward_test()
     test_cvd_and_divergence()
+    test_value_area()
     print("ok footprint rules")

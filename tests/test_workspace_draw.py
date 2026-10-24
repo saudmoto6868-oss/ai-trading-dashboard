@@ -26,8 +26,9 @@ def test_tradingview_tool_set():
     assert "cgrip(d, hs)" in H and "this.catBtns" in H                              # centre grip to move a drawing, categories with headings
 
 
-def test_chart_opens_centred():
-    assert 'getItem("ai_ac") !== "0"' in H                                          # auto-centre is on unless the user turned it off
+def test_chart_is_free_by_default():
+    assert 'getItem("ai_ac") === "1"' in H                                          # 2026-10-24: auto-centre is OFF unless the user turned it on (it undid every zoom / pan on each live tick)
+    assert "freezeY(){" in H                                                        # vertical drag / Shift+wheel switches the price scale to manual
 
 
 def test_symbol_logos_in_the_workspace():
@@ -51,4 +52,4 @@ def test_two_tabs_do_not_freeze_the_chart():
 
 
 if __name__ == "__main__":
-    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_opens_centred(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")
+    test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_is_free_by_default(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")

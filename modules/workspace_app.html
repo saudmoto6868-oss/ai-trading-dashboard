@@ -854,6 +854,11 @@ function symClass(sym){
   if (/^Y:/.test(sym)){ const b = sym.slice(2); return /=X$/.test(b) ? "Forex" : /^\^/.test(b) ? "Indices" : /^(GC|SI|HG|PL|PA)=F$/.test(b) ? "Metals" : /^(CL|BZ|NG|HO)=F$/.test(b) ? "Oil & Gas" : /=F$/.test(b) ? "Other" : "Stocks"; }
   return "Crypto";
 }
+/* mini chart of a setup: last closes + entry / stop / TP1 (the scan sends e.spark); same idea as the old Scanner column */
+function sparkSvg(e, W, H){ const v = (e && e.spark) || [], pl = e && e.plan; W = W || 72; H = H || 22; if (v.length < 2 || !pl) return "";
+  const all = v.concat([pl.entry, pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), y = p => (H-2-(p-lo)/((hi-lo)||1)*(H-4)).toFixed(1), pts = v.map((p, i) => (i*(W-1)/(v.length-1)).toFixed(1)+","+y(p)).join(" "), ln = (p, c, d) => '<line x1="0" x2="'+W+'" y1="'+y(p)+'" y2="'+y(p)+'" stroke="'+c+'" stroke-width=".8"'+(d ? ' stroke-dasharray="2 2"' : '')+'/>';
+  return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle">'+ln(pl.tps[0], "#0ecb81", 1)+ln(pl.stop, "#f6465d", 1)+ln(pl.entry, "#4aa3ff", 0)+'<polyline points="'+pts+'" fill="none" stroke="'+(e.direction === "bullish" ? "#0ecb81" : "#f6465d")+'" stroke-width="1.2"/></svg>'; }
+const CLS_SELS = new Set(), clsBroadcast = () => CLS_SELS.forEach(x => { if (x.isConnected) x.value = FILT.cls || "All"; else CLS_SELS.delete(x); });   // every class select shows the one shared FILT.cls
 const clsOk = sym => !FILT.cls || FILT.cls === "All" || FILT.cls === "__best" || symClass(sym) === FILT.cls;
 const clsOptions = () => [["All", T("fAll")], ["__best", Lg("Best of all","الأفضل من الكل")]].concat(CLS_LIST.map(c => [c, catL(c)]));
 function readyList(){
@@ -4031,7 +4036,7 @@ class Panel {
     const mkSel = (key, opts) => { const s2 = el("select"); opts.forEach(([v,l]) => { const o = el("option",null,esc(l)); o.value = v; s2.append(o); }); s2.value = F[key]; s2.onchange = () => { F[key] = s2.value; Ws.save(); draw(); }; return s2; };
     tb.append(mkSel("dir", [["",T("fAll")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]]),
       mkSel("tt", [["",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]]),
-      mkSel("tf", [["",T("fAll")]].concat(TFK_OPTS)), (() => { const c2 = el("select"); clsOptions().forEach(([v,l]) => c2.append(Object.assign(el("option"), {value:v, textContent:l}))); c2.title = Lg("Market class","فئة السوق"); c2.value = FILT.cls || "All"; c2.onchange = () => { FILT.cls = c2.value; store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); }; return c2; })(), clr);
+      mkSel("tf", [["",T("fAll")]].concat(TFK_OPTS)), (() => { const c2 = el("select"); clsOptions().forEach(([v,l]) => c2.append(Object.assign(el("option"), {value:v, textContent:l}))); CLS_SELS.add(c2); CLS_SELS.add(c2); c2.title = Lg("Market class","فئة السوق"); c2.value = FILT.cls || "All"; c2.onchange = () => { FILT.cls = c2.value; clsBroadcast(); store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); }; return c2; })(), clr);
     this.aBox = el("div"); this.body.append(tb, this.aBox);
     const draw = () => {
       const now = Date.now();
@@ -4050,7 +4055,7 @@ class Panel {
     [["All",T("fAll")],["Long",Lg("Long","شراء")],["Short",Lg("Short","بيع")]].forEach(([v,l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     [["All",T("fAll")],["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day","داي")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]].forEach(([v,l]) => ttSel.append(Object.assign(el("option"), {value:v, textContent:l})));
     const tfSel = el("select"); [["All",T("fAll")]].concat(TFK_OPTS).forEach(([v,l]) => tfSel.append(Object.assign(el("option"), {value:v, textContent:l}))); tfSel.title = lang === "ar" ? "الفريم" : "Timeframe"; tfSel.value = FILT.tf || "All"; tfSel.onpointerdown = e => e.stopPropagation(); tfSel.onchange = () => { FILT.tf = tfSel.value; sv(); };
-    const clsSel = el("select"); clsOptions().forEach(([v,l]) => clsSel.append(Object.assign(el("option"), {value:v, textContent:l}))); clsSel.title = Lg("Market class","فئة السوق"); clsSel.value = FILT.cls || "All"; clsSel.onpointerdown = e => e.stopPropagation(); clsSel.onchange = () => { FILT.cls = clsSel.value; store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); };
+    const clsSel = el("select"); clsOptions().forEach(([v,l]) => clsSel.append(Object.assign(el("option"), {value:v, textContent:l}))); CLS_SELS.add(clsSel); clsSel.title = Lg("Market class","فئة السوق"); clsSel.value = FILT.cls || "All"; clsSel.onpointerdown = e => e.stopPropagation(); clsSel.onchange = () => { FILT.cls = clsSel.value; clsBroadcast(); store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); };
     sideSel.value = FILT.side; ttSel.value = FILT.tt; snd.type = "checkbox"; snd.title = T("sound"); snd.checked = this.state.snd !== false;
     [sideSel, ttSel, snd].forEach(x => x.onpointerdown = e => e.stopPropagation());
     const sv = () => { store.set(LS+"_filt", FILT); draw(); Alerts.subs.forEach(f => f()); };
@@ -4133,13 +4138,13 @@ class Panel {
     [["",T("sgAny")],["bullish",Lg("Long","شراء")],["bearish",Lg("Short","بيع")]].forEach(([v,l]) => side.append(Object.assign(el("option"), {value:v, textContent:l}))); side.value = F.side;
     [["",T("sgAny")]].concat(TFK_OPTS).forEach(([v,l]) => tf.append(Object.assign(el("option"), {value:v, textContent:l}))); tf.value = F.tf;
     [0,40,50,60,70,80].forEach(v => mn.append(Object.assign(el("option"), {value:v, textContent:v ? T("sgMin")+" "+v+"%" : T("sgMin")}))); mn.value = String(F.min);
-    const cl = el("select"); clsOptions().forEach(([v,l]) => cl.append(Object.assign(el("option"), {value:v, textContent:l}))); cl.title = Lg("Market class","فئة السوق"); cl.value = FILT.cls || "All"; cl.onchange = () => { FILT.cls = cl.value; store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); draw(); };
+    const cl = el("select"); clsOptions().forEach(([v,l]) => cl.append(Object.assign(el("option"), {value:v, textContent:l}))); CLS_SELS.add(cl); cl.title = Lg("Market class","فئة السوق"); cl.value = FILT.cls || "All"; cl.onchange = () => { FILT.cls = cl.value; clsBroadcast(); store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); draw(); };
     [q, side, tf, mn, cl].forEach(x => x.onpointerdown = e => e.stopPropagation());
     tb.append(q, side, tf, mn, cl, cnt); const box = el("div","rdy"); this.body.append(tb, box); this.body.style.overflow = "auto";
     const rr = e => { const p = e.plan; const r = Math.abs(p.entry - p.stop); return r ? Math.abs(p.tps[0] - p.entry)/r : 0; };
     const ageTxt = t => { if (!t) return "–"; const m = Math.max(0, Math.round((Date.now() - t)/60000)); return m < 60 ? m+"m" : m < 1440 ? Math.round(m/60)+"h" : Math.round(m/1440)+"d"; };
     const pxOf = sym => { const t = Hub.last["tickers|all"]; return t && !t.error && t[sym] ? t[sym].last : null; };
-    const COLS = [["sym",T("symbol")],["tf","TF"],["side",""],["tt",T("rdType")],["tags",T("rdSetup")],["pct",T("rdStr")],["rr","R:R"],["tm",T("sgTiming")],["age",T("sgAge")],["src",T("sgSrc")]];
+    const COLS = [["sym",T("symbol")],["chart",Lg("Chart","الشارت")],["tf","TF"],["side",""],["tt",T("rdType")],["tags",T("rdSetup")],["pct",T("rdStr")],["rr","R:R"],["tm",T("sgTiming")],["age",T("sgAge")],["src",T("sgSrc")]];
     const val = {sym:e => e.symbol, tf:e => e.tfk || "", side:e => e.direction, tt:e => e.ttype || "", tags:e => (e.tags || []).length, pct:e => e.score/Math.max(1,e.max), rr:rr, tm:e => planTiming(e, pxOf(e.symbol)).o, age:e => e._t || 0, src:e => e._t ? 1 : 0};
     const TMC = {tmNow:"#0ecb81", tmWait:"#f0b90b", tmRun:"#4aa3ff", tmLate:"#f6465d", tmStop:"#848e9c", tmTp:"#848e9c", tmNA:"#848e9c"};
     const draw = () => {
@@ -4151,7 +4156,7 @@ class Panel {
       box.innerHTML = ""; if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(CFG.scanning ? T("scanning") : T("sgNone"))+'</div>'; return; }
       let h = '<table class="rdt"><tr>'+COLS.map(([k,l]) => '<th data-k="'+k+'" style="cursor:pointer"'+(k === "tm" ? ' title="'+esc(T("sgTimeTip"))+'"' : '')+'>'+esc(l)+(F.sort === k ? (F.dir < 0 ? " ▾" : " ▴") : "")+'</th>').join("")+'</tr>';
       rows.slice(0, 120).forEach((e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
-        h += '<tr data-i="'+i+'" style="cursor:pointer"><td><b>'+esc(e.symbol)+'</b>'+(pipSetup(e) ? ' <span title="'+esc(T("sgPipTip"))+' ('+pipSetup(e).st+' / '+pipSetup(e).tp+')" style="background:#f0b90b;color:#000;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">★120</span>' : '')+'</td><td class="m">'+esc(e.tfk || "")+'</td><td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</td>'
+        h += '<tr data-i="'+i+'" style="cursor:pointer"><td><b>'+esc(e.symbol)+'</b>'+(pipSetup(e) ? ' <span title="'+esc(T("sgPipTip"))+' ('+pipSetup(e).st+' / '+pipSetup(e).tp+')" style="background:#f0b90b;color:#000;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">★120</span>' : '')+'</td><td>'+sparkSvg(e)+'</td><td class="m">'+esc(e.tfk || "")+'</td><td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</td>'
           +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags || []).slice(0, 4).map(t => '<span class="tg" title="'+esc(tagTip(t))+'" style="margin-inline-end:3px;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td><td>'+rr(e).toFixed(1)+'</td><td style="color:'+TMC[planTiming(e, pxOf(e.symbol)).k]+'">'+esc(T(planTiming(e, pxOf(e.symbol)).k))+'</td><td class="m">'+esc(ageTxt(e._t))+'</td><td class="m">'+esc(e._t ? T("sgAlert") : T("sgScan"))+'</td></tr>'; });
       box.innerHTML = h+"</table>";
@@ -4767,10 +4772,11 @@ class Panel {
   }
   /* ---- Setup Card: the full "what's going on" for one setup (conditions that fired, plan, context). Follows the setup you click (chip / ready row), jumps to a brand-new alert, else shows the best live one ---- */
   build_setup(){
-    const bar = el("div","tb"), btn = el("button", null, Lg("Show on chart","اعرضها على الشارت")), box = el("div"); box.style.cssText = "overflow:auto;height:calc(100% - 28px)"; bar.append(btn, Voice.button(() => box.innerText)); this.body.append(bar, box);
+    const bar = el("div","tb"), btn = el("button", null, Lg("Show on chart","اعرضها على الشارت")), box = el("div"); box.style.cssText = "overflow:auto;height:calc(100% - 28px)"; const cs = el("select"); clsOptions().forEach(([v,l]) => cs.append(Object.assign(el("option"), {value:v, textContent:l}))); CLS_SELS.add(cs); cs.title = Lg("Market class","فئة السوق"); cs.value = FILT.cls || "All"; cs.onpointerdown = e => e.stopPropagation(); cs.onchange = () => { FILT.cls = cs.value; clsBroadcast(); store.set(LS+"_filt", FILT); Alerts.subs.forEach(f => f()); Setup.subs.forEach(f => f()); };
+    this.clsSync = () => { cs.value = FILT.cls || "All"; }; bar.append(btn, cs, Voice.button(() => box.innerText)); this.body.append(bar, box);
     let cur = null, first = true, lastId = null; const key = e => e.symbol+"|"+e.direction+"|"+e.ttype;
     btn.onpointerdown = ev => ev.stopPropagation(); btn.onclick = () => { if (cur) Ws.showOnChart(Object.assign({tfc: TFC_ALL[cur.tfk] || "1H"}, cur)); };
-    const draw = () => {
+    const draw = () => { this.clsSync && this.clsSync();
       const newest = Alerts.list.filter(a => a.card).sort((x, y) => y.t - x.t)[0]; if (newest){ if (!first && newest.id !== lastId) Setup.sel = newest.card; lastId = newest.id; } first = false;
       const live = readyList(); let e = Setup.sel ? (live.find(x => key(x) === key(Setup.sel)) || Setup.sel) : live[0]; cur = e || null;
       box.innerHTML = e ? setupHtml(e) : '<div class="m" style="padding:12px">'+esc(CFG.scanning ? T("scanning") : T("rdEmpty"))+'</div>';
@@ -5005,7 +5011,7 @@ function alertCard(a){
   const oc = alertOutcome(a);
   const d = el("div","card"); d.style.borderInlineStart = "3px solid "+(bull ? "#0ecb81" : "#f6465d");
   d.innerHTML = '<div class="row"><span class="logo" style="background:'+logoColor(base)+'">'+esc(base.slice(0,4))+'</span><b style="font-size:13px">'+esc(c.symbol)+'</b>'
-    +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+esc(bull ? T("long") : T("short"))+'</span><span class="grow"></span><span class="stars" title="'+c.score+'/'+c.max+'">'+st+'</span></div>'
+    +'<span class="badge" style="background:'+(bull?"#0ecb81":"#f6465d")+';color:#000">'+esc(bull ? T("long") : T("short"))+'</span><span class="grow"></span>'+sparkSvg(c, 64, 20)+'<span class="stars" title="'+c.score+'/'+c.max+'" style="margin-inline-start:6px">'+st+'</span></div>'
     +'<div class="row" style="margin-top:4px">'+(c.tags||[]).map(t => '<a class="badge" target="_blank" rel="noopener noreferrer" href="'+esc(/^https:\/\//.test(c.tv||"") ? c.tv : "#")+'" title="'+esc(tagTip(t))+'" style="text-decoration:none;cursor:help;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</a>').join("")+'<span class="m">'+c.score+' '+esc(T("strats"))+'</span><span class="grow"></span><b style="color:'+(c.score/c.max>=0.6?"#0ecb81":c.score/c.max>=0.4?"#f0b90b":"#848e9c")+'" title="'+esc(T("conf"))+'">'+Math.round(100*c.score/c.max)+'%</b></div>'
     +(pl ? '<div class="plan"><div style="color:#4aa3ff">'+esc(T("entry"))+'<br>'+f(pl.entry)+'</div><div style="color:#f6465d">'+esc(T("stop"))+(oc && oc.status === "sl" ? ' <b style="font-size:13px">✓</b>' : '')+'<br>'+f(pl.stop)+'</div>'+pl.tps.map((v,i) => '<div style="color:#0ecb81">TP'+(i+1)+(oc && oc.status === "tp" && i === 0 ? ' <b style="font-size:13px">✓</b>' : '')+'<br>'+f(v)+'</div>').join("")+'</div>' : "")
     +(oc ? '<div class="m" style="margin-top:3px;font-weight:600;color:'+(oc.status === "tp" ? "#0ecb81" : "#f6465d")+'">✓ '+esc(oc.status === "tp" ? (lang === "ar" ? "تحقق الهدف TP1" : "TP1 hit") : (lang === "ar" ? "تحقق وقف الخسارة SL" : "Stop-loss hit"))+' · '+esc((lang === "ar" ? "خلال " : "after ")+durTxt(oc.t1 - a.t))+'</div>' : '')

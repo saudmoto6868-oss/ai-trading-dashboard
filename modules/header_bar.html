@@ -307,4 +307,19 @@ async function bellTick(){
 $("bell").onclick = () => { if ($("bell").dataset.live){ openLive($("bell").dataset.live); return; } if (openId !== "wmPop") $("wm").click(); document.querySelector('input[name=sv][value=cal]').checked = true; sideMode = "cal"; calLoad(); };
 bellTick(); setInterval(bellTick, 30000);
 window.__wm = WM;
+/* right-click: no browser menu in this bar nor anywhere on the Streamlit page above / below the Workspace; the menu belongs to what is under the pointer */
+{ const mk = (doc, offX, offY) => e => {
+    e.preventDefault(); const D = doc, items = [], tgt = e.target, link = tgt.closest && tgt.closest("a[href]"), sel = String((D.defaultView || window).getSelection ? (D.defaultView || window).getSelection() : "").trim();
+    const cp = t => { try { navigator.clipboard.writeText(t); } catch(x){ const a = D.createElement("textarea"); a.value = t; a.style.cssText = "position:fixed;left:-9999px"; D.body.append(a); a.select(); try { D.execCommand("copy"); } catch(y){} a.remove(); } };
+    if (sel) items.push([HL("Copy","نسخ"), () => cp(sel)]);
+    if (link){ items.push([HL("Open link in a new tab","افتح الرابط في تاب جديد"), () => window.open(link.href, "_blank", "noopener")], [HL("Copy link address","انسخ عنوان الرابط"), () => cp(link.href)]); }
+    const top = window.parent !== window ? window.parent : window;
+    items.push([HL("Reload the page","أعد تحميل الصفحة"), () => top.location.reload()], [HL("Language: ","اللغة: ")+HL("العربية","English"), () => { const u = new URL(top.location.href); u.searchParams.set("lang", CFG.ar ? "en" : "ar"); top.location.href = u.toString(); }]);
+    D.querySelectorAll(".xpctx").forEach(x => x.remove()); const m = D.createElement("div"); m.className = "xpctx";
+    m.style.cssText = "position:fixed;z-index:2147483600;background:#1e2329;border:1px solid #2b3139;border-radius:6px;padding:3px;box-shadow:0 6px 18px rgba(0,0,0,.5);min-width:170px;font:12px sans-serif;left:" + (e.clientX + offX) + "px;top:" + (e.clientY + offY) + "px";
+    items.forEach(it => { const bt = D.createElement("button"); bt.textContent = it[0]; bt.style.cssText = "display:block;width:100%;text-align:start;background:none;border:0;color:#eaecef;padding:6px 10px;cursor:pointer;border-radius:4px;font:inherit"; bt.onmouseenter = () => bt.style.background = "#2b3139"; bt.onmouseleave = () => bt.style.background = "none"; bt.onclick = () => { m.remove(); it[1](); }; m.append(bt); });
+    D.body.append(m); const r = m.getBoundingClientRect(), W = D.documentElement.clientWidth, H = D.documentElement.clientHeight; if (r.right > W) m.style.left = Math.max(4, W - r.width - 4) + "px"; if (r.bottom > H) m.style.top = Math.max(4, H - r.height - 4) + "px";
+    const off = ev => { if (ev.target && m.contains(ev.target)) return; m.remove(); D.removeEventListener("pointerdown", off, true); }; setTimeout(() => D.addEventListener("pointerdown", off, true), 0); };
+  document.addEventListener("contextmenu", mk(document, 0, 0), true);   // inside this bar
+  try { const PD = window.parent.document; if (!PD.__xpCtx){ PD.__xpCtx = 1; const own = mk(PD, 0, 0); PD.addEventListener("contextmenu", ev => { if (ev.target && ev.target.tagName === "IFRAME") return; own(ev); }, true); } } catch(e){} }   // the Streamlit page itself (header, sidebar, tables, widgets); iframes keep their own handlers
 </script></body></html>

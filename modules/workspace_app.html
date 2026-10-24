@@ -2442,6 +2442,9 @@ Object.assign(CandleChart.prototype, {
     if (this.drawingsVisible && q.x <= this.PR && q.y <= this.PB){ for (const d of this.draws.slice().reverse()){ if (this.hit(d, q.x, q.y)){ target = d; break; } } }
     const m = el("div","ctxm"); m.style.cssText = "position:fixed;z-index:2147483001;left:"+e.clientX+"px;top:"+e.clientY+"px";
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
+    if (q.x <= this.PR && q.y <= this.PB && isFinite(q.p)){
+      item(Lg("Horizontal line at ","خط أفقي عند ")+fmtP(q.p), () => { const d = {id:Date.now()+Math.random(), type:"hline", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.draw(); });
+      item(Lg("Copy price ","نسخ السعر ")+fmtP(q.p), () => ctxCopy(String(q.p))); item(Lg("Fit the view","ضبط العرض"), () => this.fit()); }
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
     if (this.draws.length) item(T("cmAll")+" ("+this.draws.length+")", () => this.clearDraws());
     if (this.overlay || this.fibLv) item(T("cmOv"), () => { this.overlay = null; this.fibLv = null; this.draw(); });
@@ -5099,6 +5102,51 @@ Ws.sensPop = anchor => {
   Ws.sensRows(pop, (lab, input) => { const l = el("span"); l.textContent = lab; pop.append(l, input); input.onpointerdown = e => e.stopPropagation(); });
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
+/* ---- right-click: never the browser's menu inside the Workspace or the page above it; every place gets the menu of the thing under the pointer ---- */
+function ctxCopy(txt){ try { if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).catch(() => ctxCopyOld(txt)); return; } } catch(e){} ctxCopyOld(txt); }
+function ctxCopyOld(txt){ const t = document.createElement("textarea"); t.value = txt; t.style.cssText = "position:fixed;left:-9999px;top:0"; document.body.append(t); t.select(); try { document.execCommand("copy"); } catch(e){} t.remove(); }
+function ctxShow(x, y, items){   // items: [label, fn, danger?] or null (separator)
+  document.querySelectorAll(".ctxm").forEach(m => m.remove());
+  const m = el("div", "ctxm"); m.style.cssText = "position:fixed;z-index:2147483001;left:"+x+"px;top:"+y+"px;max-height:80vh;overflow-y:auto";
+  items.forEach(it => { if (!it){ const sp = el("div"); sp.style.cssText = "height:1px;background:var(--line,#2b3139);margin:3px 0"; m.append(sp); return; }
+    const b = el("button", null, esc(it[0])); if (it[2]) b.style.color = "#f6465d"; b.onclick = () => { m.remove(); try { it[1](); } catch(e){ console.error(e); } }; m.append(b); });
+  document.body.append(m); const r = m.getBoundingClientRect();
+  if (r.right > innerWidth) m.style.left = Math.max(4, innerWidth - r.width - 4)+"px"; if (r.bottom > innerHeight) m.style.top = Math.max(4, innerHeight - r.height - 4)+"px";
+  const off = ev => { if (ev.target && m.contains(ev.target)) return; m.remove(); document.removeEventListener("pointerdown", off, true); }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+}
+function ctxPrice(tr, P){   // the price a table row is about: the first cell whose number is close to the symbol's last price (else the first number)
+  if (!tr) return null; const ref = (() => { const c = Ws.panels.find(q => q.chart && q.chart.sym === P.state.sym); return c && c.chart.data.length ? c.chart.data[c.chart.data.length - 1].c : null; })(); let first = null;
+  for (const td of tr.querySelectorAll("td")){ const v = parseFloat(String(td.textContent).replace(/[$,★\s]/g, "")); if (!isFinite(v) || v <= 0) continue; if (first == null) first = v; if (ref && Math.abs(v - ref)/ref < 0.3) return v; }
+  return ref ? null : first; }
+function ctxHline(sym, price){
+  const c = Ws.panels.find(q => q.chart && q.chart.sym === sym); if (!c){ alert0(Lg("Open a chart of this symbol first","افتح شارت للرمز ده الأول")); return; }
+  const ch = c.chart, d = {id:Date.now()+Math.random(), type:"hline", pts:[{t:ch.data.length ? ch.data[ch.data.length - 1].t : Date.now(), p:price}]}; ch.draws.push(d); ch.sel = d; ch.saveDraws(); ch.draw(); }
+function alert0(msg){ const t = el("div"); t.textContent = msg; t.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1e2329;color:#eaecef;border:1px solid #2b3139;border-radius:6px;padding:8px 14px;font-size:12px;z-index:2147483002"; document.body.append(t); setTimeout(() => t.remove(), 2600); }
+document.addEventListener("contextmenu", e => {
+  if (e.target.closest && e.target.closest(".ctxm")){ e.preventDefault(); return; }
+  const cv = e.target.closest && e.target.closest("canvas"); if (cv && cv.closest(".chartwrap")){ e.preventDefault(); return; }   // the chart builds its own menu right after this
+  e.preventDefault(); const panelEl = e.target.closest && e.target.closest(".panel"), P = panelEl ? Ws.panels.find(p => p.root === panelEl) : null, items = [];
+  const sel = String(window.getSelection ? window.getSelection() : "").trim(), tr = e.target.closest && e.target.closest("tr"), link = e.target.closest && e.target.closest("a[href]"), inp = e.target.closest && e.target.closest("input[type=text],input[type=number],textarea");
+  if (inp){ items.push([Lg("Cut","قص"), () => { inp.focus(); document.execCommand("cut"); }], [Lg("Copy","نسخ"), () => { inp.focus(); document.execCommand("copy"); }], [Lg("Paste","لصق"), () => { inp.focus(); try { navigator.clipboard.readText().then(t => document.execCommand("insertText", false, t)).catch(() => alert0(Lg("Press Ctrl+V","اضغط Ctrl+V"))); } catch(x){ alert0(Lg("Press Ctrl+V","اضغط Ctrl+V")); } }], [Lg("Select all","تحديد الكل"), () => { inp.focus(); inp.select(); }]); }
+  else if (sel) items.push([Lg("Copy","نسخ"), () => ctxCopy(sel)]);
+  if (link){ items.length && items.push(null); items.push([Lg("Open link in a new tab","افتح الرابط في تاب جديد"), () => window.open(link.href, "_blank", "noopener")], [Lg("Copy link address","انسخ عنوان الرابط"), () => ctxCopy(link.href)]); }
+  if (P && !inp){
+    const pr = P.state.sym ? ctxPrice(tr && tr.closest("table") ? tr : null, P) : null;
+    if (pr != null){ items.length && items.push(null); items.push([Lg("Copy price ","نسخ السعر ")+fmtP(pr), () => ctxCopy(String(pr))], [Lg("Horizontal line on the chart at ","خط أفقي على الشارت عند ")+fmtP(pr), () => ctxHline(P.state.sym, pr)]); }
+    const sRow = tr && tr.dataset && tr.dataset.s;   // watch list row: a symbol
+    if (sRow){ items.length && items.push(null); items.push([Lg("Show on the chart: ","اعرضه على الشارت: ")+sRow.replace(/^(HL|Y):(xyz:)?/, ""), () => Ws.broadcast(P, sRow)], [Lg("Copy symbol","نسخ الرمز"), () => ctxCopy(sRow)]); }
+    items.length && items.push(null);
+    items.push([P.max ? Lg("Restore size","رجّع الحجم") : Lg("Maximise","تكبير"), () => P.toggleMax()], [P.min ? Lg("Expand","فتح") : Lg("Minimise","تصغير"), () => { P.min = !P.min; P.state.min = P.min; P.root.classList.toggle("min", P.min); Ws.save(); }],
+      [P.locked ? Lg("Unlock","فك القفل") : Lg("Lock in place","تثبيت في مكانه"), () => { P.locked = !P.locked; P.state.lock2 = P.locked || undefined; P.applyLock(); Ws.save(); }], [Lg("Bring to front","للأمام"), () => P.front()],
+      [Lg("Reset colours","رجّع الألوان"), () => { delete P.state.col; delete P.state.bg; P.paint(); Ws.save(); }], null, [Lg("Close widget","إغلاق الويدجت"), () => { if (!P.locked) P.close(); }, true]);
+  } else if (!P && !inp){
+    items.length && items.push(null);
+    ["chart","setup","signals","dom","tape","limits","watch","scanner","news","notes"].forEach(k => items.push(["+ "+T(k), () => Ws.add(k)]));
+    items.push(null, [Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
+  }
+  if (!items.length) items.push([Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
+  ctxShow(e.clientX, e.clientY, items);
+}, true);
 /* Depth-of-Trade settings (colours + sizes), ATAS-style */
 Ws.ofPanel = (anchor, chart, onChange) => {
   document.querySelectorAll(".stpop").forEach(x => x.remove()); const OF = chart.st.of, ar = lang === "ar", L = (e, a) => ar ? a : e;

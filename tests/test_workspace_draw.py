@@ -51,5 +51,12 @@ def test_two_tabs_do_not_freeze_the_chart():
     assert 'addEventListener("visibilitychange", wake)' in H and "p.kick()" in H      # a tab that comes back restarts its charts
 
 
+def test_right_click_is_ours_everywhere():
+    assert 'document.addEventListener("contextmenu", e => {' in H and "ctxShow(e.clientX, e.clientY, items)" in H   # the Workspace never shows the browser menu
+    assert "ctxHline(P.state.sym, pr)" in H and "ctxPrice(" in H                                                 # a table row offers its price (copy / horizontal line on the chart)
+    hdr = open(os.path.join(ROOT, "modules", "header_bar.html"), encoding="utf-8").read()
+    assert 'addEventListener("contextmenu"' in hdr and "PD.__xpCtx" in hdr                                         # the Streamlit page above and below the Workspace too
+
+
 if __name__ == "__main__":
     test_no_blocking_dialogs_in_drawing_code(); test_editor_is_wired(); test_tradingview_tool_set(); test_chart_is_free_by_default(); test_symbol_logos_in_the_workspace(); test_page_script_parses(); test_two_tabs_do_not_freeze_the_chart(); print("ok workspace draw")

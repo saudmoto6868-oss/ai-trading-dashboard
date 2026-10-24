@@ -27,6 +27,10 @@ def css(tokens: dict | None = None, rad: int = 14) -> str:
 .uk-card.up{{box-shadow:0 0 0 1px {UP}55,0 0 16px {UP}33}}.uk-card.down{{box-shadow:0 0 0 1px {DOWN}55,0 0 16px {DOWN}33}}.uk-card.warn{{box-shadow:0 0 0 1px {WARN}55,0 0 16px {WARN}2a}}
 .uk-panel{{background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{rad}px;padding:10px 12px;color:var(--uk-text);margin:4px 0 8px}}
 .uk-panel h4{{margin:0 0 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--uk-dim);font-weight:600}}
+.uk-strip{{display:flex;flex-wrap:wrap;align-items:stretch;background:linear-gradient(160deg,var(--uk-panel2),var(--uk-panel));border:1px solid var(--uk-line);border-radius:{rad}px;margin:4px 0 8px;color:var(--uk-text);overflow:hidden}}
+.uk-strip .uk-it{{padding:6px 14px;border-inline-end:1px solid var(--uk-line);min-width:96px}}.uk-strip .uk-it:last-child{{border-inline-end:0}}
+.uk-strip .uk-sl{{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--uk-dim);white-space:nowrap}}
+.uk-strip .uk-sv{{font:700 16px/1.2 ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}}.uk-strip .uk-ss{{font-size:10px;color:var(--uk-dim);white-space:nowrap}}
 .uk-flex{{display:flex;gap:14px;align-items:center;flex-wrap:wrap}}
 .uk-leg{{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--uk-dim)}}.uk-leg i{{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}}
 .uk-chipbar{{display:flex;flex-wrap:wrap;gap:4px}}.uk-chip{{font-size:10.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--uk-line);background:rgba(255,255,255,.04);color:var(--uk-text)}}
@@ -56,6 +60,16 @@ def kpi(icon: str, label: str, value, sub: str = "", tone: str = "", pct: float 
     rg = ring(pct, _c(tone, "var(--uk-acc)")) if pct is not None else ""
     return (f"<div class='uk-card {tone}{' has-ring' if pct is not None else ''}' title='{html.escape(title, quote=True)}'><div class='uk-lbl'><span class='uk-ic'>{icon}</span>{html.escape(str(label))}</div>"
             f"<div class='uk-val' style='color:{_c(tone)}'>{html.escape(str(value))}</div><div class='uk-sub'>{html.escape(str(sub))}</div>{rg}</div>")
+
+
+def strip(items: list) -> str:
+    """ONE compact status strip (Radar item D): items = [(label, value, sub, tone, title)]; tone '' / up / down / warn colours the value. Replaces the KPI cards + the Radar-picture panel."""
+    out = []
+    for it in items:
+        label, value, sub, tone, title = (list(it) + ["", "", "", ""])[:5] if len(it) < 5 else it
+        out.append(f"<div class='uk-it' title='{html.escape(str(title), quote=True)}'><div class='uk-sl'>{html.escape(str(label))}</div>"
+                   f"<div class='uk-sv' style='color:{_c(tone)}'>{html.escape(str(value))}</div><div class='uk-ss'>{html.escape(str(sub))}</div></div>")
+    return "<div class='uk-strip'>" + "".join(out) + "</div>"
 
 
 def row(cards: list) -> str:

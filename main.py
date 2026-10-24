@@ -2778,24 +2778,17 @@ def render_chart_scanner(f):
     from modules import ui_kit as _UK
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
-    st.markdown(_UK.row([
-        _UK.kpi("🎯", L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", pct=100.0 * len(shown) / _n_all),
-        _UK.kpi("✅", L("Confirmed"), n_conf if nsel else "-", L("Every chosen condition holds on this chart"), tone="up" if n_conf else "", pct=(100.0 * n_conf / _n_all) if nsel else None),
-        _UK.kpi("🟡", L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("Some chosen conditions hold"), tone="warn" if nsel and len(shown) - n_conf else ""),
-        _UK.kpi("🧭", L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], tone="up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
-                title=L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
-        _UK.kpi("📰", L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", tone="warn" if _rs["news"] else "",
-                title=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
-        _UK.kpi("⏱️", L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}"),
+    _dn = _rs.get("dn", 0)
+    st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+        (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
+        (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
+        (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
+        (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+         L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+        (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
+         L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+        (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
     ]), unsafe_allow_html=True)
-    _cnt = [(i_, sum(1 for d_ in data.values() if k_ in d_["flags"])) for k_, i_, n_ in _QUICK_CHIPS]   # icon as the bar label (full names are on the chips)
-    _cnt = sorted([c_ for c_ in _cnt if c_[1]], key=lambda c_: -c_[1])[:10]
-    _tr = [_htf_trend(tuple(SCAN_SYMBOLS), "1d").get(s_) for s_ in data]
-    _mix = sum(1 for t_ in _tr if t_ == "mixed")
-    st.markdown(_UK.panel(L("Radar picture"), "<div class='uk-flex' style='gap:26px'>"
-        + _UK.donut([(L("up"), _rs.get("up", 0), _UK.UP), (L("down"), _rs.get("dn", 0), _UK.DOWN), (L("mixed"), _mix, _UK.WARN)], center=f"{_rs.get('n', 0)}")
-        + _UK.gauge(_up_pct, L("symbols in a daily up-trend"))
-        + (_UK.bars(_cnt) if _cnt else "") + "</div>"), unsafe_allow_html=True)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:

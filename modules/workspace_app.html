@@ -472,13 +472,14 @@ const fhDup = id => FH_HL[id] && HL.q["HL:xyz:"+FH_HL[id]];   // same market alr
 // forex / CFD weekend: Friday 17:00 -> Sunday 17:00 New York time, OANDA sends no ticks
 const fxClosed = () => { const p = new Intl.DateTimeFormat("en-US", {timeZone:"America/New_York", weekday:"short", hour:"numeric", hour12:false}).formatToParts(new Date()), d = p.find(x => x.type === "weekday").value, h = +p.find(x => x.type === "hour").value % 24;
   return d === "Sat" || (d === "Fri" && h >= 17) || (d === "Sun" && h < 17); };
-const FH = {q:{}, state:"off", ws:null, wait:5000,
+const FH_GIVEUP = 4;
+const FH = {q:{}, state:"off", ws:null, wait:5000, fails:0,   // fails = connections in a row that closed without ever opening: a browser never shows the HTTP status of a refused handshake (401 / 403 for a wrong or blocked token), so that is the only sign; after FH_GIVEUP of them the retries stop instead of repeating forever
   start(){ if (!CFG.fhToken || this.ws) return; let ws; try { ws = new WebSocket("wss://ws.finnhub.io?token="+encodeURIComponent(CFG.fhToken)); } catch(e){ this.state = "error"; return; }
-    this.ws = ws; this.state = "connecting";
-    ws.onopen = () => { this.state = "live"; this.wait = 5000; FH_LIST.forEach(x => ws.send(JSON.stringify({type:"subscribe", symbol:x.sym}))); };
+    this.ws = ws; this.state = "connecting"; let opened = false;
+    ws.onopen = () => { opened = true; this.fails = 0; this.state = "live"; this.wait = 5000; FH_LIST.forEach(x => ws.send(JSON.stringify({type:"subscribe", symbol:x.sym}))); };
     ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } if (m.type === "error"){ this.state = "error: "+(m.msg || ""); return; } if (m.type !== "trade" || !Array.isArray(m.data)) return;
       m.data.forEach(t => { const id = "FH:"+String(t.s || "").replace(/^OANDA:/, ""); if (FH_MAP[id] && +t.p > 0) this.q[id] = {last:+t.p, t:+t.t || Date.now()}; }); };
-    ws.onclose = () => { this.ws = null; if (this.state !== "off"){ this.state = "reconnecting"; setTimeout(() => this.start(), this.wait); this.wait = Math.min(60000, this.wait*2); } };
+    ws.onclose = () => { this.ws = null; if (!opened && ++this.fails >= FH_GIVEUP){ this.state = "refused"; return; } if (this.state !== "off" && this.state !== "refused"){ this.state = "reconnecting"; setTimeout(() => this.start(), this.wait); this.wait = Math.min(60000, this.wait*2); } };
     ws.onerror = () => { try { ws.close(); } catch(e){} }; },
   // change % reference = the previous daily close of the Yahoo twin when the page embedded it, otherwise unknown (no fake 0%)
   ref(x){ const D = x.y && YF[x.y] && YF[x.y]["1d"]; return D && D.length > 1 ? D[D.length-2][4] : 0; }
@@ -4135,7 +4136,7 @@ class Panel {
     const favB = el("button",null,"★"); favB.title = lang === "ar" ? "المفضلة فقط" : "Favorites only"; favB.onclick = () => { if (U.cat === "__fav"){ U.cat = this.state.prevCat || "__mine"; } else { this.state.prevCat = U.cat; U.cat = "__fav"; } catSel.value = U.cat; favB.style.color = U.cat === "__fav" ? "#f0b90b" : ""; Ws.save(); loadU(); }; favB.style.color = U.cat === "__fav" ? "#f0b90b" : "";
     this.state.wtf = "1H"; // AMD select removed from the watchlist (team task 9); AMD column stays on 1H
     HL.start();
-    const fhS = el("span","m"); fhS.style.cssText = "font-size:10px;white-space:nowrap"; if (CFG.fhToken){ FH.start(); const upd = () => { const n = Object.keys(FH.q).length; fhS.textContent = "FH "+(FH.state === "live" ? "● "+n+"/"+FH_LIST.length : FH.state); fhS.title = Lg("Finnhub live CFD feed: symbols with at least one tick / total","مصدر Finnhub اللحظي: الرموز اللي وصلها سعر / الإجمالي"); }; upd(); this.fhUpd = upd; }   // refreshed with every ticker snapshot (wRender), so it survives resub()
+    const fhS = el("span","m"); fhS.style.cssText = "font-size:10px;white-space:nowrap"; if (CFG.fhToken){ FH.start(); const upd = () => { const n = Object.keys(FH.q).length; fhS.textContent = "FH "+(FH.state === "live" ? "● "+n+"/"+FH_LIST.length : FH.state); fhS.title = FH.state === "refused" ? Lg("Finnhub refused the connection "+FH_GIVEUP+" times in a row and retries stopped: the token is probably wrong or blocked (reload the page after fixing it)","Finnhub رفض الاتصال "+FH_GIVEUP+" مرات ورا بعض والمحاولات وقفت: التوكن غالبا غلط أو محجوب (حدّث الصفحة بعد التصليح)") : Lg("Finnhub live CFD feed: symbols with at least one tick / total","مصدر Finnhub اللحظي: الرموز اللي وصلها سعر / الإجمالي"); }; upd(); this.fhUpd = upd; }   // refreshed with every ticker snapshot (wRender), so it survives resub()
     const hlS = el("span","m"); hlS.style.cssText = "font-size:10px;white-space:nowrap"; const hlUpd = () => { hlS.textContent = "HL "+(HL.state === "live" ? "● "+HL.list.length : HL.state === "rest" ? "◐ "+HL.list.length : HL.state); hlS.title = Lg("Hyperliquid TradFi feed: ● websocket live, ◐ REST every 4 s; number = markets listed","مصدر Hyperliquid: ● لحظي websocket، ◐ كل 4 ثواني؛ الرقم = عدد الأسواق"); };
     hlUpd(); const fu0 = this.fhUpd; this.fhUpd = () => { hlUpd(); fu0 && fu0(); };
     tb.append(inp, go, favB, ub, fhS, hlS); this.wBox = el("div"); this.body.append(tb, uni, this.wBox); this.resub();

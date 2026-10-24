@@ -2637,7 +2637,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200")):
+        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2646,31 +2646,32 @@ def _radar_filters(view):
             c_ = st.columns([1.3, 0.7])
             rel_ma = c_[0].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
             pair = c_[1].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-            for k_ in ("sma20", "sma50", "sma200"):
+            for k_ in ("sma20", "sma50", "sma200", "adx", "sar", "dist20"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen")):
+        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
             sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
             sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
-            for k_ in ("perf", "perf2", "chg", "chgopen"):
+            for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol")):
+        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
             sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
-            for k_ in ("vol", "relvol"):
+            for k_ in ("vol", "relvol", "turnover", "obv"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle")):
+        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
             sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
             sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
-            r_ = _fvbox(st, "candle")
-            if r_:
-                fv[r_[0]] = r_[1]
-        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr")):
-            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr"):
+            for k_ in ("candle", "range"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price")):
+            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]

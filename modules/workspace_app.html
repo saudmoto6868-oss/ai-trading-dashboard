@@ -1180,7 +1180,7 @@ const SI_STOCK = {AAPL:"apple.com",MSFT:"microsoft.com",NVDA:"nvidia.com",TSLA:"
 function symIcon(sym, px){
   px = px || 14; sym = String(sym || "");
   const b = (sym.indexOf(":") >= 0 ? sym.split(":").pop() : sym).replace("=X", "").replace("=F", "").replace("^", "").split("-")[0].toUpperCase();
-  const lt = b.slice(0, 1), col = "#" + (((b.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7) & 0xFFFFFF) | 0x404040)).toString(16).padStart(6, "0").slice(-6);
+  const lt = b.slice(0, 1), col = "hsl(" + (Math.abs(b.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7)) % 360) + ",55%,36%)";   // fixed lightness: the old hash could give a pale colour under the white letter = an "empty" icon
   const base = "display:inline-block;width:"+px+"px;height:"+px+"px;border-radius:50%;vertical-align:middle;margin-inline-end:5px;";
   const letter = "background:"+col+";color:#fff;font:700 "+Math.max(8, px - 7)+"px/"+px+"px sans-serif;text-align:center;";
   const img = (url, extra) => '<img src="'+url+'" alt="" loading="lazy" style="'+base+'object-fit:cover;'+(extra || "")+'" data-l="'+esc(lt)+'" data-st="'+esc(base+letter)+'" onerror="var s=document.createElement(\'span\');s.textContent=this.dataset.l;s.style.cssText=this.dataset.st;this.replaceWith(s)">';

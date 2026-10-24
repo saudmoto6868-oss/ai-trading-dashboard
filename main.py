@@ -1016,7 +1016,7 @@ def render_universe_controls():
 # ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
 # that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
 _KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
-_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
+_BUTTON_KEYS = {"cs_preset_save", "cs_preset_del", "ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
 for _k in list(st.session_state.keys()):
     if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
         try:
@@ -2153,8 +2153,9 @@ def render_market_map():
 def _clear_cs_filters():
     """Callback of 'Clear all filters': reset the Radar filter widgets, the Scanner-control preset and the saved URL filter (runs before the rerun)."""
     ss = st.session_state
-    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom", "cs_quick"):
+    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom", "cs_mom_a", "cs_mom_v", "cs_quick"):
         ss[k] = []
+    ss["cs_preset"] = "— none —"
     for k in ("cs_px_rel", "cs_ma_rel", "cs_stack"):
         ss[k] = "—"
     for k in list(ss.keys()):
@@ -2553,6 +2554,8 @@ def _radar_filters(view):
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
 .st-key-csf [data-baseweb="select"]>div{max-height:56px;overflow-y:auto}
+.st-key-csf [data-testid="stPopover"]{width:100%}.st-key-csf [data-testid="stPopover"] button{width:100%;min-height:30px;background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;color:#eaecef!important;font-size:11px!important;padding:0 6px!important}.st-key-csf [data-testid="stPopover"] button:hover{border-color:#4a5568!important}
+.st-key-cs_clear_top button{background:#161a1e!important;color:#eaecef!important;border:1px solid #2b3139!important;min-height:30px!important;font-size:11px!important}
 </style>""", unsafe_allow_html=True)
     qp = st.query_params
     if "cs_strat" not in st.session_state and qp.get("strat"):   # remembered selection (URL param survives reloads / bookmarks)
@@ -2562,44 +2565,123 @@ def _radar_filters(view):
     fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
+    from modules import fv_screen as _FV
+    from modules import radar_presets as _RP
+    _ar = _ui_lang() == "ar"
+    _mom_k, _vol_k = _RP.split_moves(MOVE_FILTERS)
+    _FVL = {f_[0]: f_ for f_ in _FV.FILTERS}
+    ss = st.session_state
+
+    def _n(*keys):   # active choices of a group, shown in its button: "Trend (2)"
+        c = 0
+        for k_ in keys:
+            v_ = ss.get(k_)
+            c += len(v_) if isinstance(v_, list) else (1 if v_ not in (None, "—", "Any", "Both", "All selected") else 0)
+        return f" ({c})" if c else ""
+
+    import uuid as _uuid
+    from streamlit.components.v1 import declare_component as _decl
+    _store = _decl("xpix_preset_store", path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "preset_store"))
+    _bv = _store(cmd=ss.get("rp_last_cmd"), key="rp_store", default=None)   # the user's own presets live in THIS browser (localStorage); {presets, ok} comes back
+    _browser = (_bv or {}).get("presets") if isinstance(_bv, dict) else None
+
+    def _on_preset():
+        nm = ss.get("cs_preset")
+        if nm and nm != _RP.NONE:
+            _RP.apply(ss, nm, _RP.all_presets(extra=ss.get("rp_browser")))
+
+    def _cmd(action, name, data=None):   # one command per click (new id), picked up by the store component on the next render
+        ss["rp_last_cmd"] = {"id": _uuid.uuid4().hex, "action": action, "name": name, "data": data}
+
+    def _on_save():
+        nm = (ss.get("cs_preset_name") or "").strip()[:40]
+        snap = _RP.snapshot(ss)
+        ss["rp_msg"] = ("warn", "Give the preset a name") if not nm else ("warn", "Nothing selected to save") if not snap else ("ok", "Saved in this browser")
+        if nm and snap:
+            _cmd("save", nm, snap)
+
+    def _on_del():
+        cur = ss.get("cs_preset", "")
+        if isinstance(cur, str) and cur.startswith("★"):
+            _cmd("delete", cur[1:].strip())
+            _RP.delete_user(cur)
+
+    def _fvbox(container, key):
+        f_ = _FVL.get(key)
+        if not f_:
+            return None
+        _key, _g, _en, _arn, _opts = f_
+        _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
+        pk = container.selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
+        return (_key, pk) if pk != "Any" else None
+
+    fv = {}
     with st.container(key="csfw"), st.container(key="csf"):
-        rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
+        rd = ss.get("radar_def", {})   # set from Technical Office > Scanner control
         _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
         tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
-        r1 = st.columns([0.7, 0.8, 1, 1, 1.4])
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
-        n_show = r1[0].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
-        ncols = int(r1[1].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
-        side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
-        mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
-        r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
-        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_quick_lbl, key="cs_quick", label_visibility="collapsed")
-        with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
-            r1 = st.columns([1.3, 1.1])
-            look = r1[0].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
-            stack = r1[1].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
-            r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
-            rel_px = r2[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
-            len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
-            rel_ma = r2[2].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
-            pair = r2[3].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-            sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
-            sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-            sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
-                                       format_func=_strat_name, key="cs_strat")
-            sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
-            from modules import fv_screen as _FV
-            _ar = _ui_lang() == "ar"
-            fv = {}
-            st.markdown("**" + L("Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)") + "**")
-            if True:
-                _fc = st.columns(5)
-                _fk = [f_ for f_ in _FV.FILTERS if f_[0] not in ("pattern", "rsi")]   # patterns and RSI already live in the rows above: one place for each option
-                for _i, (_key, _g, _en, _arn, _opts) in enumerate(_fk):
-                    _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
-                    _pk = _fc[_i % 5].selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
-                    if _pk != "Any":
-                        fv[_key] = _pk
+        # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
+        if _browser is not None:
+            ss["rp_browser"] = _browser
+        _pres = _RP.all_presets(extra=ss.get("rp_browser"))
+        top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
+        top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[1].popover(L("Save")):
+            _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
+            st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
+            _m = ss.pop("rp_msg", None)
+            if _m:
+                (st.success if _m[0] == "ok" else st.warning)(L(_m[1]))
+            _cur = ss.get("cs_preset", "")
+            if isinstance(_cur, str) and _cur.startswith("★"):
+                st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
+            st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
+        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200")):
+            look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+            stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
+            c_ = st.columns([1.3, 0.7])
+            rel_px = c_[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
+            len_px = c_[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
+            c_ = st.columns([1.3, 0.7])
+            rel_ma = c_[0].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
+            pair = c_[1].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+            for k_ in ("sma20", "sma50", "sma200"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen")):
+            sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
+            sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
+            for k_ in ("perf", "perf2", "chg", "chgopen"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol")):
+            sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
+            for k_ in ("vol", "relvol"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle")):
+            sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
+            sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
+            r_ = _fvbox(st, "candle")
+            if r_:
+                fv[r_[0]] = r_[1]
+        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr")):
+            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode")):
+            n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+            ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
+            side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
+            mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
+        top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+    sel_mom = list(sel_mom_a) + list(sel_mom_v)
+    quick = []
 
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)

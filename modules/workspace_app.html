@@ -858,16 +858,17 @@ function symClass(sym){
 function sparkSvg(e, W, H){ const v = (e && e.spark) || [], pl = e && e.plan; W = W || 72; H = H || 22; if (v.length < 2 || !pl) return "";
   const all = v.concat([pl.entry, pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), y = p => (H-2-(p-lo)/((hi-lo)||1)*(H-4)).toFixed(1), pts = v.map((p, i) => (i*(W-1)/(v.length-1)).toFixed(1)+","+y(p)).join(" "), ln = (p, c, d) => '<line x1="0" x2="'+W+'" y1="'+y(p)+'" y2="'+y(p)+'" stroke="'+c+'" stroke-width=".8"'+(d ? ' stroke-dasharray="2 2"' : '')+'/>';
   return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle">'+ln(pl.tps[0], "#0ecb81", 1)+ln(pl.stop, "#f6465d", 1)+ln(pl.entry, "#4aa3ff", 0)+'<polyline points="'+pts+'" fill="none" stroke="'+(e.direction === "bullish" ? "#0ecb81" : "#f6465d")+'" stroke-width="1.2"/></svg>'; }
-const CLS_SELS = new Set(), clsBroadcast = () => CLS_SELS.forEach(x => { if (x.isConnected) x.value = FILT.cls || "All"; else CLS_SELS.delete(x); });   // every class select shows the one shared FILT.cls
+const clsCounts = () => { const n = {}; try { readyList(true).forEach(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; }); } catch(e){} return n; };   // ready setups per class (before the class filter): what the scan really produced
+const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(() => { if (CLS_SELS.size) clsBroadcast(); }, 5000);   // every class select shows the one shared FILT.cls
 const clsOk = sym => !FILT.cls || FILT.cls === "All" || FILT.cls === "__best" || symClass(sym) === FILT.cls;
 const clsOptions = () => [["All", T("fAll")], ["__best", Lg("Best of all","الأفضل من الكل")]].concat(CLS_LIST.map(c => [c, catL(c)]));
-function readyList(){
+function readyList(noCls){
   const seen = new Map();
-  const put = (e, t) => { if (!e || !e.plan || !planOk(e.plan, e.direction) || !passFilters(e.direction, e.ttype, e.tags || []) || (FILT.tf !== "All" && e.tfk !== FILT.tf) || !clsOk(e.symbol)) return; const k = e.symbol+"|"+e.direction+"|"+e.ttype; const old = seen.get(k);
+  const put = (e, t) => { if (!e || !e.plan || !planOk(e.plan, e.direction) || !passFilters(e.direction, e.ttype, e.tags || []) || (FILT.tf !== "All" && e.tfk !== FILT.tf) || (!noCls && !clsOk(e.symbol))) return; const k = e.symbol+"|"+e.direction+"|"+e.ttype; const old = seen.get(k);
     if (!old || (e.score/e.max) > (old.score/old.max)) seen.set(k, Object.assign({}, e, {_t:t||0})); };
   (CFG.ready || []).forEach(e => put(e, 0)); Alerts.list.forEach(a => put(a.card, a.t));
   let out = [...seen.values()].sort((a,b) => (wScore(b) - wScore(a)) || (b._t - a._t));
-  if (FILT.cls === "__best"){ const n = {}; out = out.filter(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; return n[c] <= 2; }); }   // "Best of all": the 2 strongest ready setups of every class, a ranking over what is already scanned (no new fetch)
+  if (!noCls && FILT.cls === "__best"){ const n = {}; out = out.filter(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; return n[c] <= 2; }); }   // "Best of all": the 2 strongest ready setups of every class, a ranking over what is already scanned (no new fetch)
   return out;
 }
 function passFilters(dir, ttype, tags){
@@ -1632,7 +1633,7 @@ class CandleChart {
     const bwp = Math.max(1, this.bw*0.7);
     for (let i = i0; i <= i1; i++){
       const k = this.data[i], up = k.c >= k.o, col = up ? TH.up : TH.dn, x = this.x(i);
-      c.fillStyle = hexA(col, .28);
+      c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .28);   // volume bars: own up / down colours when set (🎨 menu), else the candle colours
       if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0, fm = this.fp.get(k.t);
         if (this.st.vol.delta && fm){ const OFc = this.st.of; c.fillStyle = hexA(fm.b >= fm.s ? OFc.color : OFc.color2, .45); }   // real delta colour when live trades exist
         c.fillRect(x-bwp/2, PB-vh, bwp, vh); }
@@ -3410,14 +3411,14 @@ class Panel {
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
     const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
     const palB = el("button",null,"🎨"); palB.title = Lg("Chart colours: candles, background, grid, presets","ألوان الشارت: الشموع، الخلفية، الشبكة، قوالب جاهزة");
-    palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid}, ch_.pal || {});
+    palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid, vu:TH.vu || TH.up, vd:TH.vd || TH.dn, pane:TH.pane}, ch_.pal || {});
       const pop = el("div","stpop"), r_ = palB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-280))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px"; pop.onpointerdown = e => e.stopPropagation();
       const apply = pal => { ch_.pal = pal; this.state.pal = pal; Ws.save(); ch_.draw(); };
       const ins = {}, put = (k, lab) => { const l = el("span"); l.textContent = lab; const i = el("input"); i.type = "color"; i.value = base()[k] || "#000000"; i.oninput = () => { apply(Object.assign(base(), {[k]: i.value})); }; ins[k] = i; pop.append(l, i); };
       const PRE = [[Lg("Theme default","افتراضي الثيم"), null], ["TradingView", {up:"#26a69a", dn:"#ef5350"}], [Lg("Blue / Orange","أزرق / برتقالي"), {up:"#2196f3", dn:"#ff9800"}], [Lg("Mono","أبيض / رمادي"), {up:"#e6e6e6", dn:"#6b6b6b"}], [Lg("Neon","نيون"), {up:"#00ff9d", dn:"#ff3d71", bg:"#05070d", grid:"#101522"}]];
       const sel = el("select"); PRE.forEach(([n], i) => sel.append(Object.assign(el("option"), {value:i, textContent:n}))); sel.onchange = () => { const v = PRE[+sel.value][1]; apply(v ? Object.assign({}, v) : null); const b = base(); Object.keys(ins).forEach(k => { ins[k].value = b[k] || "#000000"; }); };
       const l0 = el("span"); l0.textContent = Lg("Preset","قالب"); pop.append(l0, sel);
-      put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة"));
+      put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة")); put("vu", Lg("Volume up","حجم صاعد")); put("vd", Lg("Volume down","حجم هابط")); put("pane", Lg("Indicator panes","خلفية المؤشرات"));
       const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
       document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());

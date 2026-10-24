@@ -69,6 +69,21 @@ def metrics(df: pd.DataFrame) -> dict | None:
     return m
 
 
+def relation(df: pd.DataFrame, ref: pd.DataFrame, bars: int = 60) -> dict:
+    """Beta and correlation of df's returns against a reference frame (BTC for crypto, the S&P 500 for TradFi), over the last `bars` aligned bars. {} if there is not enough overlap."""
+    try:
+        a = np.log(df["close"].astype(float).reset_index(drop=True)).diff().dropna(); b = np.log(ref["close"].astype(float).reset_index(drop=True)).diff().dropna()
+        k = min(len(a), len(b), bars)
+        if k < 20:
+            return {}
+        a, b = a.tail(k).to_numpy(), b.tail(k).to_numpy(); vb = float(np.var(b))
+        if vb <= 0 or float(np.std(a)) <= 0:
+            return {}
+        return {"beta": float(np.cov(a, b, ddof=0)[0, 1] / vb), "corr": float(np.corrcoef(a, b)[0, 1])}
+    except Exception:
+        return {}
+
+
 def _sar(h, l, step=0.02, mx=0.2):
     """Parabolic SAR series (same rules as the chart's SAR): returns (sar values, is_up flags)."""
     n = len(h); hh, ll = h.to_numpy(), l.to_numpy(); sar = np.zeros(n); up = np.zeros(n, dtype=bool)
@@ -123,6 +138,13 @@ def _extra(o, h, l, c, v, n, px) -> dict:
     if n >= 21:
         e20 = _ema(c, 20); x["dist20"] = (px / float(e20.iloc[-1]) - 1) * 100
         obv = (np.sign(c.diff().fillna(0)) * v).cumsum(); x["obv_up"] = bool(obv.iloc[-1] > obv.iloc[-21])
+    if n >= 80:   # Ichimoku (9, 26, 52): the cloud drawn at the last bar is the one computed 26 bars ago
+        tk = (h.rolling(9).max() + l.rolling(9).min()) / 2; kj = (h.rolling(26).max() + l.rolling(26).min()) / 2
+        sa = ((tk + kj) / 2).shift(26); sb = ((h.rolling(52).max() + l.rolling(52).min()) / 2).shift(26)
+        if not (pd.isna(sa.iloc[-1]) or pd.isna(sb.iloc[-1]) or pd.isna(tk.iloc[-1]) or pd.isna(kj.iloc[-1]) or pd.isna(tk.iloc[-2]) or pd.isna(kj.iloc[-2])):
+            top, bot = max(float(sa.iloc[-1]), float(sb.iloc[-1])), min(float(sa.iloc[-1]), float(sb.iloc[-1]))
+            x["ichi"] = {"above": px > top, "below": px < bot, "inside": bot <= px <= top, "tkup": bool(tk.iloc[-1] > kj.iloc[-1] and tk.iloc[-2] <= kj.iloc[-2]),
+                         "tkdn": bool(tk.iloc[-1] < kj.iloc[-1] and tk.iloc[-2] >= kj.iloc[-2]), "green": float(sa.iloc[-1]) > float(sb.iloc[-1]), "red": float(sa.iloc[-1]) < float(sb.iloc[-1])}
     x["turnover"] = float(v.tail(20).mean()) * px   # average traded value per bar (quote currency): comparable across symbols
     x["price_abs"] = px
     if n >= 8:
@@ -217,6 +239,9 @@ FILTERS += [   # extra lists computed from the same candles (PR 1 of Radar item 
     ("price", "Technical", "Price", "السعر", [(f"u{x}", f"Under {x}", f"أقل من {x}") for x in (1, 5, 10, 50, 100)] + [(f"o{x}", f"Over {x}", f"أكتر من {x}") for x in (1, 10, 50, 100, 1000, 10000)]),
     ("turnover", "Technical", "Average turnover per bar (liquidity)", "متوسط التداول لكل شمعة (السيولة)", [(f"o{x}", f"Over {x}", f"أكتر من {x}") for x in ("100K", "1M", "10M", "100M")] + [(f"u{x}", f"Under {x}", f"أقل من {x}") for x in ("100K", "1M")]),
     ("obv", "Technical", "On-Balance Volume (20 bars)", "حجم التوازن OBV (20 شمعة)", [("up", "OBV rising", "OBV بيزيد"), ("dn", "OBV falling", "OBV بيقل")]),
+    ("ichi", "Technical", "Ichimoku (9,26,52)", "إيشيموكو (9,26,52)", [("above", "Price above the cloud", "السعر فوق السحابة"), ("below", "Price below the cloud", "السعر تحت السحابة"), ("inside", "Price inside the cloud", "السعر جوه السحابة"), ("tkup", "Tenkan crosses above Kijun", "تنكان يقطع كيجون لفوق"), ("tkdn", "Tenkan crosses below Kijun", "تنكان يقطع كيجون لتحت"), ("green", "Green cloud (span A > B)", "سحابة خضرا"), ("red", "Red cloud (span A < B)", "سحابة حمرا")]),
+    ("beta", "Technical", "Beta vs the reference (BTC / S&P 500)", "بيتا مقابل المرجع (BTC / S&P 500)", [("o2", "Over 2", "أكتر من 2"), ("o1", "Over 1 (moves more than the reference)", "أكتر من 1"), ("u1", "Under 1", "أقل من 1"), ("u05", "Under 0.5", "أقل من 0.5"), ("neg", "Negative (moves against it)", "سالب (عكس المرجع)")]),
+    ("corr", "Technical", "Correlation vs the reference (60 bars)", "الارتباط بالمرجع (60 شمعة)", [("o08", "Strong positive (> 0.8)", "ارتباط قوي (> 0.8)"), ("o05", "Positive (> 0.5)", "موجب (> 0.5)"), ("u02", "Weak (< 0.2)", "ضعيف (< 0.2)"), ("n05", "Negative (< -0.5)", "عكسي (< -0.5)")]),
     ("range", "Technical", "Bar pattern", "نمط الشمعة والمدى", [("nr7", "Narrowest range of 7 bars (NR7)", "أضيق مدى في 7 شموع NR7"), ("inside", "Inside bar", "شمعة داخلية"), ("up3", "3+ up candles in a row", "3 شموع صاعدة ورا بعض"), ("dn3", "3+ down candles in a row", "3 شموع هابطة ورا بعض"), ("up5", "5+ up candles in a row", "5 شموع صاعدة"), ("dn5", "5+ down candles in a row", "5 شموع هابطة")]),
 ]
 
@@ -346,6 +371,16 @@ def _test_extra(key: str, code: str, m: dict) -> bool:
     if key == "range":
         if "nr7" not in m: return False
         return {"nr7": bool(g("nr7")), "inside": bool(g("inside")), "up3": g("run_up", 0) >= 3, "dn3": g("run_dn", 0) >= 3, "up5": g("run_up", 0) >= 5, "dn5": g("run_dn", 0) >= 5}[code]
+    if key == "ichi":
+        d = g("ichi"); return bool(d and d.get(code))
+    if key == "beta":
+        b = g("beta")
+        if b is None: return False
+        return {"o2": b > 2, "o1": b > 1, "u1": b < 1, "u05": b < 0.5, "neg": b < 0}[code]
+    if key == "corr":
+        c_ = g("corr")
+        if c_ is None: return False
+        return {"o08": c_ > 0.8, "o05": c_ > 0.5, "u02": abs(c_) < 0.2, "n05": c_ < -0.5}[code]
     raise KeyError(key)
 
 

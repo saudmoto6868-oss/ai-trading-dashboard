@@ -920,6 +920,8 @@ const OKX_CACHE = {};
 // the rubik cooldown survives the workspace iframe being rebuilt (each rebuild used to re-hit OKX and reload the chart)
 let OKX_COOL = 0; try { OKX_COOL = +(sessionStorage.getItem("okx_cool") || 0); } catch(e){}
 const okxCoolSet = (t) => { OKX_COOL = t; try { sessionStorage.setItem("okx_cool", String(t)); } catch(e){} };
+let OKX_RUB_DEAD = 0; try { OKX_RUB_DEAD = +(localStorage.getItem("okx_rub_dead") || 0); } catch(e){}   // OKX sends no CORS header on /rubik/ to this page: after one real failure the browser stops asking for 6 h (shared by all tabs)
+let OKX_RUB_PROBE = null;   // the first /rubik/ request is a probe, the other coins wait for its answer instead of all firing (and failing) at once
 const OKX_COOL_P = {}; let OKX_COOL_ALL = 0;   // global pause for candle requests after any 429   // per-path cooldown after a 429 (candles and other non-rubik paths)
 function okx(path){
   if (/instId=Y%3A/i.test(path)) return yfOkx(path);
@@ -929,9 +931,13 @@ function okx(path){
   // Keep a short 1.2 s in-flight/repeat guard to coalesce overlapping requests without serving stale snapshots across polling ticks.
   const liveFlow = /\/market\/(?:books(?:-full)?|trades)\?/.test(path), ttl = rub ? 120000 : liveFlow ? 1200 : 10000, hit = OKX_CACHE[path];
   let shared = 0; try { shared = +(localStorage.getItem("okx_cool_all") || 0); } catch(e){}   // another tab of this browser hit the limit: this tab waits too (both tabs share one IP)
-  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, shared); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
+  if (shared > Date.now() + 20000) shared = 0;   // never trust a pause that is far in the future
+  const liveTick = /\/market\/candles\?/.test(path) && /[?&]limit=(?:[1-9]|[1-3]\d|40)(?:&|$)/.test(path);   // the small refresh poll of an open chart (2 s loop): a healthy tab keeps it alive, only the big history loads wait for the other tab's pause
+  const cool = Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared); if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
+  if (rub && Date.now() < OKX_RUB_DEAD) return Promise.reject(new Error("OKX stats are blocked from the browser (CORS): skipped"));
+  if (rub && OKX_RUB_PROBE) return OKX_RUB_PROBE.then(() => okx(path));
   if (rub){   // stats are slow-moving: reuse the last answer from this browser for 2 minutes, even after a refresh
     try { const st = JSON.parse(localStorage.getItem("okxc:"+path) || "null"); if (st && Date.now() - st.t < ttl){ OKX_CACHE[path] = {t: st.t, p: Promise.resolve(st.v)}; return OKX_CACHE[path].p; } } catch(e){}
   }
@@ -940,17 +946,19 @@ function okx(path){
     const ac = new AbortController(), tmo = setTimeout(() => ac.abort(), 15000);   // no answer in 15 s: give up, the polling loop tries again (a stuck request froze the chart until a refresh)
     try { r = await fetch(API + "/api/v5" + path, {cache:"no-store", signal:ac.signal}); clearTimeout(tmo); }
     catch(e){ clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("OKX timeout");   // CORS or network failure (the rubik stats send no CORS header to this page): pause the rubik family instead of retrying every symbol (owner's console, 2026-10-19)
-      if (rub) okxCoolSet(Date.now() + 600000);
+      if (rub){ okxCoolSet(Date.now() + 600000); OKX_RUB_DEAD = Date.now() + 6*3600e3; try { localStorage.setItem("okx_rub_dead", String(OKX_RUB_DEAD)); } catch(e2){} }
       throw new Error("OKX blocked from this page (CORS / network): stats paused 10 min");
     }
     // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; OKX_COOL_ALL = Math.max(OKX_COOL_ALL, Date.now() + 15000); try { localStorage.setItem("okx_cool_all", String(OKX_COOL_ALL)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
+    // the shared (cross-tab) pause is set once and never extended by repeated 429s (a blocked tab used to keep the other tab frozen), with jitter so two tabs do not retry together
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + 30000; const until = Date.now() + 8000 + Math.floor(Math.random()*7000); OKX_COOL_ALL = Math.max(OKX_COOL_ALL, until); try { if ((+(localStorage.getItem("okx_cool_all") || 0)) < Date.now()) localStorage.setItem("okx_cool_all", String(until)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
     if (rub) try { localStorage.setItem("okxc:"+path, JSON.stringify({t: Date.now(), v: j.data})); } catch(e){}
     return j.data;
   })();
+  if (rub && !OKX_RUB_PROBE){ const pr = p.catch(() => {}).then(() => { if (OKX_RUB_PROBE === pr) OKX_RUB_PROBE = null; }); OKX_RUB_PROBE = pr; }
   OKX_CACHE[path] = {t: Date.now(), p};
   p.catch(() => { if (OKX_CACHE[path] && OKX_CACHE[path].p === p) delete OKX_CACHE[path]; });   // failed calls are not cached
   return p;
@@ -3501,7 +3509,7 @@ class Panel {
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
-    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 300);
+    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -3663,7 +3671,7 @@ class Panel {
     const d = this.chart.data; if (!d.length) { this.cdEl.textContent = ""; return; }
     let rem = candleRem(d[d.length-1].t, this.state.tf);
     const sec = Math.floor(rem/1000), h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), ss = sec%60;
-    this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss)); this.chart.draw();
+    this.cdEl.textContent = "⏱ " + (h ? h+":"+pad2(m)+":"+pad2(ss) : pad2(m)+":"+pad2(ss));   // DOM text only: no full chart repaint each second
   }
   syncMarks(){
     const ch = this.chart, d = ch.data; if (!d.length || !this.flt) return;

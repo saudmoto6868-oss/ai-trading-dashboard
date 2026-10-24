@@ -10,6 +10,9 @@ import requests
 
 CLASSES = ["Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds", "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)"]
 MARKET_TYPES = {"Spot": "SPOT", "Perp (swap)": "SWAP", "Futures": "FUTURES"}
+# Liquid Hyperliquid markets of the OTHER classes that the Workspace scan always adds to the chosen class, so Ready / Signals / Alerts / Setup Card have
+# setups for the class filter (class -> how many). Options are NOT scanned (no candle feed for them), EGX / Tadawul have no live feed.
+WS_EXTRA = (("Metals", 3), ("Indices", 2), ("Forex", 3), ("Oil & Gas", 2), ("Stocks", 4), ("Bonds", 1))
 NO_FEED = {"Egypt (EGX)", "Saudi (Tadawul)"}   # no verified free live feed yet (needs an API key); never show invented numbers
 MEME_BASES = ["DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "TURBO", "NEIRO", "MEME", "BOME", "POPCAT", "MEW", "PNUT", "ACT", "GOAT", "TRUMP", "FARTCOIN", "MOODENG", "PENGU", "1000SATS"]
 _CAT = {"3": "Stocks", "4": "Commodities", "5": "Forex"}
@@ -69,7 +72,7 @@ def _load_options(base_url=OKX):
     return rows
 
 
-def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
+def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX, wide=False):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
     from modules import hl_feed, yahoo_feed
@@ -82,6 +85,15 @@ def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX):
             return [], f"OKX options list unavailable ({type(e).__name__})"
         return [r["id"] for r in rows[:top]], ("" if rows else "OKX lists no options right now")
     if cls == "Crypto" and mtype == "SPOT":
+        if wide and top > len(crypto_symbols):   # Radar: the biggest USDT spot pairs by 24h volume (the dashboard's own short list first)
+            try:
+                skip = {"USDC", "USDT", "DAI", "TUSD", "FDUSD", "USDD", "PYUSD", "EURT", "USDG", "USDE"}
+                rows = [r for r in _load("SPOT", base_url) if r["cls"] == "Crypto" and r["id"].endswith("-USDT") and r["id"].split("-")[0] not in skip]
+                rows.sort(key=lambda r: r["vol"], reverse=True)
+                out = list(crypto_symbols) + [r["id"] for r in rows if r["id"] not in crypto_symbols]
+                return out[:top], ""
+            except Exception:
+                pass
         return list(crypto_symbols), ""
     inst = mtype if (cls in ("Crypto", "Meme coins") or mtype != "SPOT") else "SWAP"
     hl = hl_feed.symbols(cls, top) if cls in ("Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds") else []   # Hyperliquid TradFi perps (live, no key)

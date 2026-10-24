@@ -786,6 +786,7 @@ function applyTheme(){
     THEMES[CFG.ui] = {name:CFG.ui, gen:true, css:{bg:V.bg, panel:V.panel, panel2:V.panel2, line:V.line, txt:V.txt, mut:V.mut, panel0:V.panel, dot:V.line, gold:V.acc,
         acc:V.acc, ink:V.ink, solid:V.solid, rad:(V.rad|0)+"px", ffam:V.font || "inherit", tt:V.tt || "none", ls:V.ls || "0", glow:V.glow || "none"},
       ch:{bg:hexA(V.bg, .45), grid:V.line, mut:V.mut, line:V.line, pane:hexA(V.bg, .4), up:V.up, dn:V.dn, txt:V.txt}}; }
+  try { let ex = document.getElementById("uiExtra"); if (V.extra){ if (!ex){ ex = document.createElement("style"); ex.id = "uiExtra"; document.head.appendChild(ex); } ex.textContent = V.extra; } else if (ex) ex.remove(); } catch(e){}   // raw CSS of an engine theme (fonts, small details)
   const ui = CFG.ui && THEMES[CFG.ui] ? CFG.ui : "", t = THEMES[ui || ThemeCfg.name] || THEMES.dark, r = document.documentElement.style;
   if (document.body) document.body.classList.toggle("ui-gen", !!t.gen);   // a dashboard theme wins over the Workspace's own pick
   document.body && document.body.classList.toggle("ui-"+(ui || "none"), true); if (ui && CFG.uiBg && document.body) document.body.style.setProperty("--uibg", "url("+CFG.uiBg+")");

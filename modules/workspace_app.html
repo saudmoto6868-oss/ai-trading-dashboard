@@ -447,7 +447,7 @@ try { const k = "xpix_loads", a = JSON.parse(localStorage.getItem(k) || "[]"); a
   console.info("[XPIX] page load #" + a.length + (a.length > 1 ? " (" + Math.round((a[a.length-1] - a[a.length-2])/1000) + " s after the previous load)" : " (first)")); } catch(e){}
 try { new PerformanceObserver(l => l.getEntries().forEach(e => { if (e.duration > 120) console.info("[XPIX] long task " + Math.round(e.duration) + " ms at t=" + Math.round(e.startTime/1000) + " s"); })).observe({entryTypes:["longtask"]}); } catch(e){}
 const API = CFG.apiBase || "https://www.okx.com";
-const WSB = CFG.wsBase || "wss://ws.okx.com:8443/ws/v5";
+const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31: standard TLS port 443
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)

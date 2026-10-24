@@ -12,6 +12,7 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 
 import base64
 import html
+import logging
 import os
 import time
 from pathlib import Path
@@ -658,7 +659,7 @@ def _tf_worker(store):
         B.save(p)
         store["data"] = p
     except Exception:
-        pass
+        logging.getLogger(__name__).debug("backtest save failed", exc_info=True)
     finally:
         store["running"] = False
 
@@ -695,7 +696,7 @@ def _ws_universe(active):
             syms, _m = class_symbols(cls, CRYPTO_SYMBOLS)
             out += [x for x in syms if x.startswith("HL:")][:n]
     except Exception:
-        pass
+        logging.getLogger(__name__).debug("HL symbol list failed", exc_info=True)
     seen = set()
     return tuple(x for x in out if not (x in seen or seen.add(x)))
 
@@ -978,14 +979,16 @@ def kit_css():
 
 
 from modules import hot_reload as _hot   # a redeploy can leave OLD copies of modules in memory: reload the stale ones before anything imports from them
-try:
-    import importlib as _il0
-    if _hot.compiled_from_older_source(_hot):   # the helper itself can be an old copy
-        _il0.reload(_hot)
-    _hot.refresh_changed()
-    _hot.refresh()
-except Exception:
-    pass
+if not st.session_state.get("_hot_done"):   # once per session: reloading on every rerun/autorefresh tick is wasted work
+    try:
+        import importlib as _il0
+        if _hot.compiled_from_older_source(_hot):   # the helper itself can be an old copy
+            _il0.reload(_hot)
+        _hot.refresh_changed()
+        _hot.refresh()
+        st.session_state["_hot_done"] = True
+    except Exception:
+        logging.getLogger(__name__).warning("hot reload failed", exc_info=True)
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
 from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
@@ -2178,7 +2181,7 @@ def _radar_state(tf, data):
             out["regime_sub"] = f"↑{up} ↓{dn} / {len(tr)}"
             out.update({"up": up, "dn": dn, "n": len(tr)})
     except Exception:
-        pass
+        logging.getLogger(__name__).debug("regime summary failed", exc_info=True)
     now = time.time() * 1000
     cal = _bg("cal", _calendar_rows, [])
     hi = [e for e in cal or [] if e.get("impact") == "High" and 0 <= e["ts"] - now <= 3600_000]
@@ -2722,7 +2725,7 @@ def render_chart_scanner(f):
             with ThreadPoolExecutor(4) as _ex:
                 list(_ex.map(lambda s: _cs_result(s, tf), _top))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("scan prefetch failed", exc_info=True)
     _lt = _LADDER.get(tf, ())
     _symt = tuple(SCAN_SYMBOLS)
     try:   # the ladder's higher timeframes load side by side, once for the whole grid
@@ -3109,7 +3112,7 @@ if PAGE == 0:   # workspace
             from modules.guide_ai import render_bridge
             render_bridge()   # hidden: lets the guide character ask Claude without the key reaching the browser
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("guide bridge failed", exc_info=True)
         if world_errs:
             st.caption(L("World Monitor feeds unavailable:") + " " + ", ".join(world_errs[:4]))
         if cached_ws.get("errs"):

@@ -26,7 +26,7 @@ Also: `INDICATOR_MAP.md` (radar layers ↔ indicators), `DEVELOPMENT_NOTES.md` (
 `BACKTEST_EVIDENCE.md`, `EXAMPLES_MULTI.md`, full file list in `docs/academy/MANIFEST.md`.
 
 ## Folder structure
-main.py runs the app. config.py holds symbol lists, API keys, risk settings.
+main.py runs the app. config.py holds symbol lists and risk settings (API keys go in Streamlit Secrets or environment variables, never in files).
 requirements.txt lists the Python packages needed.
 ARCHITECTURE.py explains the "virtual employees" module design.
 The modules folder contains: signals.py (scanner detectors), market_cache.py (parallel cached candles), data_fetcher.py, price_action.py,
@@ -36,7 +36,7 @@ crypto_extras.py, dom_panel.py, alerts.py, tv_widget.py.
 ## Setup (local test first)
 1. Make sure MetaTrader 5 is open and logged into your account.
 2. Open Command Prompt in this folder and run: pip install -r requirements.txt
-3. Get a free Finnhub API key at finnhub.io and paste it into config.py.
+3. Get a free Finnhub API key at finnhub.io and set it as FINNHUB_API_KEY in Streamlit Secrets or an environment variable (do not paste it into any file).
 4. Run the dashboard with: streamlit run main.py
 
 ## Known things to check

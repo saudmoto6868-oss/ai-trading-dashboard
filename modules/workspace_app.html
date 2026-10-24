@@ -7,6 +7,8 @@
 <style>
 :root{--panel0:#0e1114;--dot:#1b2027;--bg:#0b0e11;--panel:#161a1e;--panel2:#1e2329;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--grn:#0ecb81;--red:#f6465d;--gold:#f0b90b;--blue:#4aa3ff;--vio:#b57cff}
 *{box-sizing:border-box}
+:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+@media (pointer:coarse){button,select,input{min-height:36px}}
 html{--us:1}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:calc(12px*var(--us))/1.35 -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
 button,select,input,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
@@ -1137,11 +1139,11 @@ const WSX = {
   conns:{}, subs:{},
   conn(kind){
     let c = this.conns[kind]; if (c) return c;
-    c = this.conns[kind] = {ws:null, ready:false, kind};
+    c = this.conns[kind] = {ws:null, ready:false, kind, wait:3000};
     const open = () => {
       let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return setTimeout(open, 5000); }
       c.ws = ws;
-      ws.onopen = () => { c.ready = true; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
+      ws.onopen = () => { c.ready = true; c.wait = 3000; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
         c.ping = setInterval(() => { try{ ws.send("ping"); }catch(e){} }, 20000); };
       ws.onmessage = ev => {
         c.last = Date.now(); if (ev.data === "pong") return;
@@ -1149,7 +1151,7 @@ const WSX = {
         if (!m.arg || !m.data) return;
         const x = this.subs[JSON.stringify(m.arg)]; if (x) x.cbs.forEach(cb => { try{ cb(m.data); }catch(e){ console.error(e); } });
       };
-      ws.onclose = () => { c.ready = false; clearInterval(c.ping); setTimeout(open, 3000); };
+      ws.onclose = () => { c.ready = false; clearInterval(c.ping); setTimeout(open, c.wait); c.wait = Math.min(c.wait * 2, 60000); };   // backoff 3s -> 60s, reset on open
       ws.onerror = () => { try{ ws.close(); }catch(e){} };
     };
     open(); return c;

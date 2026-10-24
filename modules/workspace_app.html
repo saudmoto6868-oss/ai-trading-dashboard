@@ -1772,8 +1772,9 @@ class CandleChart {
       c.fillStyle = TH.pane; c.fillRect(0, y0, PR, h); c.strokeStyle = TH.grid; c.lineWidth = 1; c.strokeRect(.5, y0+.5, PR-1, h-1);
       if (!this[k+"V"]){ c.restore(); return; }
       c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace";
-      const line = (arr, col, w, ds, y) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(ds); c.beginPath(); let on = false;
-        for (let i = i0; i <= i1; i++){ const v = arr[i]; if (v == null){ on = false; continue; } const x = this.x(i), yy = y(v); on ? c.lineTo(x, yy) : c.moveTo(x, yy); on = true; } c.stroke(); c.setLineDash([]); };
+      const PDOT = !!this.dots, pds = Math.max(3, Math.min(6, Math.round(this.bw*0.22)));
+      const line = (arr, col, w, ds, y) => { c.strokeStyle = col; c.lineWidth = PDOT ? Math.max(2, w*1.6) : w; c.lineCap = PDOT ? "round" : "butt"; c.setLineDash(PDOT ? [0.1, pds] : ds); c.beginPath(); let on = false;
+        for (let i = i0; i <= i1; i++){ const v = arr[i]; if (v == null){ on = false; continue; } const x = this.x(i), yy = y(v); on ? c.lineTo(x, yy) : c.moveTo(x, yy); on = true; } c.stroke(); c.setLineDash([]); c.lineCap = "butt"; };
       const lvl = (v, y, dsh) => { c.strokeStyle = "#3a424b"; c.lineWidth = 1; c.setLineDash(dsh ? [3,3] : []); c.beginPath(); c.moveTo(0, Math.round(y(v))+.5); c.lineTo(PR, Math.round(y(v))+.5); c.stroke(); c.setLineDash([]); };
       const last = a => { for (let i = Math.min(i1, a.length-1); i >= 0; i--) if (a[i] != null) return a[i]; return null; };
       if (k === "adx"){
@@ -1918,9 +1919,12 @@ Object.assign(CandleChart.prototype, {
       else { const by = new Map(); bs.forEach(([t, o]) => { const ci = Math.floor((tx(t) - gx0)/2); let m = by.get(ci); if (!m){ m = {t, w:0, m:o.m, _r:new Map()}; by.set(ci, m); }
           m.w = Math.max(m.w, t + o.w - m.t); m.m = o.m; o._r.forEach((q, kr) => { const v = m._r.get(kr); if (v == null || q > v) m._r.set(kr, q); }); });
         cols = [...by.values()].map(m => [m.t, m]); this._hmMerge = {key, cols}; } }
+    const HDOT = !!this.dots, hp = 4, hdots = HDOT ? new Map() : null;   // dot theme: each ~4px grid cell gets one dot (strongest cell wins), radius follows intensity
     cols.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
       o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
+        if (HDOT){ const gi = Math.floor(((x0 + x1)/2 - gx0)/hp), gj = Math.floor(y/hp), k = gi*100003 + gj, e = hdots.get(k); if (!e || e.t < t) hdots.set(k, {t, x:gx0 + (gi+.5)*hp, y:(gj+.5)*hp, f:colorAt(t, pr, o.m)}); return; }
         c.fillStyle = colorAt(t, pr, o.m); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+    if (HDOT){ hdots.forEach(e => { c.fillStyle = e.f; c.beginPath(); c.arc(e.x, e.y, .6 + 1.5*e.t, 0, 6.2832); c.fill(); }); }
     return bs[0][0];
   },
   paintSigs(c, py, PR, PB, ov){   // BUY/SELL arrows: live scanner signal on the last candle + past journal signals for this symbol
@@ -3198,6 +3202,8 @@ Object.assign(CandleChart.prototype, {
   paintDraws(c, py, dec){
     if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
+    const DDOT = !!this.dots, dsd = Math.max(5, Math.min(7, Math.round(this.bw*0.25)+2)), sld0 = DDOT ? c.setLineDash : null;
+    if (DDOT){ c.lineCap = "round"; c.setLineDash = () => sld0.call(c, [0.1, dsd]); }   // dot theme: every drawing stroke (solid or dashed) becomes a row of round dots
     const lab0 = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
       if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
@@ -3299,7 +3305,7 @@ Object.assign(CandleChart.prototype, {
       if (sel || (this.creating === d)){ hs.forEach(h => { c.fillStyle = "#fff"; c.strokeStyle = "#4aa3ff"; c.lineWidth = 1.5; c.beginPath(); c.arc(h.x,h.y,4.5,0,6.3); c.fill(); c.stroke(); });
         const cg = this.cgrip(d, hs); if (cg){ c.fillStyle = "#4aa3ff"; c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.beginPath(); c.rect(cg.x-4.5, cg.y-4.5, 9, 9); c.fill(); c.stroke(); } }
     });
-    c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.lineWidth = 1; c.textBaseline = "middle";
+    if (DDOT) delete c.setLineDash; c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.lineWidth = 1; c.textBaseline = "middle";
   }
 });
 

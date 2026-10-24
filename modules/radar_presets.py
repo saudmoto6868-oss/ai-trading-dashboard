@@ -42,10 +42,30 @@ def user_presets(path=None):
         return {}
 
 
-def all_presets(path=None):
+def clean(extra):
+    """Presets that came from the browser store: keep only well-formed ones (known keys, right types), so a damaged localStorage can never break the page."""
+    out = {}
+    for name, v in (extra or {}).items() if isinstance(extra, dict) else []:
+        if not isinstance(name, str) or not name.strip() or not isinstance(v, dict):
+            continue
+        ok = {}
+        for k, val in v.items():
+            if k in LIST_KEYS and isinstance(val, list) and all(isinstance(x, str) for x in val):
+                ok[k] = val
+            elif k in SEL_DEFAULTS and isinstance(val, str):
+                ok[k] = val
+        if ok:
+            out[name.strip()[:40]] = ok
+    return out
+
+
+def all_presets(path=None, extra=None):
+    """Built-in presets + the user's own (starred): from the server file AND from the browser store (`extra`, the dict the component returns)."""
     out = dict(BUILTIN)
     for k, v in user_presets(path).items():
         out["★ " + k] = v   # a star marks the user's own
+    for k, v in clean(extra).items():
+        out["★ " + k] = v
     return out
 
 

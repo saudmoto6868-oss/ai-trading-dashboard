@@ -2579,10 +2579,32 @@ def _radar_filters(view):
             c += len(v_) if isinstance(v_, list) else (1 if v_ not in (None, "—", "Any", "Both", "All selected") else 0)
         return f" ({c})" if c else ""
 
+    import uuid as _uuid
+    from streamlit.components.v1 import declare_component as _decl
+    _store = _decl("xpix_preset_store", path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "preset_store"))
+    _bv = _store(cmd=ss.get("rp_last_cmd"), key="rp_store", default=None)   # the user's own presets live in THIS browser (localStorage); {presets, ok} comes back
+    _browser = (_bv or {}).get("presets") if isinstance(_bv, dict) else None
+
     def _on_preset():
         nm = ss.get("cs_preset")
         if nm and nm != _RP.NONE:
-            _RP.apply(ss, nm, _RP.all_presets())
+            _RP.apply(ss, nm, _RP.all_presets(extra=ss.get("rp_browser")))
+
+    def _cmd(action, name, data=None):   # one command per click (new id), picked up by the store component on the next render
+        ss["rp_last_cmd"] = {"id": _uuid.uuid4().hex, "action": action, "name": name, "data": data}
+
+    def _on_save():
+        nm = (ss.get("cs_preset_name") or "").strip()[:40]
+        snap = _RP.snapshot(ss)
+        ss["rp_msg"] = ("warn", "Give the preset a name") if not nm else ("warn", "Nothing selected to save") if not snap else ("ok", "Saved in this browser")
+        if nm and snap:
+            _cmd("save", nm, snap)
+
+    def _on_del():
+        cur = ss.get("cs_preset", "")
+        if isinstance(cur, str) and cur.startswith("★"):
+            _cmd("delete", cur[1:].strip())
+            _RP.delete_user(cur)
 
     def _fvbox(container, key):
         f_ = _FVL.get(key)
@@ -2600,17 +2622,21 @@ def _radar_filters(view):
         tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
-        _pres = _RP.all_presets()
+        if _browser is not None:
+            ss["rp_browser"] = _browser
+        _pres = _RP.all_presets(extra=ss.get("rp_browser"))
         top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
         top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
         with top[1].popover(L("Save")):
             _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
-            if st.button(L("Save current filters"), key="cs_preset_save"):
-                _ok, _msg = _RP.save_user(_nm, _RP.snapshot(ss))
-                (st.success if _ok else st.warning)(L(_msg))
+            st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
+            _m = ss.pop("rp_msg", None)
+            if _m:
+                (st.success if _m[0] == "ok" else st.warning)(L(_m[1]))
             _cur = ss.get("cs_preset", "")
-            if isinstance(_cur, str) and _cur.startswith("★") and st.button(L("Delete") + f" {_cur}", key="cs_preset_del"):
-                _RP.delete_user(_cur)
+            if isinstance(_cur, str) and _cur.startswith("★"):
+                st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
+            st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
         with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)

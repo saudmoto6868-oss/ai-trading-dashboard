@@ -23,4 +23,8 @@ with tempfile.TemporaryDirectory() as d:
     P = R.all_presets(path); assert "★ My scalp" in P and P["★ My scalp"] == snap
     ss2 = {}; assert R.apply(ss2, "★ My scalp", P) and ss2["cs_rsi"] == ["rsi_lt30"]
     assert R.delete_user("★ My scalp", path) and "★ My scalp" not in R.all_presets(path)
+# browser-store presets: damaged data must never break anything
+bad = {"ok": {"cs_rsi": ["rsi_lt30"], "cs_side": "Buy only", "junk": 1}, "": {"cs_rsi": ["x"]}, "str": "no", "lists": {"cs_rsi": "notalist"}, 7: {}}
+c = R.clean(bad); assert c == {"ok": {"cs_rsi": ["rsi_lt30"], "cs_side": "Buy only"}}, c
+assert R.clean(None) == {} and R.clean([1]) == {} and "★ ok" in R.all_presets(path="/nonexistent/p.json", extra=bad)
 print("PASS: radar presets", len(R.BUILTIN), "built-in")

@@ -1632,9 +1632,14 @@ class CandleChart {
       for (let i = i0; i <= i1; i++){ if (S.v[i] == null) continue; c.fillStyle = S.up[i] ? st.color : st.color2; c.beginPath(); c.arc(this.x(i), py(S.v[i]), r, 0, Math.PI*2); c.fill(); } }
     // Order-flow heat must stay in its dedicated column; never paint it over candle bodies.
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
-    const bwp = Math.max(1, this.bw*0.7);
+    const bwp = Math.max(1, this.bw*0.7), DOT = !!this.dots && this.bw >= 5, ds = Math.max(3, Math.min(6, Math.round(this.bw*0.22))), dr = ds*0.36;   // dot-matrix style (theme 17 / 🎨 menu): candles, wicks, volume and averages are drawn as small dots
+    const dotRect = (x0, y0, w, h) => { if (h < 1) h = 1; const nx = Math.max(1, Math.round(w/ds)), xs = x0 + (w - (nx-1)*ds)/2, ya = Math.ceil(y0/ds)*ds, yb = y0 + h; c.beginPath(); let any = false; for (let yy = ya; yy <= yb; yy += ds) for (let q = 0; q < nx; q++){ c.moveTo(xs + q*ds + dr, yy); c.arc(xs + q*ds, yy, dr, 0, Math.PI*2); any = true; } if (!any){ c.moveTo(xs + dr, y0); c.arc(xs, y0, dr, 0, Math.PI*2); } c.fill(); };
     for (let i = i0; i <= i1; i++){
       const k = this.data[i], up = k.c >= k.o, col = up ? TH.up : TH.dn, x = this.x(i);
+      if (DOT){ const y1 = py(k.o), y2 = py(k.c);
+        if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0; c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .35); dotRect(x - bwp/2, PB - vh, bwp, vh); }
+        c.fillStyle = col; const wy0 = py(k.h), wy1 = py(k.l); c.beginPath(); for (let yy = Math.ceil(wy0/ds)*ds; yy <= wy1; yy += ds){ c.moveTo(x + dr*0.8, yy); c.arc(x, yy, dr*0.8, 0, Math.PI*2); } c.fill();
+        dotRect(x - bwp/2, Math.min(y1, y2), bwp, Math.max(1, Math.abs(y1 - y2))); continue; }
       c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .28);   // volume bars: own up / down colours when set (🎨 menu), else the candle colours
       if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0, fm = this.fp.get(k.t);
         if (this.st.vol.delta && fm){ const OFc = this.st.of; c.fillStyle = hexA(fm.b >= fm.s ? OFc.color : OFc.color2, .45); }   // real delta colour when live trades exist
@@ -1646,9 +1651,9 @@ class CandleChart {
     }
     this.maL.forEach((m, j) => {   // Moving averages: every line of the one MA indicator
       const v = this.maV && this.maV[j]; if (!m.on || !v) return;
-      c.strokeStyle = m.color; c.lineWidth = m.w || 1.2; c.setLineDash(m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
+      c.strokeStyle = m.color; c.lineWidth = DOT ? Math.max(2, (m.w || 1.2)*1.6) : (m.w || 1.2); c.lineCap = DOT ? "round" : "butt"; c.setLineDash(DOT ? [0.1, ds] : m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
       for (let i = i0; i <= i1; i++){ if (v[i] == null) continue; const y = py(v[i]), x = this.x(i); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; }
-      c.stroke(); c.setLineDash([]);
+      c.stroke(); c.setLineDash([]); c.lineCap = "butt";
     });
     if (this.ema.vwap && this.vwV){
       const sv = this.st.vwap; c.strokeStyle = sv.color; c.lineWidth = sv.w; c.setLineDash(sv.dash ? sv.dash.split(",").map(Number) : []); c.beginPath();
@@ -3423,6 +3428,7 @@ class Panel {
       const sel = el("select"); PRE.forEach(([n], i) => sel.append(Object.assign(el("option"), {value:i, textContent:n}))); sel.onchange = () => { const v = PRE[+sel.value][1]; apply(v ? Object.assign({}, v) : null); const b = base(); Object.keys(ins).forEach(k => { ins[k].value = b[k] || "#000000"; }); };
       const l0 = el("span"); l0.textContent = Lg("Preset","قالب"); pop.append(l0, sel);
       put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة")); put("vu", Lg("Volume up","حجم صاعد")); put("vd", Lg("Volume down","حجم هابط")); put("pane", Lg("Indicator panes","خلفية المؤشرات"));
+      const dl = el("label"); dl.style.cssText = "grid-column:1/-1;display:flex;gap:6px;align-items:center;cursor:pointer"; const dc = el("input"); dc.type = "checkbox"; dc.checked = !!ch_.dots; dc.onchange = () => { ch_.dots = dc.checked; this.state.dots = dc.checked; Ws.save(); ch_.draw(); }; dl.append(dc, document.createTextNode(Lg("Dot-matrix candles and lines","شموع وخطوط بنقط (دوت ماتريكس)"))); pop.append(dl);
       const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
       document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
@@ -3478,7 +3484,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol

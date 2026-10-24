@@ -65,7 +65,75 @@ def metrics(df: pd.DataFrame) -> dict | None:
     m["atr"] = float(tr.ewm(alpha=1 / 14, adjust=False).mean().iloc[-1]); m["atr_pct"] = m["atr"] / px * 100
     avg = float(v.iloc[-21:-1].mean()) if n > 21 else 0.0
     m["relvol"] = float(v.iloc[-1]) / avg if avg > 0 else None; m["avgvol"] = avg
+    m.update(_extra(o, h, l, c, v, n, px))
     return m
+
+
+def _sar(h, l, step=0.02, mx=0.2):
+    """Parabolic SAR series (same rules as the chart's SAR): returns (sar values, is_up flags)."""
+    n = len(h); hh, ll = h.to_numpy(), l.to_numpy(); sar = np.zeros(n); up = np.zeros(n, dtype=bool)
+    up[0] = True; sar[0] = ll[0]; ep = hh[0]; af = step
+    for i in range(1, n):
+        s_ = sar[i - 1] + af * (ep - sar[i - 1])
+        if up[i - 1]:
+            s_ = min(s_, ll[i - 1], ll[i - 2] if i > 1 else ll[i - 1])
+            if ll[i] < s_:
+                up[i] = False; s_ = ep; ep = ll[i]; af = step
+            else:
+                up[i] = True
+                if hh[i] > ep: ep = hh[i]; af = min(af + step, mx)
+        else:
+            s_ = max(s_, hh[i - 1], hh[i - 2] if i > 1 else hh[i - 1])
+            if hh[i] > s_:
+                up[i] = True; s_ = ep; ep = hh[i]; af = step
+            else:
+                up[i] = False
+                if ll[i] < ep: ep = ll[i]; af = min(af + step, mx)
+        sar[i] = s_
+    return sar, up
+
+
+def _extra(o, h, l, c, v, n, px) -> dict:
+    """Candle-only indicators for the extra Finviz-style lists (MACD, Bollinger, Stochastic, ADX, CCI, Williams %R, SAR, price, distance to EMA 20, turnover, OBV, bar patterns).
+    Missing history -> the key is simply absent and the filter does not match."""
+    x = {}
+    if n >= 35:
+        ml = _ema(c, 12) - _ema(c, 26); sg = _ema(ml, 9); hist = ml - sg
+        x["macd"] = float(ml.iloc[-1]); x["macd_sig"] = float(sg.iloc[-1]); x["macd_hist"] = float(hist.iloc[-1]); x["macd_hist_prev"] = float(hist.iloc[-2])
+        x["macd_xup"] = bool(hist.iloc[-1] > 0 >= hist.iloc[-2]); x["macd_xdn"] = bool(hist.iloc[-1] < 0 <= hist.iloc[-2])
+    if n >= 40:
+        ma = c.rolling(20).mean(); sd = c.rolling(20).std(ddof=0); up_, lo_ = ma + 2 * sd, ma - 2 * sd; w = ((up_ - lo_) / ma * 100).dropna()
+        x["bb_up"] = float(up_.iloc[-1]); x["bb_lo"] = float(lo_.iloc[-1]); x["bb_w"] = float(w.iloc[-1])
+        x["bb_w_pct"] = float((w.tail(120) <= w.iloc[-1]).mean() * 100)   # percentile of the band width inside the last 120 bars: low = squeeze
+    if n >= 20:
+        lk = l.rolling(14).min(); hk = h.rolling(14).max(); k = (100 * (c - lk) / (hk - lk).replace(0, np.nan)); kf = k.rolling(3).mean(); d = kf.rolling(3).mean()
+        if not (pd.isna(kf.iloc[-1]) or pd.isna(d.iloc[-1]) or pd.isna(kf.iloc[-2]) or pd.isna(d.iloc[-2])):
+            x["stoch_k"] = float(kf.iloc[-1]); x["stoch_d"] = float(d.iloc[-1]); x["stoch_xup"] = bool(kf.iloc[-1] > d.iloc[-1] and kf.iloc[-2] <= d.iloc[-2]); x["stoch_xdn"] = bool(kf.iloc[-1] < d.iloc[-1] and kf.iloc[-2] >= d.iloc[-2])
+        wr = -100 * (hk - c) / (hk - lk).replace(0, np.nan)
+        if not pd.isna(wr.iloc[-1]): x["willr"] = float(wr.iloc[-1])
+        tp = (h + l + c) / 3; sma = tp.rolling(20).mean(); mad = tp.rolling(20).apply(lambda a: np.abs(a - a.mean()).mean(), raw=True); cci = (tp - sma) / (0.015 * mad.replace(0, np.nan))
+        if not pd.isna(cci.iloc[-1]): x["cci"] = float(cci.iloc[-1])
+    if n >= 30:
+        up_m = h.diff(); dn_m = -l.diff(); pdm = np.where((up_m > dn_m) & (up_m > 0), up_m, 0.0); mdm = np.where((dn_m > up_m) & (dn_m > 0), dn_m, 0.0)
+        pcl = c.shift(1); tr = pd.concat([h - l, (h - pcl).abs(), (l - pcl).abs()], axis=1).max(axis=1); a14 = tr.ewm(alpha=1 / 14, adjust=False).mean().replace(0, np.nan)
+        pdi = 100 * pd.Series(pdm).ewm(alpha=1 / 14, adjust=False).mean() / a14; mdi = 100 * pd.Series(mdm).ewm(alpha=1 / 14, adjust=False).mean() / a14
+        dx = 100 * (pdi - mdi).abs() / (pdi + mdi).replace(0, np.nan); adx = dx.ewm(alpha=1 / 14, adjust=False).mean()
+        if not pd.isna(adx.iloc[-1]): x["adx"] = float(adx.iloc[-1]); x["pdi"] = float(pdi.iloc[-1]); x["mdi"] = float(mdi.iloc[-1])
+        sar, upf = _sar(h, l); x["sar_up"] = bool(upf[-1]); x["sar_flip"] = bool(upf[-1] != upf[-2])
+    if n >= 21:
+        e20 = _ema(c, 20); x["dist20"] = (px / float(e20.iloc[-1]) - 1) * 100
+        obv = (np.sign(c.diff().fillna(0)) * v).cumsum(); x["obv_up"] = bool(obv.iloc[-1] > obv.iloc[-21])
+    x["turnover"] = float(v.tail(20).mean()) * px   # average traded value per bar (quote currency): comparable across symbols
+    x["price_abs"] = px
+    if n >= 8:
+        rg = (h - l); x["nr7"] = bool(rg.iloc[-1] <= rg.tail(7).min()); x["inside"] = bool(h.iloc[-1] <= h.iloc[-2] and l.iloc[-1] >= l.iloc[-2])
+        dirn = np.sign((c - o).to_numpy()); run_up = run_dn = 0
+        for dv in dirn[::-1]:
+            if dv > 0 and run_dn == 0: run_up += 1
+            elif dv < 0 and run_up == 0: run_dn += 1
+            else: break
+        x["run_up"] = run_up; x["run_dn"] = run_dn
+    return x
 
 
 # ---- filters ---------------------------------------------------------------------------------------------------------------------------
@@ -137,6 +205,21 @@ FILTERS = [
      [(f"u{x}", f"Under {x}% of price", f"أقل من {x}% من السعر") for x in (0.5, 1, 2, 3)]),
     ("relvol", "Technical", "Relative Volume", "الفوليوم النسبي", [(f"o{x}", f"Over {x}", f"أكتر من {x}") for x in (10, 5, 3, 2, 1.5, 1)] + [(f"u{x}", f"Under {x}", f"أقل من {x}") for x in (2, 1, 0.75, 0.5, 0.25)]),
 ]
+FILTERS += [   # extra lists computed from the same candles (PR 1 of Radar item C, 2026-10-24); same shape as above
+    ("macd", "Technical", "MACD (12,26,9)", "ماكد (12,26,9)", [("xup", "Cross up (histogram turns positive)", "تقاطع لفوق"), ("xdn", "Cross down", "تقاطع لتحت"), ("pos", "MACD above zero", "ماكد فوق الصفر"), ("neg", "MACD below zero", "ماكد تحت الصفر"), ("rise", "Histogram rising", "الهيستوجرام بيزيد"), ("fall", "Histogram falling", "الهيستوجرام بيقل")]),
+    ("bb", "Technical", "Bollinger Bands (20,2)", "بولينجر (20,2)", [("above", "Close above the upper band", "الإغلاق فوق الحزام العلوي"), ("below", "Close below the lower band", "الإغلاق تحت الحزام السفلي"), ("inside", "Inside the bands", "جوه الحزامين"), ("squeeze", "Squeeze (width in the lowest 20 %)", "انضغاط (العرض في أقل 20٪)"), ("wide", "Wide (width in the highest 20 %)", "اتساع (العرض في أعلى 20٪)")]),
+    ("stoch", "Technical", "Stochastic (14,3,3)", "ستوكاستيك (14,3,3)", [("ob", "Overbought (> 80)", "تشبع شراء (> 80)"), ("os", "Oversold (< 20)", "تشبع بيع (< 20)"), ("xup", "%K crosses above %D", "K يقطع D لفوق"), ("xdn", "%K crosses below %D", "K يقطع D لتحت")]),
+    ("adx", "Technical", "ADX (14) trend strength", "ADX (14) قوة الاتجاه", [("o20", "ADX over 20", "ADX أكتر من 20"), ("o25", "ADX over 25", "ADX أكتر من 25"), ("o40", "ADX over 40 (very strong)", "ADX أكتر من 40"), ("u20", "ADX under 20 (no trend)", "ADX أقل من 20 (مفيش اتجاه)"), ("bull", "+DI above -DI", "+DI فوق -DI"), ("bear", "-DI above +DI", "-DI فوق +DI")]),
+    ("cci", "Technical", "CCI (20)", "CCI (20)", [("o100", "Over +100", "فوق +100"), ("o200", "Over +200", "فوق +200"), ("u100", "Under -100", "تحت -100"), ("u200", "Under -200", "تحت -200")]),
+    ("willr", "Technical", "Williams %R (14)", "ويليامز %R (14)", [("ob", "Overbought (> -20)", "تشبع شراء (> -20)"), ("os", "Oversold (< -80)", "تشبع بيع (< -80)")]),
+    ("sar", "Technical", "Parabolic SAR", "بارابوليك SAR", [("up", "SAR below price (uptrend)", "SAR تحت السعر (صاعد)"), ("dn", "SAR above price (downtrend)", "SAR فوق السعر (هابط)"), ("flipup", "Flipped to up on this bar", "اتحول لصاعد دلوقتي"), ("flipdn", "Flipped to down on this bar", "اتحول لهابط دلوقتي")]),
+    ("dist20", "Technical", "Distance to EMA 20", "البعد عن EMA 20", [("o2", "More than 2 % above", "أكتر من 2٪ فوق"), ("o5", "More than 5 % above", "أكتر من 5٪ فوق"), ("o10", "More than 10 % above", "أكتر من 10٪ فوق"), ("u2", "More than 2 % below", "أكتر من 2٪ تحت"), ("u5", "More than 5 % below", "أكتر من 5٪ تحت"), ("u10", "More than 10 % below", "أكتر من 10٪ تحت")]),
+    ("price", "Technical", "Price", "السعر", [(f"u{x}", f"Under {x}", f"أقل من {x}") for x in (1, 5, 10, 50, 100)] + [(f"o{x}", f"Over {x}", f"أكتر من {x}") for x in (1, 10, 50, 100, 1000, 10000)]),
+    ("turnover", "Technical", "Average turnover per bar (liquidity)", "متوسط التداول لكل شمعة (السيولة)", [(f"o{x}", f"Over {x}", f"أكتر من {x}") for x in ("100K", "1M", "10M", "100M")] + [(f"u{x}", f"Under {x}", f"أقل من {x}") for x in ("100K", "1M")]),
+    ("obv", "Technical", "On-Balance Volume (20 bars)", "حجم التوازن OBV (20 شمعة)", [("up", "OBV rising", "OBV بيزيد"), ("dn", "OBV falling", "OBV بيقل")]),
+    ("range", "Technical", "Bar pattern", "نمط الشمعة والمدى", [("nr7", "Narrowest range of 7 bars (NR7)", "أضيق مدى في 7 شموع NR7"), ("inside", "Inside bar", "شمعة داخلية"), ("up3", "3+ up candles in a row", "3 شموع صاعدة ورا بعض"), ("dn3", "3+ down candles in a row", "3 شموع هابطة ورا بعض"), ("up5", "5+ up candles in a row", "5 شموع صاعدة"), ("dn5", "5+ down candles in a row", "5 شموع هابطة")]),
+]
+
 FILTER_KEYS = [f[0] for f in FILTERS]
 
 
@@ -214,6 +297,55 @@ def test(key: str, code: str, m: dict, ctx: dict | None = None) -> bool:
         if r is None:
             return False
         x = float(code[1:]); return r > x if code[0] == "o" else r < x
+    return _test_extra(key, code, m)
+
+
+_UNITS = {"K": 1e3, "M": 1e6}
+
+
+def _test_extra(key: str, code: str, m: dict) -> bool:
+    g = m.get
+    if key == "macd":
+        if "macd" not in m: return False
+        return {"xup": bool(g("macd_xup")), "xdn": bool(g("macd_xdn")), "pos": g("macd") > 0, "neg": g("macd") < 0, "rise": g("macd_hist") > g("macd_hist_prev"), "fall": g("macd_hist") < g("macd_hist_prev")}[code]
+    if key == "bb":
+        if "bb_up" not in m: return False
+        px = g("price")
+        return {"above": px > g("bb_up"), "below": px < g("bb_lo"), "inside": g("bb_lo") <= px <= g("bb_up"), "squeeze": g("bb_w_pct") <= 20, "wide": g("bb_w_pct") >= 80}[code]
+    if key == "stoch":
+        if "stoch_k" not in m: return False
+        return {"ob": g("stoch_k") > 80, "os": g("stoch_k") < 20, "xup": bool(g("stoch_xup")), "xdn": bool(g("stoch_xdn"))}[code]
+    if key == "adx":
+        if "adx" not in m: return False
+        a = g("adx"); return {"o20": a > 20, "o25": a > 25, "o40": a > 40, "u20": a < 20, "bull": g("pdi") > g("mdi"), "bear": g("mdi") > g("pdi")}[code]
+    if key == "cci":
+        c_ = g("cci")
+        if c_ is None: return False
+        return {"o100": c_ > 100, "o200": c_ > 200, "u100": c_ < -100, "u200": c_ < -200}[code]
+    if key == "willr":
+        w = g("willr")
+        if w is None: return False
+        return w > -20 if code == "ob" else w < -80
+    if key == "sar":
+        if "sar_up" not in m: return False
+        up = bool(g("sar_up")); fl = bool(g("sar_flip"))
+        return {"up": up, "dn": not up, "flipup": up and fl, "flipdn": (not up) and fl}[code]
+    if key == "dist20":
+        d = g("dist20")
+        if d is None: return False
+        x = float(code[1:]); return d > x if code[0] == "o" else d < -x
+    if key == "price":
+        x = float(code[1:]); px = g("price_abs", g("price")); return px > x if code[0] == "o" else px < x
+    if key == "turnover":
+        t = g("turnover")
+        if t is None: return False
+        num = code[1:]; x = float(num[:-1]) * _UNITS[num[-1]]; return t > x if code[0] == "o" else t < x
+    if key == "obv":
+        if "obv_up" not in m: return False
+        return bool(g("obv_up")) == (code == "up")
+    if key == "range":
+        if "nr7" not in m: return False
+        return {"nr7": bool(g("nr7")), "inside": bool(g("inside")), "up3": g("run_up", 0) >= 3, "dn3": g("run_dn", 0) >= 3, "up5": g("run_up", 0) >= 5, "dn5": g("run_dn", 0) >= 5}[code]
     raise KeyError(key)
 
 

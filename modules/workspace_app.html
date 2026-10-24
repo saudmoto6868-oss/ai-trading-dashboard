@@ -791,6 +791,7 @@ function applyTheme(){
     THEMES[CFG.ui] = {name:CFG.ui, gen:true, css:{bg:V.bg, panel:V.panel, panel2:V.panel2, line:V.line, txt:V.txt, mut:V.mut, panel0:V.panel, dot:V.line, gold:V.acc,
         acc:V.acc, ink:V.ink, solid:V.solid, rad:(V.rad|0)+"px", ffam:V.font || "inherit", tt:V.tt || "none", ls:V.ls || "0", glow:V.glow || "none"},
       ch:{bg:hexA(V.bg, .45), grid:V.line, mut:V.mut, line:V.line, pane:hexA(V.bg, .4), up:V.up, dn:V.dn, txt:V.txt}}; }
+  try { let ex = document.getElementById("uiExtra"); if (V.extra){ if (!ex){ ex = document.createElement("style"); ex.id = "uiExtra"; document.head.appendChild(ex); } ex.textContent = V.extra; } else if (ex) ex.remove(); } catch(e){}   // raw CSS of an engine theme (fonts, small details)
   const ui = CFG.ui && THEMES[CFG.ui] ? CFG.ui : "", t = THEMES[ui || ThemeCfg.name] || THEMES.dark, r = document.documentElement.style;
   if (document.body) document.body.classList.toggle("ui-gen", !!t.gen);   // a dashboard theme wins over the Workspace's own pick
   document.body && document.body.classList.toggle("ui-"+(ui || "none"), true); if (ui && CFG.uiBg && document.body) document.body.style.setProperty("--uibg", "url("+CFG.uiBg+")");
@@ -1637,9 +1638,14 @@ class CandleChart {
       for (let i = i0; i <= i1; i++){ if (S.v[i] == null) continue; c.fillStyle = S.up[i] ? st.color : st.color2; c.beginPath(); c.arc(this.x(i), py(S.v[i]), r, 0, Math.PI*2); c.fill(); } }
     // Order-flow heat must stay in its dedicated column; never paint it over candle bodies.
     let vmax = 0; for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, this.data[i].v);
-    const bwp = Math.max(1, this.bw*0.7);
+    const bwp = Math.max(1, this.bw*0.7), DOT = !!this.dots && this.bw >= 5, ds = Math.max(3, Math.min(6, Math.round(this.bw*0.22))), dr = ds*0.36;   // dot-matrix style (theme 17 / 🎨 menu): candles, wicks, volume and averages are drawn as small dots
+    const dotRect = (x0, y0, w, h) => { if (h < 1) h = 1; const nx = Math.max(1, Math.round(w/ds)), xs = x0 + (w - (nx-1)*ds)/2, ya = Math.ceil(y0/ds)*ds, yb = y0 + h; c.beginPath(); let any = false; for (let yy = ya; yy <= yb; yy += ds) for (let q = 0; q < nx; q++){ c.moveTo(xs + q*ds + dr, yy); c.arc(xs + q*ds, yy, dr, 0, Math.PI*2); any = true; } if (!any){ c.moveTo(xs + dr, y0); c.arc(xs, y0, dr, 0, Math.PI*2); } c.fill(); };
     for (let i = i0; i <= i1; i++){
       const k = this.data[i], up = k.c >= k.o, col = up ? TH.up : TH.dn, x = this.x(i);
+      if (DOT){ const y1 = py(k.o), y2 = py(k.c);
+        if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0; c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .35); dotRect(x - bwp/2, PB - vh, bwp, vh); }
+        c.fillStyle = col; const wy0 = py(k.h), wy1 = py(k.l); c.beginPath(); for (let yy = Math.ceil(wy0/ds)*ds; yy <= wy1; yy += ds){ c.moveTo(x + dr*0.8, yy); c.arc(x, yy, dr*0.8, 0, Math.PI*2); } c.fill();
+        dotRect(x - bwp/2, Math.min(y1, y2), bwp, Math.max(1, Math.abs(y1 - y2))); continue; }
       c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .28);   // volume bars: own up / down colours when set (🎨 menu), else the candle colours
       if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0, fm = this.fp.get(k.t);
         if (this.st.vol.delta && fm){ const OFc = this.st.of; c.fillStyle = hexA(fm.b >= fm.s ? OFc.color : OFc.color2, .45); }   // real delta colour when live trades exist
@@ -1651,9 +1657,9 @@ class CandleChart {
     }
     this.maL.forEach((m, j) => {   // Moving averages: every line of the one MA indicator
       const v = this.maV && this.maV[j]; if (!m.on || !v) return;
-      c.strokeStyle = m.color; c.lineWidth = m.w || 1.2; c.setLineDash(m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
+      c.strokeStyle = m.color; c.lineWidth = DOT ? Math.max(2, (m.w || 1.2)*1.6) : (m.w || 1.2); c.lineCap = DOT ? "round" : "butt"; c.setLineDash(DOT ? [0.1, ds] : m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
       for (let i = i0; i <= i1; i++){ if (v[i] == null) continue; const y = py(v[i]), x = this.x(i); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; }
-      c.stroke(); c.setLineDash([]);
+      c.stroke(); c.setLineDash([]); c.lineCap = "butt";
     });
     if (this.ema.vwap && this.vwV){
       const sv = this.st.vwap; c.strokeStyle = sv.color; c.lineWidth = sv.w; c.setLineDash(sv.dash ? sv.dash.split(",").map(Number) : []); c.beginPath();
@@ -1771,8 +1777,9 @@ class CandleChart {
       c.fillStyle = TH.pane; c.fillRect(0, y0, PR, h); c.strokeStyle = TH.grid; c.lineWidth = 1; c.strokeRect(.5, y0+.5, PR-1, h-1);
       if (!this[k+"V"]){ c.restore(); return; }
       c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace";
-      const line = (arr, col, w, ds, y) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(ds); c.beginPath(); let on = false;
-        for (let i = i0; i <= i1; i++){ const v = arr[i]; if (v == null){ on = false; continue; } const x = this.x(i), yy = y(v); on ? c.lineTo(x, yy) : c.moveTo(x, yy); on = true; } c.stroke(); c.setLineDash([]); };
+      const PDOT = !!this.dots, pds = Math.max(3, Math.min(6, Math.round(this.bw*0.22)));
+      const line = (arr, col, w, ds, y) => { c.strokeStyle = col; c.lineWidth = PDOT ? Math.max(2, w*1.6) : w; c.lineCap = PDOT ? "round" : "butt"; c.setLineDash(PDOT ? [0.1, pds] : ds); c.beginPath(); let on = false;
+        for (let i = i0; i <= i1; i++){ const v = arr[i]; if (v == null){ on = false; continue; } const x = this.x(i), yy = y(v); on ? c.lineTo(x, yy) : c.moveTo(x, yy); on = true; } c.stroke(); c.setLineDash([]); c.lineCap = "butt"; };
       const lvl = (v, y, dsh) => { c.strokeStyle = "#3a424b"; c.lineWidth = 1; c.setLineDash(dsh ? [3,3] : []); c.beginPath(); c.moveTo(0, Math.round(y(v))+.5); c.lineTo(PR, Math.round(y(v))+.5); c.stroke(); c.setLineDash([]); };
       const last = a => { for (let i = Math.min(i1, a.length-1); i >= 0; i--) if (a[i] != null) return a[i]; return null; };
       if (k === "adx"){
@@ -1917,9 +1924,12 @@ Object.assign(CandleChart.prototype, {
       else { const by = new Map(); bs.forEach(([t, o]) => { const ci = Math.floor((tx(t) - gx0)/2); let m = by.get(ci); if (!m){ m = {t, w:0, m:o.m, _r:new Map()}; by.set(ci, m); }
           m.w = Math.max(m.w, t + o.w - m.t); m.m = o.m; o._r.forEach((q, kr) => { const v = m._r.get(kr); if (v == null || q > v) m._r.set(kr, q); }); });
         cols = [...by.values()].map(m => [m.t, m]); this._hmMerge = {key, cols}; } }
+    const HDOT = !!this.dots, hp = 4, hdots = HDOT ? new Map() : null;   // dot theme: each ~4px grid cell gets one dot (strongest cell wins), radius follows intensity
     cols.forEach(([t, o]) => { const x0 = Math.max(gx0, tx(t)), x1 = Math.min(gx1, tx(t + o.w)); if (x1 < gx0 || x0 > gx1) return; const w = Math.max(1.2, x1 - x0 + .6);
       o._r.forEach((q, kr) => { const pr = (kr + .5)*sR, y = py(pr); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(q/(mx || 1), .5)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
+        if (HDOT){ const gi = Math.floor(((x0 + x1)/2 - gx0)/hp), gj = Math.floor(y/hp), k = gi*100003 + gj, e = hdots.get(k); if (!e || e.t < t) hdots.set(k, {t, x:gx0 + (gi+.5)*hp, y:(gj+.5)*hp, f:colorAt(t, pr, o.m)}); return; }
         c.fillStyle = colorAt(t, pr, o.m); c.fillRect(x0, y - rowH/2, w, rowH + .5); }); });
+    if (HDOT){ hdots.forEach(e => { c.fillStyle = e.f; c.beginPath(); c.arc(e.x, e.y, .6 + 1.5*e.t, 0, 6.2832); c.fill(); }); }
     return bs[0][0];
   },
   paintSigs(c, py, PR, PB, ov){   // BUY/SELL arrows: live scanner signal on the last candle + past journal signals for this symbol
@@ -2473,7 +2483,8 @@ Object.assign(CandleChart.prototype, {
   pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
   saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
-  setTool(t){ this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
+  setTool(t){ if (t !== "cur" && !this.drawingsVisible){ this.drawingsVisible = true; this.onDrawVis && this.onDrawVis(); }   // choosing a drawing tool while drawings are hidden shows them again: never draw something invisible
+    this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
   cancelTool(){ if (this.creating){ this.draws = this.draws.filter(d => d !== this.creating); this.creating = null; } this.setTool("cur"); },
   ctxMenu(e){
     e.preventDefault(); document.querySelectorAll(".ctxm").forEach(m => m.remove());
@@ -3264,6 +3275,8 @@ Object.assign(CandleChart.prototype, {
   paintDraws(c, py, dec){
     if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
+    const DDOT = !!this.dots, dsd = Math.max(5, Math.min(7, Math.round(this.bw*0.25)+2)), sld0 = DDOT ? c.setLineDash : null;
+    if (DDOT){ c.lineCap = "round"; c.setLineDash = () => sld0.call(c, [0.1, dsd]); }   // dot theme: every drawing stroke (solid or dashed) becomes a row of round dots
     const lab0 = (txt, x, y, col, bg) => { c.font = "10px sans-serif"; const w = c.measureText(txt).width + 6; c.fillStyle = bg || "rgba(11,14,17,.75)"; c.fillRect(x, y-7, w, 14); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, x+3, y); };
     this.draws.forEach(d => {
       if (d.hidden) return;   // hidden from the options bar: not drawn, not selectable
@@ -3365,7 +3378,7 @@ Object.assign(CandleChart.prototype, {
       if (sel || (this.creating === d)){ hs.forEach(h => { c.fillStyle = "#fff"; c.strokeStyle = "#4aa3ff"; c.lineWidth = 1.5; c.beginPath(); c.arc(h.x,h.y,4.5,0,6.3); c.fill(); c.stroke(); });
         const cg = this.cgrip(d, hs); if (cg){ c.fillStyle = "#4aa3ff"; c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.beginPath(); c.rect(cg.x-4.5, cg.y-4.5, 9, 9); c.fill(); c.stroke(); } }
     });
-    c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.lineWidth = 1; c.textBaseline = "middle";
+    if (DDOT) delete c.setLineDash; c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.lineWidth = 1; c.textBaseline = "middle";
   }
 });
 
@@ -3495,6 +3508,7 @@ class Panel {
       const sel = el("select"); PRE.forEach(([n], i) => sel.append(Object.assign(el("option"), {value:i, textContent:n}))); sel.onchange = () => { const v = PRE[+sel.value][1]; apply(v ? Object.assign({}, v) : null); const b = base(); Object.keys(ins).forEach(k => { ins[k].value = b[k] || "#000000"; }); };
       const l0 = el("span"); l0.textContent = Lg("Preset","قالب"); pop.append(l0, sel);
       put("up", Lg("Up candle","شمعة صاعدة")); put("dn", Lg("Down candle","شمعة هابطة")); put("bg", Lg("Background","الخلفية")); put("grid", Lg("Grid","الشبكة")); put("vu", Lg("Volume up","حجم صاعد")); put("vd", Lg("Volume down","حجم هابط")); put("pane", Lg("Indicator panes","خلفية المؤشرات"));
+      const dl = el("label"); dl.style.cssText = "grid-column:1/-1;display:flex;gap:6px;align-items:center;cursor:pointer"; const dc = el("input"); dc.type = "checkbox"; dc.checked = !!ch_.dots; dc.onchange = () => { ch_.dots = dc.checked; this.state.dots = dc.checked; Ws.save(); ch_.draw(); }; dl.append(dc, document.createTextNode(Lg("Dot-matrix candles and lines","شموع وخطوط بنقط (دوت ماتريكس)"))); pop.append(dl);
       const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
       document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", acGet());
@@ -3512,8 +3526,8 @@ class Panel {
     const xhB = el("button",null,"✚"); xhB.title = Lg("Crosshair sync: the same time on every chart of this symbol, incl. their order-flow columns","تزامن الكروس: نفس الوقت في كل شارتات الرمز وعمود الأوردر فلو بتاعها");
     XHS.on = store.get(LS+"_xh", true) !== false; XH_BTNS.add(xhB); xhB.classList.toggle("on", XHS.on);
     xhB.onclick = () => xhSet(!XHS.on);
-    const drw = el("button",null,"✎"); drw.title = Lg("Show/hide all drawings without deleting them","إظهار/إخفاء كل الرسومات بدون حذفها");
-    const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", vis); drw.style.opacity = vis ? "1" : ".55"; };
+    const drw = el("button",null,"✎✕"); drw.title = Lg("Hide all drawings without deleting them (click again to show them; highlighted = hidden)","إخفاء كل الرسومات بدون حذفها (اضغط تاني لإظهارها؛ مضيء = مخفية)");
+    const syncDrawings = () => { const vis = this.state.drawingsVisible !== false; drw.classList.toggle("on", !vis); drw.style.opacity = "1"; };   // owner 2026-10-24: normal = drawings shown (no need to press anything); the button HIDES them and lights up while they are hidden
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
     const refreshNow = el("button",null,"⟳"); refreshNow.title = Lg("Reload chart data and preserve the current view","إعادة تحميل بيانات الشارت مع الحفاظ على موضع العرض والتكبير");
     refreshNow.onclick = () => { const ch = this.chart; if (!ch || !ch.data.length) { this.resub(); return; } this._refreshView = {sym:this.state.sym, tf:this.state.tf, bw:ch.bw, yZoom:ch.yZoom, yShift:ch.yShift, back:(ch.data.length-1)-ch.r}; ch.saveView(); this.resub(); Ws.save(); };
@@ -3544,13 +3558,13 @@ class Panel {
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
     tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
-    this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; this.chart.drawingsVisible = this.state.drawingsVisible !== false; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
+    this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
     else if (this.state.ema){ const E = this.state.ema, S0 = this.state.st || {}, DC = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};   // older saves: the three fixed EMA lines
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol

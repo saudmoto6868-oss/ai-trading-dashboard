@@ -69,5 +69,37 @@ def test_similar_finds_the_scaled_copy_and_not_itself():
     assert F.similar({"A": _frame(base[:20])}, "A") == [] and F.similar(frames, "ZZ") == []
 
 
+def test_extra_candle_only_lists():
+    """PR 1 of Radar item C: MACD, Bollinger, Stochastic, ADX, CCI, Williams %R, SAR, distance to EMA 20, price, turnover, OBV, bar patterns."""
+    up = F.metrics(_frame(np.linspace(100, 200, 270)))                                           # steady uptrend
+    dn = F.metrics(_frame(np.linspace(200, 100, 270)))                                           # steady downtrend
+    flat = F.metrics(_frame(100 + ((np.arange(270) % 4) - 1.5) * 0.2))                           # quiet zig-zag range
+    hot = F.metrics(_frame(np.linspace(1, 2, 270) ** 3 * 100)); cold = F.metrics(_frame(np.linspace(2, 1, 270) ** 3 * 100))   # accelerating trends: closes pinned at the extreme
+    assert F.test("macd", "pos", up) and F.test("macd", "neg", dn) and not F.test("macd", "pos", dn)
+    assert F.test("adx", "o25", up) and F.test("adx", "bull", up) and F.test("adx", "bear", dn) and F.test("adx", "u20", flat) and not F.test("adx", "o25", flat)
+    assert F.test("sar", "up", up) and F.test("sar", "dn", dn) and not F.test("sar", "flipup", up)
+    assert F.test("stoch", "ob", hot) and F.test("stoch", "os", cold) and F.test("willr", "ob", hot) and F.test("willr", "os", cold)
+    assert F.test("cci", "o100", up) and F.test("cci", "u100", dn)
+    assert F.test("obv", "up", up) and F.test("obv", "dn", dn)
+    assert F.test("range", "up5", up) and F.test("range", "dn5", dn) and not F.test("range", "up5", dn)
+    assert F.test("dist20", "o5", hot) and F.test("dist20", "u5", cold) and not F.test("dist20", "o5", flat)
+    assert F.test("price", "o100", up) and not F.test("price", "u100", up) and F.test("price", "u1", F.metrics(_frame(np.linspace(0.5, 0.9, 60))))
+    assert F.test("turnover", "o10M", F.metrics(_frame(np.linspace(100, 200, 270), vol=1e6))) and F.test("turnover", "u100K", F.metrics(_frame(np.linspace(100, 200, 270), vol=1.0)))
+    # a squeeze after a wide stretch, a spike above the band, a MACD cross, NR7 / inside bar
+    wide = np.concatenate([100 + np.sin(np.linspace(0, 30, 200)) * 8, 100 + np.sin(np.linspace(0, 30, 70)) * 0.3])
+    assert F.test("bb", "squeeze", F.metrics(_frame(wide))) and not F.test("bb", "wide", F.metrics(_frame(wide)))
+    spike = np.concatenate([np.full(100, 100.0) + np.sin(np.arange(100)) * 0.1, [112.0]])
+    assert F.test("bb", "above", F.metrics(_frame(spike))) and not F.test("bb", "inside", F.metrics(_frame(spike)))
+    v = np.concatenate([np.linspace(100, 80, 60), np.linspace(80, 95, 12)]); xs = [F.metrics(_frame(v[:k])) for k in range(40, len(v) + 1)]
+    assert any(F.test("macd", "xup", x) for x in xs), "a V-shaped recovery must cross the MACD up somewhere"
+    # missing history never raises and never matches
+    short = F.metrics(_frame(np.linspace(100, 110, 32)))
+    for key, opts in [(f[0], f[4]) for f in F.FILTERS if f[0] in ("macd", "bb", "stoch", "adx", "cci", "willr", "sar", "dist20", "price", "turnover", "obv", "range")]:
+        for code, _e, _a in opts:
+            F.test(key, code, short)
+            F.test(key, code, {"price": 1.0})                                                      # an almost empty metrics dict
+    print("ok extra lists")
+
+
 if __name__ == "__main__":
-    test_metrics_and_filters(); test_cross_and_relvol(); test_candle_set_and_every_filter_has_a_test(); test_similar_finds_the_scaled_copy_and_not_itself(); print("ok fv_screen")
+    test_metrics_and_filters(); test_cross_and_relvol(); test_candle_set_and_every_filter_has_a_test(); test_similar_finds_the_scaled_copy_and_not_itself(); test_extra_candle_only_lists(); print("ok fv_screen")

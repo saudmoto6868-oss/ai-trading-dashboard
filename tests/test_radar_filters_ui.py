@@ -14,4 +14,8 @@ ss = at.session_state
 assert ss["cs_rsi"] == ["rsi_lt30"] and ss["cs_mom_v"] == ["vol_2x"] and ss["cs_side"] == "Buy only" and not at.exception
 box = [s for s in at.selectbox if s.key == "cs_preset"][0]; box.set_value("Elliott waves").run()
 assert at.session_state["cs_rsi"] == [] and at.session_state["cs_strat"] == ["st_elliott"] and at.session_state["cs_side"] == "Both", "old choices must be cleared"
+# the new candle-only lists exist as dropdowns and can be chosen without breaking the page
+for k in ("adx", "sar", "dist20", "macd", "stoch", "cci", "willr", "turnover", "obv", "range", "bb", "price"):
+    assert [b for b in at.selectbox if b.key == "fv_f_" + k], k
+b = [b for b in at.selectbox if b.key == "fv_f_adx"][0]; b.set_value("o25").run(); assert not at.exception, [str(e.value)[:200] for e in at.exception]
 print("PASS: radar filter block + presets")

@@ -975,7 +975,8 @@ function okx(path){
   let shared = 0; try { shared = +(localStorage.getItem("okx_cool_all") || 0); } catch(e){}   // another tab of this browser hit the limit: this tab waits too (both tabs share one IP)
   if (shared > Date.now() + 20000) shared = 0;   // never trust a pause that is far in the future
   const liveTick = /\/market\/candles\?/.test(path) && /[?&]limit=(?:[1-9]|[1-3]\d|40)(?:&|$)/.test(path);   // the small refresh poll of an open chart (2 s loop): a healthy tab keeps it alive, only the big history loads wait for the other tab's pause
-  const tickP = /\/market\/tickers\?/.test(path), cool = tickP ? (OKX_COOL_P[path] || 0) : Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared);   // the price-list poll is not held back by a candle 429 pause (that left every row empty) if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
+  const tickP = /\/market\/tickers\?/.test(path), cool = (liveFlow || tickP) ? (OKX_COOL_P[path] || 0) : Math.max(OKX_COOL_P[path] || 0, OKX_COOL_ALL, liveTick ? 0 : shared);   // the order book / tape / price-list polls are not held back by a candle 429 pause: only their own path's short pause applies
+  if (!rub && Date.now() < cool) return Promise.reject(new Error("OKX rate limit: waiting before retry"));
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   if (rub && Date.now() < OKX_COOL) return Promise.reject(new Error(Lg("OKX rate limit: paused for a few minutes","OKX: حد الطلبات، متوقف لدقايق")));
   if (rub && Date.now() < OKX_RUB_DEAD) return Promise.reject(new Error("OKX stats are blocked from the browser (CORS): skipped"));
@@ -993,7 +994,7 @@ function okx(path){
     }
     // one 429 pauses every candle request for a while: many timeframes and symbols were each retrying
     // the shared (cross-tab) pause is set once and never extended by repeated 429s (a blocked tab used to keep the other tab frozen), with jitter so two tabs do not retry together
-    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + (tickP ? 4000 : 30000); const until = Date.now() + 8000 + Math.floor(Math.random()*7000); OKX_COOL_ALL = Math.max(OKX_COOL_ALL, until); try { if ((+(localStorage.getItem("okx_cool_all") || 0)) < Date.now()) localStorage.setItem("okx_cool_all", String(until)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
+    if (r.status === 429){ if (rub) okxCoolSet(Date.now() + 180000); else { OKX_COOL_P[path] = Date.now() + ((liveFlow || tickP) ? 4000 : 30000); const until = Date.now() + 8000 + Math.floor(Math.random()*7000); OKX_COOL_ALL = Math.max(OKX_COOL_ALL, until); try { if ((+(localStorage.getItem("okx_cool_all") || 0)) < Date.now()) localStorage.setItem("okx_cool_all", String(until)); } catch(e){} } throw new Error("OKX rate limit (429): wait a few minutes"); }
     if (!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
     if (j.code !== "0") throw new Error(j.msg || ("code "+j.code));
@@ -1315,9 +1316,11 @@ const Hub = {
           const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h, bid:+x.bidPx || 0, ask:+x.askPx || 0, hi:+x.high24h || 0, lo:+x.low24h || 0})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; });
           payload = this.tkKeep(m, AS);
         }
-        this.last[key] = payload; setStatus(true);
+        this.last[key] = payload; (this.fails = this.fails || {})[key] = 0; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
-      } catch(e){ setStatus(false); this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e)}); }catch(_){} }); }
+      } catch(e){ this.fails = this.fails || {}; this.fails[key] = (this.fails[key] || 0) + 1;
+        if (this.last[key] && this.fails[key] < 8) { /* keep showing the last good book / tape for ~12 s of failures instead of replacing the panel with an error */ }
+        else { setStatus(false); this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e)}); }catch(_){} }); } }
       this.busy[key] = false; clearTimeout(this.timers[key]);
       if (this.subs[key] && this.subs[key].size) this.timers[key] = setTimeout(tick, every);
     };

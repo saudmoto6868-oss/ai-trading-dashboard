@@ -1877,8 +1877,14 @@ Object.assign(CandleChart.prototype, {
   },
   fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins. AUTO = Bookmap's rolling window: exactly the live book history recorded in this session, capped at 10 min (min 10 s), always anchored to "now" - so the heat map fills the WHOLE column from the first seconds and then scrolls left as new snapshots arrive. Longer windows (1 h .. 7 d from the saved history) are chosen manually.
     if (this.flowSpan) return this.flowSpan; if ((this.st.of.hmm || "fix") !== "fix") return 120000;
-    const fb = this.flowB && this.flowB[0], age = fb ? now - fb.t : 0; return Math.max(10000, Math.min(600000, Math.round(age*1.04)));
+    const fb = this.flowB && this.flowB[0], age = fb ? now - fb.t : 0, base = Math.max(10000, Math.min(600000, Math.round(age*1.04)));
+    const tfMs = this.secMs(); if (tfMs <= 600000) return base;   // 1m..5m charts: the live window as before
+    const rec = this.hmRecorded(now); return Math.max(base, Math.min(tfMs, rec, 7*864e5));   // 15m / 1H / 4H / 1D: show one candle's worth of book history (or everything recorded so far if that is less), not just the last 10 minutes
   },
+  hmRecorded(now){   // ms of book history this browser has recorded for the symbol (oldest saved bucket -> now)
+    if (!this.hm || this.hmSym !== this.sym){ try { this.hmInit(); } catch(e){ return 0; } } const H = this.hm; if (!H || !H.b.size) return 0;
+    if (this._hmOldN !== H.b.size || this._hmOldS !== this.sym){ let m = Infinity; H.b.forEach((o, t) => { if (t < m) m = t; }); this._hmOld = m; this._hmOldN = H.b.size; this._hmOldS = this.sym; }
+    return Math.max(0, now - this._hmOld); },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
     // Load the existing local history without deleting it just because it is large.
@@ -2132,6 +2138,8 @@ Object.assign(CandleChart.prototype, {
       if (!this._vp || this._vp.k !== key){ const vp = new Float64Array(nR), rh = (hi - lo)/nR || 1; for (let i = Math.max(0, i0); i <= Math.min(d_.length-1, i1); i++){ const k = d_[i], a0 = Math.max(0, Math.floor((k.l - lo)/rh)), a1 = Math.min(nR-1, Math.floor((k.h - lo)/rh)); if (a1 < a0) continue; const per = k.v/(a1 - a0 + 1); for (let r = a0; r <= a1; r++) vp[r] += per; } let m = 0; vp.forEach(v => { if (v > m) m = v; }); this._vp = {k:key, vp, m, rh}; }
       const V = this._vp; for (let r = 0; r < nR; r++){ const u = Math.pow(V.vp[r]/(V.m || 1), .6); if (u < .05) continue; const y0 = py(lo + (r + 1)*V.rh), y1 = py(lo + r*V.rh); c.fillStyle = hmRamp(u*.4); c.globalAlpha = .55 + .35*u; c.fillRect(gx0, y0, gw, Math.max(1, y1 - y0 + .5)); } c.globalAlpha = 1; }
     const fixedHm = (OF.hmm || "fix") === "fix" && span > 900000; if (this.domOn && fixedHm){ this.hmInit(); const firstHm = this.paintHeatCol(c, py, PB, tx, gx0, gx1, anchor - span*1.05, anchor + 60000); if (firstHm == null){ c.fillStyle = "#848e9c"; c.font = "10px sans-serif"; c.textAlign = "left"; c.fillText(Lg("No saved depth cells in this time window / price range","لا توجد خلايا عمق محفوظة في الفترة الزمنية أو النطاق السعري ده"), gx0, 26); } }
+    if (this.domOn && this.secMs() > 600000 && (OF.hmm || "fix") === "fix" && !this.flowSpan){ const rec = this.hmRecorded(now), tfm = this.secMs(); if (rec < tfm){ const mins = Math.max(1, Math.round(rec/60000)), since = new Date(now - rec), hh = String(since.getHours()).padStart(2, "0")+":"+String(since.getMinutes()).padStart(2, "0");
+      c.save(); c.fillStyle = "#848e9c"; c.font = "10px sans-serif"; c.textAlign = "left"; c.fillText(Lg("Recording since "+hh+" · "+mins+" min so far (this "+this.tf+" candle is longer)", "بيسجّل من "+hh+" · "+mins+" دقيقة لحد دلوقتي (شمعة "+this.tf+" أطول)"), gx0, PB - 8); c.restore(); } }
     if (this.domOn && !fixedHm) B.forEach((sn, i) => { const x0 = Math.max(gx0, tx(sn.t)), x1 = Math.min(gx1, i + 1 < B.length ? tx(B[i+1].t) : gx1), w = Math.max(1.2, x1 - x0); if (x1 < gx0) return;
       rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(v.q/(hm || 1), .55)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
         c.globalAlpha = Math.max(.12, Math.min(1, (.08 + .9*t) * Math.min(1, bright)));

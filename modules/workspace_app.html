@@ -1825,7 +1825,7 @@ class CandleChart {
 Object.assign(CandleChart.prototype, {
   /* order flow: every live trade is added to the candle it belongs to, per price, split into sells (hit the bid) and buys (lifted the ask) */
   fpAdd(r, quiet){
-    const d = this.data; if (!d.length || r.t < d[0].t) return;
+    const d = this.data; if (!d.length || r.t < d[0].t) return; { const idn = +r.id; if (isFinite(idn) && idn > (this._fpMax || 0)) this._fpMax = idn; }
     let i = d.length-1; while (i > 0 && d[i].t > r.t) i--;
     const key = d[i].t; let m = this.fp.get(key); if (!m){ m = {px:new Map(), b:0, s:0}; this.fp.set(key, m); }
     const k = r.p, o = m.px.get(k) || (m.px.set(k, {b:0, s:0}), m.px.get(k));
@@ -3656,7 +3656,7 @@ class Panel {
       {id:"dot", label:T("indDot"), tip:T("dotTip"), get:() => ch().dotOn, set:v => { ch().dotOn = v; this.state.dot = v; }},
       {id:"dom", label:T("indDom"), tip:T("domTip"), get:() => ch().domOn, set:v => { const c_ = ch(); c_.domOn = v; if (v) c_.colOn = true; this.state.dom = v; if (v) this.state.dcol = true; }},
       {id:"mk", label:T("indMk"), get:() => ch().mkOn, set:v => { ch().mkOn = v; this.state.mk = v; }},
-      {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; if (v && this.fpFill) this.fpFill(); }},
+      {id:"fp", label:T("indFp"), tip:T("fpTip"), get:() => ch().fpOn, set:v => { ch().fpOn = v; this.state.fp = v; if (v && this.fpFill) this.fpFill(); if (!v && this.fpSave) this.fpSave(); }},
       {id:"delta", label:T("indDelta"), tip:T("deltaTip"), get:() => ch().deltaOn, set:v => { ch().deltaOn = v; this.state.dl = v; }},
       {id:"smt", label:"SMT", tip:Lg("SMT divergence: draws the correlated market (BTC↔ETH, ETH↔SOL …) on this chart and marks swings where one makes a new extreme and the other refuses.","SMT: يرسم السوق المرتبط (BTC↔ETH …) على نفس الشارت ويعلّم القمم/القيعان اللي واحد فيهم يكسر والتاني يرفض."), get:() => ch().smtOn, set:v => { ch().smtOn = v; this.state.smt = v; if (v){ this.smtT = 0; setTimeout(() => this.smtKick(), 0); } this.smtT = 0; if (!v) ch().smtD = null; }},
       {id:"vp", label:T("indVp"), tip:T("vpTip"), get:() => ch().vpOn, set:v => { ch().vpOn = v; this.state.vp = v; }, sty:"vp", params:[
@@ -3851,14 +3851,22 @@ class Panel {
     this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); this.chart.flowB = []; this.chart.flowT = []; this.chart.sym = sym; const seenF = new Set();
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn || this.chart.vpOn) this.chart.drawData(); }));
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
-      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
+      if (!ch._fpLd && ch.data.length && this.fpLoad) this.fpLoad();
+      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); if (ch._fpLoadedMax && +r.id <= ch._fpLoadedMax) return; ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
+    this.fpSave = () => { try { const ch = this.chart, d = ch.data; if (!ch.fpOn || !d.length || /^(HL:|Y:)/.test(sym)) return; const bars = [];   // the newest 3 bars, with their rows: another tab or a refresh starts from this instead of from nothing
+        for (let i = Math.max(0, d.length - 3); i < d.length; i++){ const m = ch.fp.get(d[i].t); if (m && m.px.size) bars.push([d[i].t, m.b, m.s, m.part ? 1 : 0, [...m.px].map(([pp, v]) => [pp, v.b, v.s])]); }
+        if (bars.length) localStorage.setItem(LS+"_fp|"+sym+"|"+tf, JSON.stringify({t:Date.now(), max:ch._fpMax || 0, bars})); } catch(e){} };
+    this.fpLoad = () => { const ch = this.chart; ch._fpLd = 1; let mx = 0; try { const o = JSON.parse(localStorage.getItem(LS+"_fp|"+sym+"|"+tf) || "null"); if (!o || Date.now() - o.t > 4*3600000) return 0; const have = new Set(ch.data.map(k => k.t));
+        o.bars.forEach(([t, b, sl, part, px]) => { if (!have.has(t) || ch.fp.has(t)) return; ch.fp.set(t, {px:new Map(px.map(([pp, bb, ss]) => [pp, {b:bb, s:ss}])), b, s:sl, part:!!part}); });
+        mx = o.max || 0; ch._fpMax = Math.max(ch._fpMax || 0, mx); ch._fpLoadedMax = mx; ch.drawData(); } catch(e){} return mx; };
+    { const fpIv = setInterval(() => { if (tok !== this.tok){ clearInterval(fpIv); return; } if (!document.hidden) this.fpSave(); }, 20000); this.wsUnsubs.push(() => clearInterval(fpIv)); }
     this.fpFill = async () => {   // footprint of the newest candles from OKX history-trades (a refresh or a new tab used to start with an empty footprint): newest trades first, stops at the start of the previous candle or after 40 calls
       if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpFilled === sym+"|"+tf) return; const ch = this.chart, d = ch.data; if (d.length < 3) return; this._fpFilled = sym+"|"+tf;
-      const stopT = d[d.length-2].t; let after = "", lastTs = 0;
+      const stopT = d[d.length-2].t, svMax = ch._fpLd ? (ch._fpLoadedMax || 0) : this.fpLoad(); let after = "", lastTs = 0;   // trades up to the saved snapshot are already in it: the fill stops there
       for (let pg = 0; pg < 40; pg++){ if (tok !== this.tok || !ch.fpOn) { this._fpFilled = null; return; }
         let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ return; }
         if (!rows || !rows.length) return; let reached = false;
-        rows.forEach(x => { const t = +x.ts; if (t < stopT){ reached = true; return; } lastTs = t; if (seenF.has(x.tradeId)) return; seenF.add(x.tradeId); ch.fpAdd({id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}, true); });
+        rows.forEach(x => { const t = +x.ts; if (t < stopT || (svMax && +x.tradeId <= svMax)){ reached = true; return; } lastTs = t; if (seenF.has(x.tradeId)) return; seenF.add(x.tradeId); ch.fpAdd({id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}, true); });
         ch.drawData(); if (reached) return; after = rows[rows.length-1].tradeId; await new Promise(r => setTimeout(r, 180)); }
       { let i = d.length - 1; while (i > 0 && d[i].t > lastTs) i--; const mm = lastTs && ch.fp.get(d[i].t); if (mm && lastTs > d[i].t + 1000) mm.part = true; ch.draw(); } };   // the call cap ended inside a candle: that candle is only partly filled and says so
     if (this.chart.fpOn) setTimeout(() => this.fpFill && this.fpFill(), 2500);

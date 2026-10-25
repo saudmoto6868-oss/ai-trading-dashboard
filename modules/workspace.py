@@ -238,10 +238,27 @@ def _fh_token() -> str:
     return v.strip()
 
 
+FREEZE_SECS = 1200   # the Workspace page is re-sent unchanged for up to 20 minutes unless something structural changes
+
+
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
+    import time
+
+    import streamlit as st
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height, scrolling=False)
+    # Every rerun (a widget click, or Streamlit reconnecting after its websocket dropped) used to rebuild the page from inputs that change all the time (news, world feed, CMC, macro, stocks,
+    # calendar, scan alerts) -> a different srcdoc -> the browser re-created the whole Workspace iframe (= the blink / "page load #N" in the owner's console). Now the previous page is sent
+    # again, byte for byte, unless something STRUCTURAL changed (symbols, language, size, class, theme, scan state) or it is older than FREEZE_SECS. The Workspace is live on its own
+    # (prices, book, tape stream in the browser), so slow feeds just refresh on the next structural change / expiry.
+    sig = (tuple(symbols or ()), lang, int(height), asset_cls, ui_theme, ui_bg, ui_mat, bool(scanning), len(scan or {}), len(alerts or []), len(ready or []), len(yf or {}), len(filters or {}))
+    prev, now = st.session_state.get("_ws_frozen"), time.time()
+    if prev and prev["sig"] == sig and now - prev["t"] < FREEZE_SECS:
+        html_ = prev["html"]
+    else:
+        html_ = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
+        st.session_state["_ws_frozen"] = {"sig": sig, "t": now, "html": html_}
+    components.html(html_, height=height, scrolling=False)

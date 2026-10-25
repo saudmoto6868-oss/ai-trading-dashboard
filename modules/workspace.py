@@ -14,6 +14,7 @@ stored on a server (layout is kept in the browser's localStorage).
 from __future__ import annotations
 import functools
 import os
+import time
 
 import json
 from pathlib import Path
@@ -244,4 +245,28 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height, scrolling=False)
+    # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
+    # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
+    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
+    doc = _ws_html_reuse(fp, scanning)
+    if doc is None:
+        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
+        import streamlit as st
+        st.session_state["ws_html_sent"] = (fp, doc, time.time())
+    components.html(doc, height=height, scrolling=False)
+
+
+WS_HTML_REFRESH_SECS = 180   # send new page data at most this often (when the scan is idle)
+WS_HTML_MAX_SECS = 600       # ...and never keep data older than this, even while a scan is still running
+
+
+def _ws_html_reuse(fp, scanning: bool):
+    """Last iframe HTML if it is still good to show, else None (= build a fresh one). Same string = no iframe reload."""
+    import streamlit as st
+    last = st.session_state.get("ws_html_sent")
+    if not last or last[0] != fp:
+        return None
+    age = time.time() - last[2]
+    if age < WS_HTML_REFRESH_SECS or (scanning and age < WS_HTML_MAX_SECS):
+        return last[1]
+    return None

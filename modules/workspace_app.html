@@ -3945,9 +3945,12 @@ class Panel {
           rows.forEach(k => { const b = Math.floor(k.t/(sec*1000))*sec*1000, l = agg[agg.length-1];
             if (l && l.t === b){ l.h = Math.max(l.h,k.h); l.l = Math.min(l.l,k.l); l.c = k.c; l.v += k.v; } else agg.push({t:b,o:k.o,h:k.h,l:k.l,c:k.c,v:k.v}); });
           hist = agg.length > 0; if (hist) this.chart.setData(agg, true);
-        } catch(e){ if (tok !== this.tok) return;   // no seconds history for this symbol (Hyperliquid, or OKX without 1s candles): the chart was blank. Show the 1m candles instead
+        } catch(e){ if (tok !== this.tok) return;
           const why = "No second-level history here (" + (e.message||e) + ")";
-          this.state.tf = "1m"; this.chart.tf = "1m"; this.resub(); this.msg.textContent = why + " - showing 1m candles"; }
+          // a seconds timeframe the source does not have (Hyperliquid, or an OKX symbol without 1s candles) shows 1m candles instead of a blank chart.
+          // A network blip, rate limit or timeout keeps the timeframe: it only shows the message
+          if (!/^(HL:|Y:)/.test(sym) && !/not available|unsupported|not support|Parameter|51000|51001/i.test(String(e.message||e))){ this.msg.textContent = why; return; }
+          this.state.tf = "1m"; this.chart.tf = "1m"; this.tfSel.value = "1m"; this.resub(); this.msg.textContent = why + " - showing 1m candles"; }
       })();
     } else if (!TF_AGG[tf])
     this.wsUnsubs.push(WSX.sub("business", {channel:chan, instId:sym}, data => {

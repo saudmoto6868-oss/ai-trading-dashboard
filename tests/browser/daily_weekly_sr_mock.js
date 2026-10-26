@@ -15,6 +15,7 @@ const { chromium } = require('playwright');
     const btn = [...P.root.querySelectorAll('button')].find(x => x.textContent === 'S/R'); out.hasBtn = !!btn;
     P.state.tf = '1D'; out.autoOn1D = P.srAuto(); P.state.tf = out.tf0;
     btn.click(); await new Promise(r => setTimeout(r, 1500)); out.lit = P.chart.srOn; out.dataD = (P.chart.srData && P.chart.srData.D || []).length; out.popRows = document.querySelectorAll('.srpop table tr').length; out.popNote = /Not a signal|مش إشارة/.test((document.querySelector('.srpop') || {}).textContent || '');
+    const off = document.querySelector('.srpop .srOff'); out.hasOffBtn = !!off; off && off.click(); await new Promise(r => setTimeout(r, 300)); out.offWorks = !P.chart.srOn && P.state.sr === false; out.popClosed = !document.querySelector('.srpop'); out.dataCleared = !P.chart.srData;
     return out; });
   if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
   console.log(JSON.stringify(res), 'errors', errs.length, errs[0] || ''); await b.close();

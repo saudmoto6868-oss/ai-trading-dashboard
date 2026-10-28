@@ -13,7 +13,12 @@ concurrency:
   cancel-in-progress: false
 jobs:
   claude:
-    if: contains(github.event.comment.body || github.event.issue.body || '', '@claude')
+    # owner 2026-10-28: no paid Anthropic API by default. The job runs only when the repo variable CLAUDE_ACTION_ENABLED is 'true' (Settings > Secrets and variables > Actions > Variables),
+    # and only for the owner / members / collaborators (a public repo: any stranger's '@claude' comment must not spend the credit).
+    if: >-
+      vars.CLAUDE_ACTION_ENABLED == 'true' &&
+      contains(github.event.comment.body || github.event.issue.body || '', '@claude') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.issue.author_association || 'NONE')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:

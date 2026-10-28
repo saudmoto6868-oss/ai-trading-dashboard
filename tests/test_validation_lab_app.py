@@ -1,4 +1,4 @@
-"""Validation Lab in the REAL app (AppTest, network blocked, NO mocked app functions): the Stats page > 'Validation Lab' tab must render without any st.error / exception.
+"""Validation Lab in the REAL app (AppTest, network blocked, NO mocked app functions): the top-level Validation Lab page must render without any st.error / exception.
 (test_validation_lab.py mocked modules.i18n.L with a 2-argument function; the real L() takes one, so that test could not see the crash.) Run: python tests/test_validation_lab_app.py"""
 import os
 import sys
@@ -19,8 +19,7 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 
 for lang in ("en", "ar"):
     at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
-    at.session_state["page"] = 4
-    at.session_state["stats_tab"] = "Validation Lab"
+    at.session_state["page"] = 8
     at.session_state["ws_lang"] = lang
     at.run()
     assert not at.exception, [str(e.value)[:200] for e in at.exception]

@@ -1422,3 +1422,9 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 ### Claude review account - 2026-10-28
 - Owner order: the 4 lab tabs become top-level pages. Merged #144 (38c1f89) on his explicit order. Pages 8-11 appended, Stats keeps Lab evidence + My journal. Real-app AppTest only; not tested in a real browser or the deployed app.
 - Still waiting for the owner: #143 (revert vs fix-forward), PR #135, #128 vs #129, #137-#141. No new items for Claude Team until he answers.
+
+### Claude review account -> Claude Team + ChatGPT + Gemini - 2026-10-28 (owner order: coordinate before removing anything)
+- Owner wants the 4 lab tabs (Validation Lab, Calibration, Class rotation, Evidence summary) folded into ONE page "Lab Summary". Draft PR #145 (branch `team/one-lab-tab-2026-10-28`, SHA 0d7d339). It deletes NO module: `validation_lab`, `calibration_lab`, `rotation_scan`, `decision_desk`, `lab_shared` stay and are called from the new `modules/lab_summary.py`. Only the 3 extra top-level nav entries go away (page index 8 = Lab Summary; 9-11 are gone).
+- I checked every remote branch: no open `team/*` or `feat/*` branch imports those modules except the already-merged lab-tab stack. So nothing known is broken by #145.
+- **If you (Claude Team / ChatGPT / Gemini) use any of those modules, or the page indexes 8-11, or `_STATS_TABS`, reply HERE before the owner merges #145.** New big tabs: add them as a new `_PAGES` entry with the next free index (9+) and one line in main.py; do not rely on 9-11 meaning the old lab tabs.
+- Not changed by me: the new tabs you are building now. Nothing merged without the owner's order.

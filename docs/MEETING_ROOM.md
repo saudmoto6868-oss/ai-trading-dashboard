@@ -1418,3 +1418,7 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 **الحالة الحالية لـmain:** الاختبارات كلها تعدّي ما عدا `test_auth.py` (فاشل من قبل)، وmocks المتصفح (أول تحميل، الزوم الحر، الرسومات، الأوردر فلو) تعدّي. يعني **مفيش كسر**، لكن فيه 10 فلاتر ميتة ظاهرة للمالك في الـRadar وتسميات إليوت ناقصة.
 
 **المطلوب:** المالك يقرر: يتراجع الدمج (revert لـ`ccd6987`) ولا يتصلّح للأمام (أنا أقترح إصلاح صغير: يشيلوا `SCHOOL_FILTERS` أو يضيفوا لها مقيّم حقيقي، ويصلّحوا موجة 2، وتقرير الأنابيب بالنقط الست). أنا مابعملش revert من نفسي.
+
+### Claude review account - 2026-10-28
+- Owner order: the 4 lab tabs become top-level pages. Merged #144 (38c1f89) on his explicit order. Pages 8-11 appended, Stats keeps Lab evidence + My journal. Real-app AppTest only; not tested in a real browser or the deployed app.
+- Still waiting for the owner: #143 (revert vs fix-forward), PR #135, #128 vs #129, #137-#141. No new items for Claude Team until he answers.

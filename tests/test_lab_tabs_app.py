@@ -1,4 +1,4 @@
-"""The four lab tabs in REAL Streamlit (AppTest, network blocked, no mocked app functions): top-level pages Validation Lab / Calibration / Class rotation / Evidence summary,
+"""The four lab tabs in REAL Streamlit (AppTest, network blocked, no mocked app functions): one Lab Summary page (Validation Lab / Calibration / Class rotation / Evidence summary,
 once through main.py (the scan payload is not built yet -> the 'not ready' message, no error) and once with a real-shaped scan payload fed to the render functions.
 Also: class_of maps the real symbols (gold, oil, FX, EGX ...) to their classes. Run: python tests/test_lab_tabs_app.py"""
 import os
@@ -23,17 +23,16 @@ for sym, cls in [("HL:xyz:GOLD", "Metals"), ("HL:xyz:CL", "Oil & Gas"), ("HL:xyz
                  ("Y:COMI.CA", "Egypt (EGX)"), ("Y:2222.SR", "Saudi (Tadawul)"), ("BTC-USDT", "Crypto"), ("FH:EUR_USD", "Forex")]:
     assert LS.class_of(sym) == cls, (sym, LS.class_of(sym), cls)
 
-# 1) through main.py: every tab renders (the payload is empty at this point, so the two payload tabs show the 'not ready' info)
-for tab in ["Validation Lab", "Calibration", "Class rotation", "Evidence summary"]:
+# 1) through main.py: the one Lab Summary page (page 8) renders all four sections (payload empty at this point -> the two payload sections show 'not ready')
+for lang in ("en", "ar"):
     at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
-    at.session_state["page"] = {"Validation Lab": 8, "Calibration": 9, "Class rotation": 10, "Evidence summary": 11}[tab]
+    at.session_state["page"] = 8
+    at.session_state["ws_lang"] = lang
     at.run()
-    assert not at.exception, (tab, [str(e.value)[:200] for e in at.exception])
-    assert not at.error, (tab, [str(e.value)[:200] for e in at.error])
-    assert at.markdown or at.info, tab
-    if tab in ("Validation Lab", "Calibration"):
-        assert len(at.dataframe) >= 1 and len(at.markdown) < 60, (tab, len(at.dataframe), len(at.markdown))
-    print("ok main.py tab:", tab)
+    assert not at.exception, (lang, [str(e.value)[:200] for e in at.exception])
+    assert not at.error, (lang, [str(e.value)[:200] for e in at.error])
+    assert len(at.metric) == 4 and len(at.expander) >= 4 and len(at.dataframe) >= 2, (lang, len(at.metric), len(at.expander), len(at.dataframe))
+    print("ok main.py Lab Summary:", lang)
 
 # 2) the payload tabs with a real-shaped payload (scan = symbol -> timeframe -> setup, mini = ready setups with the detector keys)
 PAYLOAD = {

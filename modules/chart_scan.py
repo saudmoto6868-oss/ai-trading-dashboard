@@ -98,6 +98,22 @@ try:
 except Exception:
     _pip = {}
 
+# School / tool-group filters — one entry per trading school; matcher = ("school", school_name)
+# The scanner evaluates these by checking signals whose 'school' field matches.
+SCHOOL_FILTERS = {
+    "sch_ict":      ("School · SMC / ICT",                ("school", "SMC / ICT")),
+    "sch_elliott":  ("School · Elliott wave",             ("school", "Elliott wave")),
+    "sch_harmonic": ("School · Harmonic (all patterns)",  ("school", "Harmonic")),
+    "sch_trend":    ("School · Trend (MA + hedge-fund)",  ("school", "Trend")),
+    "sch_liq":      ("School · Liquidity / sweeps",       ("school", "Liquidity")),
+    "sch_session":  ("School · Time / sessions (ICT)",    ("school", "Time (sessions)")),
+    "sch_fib":      ("School · Fibonacci / OTE",          ("school", "Fibonacci")),
+    "sch_mom":      ("School · Momentum / divergence",    ("school", "Momentum / divergence")),
+    "sch_level":    ("School · Levels / breakouts",       ("school", "Levels / breakouts")),
+    "sch_smt":      ("School · Intermarket / SMT",        ("school", "Intermarket (SMT)")),
+}
+STRATEGY_FILTERS.update(SCHOOL_FILTERS)
+
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **MOVE_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
 
 

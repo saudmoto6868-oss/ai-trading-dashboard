@@ -23,18 +23,37 @@ from pathlib import Path
 from typing import Any
 
 # ── constants ────────────────────────────────────────────────────────────────
+from modules import lab_tiers as _LT
+
 _LAB_PATH = Path(__file__).resolve().parent.parent / "data" / "strategy_lab.json"
-_MIN_N = 30          # minimum trades to show any number
-_OFF_MIN_N = 300     # OFF threshold (mirrors lab_tiers)
-_OFF_MAX_R = -0.06   # OFF threshold
-_POS_MIN_R = 0.0     # positive-evidence threshold
+_MIN_N = _LT.MIN_N          # minimum trades to show any number (same constants as the evidence score)
+_OFF_MIN_N = _LT.OFF_MIN_N  # OFF threshold
+_OFF_MAX_R = _LT.OFF_R      # OFF threshold
+_POS_MIN_R = 0.0            # avgR above this is only "positive, not proven" (see _tier)
+
+
+def _t(ar: str, en: str) -> str:
+    """Arabic / English text by the app language (modules.i18n.L takes ONE argument, so it cannot take both)."""
+    try:
+        from modules.i18n import lang
+        return ar if lang() == "ar" else en
+    except Exception:
+        return en
+
+
+_cache = {"mtime": None, "path": None, "rows": []}
 
 
 def _load_rows() -> list[dict[str, Any]]:
-    """Return all-side rows from strategy_lab.json; empty list on any error."""
+    """Return all-side rows from strategy_lab.json (cached by file mtime); empty list on any error."""
     try:
+        m = os.path.getmtime(_LAB_PATH)
+        if _cache["mtime"] == m and _cache["path"] == str(_LAB_PATH):
+            return _cache["rows"]
         data = json.loads(_LAB_PATH.read_text())
-        return [r for r in data.get("rows", []) if r.get("side") == "all"]
+        rows = [r for r in data.get("rows", []) if r.get("side") == "all"]
+        _cache.update(mtime=m, path=str(_LAB_PATH), rows=rows)
+        return rows
     except Exception:
         return []
 
@@ -56,139 +75,92 @@ def _tier(row: dict) -> str:
     return "neutral"           # flat
 
 
-# ── public render ─────────────────────────────────────────────────────────────
+# ── public render ─────────────────────────────────────────────────
 def render_validation_lab() -> None:
     """Render the Validation Lab tab inside an active Streamlit context."""
+    import streamlit as st
     try:
-        import streamlit as st
         from modules.ui_kit import strip
-        from modules.i18n import L
     except Exception as exc:
-        # Hard import failure — can't do anything useful
-        import streamlit as st
-        st.error(f"مختبر التحقق: خطأ في الاستيراد — {exc}")
+        st.error(_t("مختبر التحقق: خطأ في الاستيراد — ", "Validation Lab: import error - ") + str(exc))
         return
 
     rows = _load_rows()
 
-    # ── no data ───────────────────────────────────────────────────────────────
+    # ── no data ─────────────────────────────────────────────────
     if not rows:
-        st.info(
-            L("لا توجد بيانات في ملف المعمل (data/strategy_lab.json). "
-              "شغّل سير العمل Lab Backtest لتوليد البيانات.",
-              "No lab data found (data/strategy_lab.json). "
-              "Run the Lab Backtest workflow to generate data.")
-        )
+        st.info(_t("لا توجد بيانات في ملف المعمل (data/strategy_lab.json). شغّل سير العمل Lab Backtest لتوليد البيانات.",
+                   "No lab data found (data/strategy_lab.json). Run the Lab Backtest workflow to generate data."))
         return
 
-    # ── summary numbers ───────────────────────────────────────────────────────
+    # ── summary numbers ───────────────────────────────────────────────
     total = len(rows)
-    ev_pos = sum(1 for r in rows if r.get("n", 0) >= _MIN_N and r.get("avgR", 0) > _POS_MIN_R)
+    pos = [r for r in rows if r.get("n", 0) >= _MIN_N and r.get("avgR", 0) > _POS_MIN_R]
     off_count = sum(1 for r in rows if r.get("n", 0) >= _OFF_MIN_N and r.get("avgR", 0) <= _OFF_MAX_R)
     edge_count = sum(1 for r in rows if r.get("edge"))
 
     st.markdown(
         strip([
-            (L("الكاشفات", "Detectors"), str(total), L("إجمالي", "total"), "", ""),
-            (L("دليل إيجابي", "Positive EV"), str(ev_pos),
-             f"n≥{_MIN_N}", "up", L("avgR > 0 مع بيانات كافية", "avgR > 0 with enough data")),
-            (L("خارج التقييم", "OFF"), str(off_count),
+            (_t("الكاشفات", "Detectors"), str(total), _t("إجمالي", "total"), "", ""),
+            (_t("avgR موجب (غير مثبت)", "avgR > 0 (not proven)"), str(len(pos)),
+             f"n≥{_MIN_N}", "",
+             _t("موجب في العيّنة؛ مع عدد كبير من الاختبارات جزء منه صدفة. المثبت = حافة مؤكدة فقط.",
+                "Positive in the sample; with this many tests part of it is chance. Only a confirmed edge is proven.")),
+            (_t("خارج التقييم", "OFF"), str(off_count),
              f"n≥{_OFF_MIN_N} & R≤{_OFF_MAX_R}", "down",
-             L("مستبعد من حساب الدليل", "Excluded from evidence scoring")),
-            (L("حافة مؤكدة", "Confirmed Edge"), str(edge_count),
-             L("من المعمل", "lab flag"), "up" if edge_count else "",
-             L("edge=True في ملف المعمل", "edge=True in lab file")),
+             _t("مستبعد من حساب الدليل", "Excluded from evidence scoring")),
+            (_t("حافة مؤكدة", "Confirmed Edge"), str(edge_count),
+             _t("من المعمل", "lab flag"), "up" if edge_count else "",
+             _t("edge=True في ملف المعمل", "edge=True in lab file")),
         ]),
         unsafe_allow_html=True,
     )
 
-    # ── school filter ─────────────────────────────────────────────────────────
+    # ── filters ───────────────────────────────────────────────
+    all_lbl = _t("الكل", "All")
     schools = sorted({r.get("school", "—") for r in rows})
-    sel_school = st.selectbox(
-        L("المدرسة", "School"),
-        [L("الكل", "All")] + schools,
-        key="vlab_school",
-    )
-
-    # ── tier filter ───────────────────────────────────────────────────────────
+    sel_school = st.selectbox(_t("المدرسة", "School"), [all_lbl] + schools, key="vlab_school")
     tier_opts = {
-        L("الكل", "All"): None,
-        L("دليل إيجابي ✅", "Positive EV ✅"): "positive",
-        L("حافة مؤكدة ⭐", "Confirmed Edge ⭐"): "edge",
-        L("دليل سلبي ⚠️", "Negative EV ⚠️"): "negative",
-        L("خارج التقييم 🚫", "OFF 🚫"): "off",
-        L("بيانات قليلة 🔘", "Weak data 🔘"): "weak",
+        all_lbl: None,
+        _t("حافة مؤكدة ⭐", "Confirmed Edge ⭐"): "edge",
+        _t("avgR موجب (غير مثبت) ➕", "avgR > 0 (not proven) ➕"): "positive",
+        _t("دليل سلبي ⚠️", "Negative ⚠️"): "negative",
+        _t("خارج التقييم 🚫", "OFF 🚫"): "off",
+        _t("بيانات قليلة 🔘", "Weak data 🔘"): "weak",
     }
-    sel_label = st.selectbox(
-        L("الفئة", "Tier"),
-        list(tier_opts.keys()),
-        key="vlab_tier",
-    )
+    sel_label = st.selectbox(_t("الفئة", "Tier"), list(tier_opts.keys()), key="vlab_tier")
     sel_tier = tier_opts[sel_label]
 
-    # ── filter rows ───────────────────────────────────────────────────────────
     filtered = rows
-    if sel_school != L("الكل", "All"):
+    if sel_school != all_lbl:
         filtered = [r for r in filtered if r.get("school") == sel_school]
     if sel_tier:
         filtered = [r for r in filtered if _tier(r) == sel_tier]
-
     filtered = sorted(filtered, key=lambda r: r.get("avgR", 0.0), reverse=True)
 
     if not filtered:
-        st.info(L("لا توجد نتائج بهذا الفلتر.", "No results for this filter."))
+        st.info(_t("لا توجد نتائج بهذا الفلتر.", "No results for this filter."))
         return
 
-    # ── table ─────────────────────────────────────────────────────────────────
-    _TIER_ICON = {
-        "edge": "⭐", "positive": "✅", "neutral": "➖",
-        "negative": "⚠️", "off": "🚫", "weak": "🔘",
-    }
+    # ── table: ONE element (a row-per-st.columns loop made ~1600 elements) ───────
+    icon = {"edge": "⭐", "positive": "➕", "neutral": "➖", "negative": "⚠️", "off": "🚫", "weak": "🔘"}
+    h = [_t("المفتاح", "Key"), _t("المدرسة", "School"), _t("الإطار", "TF"), "n", _t("فوز%", "Win%"), "avgR",
+         _t("عشوائي avgR", "Random avgR"), _t("الفرق", "Diff"), _t("الحالة", "Status")]
+    table = []
+    for r in filtered:
+        t = _tier(r)
+        avg, base = float(r.get("avgR", 0.0)), r.get("base_avgR")
+        table.append({h[0]: r.get("key", ""), h[1]: r.get("school", "—"), h[2]: r.get("tf", "—"), h[3]: int(r.get("n", 0)),
+                      h[4]: round(float(r.get("win", 0)), 1), h[5]: round(avg, 3),
+                      h[6]: None if base is None else round(float(base), 3), h[7]: None if base is None else round(avg - float(base), 3),
+                      h[8]: icon.get(t, "")})
+    st.dataframe(table, use_container_width=True, hide_index=True)
 
-    cols = st.columns([2, 2, 1, 1, 1, 1, 1])
-    headers = [
-        L("المفتاح", "Key"),
-        L("المدرسة", "School"),
-        L("الإطار", "TF"),
-        "n",
-        L("فوز%", "Win%"),
-        "avgR",
-        L("الحالة", "Status"),
-    ]
-    for col, h in zip(cols, headers):
-        col.markdown(f"**{h}**")
-
-    for row in filtered:
-        t = _tier(row)
-        icon = _TIER_ICON.get(t, "")
-        n = row.get("n", 0)
-        win = row.get("win", 0)
-        avg = row.get("avgR", 0.0)
-        tf = row.get("tf", "—")
-
-        # Dim rows with insufficient data
-        dim = t == "weak"
-        fmt_n = str(n) if not dim else f"*{n}*"
-        fmt_win = f"{win:.1f}%" if not dim else f"*{win:.1f}%*"
-        fmt_avg = f"{avg:+.3f}" if not dim else f"*{avg:+.3f}*"
-
-        c = st.columns([2, 2, 1, 1, 1, 1, 1])
-        c[0].markdown(f"`{row.get('key','')}`")
-        c[1].markdown(row.get("school", "—"))
-        c[2].markdown(tf)
-        c[3].markdown(fmt_n)
-        c[4].markdown(fmt_win)
-        c[5].markdown(fmt_avg)
-        c[6].markdown(icon)
-
-    # ── footnotes ─────────────────────────────────────────────────────────────
-    st.caption(
-        L(
-            f"n < {_MIN_N} = بيانات غير كافية (🔘). "
-            f"OFF = n ≥ {_OFF_MIN_N} و avgR ≤ {_OFF_MAX_R} → مستبعد من حساب الدليل. "
-            "⭐ = حافة مؤكدة من المعمل. لا أرقام مُخترعة — كل الأرقام من strategy_lab.json.",
-            f"n < {_MIN_N} = insufficient data (🔘). "
-            f"OFF = n ≥ {_OFF_MIN_N} and avgR ≤ {_OFF_MAX_R} → excluded from evidence scoring. "
-            "⭐ = lab-confirmed edge. No invented numbers — all figures from strategy_lab.json."
-        )
-    )
+    # ── footnotes ─────────────────────────────────────────────────
+    st.caption(_t(
+        f"n < {_MIN_N} = بيانات غير كافية (🔘). OFF = n ≥ {_OFF_MIN_N} و avgR ≤ {_OFF_MAX_R} → مستبعد من حساب الدليل. "
+        "⭐ = حافة مؤكدة من المعمل فقط؛ ➕ = avgR موجب في العيّنة وغير مثبت. «عشوائي avgR» = نتيجة الدخول العشوائي في نفس الاختبار. "
+        "لا أرقام مُخترعة — كل الأرقام من strategy_lab.json.",
+        f"n < {_MIN_N} = insufficient data (🔘). OFF = n ≥ {_OFF_MIN_N} and avgR ≤ {_OFF_MAX_R} → excluded from evidence scoring. "
+        "⭐ = lab-confirmed edge only; ➕ = avgR above 0 in the sample, not proven. 'Random avgR' = random entries in the same test. "
+        "No invented numbers - all figures from strategy_lab.json."))

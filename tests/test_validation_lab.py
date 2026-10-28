@@ -131,13 +131,10 @@ def test_render_no_crash():
     fake_st = _make_fake_st()
     fake_ui = MagicMock()
     fake_ui.strip.return_value = "<div>strip</div>"
-    fake_i18n = MagicMock()
-    fake_i18n.L.side_effect = lambda ar, en="": ar
 
     with patch.dict("sys.modules", {
         "streamlit": fake_st,
         "modules.ui_kit": fake_ui,
-        "modules.i18n": fake_i18n,
     }):
         import importlib
         import modules.validation_lab as vl
@@ -158,13 +155,10 @@ def test_render_no_data_shows_info():
     fake_st.info.side_effect = lambda msg: info_calls.append(msg)
     fake_ui = MagicMock()
     fake_ui.strip.return_value = ""
-    fake_i18n = MagicMock()
-    fake_i18n.L.side_effect = lambda ar, en="": ar
 
     with patch.dict("sys.modules", {
         "streamlit": fake_st,
         "modules.ui_kit": fake_ui,
-        "modules.i18n": fake_i18n,
     }):
         import importlib
         import modules.validation_lab as vl

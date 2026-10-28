@@ -3356,7 +3356,7 @@ if PAGE == 4:   # perf
             from modules.validation_lab import render_validation_lab
             render_validation_lab()
         except Exception as _vl_exc:
-            st.error(f"مختبر التحقق: {_vl_exc}")
+            st.error(_xl("مختبر التحقق: ", "Validation Lab: ") + str(_vl_exc))
         st.stop()
     if _stab == "Lab evidence":
         _stats_lab()

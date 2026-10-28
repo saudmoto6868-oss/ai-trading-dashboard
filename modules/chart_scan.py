@@ -89,6 +89,15 @@ STRATEGY_FILTERS = {
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_m2022": ("ICT Model 2022 (raid + MSS + FVG, in a NY killzone)", ("key", "m2022")), "st_cisd": ("Sweep + CISD (liquidity grab, body close through the open of the down-candle run, before the structure break)", ("key", "cisd")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
 }
+# Item 25 step 3: wire pipeline winners (gate-passed lab keys) as scanner filters.
+# Safe to import even before a real lab run — returns {} when no data or no winners.
+try:
+    from modules.pipeline_wire import pipeline_filters as _pipeline_filters
+    _pip = _pipeline_filters()
+    STRATEGY_FILTERS.update(_pip)
+except Exception:
+    _pip = {}
+
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **MOVE_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
 
 

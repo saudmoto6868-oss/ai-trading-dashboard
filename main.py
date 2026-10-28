@@ -3122,16 +3122,56 @@ def _academy_schools():
                 st.markdown(x["ai"] or L("No lessons yet."))
 
 
+def _academy_tools_lesson():
+    """Tab 5 additions: 4 tool lessons from docs/academy/visual/ — lazy read, degrade gracefully."""
+    LESSONS = [
+        ("10-validation-lab",  "مختبر التحقق",        "Validation Lab"),
+        ("11-calibration",     "معايرة IS vs OOS",     "Calibration IS/OOS"),
+        ("12-rotation",        "التدوير بين الأصول",   "Asset Rotation"),
+        ("13-decision-gate",   "بوابة القرار",         "Decision Gate"),
+    ]
+    pick = st.radio(
+        L("الأداة", "Tool"),
+        [k for k, _a, _e in LESSONS],
+        format_func=lambda k: L(
+            next(a for kk, a, _ in LESSONS if kk == k),
+            next(e for kk, _, e in LESSONS if kk == k)
+        ),
+        key="ac_tools_pick",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    from pathlib import Path as _P
+    import re as _re
+    vis = _P(__file__).parent / "docs" / "academy" / "visual" / f"{pick}.md"
+    try:
+        content = vis.read_text(encoding="utf-8")
+        # hide the first heading (already shown via radio) and render the rest
+        content = _re.sub(r'^#[^#].*\n', '', content, count=1)
+        st.markdown(content)
+    except FileNotFoundError:
+        st.info(L(f"الدرس غير متاح بعد: {pick}.md", f"Lesson not available yet: {pick}.md"))
+    except Exception as exc:
+        st.error(f"{pick}: {exc}")
+
+
 def render_academy_page():
-    """Academy (owner 2026-10-23): three tabs only. Path = our ordered course; Schools = Grok's nine schools in teaching order, each with its diagrams, examples, evidence
-    and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
+    """Academy (owner 2026-10-23): three tabs only + Tools tab for the new lab/analytics lessons.
+    Path = our ordered course; Schools = Grok's nine schools; References = sources; Tools = analytics lessons."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(kit_css(), unsafe_allow_html=True)
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    view = st.segmented_control(
+        L("Academy"), ["Path", "Schools", "References", "Tools"],
+        default="Path", key="ac_view",
+        format_func=lambda v: L(v, v),
+        label_visibility="collapsed"
+    ) or "Path"
     if view == "Path":
         _academy_path()
     elif view == "Schools":
         _academy_schools()
+    elif view == "Tools":
+        _academy_tools_lesson()
     else:
         _academy_refs()
 

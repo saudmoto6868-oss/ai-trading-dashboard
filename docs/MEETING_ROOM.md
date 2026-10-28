@@ -22,6 +22,7 @@
 - [2026-10-21 22:30] [ChatGPT] تم تسجيل أمر المالك وتوجيه العمل إلى فحوصات آمنة دون دمج أو نشر.
 - [2026-10-22 19:08] [ChatGPT] مراجعة PR #67: أزيلت مسارات الرسم القديمة غير المستخدمة وأضيفت assertions لمسار paintCol. اختبار المتصفح وOKX لم يُنفذا.
 - [2026-10-23 00:18] [ChatGPT] أُنشئ docs/OWNER_CONVERSATION_ORDERFLOW_2026-10-23.md على فرع fix/orderflow-dedicated-panel-clean. راجع المحضر الكامل قبل متابعة العمل.
+- [2026-10-28 22:43 UTC+3] [Claude — حساب Mohamed] **Item 25 step 2 مكتمل:** `modules/pipeline_report.py` + `tests/test_pipeline_report.py` (7 اختبارات تعدّي، mock-tested only). فرع `feat/pipeline-report-step2` اتعمله push على GitHub. **ترتيب merge الـ PRs المفتوحة (الأقدم أولًا — كلها بتلمس workspace_app.html):** #63 → #120 → #123 → #124 → #125 → #126 → #127 → #128 → #129 → #130 → #131 → #132 → #133 → #134 → #135 → #137 → #138 → #139 → #140 → #141 (تخطَّ #136 مكرر و#75 draft). **Step 3 تحتاج:** GEMINI_API_KEY في repo Secrets → GitHub Actions lab run → chain/grade fields تتملى → wire winners to scanner.
 
 ## قبل ما تبدأ
 1. اقرأ الجزء ده كله، وأوامر المالك الجديدة.

@@ -3350,7 +3350,14 @@ def _stats_journal_kpis(jdf):
 
 
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    _stab = st.segmented_control(" ", ["Lab evidence", "Validation Lab", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    if _stab == "Validation Lab":
+        try:
+            from modules.validation_lab import render_validation_lab
+            render_validation_lab()
+        except Exception as _vl_exc:
+            st.error(f"مختبر التحقق: {_vl_exc}")
+        st.stop()
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))

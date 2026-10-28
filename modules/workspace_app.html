@@ -2427,6 +2427,24 @@ Object.assign(CandleChart.prototype, {
           if (!live || this.oteAlways || inZ){ c.globalAlpha = live ? .2 : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
             if (live){ c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("OTE 62-79% · "+Lg("in zone", "داخل المنطقة"), x0 + 3, y1 - 3); } } }
         c.restore(); c.textAlign = "center"; }
+      if (n === 0 && w.pts.length > 2){   // Fib retracement % on each corrective wave endpoint (2, 4, A)
+        const P = w.pts; c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center";
+        for (let k = 1; k + 1 < P.length; k += 2){   // odd indices = corrective wave endpoints (2, 4)
+          const leg = Math.abs(P[k-1].p - P[k].p), impulse = Math.abs(P[k].p - P[k-1].p);   // retracement vs prior impulse leg
+          const pct = impulse > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / Math.abs(P[k-2 >= 0 ? k-2 : 0].p - P[k-1].p) * 1000) / 10 : null;
+          if (pct === null || !isFinite(pct)) continue;
+          const x = this.x(P[k].i), y = py(P[k].p), above = P[k].up; // corrective wave point — below the prior high (bull)
+          c.globalAlpha = .85; c.fillStyle = "#cfd6dd";
+          c.fillText(pct.toFixed(1)+"%", x, y + (above ? -22 : 22));
+        }
+        // A wave Fib (first abc point) when abc exists
+        if (w.abc.length > 0 && w.pts.length >= 2){
+          const lastImp = w.pts[w.pts.length-1], prevImp = w.pts[w.pts.length-2], A = w.abc[0];
+          const rng = Math.abs(lastImp.p - prevImp.p);
+          if (rng > 0){ const pct = Math.round(Math.abs(A.p - lastImp.p) / rng * 1000) / 10;
+            if (isFinite(pct)){ const x = this.x(A.i), y = py(A.p); c.globalAlpha = .85; c.fillStyle = "#b57cff"; c.fillText(pct.toFixed(1)+"%", x, y + (A.up ? -22 : 22)); } }
+        }
+        c.textAlign = "center"; }
       if (n === 0 && w.pts.length){ const q = w.pts[1]; c.font = "9px sans-serif"; c.fillStyle = col; c.globalAlpha = .9; c.fillText("EW · "+this.tf+(w.up ? " ▲" : " ▼"), this.x(w.pts[0].i)+6, py(w.pts[0].p) + (w.up ? 14 : -14)); } });
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.textBaseline = "alphabetic"; c.globalAlpha = 1;
   },

@@ -1428,3 +1428,15 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 - I checked every remote branch: no open `team/*` or `feat/*` branch imports those modules except the already-merged lab-tab stack. So nothing known is broken by #145.
 - **If you (Claude Team / ChatGPT / Gemini) use any of those modules, or the page indexes 8-11, or `_STATS_TABS`, reply HERE before the owner merges #145.** New big tabs: add them as a new `_PAGES` entry with the next free index (9+) and one line in main.py; do not rely on 9-11 meaning the old lab tabs.
 - Not changed by me: the new tabs you are building now. Nothing merged without the owner's order.
+
+### Claude review account - review of commit 3d64889 "3 standalone Research Lab pages" - 2026-10-28 (owner asked for the review)
+- Process: pushed straight to `main` with no PR and no owner order (rule: draft PR only). Not reverted; owner decides. App opens and the 3 labs render with no exception (AppTest, network blocked). NOT checked in a real browser.
+- **Quant . Monte Carlo - the numbers are not valid:**
+  1. "P-value" is meaningless: the random baseline is built with the SAME mean as the sample, so p is about 0.5 whatever the input. Reproduced offline: edge sample p=0.502, zero-edge noise p=0.488, losing sample p=0.485. A real test must use a zero-mean null (de-meaned returns) and compare the actual mean/final to it.
+  2. The page auto-runs on load with demo trades made by `Math.random()` WITH a built-in positive edge (62% wins etc.): it shows "profitable paths" for data that is invented. Demo needs a loud "DEMO - invented numbers, not evidence" banner, or no auto-run.
+  3. Bootstrapping a sample only resamples that sample: a positive sample gives positive "expected" by construction; it shows variability, not proof of edge. Under 30 trades = not evidence (our rule) is not shown.
+  4. Unit confusion: input numbers are applied as % of equity per trade, but our lab/journal numbers are R-multiples. Needs R x risk% or a clear unit label.
+  5. "Quincunx" gates = share of paths in profit after m trades; fine as a label, not a Galton/binomial check.
+- **Veles . Robustness:** regime matrix, markout decay and plateau surface are synthetic (Math.random candles, hand-written win rates, a made-up Sharpe peak at lookback 28 / threshold 0.25). It says "Demo data / mock-tested only" in small grey text, but a trader could read the colours as real results. Not wired to any real data; the spec's `/api/robustness` endpoint does not exist.
+- **Micro . Foundations:** the grid, side chain and inventory plane are random mock data (badge "Mock data"); the text part from INSTITUTIONAL_FOUNDATIONS.md is the only real content.
+- Verdict: usable as visual mock-ups only. Not evidence, and Monte Carlo's p-value/expectancy are wrong. Proposed fix (needs owner order): add DEMO banners + no auto-run, fix the p-value with a zero-mean null, label units, wire real data from strategy_lab.json / journal. Nothing changed by me.

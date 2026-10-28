@@ -617,7 +617,8 @@ def _scan_worker(store, ws_tf, ws_key):
                 if not e_:
                     continue
                 if e_.get("plan"):
-                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")})
+                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
+                                   | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
                 # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
@@ -3350,7 +3351,19 @@ def _stats_journal_kpis(jdf):
 
 
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    # one registry for the lab tabs (key, module, render function, takes the scan payload): a new tab = one line here
+    _STATS_TABS = [("Validation Lab", "modules.validation_lab", "render_validation_lab", False), ("Calibration", "modules.calibration_lab", "render_calibration_lab", False),
+                   ("Class rotation", "modules.rotation_scan", "render_rotation_scan", True), ("Evidence summary", "modules.decision_desk", "render_decision_desk", True)]
+    _stab = st.segmented_control(" ", ["Lab evidence"] + [x[0] for x in _STATS_TABS] + ["My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    for _tk, _mod, _fn, _needs_payload in _STATS_TABS:
+        if _stab == _tk:
+            try:
+                import importlib
+                _render = getattr(importlib.import_module(_mod), _fn)
+                _render(_scan_store().get("payload") or {}) if _needs_payload else _render()
+            except Exception as _lab_exc:
+                st.error(_xl("تبويب المعمل: ", "Lab tab: ") + f"{_tk}: {_lab_exc}")
+            st.stop()
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))

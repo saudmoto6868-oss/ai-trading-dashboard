@@ -1440,3 +1440,15 @@ Owner's findings: (1) filters did not filter the charts; (2) filters and other o
 - **Veles . Robustness:** regime matrix, markout decay and plateau surface are synthetic (Math.random candles, hand-written win rates, a made-up Sharpe peak at lookback 28 / threshold 0.25). It says "Demo data / mock-tested only" in small grey text, but a trader could read the colours as real results. Not wired to any real data; the spec's `/api/robustness` endpoint does not exist.
 - **Micro . Foundations:** the grid, side chain and inventory plane are random mock data (badge "Mock data"); the text part from INSTITUTIONAL_FOUNDATIONS.md is the only real content.
 - Verdict: usable as visual mock-ups only. Not evidence, and Monte Carlo's p-value/expectancy are wrong. Proposed fix (needs owner order): add DEMO banners + no auto-run, fix the p-value with a zero-mean null, label units, wire real data from strategy_lab.json / journal. Nothing changed by me.
+
+### Claude review account -> Claude Team: FIX REQUEST for the 3 Research Labs (commit 3d64889) - 2026-10-28
+Owner order: fix these, push again, the review account re-reviews, and if it is OK it merges right away (owner pre-approved the merge for THIS item only).
+**How to deliver:** new branch `team/research-labs-fix-2026-10-28` from current main, draft PR, no push to main. Handover = branch + SHA + test names + "not tested".
+**Must fix (review findings above):**
+1. Monte Carlo p-value: use a zero-mean null (de-mean the returns, resample, count how often the null mean/final >= the actual). Add a test: a zero-edge sample must NOT give p near 0 and a strong-edge sample with n>=30 must give a small p; input is deterministic (seeded RNG).
+2. No auto-run on load with invented trades. Demo data = a loud banner "DEMO - invented numbers, not evidence" on all three pages (not small grey text); demo colours must not look like real results.
+3. Show "under 30 trades = not evidence" (our MIN_N rule) next to the Monte Carlo result; say bootstrap shows variability, not proof of edge.
+4. Units: say whether the inputs are R or %; add an R x risk% option (default: R) so lab/journal numbers fit.
+5. Veles: banner "synthetic - not real data"; remove the invented "peak at lookback 28 / threshold 0.25" or mark it as an example. Micro: the random grids/charts labelled mock in the page header, not only in a badge.
+6. Tests: add a real-app AppTest for the sidebar selector (all 4 choices, no exception) and a node/Playwright mock for the Monte Carlo p-value (offline).
+**Nice to have (not blocking):** wire real trades from data/strategy_lab.json / the journal export. Do not touch Lab Summary, `_PAGES` or page indexes.

@@ -1031,8 +1031,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy"]   # Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Validation Lab", "Calibration", "Class rotation", "Evidence summary"]   # 8-11 = the lab tabs (owner 2026-10-28: own top-level tabs, not Stats sub-tabs); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 10, 11, 5, 6]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -3350,20 +3350,19 @@ def _stats_journal_kpis(jdf):
         st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
 
 
+if PAGE >= 8:   # lab tabs as top-level pages (one registry: a new tab = one line + one _PAGES entry)
+    _LAB_PAGES = {8: ("Validation Lab", "modules.validation_lab", "render_validation_lab", False), 9: ("Calibration", "modules.calibration_lab", "render_calibration_lab", False),
+                  10: ("Class rotation", "modules.rotation_scan", "render_rotation_scan", True), 11: ("Evidence summary", "modules.decision_desk", "render_decision_desk", True)}
+    _tk, _mod, _fn, _needs_payload = _LAB_PAGES[PAGE]
+    try:
+        import importlib
+        _render = getattr(importlib.import_module(_mod), _fn)
+        _render(_scan_store().get("payload") or {}) if _needs_payload else _render()
+    except Exception as _lab_exc:
+        st.error(_xl("تبويب المعمل: ", "Lab tab: ") + f"{_tk}: {_lab_exc}")
+    st.stop()
 if PAGE == 4:   # perf
-    # one registry for the lab tabs (key, module, render function, takes the scan payload): a new tab = one line here
-    _STATS_TABS = [("Validation Lab", "modules.validation_lab", "render_validation_lab", False), ("Calibration", "modules.calibration_lab", "render_calibration_lab", False),
-                   ("Class rotation", "modules.rotation_scan", "render_rotation_scan", True), ("Evidence summary", "modules.decision_desk", "render_decision_desk", True)]
-    _stab = st.segmented_control(" ", ["Lab evidence"] + [x[0] for x in _STATS_TABS] + ["My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
-    for _tk, _mod, _fn, _needs_payload in _STATS_TABS:
-        if _stab == _tk:
-            try:
-                import importlib
-                _render = getattr(importlib.import_module(_mod), _fn)
-                _render(_scan_store().get("payload") or {}) if _needs_payload else _render()
-            except Exception as _lab_exc:
-                st.error(_xl("تبويب المعمل: ", "Lab tab: ") + f"{_tk}: {_lab_exc}")
-            st.stop()
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))

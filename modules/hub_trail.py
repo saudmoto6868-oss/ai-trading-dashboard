@@ -119,8 +119,8 @@ def parse_jsonl(text: str) -> list:
 
 
 def render(st, L=lambda s: s) -> None:
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    from modules import hub_ui
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     up = st.file_uploader(L("Signal log (.signal_log.jsonl from the GitHub Actions artifact)"), type=["jsonl", "txt"], key="ht_up")
     if up is not None:
         recs = parse_jsonl(up.getvalue().decode("utf-8", "replace"))
@@ -134,11 +134,12 @@ def render(st, L=lambda s: s) -> None:
         return
     res = analyse(recs)
     s = res["summary"]
-    c = st.columns(4)
-    c[0].metric(L("Signals"), s["signals"])
-    c[1].metric(L("Unproven rule"), s["unproven"])
-    c[2].metric(L("Closed (trusted)"), s["closed_trusted"])
-    c[3].metric(L("Live net R / trade"), "n/a" if s["live_net_avg_r"] is None else s["live_net_avg_r"])
+    n = max(1, s["signals"])
+    hub_ui.show(st, hub_ui.cards([
+        ("S", L("Signals"), s["signals"], L(f"{s['open']} still open"), "", None),
+        ("?", L("Unproven rule"), s["unproven"], L("no promoted rule behind them"), "warn" if s["unproven"] else "up", 100 * s["unproven"] / n),
+        ("C", L("Closed (trusted)"), s["closed_trusted"], L(f"need {MIN_N} for evidence"), "up" if s["enough"] else "", min(100, 100 * s["closed_trusted"] / MIN_N)),
+        ("R", L("Live net R / trade"), "n/a" if s["live_net_avg_r"] is None else s["live_net_avg_r"], L("after 0.10R cost"), "", None)]))
     (st.success if s["enough"] else st.warning)(L(s["verdict"]))
     if s["flagged"]:
         st.error(L(f"{s['flagged']} record(s) have an untrustworthy outcome time and are excluded from the R series."))

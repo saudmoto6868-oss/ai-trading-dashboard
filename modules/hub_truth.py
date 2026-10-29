@@ -53,14 +53,19 @@ def benjamini_hochberg(pvals: list, q: float = 0.05) -> list:
     return keep
 
 
-def judge(rows: list, min_n: int = hub_core.MIN_N) -> dict:
-    """rows = strategy_lab.json 'rows'. Returns the court's file: counts, thresholds, per-row verdicts (testable rows only)."""
+OTHER_TABS = ("plateau", "regime", "decay", "consensus")   # tabs whose published n_trials add to the honest N (the trail tests nothing)
+
+
+def judge(rows: list, min_n: int = hub_core.MIN_N, extra_trials: int = 0) -> dict:
+    """rows = strategy_lab.json 'rows'. extra_trials = hypotheses the OTHER hub tabs looked at (hub_core.total_trials): they raise the bar too.
+    Returns the court's file: counts, thresholds, per-row verdicts (testable rows only)."""
     testable = [r for r in rows if r.get("t") is not None and (r.get("n") or 0) > 0]
     n_trials = len(testable)
     pvals = [_p_two_sided(r["t"]) for r in testable]
     bh = benjamini_hochberg(pvals) if testable else []
-    bonf = bonferroni_t(n_trials)
-    exp_max = expected_max_null_t(n_trials)
+    n_all = n_trials + max(0, int(extra_trials))
+    bonf = bonferroni_t(n_all)
+    exp_max = expected_max_null_t(n_all)
     verdicts = []
     for r, p, keep in zip(testable, pvals, bh):
         net = r.get("net", (r.get("avgR") or 0.0) - COST_R)
@@ -71,13 +76,13 @@ def judge(rows: list, min_n: int = hub_core.MIN_N) -> dict:
             "key": r.get("key"), "school": r.get("school"), "tf": r.get("tf"), "side": r.get("side"),
             "n": r.get("n"), "avgR": r.get("avgR"), "net": round(net, 3), "t": r.get("t"), "p": round(p, 5),
             "bh": keep, "beats_bonferroni": survives_luck, "promote": ok and survives_luck,
-            "why_not": why + ([] if survives_luck else [f"|t| < Bonferroni {bonf:.2f} for N={n_trials}"]),
+            "why_not": why + ([] if survives_luck else [f"|t| < Bonferroni {bonf:.2f} for N={n_all}"]),
         })
     best = max(testable, key=lambda r: abs(r["t"]), default=None)
     positives = [v for v in verdicts if v["t"] > 0]
     best_pos = max(positives, key=lambda v: v["t"], default=None)
     return {
-        "n_rows": len(rows), "n_trials": n_trials, "n_untestable": len(rows) - n_trials,
+        "n_rows": len(rows), "n_trials": n_trials, "n_total": n_all, "n_untestable": len(rows) - n_trials,
         "bonferroni_t": round(bonf, 2), "expected_max_null_t": round(exp_max, 2),
         "best_abs_t": None if best is None else best["t"],
         "best_positive": best_pos,
@@ -102,26 +107,31 @@ def run(lab_path: Path | None = None, root: Path | None = None) -> dict | None:
         data = json.loads((lab_path or LAB_FILE).read_text())
     except (FileNotFoundError, ValueError, OSError):
         return None
-    res = judge(data.get("rows", []))
+    res = judge(data.get("rows", []), extra_trials=hub_core.total_trials(list(OTHER_TABS), root))
     keep = [v for v in res["verdicts"] if v["promote"] or (v["bh"] and v["t"] > 0)][:50]
     hub_core.publish(SPEC.id, keep, res["n_trials"],
-                     extra={k: res[k] for k in ("bonferroni_t", "expected_max_null_t", "n_promotable", "luck_verdict")}, root=root)
+                     extra={k: res[k] for k in ("bonferroni_t", "expected_max_null_t", "n_promotable", "luck_verdict", "n_total")}, root=root)
     return res
 
 
 def render(st, L=lambda s: s) -> None:
     """Streamlit page body. st is passed in so this module imports without streamlit."""
+    from modules import hub_ui
     res = run()
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     if res is None:
         st.info(L("No lab file yet (data/strategy_lab.json). Run the lab first."))
         return
-    c = st.columns(4)
-    c[0].metric(L("Trials counted (N)"), res["n_trials"])
-    c[1].metric(L("t needed after N looks"), res["bonferroni_t"])
-    c[2].metric(L("t pure luck reaches"), res["expected_max_null_t"])
-    c[3].metric(L("Rules that pass every gate"), res["n_promotable"])
+    others = res["n_total"] - res["n_trials"]
+    best = res["best_positive"]
+    hub_ui.show(st, hub_ui.cards([
+        ("N", L("Trials counted"), res["n_total"], L(f"{res['n_trials']} lab + {others} from other tabs"), "", None),
+        ("t", L("t needed after N looks"), res["bonferroni_t"], L("Bonferroni, two-sided 5%"), "", None),
+        ("~", L("t pure luck reaches"), res["expected_max_null_t"], L("expected best of N noise rules"), "", None),
+        ("OK", L("Rules passing every gate"), res["n_promotable"], L("n, t, IS+OOS, costs, Bonferroni"), "up" if res["n_promotable"] else "warn", None)]) +
+        hub_ui.ruler([(L("luck"), res["expected_max_null_t"], "#8B8D98"), (L("hurdle"), hub_core.MIN_T, "#F0B90B"),
+                      (L("Bonferroni"), res["bonferroni_t"], SPEC.accent), (L("best rule"), None if best is None else best["t"], "#0ECB81" if best and best["promote"] else "#F6465D")],
+                     lo=0, hi=max(5.0, (best["t"] if best else 0) + 1, res["bonferroni_t"] + 1), title=L("Where the best rule sits against luck and the hurdles")))
     (st.success if res["n_promotable"] else st.warning)(L(res["luck_verdict"]))
     st.caption(L(f"{res['n_untestable']} lab rows have no t-stat and are not counted as evidence. Costs: {COST_R}R per trade (planning estimate, not measured)."))
     rows = sorted(res["verdicts"], key=lambda v: -v["t"])[:25]

@@ -110,18 +110,20 @@ def run(lab_path: Path | None = None, root=None, publish: bool = True) -> dict |
 
 
 def render(st, L=lambda s: s) -> None:
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    from modules import hub_ui
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     res = run()
     if res is None:
         st.info(L("No lab file yet (data/strategy_lab.json). Run the lab first."))
         return
     pairs = res["pairs"]
-    c = st.columns(4)
-    c[0].metric(L("Pairs tested"), len(pairs))
-    c[1].metric(L("Redundant"), res["counts"]["REDUNDANT"])
-    c[2].metric(L("Opposed"), res["counts"]["OPPOSED"])
-    c[3].metric(L("Independent"), res["counts"]["INDEPENDENT"])
+    k = res["counts"]
+    hub_ui.show(st, hub_ui.cards([
+        ("P", L("Pairs tested"), len(pairs), L("Bonferroni over all pairs"), "", None),
+        ("=", L("Redundant"), k["REDUNDANT"], L("same idea counted twice"), "warn" if k["REDUNDANT"] else "", 100 * k["REDUNDANT"] / max(1, len(pairs))),
+        ("x", L("Opposed"), k["OPPOSED"], L("point opposite ways"), "", 100 * k["OPPOSED"] / max(1, len(pairs))),
+        ("~", L("Independent"), k["INDEPENDENT"], L("real separate information"), "up", 100 * k["INDEPENDENT"] / max(1, len(pairs)))]) +
+        hub_ui.graph([(p["a"], p["b"], p["rho"], p["class"]) for p in pairs], title=L("Detector map: who agrees, who fights")))
     st.dataframe([{k: p[k] for k in ("a", "b", "together", "opposite", "rho", "z", "class")} for p in sorted(pairs, key=lambda p: -abs(p["rho"]))],
                  hide_index=True, use_container_width=True)
     st.markdown("**" + L("How many votes is your consensus really worth?") + "**")

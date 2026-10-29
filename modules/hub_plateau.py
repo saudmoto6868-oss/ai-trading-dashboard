@@ -235,8 +235,8 @@ def _load_close(st, sym: str, tf: str, bars: int = 2500) -> np.ndarray:
 
 def render(st, L=lambda s: s) -> None:
     import pandas as pd
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    from modules import hub_ui
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     c = st.columns(3)
     sym = c[0].selectbox(L("Symbol"), ["BTC-USDT", "ETH-USDT", "SOL-USDT", "HL:xyz:GOLD", "HL:xyz:SP500", "HL:xyz:CL"], key="hp_sym")
     tf = c[1].selectbox(L("Timeframe"), ["1h", "1d"], key="hp_tf")
@@ -259,11 +259,12 @@ def render(st, L=lambda s: s) -> None:
     res = evaluate(close, key=f"{sym} {tf}")
     wf = res["wf"]
     (st.success if res["promote"] else st.warning)(L("Passes every gate" if res["promote"] else "Not promotable: ") + "; ".join(res["why_not"][:3]))
-    m = st.columns(4)
-    m[0].metric(L("Plateau choice (fast, slow)"), str(res["plateau"]))
-    m[1].metric(L("Raw peak (fast, slow)"), str(res["peak"]), delta=L("spike") if res["spike"] else None, delta_color="inverse")
-    m[2].metric(L("Neighbour stability"), "n/a" if res["stability"] is None else f"{res['stability']:.0%}")
-    m[3].metric(L("Walk-forward efficiency"), "n/a" if not wf or wf["wfe"] != wf["wfe"] else f"{wf['wfe']:.2f}")
+    wfe = None if not wf or wf["wfe"] != wf["wfe"] else wf["wfe"]
+    hub_ui.show(st, hub_ui.cards([
+        ("=", L("Plateau choice (fast, slow)"), str(res["plateau"]), L("from the smoothed surface"), "", None),
+        ("^", L("Raw peak (fast, slow)"), str(res["peak"]), L("a lone spike: not trusted") if res["spike"] else L("not a lone spike"), "warn" if res["spike"] else "", None),
+        ("#", L("Neighbour stability"), "n/a" if res["stability"] is None else f"{res['stability']:.0%}", L("neighbours with the same sign"), "", None if res["stability"] is None else res["stability"] * 100),
+        ("%", L("Walk-forward efficiency"), "n/a" if wfe is None else f"{wfe:.2f}", L(f"OOS / IS Sharpe, need >= {WFE_MIN}"), "up" if wfe is not None and wfe >= WFE_MIN else "warn", None)]))
     import altair as alt
     rows = [{"fast": str(f), "slow": str(s), "sharpe": None if np.isnan(res["S"][i, j]) else float(res["S"][i, j])}
             for i, f in enumerate(FASTS) for j, s in enumerate(SLOWS)]

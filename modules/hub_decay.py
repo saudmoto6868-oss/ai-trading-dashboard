@@ -127,8 +127,8 @@ def run(root=None, mu0: float = 0.0, registry: dict | None = None, publish: bool
 
 def render(st, L=lambda s: s) -> None:
     import pandas as pd
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    from modules import hub_ui
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     mu0 = st.number_input(L("Baseline net R per trade we believe in (0 = break-even after costs)"), value=0.0, step=0.05, key="hd_mu0")
     res = run(mu0=mu0)
     s = res["status"]
@@ -136,10 +136,12 @@ def render(st, L=lambda s: s) -> None:
         st.info(L("The Decision Trail has not published a live R series yet. Open that tab with a signal log first."))
     box = {"OK": st.success, "WATCH": st.warning, "SHRINK": st.warning, "RETIRE": st.error, "TOO FEW": st.info}[s["state"]]
     box(f"{s['state']} - {L(s['why'])}" + ("" if s["size"] is None else f"  |  size x{s['size']}"))
-    c = st.columns(3)
-    c[0].metric(L("Live trades"), s["n"])
-    c[1].metric(L("CUSUM (alarm above 4)"), "n/a" if s["cusum"] is None else s["cusum"])
-    c[2].metric(L("Rolling t (last 30)"), "n/a" if s["rolling_t"] is None else round(s["rolling_t"], 2))
+    rt = s["rolling_t"]
+    hub_ui.show(st, hub_ui.cards([
+        ("n", L("Live trades"), s["n"], L(f"need {MIN_LIVE} for a verdict"), "", min(100, 100 * s["n"] / MIN_LIVE)),
+        ("Σ", L("CUSUM (alarm above 4)"), "n/a" if s["cusum"] is None else s["cusum"], L("how far below the baseline"), "down" if s["cusum"] and s["cusum"] > hub_core.DECAY_H else "",
+         None if s["cusum"] is None else min(100, 100 * s["cusum"] / (2 * hub_core.DECAY_H))),
+        ("t", L("Rolling t (last 30)"), "n/a" if rt is None else ("-inf" if rt == float("-inf") else "inf" if rt == float("inf") else round(rt, 2)), L("below -2 with an alarm = retire"), "", None)]))
     if s.get("cusum_path"):
         st.line_chart(pd.DataFrame({"CUSUM": s["cusum_path"]}))
     st.markdown("**" + L("Champion / challenger registry") + "**")
@@ -164,7 +166,7 @@ def render(st, L=lambda s: s) -> None:
             d = None
         else:
             truth = hub_core.read("truth") or {}
-            d = challenge(reg, cand, int(truth.get("n_trials", 0)))
+            d = challenge(reg, cand, int(truth.get("n_total", truth.get("n_trials", 0))))
         run(registry=reg)
         if d is not None:
             (st.success if d["promoted"] else st.error)(L("Promoted" if d["promoted"] else "Rejected: ") + "; ".join(d["reasons"]) + f"  (N={d['n_challenges']}, need t>={d['need_t']})")

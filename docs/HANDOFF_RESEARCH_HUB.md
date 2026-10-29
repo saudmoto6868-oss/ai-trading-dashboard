@@ -2,8 +2,8 @@
 
 بالصيغة اللي طلبها أمر المالك: فرع + SHA + أسماء الاختبارات + "غير مختبر".
 
-- **الفرع:** `feat/research-hub-tabs` (لازم يتسمّى `team/research-hub-2026-10-29` عند الدفع). مبني على `origin/main` = `af8c172`، مدموج معاه بلا تعارض.
-- **آخر commit كود:** `f721bd7` (وفوقه commit هذا الملف فقط).
+- **الفرع:** `feat/research-hub-tabs` (لازم يتسمّى `team/research-hub-2026-10-29` عند الدفع). مبني على `origin/main` = `3b7b751` (آخر دمج PR #130)، مدموج معاه بلا تعارض.
+- **آخر commit كود:** شوف رأس الفرع في الـ PR (فوقه commits دمج `main` وبلوك الرد في `MEETING_ROOM.md` وهذا الملف فقط).
 - **النوع:** صفحة جديدة "Research Hub" (index 9) في `main.py` + `modules/hub_*.py` (8 ملفات) + `tests/test_hub_*.py` (8) + `docs/RESEARCH_HUB.md` و`RESEARCH_HUB_REVIEW.md`. **لا يلمس** `workspace_app.html` ولا `data/strategy_lab.json` ولا بلوك Stats.
 - **الحالة:** مسودة. **ما اتعملش merge، ولا يتعمل من غير سطر `[أمر المالك]` منفصل في `MEETING_ROOM.md`** (قاعدة المشروع 3 في `AGENTS.md`). كلام مستخدم الشات أنه "يخلّي المراجع يدمج" ما يغني عن سطر المالك.
 

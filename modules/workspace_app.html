@@ -1055,6 +1055,13 @@ async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/
 syncClock(); setInterval(syncClock, 300000);
 function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
 const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();
+const CandleCache = {   // last 300 candles per symbol + timeframe in this browser: a new tab / refresh paints at once, the live request then replaces them (max 16 entries, quota errors ignored)
+  key(sym, tf){ return LS+"_cc|"+sym+"|"+tf; },
+  get(sym, tf){ try { const o = JSON.parse(localStorage.getItem(this.key(sym, tf)) || "null"); if (!o || !o.r || o.r.length < 20 || Date.now() - o.t > 7*86400000) return null; return o.r.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], v:a[5]})); } catch(e){ return null; } },
+  put(sym, tf, rows){ try { if (!rows || rows.length < 20) return; const k = this.key(sym, tf), idx = JSON.parse(localStorage.getItem(LS+"_cci") || "[]").filter(x => x !== k); idx.push(k);
+      while (idx.length > 16){ localStorage.removeItem(idx.shift()); }
+      localStorage.setItem(k, JSON.stringify({t:Date.now(), r:rows.slice(-300).map(x => [x.t, x.o, x.h, x.l, x.c, x.v || 0])})); localStorage.setItem(LS+"_cci", JSON.stringify(idx)); } catch(e){} }
+};
 async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest for any chart timeframe (native, UTC variant, or aggregated); `want` = how many bars the first load should aim for
   const ag = TF_AGG[tf];
   if (!ag){   // native timeframe: task 55, the first load also walks back in history until `want` candles (same loop as the aggregated ones)
@@ -3987,6 +3994,7 @@ class Panel {
     const loop = async first => {
       if (tok !== this.tok) return;
       if (first && !fails && !this.chart.data.length) this.msg.textContent = T("loading");
+      if (first && !this.chart.data.length){ const cc = CandleCache.get(sym, tf); if (cc){ this.chart.setData(cc, true); this.chart.draw(); this.msg.textContent = ""; this._ccShown = true; } }   // open instantly with the last candles seen in this browser (marked stale until the real answer arrives)
       try {
         const rows = await Promise.race([candlesTf(sym, tf, first ? "quick" : false), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
         if (tok !== this.tok) return;
@@ -3995,7 +4003,7 @@ class Panel {
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         fails = 0;
         if (first){
-          this.chart.setData(rows, true); fillHist();
+          this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows);
           const v = this._refreshView;
           if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;

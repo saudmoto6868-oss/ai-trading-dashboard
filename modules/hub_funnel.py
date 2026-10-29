@@ -123,7 +123,7 @@ def run(lab_path: Path | None = None, root=None, publish: bool = True) -> dict |
 
 def render(st, L=lambda s: s) -> None:
     from modules import hub_ui
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     res = run()
     if res is None:
         st.info(L("No lab file yet (data/strategy_lab.json). Run the lab first."))
@@ -131,9 +131,9 @@ def render(st, L=lambda s: s) -> None:
     s = res["stages"]
     hub_ui.show(st, hub_ui.cards([
         ("T", L("Rules tested"), res["tested"], L("every lab row"), "", None),
-        ("x", L("Kill rate"), f"{res['kill_rate']}%", L(f"biggest cut: {res['biggest_kill']}") if res["biggest_kill"] else "", "warn" if res["survived"] == 0 else "", res["kill_rate"]),
-        ("OK", L("Survivors"), res["survived"], L(f"past t >= {res['bonferroni_t']} (Bonferroni)"), "up" if res["survived"] else "warn", None)]) +
-        hub_ui.funnel(s, SPEC.accent, L("Survivors after each test, in order")))
+        ("x", L("Kill rate"), f"{res['kill_rate']}%", L("biggest cut: {b}").format(b=res["biggest_kill"]) if res["biggest_kill"] else "", "warn" if res["survived"] == 0 else "", res["kill_rate"]),
+        ("OK", L("Survivors"), res["survived"], L("past t >= {t} (Bonferroni)").format(t=res["bonferroni_t"]), "up" if res["survived"] else "warn", None)]) +
+        hub_ui.funnel([{**x, "name": L(x["name"])} for x in s], SPEC.accent, L("Survivors after each test, in order")))
     if not res["used_truth_bar"]:
         st.caption(L("The Bonferroni bar here uses the lab's own count; open the Truth Court once to use the count of all tabs."))
     if res["untested_schools"]:
@@ -141,10 +141,11 @@ def render(st, L=lambda s: s) -> None:
                  L(". The lab file is older than the t-stat change; re-run the Strategy lab so these schools can be tested."))
     both_n = res["stages"][STAGE_NAMES.index("Both halves")]["n"]
     t3_n = res["stages"][STAGE_NAMES.index("t >= 3")]["n"]
-    (st.success if res["survived"] else st.warning)(L(
-        f"{res['survived']} of {res['tested']} rules survive every stage." if res["survived"] else
-        f"No rule survives every stage. {both_n} rules have positive net R in both halves, {t3_n} of them reach t >= 3."
-        + (" None clears the bar for all trials." if t3_n else " Those few are too weak to tell from luck.")))
+    if res["survived"]:
+        st.success(L("{k} of {n} rules survive every stage.").format(k=res["survived"], n=res["tested"]))
+    else:
+        st.warning(L("No rule survives every stage. {b} rules have positive net R in both halves, {t} of them reach t >= 3.").format(b=both_n, t=t3_n)
+                   + L(" None clears the bar for all trials." if t3_n else " Those few are too weak to tell from luck."))
     if res["closest"]:
         st.markdown("**" + L("Closest candidates (positive net R in both halves)") + "**")
         st.dataframe(res["closest"], hide_index=True, use_container_width=True)

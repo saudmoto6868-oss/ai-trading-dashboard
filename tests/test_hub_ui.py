@@ -60,4 +60,7 @@ lab = tmp / "lab.json"; lab.write_text(json.dumps({"rows": rows}))
 hub_core.publish("plateau", [], 40, root=tmp); hub_core.publish("regime", [], 12, root=tmp)
 out = hub_truth.run(lab_path=lab, root=tmp)
 assert out["n_total"] == 100 + 40 + 12 + 1 + 25 and hub_core.read("truth", tmp)["n_total"] == out["n_total"]   # decay (1) and consensus (25) count too
+# every SVG keeps its own left-to-right geometry inside an Arabic (RTL) page, or text-anchor flips and labels overprint the bars
+for svg in (hub_ui.ruler([("a", 1.0, "#fff")], hi=2), hub_ui.graph([("a", "b", 0.5, "REDUNDANT")]), hub_ui.flow(), hub_ui.funnel([{"name": "A", "n": 3, "killed": 0}])):
+    assert svg.count("<svg") == svg.count("direction:ltr") >= 1, svg[:80]
 print("test_hub_ui: all passed")

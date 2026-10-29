@@ -255,12 +255,12 @@ def _load_df(st, sym: str, tf: str, bars: int = 2500):
 def render(st, L=lambda s: s) -> None:
     import pandas as pd
     from modules import hub_ui
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     c = st.columns(3)
     sym = c[0].selectbox(L("Symbol"), ["BTC-USDT", "ETH-USDT", "SOL-USDT", "HL:xyz:GOLD", "HL:xyz:SP500", "HL:xyz:CL"], key="hp_sym")
     tf = c[1].selectbox(L("Timeframe"), ["1h", "1d"], key="hp_tf")
     run = c[2].button(L("Run walk-forward"), key="hp_run")
-    st.caption(L(f"Probe rule: moving-average cross, {COST * 1e4:.0f} bps per side, no look-ahead. It tests the METHOD, not a claimed edge."))
+    st.caption(L("Probe rule: moving-average cross, {b} bps per side, no look-ahead. It tests the METHOD, not a claimed edge.").format(b=f"{COST * 1e4:.0f}"))
     if not run:
         snap = hub_core.read(SPEC.id)
         if snap and snap["findings"]:
@@ -272,7 +272,7 @@ def render(st, L=lambda s: s) -> None:
     try:
         df = _load_df(st, sym, tf)
         close = df["close"].astype(float).to_numpy()
-        st.caption(L(f"{len(close)} candles. Walk-forward needs at least {MIN_FOLD_BARS * 6}."))
+        st.caption(L("{n} candles. Walk-forward needs at least {m}.").format(n=len(close), m=MIN_FOLD_BARS * 6))
     except Exception as e:
         st.error(L("No candles: ") + str(e))
         return
@@ -286,7 +286,7 @@ def render(st, L=lambda s: s) -> None:
         ("=", L("Plateau choice (fast, slow)"), str(res["plateau"]), L("from the smoothed surface"), "", None),
         ("^", L("Raw peak (fast, slow)"), str(res["peak"]), L("a lone spike: not trusted") if res["spike"] else L("not a lone spike"), "warn" if res["spike"] else "", None),
         ("#", L("Neighbour stability"), "n/a" if res["stability"] is None else f"{res['stability']:.0%}", L("neighbours with the same sign"), "", None if res["stability"] is None else res["stability"] * 100),
-        ("%", L("Walk-forward efficiency"), "n/a" if wfe is None else f"{wfe:.2f}", L(f"OOS / IS Sharpe, need >= {WFE_MIN}"), "up" if wfe is not None and wfe >= WFE_MIN else "warn", None)]))
+        ("%", L("Walk-forward efficiency"), "n/a" if wfe is None else f"{wfe:.2f}", L("OOS / IS Sharpe, need >= {w}").format(w=WFE_MIN), "up" if wfe is not None and wfe >= WFE_MIN else "warn", None)]))
     import altair as alt
     rows = [{"fast": str(f), "slow": str(s), "sharpe": None if np.isnan(res["S"][i, j]) else float(res["S"][i, j])}
             for i, f in enumerate(FASTS) for j, s in enumerate(SLOWS)]

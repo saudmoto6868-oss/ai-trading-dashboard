@@ -37,8 +37,8 @@
 
 ## 5) اللي ناقص، بالأولوية
 1. **سجل إشارات حقيقي** (التابين mock). السبب المرجح: الـ cron بيفلتر 4 نجوم. قرار المالك (`TG_MIN_STARS`).
-2. **Kill Funnel** (فكرة Veles الأقوى): كام قاعدة جُربت → كام عدّت التكلفة → OOS → Bonferroni → paper. البيانات موجودة في Truth.
-3. **جدول break-even win rate لكل R:R** + order ticket في Trail: حسبة صادقة بسيطة.
+2. ~~Kill Funnel~~ **اتبنى** (تاب 7). ~~جدول break-even win rate~~ **اتبنى** جواه. لسه order ticket في Trail.
+2b. **إعادة تشغيل Strategy lab** (بإذن المالك): 611 صف من المدارس المنفردة (SMC/Elliott/Levels...) من غير t-stat، فمفيش حد حكم عليهم.
 4. **تقطيع النتايج بنظام Regime** (Plateau/Truth/Trail) وده اللي يخلي Regime Radar مقروء.
 5. رسم زمني للأنظمة + فلتر Thin.
 6. روابط من Command Center لصفحات Veles/Monte Carlo/Micro.

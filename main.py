@@ -3387,7 +3387,7 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
         _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
                      "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
-                     "Consensus Map": ("hub_consensus", "render")}
+                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
         _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
         _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
         getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run

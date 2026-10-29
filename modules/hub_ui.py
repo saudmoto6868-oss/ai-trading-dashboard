@@ -22,6 +22,7 @@ TABS = (
     ("trail", "Decision Trail", "⟡", "#9B6BFF", ("truth",)),
     ("decay", "Decay Watch", "↘", "#E5484D", ("trail", "truth")),
     ("consensus", "Consensus Map", "✦", "#18B6C9", ("truth",)),
+    ("funnel", "Kill Funnel", "▼", "#F76808", ("truth",)),
 )
 BY_ID = {t[0]: t for t in TABS}
 UP, DOWN, WARN = ui_kit.UP, ui_kit.DOWN, ui_kit.WARN
@@ -109,7 +110,7 @@ def graph(edges: list, size: int = 420, title: str = "") -> str:
 
 def flow(snaps: dict | None = None) -> str:
     """Data-flow diagram: who reads whose published snapshot. A tab nobody reads yet is drawn dashed (an honest gap, not hidden)."""
-    boxes = {"truth": (110, 40), "plateau": (310, 40), "trail": (110, 130), "decay": (310, 130), "consensus": (510, 40), "regime": (510, 130)}
+    boxes = {"truth": (110, 40), "plateau": (310, 40), "trail": (110, 130), "decay": (310, 130), "consensus": (510, 40), "regime": (510, 130), "funnel": (110, 222)}
     bw, bh = 150, 44
     readers = {c for t in TABS for c in t[4]}
     out = ["<defs><marker id='ar' viewBox='0 0 8 8' refX='7' refY='4' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0 L8 4 L0 8 z' fill='var(--uk-dim)'/></marker></defs>"]
@@ -123,7 +124,9 @@ def flow(snaps: dict | None = None) -> str:
                     x1 = x2 = dx
                 if dy == sy:
                     y1 = y2 = dy
-                if src == "truth" and t[0] in ("decay",):   # long diagonal: keep it light so the picture stays readable
+                if src == "truth" and t[0] == "funnel":
+                    out.append(f"<path d='M{sx - bw / 2} {sy} C{sx - 105} {sy + 40} {sx - 105} {dy - 30} {dx - bw / 2} {dy}' fill='none' stroke='var(--uk-line)' stroke-width='1.2' marker-end='url(#ar)'/>")
+                elif src == "truth" and t[0] in ("decay",):   # long diagonal: keep it light so the picture stays readable
                     out.append(f"<line x1='{sx + 40}' y1='{sy + bh / 2}' x2='{dx - 40}' y2='{dy - bh / 2}' stroke='var(--uk-line)' stroke-width='1.2' marker-end='url(#ar)'/>")
                 elif src == "truth" and t[0] == "consensus":
                     out.append(f"<path d='M{sx} {sy - bh / 2} Q{(sx + dx) / 2} {sy - 50} {dx} {dy - bh / 2}' fill='none' stroke='var(--uk-line)' stroke-width='1.2' marker-end='url(#ar)'/>")
@@ -136,7 +139,26 @@ def flow(snaps: dict | None = None) -> str:
                    f"<text x='{x - bw / 2 + 12}' y='{y + 5}' font-size='15' fill='{acc}'>{html.escape(glyph)}</text>"
                    f"<text x='{x - bw / 2 + 32}' y='{y + 4}' font-size='11' fill='var(--uk-text)'>{html.escape(title)}</text>")
     out.append("<text x='510' y='172' text-anchor='middle' font-size='9' fill='var(--uk-dim)'>nobody reads the regime yet</text>")
-    return ui_kit.panel("How the tabs help each other (arrows = reads the published snapshot)", f"<svg viewBox='0 0 620 184' width='100%'>{''.join(out)}</svg>")
+    return ui_kit.panel("How the tabs help each other (arrows = reads the published snapshot)", f"<svg viewBox='0 0 620 254' width='100%'>{''.join(out)}</svg>")
+
+
+def funnel(stages: list, accent: str = "#F76808", title: str = "") -> str:
+    """Horizontal funnel: stages = [{name, n, killed}]. Bar width follows the count; the cut from the stage above is written beside it."""
+    if not stages:
+        return ""
+    top = max(s["n"] for s in stages) or 1
+    lw, bw, rh = 130, 330, 28
+    out = []
+    for i, s in enumerate(stages):
+        y = 8 + i * rh
+        w = max(2.0, bw * s["n"] / top)
+        cut = f"  -{s['killed']}" if s.get("killed") else ""
+        out.append(f"<text x='{lw - 8}' y='{y + 15}' text-anchor='end' font-size='11' fill='var(--uk-dim)'>{html.escape(str(s['name']))}</text>"
+                   f"<rect x='{lw}' y='{y}' width='{w:.1f}' height='20' rx='5' fill='{html.escape(accent)}' opacity='{0.95 - 0.07 * i:.2f}'><title>{html.escape(str(s['name']))}: {s['n']}</title></rect>"
+                   f"<text x='{lw + w + 8:.1f}' y='{y + 15}' font-size='11' fill='var(--uk-text)'>{s['n']}<tspan fill='{DOWN}'>{html.escape(cut)}</tspan></text>")
+    h = 16 + len(stages) * rh
+    svg = f"<svg viewBox='0 0 {lw + bw + 90} {h}' width='100%' style='max-width:{lw + bw + 90}px'>{''.join(out)}</svg>"
+    return ui_kit.panel(title, svg) if title else svg
 
 
 def overview_cards(root=None) -> list:
@@ -184,6 +206,11 @@ def overview_cards(root=None) -> list:
         cards.append((BY_ID["consensus"][2], "Consensus Map", f"{c['REDUNDANT']} / {c['OPPOSED']} / {c['INDEPENDENT']}", "redundant / opposed / independent pairs", "warn" if c["REDUNDANT"] else "", None))
     else:
         cards.append((BY_ID["consensus"][2], "Consensus Map", "—", "not run yet", "", None))
+    s = r("funnel")
+    if s and s.get("tested"):
+        cards.append((BY_ID["funnel"][2], "Kill Funnel", f"{s['kill_rate']}% killed", f"{s['survived']} of {s['tested']} survive · biggest cut: {s.get('biggest_kill')}", "warn" if not s["survived"] else "up", None))
+    else:
+        cards.append((BY_ID["funnel"][2], "Kill Funnel", "—", "not run yet", "", None))
     return cards
 
 

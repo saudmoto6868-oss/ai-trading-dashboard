@@ -42,3 +42,5 @@
 | 03:00–03:06 UTC | ChatGPT | مراجعة Order Flow وإصلاح حفظ الهيت ماب | `modules/workspace_app.html`, OKX/Bybit/Binance docs | `modules/workspace_app.html`, PR #63, سجلات المشروع | — | commits على `fix/orderflow-history-coverage-review` | نتائج اختبار معزول | syntax check للـ JS نجح؛ اختبارات `hmSave` و`hmInit` التخيلية نجحت؛ لا اختبار متصفح حي. اكتشاف cache REST لمدة 10s فوق polling 1.5s؛ لم يتغير مسار Order Flow الحالي. |
 
 | 03:07–03:08 UTC | ChatGPT | تحديث توافق WebSocket قبل تقاعد 8443 | OKX official changelog | `modules/workspace_app.html` + docs + PR #63 | — | commit على فرع المراجعة | توثيق رسمي | الافتراضي أصبح WSS على 443؛ لم يُختبر اتصال حي ولم يتم النشر. |
+
+| 2026-10-29 | Claude (جلسة Mohamed) | Research Hub: التاب 1 Truth Court + hub_core + اختبارات + صفحة في main.py | docs/PRIORITIES.md، MEETING_AI_TRENDS_TOOLS.md، STANDALONE_PAGES_SPEC.md، data/strategy_lab.json | modules/hub_core.py، modules/hub_truth.py، tests/test_hub_core.py، docs/RESEARCH_HUB.md، main.py | — | فرع محلي feat/research-hub-tabs (لم يُدفع) | بحث ويب (تقرير فرعي) | اختبار على lab الحقيقي + AppTest؛ 0 قاعدة تعدّي كل البوابات |

@@ -3634,7 +3634,7 @@ class Panel {
         this.indBtn = this.buildIndMenu();
     const lockBtn = el("button"); lockBtn.title = T("lockTip");
     const lockSync = () => { lockBtn.textContent = this.chart.lockR ? "🔒 "+T("manual") : "⇅ "+T("auto"); lockBtn.classList.toggle("on", !!this.chart.lockR); };
-    lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; this.state.lock = null; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; this.state.lock = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
+    lockBtn.onclick = () => { const c_ = this.chart, LK = this.state.locks = this.state.locks || {}; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; delete LK[this.state.sym]; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; LK[this.state.sym] = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
@@ -3646,7 +3646,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = this.state.lock || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { this.state.lock = this.chart.lockR; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = (this.state.locks || {})[this.state.sym] || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { const LK = this.state.locks = this.state.locks || {}; if (this.chart.lockR) LK[this.state.sym] = this.chart.lockR; else delete LK[this.state.sym]; Ws.save(); this.lockSync(); }; this.chart.autoCenter = acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
@@ -3955,6 +3955,7 @@ class Panel {
   resub(){
     if (this.type !== "chart") return;
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
+    { const lk = (this.state.locks || {})[sym] || null; if (lk !== this.chart.lockR){ this.chart.lockR = lk; this.chart.yZoom = 1; this.chart.yShift = 0; } }   // the price-scale lock belongs to its symbol: another symbol starts unlocked (its range is absolute prices)
     this.chart.srData = null;   // S/R levels belong to the symbol: never draw the previous symbol's levels while the new one loads
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
@@ -4017,7 +4018,12 @@ class Panel {
           rows.forEach(k => { const b = Math.floor(k.t/(sec*1000))*sec*1000, l = agg[agg.length-1];
             if (l && l.t === b){ l.h = Math.max(l.h,k.h); l.l = Math.min(l.l,k.l); l.c = k.c; l.v += k.v; } else agg.push({t:b,o:k.o,h:k.h,l:k.l,c:k.c,v:k.v}); });
           hist = agg.length > 0; if (hist) this.chart.setData(agg, true);
-        } catch(e){ this.msg.textContent = "No second-level history from OKX here - candles build live from trades (" + (e.message||e) + ")"; }
+        } catch(e){ if (tok !== this.tok) return;
+          const why = "No second-level history here (" + (e.message||e) + ")";
+          // a seconds timeframe the source does not have (Hyperliquid, or an OKX symbol without 1s candles) shows 1m candles instead of a blank chart.
+          // A network blip, rate limit or timeout keeps the timeframe: it only shows the message
+          if (!/^(HL:|Y:)/.test(sym) && !/not available|unsupported|not support|Parameter|51000|51001/i.test(String(e.message||e))){ this.msg.textContent = why; return; }
+          this.state.tf = "1m"; this.chart.tf = "1m"; this.tfSel.value = "1m"; this.resub(); this.msg.textContent = why + " - showing 1m candles"; }
       })();
     } else if (!TF_AGG[tf])
     this.wsUnsubs.push(WSX.sub("business", {channel:chan, instId:sym}, data => {

@@ -35,11 +35,7 @@ def expected_max_null_t(n_trials: int) -> float:
     return (1 - _G) * _Z.inv_cdf(1 - 1 / n_trials) + _G * _Z.inv_cdf(1 - 1 / (n_trials * math.e))
 
 
-def bonferroni_t(n_trials: int, alpha: float = 0.05) -> float:
-    """|t| a single rule needs to stay significant after n_trials looks."""
-    if n_trials < 1:
-        return _Z.inv_cdf(1 - alpha / 2)
-    return _Z.inv_cdf(1 - alpha / (2 * n_trials))
+bonferroni_t = hub_core.bonferroni_t   # one shared implementation (hub_core), kept under this name for the tab and its tests
 
 
 def benjamini_hochberg(pvals: list, q: float = 0.05) -> list:

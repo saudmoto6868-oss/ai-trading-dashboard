@@ -19,7 +19,7 @@
 | 1 | § Truth Court (كهرماني) | كام قاعدة جربنا، وإيه اللي يعدي الحظ؟ | `strategy_lab.json` | N، حد t بعد N مرة، القواعد الناجية | قاعدة تتحسب بس لو عدّت `promote()` + Bonferroni(N) | **شغال** |
 | 2 | ▦ Plateau Lab (أزرق) | المعاملات مستقرة ولا قمة واحدة؟ | truth (N) + شموع | معاملات هضبة مستقرة | يتبنى بس لو: `promote()` + WFE >= 0.5 + 60% من الفولدات رابحة + t >= حد Truth Court لكل الـ N (المسبار حاليًا MA cross، تكلفة 5bps للجهة) | **شغال** |
 | 3 | ◉ Regime Radar (أخضر) | السوق في أنهي نظام الآن؟ + funding/OI | شموع، Hyperliquid/OKX العامة | نظام كل رمز | وصفي فقط: أرقام "الشمعة التالية" داخل كل نظام ما تتحولش لقاعدة إلا بعد Truth Court؛ n<30 يتعلّم "not evidence" | **شغال** (بدون funding/OI لسه) |
-| 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | كل قرار يتسجل قبل النتيجة (لا hindsight) | مخطط |
+| 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | سجل مفيهوش `t_out >= t` ما يتحسبش؛ كل قاعدة "UNPROVEN" لحد ما Truth Court يرقّيها؛ R صافي بعد 0.10R | **شغال (mock فقط)** |
 | 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | challenger يتبنى بس بعد OOS جديد + N كامل | مخطط |
 | 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | وزن مدرسة لا يزيد إلا بعد ما تعدّي البوابة | مخطط |
 
@@ -42,3 +42,6 @@
 
 ## Regime Radar على بيانات حقيقية (2026-10-29، يومي، OKX + Hyperliquid)
 BTC: Chop (8 شموع)، ETH: Trend (44)، SOL: Trend (6)، GOLD: Trend (7)، CL: Trend (13)، SP500: قصير (226 شمعة < 250). متوسط ترابط آخر 60 عائد = 0.26 (مش عالي). في تفصيل BTC ظهر Chop بـ t=2.79 للشمعة التالية: من 36 اختبار (6 أنظمة × 6 رموز) رقم زي ده متوقع بالحظ، وده بالظبط ليه Truth Court بيعدّ الـ N من هذا التاب (`n_trials` = أنظمة × رموز) ومينفعش يتحول لقاعدة. التصنيف: Crash/HiVol/Squeeze/Trend/Chop/Mixed بترتيب أول تطابق، كله بنوافذ سابقة فقط (اختبار "آخر شمعة ما تغيّرش اللي قبلها"). لسه ناقص: funding/OI من Hyperliquid، وحجم Thin.
+
+## Decision Trail (2026-10-29): **mock-tested only**
+ملف `.signal_log.jsonl` مش في الريبو (بيتحفظ في GitHub Actions cache/artifact)، فالتاب اتجرّب على سجل تجريبي مصنوع باليد، **مش على إشارات حقيقية**. التاب بيقبل رفع الملف من الـ artifact، أو بيقرا `SIGNAL_LOG`. أول تشغيل حقيقي = ارفع الـ artifact. التاب مش بيختبر فرضية (`n_trials` = 0) وبينشر سلسلة R الحية مرتبة بوقت الخروج لتاب Decay Watch.

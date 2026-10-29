@@ -20,7 +20,7 @@
 | 2 | ▦ Plateau Lab (أزرق) | المعاملات مستقرة ولا قمة واحدة؟ | truth (N) + شموع | معاملات هضبة مستقرة | يتبنى بس لو: `promote()` + WFE >= 0.5 + 60% من الفولدات رابحة + t >= حد Truth Court لكل الـ N (المسبار حاليًا MA cross، تكلفة 5bps للجهة) | **شغال** |
 | 3 | ◉ Regime Radar (أخضر) | السوق في أنهي نظام الآن؟ + funding/OI | شموع، Hyperliquid/OKX العامة | نظام كل رمز | وصفي فقط: أرقام "الشمعة التالية" داخل كل نظام ما تتحولش لقاعدة إلا بعد Truth Court؛ n<30 يتعلّم "not evidence" | **شغال** (بدون funding/OI لسه) |
 | 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | سجل مفيهوش `t_out >= t` ما يتحسبش؛ كل قاعدة "UNPROVEN" لحد ما Truth Court يرقّيها؛ R صافي بعد 0.10R | **شغال (mock فقط)** |
-| 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | challenger يتبنى بس بعد OOS جديد + N كامل | مخطط |
+| 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | قواعد ثابتة مسبقًا: إنذار CUSUM + rolling t<-2 → RETIRE (حجم ×0)، إنذار لوحده → SHRINK (×0.5)؛ challenger يتبنى بس بعد `promote()` ضد الـ champion + Bonferroni لـ N (Truth + كل تحدي سابق + 1) + 30 يوم بين ترقيتين؛ كل تحدي (حتى الفاشل) يتسجل | **شغال (mock فقط)** |
 | 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | وزن مدرسة لا يزيد إلا بعد ما تعدّي البوابة | مخطط |
 
 الموجودين من قبل (Veles · Monte Carlo · Micro) فضلوا زي ما هم: Plateau وRegime هيتبنوا فوق بيانات الـ lab الحقيقية بدل نسخهم.
@@ -45,3 +45,6 @@ BTC: Chop (8 شموع)، ETH: Trend (44)، SOL: Trend (6)، GOLD: Trend (7)، CL
 
 ## Decision Trail (2026-10-29): **mock-tested only**
 ملف `.signal_log.jsonl` مش في الريبو (بيتحفظ في GitHub Actions cache/artifact)، فالتاب اتجرّب على سجل تجريبي مصنوع باليد، **مش على إشارات حقيقية**. التاب بيقبل رفع الملف من الـ artifact، أو بيقرا `SIGNAL_LOG`. أول تشغيل حقيقي = ارفع الـ artifact. التاب مش بيختبر فرضية (`n_trials` = 0) وبينشر سلسلة R الحية مرتبة بوقت الخروج لتاب Decay Watch.
+
+## Decay Watch (2026-10-29): **mock-tested only**
+بيقرا سلسلة R الحية من Decision Trail، وبما إن مفيش سجل إشارات حقيقي محليًا، اتجرّب على سلسلة R تجريبية (52 صفقة): النتيجة RETIRE (CUSUM 10.6، rolling t -4.08) وتحدي تجريبي اتسجل. الأرقام دي من بيانات مصنوعة. القاعدة بتحكم على الـ CUSUM الحالي (مش إنذار قديم اتصلّح)، وسلسلة بنفس النتيجة كل مرة بتستخدم 1R كمقياس. دالة `bonferroni_t` اتنقلت لـ `hub_core` عشان التابات ما تستوردش بعض.

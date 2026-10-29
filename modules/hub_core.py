@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import time
+from statistics import NormalDist
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -104,3 +105,8 @@ def decay_cusum(xs: list, mu0: float, sigma: float, k: float = DECAY_K, h: float
         if at is None and s > h:
             at = i
     return {"alarm": at is not None, "s": round(s, 3), "at": at, "n": len(xs)}
+
+
+def bonferroni_t(n_trials: int, alpha: float = 0.05) -> float:
+    """|t| one rule needs to stay significant after n_trials looks (two-sided). Shared so tabs need not import each other."""
+    return NormalDist().inv_cdf(1 - alpha / (2 * max(1, n_trials)))

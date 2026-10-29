@@ -3381,7 +3381,11 @@ if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calib
         st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
     st.stop()
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    if _stab == "Monte Carlo":
+        from modules.quant_montecarlo import render as _mc_render
+        _mc_render()
+        st.stop()
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))

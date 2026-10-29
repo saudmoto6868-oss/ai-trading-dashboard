@@ -39,7 +39,7 @@
 1. **سجل إشارات حقيقي** (التابين mock). السبب المرجح: الـ cron بيفلتر 4 نجوم. قرار المالك (`TG_MIN_STARS`).
 2. ~~Kill Funnel~~ **اتبنى** (تاب 7). ~~جدول break-even win rate~~ **اتبنى** جواه. لسه order ticket في Trail.
 2b. **إعادة تشغيل Strategy lab** (بإذن المالك): 611 صف من المدارس المنفردة (SMC/Elliott/Levels...) من غير t-stat، فمفيش حد حكم عليهم.
-4. **تقطيع النتايج بنظام Regime** (Plateau/Truth/Trail) وده اللي يخلي Regime Radar مقروء.
+4. ~~تقطيع النتايج بنظام Regime~~ **اتبنى في Plateau Lab** (Regime Radar بقى مقروء). لسه Truth/Trail مش بيقطّعوا بالنظام.
 5. رسم زمني للأنظمة + فلتر Thin.
 6. روابط من Command Center لصفحات Veles/Monte Carlo/Micro.
 7. سطح تذبذب ضمني (Deribit للكريبتو): بعد ما الباقي يثبت.

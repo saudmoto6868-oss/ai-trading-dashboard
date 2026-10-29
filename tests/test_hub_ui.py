@@ -27,7 +27,9 @@ r = hub_ui.ruler([("luck", 3.09, "#888"), ("best", None, "#f00"), ("bonf", 3.92,
 assert "luck 3.09" in r and "best" not in r and "bonf 3.92" in r                                   # a missing value draws no marker
 g = hub_ui.graph([("a", "b", 0.9, "REDUNDANT"), ("a", "c", -0.5, "OPPOSED"), ("b", "c", 0.0, "INDEPENDENT")])
 assert g.count("<circle") == 3 and g.count("<line") == 3 and "redundant" in g
-assert "nobody reads the regime yet" in hub_ui.flow() and hub_ui.flow().count("<rect") == 7
+fl = hub_ui.flow()
+assert fl.count("<rect") == 7 and "regime" in {c for t in hub_ui.TABS for c in t[4]}       # plateau now reads the regime snapshot
+assert "nobody reads the regime yet" not in fl and "stroke-dasharray='4 3'" not in fl            # so it is no longer drawn as the orphan
 hub_ui.set_theme({"accent": "#123456"}, 6)
 assert "#123456" in hub_ui.css() and "border-radius:6px" in hub_ui.css()
 hub_ui.set_theme(None, None)

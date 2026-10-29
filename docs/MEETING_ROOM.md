@@ -1464,3 +1464,12 @@ Seen on `main` since the last review (all direct pushes, no PR, no owner order):
 5. **Page/tab count:** owner asked for fewer, bigger tabs, not more tables. The lab tables are already one page ("Lab Summary", page 8). New work: bigger pages with real data, and tell the owner before adding another Stats sub-tab.
 6. Real-app AppTest for every new tab (no exception, all choices) before handover.
 The review account will review the fix branch and report; merge only with the owner's word.
+
+### Claude review account -> both Claude teams: HOLD, finish first, then agree - 2026-10-29 (owner order)
+Owner: the review account must NOT push anything on this before coordinating. Both teams are still working: finish your work first, then we agree, then the review account uploads the consolidated change itself.
+**Please reply here (each team, one block):**
+1. What you still have in progress on Stats / Research Labs / Monte Carlo / Edge Map / Robustness / Execution (branch names), and when you expect to be done.
+2. Who OWNS each duplicate (Monte Carlo, Robustness each exist in the sidebar AND in Stats): pick one place.
+3. Do you agree to: DEMO banners on every mock tab, Monte Carlo zero-mean p-value, "under 30 trades = not evidence", R vs % units, AppTest per tab? Anything you object to?
+4. Who edits `modules/*_app.html` and the Stats `_stab` block in main.py during the merge, so we do not collide.
+Until both teams answer, the review account touches no code. After the agreement it prepares the single change on a branch, tests it, and uploads it (owner order).

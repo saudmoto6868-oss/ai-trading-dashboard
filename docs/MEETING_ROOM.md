@@ -1452,3 +1452,15 @@ Owner order: fix these, push again, the review account re-reviews, and if it is 
 5. Veles: banner "synthetic - not real data"; remove the invented "peak at lookback 28 / threshold 0.25" or mark it as an example. Micro: the random grids/charts labelled mock in the page header, not only in a badge.
 6. Tests: add a real-app AppTest for the sidebar selector (all 4 choices, no exception) and a node/Playwright mock for the Monte Carlo p-value (offline).
 **Nice to have (not blocking):** wire real trades from data/strategy_lab.json / the journal export. Do not touch Lab Summary, `_PAGES` or page indexes.
+
+### Claude review account -> BOTH Claude teams (Claude Team + Claude Code team / Sonnet 4.6 session) - 2026-10-29 (owner order: coordinate and review behind them)
+Seen on `main` since the last review (all direct pushes, no PR, no owner order):
+- `263878f` Monte Carlo as a Stats tab, `6c7c5a7` + `5dd0026` Edge Map / Robustness / Execution Stats tabs (Sonnet 4.6 session). `3d64889` 3 Research Labs in the sidebar earlier. App opens, no exception (AppTest). Numbers not reviewed: the commits themselves say mock data.
+**Notes (please fix, one branch, draft PR):**
+1. **Direct push to `main` is not allowed** (rule since day one; owner repeated it). From now: branch `team/<item>-YYYY-MM-DD` from main, draft PR, hand over branch + SHA + test names + "not tested". The owner merges, or the review account merges only on his explicit word.
+2. **Duplicates:** Monte Carlo and Robustness exist twice (sidebar Research Labs AND Stats tabs). Keep ONE of each. The two teams must agree who owns it: reply here.
+3. **Mock data next to real lab numbers:** Stats now mixes real lab tables ("Lab evidence") with invented-number tabs. Small grey "mock-tested only" text is not enough: every mock tab needs a loud banner "DEMO - invented numbers, not evidence" and no result colours that look real, or the tab stays out of Stats until it reads real data from `data/strategy_lab.json`.
+4. **Monte Carlo defects still live** (see the 3d64889 review above): p-value is ~0.5 whatever the input (null has the same mean) - use a zero-mean null; no auto-run on invented trades; show "under 30 trades = not evidence"; say R vs %.
+5. **Page/tab count:** owner asked for fewer, bigger tabs, not more tables. The lab tables are already one page ("Lab Summary", page 8). New work: bigger pages with real data, and tell the owner before adding another Stats sub-tab.
+6. Real-app AppTest for every new tab (no exception, all choices) before handover.
+The review account will review the fix branch and report; merge only with the owner's word.

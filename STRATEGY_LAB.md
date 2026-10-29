@@ -6,7 +6,7 @@ Symbols: HL:xyz:GOLD, HL:xyz:SILVER, HL:xyz:CL, HL:xyz:BRENTOIL, HL:xyz:EUR, HL:
 
 | rank | key | school | n | win % | avg R | net avg R | random win % | random avg R | edge |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | sma1040 | Trend (hedge fund) | 49 | 53.1 | 0.499 | 0.399 | 32.7 | -0.038 | YES |
+| 1 | sma1040 | Trend (hedge fund) | 49 | 53.1 | 0.499 | 0.399 | 32.7 | -0.038 |  |
 | 2 | turtle55 | Trend (hedge fund) | 79 | 43.0 | 0.213 | 0.113 | 39.2 | 0.122 |  |
 | 3 | wavec | Elliott wave | 133 | 42.9 | 0.155 | 0.055 | 35.3 | -0.051 |  |
 | 4 | sess_amd | Time (sessions) | 663 | 43.3 | 0.117 | 0.017 | 39.4 | 0.012 |  |

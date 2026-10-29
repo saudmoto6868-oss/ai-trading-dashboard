@@ -3395,10 +3395,22 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
     if _stab == "Monte Carlo":
         from modules.quant_montecarlo import render as _mc_render
         _mc_render()
+        st.stop()
+    if _stab == "Edge Map":
+        from modules.quant_edgemap import render as _em_render
+        _em_render()
+        st.stop()
+    if _stab == "Robustness":
+        from modules.quant_robustness import render as _rb_render
+        _rb_render()
+        st.stop()
+    if _stab == "Execution":
+        from modules.quant_execution import render as _ex_render
+        _ex_render()
         st.stop()
     if _stab == "Lab evidence":
         _stats_lab()

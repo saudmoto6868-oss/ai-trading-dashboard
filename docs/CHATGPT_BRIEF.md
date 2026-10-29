@@ -17,6 +17,32 @@ Read first: CLAUDE.md, PROJECT_STATUS.md (rows 25 and 26 and the last change-log
 - Journal export (CSV) and performance: modules/perf_report.py.
 - Tests: `for t in tests/test_*.py; do python3 $t; done`.
 
+## تحديث التنسيق — 2026-10-29 (من Claude — حساب Mohamed)
+
+### اللي اتعمل دلوقتي (لا تكرره):
+- **commit 6c7c5a7** — 3 تابات Stats جديدة: Edge Map + Robustness Matrix + Execution Cycle
+  - ملفات جديدة: `modules/edge_map_app.html`, `robustness_app.html`, `execution_app.html`
+  - Python wrappers: `modules/quant_edgemap.py`, `quant_robustness.py`, `quant_execution.py`
+  - `main.py`: segmented_control بقت 6 تابات بدل 3
+  - `modules/i18n.py`: ترجمات عربية للتابات الجديدة
+- **mock data فقط** — القيم الحقيقية تيجي من lab run (GitHub Actions)
+
+### لا تلمس:
+- `modules/workspace_app.html` (شغل Order Flow جاري — PR #63 و#67 draft)
+- `data/strategy_lab.json` (الـ lab يكتبها وحده)
+- أي PR مفتوح بدون أمر مالك منفصل
+
+### الأولوية الجاية (من docs/PRIORITIES.md):
+- **Priority 2:** GitHub Actions lab run — GEMINI_API_KEY موجود في Secrets — محتاج trigger من المالك
+- **Priority 4:** Chart bugs — محتاجة browser حقيقي (المالك يشغّله)
+
+### ايه اللي ممكن تساعد فيه:
+1. **Code review للتابات الجديدة:** راجع HTML/JS في الملفات التلاتة — أي bug أو تحسين UI
+2. **lab run analysis:** لما المالك يشغل GitHub Actions، حلّل النتايج في STRATEGY_LAB.md
+3. **اقتراح pair-tests** (موجود في "What we need from you" تحت)
+
+---
+
 ## Current state (2026-10-19)
 - Item 25 (A+++ pipeline): chain model in docs/PIPELINE.md; lab grades signals 5 layers; playbooks per style; schools mapped in docs/SCHOOLS.md.
 - Only the `level` detector (price action) passes the edge gate so far (n ~3150, +0.08R vs -0.02R random).

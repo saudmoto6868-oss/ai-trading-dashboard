@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Execution Cycle</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#090910;color:#ddd;font-family:'Courier New',monospace;font-size:11px;overflow-x:hidden}
+#header{padding:8px 14px;background:#0c0c1a;border-bottom:1px solid #1a1a30;display:flex;align-items:center;gap:14px}
+.title{color:#7cf;font-size:13px;letter-spacing:2px}
+.note{color:#555;font-size:9px;margin-left:auto}
+.section-title{color:#7cf;font-size:10px;letter-spacing:2px;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid #1a1a30}
+#wrap{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){#wrap{grid-template-columns:1fr}}
+
+/* ── PIPELINE TRACKER ── */
+.pipeline{display:flex;flex-direction:column;gap:0}
+.pipe-stage{display:flex;align-items:stretch;gap:0;position:relative}
+.pipe-stage + .pipe-stage::before{
+  content:'';position:absolute;left:24px;top:-12px;width:2px;height:12px;
+  background:linear-gradient(#1a1a30,#1a1a30);
+}
+.stage-icon{width:48px;min-height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.stage-body{flex:1;padding:8px 12px;border:1px solid #1a1a30;border-radius:2px;margin-bottom:4px;cursor:pointer;transition:border-color 0.2s,background 0.2s}
+.stage-body:hover,.stage-body.active{border-color:#4af;background:#0d1020}
+.stage-label{color:#7cf;font-size:10px;letter-spacing:1px}
+.stage-desc{color:#666;font-size:9px;margin-top:2px}
+.stage-timer{color:#fa4;font-size:9px;float:right;margin-top:-16px}
+.stage-status{font-size:9px;margin-top:4px}
+.status-ok   {color:#4f4}
+.status-warn {color:#fa4}
+.status-idle {color:#555}
+.connector{width:2px;background:#1a1a30;margin:0 23px;height:12px;flex-shrink:0}
+
+/* ── QUINCUNX GATES ── */
+.quincunx{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gate{padding:10px 12px;border:1px solid #1a1a30;border-radius:2px;cursor:pointer;transition:all 0.2s}
+.gate:hover{border-color:#4af}
+.gate.open{border-color:#4f4;background:#0a1f0a}
+.gate.shut{border-color:#f44;background:#1f0a0a}
+.gate.half{border-color:#fa4;background:#1f1200}
+.gate-title{font-size:10px;letter-spacing:1px;margin-bottom:4px}
+.gate.open .gate-title{color:#4f4}
+.gate.shut .gate-title{color:#f44}
+.gate.half .gate-title{color:#fa4}
+.gate-val{font-size:12px;font-weight:bold;margin-bottom:2px}
+.gate-sub{font-size:9px;color:#555}
+.gate-icon{float:right;font-size:16px;margin-top:-20px}
+.bias-meter{margin-top:12px;padding:10px 12px;border:1px solid #1a1a30;background:#0d0d1e;border-radius:2px;grid-column:1/-1}
+.bias-bar-bg{background:#0a0a18;border-radius:2px;height:16px;position:relative;overflow:hidden;margin:6px 0}
+.bias-bar-fill{height:16px;border-radius:2px;transition:width 0.4s}
+.bias-val{position:absolute;right:8px;top:0;line-height:16px;font-size:10px;color:#fff}
+
+/* ── DETAIL PANE ── */
+#detail{padding:10px 12px;background:#0f0f1e;border:1px solid #1a1a30;border-radius:2px;display:none;margin-top:8px;grid-column:1/-1}
+#detail.active{display:block}
+.dt-row{display:flex;justify-content:space-between;margin:4px 0;font-size:10px}
+.dt-val{color:#7cf}
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="title">⬡ EXECUTION CYCLE — PIPELINE + QUINCUNX</span>
+  <span class="note">click stage or gate for detail · mock-tested only</span>
+</div>
+
+<div id="wrap">
+  <!-- LEFT: Pipeline -->
+  <div>
+    <div class="section-title">EXECUTION PIPELINE</div>
+    <div class="pipeline" id="pipeline"></div>
+  </div>
+
+  <!-- RIGHT: Quincunx -->
+  <div>
+    <div class="section-title">QUINCUNX BIAS GATES (7)</div>
+    <div class="quincunx" id="quincunx"></div>
+
+    <div id="detail">
+      <div class="dt-row"><span>Item</span><span class="dt-val" id="dt-name">—</span></div>
+      <div class="dt-row"><span>Status</span><span class="dt-val" id="dt-status">—</span></div>
+      <div class="dt-row"><span>Value</span><span class="dt-val" id="dt-val">—</span></div>
+      <div class="dt-row"><span>Rule</span><span class="dt-val" id="dt-rule">—</span></div>
+      <div class="dt-row"><span>Action</span><span class="dt-val" id="dt-action">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PIPELINE STAGES ───────────────────────────────────────────────────────────
+const STAGES = [
+  { id:'scan',     icon:'🔍', label:'SCAN',     time:'<1s',  desc:'Screen universe for pattern candidates',     status:'ok',   detail:'OKX + Hyperliquid xyz · 150+ symbols · 5 schools active',  rule:'score ≥ 1',    action:'candidates → queue' },
+  { id:'detect',   icon:'📡', label:'DETECT',   time:'1-3s', desc:'Pattern recognition on candidates',          status:'ok',   detail:'Harmonic fit · Elliott wave · ICT structure · breakout',    rule:'fit ≥ 0.65',   action:'confirmed → validate' },
+  { id:'validate', icon:'✅', label:'VALIDATE', time:'2-5s', desc:'Multi-timeframe + gate confirmation',        status:'warn', detail:'MTF alignment · vol filter · session gate · regime check',  rule:'≥ 3/5 gates',  action:'pass → size' },
+  { id:'size',     icon:'⚖️', label:'SIZE',     time:'<1s',  desc:'Position size from risk_engine',             status:'ok',   detail:'1R = 1% equity · max 2% per trade · LEVELS/TREND/REVERSAL', rule:'book + R-stop', action:'size → fill' },
+  { id:'fill',     icon:'🎯', label:'FILL',     time:'50ms', desc:'Order placement — limit or market',          status:'idle', detail:'OKX REST · reduce-only flags · post-only option',            rule:'limit first',  action:'fill → settle' },
+  { id:'settle',   icon:'📊', label:'SETTLE',   time:'async',desc:'Journal + score update post-trade',          status:'idle', detail:'Journal write · lab score update · next-trade filter',       rule:'exit logged',  action:'→ next scan' },
+];
+
+const pipelineEl = document.getElementById('pipeline');
+STAGES.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'pipe-stage';
+  div.innerHTML = `
+    <div class="stage-icon">${s.icon}</div>
+    <div class="stage-body ${false?'active':''}" id="stage-${s.id}" data-id="${s.id}">
+      <span class="stage-label">${s.label}</span>
+      <span class="stage-timer">${s.time}</span>
+      <div class="stage-desc">${s.desc}</div>
+      <div class="stage-status status-${s.status}">${
+        s.status==='ok'?'● ACTIVE':s.status==='warn'?'⚠ WARN (1 gate marginal)':'○ IDLE'
+      }</div>
+    </div>`;
+  pipelineEl.appendChild(div);
+  if (i < STAGES.length-1) {
+    const conn = document.createElement('div');
+    conn.innerHTML = `<div style="width:2px;background:#1a1a30;margin:0 23px;height:10px"></div>`;
+    pipelineEl.appendChild(conn);
+  }
+});
+
+pipelineEl.querySelectorAll('.stage-body').forEach(el => {
+  el.addEventListener('click', () => {
+    pipelineEl.querySelectorAll('.stage-body').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    const s = STAGES.find(x=>x.id===el.dataset.id);
+    showDetail(s.label, s.status==='ok'?'ACTIVE':s.status==='warn'?'WARNING':'IDLE', s.time, s.rule, s.action);
+  });
+});
+
+// ── QUINCUNX GATES ────────────────────────────────────────────────────────────
+const GATES = [
+  { id:'trend',   label:'TREND GATE',   icon:'📈', state:'open', val:'+0.72', sub:'EMA slope · ATR expansion', rule:'slope > 0 on 4h + 1h',  action:'bias +1 (bull)' },
+  { id:'volume',  label:'VOLUME GATE',  icon:'📊', state:'open', val:'1.4×',  sub:'vs 20-bar avg volume',      rule:'vol > 1.2× avg',         action:'confirm momentum' },
+  { id:'session', label:'SESSION GATE', icon:'🕐', state:'half', val:'LDN→NY',sub:'transition window',         rule:'08:00–10:00 UTC',         action:'wait for NY open' },
+  { id:'regime',  label:'REGIME GATE',  icon:'🌊', state:'open', val:'TREND', sub:'ATR / choppiness index',   rule:'CI < 38.2',               action:'trend mode active' },
+  { id:'corr',    label:'CORR GATE',    icon:'🔗', state:'open', val:'0.31',  sub:'vs BTC / SPX correlation', rule:'corr < 0.6',              action:'diversified setup' },
+  { id:'news',    label:'NEWS GATE',    icon:'📰', state:'open', val:'clear', sub:'economic calendar',         rule:'no red-folder in 1h',     action:'proceed' },
+  { id:'risk',    label:'RISK GATE',    icon:'🛡️', state:'shut', val:'2/2R',  sub:'daily loss limit reached',  rule:'max 2× daily R',          action:'HALT — wait reset' },
+];
+
+const qEl = document.getElementById('quincunx');
+let openCount = 0, totalGates = GATES.length;
+GATES.forEach(g => {
+  if(g.state==='open') openCount++;
+  if(g.state==='half') openCount+=0.5;
+  const div = document.createElement('div');
+  div.className = `gate ${g.state}`;
+  div.dataset.id = g.id;
+  div.innerHTML = `
+    <div class="gate-title">${g.label}<span class="gate-icon">${g.icon}</span></div>
+    <div class="gate-val">${g.val}</div>
+    <div class="gate-sub">${g.sub}</div>`;
+  qEl.appendChild(div);
+});
+
+// Bias meter
+const biasPct = (openCount/totalGates*100).toFixed(0);
+const biasColor = openCount >= 5 ? '#4f4' : openCount >= 3 ? '#fa4' : '#f44';
+const biasLabel = openCount >= 5 ? 'STRONG BULL BIAS' : openCount >= 3 ? 'MARGINAL — proceed with caution' : 'BLOCKED — DO NOT TRADE';
+const biasMeter = document.createElement('div');
+biasMeter.className = 'bias-meter';
+biasMeter.innerHTML = `
+  <div style="color:#7cf;font-size:10px;letter-spacing:1px;margin-bottom:4px">OVERALL BIAS</div>
+  <div class="bias-bar-bg">
+    <div class="bias-bar-fill" style="width:${biasPct}%;background:${biasColor}"></div>
+    <span class="bias-val">${openCount}/${totalGates} gates open</span>
+  </div>
+  <div style="color:${biasColor};font-size:10px;margin-top:4px">${biasLabel}</div>`;
+qEl.appendChild(biasMeter);
+
+// Gate click
+qEl.querySelectorAll('.gate[data-id]').forEach(el => {
+  el.addEventListener('click', () => {
+    qEl.querySelectorAll('.gate').forEach(e=>e.style.outline='none');
+    el.style.outline='1px solid #4af';
+    const g = GATES.find(x=>x.id===el.dataset.id);
+    showDetail(g.label, g.state.toUpperCase(), g.val, g.rule, g.action);
+  });
+});
+
+function showDetail(name, status, val, rule, action) {
+  const d = document.getElementById('detail');
+  d.classList.add('active');
+  document.getElementById('dt-name').textContent = name;
+  document.getElementById('dt-status').textContent = status;
+  document.getElementById('dt-status').style.color = status==='OPEN'||status==='ACTIVE'?'#4f4':status==='WARN'||status==='HALF'?'#fa4':'#f44';
+  document.getElementById('dt-val').textContent = val;
+  document.getElementById('dt-rule').textContent = rule;
+  document.getElementById('dt-action').textContent = action;
+}
+
+// Auto-animate: pulse the pipeline
+let tick = 0;
+setInterval(() => {
+  tick++;
+  // Briefly highlight scan stage to simulate live scanning
+  const scanEl = document.getElementById('stage-scan');
+  if(tick%8===0 && scanEl){
+    scanEl.style.borderColor='#4af';
+    setTimeout(()=>{ if(!scanEl.classList.contains('active')) scanEl.style.borderColor=''; }, 400);
+  }
+}, 1000);
+</script>
+</body>
+</html>

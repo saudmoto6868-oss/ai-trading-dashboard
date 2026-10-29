@@ -35,7 +35,7 @@ from modules.arabic import (
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
-from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
+from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
@@ -1999,7 +1999,7 @@ def render_alerts_page():
     """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
     and the plan for Radar alerts (task 17). Nothing here sends an order."""
     from modules import office_ui as U
-    from modules.alerts import ALERT_SCORE_THRESHOLD
+    from modules.alerts import ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
     st.markdown(U.CSS, unsafe_allow_html=True)
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
@@ -2011,7 +2011,7 @@ def render_alerts_page():
                              (L("Dashboard banners"), L("on"), "ok"),
                              (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
         st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
-            (L("Scanner alerts (Workspace)"), L("strong setups ranked by evidence score") + f" · ≥ {ALERT_SCORE_THRESHOLD}", L("on: banners + sound"), "ok"),
+            (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
             (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
             (L("Telegram (GitHub Actions)"), L("runs without the dashboard open"), (L("every 30 min") if tgw else L("missing")), "ok" if tgw else "bad"),
             (L("1m alerts"), L("switched off: -147R of -150R in the journal"), L("off"), "warn"),

@@ -240,6 +240,7 @@ AR = {
     "Sources": "المصادر", "Radar alerts (task 17)": "تنبيهات الرادار (بند 17)", "Telegram workflow": "workflow تليجرام", "Dashboard banners": "تنبيهات الداشبورد",
     "on": "شغال", "off": "مقفول", "1m alerts": "تنبيهات 1m", "Alert sources": "مصادر التنبيهات", "Scanner alerts (Workspace)": "تنبيهات السكانر (الـ Workspace)",
     "strong setups ranked by evidence score": "الإعدادات القوية مرتبة بدرجة الدليل", "on: banners + sound": "شغال: تنبيه + صوت",
+    "WATCH ≥": "ترقب ≥", "CALL ≥": "تنبيه ≥", "trigger": "مشغّل",
     "Telegram (sidebar)": "تليجرام (الشريط الجانبي)", "top alerts while the dashboard is open": "أقوى التنبيهات والداشبورد مفتوح",
     "needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID": "محتاج TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID", "Telegram (GitHub Actions)": "تليجرام (GitHub Actions)",
     "runs without the dashboard open": "بيشتغل والداشبورد مقفول", "every 30 min": "كل 30 دقيقة", "missing": "مش موجود",

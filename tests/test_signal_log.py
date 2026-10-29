@@ -40,4 +40,30 @@ assert "NOT evidence" in L.format_stats(s)
 d = tempfile.mkdtemp(); f = os.path.join(d, "l.jsonl"); L.save(recs, __import__("pathlib").Path(f)); assert len(L.load(__import__("pathlib").Path(f))) == 2
 L.to_csv(recs, os.path.join(d, "o.csv")); txt = open(os.path.join(d, "o.csv")).read(); assert txt.splitlines()[0] == "time,symbol,side,tf,r" and ",buy,1h,2.0" in txt
 assert L.stats([])["all"]["n"] == 0 and "no statistics" in L.format_stats(L.stats([]))
+
+# T5: optional journal fields (grade, layers, setup_id, alert_kind)
+recs2 = []
+al_t5 = {**al, "grade": "A+", "layers": ["HTF", "Location", "Trigger"], "setup_id": "OB-RETEST-HTF", "alert_kind": "CALL"}
+assert L.log_alerts([al_t5], recs2, set(), now=T0 + 10) == 1
+r5 = recs2[0]
+assert r5["grade"] == "A+" and r5["layers"] == ["HTF", "Location", "Trigger"] and r5["setup_id"] == "OB-RETEST-HTF" and r5["alert_kind"] == "CALL"
+# record WITHOUT optional fields — should not have those keys
+recs3 = []
+assert L.log_alerts([al], recs3, set(), now=T0 + 10) == 1
+assert "grade" not in recs3[0] and "alert_kind" not in recs3[0]
+# CSV with T5 fields — headers must include optional cols; layers joined by |
+recs2[0]["out"] = "tp"; recs2[0]["r"] = 2.0; recs2[0]["t_out"] = int(T0 + 1000)
+csv_path = os.path.join(d, "t5.csv")
+L.to_csv(recs2, csv_path)
+lines = open(csv_path).read().splitlines()
+assert lines[0] == "time,symbol,side,tf,r,grade,layers,setup_id,alert_kind"
+assert "A+" in lines[1] and "HTF|Location|Trigger" in lines[1] and "CALL" in lines[1]
+# CSV without T5 fields — headers must be plain
+recs3[0]["out"] = "tp"; recs3[0]["r"] = 2.0; recs3[0]["t_out"] = int(T0 + 1000)
+csv_path2 = os.path.join(d, "t5b.csv")
+L.to_csv(recs3, csv_path2)
+assert open(csv_path2).readline().strip() == "time,symbol,side,tf,r"
+# stats groups by alert_kind
+s5 = L.stats(recs2); assert "alert_kind" in s5["by"] and "CALL" in s5["by"]["alert_kind"]
+
 print("signal_log tests OK")

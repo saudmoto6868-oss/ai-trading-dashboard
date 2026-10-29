@@ -193,7 +193,9 @@ AR = {
     "Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice.":
         "القواعد مجمدة في modules/flow_log.py (RULES): imb = توازن الدفتر، ofi = عدم توازن تدفق الأوامر عند أفضل سعر، cvd = شراء المبادر ناقص البيع. فترة التسجيل بتحدد اللي بنشوفه. تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
-    "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
+    "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "Monte Carlo": "مونتي كارلو",
+    "Edge Map": "خريطة الحافة", "Robustness": "متانة الاستراتيجيات", "Execution": "دورة التنفيذ",
+    "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",
     "Strongest detector x timeframe (n >= 100), by net avg R": "أقوى كاشف × فريم (n ≥ 100)، مرتبة بصافي متوسط R",
     "Detector": "الكاشف", "School": "المدرسة", "passed": "عدّى", "no t yet": "مفيش t لسه",
@@ -240,6 +242,7 @@ AR = {
     "Sources": "المصادر", "Radar alerts (task 17)": "تنبيهات الرادار (بند 17)", "Telegram workflow": "workflow تليجرام", "Dashboard banners": "تنبيهات الداشبورد",
     "on": "شغال", "off": "مقفول", "1m alerts": "تنبيهات 1m", "Alert sources": "مصادر التنبيهات", "Scanner alerts (Workspace)": "تنبيهات السكانر (الـ Workspace)",
     "strong setups ranked by evidence score": "الإعدادات القوية مرتبة بدرجة الدليل", "on: banners + sound": "شغال: تنبيه + صوت",
+    "WATCH ≥": "ترقب ≥", "CALL ≥": "تنبيه ≥", "trigger": "مشغّل",
     "Telegram (sidebar)": "تليجرام (الشريط الجانبي)", "top alerts while the dashboard is open": "أقوى التنبيهات والداشبورد مفتوح",
     "needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID": "محتاج TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID", "Telegram (GitHub Actions)": "تليجرام (GitHub Actions)",
     "runs without the dashboard open": "بيشتغل والداشبورد مقفول", "every 30 min": "كل 30 دقيقة", "missing": "مش موجود",

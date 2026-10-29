@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veles · Robustness Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e14; --bg2: #0d1117; --bg3: #161b22;
+    --border: #30363d; --gold: #f0b90b; --green: #26a641;
+    --red: #da3633; --blue: #388bfd; --purple: #8957e5;
+    --text: #e6edf3; --muted: #8b949e; --card: #161b22;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
+
+  .header {
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+  }
+  .header-title { font-size: 15px; font-weight: 600; color: var(--purple); }
+  .header-sub { color: var(--muted); font-size: 11px; }
+  .badge { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; }
+
+  .main { display: grid; grid-template-columns: 220px 1fr; gap: 10px; padding: 10px; height: calc(100vh - 50px); overflow: hidden; }
+  .panel-left { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+  .panel-right { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+  .card-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+  select, input[type=text] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 5px 8px; font-size: 12px; margin-bottom: 6px;
+  }
+  button {
+    width: 100%; padding: 7px; background: var(--purple); color: #fff;
+    border: none; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer; margin-top: 6px;
+  }
+  button:hover { opacity: 0.85; }
+
+  /* Robustness Matrix */
+  .matrix-wrap { overflow-x: auto; }
+  .matrix { border-collapse: collapse; width: 100%; font-size: 11px; }
+  .matrix th { background: var(--bg3); color: var(--muted); padding: 6px 10px; text-align: center; border: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
+  .matrix td { padding: 6px 10px; border: 1px solid var(--border); text-align: center; font-weight: 700; white-space: nowrap; }
+  .matrix .strat-name { text-align: right; color: var(--text); font-weight: 500; background: var(--bg3); }
+
+  /* Markout decay chart */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+  .chart-title { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+  canvas { max-height: 180px; }
+
+  /* Survivors bar */
+  .survivors-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .survivor-tag { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; }
+  .survivor-tag.pass { border-color: var(--green); color: var(--green); }
+  .survivor-tag.fail { border-color: var(--red); color: var(--red); }
+
+  /* Plateau surface placeholder */
+  .surface-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+  .surface-cell { height: 22px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgba(255,255,255,0.6); }
+
+  @media (max-width: 700px) {
+    .main { grid-template-columns: 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">◈ Veles · Robustness Lab</div>
+    <div class="header-sub">Strategy survival across market regimes · ADX/ATR/BB classification</div>
+  </div>
+  <div style="margin-right:auto"></div>
+  <span class="badge" id="regime-badge">6 regimes</span>
+  <span class="badge" id="status-badge" style="color:var(--gold)">Loading…</span>
+</div>
+
+<div class="main">
+
+  <div class="panel-left">
+    <div class="card">
+      <div class="card-title">⚙️ Setup</div>
+      <label style="color:var(--muted);font-size:10px">Symbol</label>
+      <input type="text" id="symbol" value="BTC-USDT-SWAP" placeholder="BTC-USDT-SWAP">
+      <label style="color:var(--muted);font-size:10px">Timeframe</label>
+      <select id="tf">
+        <option value="1H">1H</option>
+        <option value="4H" selected>4H</option>
+        <option value="1D">1D</option>
+      </select>
+      <label style="color:var(--muted);font-size:10px">Lookback (bars)</label>
+      <select id="lookback">
+        <option value="100">100</option>
+        <option value="200" selected>200</option>
+        <option value="500">500</option>
+      </select>
+      <button onclick="runAnalysis()">▶ Analyze</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Regime Legend</div>
+      <div style="line-height:2;font-size:11px;color:var(--muted)">
+        <div><span style="color:#388bfd">■</span> Trend — ADX &gt; 25</div>
+        <div><span style="color:#8957e5">■</span> Chop — ADX &lt; 20</div>
+        <div><span style="color:#f0b90b">■</span> Hi-Vol — ATR &gt; 1.5×</div>
+        <div><span style="color:#da3633">■</span> Crash — ret &lt; -2σ</div>
+        <div><span style="color:#26a641">■</span> Squeeze — BB &lt; 20th</div>
+        <div><span style="color:#e3b341">■</span> Thin — Vol &lt; 20th</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏆 Live Survivors</div>
+      <div id="survivors-panel" style="color:var(--muted);font-size:11px">Run analysis first</div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+
+    <!-- Robustness Matrix -->
+    <div class="card">
+      <div class="card-title">🔬 Robustness Matrix — Sharpe by Strategy × Regime</div>
+      <div class="matrix-wrap" id="matrix-wrap">
+        <div style="color:var(--muted);font-size:12px;padding:20px;text-align:center">Run analysis to populate matrix</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="chart-wrap">
+        <div class="chart-title">📉 Markout Decay — edge erosion after fill (bps)</div>
+        <canvas id="markout-chart"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">📊 Regime Distribution — bar count</div>
+        <canvas id="regime-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Plateau Surface -->
+    <div class="card">
+      <div class="card-title">🏔️ Plateau Surface — Lookback × Threshold → Sharpe heatmap</div>
+      <div id="plateau-wrap" style="color:var(--muted);font-size:12px;text-align:center;padding:15px">Run analysis to see parameter sensitivity</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Regime classifier (pure JS, from candle OHLCV) ─────────────────────────
+function classifyRegime(bars) {
+  const n = bars.length;
+  if (n < 20) return 'Unknown';
+
+  const highs = bars.map(b => b[2]);
+  const lows  = bars.map(b => b[3]);
+  const closes = bars.map(b => b[4]);
+  const volumes = bars.map(b => b[5] || 1);
+
+  // ATR-14
+  const atrs = [];
+  for (let i = 1; i < n; i++) {
+    const tr = Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1]));
+    atrs.push(tr);
+  }
+  const atr = atrs.slice(-14).reduce((a,b)=>a+b,0)/14;
+  const medianATR = [...atrs].sort((a,b)=>a-b)[Math.floor(atrs.length/2)];
+
+  // Bollinger Band width (20-period)
+  const period = 20;
+  const sma = closes.slice(-period).reduce((a,b)=>a+b,0)/period;
+  const stdDev = Math.sqrt(closes.slice(-period).map(c=>(c-sma)**2).reduce((a,b)=>a+b,0)/period);
+  const bbWidth = (2 * 2 * stdDev) / sma;
+
+  // DM / ADX approximation
+  let dmPlus = 0, dmMinus = 0;
+  for (let i = 1; i < Math.min(14, n); i++) {
+    const upMove = highs[i] - highs[i-1];
+    const downMove = lows[i-1] - lows[i];
+    dmPlus  += (upMove > downMove && upMove > 0) ? upMove : 0;
+    dmMinus += (downMove > upMove && downMove > 0) ? downMove : 0;
+  }
+  const diPlus  = (dmPlus  / (atrs.slice(-14).reduce((a,b)=>a+b,0)||1)) * 100;
+  const diMinus = (dmMinus / (atrs.slice(-14).reduce((a,b)=>a+b,0)||1)) * 100;
+  const adx = Math.abs(diPlus - diMinus) / ((diPlus + diMinus) || 1) * 100;
+
+  // Return over last 5 bars
+  const ret5 = (closes[n-1] - closes[n-6]) / closes[n-6];
+  const retStd = Math.sqrt(closes.slice(-20).map((c,i,a)=>i>0?((c-a[i-1])/a[i-1])**2:0).reduce((a,b)=>a+b,0)/20);
+
+  // Percentiles for volume and BB
+  const sortedVols = [...volumes].sort((a,b)=>a-b);
+  const vol20pct = sortedVols[Math.floor(sortedVols.length*0.2)];
+  const curVol = volumes[n-1];
+
+  const sortedBB = [...atrs.map((_,i)=>i<14?0:2*2*stdDev/sma)].sort((a,b)=>a-b);
+  const bb20pct = sortedBB[Math.floor(sortedBB.length*0.2)];
+
+  // Classify
+  if (ret5 < -2 * retStd) return 'Crash';
+  if (adx > 25) return 'Trend';
+  if (bbWidth < bb20pct) return 'Squeeze';
+  if (atr > 1.5 * medianATR) return 'Hi-Vol';
+  if (curVol < vol20pct) return 'Thin';
+  return 'Chop';
+}
+
+// ── Demo: generate synthetic candles for different regimes ─────────────────
+function genSyntheticBars(n, regimeType) {
+  const bars = [];
+  let price = 50000;
+  for (let i = 0; i < n; i++) {
+    let change;
+    switch(regimeType) {
+      case 'Trend':   change = 0.003 + (Math.random()-0.3)*0.008; break;
+      case 'Chop':    change = (Math.random()-0.5)*0.004; break;
+      case 'Hi-Vol':  change = (Math.random()-0.5)*0.025; break;
+      case 'Crash':   change = -0.02 + (Math.random()-0.5)*0.01; break;
+      case 'Squeeze': change = (Math.random()-0.5)*0.001; break;
+      default:        change = (Math.random()-0.5)*0.006;
+    }
+    const o = price;
+    const c = price * (1 + change);
+    const h = Math.max(o, c) * (1 + Math.random()*0.005);
+    const l = Math.min(o, c) * (1 - Math.random()*0.005);
+    const v = 1000 + Math.random() * 5000;
+    bars.push([Date.now() + i*3600000, o, h, l, c, v]);
+    price = c;
+  }
+  return bars;
+}
+
+// ── Strategy definitions (demo) ────────────────────────────────────────────
+const STRATEGIES = [
+  { name: 'SMC/ICT',    winRates: {Trend:0.64, Chop:0.44, 'Hi-Vol':0.52, Crash:0.38, Squeeze:0.55, Thin:0.42}, rr: 2.1 },
+  { name: 'Trend EMA',  winRates: {Trend:0.71, Chop:0.35, 'Hi-Vol':0.48, Crash:0.30, Squeeze:0.38, Thin:0.45}, rr: 2.8 },
+  { name: 'Mean Rev',   winRates: {Trend:0.32, Chop:0.68, 'Hi-Vol':0.55, Crash:0.60, Squeeze:0.65, Thin:0.50}, rr: 1.4 },
+  { name: 'Momentum',   winRates: {Trend:0.60, Chop:0.40, 'Hi-Vol':0.58, Crash:0.28, Squeeze:0.44, Thin:0.38}, rr: 2.4 },
+];
+
+const REGIMES = ['Trend', 'Chop', 'Hi-Vol', 'Crash', 'Squeeze', 'Thin'];
+const REGIME_COLORS = {
+  Trend:'#388bfd', Chop:'#8957e5', 'Hi-Vol':'#f0b90b', Crash:'#da3633', Squeeze:'#26a641', Thin:'#e3b341'
+};
+
+function sharpe(wr, rr) {
+  const exp = wr * rr - (1-wr);
+  const std = Math.sqrt(wr*(1-wr)) * (rr + 1);
+  return exp / (std || 0.001);
+}
+
+function cellColor(sh) {
+  if (sh > 1.5)  return '#0d3a1a';
+  if (sh > 0.8)  return '#0d2e0a';
+  if (sh > 0.2)  return '#1a2e0a';
+  if (sh > -0.2) return '#252a1a';
+  if (sh > -0.8) return '#3a1a0a';
+  return '#3a0a0a';
+}
+
+function textColor(sh) {
+  if (sh > 0.5)  return '#26a641';
+  if (sh > 0)    return '#a6c975';
+  if (sh > -0.5) return '#e3b341';
+  return '#da3633';
+}
+
+let markoutChart, regimeChart;
+
+function runAnalysis() {
+  document.getElementById('status-badge').textContent = 'Analyzing…';
+  document.getElementById('status-badge').style.color = 'var(--gold)';
+
+  setTimeout(() => {
+    // 1. Robustness Matrix
+    const matrixHTML = buildMatrix();
+    document.getElementById('matrix-wrap').innerHTML = matrixHTML;
+
+    // 2. Survivors
+    buildSurvivors();
+
+    // 3. Markout Decay chart
+    buildMarkoutChart();
+
+    // 4. Regime distribution chart
+    buildRegimeChart();
+
+    // 5. Plateau surface
+    buildPlateau();
+
+    document.getElementById('status-badge').textContent = 'Done ✓';
+    document.getElementById('status-badge').style.color = 'var(--green)';
+  }, 80);
+}
+
+function buildMatrix() {
+  let html = '<table class="matrix"><thead><tr><th>Strategy</th>';
+  REGIMES.forEach(r => {
+    html += `<th style="color:${REGIME_COLORS[r]}">${r}</th>`;
+  });
+  html += '<th>Avg Sharpe</th></tr></thead><tbody>';
+
+  STRATEGIES.forEach(s => {
+    html += `<tr><td class="strat-name">${s.name}</td>`;
+    let total = 0;
+    REGIMES.forEach(r => {
+      const wr = s.winRates[r] + (Math.random()-0.5)*0.05; // slight noise
+      const sh = sharpe(wr, s.rr);
+      total += sh;
+      html += `<td style="background:${cellColor(sh)};color:${textColor(sh)}">${sh.toFixed(2)}</td>`;
+    });
+    const avg = total / REGIMES.length;
+    html += `<td style="color:${textColor(avg)};font-weight:700">${avg.toFixed(2)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  html += '<p style="color:var(--muted);font-size:10px;margin-top:6px;padding:0 4px">⚠ Demo data — connect live data via /api/robustness endpoint · mock-tested only</p>';
+  return html;
+}
+
+function buildSurvivors() {
+  const panel = document.getElementById('survivors-panel');
+  const survivors = STRATEGIES.filter(s => {
+    const positiveRegimes = REGIMES.filter(r => sharpe(s.winRates[r], s.rr) > 0).length;
+    return positiveRegimes >= 3;
+  });
+  panel.innerHTML = `
+    <div style="color:var(--gold);font-size:18px;font-weight:700;margin-bottom:6px">${survivors.length} / ${STRATEGIES.length}</div>
+    <div style="color:var(--muted);font-size:10px;margin-bottom:8px">Sharpe &gt; 0 in ≥3 regimes</div>
+    ${STRATEGIES.map(s => {
+      const pos = REGIMES.filter(r => sharpe(s.winRates[r], s.rr) > 0).length;
+      const pass = pos >= 3;
+      return `<div style="margin-bottom:4px">
+        <span style="color:${pass?'var(--green)':'var(--red)'}">${pass?'✓':'✗'}</span>
+        <span style="color:var(--text);margin-right:6px">${s.name}</span>
+        <span style="color:var(--muted);font-size:10px">${pos}/6 regimes</span>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function buildMarkoutChart() {
+  const ctx = document.getElementById('markout-chart').getContext('2d');
+  if (markoutChart) markoutChart.destroy();
+
+  // Synthetic markout decay: edge erosion in bps
+  const labels = ['1s','10s','30s','1m','5m','10m','60m'];
+  const ictData =  [8.2, 6.1, 4.8, 3.5, 2.1, 1.2, 0.4];
+  const trendData = [5.1, 4.9, 4.5, 4.0, 3.2, 2.5, 1.8];
+  const meanRevData = [3.5, 3.0, 2.2, 1.5, 0.8, 0.3, -0.2];
+
+  markoutChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'SMC/ICT', data: ictData, borderColor: '#388bfd', tension: 0.4, pointRadius: 3 },
+        { label: 'Trend EMA', data: trendData, borderColor: '#26a641', tension: 0.4, pointRadius: 3 },
+        { label: 'Mean Rev', data: meanRevData, borderColor: '#da3633', tension: 0.4, pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { labels: { color: '#8b949e', font:{size:10} } } },
+      scales: {
+        x: { ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'rgba(48,54,61,0.4)'} },
+        y: { title:{display:true,text:'bps',color:'#8b949e',font:{size:10}},
+             ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'rgba(48,54,61,0.4)'} }
+      }
+    }
+  });
+}
+
+function buildRegimeChart() {
+  const ctx = document.getElementById('regime-chart').getContext('2d');
+  if (regimeChart) regimeChart.destroy();
+
+  // Simulate regime distribution across 200 bars
+  const counts = { Trend:48, Chop:62, 'Hi-Vol':31, Crash:12, Squeeze:28, Thin:19 };
+
+  regimeChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{ data: Object.values(counts), backgroundColor: REGIMES.map(r => REGIME_COLORS[r]+'cc'), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'rgba(48,54,61,0.3)'} },
+        y: { ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'rgba(48,54,61,0.3)'} }
+      }
+    }
+  });
+}
+
+function buildPlateau() {
+  const wrap = document.getElementById('plateau-wrap');
+  // 8x8 grid: lookback (rows) × threshold (cols) → Sharpe color
+  const lookbacks = [10,14,20,28,40,56,80,112];
+  const thresholds = [0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6];
+
+  let html = '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:4px">';
+  html += '<span>↕ Lookback</span><span>Threshold →</span></div>';
+  html += '<div style="display:grid;grid-template-columns:40px repeat(8,1fr);gap:2px">';
+
+  // Column headers
+  html += '<div></div>';
+  thresholds.forEach(t => {
+    html += `<div style="font-size:9px;color:var(--muted);text-align:center">${t}</div>`;
+  });
+
+  lookbacks.forEach(lb => {
+    html += `<div style="font-size:9px;color:var(--muted);display:flex;align-items:center">${lb}</div>`;
+    thresholds.forEach(th => {
+      // Synthetic Sharpe landscape — peak around lookback=28, threshold=0.25
+      const lbScore = 1 - Math.abs(lb - 28) / 50;
+      const thScore = 1 - Math.abs(th - 0.25) / 0.4;
+      const sh = lbScore * thScore * 2.5 + (Math.random()-0.5)*0.3;
+      const alpha = Math.min(0.95, Math.max(0.1, (sh+0.5)/3));
+      const color = sh > 1.5 ? `rgba(38,166,65,${alpha})` : sh > 0.5 ? `rgba(227,179,65,${alpha})` : `rgba(218,54,51,${alpha})`;
+      html += `<div style="background:${color};border-radius:2px;height:22px;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,0.7)">${sh.toFixed(1)}</div>`;
+    });
+  });
+  html += '</div>';
+  html += '<p style="color:var(--muted);font-size:10px;margin-top:6px">Parameter sensitivity — brighter = higher Sharpe · mock-tested only</p>';
+  wrap.innerHTML = html;
+}
+
+// Auto-run on load
+window.addEventListener('load', () => setTimeout(runAnalysis, 200));
+</script>
+</body>
+</html>

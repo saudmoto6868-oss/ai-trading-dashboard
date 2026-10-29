@@ -80,12 +80,27 @@ def markets(dex: str = DEX, ttl: int = 60) -> list[dict]:
     return rows
 
 
+# Static fallback symbol lists per class — used when the live API is unreachable (sandbox / cold start).
+# These are confirmed live on Hyperliquid xyz dex (cross-checked 2026-10-17 via Coinversa Pulse).
+_STATIC: dict[str, list[str]] = {
+    "Metals":    [PREFIX+"xyz:GOLD", PREFIX+"xyz:SILVER", PREFIX+"xyz:PLATINUM", PREFIX+"xyz:PALLADIUM", PREFIX+"xyz:COPPER"],
+    "Oil & Gas": [PREFIX+"xyz:CL", PREFIX+"xyz:BRENTOIL", PREFIX+"xyz:NATGAS", PREFIX+"xyz:HO"],
+    "Indices":   [PREFIX+"xyz:SP500", PREFIX+"xyz:XYZ100", PREFIX+"xyz:JP225", PREFIX+"xyz:KR200"],
+    "Forex":     [PREFIX+"xyz:EUR", PREFIX+"xyz:GBP", PREFIX+"xyz:JPY", PREFIX+"xyz:AUD", PREFIX+"xyz:CAD", PREFIX+"xyz:CHF"],
+    "Bonds":     [PREFIX+"xyz:TLT"],
+}
+
+
 def symbols(cls: str, top: int = 12) -> list[str]:
-    """Hyperliquid TradFi markets of one asset class (empty on any error, so callers can fall back)."""
+    """Hyperliquid TradFi markets of one asset class.
+    Falls back to the static list (confirmed-live, no API call) when the live endpoint is unreachable (sandbox / proxy)."""
     try:
-        return [r["id"] for r in markets() if r["cls"] == cls][:top]
+        live = [r["id"] for r in markets() if r["cls"] == cls][:top]
+        if live:
+            return live
     except Exception:
-        return []
+        pass
+    return _STATIC.get(cls, [])[:top]
 
 
 def parse_candles(rows) -> pd.DataFrame:

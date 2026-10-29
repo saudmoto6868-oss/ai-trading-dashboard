@@ -58,9 +58,19 @@ def log_alerts(alerts: list[dict], recs: list[dict], sent_keys: set | None = Non
         key = f"{a['symbol']}|{a['direction']}|{a.get('tfk') or a.get('tfc')}"
         if any(r["key"] == key and now - r["t"] < DEDUPE_S for r in recs):
             continue
-        recs.append({"t": int(now), "key": key, "symbol": a["symbol"], "dir": a["direction"], "tf": a.get("tfk") or a.get("tfc"),
-                     "score": int(a.get("score", 0)), "max": int(a.get("max", 0)), "q": a.get("q"), "entry": p["entry"], "stop": p["stop"],
-                     "tp1": p["tps"][0], "px0": (px or {}).get(a["symbol"]), "sent": bool(sent_keys and key in sent_keys)})
+        rec = {"t": int(now), "key": key, "symbol": a["symbol"], "dir": a["direction"], "tf": a.get("tfk") or a.get("tfc"),
+               "score": int(a.get("score", 0)), "max": int(a.get("max", 0)), "q": a.get("q"), "entry": p["entry"], "stop": p["stop"],
+               "tp1": p["tps"][0], "px0": (px or {}).get(a["symbol"]), "sent": bool(sent_keys and key in sent_keys)}
+        # T5: optional journal fields (grade, layers, setup_id, alert_kind) — absent in old records → None
+        if a.get("grade") is not None:
+            rec["grade"] = a["grade"]            # e.g. "A+", "A", "B"
+        if a.get("layers") is not None:
+            rec["layers"] = a["layers"]          # list of layer names, e.g. ["HTF","Location","Trigger"]
+        if a.get("setup_id") is not None:
+            rec["setup_id"] = a["setup_id"]      # academy setup id, e.g. "OB-RETEST-HTF"
+        if a.get("alert_kind") is not None:
+            rec["alert_kind"] = a["alert_kind"]  # "WATCH" | "CALL"
+        recs.append(rec)
         added += 1
     return added
 
@@ -131,7 +141,8 @@ def stats(recs: list[dict]) -> dict:
            "expired": sum(1 for r in recs if r.get("out") == "exp"), "nofill": sum(1 for r in recs if r.get("out") == "nofill"),
            "all": agg(closed), "by": {}}
     for name, fn in (("tf", lambda r: r["tf"]), ("side", lambda r: r["dir"]), ("stars", lambda r: str(r["score"])),
-                     ("q>=70", lambda r: "yes" if (r.get("q") or 0) >= 70 else "no"), ("sent", lambda r: "yes" if r.get("sent") else "no")):
+                     ("q>=70", lambda r: "yes" if (r.get("q") or 0) >= 70 else "no"), ("sent", lambda r: "yes" if r.get("sent") else "no"),
+                     ("alert_kind", lambda r: r.get("alert_kind") or "—"), ("grade", lambda r: r.get("grade") or "—")):
         g = {}
         for r in closed:
             g.setdefault(fn(r), []).append(r)
@@ -140,11 +151,20 @@ def stats(recs: list[dict]) -> dict:
 
 
 def to_csv(recs: list[dict], path: str):
-    """Closed trades in the Journal-export format (time,symbol,side,tf,r) for the Performance tab."""
+    """Closed trades in the Journal-export format for the Performance tab.
+    Core columns: time, symbol, side, tf, r
+    Optional columns (T5): grade, layers, setup_id, alert_kind — included only when at least one record has them."""
+    closed = sorted((r for r in recs if r.get("out") in ("tp", "sl")), key=lambda r: r.get("t_out", r["t"]))
+    # detect which optional columns are present in any record
+    optional = [c for c in ("grade", "layers", "setup_id", "alert_kind") if any(c in r for r in closed)]
     with open(path, "w", newline="") as f:
-        w = csv.writer(f); w.writerow(["time", "symbol", "side", "tf", "r"])
-        for r in sorted((r for r in recs if r.get("out") in ("tp", "sl")), key=lambda r: r.get("t_out", r["t"])):
-            w.writerow([time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r.get("t_out", r["t"]))), r["symbol"], "buy" if r["dir"] == "bullish" else "sell", r["tf"], r["r"]])
+        w = csv.writer(f)
+        w.writerow(["time", "symbol", "side", "tf", "r"] + optional)
+        for r in closed:
+            base = [time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r.get("t_out", r["t"]))),
+                    r["symbol"], "buy" if r["dir"] == "bullish" else "sell", r["tf"], r["r"]]
+            extras = ["|".join(r[c]) if isinstance(r.get(c), list) else r.get(c, "") for c in optional]
+            w.writerow(base + extras)
 
 
 def format_stats(s: dict) -> str:

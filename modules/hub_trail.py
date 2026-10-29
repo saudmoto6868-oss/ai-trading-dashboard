@@ -120,7 +120,7 @@ def parse_jsonl(text: str) -> list:
 
 def render(st, L=lambda s: s) -> None:
     from modules import hub_ui
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     up = st.file_uploader(L("Signal log (.signal_log.jsonl from the GitHub Actions artifact)"), type=["jsonl", "txt"], key="ht_up")
     if up is not None:
         recs = parse_jsonl(up.getvalue().decode("utf-8", "replace"))
@@ -130,19 +130,19 @@ def render(st, L=lambda s: s) -> None:
         recs = signal_log.load()
         src = str(signal_log.PATH)
     if not recs:
-        st.info(L(f"No signals in {src}. Upload the log, or let the cron write it. Nothing is estimated."))
+        st.info(L("No signals in {src}. Upload the log, or let the cron write it. Nothing is estimated.").format(src=src))
         return
     res = analyse(recs)
     s = res["summary"]
     n = max(1, s["signals"])
     hub_ui.show(st, hub_ui.cards([
-        ("S", L("Signals"), s["signals"], L(f"{s['open']} still open"), "", None),
+        ("S", L("Signals"), s["signals"], L("{n} still open").format(n=s["open"]), "", None),
         ("?", L("Unproven rule"), s["unproven"], L("no promoted rule behind them"), "warn" if s["unproven"] else "up", 100 * s["unproven"] / n),
-        ("C", L("Closed (trusted)"), s["closed_trusted"], L(f"need {MIN_N} for evidence"), "up" if s["enough"] else "", min(100, 100 * s["closed_trusted"] / MIN_N)),
+        ("C", L("Closed (trusted)"), s["closed_trusted"], L("need {n} for evidence").format(n=MIN_N), "up" if s["enough"] else "", min(100, 100 * s["closed_trusted"] / MIN_N)),
         ("R", L("Live net R / trade"), "n/a" if s["live_net_avg_r"] is None else s["live_net_avg_r"], L("after 0.10R cost"), "", None)]))
-    (st.success if s["enough"] else st.warning)(L(s["verdict"]))
+    (st.success if s["enough"] else st.warning)(hub_ui.tr(L, s["verdict"]))
     if s["flagged"]:
-        st.error(L(f"{s['flagged']} record(s) have an untrustworthy outcome time and are excluded from the R series."))
+        st.error(L("{n} record(s) have an untrustworthy outcome time and are excluded from the R series.").format(n=s["flagged"]))
     st.dataframe([{"time": x["t"], "symbol": x["symbol"], "tf": x["tf"], "dir": x["dir"],
                    **{k: f"{v[0]} {v[1]}".strip() for k, v in x["stages"].items()}, "flags": "; ".join(x["flags"])}
                   for x in sorted(res["rows"], key=lambda x: -(x["t"] or 0))[:200]], hide_index=True, use_container_width=True)

@@ -118,22 +118,22 @@ def render(st, L=lambda s: s) -> None:
     """Streamlit page body. st is passed in so this module imports without streamlit."""
     from modules import hub_ui
     res = run()
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     if res is None:
         st.info(L("No lab file yet (data/strategy_lab.json). Run the lab first."))
         return
     others = res["n_total"] - res["n_trials"]
     best = res["best_positive"]
     hub_ui.show(st, hub_ui.cards([
-        ("N", L("Trials counted"), res["n_total"], L(f"{res['n_trials']} lab + {others} from other tabs"), "", None),
+        ("N", L("Trials counted"), res["n_total"], L("{a} lab + {b} from other tabs").format(a=res["n_trials"], b=others), "", None),
         ("t", L("t needed after N looks"), res["bonferroni_t"], L("Bonferroni, two-sided 5%"), "", None),
         ("~", L("t pure luck reaches"), res["expected_max_null_t"], L("expected best of N noise rules"), "", None),
         ("OK", L("Rules passing every gate"), res["n_promotable"], L("n, t, IS+OOS, costs, Bonferroni"), "up" if res["n_promotable"] else "warn", None)]) +
         hub_ui.ruler([(L("luck"), res["expected_max_null_t"], "#8B8D98"), (L("hurdle"), hub_core.MIN_T, "#F0B90B"),
                       (L("Bonferroni"), res["bonferroni_t"], SPEC.accent), (L("best rule"), None if best is None else best["t"], "#0ECB81" if best and best["promote"] else "#F6465D")],
                      lo=0, hi=max(5.0, (best["t"] if best else 0) + 1, res["bonferroni_t"] + 1), title=L("Where the best rule sits against luck and the hurdles")))
-    (st.success if res["n_promotable"] else st.warning)(L(res["luck_verdict"]))
-    st.caption(L(f"{res['n_untestable']} lab rows have no t-stat and are not counted as evidence. Costs: {COST_R}R per trade (planning estimate, not measured)."))
+    (st.success if res["n_promotable"] else st.warning)(hub_ui.tr(L, res["luck_verdict"]))
+    st.caption(L("{n} lab rows have no t-stat and are not counted as evidence. Costs: {c}R per trade (planning estimate, not measured).").format(n=res["n_untestable"], c=COST_R))
     rows = sorted(res["verdicts"], key=lambda v: -v["t"])[:25]
     st.dataframe([{k: v[k] for k in ("key", "school", "tf", "side", "n", "avgR", "net", "t", "bh", "promote")} | {"why_not": "; ".join(v["why_not"][:2])}
                   for v in rows], use_container_width=True, hide_index=True)

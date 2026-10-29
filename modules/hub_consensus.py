@@ -111,7 +111,7 @@ def run(lab_path: Path | None = None, root=None, publish: bool = True) -> dict |
 
 def render(st, L=lambda s: s) -> None:
     from modules import hub_ui
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     res = run()
     if res is None:
         st.info(L("No lab file yet (data/strategy_lab.json). Run the lab first."))
@@ -123,7 +123,7 @@ def render(st, L=lambda s: s) -> None:
         ("=", L("Redundant"), k["REDUNDANT"], L("same idea counted twice"), "warn" if k["REDUNDANT"] else "", 100 * k["REDUNDANT"] / max(1, len(pairs))),
         ("x", L("Opposed"), k["OPPOSED"], L("point opposite ways"), "", 100 * k["OPPOSED"] / max(1, len(pairs))),
         ("~", L("Independent"), k["INDEPENDENT"], L("real separate information"), "up", 100 * k["INDEPENDENT"] / max(1, len(pairs)))]) +
-        hub_ui.graph([(p["a"], p["b"], p["rho"], p["class"]) for p in pairs], title=L("Detector map: who agrees, who fights")))
+        hub_ui.graph([(p["a"], p["b"], p["rho"], p["class"]) for p in pairs], title=L("Detector map: who agrees, who fights"), L=L))
     st.dataframe([{k: p[k] for k in ("a", "b", "together", "opposite", "rho", "z", "class")} for p in sorted(pairs, key=lambda p: -abs(p["rho"]))],
                  hide_index=True, use_container_width=True)
     st.markdown("**" + L("How many votes is your consensus really worth?") + "**")
@@ -136,8 +136,8 @@ def render(st, L=lambda s: s) -> None:
     m[1].metric(L("Effective independent votes"), ev["effective"])
     m[2].metric(L("Proven votes (Truth Court)"), pc)
     if ev["unmeasured"]:
-        st.caption(L(f"{len(ev['unmeasured'])} pair(s) have no lab measurement and are counted as independent: the real number may be lower."))
+        st.caption(L("{n} pair(s) have no lab measurement and are counted as independent: the real number may be lower.").format(n=len(ev["unmeasured"])))
     st.markdown("**" + L("Does more agreement help?") + "**")
     conf = res["confluence"]
-    (st.success if conf["n_positive"] else st.warning)(L(conf["verdict"]))
+    (st.success if conf["n_positive"] else st.warning)(hub_ui.tr(L, conf["verdict"]))
     st.dataframe([{**r, "evidence": "n>=100" if r["evidence"] else "not evidence"} for r in conf["rows"]], hide_index=True, use_container_width=True)

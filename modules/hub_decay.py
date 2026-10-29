@@ -128,17 +128,17 @@ def run(root=None, mu0: float = 0.0, registry: dict | None = None, publish: bool
 def render(st, L=lambda s: s) -> None:
     import pandas as pd
     from modules import hub_ui
-    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     mu0 = st.number_input(L("Baseline net R per trade we believe in (0 = break-even after costs)"), value=0.0, step=0.05, key="hd_mu0")
     res = run(mu0=mu0)
     s = res["status"]
     if not res["has_trail"]:
         st.info(L("The Decision Trail has not published a live R series yet. Open that tab with a signal log first."))
     box = {"OK": st.success, "WATCH": st.warning, "SHRINK": st.warning, "RETIRE": st.error, "TOO FEW": st.info}[s["state"]]
-    box(f"{s['state']} - {L(s['why'])}" + ("" if s["size"] is None else f"  |  size x{s['size']}"))
+    box(f"{s['state']} - {hub_ui.tr(L, s['why'])}" + ("" if s["size"] is None else f"  |  size x{s['size']}"))
     rt = s["rolling_t"]
     hub_ui.show(st, hub_ui.cards([
-        ("n", L("Live trades"), s["n"], L(f"need {MIN_LIVE} for a verdict"), "", min(100, 100 * s["n"] / MIN_LIVE)),
+        ("n", L("Live trades"), s["n"], L("need {n} for a verdict").format(n=MIN_LIVE), "", min(100, 100 * s["n"] / MIN_LIVE)),
         ("Σ", L("CUSUM (alarm above 4)"), "n/a" if s["cusum"] is None else s["cusum"], L("how far below the baseline"), "down" if s["cusum"] and s["cusum"] > hub_core.DECAY_H else "",
          None if s["cusum"] is None else min(100, 100 * s["cusum"] / (2 * hub_core.DECAY_H))),
         ("t", L("Rolling t (last 30)"), "n/a" if rt is None else ("-inf" if rt == float("-inf") else "inf" if rt == float("inf") else round(rt, 2)), L("below -2 with an alarm = retire"), "", None)]))

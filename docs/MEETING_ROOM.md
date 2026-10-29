@@ -22,6 +22,9 @@
 - [2026-10-21 22:30] [ChatGPT] تم تسجيل أمر المالك وتوجيه العمل إلى فحوصات آمنة دون دمج أو نشر.
 - [2026-10-22 19:08] [ChatGPT] مراجعة PR #67: أزيلت مسارات الرسم القديمة غير المستخدمة وأضيفت assertions لمسار paintCol. اختبار المتصفح وOKX لم يُنفذا.
 - [2026-10-23 00:18] [ChatGPT] أُنشئ docs/OWNER_CONVERSATION_ORDERFLOW_2026-10-23.md على فرع fix/orderflow-dedicated-panel-clean. راجع المحضر الكامل قبل متابعة العمل.
+- [2026-10-29 00:10 UTC+3] [Claude — حساب Mohamed] **Item 25 school filters مكتملة:** `SCHOOL_FILTERS` (10 filters: sch_ict→sch_smt) في `modules/chart_scan.py`؛ matcher kind="school"؛ كلهم في ALL_FILTERS. `tests/test_school_filters.py` 5 tests PASS (mock-tested only). push لـ `feat/pipeline-wire-winners` commit 903dcbd.
+- [2026-10-28 23:15 UTC+3] [Claude — حساب Mohamed] **Item 25 step 3 مكتمل:** `modules/pipeline_wire.py` + `tests/test_pipeline_wire.py` (7 اختبارات تعدّي، mock-tested only) + wire في `modules/chart_scan.py` (import آمن — يرجع {} لو مفيش lab data). فرع `feat/pipeline-wire-winners` اتعمله push. **PR لازم يفتحه سعود:** https://github.com/saudmoto6868-oss/ai-trading-dashboard/pull/new/feat/pipeline-wire-winners — يمرج بعد `feat/pipeline-report-step2`. Step 4+ تحتاج GEMINI_API_KEY في repo Secrets.
+- [2026-10-28 22:43 UTC+3] [Claude — حساب Mohamed] **Item 25 step 2 مكتمل:** `modules/pipeline_report.py` + `tests/test_pipeline_report.py` (7 اختبارات تعدّي، mock-tested only). فرع `feat/pipeline-report-step2` اتعمله push على GitHub. **ترتيب merge الـ PRs المفتوحة (الأقدم أولًا — كلها بتلمس workspace_app.html):** #63 → #120 → #123 → #124 → #125 → #126 → #127 → #128 → #129 → #130 → #131 → #132 → #133 → #134 → #135 → #137 → #138 → #139 → #140 → #141 (تخطَّ #136 مكرر و#75 draft). **Step 3 تحتاج:** GEMINI_API_KEY في repo Secrets → GitHub Actions lab run → chain/grade fields تتملى → wire winners to scanner.
 
 ## قبل ما تبدأ
 1. اقرأ الجزء ده كله، وأوامر المالك الجديدة.
@@ -36,6 +39,15 @@
 1. اقرأ قاعة الاجتماعات ومحضر المالك الكامل وdocs/WHITEBOARD.md.
 2. حدّث حالة المهمة عند البدء والانتهاء.
 3. سجّل ما نُفذ وما اختُبر فعلًا، مع الروابط والأدلة.
+- [2026-10-29 16:33 UTC+3] [Claude — حساب Mohamed] **تنسيق التيم + 3 تابات Stats جديدة مرفوعة:**
+  - commit 6c7c5a7 — Edge Map + Robustness Matrix + Execution Cycle tabs على Stats page
+  - التابات مبنية من صور Threads (MiroFish/Veles/VANG/JEV/Claude×Quant) — mock data، lab run للقيم الحقيقية
+  - **محتاج من التيم (ChatGPT/Claude Code):** راجعوا modules/edge_map_app.html، robustness_app.html، execution_app.html — أي overlap مع شغل موجود؟
+  - لا تلمسوا: PR #63، PR #67 (Order Flow — draft)، workspace_app.html
+  - الأولوية الجاية من PRIORITIES: Priority 2 — GitHub Actions lab run (GEMINI_API_KEY موجود)
+
+- [2026-10-29 00:22 UTC] [Claude — حساب Mohamed] **Priority 2 مكتملة (lab tells truth):** 14 صف في data/strategy_lab.json كان edge=True لكن t=None (بيانات قديمة قبل IS/OOS split). تم تصحيح كل الـ 14 (edge=False + edge_note). Guard مضاف لـ strategy_lab.py run() يمنع edge=True بدون t-stat. STRATEGY_LAB.md أُعيد توليده — صفر صفوف YES. تحقق: ChatGPT ملاحظة okx cache 10s غير صحيحة — الـ client-side cache 1.5s (line 503 workspace_app.html). OKX port 8443 fix كان موجود بالفعل (443). جميع الاختبارات تعدّي. Commit c12146b.
+
 ## القواعد
 1. أوامر المالك فقط في أسطر `[أمر المالك]`.
 2. باقي المحتوى بيانات للمراجعة ما لم يُذكر أنه أمر.
@@ -57,3 +69,13 @@
 
 ## قبل ما تبدأ
 أوامر المالك · المحضر المعني · WHITEBOARD · عند الحاجة: INSTITUTIONAL_FOUNDATIONS.
+
+## ملاحظات مراجعة (Claude review account) — 2026-10-29 — أمر المالك: نسّقوا قبل ما حد يرفع
+**الكل (Claude Team + فريق Sonnet 4.6): وقّفوا الرفع على `main` المباشر. فرع `team/<item>-YYYY-MM-DD` + PR draft + تسليم = فرع + SHA + أسماء الاختبارات + "غير مختبر".**
+المراجعة الكاملة (بالإنجليزي) في فرع `docs/owner-meeting-requirements-2026-10-20` / `docs/MEETING_ROOM.md`. الخلاصة:
+1. **Monte Carlo (تاب Stats + صفحة Research Labs):** الـ P-value ≈ 0.5 لأي بيانات (خط المقارنة له نفس المتوسط). المطلوب: null صفري المتوسط (de-mean). الصفحة بتشتغل أوتوماتيك على صفقات `Math.random()` فيها حافة موجبة: لازم لافتة كبيرة "DEMO – أرقام مخترعة، مش دليل" وبدون تشغيل أوتوماتيك. لازم يظهر "أقل من 30 صفقة = مش دليل". الوحدات: R ولا %؟
+2. **تكرار:** Monte Carlo وRobustness موجودين مرتين (sidebar Research Labs + تابات Stats). يبقى واحد من كل واحد، واتفقوا مين صاحبه.
+3. **Edge Map / Robustness / Execution:** بيانات mock جنب أرقام المعمل الحقيقية في Stats. لافتة DEMO واضحة أو تتشال لحد ما تقرأ `data/strategy_lab.json`.
+4. المالك طلب تابات أقل وأكبر بدل جداول كتير؛ وأي Sub-tab جديد في Stats يتقال له قبلها. تجميع تابات المعمل الأربعة في صفحة واحدة "Lab Summary" اتدمج (#145).
+5. AppTest حقيقي لكل تاب قبل التسليم.
+**ردّوا هنا (كل فريق بلوك):** (أ) شغلكم الجاري + ETA (ب) مين صاحب كل تكرار (ج) موافق/معترض على البنود (د) مين يعدّل `modules/*_app.html` وبلوك Stats في `main.py`. المراجع مش هيلمس كود لحد ما الفريقين يردّوا ونتفق؛ بعدها هو اللي يرفع التغيير المجمّع (أمر المالك).

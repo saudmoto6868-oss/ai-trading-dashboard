@@ -35,7 +35,7 @@ from modules.arabic import (
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
-from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
+from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
@@ -95,6 +95,29 @@ st.markdown("""
 from modules.auth import gate as _auth_gate
 if not _auth_gate(L):
     st.stop()
+
+# ---- Research Labs (sidebar) -------------------------------------------------
+with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
+    st.caption(L("Standalone studies — open in full page"))
+    _lab_choice = st.radio(
+        L("Lab"),
+        ["—", "⟁ Quant · Monte Carlo", "◈ Veles · Robustness", "⬡ Micro · Foundations"],
+        key="lab_choice",
+        label_visibility="collapsed",
+    )
+    if _lab_choice != "—":
+        if _lab_choice == "⟁ Quant · Monte Carlo":
+            from modules.quant_montecarlo import render as _mc_render
+            _mc_render()
+            st.stop()
+        elif _lab_choice == "◈ Veles · Robustness":
+            from modules.veles_robustness import render as _vr_render
+            _vr_render()
+            st.stop()
+        elif _lab_choice == "⬡ Micro · Foundations":
+            from modules.micro_foundations import render as _mf_render
+            _mf_render()
+            st.stop()
 
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))
@@ -617,7 +640,8 @@ def _scan_worker(store, ws_tf, ws_key):
                 if not e_:
                     continue
                 if e_.get("plan"):
-                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")})
+                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
+                                   | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
                 # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
@@ -1030,8 +1054,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy"]   # Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 5, 6]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -1975,7 +1999,7 @@ def render_alerts_page():
     """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
     and the plan for Radar alerts (task 17). Nothing here sends an order."""
     from modules import office_ui as U
-    from modules.alerts import ALERT_SCORE_THRESHOLD
+    from modules.alerts import ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
     st.markdown(U.CSS, unsafe_allow_html=True)
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
@@ -1987,7 +2011,7 @@ def render_alerts_page():
                              (L("Dashboard banners"), L("on"), "ok"),
                              (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
         st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
-            (L("Scanner alerts (Workspace)"), L("strong setups ranked by evidence score") + f" · ≥ {ALERT_SCORE_THRESHOLD}", L("on: banners + sound"), "ok"),
+            (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
             (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
             (L("Telegram (GitHub Actions)"), L("runs without the dashboard open"), (L("every 30 min") if tgw else L("missing")), "ok" if tgw else "bad"),
             (L("1m alerts"), L("switched off: -147R of -150R in the journal"), L("off"), "warn"),
@@ -3349,8 +3373,31 @@ def _stats_journal_kpis(jdf):
         st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
 
 
+if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
+    try:
+        from modules.lab_summary import render_lab_summary
+        render_lab_summary(_scan_store().get("payload") or {})
+    except Exception as _lab_exc:
+        st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
+    st.stop()
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    if _stab == "Monte Carlo":
+        from modules.quant_montecarlo import render as _mc_render
+        _mc_render()
+        st.stop()
+    if _stab == "Edge Map":
+        from modules.quant_edgemap import render as _em_render
+        _em_render()
+        st.stop()
+    if _stab == "Robustness":
+        from modules.quant_robustness import render as _rb_render
+        _rb_render()
+        st.stop()
+    if _stab == "Execution":
+        from modules.quant_execution import render as _ex_render
+        _ex_render()
+        st.stop()
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))

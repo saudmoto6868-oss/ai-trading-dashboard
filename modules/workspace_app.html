@@ -1070,8 +1070,15 @@ const SR = {
     this.busy[sym] = p; return p; },
   top(lv, n){ const R = lv.filter(x => x.kind === "R").slice(0, n), S = lv.filter(x => x.kind === "S").slice(0, n); return R.concat(S); }
 };
+const CandleCache = {   // last 300 candles per symbol + timeframe in this browser: a new tab / refresh paints at once, the live request then replaces them (max 16 entries, quota errors ignored)
+  key(sym, tf){ return LS+"_cc|"+sym+"|"+tf; },
+  get(sym, tf){ try { const o = JSON.parse(localStorage.getItem(this.key(sym, tf)) || "null"); if (!o || !o.r || o.r.length < 20 || Date.now() - o.t > 7*86400000) return null; return o.r.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], v:a[5]})); } catch(e){ return null; } },
+  put(sym, tf, rows){ try { if (!rows || rows.length < 20) return; const k = this.key(sym, tf), idx = JSON.parse(localStorage.getItem(LS+"_cci") || "[]").filter(x => x !== k); idx.push(k);
+      while (idx.length > 16){ localStorage.removeItem(idx.shift()); }
+      localStorage.setItem(k, JSON.stringify({t:Date.now(), r:rows.slice(-300).map(x => [x.t, x.o, x.h, x.l, x.c, x.v || 0])})); localStorage.setItem(LS+"_cci", JSON.stringify(idx)); } catch(e){} }
+};
 async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest for any chart timeframe (native, UTC variant, or aggregated); `want` = how many bars the first load should aim for
-  const ag = TF_AGG[tf];
+  const ag = TF_AGG[tf] || (tf === "6H" && /^(HL|Y):/.test(sym) ? ["1H", 6] : null);   // Hyperliquid / Yahoo have no 6h bar (gold, oil, indices, FX, stocks on 6H threw 'timeframe 6Hutc not available'): build it from 1H
   if (!ag){   // native timeframe: task 55, the first load also walks back in history until `want` candles (same loop as the aggregated ones)
     let nat = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&limit="+(first ? 300 : 3)));
     if (first === true){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 8 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }
@@ -1435,6 +1442,7 @@ class CandleChart {
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; XH_CHARTS.add(this); this.W = 0; this.H = 0;
     const cv = this.cv;
+    window.addEventListener("pagehide", () => { try { this.saveView(); } catch(e){} }); document.addEventListener("visibilitychange", () => { if (document.hidden){ try { this.saveView(); } catch(e){} } });   // flush on tab close / refresh
     cv.addEventListener("wheel", e => { e.preventDefault(); clearTimeout(this._svT); this._svT = setTimeout(() => this.saveView(), 250); this.wheel(e); }, {passive:false});   // wheel fires 60+/s: one localStorage write after the gesture, not one per event
     cv.addEventListener("pointerdown", e => this.down(e));
     cv.addEventListener("pointermove", e => this.move(e));
@@ -1467,8 +1475,10 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit) this.fit(); else { if (this.autoCenter) this.followLatest(); this.draw(); }
+    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    else { if (this.autoCenter) this.followLatest(); this.draw(); }
   }
+  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -1621,6 +1631,7 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
+    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
@@ -1892,8 +1903,14 @@ Object.assign(CandleChart.prototype, {
   },
   fspan(now){   // time window of the order-flow column. Manual choice (selector / wheel) wins. AUTO = Bookmap's rolling window: exactly the live book history recorded in this session, capped at 10 min (min 10 s), always anchored to "now" - so the heat map fills the WHOLE column from the first seconds and then scrolls left as new snapshots arrive. Longer windows (1 h .. 7 d from the saved history) are chosen manually.
     if (this.flowSpan) return this.flowSpan; if ((this.st.of.hmm || "fix") !== "fix") return 120000;
-    const fb = this.flowB && this.flowB[0], age = fb ? now - fb.t : 0; return Math.max(10000, Math.min(600000, Math.round(age*1.04)));
+    const fb = this.flowB && this.flowB[0], age = fb ? now - fb.t : 0, base = Math.max(10000, Math.min(600000, Math.round(age*1.04)));
+    const tfMs = this.secMs(); if (tfMs <= 600000) return base;   // 1m..5m charts: the live window as before
+    const rec = this.hmRecorded(now); return Math.max(base, Math.min(tfMs, rec, 7*864e5));   // 15m / 1H / 4H / 1D: show one candle's worth of book history (or everything recorded so far if that is less), not just the last 10 minutes
   },
+  hmRecorded(now){   // ms of book history this browser has recorded for the symbol (oldest saved bucket -> now)
+    if (!this.hm || this.hmSym !== this.sym){ try { this.hmInit(); } catch(e){ return 0; } } const H = this.hm; if (!H || !H.b.size) return 0;
+    if (this._hmOldN !== H.b.size || this._hmOldS !== this.sym){ let m = Infinity; H.b.forEach((o, t) => { if (t < m) m = t; }); this._hmOld = m; this._hmOldN = H.b.size; this._hmOldS = this.sym; }
+    return Math.max(0, now - this._hmOld); },
   hmInit(){   // fixed-grid order-book history (Bookmap style): absolute price rows x absolute time buckets, saved in the browser so it keeps growing across sessions
     if (this.hmSym === this.sym && this.hm) return; this.hmSym = this.sym; this.hm = {step:0, b:new Map()}; this._hmSv = nowS();
     // Load the existing local history without deleting it just because it is large.
@@ -1913,7 +1930,7 @@ Object.assign(CandleChart.prototype, {
     this._hmSv = now; const H = this.hm; if (!H) return; const nb = new Map();
     [...H.b.keys()].sort((a, b) => a - b).forEach(t => { if (t < now - 7*86400e3) return; const o = H.b.get(t), old = t < now - 3*3600e3, w = old ? 300000 : 60000, tb = Math.floor(t/w)*w; let n = nb.get(tb); if (!n){ n = {w, m:o.m, c:new Map()}; nb.set(tb, n); } n.m = o.m; o.c.forEach((q, k) => { const v = n.c.get(k); if (v == null || q > v) n.c.set(k, q); }); });
     nb.forEach(o => { const lim = o.w > 60000 ? 40 : 150; if (o.c.size > lim){ const top = [...o.c.entries()].sort((a, b) => b[1] - a[1]).slice(0, lim); o.c = new Map(top); } }); H.b = nb;
-    const pack = () => { const b = {}; nb.forEach((o, t) => { if (o.w > 60000 || t >= now - 3*3600e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };
+    const pack = () => { const b = {}; nb.forEach((o, t) => { if (t >= now - 7*86400e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };  // fix: save all buckets within 7-day window (prev condition skipped 1-3h minute-resolution buckets)
     try {
       const j = pack();
       let txt = JSON.stringify(j);
@@ -2147,6 +2164,8 @@ Object.assign(CandleChart.prototype, {
       if (!this._vp || this._vp.k !== key){ const vp = new Float64Array(nR), rh = (hi - lo)/nR || 1; for (let i = Math.max(0, i0); i <= Math.min(d_.length-1, i1); i++){ const k = d_[i], a0 = Math.max(0, Math.floor((k.l - lo)/rh)), a1 = Math.min(nR-1, Math.floor((k.h - lo)/rh)); if (a1 < a0) continue; const per = k.v/(a1 - a0 + 1); for (let r = a0; r <= a1; r++) vp[r] += per; } let m = 0; vp.forEach(v => { if (v > m) m = v; }); this._vp = {k:key, vp, m, rh}; }
       const V = this._vp; for (let r = 0; r < nR; r++){ const u = Math.pow(V.vp[r]/(V.m || 1), .6); if (u < .05) continue; const y0 = py(lo + (r + 1)*V.rh), y1 = py(lo + r*V.rh); c.fillStyle = hmRamp(u*.4); c.globalAlpha = .55 + .35*u; c.fillRect(gx0, y0, gw, Math.max(1, y1 - y0 + .5)); } c.globalAlpha = 1; }
     const fixedHm = (OF.hmm || "fix") === "fix" && span > 900000; if (this.domOn && fixedHm){ this.hmInit(); const firstHm = this.paintHeatCol(c, py, PB, tx, gx0, gx1, anchor - span*1.05, anchor + 60000); if (firstHm == null){ c.fillStyle = "#848e9c"; c.font = "10px sans-serif"; c.textAlign = "left"; c.fillText(Lg("No saved depth cells in this time window / price range","لا توجد خلايا عمق محفوظة في الفترة الزمنية أو النطاق السعري ده"), gx0, 26); } }
+    if (this.domOn && this.secMs() > 600000 && (OF.hmm || "fix") === "fix" && !this.flowSpan){ const rec = this.hmRecorded(now), tfm = this.secMs(); if (rec < tfm){ const mins = Math.max(1, Math.round(rec/60000)), since = new Date(now - rec), hh = String(since.getHours()).padStart(2, "0")+":"+String(since.getMinutes()).padStart(2, "0");
+      c.save(); c.fillStyle = "#848e9c"; c.font = "10px sans-serif"; c.textAlign = "left"; c.fillText(Lg("Recording since "+hh+" · "+mins+" min so far (this "+this.tf+" candle is longer)", "بيسجّل من "+hh+" · "+mins+" دقيقة لحد دلوقتي (شمعة "+this.tf+" أطول)"), gx0, PB - 8); c.restore(); } }
     if (this.domOn && !fixedHm) B.forEach((sn, i) => { const x0 = Math.max(gx0, tx(sn.t)), x1 = Math.min(gx1, i + 1 < B.length ? tx(B[i+1].t) : gx1), w = Math.max(1.2, x1 - x0); if (x1 < gx0) return;
       rows[i].forEach((v, k) => { const y = py(k*step); if (y < -rowH || y > PB + rowH) return; const rawT = Math.min(1, Math.pow(v.q/(hm || 1), .55)*(OF.dom || 1)), t = Math.min(1, Math.pow(rawT, 1/bright)); if (t < .04) return;
         c.globalAlpha = Math.max(.12, Math.min(1, (.08 + .9*t) * Math.min(1, bright)));
@@ -2442,6 +2461,24 @@ Object.assign(CandleChart.prototype, {
           if (!live || this.oteAlways || inZ){ c.globalAlpha = live ? .2 : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
             if (live){ c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("OTE 62-79% · "+Lg("in zone", "داخل المنطقة"), x0 + 3, y1 - 3); } } }
         c.restore(); c.textAlign = "center"; }
+      if (n === 0 && w.pts.length > 2){   // Fib retracement % on each corrective wave endpoint (2, 4, A)
+        const P = w.pts; c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center";
+        for (let k = 1; k + 1 < P.length; k += 2){   // odd indices = corrective wave endpoints (2, 4)
+          const leg = Math.abs(P[k-1].p - P[k].p), impulse = Math.abs(P[k].p - P[k-1].p);   // retracement vs prior impulse leg
+          const pct = impulse > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / Math.abs(P[k-2 >= 0 ? k-2 : 0].p - P[k-1].p) * 1000) / 10 : null;
+          if (pct === null || !isFinite(pct)) continue;
+          const x = this.x(P[k].i), y = py(P[k].p), above = P[k].up; // corrective wave point — below the prior high (bull)
+          c.globalAlpha = .85; c.fillStyle = "#cfd6dd";
+          c.fillText(pct.toFixed(1)+"%", x, y + (above ? -22 : 22));
+        }
+        // A wave Fib (first abc point) when abc exists
+        if (w.abc.length > 0 && w.pts.length >= 2){
+          const lastImp = w.pts[w.pts.length-1], prevImp = w.pts[w.pts.length-2], A = w.abc[0];
+          const rng = Math.abs(lastImp.p - prevImp.p);
+          if (rng > 0){ const pct = Math.round(Math.abs(A.p - lastImp.p) / rng * 1000) / 10;
+            if (isFinite(pct)){ const x = this.x(A.i), y = py(A.p); c.globalAlpha = .85; c.fillStyle = "#b57cff"; c.fillText(pct.toFixed(1)+"%", x, y + (A.up ? -22 : 22)); } }
+        }
+        c.textAlign = "center"; }
       if (n === 0 && w.pts.length){ const q = w.pts[1]; c.font = "9px sans-serif"; c.fillStyle = col; c.globalAlpha = .9; c.fillText("EW · "+this.tf+(w.up ? " ▲" : " ▼"), this.x(w.pts[0].i)+6, py(w.pts[0].p) + (w.up ? 14 : -14)); } });
     c.restore(); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.textBaseline = "alphabetic"; c.globalAlpha = 1;
   },
@@ -4001,6 +4038,7 @@ class Panel {
     const loop = async first => {
       if (tok !== this.tok) return;
       if (first && !fails && !this.chart.data.length) this.msg.textContent = T("loading");
+      if (first && !this.chart.data.length){ const cc = CandleCache.get(sym, tf); if (cc){ this.chart.setData(cc, true); this.chart.draw(); this.msg.textContent = ""; this._ccShown = true; } }   // open instantly with the last candles seen in this browser (marked stale until the real answer arrives)
       try {
         const rows = await Promise.race([candlesTf(sym, tf, first ? "quick" : false), new Promise((_, rj) => setTimeout(() => rj(new Error("timeout")), 25000))]);
         if (tok !== this.tok) return;
@@ -4009,7 +4047,7 @@ class Panel {
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         fails = 0;
         if (first){
-          this.chart.setData(rows, true); fillHist(); this.syncSR && this.syncSR();
+          this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows); this.syncSR && this.syncSR();
           const v = this._refreshView;
           if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;

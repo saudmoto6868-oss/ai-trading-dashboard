@@ -1,8 +1,9 @@
 # Grok (xAI) watch: one request every 6 hours (4 a day) plus manual runs. Saved as an artifact and a run summary (not committed). Cap: one request, 900 output tokens.
 name: Grok digest
 on:
-  schedule:
-    - cron: "0 */6 * * *"
+  # owner 2026-10-28: no paid API (Grok / Claude) - the 6-hourly schedule is OFF; run it by hand only when the owner says so.
+  # schedule:
+  #   - cron: "0 */6 * * *"
   workflow_dispatch:
 permissions:
   contents: read

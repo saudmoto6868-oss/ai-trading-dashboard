@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Micro · Foundations</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0e14; --bg2:#0d1117; --bg3:#161b22;
+    --border:#30363d; --gold:#f0b90b; --green:#26a641;
+    --red:#da3633; --blue:#388bfd; --teal:#39c5cf;
+    --text:#e6edf3; --muted:#8b949e; --card:#161b22;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; font-size:13px; }
+
+  .header {
+    background:var(--bg2); border-bottom:1px solid var(--border);
+    padding:10px 20px; display:flex; align-items:center; gap:12px;
+  }
+  .header-title { font-size:15px; font-weight:600; color:var(--teal); }
+  .header-sub { color:var(--muted); font-size:11px; }
+  .badge { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:2px 8px; font-size:11px; }
+
+  .main { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; gap:10px; padding:10px; height:calc(100vh - 50px); overflow-y:auto; }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:12px; }
+  .card-title { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .card.wide { grid-column:1/-1; }
+
+  canvas { max-height:200px; }
+
+  /* Resolution Grid */
+  .res-grid { display:grid; grid-template-columns:repeat(10, 1fr); gap:2px; }
+  .res-cell { border-radius:2px; height:26px; display:flex; align-items:center; justify-content:center; font-size:9px; color:rgba(255,255,255,0.7); cursor:pointer; transition:opacity 0.15s; }
+  .res-cell:hover { opacity:0.75; }
+
+  /* Hierarchy ladder */
+  .ladder { font-size:11px; }
+  .ladder-tier { display:flex; align-items:center; padding:5px 8px; border-radius:4px; margin-bottom:4px; gap:8px; }
+  .tier-bar { height:14px; border-radius:2px; background:var(--blue); }
+  .tier-label { color:var(--muted); font-size:10px; min-width:90px; }
+  .tier-vol { color:var(--text); font-weight:600; }
+
+  /* Side chain */
+  .side-indicators { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px; }
+  .side-box { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:8px; text-align:center; }
+  .side-label { font-size:9px; color:var(--muted); margin-bottom:4px; }
+  .side-val { font-size:16px; font-weight:700; }
+
+  /* Inventory plane */
+  .inv-legend { display:flex; gap:10px; margin-top:6px; flex-wrap:wrap; }
+  .inv-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-left:4px; }
+
+  .note { font-size:10px; color:var(--muted); margin-top:6px; font-style:italic; }
+
+  @media(max-width:700px) { .main { grid-template-columns:1fr; } .card.wide { grid-column:1; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">⬡ Micro · Foundations</div>
+    <div class="header-sub">Market microstructure · Order flow hierarchy · Institutional mechanics</div>
+  </div>
+  <div style="margin-right:auto"></div>
+  <span class="badge" id="sym-badge">BTC-USDT</span>
+  <span class="badge" id="status-badge" style="color:var(--teal)">Live OKX</span>
+</div>
+
+<div class="main">
+
+  <!-- 1. Resolution Grid -->
+  <div class="card">
+    <div class="card-title">🎯 Resolution Grid — Price Level Activity</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:6px">
+      Intensity of order activity at price levels (round numbers / key levels)
+    </div>
+    <div class="res-grid" id="res-grid">
+      <!-- filled by JS -->
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;font-size:10px;color:var(--muted)">
+      <span>Low <span style="display:inline-block;width:30px;height:8px;border-radius:2px;background:linear-gradient(to right,#0d3a1a,#26a641);vertical-align:middle"></span> High</span>
+      <span style="margin-right:auto"></span>
+      <span id="poll-clock">Next fill: <b style="color:var(--gold)">—</b></span>
+    </div>
+  </div>
+
+  <!-- 2. Side Chain -->
+  <div class="card">
+    <div class="card-title">🔄 Side Chain — Market Direction State</div>
+    <div class="side-indicators">
+      <div class="side-box">
+        <div class="side-label">Bias</div>
+        <div class="side-val" id="bias-val" style="color:var(--green)">Bull</div>
+      </div>
+      <div class="side-box">
+        <div class="side-label">Confidence</div>
+        <div class="side-val" id="conf-val" style="color:var(--gold)">—</div>
+      </div>
+      <div class="side-box">
+        <div class="side-label">Switches</div>
+        <div class="side-val" id="switch-val" style="color:var(--blue)">—</div>
+      </div>
+    </div>
+    <canvas id="side-chart"></canvas>
+    <!-- Ladder -->
+    <div style="margin-top:8px">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Entry Ladder</div>
+      <div id="ladder-wrap"></div>
+    </div>
+  </div>
+
+  <!-- 3. Inventory Plane -->
+  <div class="card">
+    <div class="card-title">📐 Inventory Plane — Directional × Residual</div>
+    <canvas id="inv-chart"></canvas>
+    <div class="inv-legend">
+      <span><span class="inv-dot" style="background:var(--green)"></span>Long</span>
+      <span><span class="inv-dot" style="background:var(--red)"></span>Short</span>
+      <span><span class="inv-dot" style="background:var(--gold)"></span>Neutral</span>
+    </div>
+    <p class="note">X = directional bias · Y = residual inventory · size = position size</p>
+  </div>
+
+  <!-- 4. Order Flow Hierarchy -->
+  <div class="card">
+    <div class="card-title">🏛️ Order Flow Hierarchy — Institutional Tiers</div>
+    <div class="ladder">
+      <div class="ladder-tier" style="background:rgba(56,139,253,0.1)">
+        <div class="tier-label">Tier 1 Banks</div>
+        <div class="tier-bar" style="width:90%;background:#388bfd"></div>
+        <div class="tier-vol">~70%</div>
+      </div>
+      <div class="ladder-tier" style="background:rgba(57,197,207,0.08)">
+        <div class="tier-label">Prime Brokers</div>
+        <div class="tier-bar" style="width:60%;background:var(--teal)"></div>
+        <div class="tier-vol">~18%</div>
+      </div>
+      <div class="ladder-tier" style="background:rgba(38,166,65,0.08)">
+        <div class="tier-label">HFT / Prop</div>
+        <div class="tier-bar" style="width:30%;background:var(--green)"></div>
+        <div class="tier-vol">~8%</div>
+      </div>
+      <div class="ladder-tier" style="background:rgba(227,179,65,0.08)">
+        <div class="tier-label">Retail / ECN</div>
+        <div class="tier-bar" style="width:10%;background:var(--gold)"></div>
+        <div class="tier-vol">~4%</div>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Key Level Types (from INSTITUTIONAL_FOUNDATIONS)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px">
+        <div style="background:rgba(56,139,253,0.1);border:1px solid rgba(56,139,253,0.2);border-radius:3px;padding:4px 6px">
+          <span style="color:var(--blue)">●</span> Accumulation zones
+        </div>
+        <div style="background:rgba(218,54,51,0.1);border:1px solid rgba(218,54,51,0.2);border-radius:3px;padding:4px 6px">
+          <span style="color:var(--red)">●</span> Distribution zones
+        </div>
+        <div style="background:rgba(240,185,11,0.1);border:1px solid rgba(240,185,11,0.2);border-radius:3px;padding:4px 6px">
+          <span style="color:var(--gold)">●</span> Sweep / liquidity grabs
+        </div>
+        <div style="background:rgba(38,166,65,0.1);border:1px solid rgba(38,166,65,0.2);border-radius:3px;padding:4px 6px">
+          <span style="color:var(--green)">●</span> Fair value gaps
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Market Structure -->
+  <div class="card wide">
+    <div class="card-title">📖 Market Structure Concepts — Reference (INSTITUTIONAL_FOUNDATIONS.md)</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div style="background:var(--bg3);border-radius:4px;padding:8px">
+        <div style="color:var(--blue);font-size:10px;font-weight:600;margin-bottom:4px">Order Flow Priority</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          Market → IOC → FOK → GTD → GTC<br>
+          Larger size = higher queue priority<br>
+          Post-only avoids taker fees
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:4px;padding:8px">
+        <div style="color:var(--teal);font-size:10px;font-weight:600;margin-bottom:4px">Liquidity Pools</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          Buy stops above swing highs<br>
+          Sell stops below swing lows<br>
+          Equal highs/lows = magnet targets
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:4px;padding:8px">
+        <div style="color:var(--gold);font-size:10px;font-weight:600;margin-bottom:4px">Smart Money Concepts</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          OB = last up/down candle before move<br>
+          FVG = 3-candle imbalance gap<br>
+          BOS / ChoCh = structure confirmation
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:4px;padding:8px">
+        <div style="color:var(--green);font-size:10px;font-weight:600;margin-bottom:4px">Microstructure Edge</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          Bid-ask spread = minimum edge required<br>
+          Queue position decays with time<br>
+          Markout decay tests fill quality
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:8px">Content sourced from docs/INSTITUTIONAL_FOUNDATIONS.md · Live order book data via OKX REST (mock-tested only in sandbox)</p>
+  </div>
+
+</div>
+
+<script>
+let sideChart, invChart;
+
+function buildResGrid() {
+  const grid = document.getElementById('res-grid');
+  const levels = 50; // 5 rows × 10 cols = 50 price levels
+  let html = '';
+  for (let i = 0; i < levels; i++) {
+    const intensity = Math.random();
+    const isRound = Math.random() < 0.15; // round number highlight
+    const alpha = 0.15 + intensity * 0.75;
+    const bg = isRound
+      ? `rgba(240,185,11,${alpha})`
+      : `rgba(56,139,253,${alpha})`;
+    const label = isRound ? '●' : '';
+    html += `<div class="res-cell" style="background:${bg}" title="Intensity: ${(intensity*100).toFixed(0)}%">${label}</div>`;
+  }
+  grid.innerHTML = html;
+
+  // Poll clock countdown
+  let secs = 47;
+  const pollEl = document.querySelector('#poll-clock b');
+  setInterval(() => {
+    secs--;
+    if (secs < 0) secs = 60;
+    pollEl.textContent = secs + 's';
+  }, 1000);
+}
+
+function buildSideChain() {
+  // Bull/Bear sequence
+  const states = [];
+  let state = Math.random() > 0.5 ? 1 : -1;
+  for (let i = 0; i < 30; i++) {
+    if (Math.random() < 0.15) state = -state; // switch
+    states.push(state);
+  }
+
+  const switches = states.reduce((acc,v,i)=>i>0&&v!==states[i-1]?acc+1:acc,0);
+  const bullCount = states.filter(v=>v>0).length;
+  const bias = bullCount > 20 ? 'Bull' : bullCount > 14 ? 'Neutral' : 'Bear';
+  const conf = Math.abs(bullCount - 15) / 15;
+
+  document.getElementById('bias-val').textContent = bias;
+  document.getElementById('bias-val').style.color = bias==='Bull'?'var(--green)':bias==='Bear'?'var(--red)':'var(--gold)';
+  document.getElementById('conf-val').textContent = (conf*100).toFixed(0)+'%';
+  document.getElementById('switch-val').textContent = switches;
+
+  const ctx = document.getElementById('side-chart').getContext('2d');
+  if (sideChart) sideChart.destroy();
+  sideChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:states.map((_,i)=>i+1),
+      datasets:[{
+        data:states.map(v=>v),
+        backgroundColor:states.map(v=>v>0?'rgba(38,166,65,0.7)':'rgba(218,54,51,0.7)'),
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,animation:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{display:false},
+        y:{min:-1.5,max:1.5,ticks:{color:'#8b949e',font:{size:9}},grid:{color:'rgba(48,54,61,0.3)'}}
+      }
+    }
+  });
+
+  // Ladder
+  const prices = [42800, 43000, 43200, 43500, 43800];
+  const ladderHTML = prices.map((p,i) => {
+    const sz = Math.random()*80+20;
+    const isBid = i < 2;
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px">
+      <span style="color:${isBid?'var(--green)':'var(--red)'};width:8px">${isBid?'B':'A'}</span>
+      <span style="color:var(--text)">$${p.toLocaleString()}</span>
+      <div style="flex:1;height:6px;background:${isBid?'rgba(38,166,65,0.4)':'rgba(218,54,51,0.4)'};border-radius:2px">
+        <div style="width:${sz}%;height:100%;background:${isBid?'var(--green)':'var(--red)'};border-radius:2px"></div>
+      </div>
+      <span style="color:var(--muted);font-size:10px">${sz.toFixed(0)} BTC</span>
+    </div>`;
+  }).join('');
+  document.getElementById('ladder-wrap').innerHTML = ladderHTML;
+}
+
+function buildInventoryPlane() {
+  const ctx = document.getElementById('inv-chart').getContext('2d');
+  if (invChart) invChart.destroy();
+
+  const points = Array.from({length:40}, () => {
+    const side = Math.random();
+    const x = (Math.random()-0.5)*2; // directional bias
+    const y = (Math.random()-0.5)*1.5; // residual inventory
+    const r = Math.random()*10+3;
+    return { x, y, r, side };
+  });
+
+  invChart = new Chart(ctx, {
+    type:'bubble',
+    data:{datasets:[
+      {label:'Long', data:points.filter(p=>p.side<0.4).map(p=>({x:p.x,y:p.y,r:p.r})),
+       backgroundColor:'rgba(38,166,65,0.5)',borderColor:'rgba(38,166,65,0.8)',borderWidth:1},
+      {label:'Short', data:points.filter(p=>p.side>0.6).map(p=>({x:p.x,y:p.y,r:p.r})),
+       backgroundColor:'rgba(218,54,51,0.5)',borderColor:'rgba(218,54,51,0.8)',borderWidth:1},
+      {label:'Neutral', data:points.filter(p=>p.side>=0.4&&p.side<=0.6).map(p=>({x:p.x,y:p.y,r:p.r})),
+       backgroundColor:'rgba(240,185,11,0.4)',borderColor:'rgba(240,185,11,0.8)',borderWidth:1},
+    ]},
+    options:{
+      responsive:true,animation:false,
+      plugins:{legend:{labels:{color:'#8b949e',font:{size:10}}}},
+      scales:{
+        x:{title:{display:true,text:'Directional Bias',color:'#8b949e',font:{size:10}},
+           ticks:{color:'#8b949e',font:{size:10}},grid:{color:'rgba(48,54,61,0.3)'},min:-1.5,max:1.5},
+        y:{title:{display:true,text:'Residual Inventory',color:'#8b949e',font:{size:10}},
+           ticks:{color:'#8b949e',font:{size:10}},grid:{color:'rgba(48,54,61,0.3)'},min:-1.5,max:1.5}
+      }
+    }
+  });
+}
+
+window.addEventListener('load', () => {
+  buildResGrid();
+  buildSideChain();
+  buildInventoryPlane();
+  document.getElementById('status-badge').textContent = 'Mock data';
+  document.getElementById('status-badge').style.color = 'var(--gold)';
+});
+</script>
+</body>
+</html>

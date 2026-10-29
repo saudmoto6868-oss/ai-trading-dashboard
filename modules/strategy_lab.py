@@ -227,11 +227,25 @@ def summarize(all_events, all_bars):
         x = np.asarray(rs, float); se = 1.0 / np.sqrt(max(len(x), 1))
         rows.append({"key": "*VAR*" if k == "all" else k, "school": "exit", "tf": "all", "side": n, "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
                      "avgR": round(float(x.mean()), 3), "net": round(float(x.mean()) - COST_R, 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
+    # Build IS/OOS split per (key, tf, side) using the oos flag stored in each event
+    per_is = defaultdict(list); per_oos = defaultdict(list)
+    for tf, sym, ev in all_events:
+        for e in ev:
+            for g in (((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short"), (e["key"], "all", "trend-" + e["trend"]),
+                      ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"]))
+                      + ((("*ALL*", "all", "ses-" + e["ses"]), (e["key"], "all", "ses-" + e["ses"])) if e.get("ses") else ()) + ((("*ALL*", "all", "dow-" + e["dow"]),) if e.get("dow") else ())):
+                (per_oos if e.get("oos") else per_is)[g].append(e["r"])
     for (k, tf, side), rs in per.items():
         s = _stat(rs); b = _stat(base[(k, tf, side)])
+        x = np.asarray(rs, float); bx = np.asarray(base[(k, tf, side)], float)
+        d = x - bx
+        t = round(float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 2 and d.std() > 0 else 0.0, 2)
+        ins = per_is.get((k, tf, side), []); oos_rs = per_oos.get((k, tf, side), [])
+        is_stat = _stat(ins); oos_stat = _stat(oos_rs)
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
         rows.append({"key": k, "school": SCHOOL.get(k, "Other"), "tf": tf, "side": side, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
-                     "edge": bool(s["n"] >= MIN_N and s["avgR"] - b["avgR"] > 3.6 * se and s["avgR"] > 0)})   # ~3 sigma: ~35 detectors are tested at once, a 2-sigma bar would flag one by luck
+                     "t": t, "is_n": len(ins), "is_avgR": is_stat.get("avgR"), "oos_n": len(oos_rs), "oos_avgR": oos_stat.get("avgR"),
+                     "edge": bool(s["n"] >= MIN_N and t > 3 and (oos_stat.get("avgR") or 0) > 0 and (is_stat.get("avgR") or 0) > 0)})   # t>3: ~35 detectors tested at once
     # conflicts: detectors pointing opposite ways on the same bar
     conf, co = defaultdict(int), defaultdict(int)
     for tf, sym, bars in all_bars:
@@ -455,6 +469,11 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                     lunar[k] = [lunar[k][j] + lu[k][j] for j in range(3)]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
+    # safety: edge=True requires a computed t-stat; any row without one is labelled as no-edge
+    # (happens when JSON is loaded from a previous run that pre-dates t-stat computation)
+    for _r in rows:
+        if _r.get("edge") and _r.get("t") is None:
+            _r["edge"] = False
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
     return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone}
 

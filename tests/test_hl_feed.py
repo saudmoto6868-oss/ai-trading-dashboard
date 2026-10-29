@@ -78,4 +78,20 @@ res = scan_symbol("HL:xyz:GOLD", frames["HL:xyz:GOLD"], "1h")
 assert res.get("symbol", "HL:xyz:GOLD") == "HL:xyz:GOLD" and "direction" in res, list(res)
 from modules.arabic import tv_link  # noqa: E402
 assert "OANDA:XAUUSD" in tv_link("HL:xyz:GOLD", "1h")
+# static fallback: symbols() returns hardcoded list when live API is unreachable
+import unittest.mock as _mock
+with _mock.patch("modules.hl_feed.markets", side_effect=RuntimeError("proxy 403")):
+    fb_metals = hl_feed.symbols("Metals", top=3)
+    fb_forex = hl_feed.symbols("Forex", top=3)
+    fb_oil = hl_feed.symbols("Oil & Gas", top=2)
+    fb_idx = hl_feed.symbols("Indices", top=2)
+    fb_bonds = hl_feed.symbols("Bonds")
+    fb_stocks = hl_feed.symbols("Stocks")
+assert fb_metals == ["HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:PLATINUM"], fb_metals
+assert fb_forex == ["HL:xyz:EUR", "HL:xyz:GBP", "HL:xyz:JPY"], fb_forex
+assert fb_oil == ["HL:xyz:CL", "HL:xyz:BRENTOIL"], fb_oil
+assert fb_idx == ["HL:xyz:SP500", "HL:xyz:XYZ100"], fb_idx
+assert fb_bonds == ["HL:xyz:TLT"], fb_bonds
+assert fb_stocks == [], fb_stocks   # no static Stocks list yet
+
 print("test_hl_feed: all passed")

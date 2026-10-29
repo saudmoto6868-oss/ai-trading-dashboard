@@ -3,14 +3,18 @@ THE HEAD ANALYST
 Turns raw signals (modules/signals.py) into one scanner result per symbol:
 direction, 0-7 stars, reasons, multi-timeframe context and trade type.
 
-Scoring (doc: "a setup confirmed by two or three indicators carries more weight
-than a single weaker signal" and "technical indicators are confirmation only"):
-  * 7 signal families: Elliott, Unicorn, MSB-OB, Fib, Liquidity (primary) and
-    MA, VWAP (confirmation only).
-  * stars = number of DISTINCT families agreeing on the dominant direction.
-  * confirmation-only families are worth at most 1 star unless at least one
-    primary family agrees.
-  * each opposing primary family takes one star away (conflicting evidence).
+Scoring (T4 redesign — MEETING_ALERTS_SETUP.md):
+  * Two tiers of families:
+    - TRIGGER families (count toward stars): MA, VWAP, TL (trend/confirmation),
+      Unicorn, MSB-OB, Fib, Liquidity — these are the «where» and «whether to act».
+    - CONTEXT families (flag only, shown in UI but do NOT add a star): Elliott.
+      (Gann, Harmonic, SMC added here when their detectors land.)
+      A CONTEXT signal alone is a WATCH, never enough to drive a CALL.
+  * stars = number of DISTINCT TRIGGER families agreeing on the dominant direction.
+    Context families are surfaced in result["context_flags"] for display.
+  * confirmation-only families (MA/VWAP/TL) are worth at most 1 star unless at
+    least one non-confirmation TRIGGER family agrees.
+  * each opposing primary TRIGGER family takes one star away (conflicting evidence).
 
 Trade type (doc: multi-timeframe top-down process): comes from which
 timeframe actually CONFIRMS the trigger, not from the tab it was fetched on.
@@ -24,7 +28,16 @@ from modules.signals import (
     BULL, BEAR, PRIMARY_FAMILIES, CONFIRM_FAMILIES, ALL_FAMILIES, detect_all, sr_levels, fp,
 )
 
-MAX_STARS = len(ALL_FAMILIES)  # 7
+# T4 (MEETING_ALERTS_SETUP.md): context families shown as flags, not counted as stars.
+# These add a WATCH signal but cannot drive a CALL on their own.
+# Elliott is context because the lab shows low t-stat and it is primarily a «map» tool.
+# Add "Gann", "Harmonic", "SMC" here as their detectors are built.
+CONTEXT_FAMILIES: tuple = ("Elliott",)
+
+# Trigger families = ALL_FAMILIES minus context families
+TRIGGER_FAMILIES: tuple = tuple(f for f in ALL_FAMILIES if f not in CONTEXT_FAMILIES)
+
+MAX_STARS = len(TRIGGER_FAMILIES)  # updated from ALL_FAMILIES
 
 import os as _os
 # horizons scanned in the background (alerts + journal). 1m is OFF by default: in the owner's journal (Oct 2026, 1110 trades)
@@ -51,8 +64,9 @@ CONFIRM_ONLY_KEYS = ("msb_ob",)
 
 
 def aggregate(signals: list) -> dict:
-    fams = {BULL: set(), BEAR: set()}
-    held = {BULL: set(), BEAR: set()}                  # families that only a confirm-only signal supports
+    fams = {BULL: set(), BEAR: set()}               # trigger families only (count as stars)
+    ctx_flags = {BULL: set(), BEAR: set()}          # context families (Elliott etc) — displayed, not counted
+    held = {BULL: set(), BEAR: set()}               # families that only a confirm-only signal supports
     try:
         from modules.lab_tiers import off_keys
         off = off_keys()          # detectors the weekly lab found clearly negative: shown, but they do not decide a trade
@@ -61,34 +75,44 @@ def aggregate(signals: list) -> dict:
     for s in signals:
         if s.get("key") in off:
             continue
+        fam = s["family"]
+        side = s["direction"]
+        if fam in CONTEXT_FAMILIES:
+            # T4: context families are a WATCH flag — never a trigger star
+            ctx_flags[side].add(fam)
+            continue
         if s.get("key") in CONFIRM_ONLY_KEYS:
-            held[s["direction"]].add(s["family"])
+            held[side].add(fam)
         else:
-            fams[s["direction"]].add(s["family"])
+            fams[side].add(fam)
     for d in (BULL, BEAR):
         others = fams[d] & set(PRIMARY_FAMILIES)
         for f in held[d]:
             if f in fams[d] or others:                  # a primary family (other than the held one) already agrees
                 fams[d].add(f)
 
+    # TRIGGER families only (context excluded above)
+    TRIGGER_PRIMARY = tuple(f for f in PRIMARY_FAMILIES if f not in CONTEXT_FAMILIES)
+
     def effective(d):
         f = fams[d]
         if not f:
             return 0
-        prim = f & set(PRIMARY_FAMILIES)
+        prim = f & set(TRIGGER_PRIMARY)
         return len(f) if prim else 1  # confirmation alone = 1 star max
 
     def opposing_primary(d):
-        return len(fams[BEAR if d == BULL else BULL] & set(PRIMARY_FAMILIES))
+        return len(fams[BEAR if d == BULL else BULL] & set(TRIGGER_PRIMARY))
 
     sb, sr = effective(BULL), effective(BEAR)
     if sb == sr:
         return {"direction": "neutral", "stars": 0, "aligned": set(), "mixed": sb > 0,
-                "fams": fams}
+                "fams": fams, "ctx_flags": ctx_flags}
     d = BULL if sb > sr else BEAR
     eff = max(sb, sr)
     stars = max(1, eff - opposing_primary(d))
-    return {"direction": d, "stars": min(stars, MAX_STARS), "aligned": fams[d], "mixed": False, "fams": fams}
+    return {"direction": d, "stars": min(stars, MAX_STARS), "aligned": fams[d], "mixed": False,
+            "fams": fams, "ctx_flags": ctx_flags}
 
 
 _memo: dict = {}
@@ -185,8 +209,11 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
         ctx = market_context(df, direction if direction != "neutral" else None)
     except Exception:
         ctx = {}
+    # T4: context flags (Elliott etc.) shown separately — WATCH only, not CALL drivers
+    ctx_fams = sorted(agg["ctx_flags"].get(direction, set())) if direction != "neutral" else []
     return {
         "context": ctx,   # where / when / which side (daily bias, premium/discount, NY killzone) - shown, never counted in the stars
+        "context_flags": ctx_fams,   # T4: context families (Elliott/Gann/Harmonic/SMC) — display as WATCH badge, not stars
         "symbol": symbol,
         "score": agg["stars"], "max_score": MAX_STARS,
         "direction": direction,

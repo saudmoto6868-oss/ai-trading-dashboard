@@ -17,7 +17,7 @@ THEME = {"tokens": {}, "rad": 14}
 TABS = (
     ("overview", "Command Center", "◈", "#B8BCC6", ()),
     ("truth", "Truth Court", "§", "#E0A526", ()),
-    ("plateau", "Plateau Lab", "▦", "#4C8DFF", ("truth",)),
+    ("plateau", "Plateau Lab", "▦", "#4C8DFF", ("truth", "regime")),
     ("regime", "Regime Radar", "◉", "#2FBF71", ()),
     ("trail", "Decision Trail", "⟡", "#9B6BFF", ("truth",)),
     ("decay", "Decay Watch", "↘", "#E5484D", ("trail", "truth")),
@@ -138,7 +138,8 @@ def flow(snaps: dict | None = None) -> str:
         out.append(f"<rect x='{x - bw / 2}' y='{y - bh / 2}' width='{bw}' height='{bh}' rx='10' fill='var(--uk-panel2)' stroke='{acc}' stroke-width='1.6'{dash}/>"
                    f"<text x='{x - bw / 2 + 12}' y='{y + 5}' font-size='15' fill='{acc}'>{html.escape(glyph)}</text>"
                    f"<text x='{x - bw / 2 + 32}' y='{y + 4}' font-size='11' fill='var(--uk-text)'>{html.escape(title)}</text>")
-    out.append("<text x='510' y='172' text-anchor='middle' font-size='9' fill='var(--uk-dim)'>nobody reads the regime yet</text>")
+    if "regime" not in readers:
+        out.append("<text x='510' y='172' text-anchor='middle' font-size='9' fill='var(--uk-dim)'>nobody reads the regime yet</text>")
     return ui_kit.panel("How the tabs help each other (arrows = reads the published snapshot)", f"<svg viewBox='0 0 620 254' width='100%'>{''.join(out)}</svg>")
 
 

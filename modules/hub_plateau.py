@@ -16,7 +16,7 @@ from modules import hub_core
 SPEC = hub_core.TabSpec(
     id="plateau", title="Plateau Lab", glyph="▦", accent="#4C8DFF",
     purpose="Tells a stable parameter plateau from a lucky spike using walk-forward, costs and the Truth Court's N.",
-    consumes=("truth",),
+    consumes=("truth", "regime"),
 )
 FASTS = (5, 8, 10, 13, 20, 30, 40, 50)
 SLOWS = (20, 30, 50, 80, 120, 160, 200)
@@ -165,8 +165,25 @@ def walk_forward(close: np.ndarray, n_folds: int = 5, fasts=FASTS, slows=SLOWS, 
         "wfe": (oos_mean / is_mean) if is_mean and is_mean > 0 else float("nan"),
         "pct_folds_profitable": float(np.mean([(f["oos_sharpe"] or 0) > 0 for f in folds])),
         "trade_mean": float(trades.mean()) if len(trades) else float("nan"), "t": t,
-        "equity": np.cumsum(stitched).tolist(),
+        "equity": np.cumsum(stitched).tolist(), "oos_start": blk, "oos_returns": stitched.tolist(),
     }
+
+
+def regime_breakdown(labels: list, oos_start: int, oos_returns: list, min_bars: int = 30) -> list:
+    """Stitched OOS bar returns grouped by the regime of each bar (labels come from regime_lib, no look-ahead). Bar i of the OOS series is
+    candle oos_start + i. Groups under min_bars are returned but flagged: they describe, they do not prove."""
+    groups: dict = {}
+    for i, r in enumerate(oos_returns):
+        j = oos_start + i
+        g = labels[j] if j < len(labels) and labels[j] else "warm-up"
+        groups.setdefault(g, []).append(r)
+    out = []
+    for g, xs in groups.items():
+        a = np.asarray(xs, dtype=float)
+        sd = a.std(ddof=1) if len(a) > 1 else 0.0
+        out.append({"regime": g, "bars": len(a), "mean": float(a.mean()), "sharpe": float(a.mean() / sd) if sd > 0 else None,
+                    "t": float(a.mean() / (sd / np.sqrt(len(a)))) if sd > 0 else None, "evidence": len(a) >= min_bars})
+    return sorted(out, key=lambda x: -x["bars"])
 
 
 def verdict(wf: dict | None, truth_bonferroni_t: float | None = None) -> tuple[bool, list]:
@@ -189,7 +206,7 @@ def verdict(wf: dict | None, truth_bonferroni_t: float | None = None) -> tuple[b
     return ok, why
 
 
-def evaluate(close, key: str = "", root=None, publish: bool = True) -> dict:
+def evaluate(close, key: str = "", root=None, publish: bool = True, labels: list | None = None) -> dict:
     """Full run for one series: surface, plateau vs peak, walk-forward, verdict. Publishes this key into the tab's snapshot
     (merged with earlier keys; n_trials = every cell of every swept series, so the Truth Court can count them)."""
     close = np.asarray(close, dtype=float)
@@ -205,18 +222,20 @@ def evaluate(close, key: str = "", root=None, publish: bool = True) -> dict:
            "peak_vs_plateau": None if pl is None else {"peak_sharpe": float(Z[pk]), "plateau_smoothed": float(S[pl])},
            "stability": None if pl is None else neighbour_stability(S, pl),
            "spike": bool(pk is not None and S[pk] < 0.5 * Z[pk]) if pk is not None and Z[pk] > 0 else False,
-           "wf": wf, "promote": ok, "why_not": why, "truth_t": bt}
+           "wf": wf, "promote": ok, "why_not": why, "truth_t": bt,
+           "by_regime": regime_breakdown(labels, wf["oos_start"], wf["oos_returns"]) if labels is not None and wf else None}
     if publish and key:
         old = hub_core.read(SPEC.id, root) or {"findings": [], "n_trials": 0}
         keep = [f for f in old["findings"] if f.get("key") != key]
         cells = int(np.sum(~np.isnan(Z)))
         keep.append({"key": key, "promote": ok, "why_not": why[:3], "plateau": out["plateau"],
-                     "n_trades": 0 if wf is None else wf["n_trades"], "t": None if wf is None else wf["t"], "cells": cells})
+                     "n_trades": 0 if wf is None else wf["n_trades"], "t": None if wf is None else wf["t"], "cells": cells,
+                     "by_regime": None if not out["by_regime"] else {r["regime"]: {"bars": r["bars"], "sharpe": r["sharpe"]} for r in out["by_regime"]}})
         hub_core.publish(SPEC.id, keep, sum(f.get("cells", 0) for f in keep), root=root)
     return out
 
 
-def _load_close(st, sym: str, tf: str, bars: int = 2500) -> np.ndarray:
+def _load_df(st, sym: str, tf: str, bars: int = 2500):
     """Close prices, oldest first. OKX symbols are paged from the history endpoint (the app's own fetch_long);
     Hyperliquid symbols come from the app's cached feed, which holds fewer candles (the page then says so)."""
     @st.cache_data(ttl=600, show_spinner="Loading candles...")
@@ -229,7 +248,7 @@ def _load_close(st, sym: str, tf: str, bars: int = 2500) -> np.ndarray:
             df = backtest_tf.fetch_long(sym, tf, bars)
         if df is None or df.empty:
             raise RuntimeError("empty candle response")
-        return df["close"].astype(float).to_numpy()
+        return df
     return _fetch(sym, tf, bars)
 
 
@@ -251,12 +270,15 @@ def render(st, L=lambda s: s) -> None:
             st.info(L("Pick a symbol and press Run. Nothing is estimated until you do."))
         return
     try:
-        close = _load_close(st, sym, tf)
+        df = _load_df(st, sym, tf)
+        close = df["close"].astype(float).to_numpy()
         st.caption(L(f"{len(close)} candles. Walk-forward needs at least {MIN_FOLD_BARS * 6}."))
     except Exception as e:
         st.error(L("No candles: ") + str(e))
         return
-    res = evaluate(close, key=f"{sym} {tf}")
+    from modules import regime_lib
+    labels = regime_lib.label(df["high"].astype(float).to_numpy(), df["low"].astype(float).to_numpy(), close)
+    res = evaluate(close, key=f"{sym} {tf}", labels=labels)
     wf = res["wf"]
     (st.success if res["promote"] else st.warning)(L("Passes every gate" if res["promote"] else "Not promotable: ") + "; ".join(res["why_not"][:3]))
     wfe = None if not wf or wf["wfe"] != wf["wfe"] else wf["wfe"]
@@ -272,6 +294,14 @@ def render(st, L=lambda s: s) -> None:
         x=alt.X("slow:O", sort=[str(s) for s in SLOWS]), y=alt.Y("fast:O", sort=[str(f) for f in FASTS]),
         color=alt.Color("sharpe:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0)), tooltip=["fast", "slow", "sharpe"]
     ).properties(height=260, title=L("Smoothed Sharpe surface (median of 3x3 neighbours)")), use_container_width=True)
+    if res["by_regime"]:
+        snap = hub_core.read("regime") or {}
+        now = next((f.get("regime") for f in snap.get("findings", []) if f.get("key") == f"{sym} {tf}"), None)
+        st.markdown("**" + L("Out-of-sample result by market regime (labels from the shared regime definition)") + "**")
+        st.dataframe([{"regime": r["regime"] + (" (now)" if r["regime"] == now else ""), "OOS bars": r["bars"], "mean bar return %": round(100 * r["mean"], 4),
+                       "Sharpe/bar": None if r["sharpe"] is None else round(r["sharpe"], 3), "t": None if r["t"] is None else round(r["t"], 2),
+                       "evidence": "n>=30" if r["evidence"] else "not evidence"} for r in res["by_regime"]], hide_index=True, use_container_width=True)
+        st.caption(L("A regime where the rule works must still pass the Truth Court: slicing into six regimes is six more looks."))
     if wf:
         st.dataframe(wf["folds"], hide_index=True, use_container_width=True)
         st.line_chart(pd.DataFrame({"stitched OOS equity (sum of bar returns)": wf["equity"]}))

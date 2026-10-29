@@ -61,4 +61,27 @@ keys = {f["key"] for f in snap["findings"]}
 assert "trend" in keys and "rw0" in keys and snap["n_trials"] == sum(f["cells"] for f in snap["findings"]) > 0
 hp.evaluate(series(7, 1500, phi=0.4), key="trend", root=tmp)      # same key twice = replaced, not duplicated
 assert [f["key"] for f in hub_core.read("plateau", tmp)["findings"]].count("trend") == 1
+# --- regime slicing: bars land in the regime of THEIR candle, small groups are flagged ---
+wf2 = hp.walk_forward(series(2, 1500, phi=0.25))
+assert wf2["oos_start"] == 1500 // 6 and len(wf2["oos_returns"]) == wf2["n_oos_bars"] == 1500 - 1500 // 6
+labs = ["Trend" if i % 2 else "Chop" for i in range(1500)]
+bd = hp.regime_breakdown(labs, wf2["oos_start"], wf2["oos_returns"])
+assert {b["regime"] for b in bd} == {"Trend", "Chop"} and sum(b["bars"] for b in bd) == wf2["n_oos_bars"]
+assert all(b["evidence"] for b in bd)
+# a hand-made check: bar i of the OOS series is candle oos_start + i
+tiny = hp.regime_breakdown(["", "", "A", "B", "A"], 2, [0.01, 0.02, 0.03], min_bars=2)
+by = {b["regime"]: b for b in tiny}
+assert by["A"]["bars"] == 2 and abs(by["A"]["mean"] - 0.02) < 1e-12 and by["B"]["bars"] == 1 and not by["B"]["evidence"] and by["B"]["sharpe"] is None
+warm = hp.regime_breakdown(["", ""], 0, [0.1, -0.1])
+assert warm[0]["regime"] == "warm-up"                                                    # blank labels are not a regime
+assert hp.regime_breakdown(["A"], 5, [0.1])[0]["regime"] == "warm-up"                   # past the end of the labels
+out_l = hp.evaluate(series(8, 1500, phi=0.2), key="lab", root=tmp, labels=labs)
+assert out_l["by_regime"] and {b["regime"] for b in out_l["by_regime"]} == {"Trend", "Chop"}
+assert hp.evaluate(series(8, 1500), key="nolab", root=tmp)["by_regime"] is None
+f = {x["key"]: x for x in hub_core.read("plateau", tmp)["findings"]}
+assert set(f["lab"]["by_regime"]) == {"Trend", "Chop"} and f["nolab"]["by_regime"] is None
+assert "regime" in hp.SPEC.consumes
+# the shared definition feeds both tabs the same labels
+from modules import regime_lib, hub_regime
+assert hub_regime.label is regime_lib.label and hub_regime.REGIMES == regime_lib.REGIMES
 print("test_hub_plateau: all passed")

@@ -3382,14 +3382,15 @@ if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calib
     st.stop()
 if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
     try:
-        from modules.hub_truth import render as _hub_truth_render
-        from modules.hub_plateau import render as _hub_plateau_render
-        _hub_tab = st.segmented_control(" ", ["Truth Court", "Plateau Lab", "Regime Radar", "Decision Trail", "Decay Watch", "Consensus Map"], default="Truth Court", format_func=L, key="hub_tab", label_visibility="collapsed") or "Truth Court"
-        from modules.hub_regime import render as _hub_regime_render
-        from modules.hub_trail import render as _hub_trail_render
-        from modules.hub_decay import render as _hub_decay_render
-        from modules.hub_consensus import render as _hub_consensus_render
-        {"Plateau Lab": _hub_plateau_render, "Regime Radar": _hub_regime_render, "Decision Trail": _hub_trail_render, "Decay Watch": _hub_decay_render, "Consensus Map": _hub_consensus_render}.get(_hub_tab, _hub_truth_render)(st, L)
+        import importlib as _il_hub
+        from modules import hub_ui as _hub_ui
+        _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
+        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
+                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
+                     "Consensus Map": ("hub_consensus", "render")}
+        _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
+        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
+        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()

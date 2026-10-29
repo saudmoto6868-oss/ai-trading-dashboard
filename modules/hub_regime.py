@@ -277,8 +277,8 @@ _COLOR = {"Crash": "#E5484D", "HiVol": "#F5A524", "Squeeze": "#8E4EC6", "Trend":
 
 def render(st, L=lambda s: s) -> None:
     import pandas as pd
-    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
-                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    from modules import hub_ui
+    hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title)))
     tf = st.selectbox(L("Timeframe"), ["1d", "1h"], key="hr_tf")
     run = st.button(L("Scan regimes"), key="hr_run")
     if not run:
@@ -306,8 +306,10 @@ def render(st, L=lambda s: s) -> None:
     st.dataframe(rows, hide_index=True, use_container_width=True)
     cc = avg_pair_corr(closes)
     if cc["mean_corr"] is not None:
-        (st.warning if cc["high"] else st.success)(L(f"Average correlation of the last {CORR_WIN} returns: {cc['mean_corr']:.2f}. "
-                                                    + ("High: these symbols are close to one bet." if cc["high"] else "Not high: some real diversification.")))
+        cur = [(sym, d["current"]["regime"]) for sym, d in details.items()]
+        hub_ui.show(st, hub_ui.cards([("R", L("Series scanned"), len(details), L(f"timeframe {tf}"), "", None),
+                                      ("c", L(f"Avg correlation ({CORR_WIN} returns)"), f"{cc['mean_corr']:.2f}", L("high: close to one bet") if cc["high"] else L("not high: some real diversification"),
+                                       "warn" if cc["high"] else "up", max(0.0, cc["mean_corr"]) * 100)]))
     try:
         fx = update_funding()
         st.markdown("**" + L("Funding and open interest (Hyperliquid)") + "**")

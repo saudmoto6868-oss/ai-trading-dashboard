@@ -170,8 +170,90 @@ def analyse(df, key: str, root=None, publish: bool = True) -> dict:
         keep = [f for f in old["findings"] if f.get("key") != key]
         keep.append({"key": key, "regime": cur["regime"], "bars_in": cur["bars_in"],
                      "persistence": {g: s["persistence"] for g, s in st.items()}, "bars": {g: s["bars"] for g, s in st.items()}})
-        hub_core.publish(SPEC.id, keep, len(keep) * len(REGIMES), root=root)   # one next-bar mean test per regime per series
+        fund = old.get("funding")
+        hub_core.publish(SPEC.id, keep, len(keep) * len(REGIMES), extra={"funding": fund} if fund else None, root=root)   # one next-bar mean test per regime per series
     return out
+
+
+# ---- Funding / open interest context (Hyperliquid public /info, no key) ------------------------------------------------------
+HL_INFO = "https://api.hyperliquid.xyz/info"
+COINS = ("BTC", "ETH", "SOL")
+FUND_DAYS = 30
+MIN_GAP_S = 900        # readings closer than 15 minutes are noise: no price/OI reading is given
+FUND_Z_HOT = 2.0       # |z| above this = funding unusually stretched versus its own last 30 days
+
+
+def funding_z(history: list, current: float) -> float | None:
+    """z-score of the current funding rate against its own history (needs >= 24 points and some spread)."""
+    xs = [float(x) for x in history]
+    if len(xs) < 24:
+        return None
+    m = sum(xs) / len(xs)
+    sd = (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+    return None if sd <= 0 else (current - m) / sd
+
+
+def quadrant(d_price: float, d_oi: float) -> str:
+    """Price move x open-interest move since the last reading. Context only, never a signal."""
+    if d_oi == 0 or d_price == 0:
+        return "flat"
+    if d_price > 0:
+        return "new longs (price up, OI up)" if d_oi > 0 else "short covering (price up, OI down)"
+    return "new shorts (price down, OI up)" if d_oi > 0 else "long liquidation (price down, OI down)"
+
+
+def fetch_funding(coins=COINS, now_ms: int | None = None, post=None) -> dict:
+    """{coin: {funding, premium, mark, oi_usd, history}} from Hyperliquid. `post(payload) -> json` is injectable for tests."""
+    if post is None:
+        import requests
+
+        def post(payload):
+            r = requests.post(HL_INFO, json=payload, timeout=10)
+            r.raise_for_status()
+            return r.json()
+    import time as _t
+    now_ms = now_ms or int(_t.time() * 1000)
+    meta, ctxs = post({"type": "metaAndAssetCtxs"})
+    idx = {u["name"]: i for i, u in enumerate(meta["universe"])}
+    out = {}
+    for c in coins:
+        if c not in idx:
+            continue
+        x = ctxs[idx[c]]
+        hist = post({"type": "fundingHistory", "coin": c, "startTime": now_ms - FUND_DAYS * 86400 * 1000})
+        mark = float(x["markPx"])
+        out[c] = {"funding": float(x["funding"]), "premium": float(x["premium"]), "mark": mark,
+                  "oi_usd": float(x["openInterest"]) * mark, "history": [float(h["fundingRate"]) for h in hist]}
+    return out
+
+
+def funding_context(raw: dict, prev: dict | None = None, now: int | None = None) -> dict:
+    """Turn fetched numbers into the table: annualised funding, z vs own history, premium, OI, OI/price change since the last reading."""
+    import time as _t
+    now = int(now or _t.time())
+    ctx = {}
+    for c, r in raw.items():
+        z = funding_z(r["history"], r["funding"])
+        row = {"funding_apr_pct": round(r["funding"] * 24 * 365 * 100, 2), "z": None if z is None else round(z, 2),
+               "stretched": z is not None and abs(z) > FUND_Z_HOT, "premium_bps": round(r["premium"] * 1e4, 2),
+               "mark": r["mark"], "oi_usd": r["oi_usd"], "ts": now, "since": None, "quadrant": None}
+        p = (prev or {}).get(c)
+        if p and p.get("oi_usd") and p.get("mark") and p.get("ts") and now > p["ts"]:
+            row["since"] = now - p["ts"]
+            row["oi_change_pct"] = round(100 * (r["oi_usd"] / p["oi_usd"] - 1), 2)
+            row["quadrant"] = quadrant(r["mark"] - p["mark"], r["oi_usd"] - p["oi_usd"]) if row["since"] >= MIN_GAP_S else "too soon (< 15 min)"
+        ctx[c] = row
+    return ctx
+
+
+def update_funding(root=None, post=None, now: int | None = None) -> dict:
+    """Fetch, compare with the previous reading stored in this tab's snapshot, store the new one (findings are kept)."""
+    old = hub_core.read(SPEC.id, root) or {"findings": [], "n_trials": 0}
+    ctx = funding_context(fetch_funding(post=post), old.get("funding"), now)
+    extra = {k: v for k, v in old.items() if k not in ("asof", "tab", "n_trials", "findings")}
+    extra["funding"] = ctx
+    hub_core.publish(SPEC.id, old.get("findings", []), old.get("n_trials", 0), extra=extra, root=root)
+    return ctx
 
 
 def _load_df(st, sym: str, tf: str, bars: int = 1000):
@@ -226,6 +308,15 @@ def render(st, L=lambda s: s) -> None:
     if cc["mean_corr"] is not None:
         (st.warning if cc["high"] else st.success)(L(f"Average correlation of the last {CORR_WIN} returns: {cc['mean_corr']:.2f}. "
                                                     + ("High: these symbols are close to one bet." if cc["high"] else "Not high: some real diversification.")))
+    try:
+        fx = update_funding()
+        st.markdown("**" + L("Funding and open interest (Hyperliquid)") + "**")
+        st.dataframe([{"coin": c, "funding APR %": v["funding_apr_pct"], "z vs 30d": v["z"], "stretched": v["stretched"], "premium bps": v["premium_bps"],
+                       "OI $M": round(v["oi_usd"] / 1e6, 1), "OI change %": v.get("oi_change_pct"), "since (s)": v["since"], "reading": v["quadrant"]}
+                      for c, v in fx.items()], hide_index=True, use_container_width=True)
+        st.caption(L("OI change and the price/OI reading need a previous scan; the first scan only stores the baseline. Context, not a signal."))
+    except Exception as e:
+        st.caption(L("Funding data unavailable: ") + str(e)[:80])
     if details:
         pick = st.selectbox(L("Detail"), list(details), key="hr_pick")
         s = details[pick]["stats"]

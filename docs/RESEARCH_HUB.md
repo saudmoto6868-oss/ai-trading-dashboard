@@ -18,7 +18,7 @@
 |---|---|---|---|---|---|---|
 | 1 | § Truth Court (كهرماني) | كام قاعدة جربنا، وإيه اللي يعدي الحظ؟ | `strategy_lab.json` | N، حد t بعد N مرة، القواعد الناجية | قاعدة تتحسب بس لو عدّت `promote()` + Bonferroni(N) | **شغال** |
 | 2 | ▦ Plateau Lab (أزرق) | المعاملات مستقرة ولا قمة واحدة؟ | truth (N) + شموع | معاملات هضبة مستقرة | يتبنى بس لو: `promote()` + WFE >= 0.5 + 60% من الفولدات رابحة + t >= حد Truth Court لكل الـ N (المسبار حاليًا MA cross، تكلفة 5bps للجهة) | **شغال** |
-| 3 | ◉ Regime Radar (أخضر) | السوق في أنهي نظام الآن؟ + funding/OI | شموع، Hyperliquid/OKX العامة | نظام كل رمز | وصفي فقط: أرقام "الشمعة التالية" داخل كل نظام ما تتحولش لقاعدة إلا بعد Truth Court؛ n<30 يتعلّم "not evidence" | **شغال** (بدون funding/OI لسه) |
+| 3 | ◉ Regime Radar (أخضر) | السوق في أنهي نظام الآن؟ + funding/OI | شموع، Hyperliquid/OKX العامة | نظام كل رمز | وصفي فقط: أرقام "الشمعة التالية" داخل كل نظام ما تتحولش لقاعدة إلا بعد Truth Court؛ n<30 يتعلّم "not evidence" | **شغال** (+ funding/OI من Hyperliquid) |
 | 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | سجل مفيهوش `t_out >= t` ما يتحسبش؛ كل قاعدة "UNPROVEN" لحد ما Truth Court يرقّيها؛ R صافي بعد 0.10R | **شغال (mock فقط)** |
 | 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | قواعد ثابتة مسبقًا: إنذار CUSUM + rolling t<-2 → RETIRE (حجم ×0)، إنذار لوحده → SHRINK (×0.5)؛ challenger يتبنى بس بعد `promote()` ضد الـ champion + Bonferroni لـ N (Truth + كل تحدي سابق + 1) + 30 يوم بين ترقيتين؛ كل تحدي (حتى الفاشل) يتسجل | **شغال (mock فقط)** |
 | 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | لا وزن لصوت إلا لو القاعدة اترقّت من Truth Court؛ "أصوات فعّالة" = n²/Σρ بدل العدد الخام | **شغال** (lab حقيقي) |
@@ -54,3 +54,6 @@ BTC: Chop (8 شموع)، ETH: Trend (44)، SOL: Trend (6)، GOLD: Trend (7)، CL
 
 ## حالة الستة تابات
 كلهم اتبنوا على فرع `feat/research-hub-tabs`. شغالين على بيانات حقيقية: Truth Court وPlateau Lab وRegime Radar وConsensus Map. mock فقط (مفيش سجل إشارات حقيقي محليًا): Decision Trail وDecay Watch.
+
+## Regime Radar + funding/OI (2026-10-29)
+أضفت سياق funding/OI من Hyperliquid العام (بدون مفتاح): funding سنوي %، z مقابل آخر 30 يوم (أكبر من 2 = "stretched")، premium، حجم OI بالدولار، ولو فيه قراءة سابقة >= 15 دقيقة: تغيّر OI والسعر وتصنيفهم (new longs / short covering / new shorts / long liquidation). أقل من 15 دقيقة = "too soon" عشان تغيّرات الثواني ما تتصنفش. أول قراءة حقيقية: BTC/ETH/SOL funding ≈ 10.95% سنويًا، z حوالي 0.6-0.75 (مش stretched). سياق فقط، مش إشارة. ملاحظة: قراءة OI السابقة محفوظة في ملف التاب فقط، وعلى Streamlit Cloud الملفات مؤقتة.

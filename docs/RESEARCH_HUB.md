@@ -21,7 +21,7 @@
 | 3 | ◉ Regime Radar (أخضر) | السوق في أنهي نظام الآن؟ + funding/OI | شموع، Hyperliquid/OKX العامة | نظام كل رمز | وصفي فقط: أرقام "الشمعة التالية" داخل كل نظام ما تتحولش لقاعدة إلا بعد Truth Court؛ n<30 يتعلّم "not evidence" | **شغال** (بدون funding/OI لسه) |
 | 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | سجل مفيهوش `t_out >= t` ما يتحسبش؛ كل قاعدة "UNPROVEN" لحد ما Truth Court يرقّيها؛ R صافي بعد 0.10R | **شغال (mock فقط)** |
 | 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | قواعد ثابتة مسبقًا: إنذار CUSUM + rolling t<-2 → RETIRE (حجم ×0)، إنذار لوحده → SHRINK (×0.5)؛ challenger يتبنى بس بعد `promote()` ضد الـ champion + Bonferroni لـ N (Truth + كل تحدي سابق + 1) + 30 يوم بين ترقيتين؛ كل تحدي (حتى الفاشل) يتسجل | **شغال (mock فقط)** |
-| 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | وزن مدرسة لا يزيد إلا بعد ما تعدّي البوابة | مخطط |
+| 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | لا وزن لصوت إلا لو القاعدة اترقّت من Truth Court؛ "أصوات فعّالة" = n²/Σρ بدل العدد الخام | **شغال** (lab حقيقي) |
 
 الموجودين من قبل (Veles · Monte Carlo · Micro) فضلوا زي ما هم: Plateau وRegime هيتبنوا فوق بيانات الـ lab الحقيقية بدل نسخهم.
 
@@ -48,3 +48,9 @@ BTC: Chop (8 شموع)، ETH: Trend (44)، SOL: Trend (6)، GOLD: Trend (7)، CL
 
 ## Decay Watch (2026-10-29): **mock-tested only**
 بيقرا سلسلة R الحية من Decision Trail، وبما إن مفيش سجل إشارات حقيقي محليًا، اتجرّب على سلسلة R تجريبية (52 صفقة): النتيجة RETIRE (CUSUM 10.6، rolling t -4.08) وتحدي تجريبي اتسجل. الأرقام دي من بيانات مصنوعة. القاعدة بتحكم على الـ CUSUM الحالي (مش إنذار قديم اتصلّح)، وسلسلة بنفس النتيجة كل مرة بتستخدم 1R كمقياس. دالة `bonferroni_t` اتنقلت لـ `hub_core` عشان التابات ما تستوردش بعض.
+
+## Consensus Map على بيانات الـ lab الحقيقية (2026-10-29)
+25 زوج كاشفات: 8 REDUNDANT (بتتفق أكتر من الصدفة، يعني صوت واحد اتحسب مرتين، مثلًا judas/ma_cross/liqline مع vwap)، 9 OPPOSED (مثلًا fvg مع ohl_open بـ ρ=-0.64)، 8 مستقلين. جدول confluence: ولا مستوى من الـ 6 المستخدمين (n>=100) صافي R موجب بعد 0.10R؛ الصف الوحيد الموجب (فاميلي واحدة) n=34 = not evidence. يعني "أكتر عائلات متفقة" ما أضافتش edge مقاس. **تحفظات:** (1) z-scores مبنية على عدد شموع "together" وهي متجاورة وغير مستقلة، فالدلالة متفائلة؛ التصنيف مفيد كوصف مش كاختبار نهائي. (2) الأزواج اللي ما اتقاسوش في الـ lab بتتحسب مستقلة (والتاب بيقول كام زوج ناقص). (3) "أصوات مثبتة" = 0 لأن Truth Court ما رقّى ولا قاعدة.
+
+## حالة الستة تابات
+كلهم اتبنوا على فرع `feat/research-hub-tabs`. شغالين على بيانات حقيقية: Truth Court وPlateau Lab وRegime Radar وConsensus Map. mock فقط (مفيش سجل إشارات حقيقي محليًا): Decision Trail وDecay Watch.

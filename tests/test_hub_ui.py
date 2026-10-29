@@ -2,19 +2,19 @@
 import sys, os, tempfile, json
 from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from modules import hub_core, hub_ui, hub_truth, hub_plateau, hub_regime, hub_trail, hub_decay, hub_consensus
+from modules import hub_core, hub_ui, hub_truth, hub_plateau, hub_regime, hub_trail, hub_decay, hub_consensus, hub_funnel
 
 # --- identity table matches every tab's own SPEC (no drift between the picture and the tabs) ---
-for mod in (hub_truth, hub_plateau, hub_regime, hub_trail, hub_decay, hub_consensus):
+for mod in (hub_truth, hub_plateau, hub_regime, hub_trail, hub_decay, hub_consensus, hub_funnel):
     t = hub_ui.BY_ID[mod.SPEC.id]
     assert (t[1], t[2], t[3], tuple(t[4])) == (mod.SPEC.title, mod.SPEC.glyph, mod.SPEC.accent, tuple(mod.SPEC.consumes)), mod.SPEC.id
 assert len({t[3] for t in hub_ui.TABS}) == len(hub_ui.TABS)          # every tab has its own colour
 
 # --- tabs never import each other's code (the hub rule), only hub_core / hub_ui ---
 import re
-for name in ("truth", "plateau", "regime", "trail", "decay", "consensus"):
+for name in ("truth", "plateau", "regime", "trail", "decay", "consensus", "funnel"):
     src = Path(f"modules/hub_{name}.py").read_text()
-    others = set(re.findall(r"hub_(truth|plateau|regime|trail|decay|consensus)", " ".join(re.findall(r"^\s*(?:from modules import .*|from modules\.hub_\w+ import .*|import modules\.hub_\w+.*)$", src, re.M))))
+    others = set(re.findall(r"hub_(truth|plateau|regime|trail|decay|consensus|funnel)", " ".join(re.findall(r"^\s*(?:from modules import .*|from modules\.hub_\w+ import .*|import modules\.hub_\w+.*)$", src, re.M))))
     assert not (others - {name}), (name, others)
 
 # --- HTML builders: escape text, survive empty input ---
@@ -27,7 +27,7 @@ r = hub_ui.ruler([("luck", 3.09, "#888"), ("best", None, "#f00"), ("bonf", 3.92,
 assert "luck 3.09" in r and "best" not in r and "bonf 3.92" in r                                   # a missing value draws no marker
 g = hub_ui.graph([("a", "b", 0.9, "REDUNDANT"), ("a", "c", -0.5, "OPPOSED"), ("b", "c", 0.0, "INDEPENDENT")])
 assert g.count("<circle") == 3 and g.count("<line") == 3 and "redundant" in g
-assert "nobody reads the regime yet" in hub_ui.flow() and hub_ui.flow().count("<rect") == 6
+assert "nobody reads the regime yet" in hub_ui.flow() and hub_ui.flow().count("<rect") == 7
 hub_ui.set_theme({"accent": "#123456"}, 6)
 assert "#123456" in hub_ui.css() and "border-radius:6px" in hub_ui.css()
 hub_ui.set_theme(None, None)
@@ -35,7 +35,7 @@ hub_ui.set_theme(None, None)
 # --- overview: every card says 'not run yet' with no snapshots, and reads published ones with them ---
 tmp = Path(tempfile.mkdtemp())
 cs = hub_ui.overview_cards(tmp)
-assert len(cs) == 6 and all(c[2] == "—" for c in cs)
+assert len(cs) == 7 and all(c[2] == "—" for c in cs)
 hub_core.publish("truth", [], 564, extra={"bonferroni_t": 3.92, "expected_max_null_t": 3.09, "n_promotable": 0}, root=tmp)
 hub_core.publish("decay", [{"state": "RETIRE", "size": 0.0, "n": 52, "why": "x"}], 1, root=tmp)
 hub_core.publish("consensus", [], 25, extra={"counts": {"REDUNDANT": 8, "OPPOSED": 9, "INDEPENDENT": 8}}, root=tmp)
@@ -43,7 +43,11 @@ hub_core.publish("trail", [], 0, extra={"summary": {"signals": 12, "unproven": 1
 by = {c[1]: c for c in hub_ui.overview_cards(tmp)}
 assert by["Truth Court"][2] == "N=564" and by["Truth Court"][4] == "warn"
 assert by["Decay Watch"][2] == "RETIRE" and by["Decay Watch"][4] == "down"
-assert by["Consensus Map"][2] == "8 / 9 / 8" and by["Decision Trail"][2] == "12 signals"
+assert by["Consensus Map"][2] == "8 / 9 / 8"
+hub_core.publish("funnel", [], 0, extra={"tested": 1175, "survived": 0, "kill_rate": 100.0, "biggest_kill": "Testable"}, root=tmp)
+assert {c[1]: c for c in hub_ui.overview_cards(tmp)}["Kill Funnel"][2] == "100.0% killed"
+f = hub_ui.funnel([{"name": "A", "n": 10, "killed": 0}, {"name": "B<", "n": 4, "killed": 6}])
+assert "-6" in f and "B&lt;" in f and f.count("<rect") == 2 and hub_ui.funnel([]) == "" and by["Decision Trail"][2] == "12 signals"
 
 # --- the honest-N loop: other tabs' trials raise Truth Court's bar ---
 rows = [{"key": f"k{i}", "school": "x", "tf": "1h", "side": "all", "n": 300, "avgR": 0.0, "t": 0.1, "is_avgR": 0.0, "oos_avgR": 0.0} for i in range(100)]

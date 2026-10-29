@@ -22,6 +22,7 @@
 | 4 | ⟡ Decision Trail (بنفسجي) | كل Setup Card مرّت بأنهي بوابات؟ Scan→Detect→Validate→Size→Settle | `signal_log`، truth | سجل قرارات + سلسلة R حية | سجل مفيهوش `t_out >= t` ما يتحسبش؛ كل قاعدة "UNPROVEN" لحد ما Truth Court يرقّيها؛ R صافي بعد 0.10R | **شغال (mock فقط)** |
 | 5 | ↘ Decay Watch (أحمر) | القاعدة الشغالة بتضعف؟ | decision trail | إنذارات CUSUM + champion/challenger | قواعد ثابتة مسبقًا: إنذار CUSUM + rolling t<-2 → RETIRE (حجم ×0)، إنذار لوحده → SHRINK (×0.5)؛ challenger يتبنى بس بعد `promote()` ضد الـ champion + Bonferroni لـ N (Truth + كل تحدي سابق + 1) + 30 يوم بين ترقيتين؛ كل تحدي (حتى الفاشل) يتسجل | **شغال (mock فقط)** |
 | 6 | ✦ Consensus Map (سماوي) | المدارس (SMC، Elliott، harmonic…) متفقة ولا متعارضة؟ | `conflicts`/`confluence` في الـ lab، regime | أزواج التعارض | لا وزن لصوت إلا لو القاعدة اترقّت من Truth Court؛ "أصوات فعّالة" = n²/Σρ بدل العدد الخام | **شغال** (lab حقيقي) |
+| 7 | ▼ Kill Funnel (برتقالي) | كام قاعدة بتموت في كل اختبار، وبأي ترتيب؟ | `strategy_lab.json` + حد Truth | مراحل القمع، معدل القتل، أقرب المرشحين | لا يرقّي شيء: بس بيعرض اللي مات ولماذا؛ المدارس بلا t-stat بتتعلّم "not judged" | **شغال** (lab حقيقي) |
 
 الموجودين من قبل (Veles · Monte Carlo · Micro) فضلوا زي ما هم: Plateau وRegime هيتبنوا فوق بيانات الـ lab الحقيقية بدل نسخهم.
 
@@ -57,3 +58,8 @@ BTC: Chop (8 شموع)، ETH: Trend (44)، SOL: Trend (6)، GOLD: Trend (7)، CL
 
 ## Regime Radar + funding/OI (2026-10-29)
 أضفت سياق funding/OI من Hyperliquid العام (بدون مفتاح): funding سنوي %، z مقابل آخر 30 يوم (أكبر من 2 = "stretched")، premium، حجم OI بالدولار، ولو فيه قراءة سابقة >= 15 دقيقة: تغيّر OI والسعر وتصنيفهم (new longs / short covering / new shorts / long liquidation). أقل من 15 دقيقة = "too soon" عشان تغيّرات الثواني ما تتصنفش. أول قراءة حقيقية: BTC/ETH/SOL funding ≈ 10.95% سنويًا، z حوالي 0.6-0.75 (مش stretched). سياق فقط، مش إشارة. ملاحظة: قراءة OI السابقة محفوظة في ملف التاب فقط، وعلى Streamlit Cloud الملفات مؤقتة.
+
+## Kill Funnel على الـ lab الحقيقي (2026-10-29)
+قمع متتالي: 1175 مختبرة ← 564 لها t-stat ← 440 بـ n>=100 ← 179 R خام موجب ← **34 صافي موجب بعد 0.10R** ← 7 بنصفين IS/OOS موجبين ← **0 بـ t>=3** ← 0 بعد Bonferroni (حد 3.95 لكل التجارب). معدل القتل 100%. أقرب المرشحين كلهم من الـ Chain (مثلًا grade A+ / sess_amd: n=122، t=2.47، صافي +0.104R)، وكلهم تحت مستوى الحظ (~3.1).
+**اكتشاف مهم:** المدارس اللي عندها قواعد منفردة (SMC/ICT، Elliott، Levels/breakouts، Liquidity، Time، Trend، Fibonacci، Momentum، SMT، Other) **كل صفوفها (611) من غير t-stat ولا نصف IS/OOS**، لأن ملف النتايج في الريبو (بُني 2026-10-28) أقدم من commit `e1b2d2e` (2026-10-29) اللي أضاف t-stat وIS/OOS للصفوف المنفردة. يعني Truth Court والـ funnel **ما حكموش على هذه المدارس أصلًا**، والـ "0 ناجح" يخص الـ Chain وقواعد الخروج بس. الحل: إعادة تشغيل Strategy lab (workflow `strategy-lab`، بإذن المالك: قاعدة المشروع تمنع تشغيل الـ workflows من غير إذن).
+**جدول break-even win rate:** للصفقات النقية target/stop: p=(1+cost)/(RR+1). عند 0.10R: R:R 1→55%، 1.5→44%، 2→36.7%، 3→27.5%. الـ lab قاس 48.4/39.8/34.7/29.0%: تحت الحد في الثلاثة الأولى. وعند R:R 3 الـ win% (29%) فوق الحد لكن الصافي -0.097R، لأن "win" في الـ lab = أي صفقة R>0 (خروج بالوقت ممكن يكسب أقل من الهدف). **اعتمد على R المقاس مش win% لوحده.**

@@ -1063,7 +1063,7 @@ const CandleCache = {   // last 300 candles per symbol + timeframe in this brows
       localStorage.setItem(k, JSON.stringify({t:Date.now(), r:rows.slice(-300).map(x => [x.t, x.o, x.h, x.l, x.c, x.v || 0])})); localStorage.setItem(LS+"_cci", JSON.stringify(idx)); } catch(e){} }
 };
 async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest for any chart timeframe (native, UTC variant, or aggregated); `want` = how many bars the first load should aim for
-  const ag = TF_AGG[tf];
+  const ag = TF_AGG[tf] || (tf === "6H" && /^(HL|Y):/.test(sym) ? ["1H", 6] : null);   // Hyperliquid / Yahoo have no 6h bar (gold, oil, indices, FX, stocks on 6H threw 'timeframe 6Hutc not available'): build it from 1H
   if (!ag){   // native timeframe: task 55, the first load also walks back in history until `want` candles (same loop as the aggregated ones)
     let nat = parseRows(await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&limit="+(first ? 300 : 3)));
     if (first === true){ const need = want || 120; let guard = 0; while (nat.length < need && guard++ < 8 && nat.length){ let more; try { more = parseRows(await okx("/market/history-candles?instId="+encodeURIComponent(sym)+"&bar="+okxBar(tf)+"&after="+nat[0].t+"&limit=100")); } catch(e){ break; } if (!more.length) break; nat = more.concat(nat); } }

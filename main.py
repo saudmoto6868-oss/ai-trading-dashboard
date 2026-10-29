@@ -97,27 +97,14 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
+# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
-    _lab_choice = st.radio(
-        L("Lab"),
-        ["—", "⟁ Quant · Monte Carlo", "◈ Veles · Robustness", "⬡ Micro · Foundations"],
-        key="lab_choice",
-        label_visibility="collapsed",
-    )
-    if _lab_choice != "—":
-        if _lab_choice == "⟁ Quant · Monte Carlo":
-            from modules.quant_montecarlo import render as _mc_render
-            _mc_render()
-            st.stop()
-        elif _lab_choice == "◈ Veles · Robustness":
-            from modules.veles_robustness import render as _vr_render
-            _vr_render()
-            st.stop()
-        elif _lab_choice == "⬡ Micro · Foundations":
-            from modules.micro_foundations import render as _mf_render
-            _mf_render()
-            st.stop()
+    _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
+    if _lab_choice == "⬡ Micro · Foundations":
+        from modules.micro_foundations import render as _mf_render
+        _mf_render()
+        st.stop()
 
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))

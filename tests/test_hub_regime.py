@@ -64,4 +64,40 @@ tmp = Path(tempfile.mkdtemp())
 hr.analyse(df, "s1", root=tmp); hr.analyse(df, "s2", root=tmp); hr.analyse(df, "s1", root=tmp)
 snap = hub_core.read("regime", tmp)
 assert sorted(f["key"] for f in snap["findings"]) == ["s1", "s2"] and snap["n_trials"] == 2 * len(hr.REGIMES)
+
+# --- funding / OI context (fake Hyperliquid API, no network) ---
+hist = [0.00001 + 0.000001 * (i % 5) for i in range(100)]
+assert hr.funding_z(hist[:10], 0.0001) is None and hr.funding_z([0.0001] * 50, 0.0002) is None
+assert hr.funding_z(hist, 0.00001) is not None and hr.funding_z(hist, 0.0005) > 2
+assert hr.quadrant(1, 1).startswith("new longs") and hr.quadrant(-1, 1).startswith("new shorts")
+assert hr.quadrant(1, -1).startswith("short covering") and hr.quadrant(-1, -1).startswith("long liquidation") and hr.quadrant(0, 5) == "flat"
+
+def fake_post(payload, oi=1000.0, px=100.0, fund=0.0005):
+    if payload["type"] == "metaAndAssetCtxs":
+        return [{"universe": [{"name": "BTC"}, {"name": "ETH"}]},
+                [{"funding": str(fund), "openInterest": str(oi), "markPx": str(px), "premium": "0.0002"},
+                 {"funding": "0.00001", "openInterest": "10", "markPx": "5", "premium": "0"}]]
+    return [{"fundingRate": str(h)} for h in hist]
+
+raw = hr.fetch_funding(coins=("BTC", "SOL"), now_ms=10**12, post=fake_post)
+assert list(raw) == ["BTC"] and raw["BTC"]["oi_usd"] == 100000.0           # unknown coin skipped, OI in dollars
+ctx = hr.funding_context(raw, now=1000)
+assert ctx["BTC"]["stretched"] and ctx["BTC"]["funding_apr_pct"] == round(0.0005 * 24 * 365 * 100, 2) and ctx["BTC"]["quadrant"] is None
+raw2 = hr.fetch_funding(coins=("BTC",), now_ms=10**12, post=lambda q: fake_post(q, oi=1200.0, px=105.0))
+ctx2 = hr.funding_context(raw2, prev=ctx, now=1000 + hr.MIN_GAP_S)
+assert ctx2["BTC"]["quadrant"].startswith("new longs") and ctx2["BTC"]["since"] == hr.MIN_GAP_S and ctx2["BTC"]["oi_change_pct"] > 20
+assert hr.funding_context(raw2, prev=ctx, now=1600)["BTC"]["quadrant"].startswith("too soon")   # 10 min: noise
+assert hr.funding_context(raw2, prev=ctx, now=1000)["BTC"]["quadrant"] is None      # no time passed: no reading
+
+# --- update_funding keeps the regime findings; analyse keeps the funding block ---
+tmp2 = Path(tempfile.mkdtemp())
+hr.analyse(df, "keep", root=tmp2)
+hr.update_funding(root=tmp2, post=fake_post, now=2000)
+s2 = hub_core.read("regime", tmp2)
+assert [f["key"] for f in s2["findings"]] == ["keep"] and "BTC" in s2["funding"]
+hr.analyse(df, "keep2", root=tmp2)
+s3 = hub_core.read("regime", tmp2)
+assert "BTC" in s3["funding"] and len(s3["findings"]) == 2
+hr.update_funding(root=tmp2, post=lambda q: fake_post(q, oi=2000.0, px=90.0), now=2000 + hr.MIN_GAP_S)
+assert hub_core.read("regime", tmp2)["funding"]["BTC"]["quadrant"].startswith("new shorts")
 print("test_hub_regime: all passed")

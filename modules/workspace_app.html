@@ -1420,6 +1420,7 @@ class CandleChart {
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; XH_CHARTS.add(this); this.W = 0; this.H = 0;
     const cv = this.cv;
+    window.addEventListener("pagehide", () => { try { this.saveView(); } catch(e){} }); document.addEventListener("visibilitychange", () => { if (document.hidden){ try { this.saveView(); } catch(e){} } });   // flush on tab close / refresh
     cv.addEventListener("wheel", e => { e.preventDefault(); clearTimeout(this._svT); this._svT = setTimeout(() => this.saveView(), 250); this.wheel(e); }, {passive:false});   // wheel fires 60+/s: one localStorage write after the gesture, not one per event
     cv.addEventListener("pointerdown", e => this.down(e));
     cv.addEventListener("pointermove", e => this.move(e));
@@ -1452,8 +1453,10 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit) this.fit(); else { if (this.autoCenter) this.followLatest(); this.draw(); }
+    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    else { if (this.autoCenter) this.followLatest(); this.draw(); }
   }
+  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -1606,6 +1609,7 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
+    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }

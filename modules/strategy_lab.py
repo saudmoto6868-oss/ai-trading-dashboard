@@ -469,6 +469,11 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                     lunar[k] = [lunar[k][j] + lu[k][j] for j in range(3)]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
+    # safety: edge=True requires a computed t-stat; any row without one is labelled as no-edge
+    # (happens when JSON is loaded from a previous run that pre-dates t-stat computation)
+    for _r in rows:
+        if _r.get("edge") and _r.get("t") is None:
+            _r["edge"] = False
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
     return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone}
 

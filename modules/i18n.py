@@ -193,7 +193,9 @@ AR = {
     "Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice.":
         "القواعد مجمدة في modules/flow_log.py (RULES): imb = توازن الدفتر، ofi = عدم توازن تدفق الأوامر عند أفضل سعر، cvd = شراء المبادر ناقص البيع. فترة التسجيل بتحدد اللي بنشوفه. تعليمي، مش توصية استثمارية.",
     # Stats page (2026-10-22)
-    "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "Monte Carlo": "مونتي كارلو", "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
+    "Lab evidence": "أدلة المعمل", "My journal": "سجل صفقاتي", "Monte Carlo": "مونتي كارلو",
+    "Edge Map": "خريطة الحافة", "Robustness": "متانة الاستراتيجيات", "Execution": "دورة التنفيذ",
+    "No lab file yet (data/strategy_lab.json).": "لسه مفيش ملف معمل (data/strategy_lab.json).",
     "weekly": "أسبوعي", "All detectors, avg R": "كل الكواشف، متوسط R",
     "Strongest detector x timeframe (n >= 100), by net avg R": "أقوى كاشف × فريم (n ≥ 100)، مرتبة بصافي متوسط R",
     "Detector": "الكاشف", "School": "المدرسة", "passed": "عدّى", "no t yet": "مفيش t لسه",

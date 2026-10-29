@@ -1,0 +1,236 @@
+"""HUB TAB 3 - REGIME RADAR: which kind of market is each symbol in right now, and how do regimes behave?
+
+Labels every candle with one regime using ONLY information up to that candle (trailing windows, no look-ahead):
+  Crash   5-bar return below -2 sigma of its trailing distribution
+  HiVol   ATR(14) above 1.5x its trailing median
+  Squeeze Bollinger width in the bottom 20% of its trailing range
+  Trend   ADX(14) > 25        Chop  ADX(14) < 20        Mixed  everything else
+(first match wins, in that order). It then reports per regime: how many bars, how long it lasts, and what the NEXT bar did
+(mean return with a t-stat, mean absolute move). Regimes with n < 30 are shown but flagged "not evidence". It also watches
+cross-asset correlation: when the average pair correlation is high, holding several symbols is one bet, not several.
+This tab describes the market; it does not claim an edge. Other tabs may SLICE their results by the regime it publishes.
+Identity: green, glyph "◉". Pure numpy; render() takes st so the module imports without streamlit."""
+from __future__ import annotations
+
+import numpy as np
+
+from modules import hub_core
+
+SPEC = hub_core.TabSpec(
+    id="regime", title="Regime Radar", glyph="◉", accent="#2FBF71",
+    purpose="Labels each symbol's market regime with no look-ahead, and flags when 'diversified' symbols move as one.",
+)
+REGIMES = ("Crash", "HiVol", "Squeeze", "Trend", "Chop", "Mixed")
+WARM = 220            # bars needed before labels are trusted (longest trailing window + ADX warm-up)
+MIN_N = 30            # per-regime bars before a number is more than a description
+CORR_WIN = 60
+CORR_HIGH = 0.7
+
+
+def _wilder(x: np.ndarray, n: int) -> np.ndarray:
+    out = np.full(len(x), np.nan)
+    if len(x) < n:
+        return out
+    out[n - 1] = np.nanmean(x[:n])
+    for i in range(n, len(x)):
+        out[i] = (out[i - 1] * (n - 1) + x[i]) / n
+    return out
+
+
+def true_range(high, low, close) -> np.ndarray:
+    prev = np.concatenate(([close[0]], close[:-1]))
+    return np.maximum(high - low, np.maximum(np.abs(high - prev), np.abs(low - prev)))
+
+
+def adx(high, low, close, n: int = 14) -> np.ndarray:
+    up = np.concatenate(([0.0], high[1:] - high[:-1]))
+    dn = np.concatenate(([0.0], low[:-1] - low[1:]))
+    pdm = np.where((up > dn) & (up > 0), up, 0.0)
+    mdm = np.where((dn > up) & (dn > 0), dn, 0.0)
+    atr = _wilder(true_range(high, low, close), n)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pdi = 100 * _wilder(pdm, n) / atr
+        mdi = 100 * _wilder(mdm, n) / atr
+        dx = 100 * np.abs(pdi - mdi) / (pdi + mdi)
+    dx = np.nan_to_num(dx, nan=0.0)
+    out = _wilder(dx, n)
+    out[: 2 * n - 1] = np.nan
+    return out
+
+
+def _trailing(x: np.ndarray, win: int, fn) -> np.ndarray:
+    """fn over the PAST win values ending at each bar (bar itself included: it is closed when labelled)."""
+    out = np.full(len(x), np.nan)
+    for i in range(win - 1, len(x)):
+        seg = x[i - win + 1: i + 1]
+        seg = seg[~np.isnan(seg)]
+        if len(seg):
+            out[i] = fn(seg)
+    return out
+
+
+def label(high, low, close) -> list:
+    """One regime name per bar ('' while warming up)."""
+    high, low, close = (np.asarray(a, dtype=float) for a in (high, low, close))
+    n = len(close)
+    atr = _wilder(true_range(high, low, close), 14)
+    atr_med = _trailing(atr, 100, np.median)
+    a = adx(high, low, close)
+    r5 = np.full(n, np.nan)
+    r5[5:] = close[5:] / close[:-5] - 1.0
+    r5_sd = _trailing(r5, 100, lambda s: s.std(ddof=1) if len(s) > 2 else np.nan)
+    mid = _trailing(close, 20, np.mean)
+    sd = _trailing(close, 20, lambda s: s.std(ddof=0))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        bbw = 4 * sd / mid
+    bbw_p20 = _trailing(bbw, 100, lambda s: np.percentile(s, 20))
+    out = [""] * n
+    for i in range(WARM, n):
+        if np.isnan(a[i]) or np.isnan(atr_med[i]) or np.isnan(r5_sd[i]) or np.isnan(bbw_p20[i]):
+            continue
+        if r5[i] < -2 * r5_sd[i]:
+            out[i] = "Crash"
+        elif atr[i] > 1.5 * atr_med[i]:
+            out[i] = "HiVol"
+        elif bbw[i] <= bbw_p20[i]:
+            out[i] = "Squeeze"
+        elif a[i] > 25:
+            out[i] = "Trend"
+        elif a[i] < 20:
+            out[i] = "Chop"
+        else:
+            out[i] = "Mixed"
+    return out
+
+
+def regime_stats(labels: list, close) -> dict:
+    """Per regime: bars, mean run length, persistence P(next bar same regime), and what the NEXT bar did (label at t, return t->t+1)."""
+    close = np.asarray(close, dtype=float)
+    nxt = np.concatenate((close[1:] / close[:-1] - 1.0, [np.nan]))
+    stats = {}
+    for g in REGIMES:
+        idx = [i for i, l in enumerate(labels) if l == g]
+        runs, cur = [], 0
+        for l in labels:
+            if l == g:
+                cur += 1
+            elif cur:
+                runs.append(cur)
+                cur = 0
+        if cur:
+            runs.append(cur)
+        same = [labels[i + 1] == g for i in idx if i + 1 < len(labels) and labels[i + 1] != ""]
+        r = nxt[idx]
+        r = r[~np.isnan(r)]
+        t = None
+        if len(r) >= 2 and r.std(ddof=1) > 0:
+            t = float(r.mean() / (r.std(ddof=1) / np.sqrt(len(r))))
+        stats[g] = {"bars": len(idx), "mean_run": round(float(np.mean(runs)), 1) if runs else 0.0,
+                    "persistence": round(float(np.mean(same)), 3) if same else None,
+                    "next_mean": None if not len(r) else float(r.mean()), "next_abs": None if not len(r) else float(np.abs(r).mean()),
+                    "t": t, "evidence": len(idx) >= MIN_N}
+    return stats
+
+
+def current(labels: list) -> dict:
+    """Latest regime and how many bars it has lasted."""
+    last = next((i for i in range(len(labels) - 1, -1, -1) if labels[i]), None)
+    if last is None:
+        return {"regime": None, "bars_in": 0}
+    k = 0
+    while last - k >= 0 and labels[last - k] == labels[last]:
+        k += 1
+    return {"regime": labels[last], "bars_in": k, "stale_bars": len(labels) - 1 - last}
+
+
+def avg_pair_corr(closes: dict, win: int = CORR_WIN) -> dict:
+    """Mean pairwise correlation of the last `win` returns across symbols (aligned from the end). None if < 2 usable series."""
+    rets = {}
+    for k, c in closes.items():
+        c = np.asarray(c, dtype=float)
+        if len(c) > win:
+            rets[k] = c[-win:] / c[-win - 1:-1] - 1.0
+    keys = sorted(rets)
+    if len(keys) < 2:
+        return {"mean_corr": None, "pairs": [], "high": False}
+    M = np.corrcoef(np.array([rets[k] for k in keys]))
+    pairs = [(keys[i], keys[j], float(M[i, j])) for i in range(len(keys)) for j in range(i + 1, len(keys)) if not np.isnan(M[i, j])]
+    mc = float(np.mean([p[2] for p in pairs])) if pairs else None
+    return {"mean_corr": mc, "pairs": pairs, "high": mc is not None and mc > CORR_HIGH}
+
+
+def analyse(df, key: str, root=None, publish: bool = True) -> dict:
+    """df needs high/low/close. Returns labels, stats, current regime; publishes this key (merged with earlier ones)."""
+    lab = label(df["high"].to_numpy(), df["low"].to_numpy(), df["close"].to_numpy())
+    st = regime_stats(lab, df["close"].to_numpy())
+    cur = current(lab)
+    out = {"key": key, "labels": lab, "stats": st, "current": cur, "n_bars": len(lab)}
+    if publish and key:
+        old = hub_core.read(SPEC.id, root) or {"findings": []}
+        keep = [f for f in old["findings"] if f.get("key") != key]
+        keep.append({"key": key, "regime": cur["regime"], "bars_in": cur["bars_in"],
+                     "persistence": {g: s["persistence"] for g, s in st.items()}, "bars": {g: s["bars"] for g, s in st.items()}})
+        hub_core.publish(SPEC.id, keep, len(keep) * len(REGIMES), root=root)   # one next-bar mean test per regime per series
+    return out
+
+
+def _load_df(st, sym: str, tf: str, bars: int = 1000):
+    @st.cache_data(ttl=600, show_spinner="Loading candles...")
+    def _fetch(sym, tf, bars):
+        if sym.startswith("HL:"):
+            from modules import market_cache
+            df = market_cache.get_klines(sym, tf, 1000)
+        else:
+            from modules import backtest_tf
+            df = backtest_tf.fetch_long(sym, tf, bars)
+        if df is None or df.empty:
+            raise RuntimeError("empty candle response")
+        return df
+    return _fetch(sym, tf, bars)
+
+
+SYMBOLS = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "HL:xyz:GOLD", "HL:xyz:SP500", "HL:xyz:CL"]
+_COLOR = {"Crash": "#E5484D", "HiVol": "#F5A524", "Squeeze": "#8E4EC6", "Trend": "#2FBF71", "Chop": "#8B8D98", "Mixed": "#6E7681"}
+
+
+def render(st, L=lambda s: s) -> None:
+    import pandas as pd
+    st.markdown(f"<div style='border-left:4px solid {SPEC.accent};padding-left:10px'><b>{SPEC.glyph} {L(SPEC.title)}</b><br>"
+                f"<span style='opacity:.75'>{L(SPEC.purpose)}</span></div>", unsafe_allow_html=True)
+    tf = st.selectbox(L("Timeframe"), ["1d", "1h"], key="hr_tf")
+    run = st.button(L("Scan regimes"), key="hr_run")
+    if not run:
+        snap = hub_core.read(SPEC.id)
+        if snap and snap["findings"]:
+            st.dataframe([{"series": f["key"], "regime": f["regime"], "bars in regime": f["bars_in"]} for f in snap["findings"]],
+                         hide_index=True, use_container_width=True)
+        else:
+            st.info(L("Press Scan. Labels use only past candles; nothing is estimated until you do."))
+        return
+    rows, closes, details = [], {}, {}
+    for sym in SYMBOLS:
+        try:
+            df = _load_df(st, sym, tf)
+        except Exception as e:
+            rows.append({"symbol": sym, "regime": "no data", "bars in regime": 0, "candles": 0, "note": str(e)[:60]})
+            continue
+        if len(df) <= WARM + MIN_N:
+            rows.append({"symbol": sym, "regime": "too short", "bars in regime": 0, "candles": len(df), "note": f"need > {WARM + MIN_N}"})
+            continue
+        res = analyse(df, f"{sym} {tf}")
+        closes[sym] = df["close"].astype(float).to_numpy()
+        details[sym] = res
+        rows.append({"symbol": sym, "regime": res["current"]["regime"], "bars in regime": res["current"]["bars_in"], "candles": len(df), "note": ""})
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    cc = avg_pair_corr(closes)
+    if cc["mean_corr"] is not None:
+        (st.warning if cc["high"] else st.success)(L(f"Average correlation of the last {CORR_WIN} returns: {cc['mean_corr']:.2f}. "
+                                                    + ("High: these symbols are close to one bet." if cc["high"] else "Not high: some real diversification.")))
+    if details:
+        pick = st.selectbox(L("Detail"), list(details), key="hr_pick")
+        s = details[pick]["stats"]
+        st.dataframe([{"regime": g, "bars": v["bars"], "avg run (bars)": v["mean_run"], "persistence": v["persistence"],
+                       "next-bar mean": v["next_mean"], "next-bar |move|": v["next_abs"], "t": v["t"],
+                       "evidence": "n>=30" if v["evidence"] else "not evidence"} for g, v in s.items()],
+                     hide_index=True, use_container_width=True)
+        st.caption(L("Next-bar numbers describe behaviour inside each regime. They are not a trading edge until they pass the Truth Court."))

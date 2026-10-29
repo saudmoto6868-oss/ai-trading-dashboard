@@ -1055,6 +1055,21 @@ async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/
 syncClock(); setInterval(syncClock, 300000);
 function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
 const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();
+/* Daily / weekly support & resistance from 1D and 1W candles (OKX history, no order book needed): swing pivots (3 bars each side) are clustered inside 0.6 ATR; touches = pivots in the cluster,
+   strength 1-5 = touches weighted towards recent bars. A line above the last price is resistance, below is support. Computed in the browser, cached 1 h per symbol. NOT a signal: levels the market reacted at before. */
+const SR = {
+  cache:{}, busy:{},
+  compute(rows, k){ k = k || 3; const n = rows.length; if (n < 2*k + 5) return []; const cp = rows[n-1].c;
+    let atr = 0, m = Math.min(14, n-1); for (let i = n-m; i < n; i++) atr += Math.max(rows[i].h - rows[i].l, Math.abs(rows[i].h - rows[i-1].c), Math.abs(rows[i].l - rows[i-1].c)); atr /= m; const tol = Math.max(atr*0.6, cp*0.002);
+    const pv = []; for (let i = k; i < n-k; i++){ let hh = true, ll = true; for (let j = i-k; j <= i+k; j++){ if (j === i) continue; if (rows[j].h >= rows[i].h) hh = false; if (rows[j].l <= rows[i].l) ll = false; } const w = 0.5 + 0.5*i/n; if (hh) pv.push({p:rows[i].h, w, i}); if (ll) pv.push({p:rows[i].l, w, i}); }
+    pv.sort((a, b) => a.p - b.p); const cl = []; pv.forEach(q => { const c = cl[cl.length-1]; if (c && q.p - c.max <= tol){ c.s += q.p; c.n++; c.w += q.w; c.max = q.p; c.last = Math.max(c.last, q.i); } else cl.push({s:q.p, n:1, w:q.w, max:q.p, last:q.i}); });
+    return cl.filter(c => c.n >= 2).map(c => { const p = c.s/c.n; return {p, touches:c.n, strength:Math.max(1, Math.min(5, Math.round(c.w*1.1))), kind:p > cp ? "R" : "S", dist:(p-cp)/cp*100, lastBar:rows[c.last].t}; }).sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist)); },
+  async load(sym){ const hit = this.cache[sym]; if (hit && Date.now() - hit.t < 3600000) return hit; if (this.busy[sym]) return this.busy[sym];
+    const p = (async () => { try { const [d, w] = await Promise.all([candlesTf(sym, "1D", true, 200).catch(() => []), candlesTf(sym, "1W", true, 120).catch(() => [])]);
+        const o = {t:Date.now(), D:this.compute(d), W:this.compute(w), nD:d.length, nW:w.length}; if (d.length || w.length) this.cache[sym] = o; return o; } finally { delete this.busy[sym]; } })();
+    this.busy[sym] = p; return p; },
+  top(lv, n){ const R = lv.filter(x => x.kind === "R").slice(0, n), S = lv.filter(x => x.kind === "S").slice(0, n); return R.concat(S); }
+};
 const CandleCache = {   // last 300 candles per symbol + timeframe in this browser: a new tab / refresh paints at once, the live request then replaces them (max 16 entries, quota errors ignored)
   key(sym, tf){ return LS+"_cc|"+sym+"|"+tf; },
   get(sym, tf){ try { const o = JSON.parse(localStorage.getItem(this.key(sym, tf)) || "null"); if (!o || !o.r || o.r.length < 20 || Date.now() - o.t > 7*86400000) return null; return o.r.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], v:a[5]})); } catch(e){ return null; } },
@@ -1755,7 +1770,7 @@ class CandleChart {
       c.globalAlpha = 1; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
     }
     if (ov && ov.ew) this.paintEW(c, py, ov.ew, dec);
-    this.paintDraws(c, py, dec); this.dbar();
+    this.paintSR(c, py, PB, dec); this.paintDraws(c, py, dec); this.dbar();
     if (this.vpLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; this.vpLv.forEach(l => { const y = py(l.p); if (y < 0 || y > PB) return;
       const col = l.k === "POC" ? "#f0b90b" : "#4aa3ff"; c.strokeStyle = col; c.globalAlpha = .85; c.lineWidth = l.k === "POC" ? 1.6 : 1; c.setLineDash(l.k === "POC" ? [] : [6,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.lineWidth = 1;
       c.fillStyle = col; c.fillText(l.tf+" "+l.k+" "+l.p.toFixed(dec), PR-4, y-4); }); c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
@@ -3319,6 +3334,12 @@ Object.assign(CandleChart.prototype, {
     add(Lg("Front","للأمام"), {title:Lg("bring to front","للأمام")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d).concat([d]); this.saveDraws(); this.draw(); });
     add(Lg("Delete","حذف"), {title:Lg("delete","حذف")}, () => { const d = this.sel; if (!d) return; this.draws = this.draws.filter(x => x !== d); this.sel = null; this.saveDraws(); this.draw(); });
   },
+  paintSR(c, py, PB, dec){   // daily (dashed) / weekly (solid, thicker) support & resistance lines + a small tag at the right edge; only when the S/R button is on for this chart
+    const o = this.srData; if (!this.srOn || !o) return; c.save(); c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; c.textBaseline = "middle";
+    [["W", o.W, 1.8, []], ["D", o.D, 1.1, [5, 4]]].forEach(([tf, lv, lw, dash]) => { if (tf === "D" && this.tf === "1W") return; (lv || []).slice(0, 8).forEach(l => { const y = Math.round(py(l.p)) + .5; if (y < 2 || y > PB - 2) return;
+      const col = l.kind === "R" ? "#f6465d" : "#0ecb81"; c.globalAlpha = .35 + .13*l.strength; c.strokeStyle = col; c.lineWidth = lw; c.setLineDash(dash); c.beginPath(); c.moveTo(0, y); c.lineTo(this.PR, y); c.stroke(); c.setLineDash([]); c.globalAlpha = .95;
+      const t = tf+" "+l.kind+" "+l.p.toFixed(dec)+" ×"+l.touches; c.fillStyle = "rgba(11,14,17,.7)"; const w = c.measureText(t).width + 6; c.fillRect(this.PR - w - 2, y - 7, w, 13); c.fillStyle = col; c.fillText(t, this.PR - 5, y); }); });
+    c.restore(); },
   paintDraws(c, py, dec){
     if (!this.data.length || !this.drawingsVisible) return;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip(); c.lineWidth = 1.5; c.textBaseline = "middle";
@@ -3578,6 +3599,20 @@ class Panel {
     drw.onclick = () => { this.chart.drawingsVisible = !this.chart.drawingsVisible; this.state.drawingsVisible = this.chart.drawingsVisible; syncDrawings(); this.chart.draw(); Ws.save(); }; syncDrawings();
     const refreshNow = el("button",null,"⟳"); refreshNow.title = Lg("Reload chart data and preserve the current view","إعادة تحميل بيانات الشارت مع الحفاظ على موضع العرض والتكبير");
     refreshNow.onclick = () => { const ch = this.chart; if (!ch || !ch.data.length) { this.resub(); return; } this._refreshView = {sym:this.state.sym, tf:this.state.tf, bw:ch.bw, yZoom:ch.yZoom, yShift:ch.yShift, back:(ch.data.length-1)-ch.r}; ch.saveView(); this.resub(); Ws.save(); };
+    const srB = el("button", null, "S/R"); srB.title = Lg("Daily + weekly support / resistance from the 1D and 1W candles (table of levels). Not a signal.", "دعم ومقاومة يومي + أسبوعي من شموع اليوم والأسبوع (جدول المستويات). مش إشارة.");
+    this.srAuto = () => this.state.sr === undefined ? /^1[DW]/.test(String(this.state.tf || "")) : !!this.state.sr;   // on by itself on the daily / weekly charts, off elsewhere until switched on
+    this.syncSR = () => { const ch = this.chart; if (!ch) return; ch.srOn = this.srAuto(); srB.classList.toggle("on", ch.srOn); if (!ch.srOn){ ch.srData = null; ch.draw(); return; }
+      const sym = this.state.sym; SR.load(sym).then(o => { if (this.state.sym !== sym || !this.chart) return; this.chart.srData = o; this.chart.draw(); if (this._srPop) this._srPop(); }).catch(() => {}); };
+    srB.onclick = ev => { ev.stopPropagation(); const had = document.querySelector(".stpop.srpop"); document.querySelectorAll(".stpop").forEach(x => x.remove()); const turnOff = this.srAuto() && !!had;
+      if (turnOff){ this.state.sr = false; Ws.save(); this.syncSR(); return; } this.state.sr = true; Ws.save(); this.syncSR();
+      const pop = el("div", "stpop srpop"), r_ = srB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-330))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr"; pop.style.minWidth = "310px"; pop.onpointerdown = e => e.stopPropagation(); document.body.append(pop);
+      this._srPop = () => { if (!pop.isConnected){ this._srPop = null; return; } const o = this.chart && this.chart.srData, dec = this.chart ? (this.chart.dec != null ? this.chart.dec : 2) : 2; if (!o){ pop.textContent = Lg("Loading 1D / 1W candles…", "بحمّل شموع اليوم والأسبوع…"); return; }
+        const rows = [["D", o.D], ["W", o.W]].flatMap(([tf, lv]) => SR.top(lv, 3).map(l => Object.assign({tf}, l))).sort((a, b) => b.p - a.p);
+        pop.innerHTML = '<div style="font-weight:700;margin-bottom:3px">'+esc(Lg("Support / resistance (daily, weekly)","دعم / مقاومة (يومي، أسبوعي)"))+'</div>'+(rows.length ? '<table class="wt" style="width:100%"><tr><th>TF</th><th></th><th class="r">'+esc(Lg("Price","السعر"))+'</th><th class="r">'+esc(Lg("Touches","لمسات"))+'</th><th class="r">'+esc(Lg("Strength","القوة"))+'</th><th class="r">%</th></tr>'
+          + rows.map(l => '<tr><td>'+l.tf+'</td><td style="color:'+(l.kind === "R" ? "#f6465d" : "#0ecb81")+'">'+(l.kind === "R" ? "R" : "S")+'</td><td class="r">'+fmtP(l.p)+'</td><td class="r">×'+l.touches+'</td><td class="r">'+"★".repeat(l.strength)+'</td><td class="r m">'+(l.dist >= 0 ? "+" : "")+l.dist.toFixed(1)+'</td></tr>').join("")+'</table>' : '<div class="m">'+esc(Lg("No clear levels in the candles loaded (needs at least 2 touches).","مفيش مستويات واضحة في الشموع المحمّلة (لازم لمستين على الأقل)."))+'</div>')
+          + '<div style="margin-top:4px"><button class="srOff">'+esc(Lg("Hide S/R lines","إخفاء خطوط الدعم والمقاومة"))+'</button></div><div class="m" style="margin-top:4px">'+esc(Lg("Levels where price reacted before (swing highs / lows, 2+ touches); "+o.nD+" daily / "+o.nW+" weekly candles. Not a signal. Order-flow (liquidity wall) levels need recorded book history: not available yet.","مستويات السعر اتفاعل عندها قبل كده (قمم / قيعان، لمستين+)؛ "+o.nD+" شمعة يومية / "+o.nW+" أسبوعية. مش إشارة. مستويات الأوردر فلو (جدران السيولة) محتاجة تسجيل للـ book: لسه مش متاحة."))+'</div>'; };
+      this._srPop(); pop.addEventListener("click", e => { if (e.target.classList && e.target.classList.contains("srOff")){ this.state.sr = false; Ws.save(); pop.remove(); this.syncSR(); } });
+      const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
     // screenshot (PNG) and video (WebM, 8 Mbps) of the chart; both download to the device (= save)
     const fname = (ext) => "xpix-"+this.chart.sym+"-"+this.chart.tf+"-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+"."+ext;
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
@@ -3603,7 +3638,7 @@ class Panel {
     this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -3920,6 +3955,7 @@ class Panel {
   resub(){
     if (this.type !== "chart") return;
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
+    this.chart.srData = null;   // S/R levels belong to the symbol: never draw the previous symbol's levels while the new one loads
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
     const chan = "candle"+okxBar(tf), subMin = TFSEC[tf] < 60;
@@ -4011,7 +4047,7 @@ class Panel {
         if (this.chart.smtOn && Date.now() - (this.smtT || 0) > 8000){ this.smtT = Date.now(); this.smtFetch(sym, tf, tok); }
         fails = 0;
         if (first){
-          this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows);
+          this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows); this.syncSR && this.syncSR();
           const v = this._refreshView;
           if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;

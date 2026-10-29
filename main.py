@@ -1054,8 +1054,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 5, 6]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -3379,6 +3379,14 @@ if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calib
         render_lab_summary(_scan_store().get("payload") or {})
     except Exception as _lab_exc:
         st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
+    st.stop()
+if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
+    try:
+        from modules.hub_truth import render as _hub_truth_render
+        _hub_tab = st.segmented_control(" ", ["Truth Court"], default="Truth Court", format_func=L, key="hub_tab", label_visibility="collapsed") or "Truth Court"
+        _hub_truth_render(st, L)
+    except Exception as _hub_exc:
+        st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
 if PAGE == 4:   # perf
     _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"

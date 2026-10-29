@@ -4,3 +4,6 @@ data/tf_stats.json
 
 .flow_log.jsonl
 .zone_log_*.json
+
+# Research Hub snapshots are regenerated when the tab renders (docs/RESEARCH_HUB.md)
+data/hub/

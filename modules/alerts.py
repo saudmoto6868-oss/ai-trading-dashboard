@@ -37,22 +37,15 @@ ALERT_SCORE_THRESHOLD = CALL_SCORE_MIN
 # Context-only signals (Elliott waves, Gann, Harmonic PRZ alone) are excluded
 # until the lab shows n>=100 + t>3 for them.
 CALL_TRIGGER_WHITELIST: frozenset = frozenset({
-    # Structure / OB / FVG
-    "msb_ob",
-    # Fib / OTE
-    "fib_ote", "fib_ext",
-    # Liquidity sweeps
-    "sweep_high", "sweep_low", "kzs", "liq_sweep",
-    # MA / trend
-    "ma_cross", "ma_slope", "sma200_cross", "ema_stack",
-    # Elliott impulse wave (only when confirmed by another trigger)
-    "ew_r3_v",
-    # Unicorn (SMC confluent setup)
-    "unicorn",
-    # VWAP reclaim / reject
-    "vwap_reclaim", "vwap_reject",
-    # Support/resistance bounce
-    "sr_bounce", "sr_break",
+    # keys are the REAL detector keys of the lab / signal code (tests/test_alert_keys_real.py checks every one against data/strategy_lab.json)
+    "msb_ob", "ob", "fvg",            # structure break + order block / fair value gap
+    "ote", "fib",                     # Fib / OTE
+    "sweep", "kzs",                   # liquidity sweeps
+    "ma_cross", "sma1040", "ema_stack",   # MA / trend
+    "unicorn",                        # Unicorn (SMC confluent setup)
+    "vwap",                           # VWAP reclaim / reject
+    "level",                          # support / resistance level
+    # Elliott (ew*) is context only (T4): never a CALL trigger
 })
 
 

@@ -29,10 +29,6 @@
 | 07-harmonic.json.md |
 | 08-orderflow.json.md |
 | 09-meanrev.json.md |
-| 10-validation-lab.json.md |
-| 11-calibration.json.md |
-| 12-rotation.json.md |
-| 13-evidence-summary.json.md |
 
 ## `docs/academy/visual/` (عرض)
 
@@ -49,10 +45,6 @@
 | 07-harmonic.md |
 | 08-orderflow.md |
 | 09-meanrev.md |
-| 10-validation-lab.md |
-| 11-calibration.md |
-| 12-rotation.md |
-| 13-evidence-summary.md |
 
 ## محاضر المشروع المرتبطة
 

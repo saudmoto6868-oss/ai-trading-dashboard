@@ -30,7 +30,7 @@ def test_context_family_does_not_add_star_to_trigger():
 
 def test_trigger_families_count_normally():
     """Fib + Liquidity = 2 stars."""
-    sigs = [_sig("Fib", BULL, "fib_ote"), _sig("Liquidity", BULL, "sweep")]
+    sigs = [_sig("Fib", BULL, "ote"), _sig("Liquidity", BULL, "sweep")]
     r = aggregate(sigs)
     assert r["stars"] == 2, f"Expected 2 stars, got {r['stars']}"
 

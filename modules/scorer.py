@@ -163,6 +163,16 @@ def htf_view(df, tf: str, direction: str) -> dict:
     return {"tf": tf, "available": True, "confirms": ok, "trend_aligned": bool(trend)}
 
 
+def _atr_last(df) -> float | None:
+    """ATR(14) of the trigger timeframe (the trade plan's stop / targets are built on it); None when it cannot be computed."""
+    try:
+        from modules.signals import atr_series
+        v = float(atr_series(df, 14).iloc[-1])
+        return v if v == v and v > 0 else None
+    except Exception:
+        return None
+
+
 def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None = None) -> dict:
     """peers = {peer_symbol: (inverse, df_on_trigger_tf)} enables SMT divergence against correlated markets."""
     df = frames.get(trigger_tf)
@@ -229,6 +239,7 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
         "htf_type": htf_type,
         "timeframe": trigger_tf,
         "price": price,
+        "atr": _atr_last(df),
         "supports": sup, "resistances": res,
         "liquidity_levels": [],
         "errors": errs,

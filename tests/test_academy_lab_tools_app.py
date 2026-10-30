@@ -18,7 +18,7 @@ requests.Session.request = _fail
 from streamlit.testing.v1 import AppTest  # noqa: E402
 from modules import calibration_lab as CAL, lab_shared as LS  # noqa: E402
 
-vis = os.path.join(ROOT, "docs", "academy", "visual")
+vis = os.path.join(ROOT, "docs", "academy", "lab_tools")
 txt = {k: open(os.path.join(vis, k + ".md"), encoding="utf8").read() for k in ("10-validation-lab", "11-calibration", "12-rotation", "13-evidence-summary")}
 assert f"{CAL._GAP}R" in txt["11-calibration"] and str(LS.MIN_N) in txt["10-validation-lab"] and "Lab Summary" in txt["10-validation-lab"]
 assert "بوابة" not in txt["13-evidence-summary"].replace("مفيش بوابة", "") and "0.10R" in txt["13-evidence-summary"] and "-0.06" not in txt["12-rotation"]

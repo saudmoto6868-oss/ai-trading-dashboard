@@ -1070,6 +1070,32 @@ const SR = {
     this.busy[sym] = p; return p; },
   top(lv, n){ const R = lv.filter(x => x.kind === "R").slice(0, n), S = lv.filter(x => x.kind === "S").slice(0, n); return R.concat(S); }
 };
+/* REGIME-BEGIN market regime of the latest candle (same definitions and numbers as modules/regime.py; tests/test_regime_js_parity.py runs both on the same candles) */
+const Regime = {
+  wilder(x, n){ const o = new Array(x.length).fill(NaN); if (x.length <= n) return o; let s = 0, k = 0; for (let i = 1; i <= n; i++){ if (x[i] === x[i]) { s += x[i]; k++; } } o[n] = k ? s/k : NaN; for (let i = n+1; i < x.length; i++) o[i] = (o[i-1]*(n-1) + x[i])/n; return o; },
+  atrAdx(d, n = 14){ const L = d.length, tr = new Array(L), pdm = new Array(L), mdm = new Array(L);
+    for (let i = 0; i < L; i++){ const pc = i ? d[i-1].c : d[0].c, up = i ? d[i].h - d[i-1].h : 0, dn = i ? d[i-1].l - d[i].l : 0; tr[i] = Math.max(d[i].h - d[i].l, Math.abs(d[i].h - pc), Math.abs(d[i].l - pc)); pdm[i] = (up > dn && up > 0) ? up : 0; mdm[i] = (dn > up && dn > 0) ? dn : 0; }
+    const atr = Regime.wilder(tr, n), ps = Regime.wilder(pdm, n), ms = Regime.wilder(mdm, n), dx = new Array(L).fill(NaN);
+    for (let i = 0; i < L; i++){ const pdi = 100*ps[i]/atr[i], mdi = 100*ms[i]/atr[i], v = 100*Math.abs(pdi - mdi)/(pdi + mdi); dx[i] = isFinite(v) ? v : NaN; }
+    const adx = new Array(L).fill(NaN); let f = dx.findIndex(v => v === v); if (f >= 0 && f + n < L){ let s = 0; for (let i = f; i < f + n; i++) s += dx[i]; adx[f+n-1] = s/n; for (let i = f + n; i < L; i++) adx[i] = (adx[i-1]*(n-1) + dx[i])/n; }
+    return {atr, adx}; },
+  of(d){   // -> {regime, adx, atrRatio, bbPct, volPct, retZ}; regime = null with fewer than 60 candles
+    if (!d || d.length < 60) return {regime:null}; const LOOK = 100, L = d.length, {atr, adx} = Regime.atrAdx(d), c = d.map(x => x.c), tail = (a, n) => a.slice(Math.max(0, a.length - n)), fin = a => a.filter(v => v === v);
+    const med = a => { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m-1] + b[m])/2; };
+    const aw = fin(tail(atr, LOOK)), atrRatio = aw.length && med(aw) > 0 ? atr[L-1]/med(aw) : null;
+    const bbw = c.map((_, i) => { if (i < 19) return NaN; let m = 0; for (let j = i-19; j <= i; j++) m += c[j]; m /= 20; let v = 0; for (let j = i-19; j <= i; j++) v += (c[j]-m)*(c[j]-m); return 4*Math.sqrt(v/20)/m; });
+    const bw = fin(tail(bbw, LOOK)), bbPct = bw.length > 10 && bbw[L-1] === bbw[L-1] ? bw.filter(v => v < bbw[L-1]).length/bw.length*100 : null;
+    const r5 = c.map((v, i) => i >= 5 ? v/c[i-5] - 1 : NaN), z = fin(tail(r5, LOOK)); let retZ = null; if (z.length > 10 && r5[L-1] === r5[L-1]){ const m = z.reduce((a, b) => a + b, 0)/z.length, sd = Math.sqrt(z.reduce((a, b) => a + (b-m)*(b-m), 0)/z.length); if (sd > 0) retZ = (r5[L-1] - m)/sd; }
+    let volPct = null; { const v = tail(d.map(x => +x.v || 0), LOOK), sum = v.reduce((a, b) => a + b, 0), nz = v.filter(x => x !== 0).length; if (sum > 0 && nz > v.length*0.5){ const last = v[v.length-1]; volPct = (v.filter(x => x < last).length + v.filter(x => x <= last).length)/2/v.length*100; } }
+    const x = adx[L-1]; let g;
+    if (retZ !== null && retZ < -2) g = "Crash"; else if (atrRatio !== null && atrRatio > 1.5) g = "Hi-Vol"; else if (bbPct !== null && bbPct < 20) g = "Squeeze"; else if (volPct !== null && volPct < 20) g = "Thin";
+    else if (x === x && x > 25) g = "Trend"; else if (x === x && x < 20 && atrRatio !== null && atrRatio < 1) g = "Chop"; else g = "Mixed";
+    return {regime:g, adx:x === x ? x : null, atrRatio, bbPct, volPct, retZ}; },
+  cache:{k:"", v:null},
+  now(d){ if (!d || !d.length) return null; const l = d[d.length-1], k = d.length+"|"+l.t+"|"+l.c+"|"+l.h+"|"+l.l; if (Regime.cache.k !== k) Regime.cache = {k, v:Regime.of(d)}; return Regime.cache.v; },
+  col:{Trend:"#4aa3ff", Chop:"#848e9c", "Hi-Vol":"#f0b90b", Crash:"#f6465d", Squeeze:"#b57cff", Thin:"#6b7684"}
+};
+/* REGIME-END */
 const FP_BARS = 12, FP_PAGES = 120;   // footprint: how many newest candles get real per-price volume (was 3), and the cap of history-trades calls to fill them (was 40)
 /* FPS-BEGIN persistent footprint store: prints summed per 1-minute x price, kept in this browser (IndexedDB) for FPS.KEEP, plus the time ranges (from, to] that are KNOWN to be complete.
    A candle of any timeframe >= 1m is rebuilt from the minutes; a candle outside the known ranges says "partial" instead of looking complete. Pure functions are tested in node (tests/test_footprint_store.py). */
@@ -1843,6 +1869,7 @@ class CandleChart {
     c.textAlign = "left"; c.fillStyle = "#848e9c";
     const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";
     c.fillText(txt, 8, 10); c.fillStyle = dcol; c.fillText((chg>=0?"+":"")+chg.toFixed(2)+"%", 8+c.measureText(txt).width, 10);
+    try { const rg = Regime.now(this.data); if (rg && rg.regime && rg.regime !== "Mixed" && this.W > 330){ const pct = (chg>=0?"+":"")+chg.toFixed(2)+"%", x0 = 8 + c.measureText(txt).width + c.measureText(pct).width + 10; const f0 = c.font; c.fillStyle = Regime.col[rg.regime]; c.font = "bold 9px sans-serif"; c.fillText(rg.regime.toUpperCase(), x0, 10); c.font = f0; } } catch(e){}   // market regime chip (Trend / Chop / Hi-Vol / Crash / Squeeze / Thin) next to the change %: a description of now
     if (this.colOn){ this.paintCol(c, py, PB, PR, i0, i1); this.paintXhCol(c, PR, PB); } else this.placeGroupSel(false);
     this.paintSub(c, PB, i0, i1);
   }

@@ -47,7 +47,7 @@ def test_call_requires_whitelist_trigger():
 
 def test_call_fires_with_whitelist_trigger():
     """score >= CALL_SCORE_MIN + whitelist key → CALL."""
-    res = _res(CALL_SCORE_MIN, signals=[_sig("fib_ote")])
+    res = _res(CALL_SCORE_MIN, signals=[_sig("ote")])
     kind = classify_alert(res)
     assert kind == "CALL", f"Expected CALL, got {kind}"
     print("ok test_call_fires_with_whitelist_trigger")

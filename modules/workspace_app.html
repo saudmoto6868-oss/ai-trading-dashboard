@@ -1122,6 +1122,21 @@ const FPS = {
     return {oldest:a[0][0], runFrom:run, gaps, gapMs}; },
   since(cov){ return cov.length ? cov[cov.length-1][0] : 0; },
   open(){ return new Promise(res => { try { const rq = indexedDB.open(FPS.DB, 1); rq.onupgradeneeded = () => rq.result.createObjectStore("m"); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); rq.onblocked = () => res(null); } catch(e){ res(null); } }); },
+  async pull(base, sym, a, b){   // the always-on recorder (CFG.fpServer, recorder/footprint_recorder.py): {cov, mins} of the minutes it heard, or null
+    try { const r = await fetch(base+"/fp?sym="+encodeURIComponent(sym)+"&from="+Math.floor(a)+"&to="+Math.floor(b)); if (!r.ok) return null; const j = await r.json(); return j && Array.isArray(j.cov) && j.mins && typeof j.mins === "object" ? j : null; } catch(e){ return null; } },
+  async adopt(sym, j){   // the recorder is authoritative for whole minutes inside the ranges it listened: replace them in the store and mark those ranges known (edge minutes it only heard in part are left as they are)
+    const db = FPS.off ? null : await FPS.open(); if (!db) return false;
+    return new Promise(res => { try { const tx = db.transaction("m", "readwrite"), st = tx.objectStore("m"), ck = "cov|"+sym;
+        st.get(ck).onsuccess = e => { let cov = e.target.result || [];
+          j.cov.forEach(([a, b]) => { const A = Math.ceil(a/FPS.MIN)*FPS.MIN, B = Math.floor(b/FPS.MIN)*FPS.MIN; if (!(B > A)) return;
+            st.delete(IDBKeyRange.bound(sym+"|"+FPS.pad(A), sym+"|"+FPS.pad(B - FPS.MIN)));
+            Object.keys(j.mins).forEach(k => { const m = +k; if (m >= A && m < B && Array.isArray(j.mins[k])) st.put(j.mins[k].map(Number), sym+"|"+FPS.pad(m)); });
+            cov = FPS.join(cov, A, B); });
+          const lo = Date.now() - FPS.KEEP; st.put(cov.filter(r => r[1] > lo).map(r => [Math.max(r[0], lo), r[1]]), ck); };
+        tx.oncomplete = () => { db.close(); res(true); }; tx.onerror = tx.onabort = () => { db.close(); res(false); }; } catch(e){ res(false); } }); },
+  async loadSrv(sym, from){   // the store, topped up from the recorder when one is configured (one request per chart open; minutes only, so skipped for sub-minute charts by the caller)
+    let o = await FPS.load(sym, from); if (!CFG.fpServer) return o;
+    const j = await FPS.pull(CFG.fpServer, sym, from, Date.now()); if (j && j.cov.length && await FPS.adopt(sym, j)) o = await FPS.load(sym, from); return o; },
   async load(sym, from){   // {cov, mins} or null when IndexedDB is not usable
     const db = FPS.off ? null : await FPS.open(); if (!db) return null;
     return new Promise(res => { try { const tx = db.transaction("m", "readonly"), st = tx.objectStore("m"), mins = new Map(); let cov = [];
@@ -4071,7 +4086,7 @@ class Panel {
     { const fpIv = setInterval(() => { if (tok !== this.tok){ clearInterval(fpIv); return; } if (!document.hidden) this.fpSave(); }, 20000); this.wsUnsubs.push(() => clearInterval(fpIv)); }
     this.fpInit = () => {   // read the stored footprint of this symbol once (the live handler waits for it): older candles come from the store, a refresh no longer starts empty
       if (this._fpI) return this._fpI; const ch = this.chart; if (!ch.data.length) return null; const hl = /^(HL:|Y:)/.test(sym), ms = (TFSEC[tf] || 0)*1000;
-      return this._fpI = (hl ? Promise.resolve(null) : FPS.load(sym, Math.max(ch.data[0].t, Date.now() - FPS.KEEP))).then(o => { if (tok !== this.tok) return;
+      return this._fpI = (hl ? Promise.resolve(null) : (ms >= FPS.MIN ? FPS.loadSrv : FPS.load)(sym, Math.max(ch.data[0].t, Date.now() - FPS.KEEP))).then(o => { if (tok !== this.tok) return;
         if (o && o.cov.length){ if (ms >= FPS.MIN){ fcov = o.cov; FPS.fold(o.mins, ch, ms, fcov, fvEnd); } ch._fpLd = 1; ch._fpLoadedMax = 0; } else if (!ch._fpLd) this.fpLoad();   // empty or unusable store: the old 4-hour snapshot
         this._fpRdy = 1; this.fpMark(); }); };
     this.fpMark = () => { const ch = this.chart; FPS.mark(ch, (TFSEC[tf] || 0)*1000, fcov, fvEnd); const sp = fvEnd ? FPS.span(fcov, fvEnd) : null; ch.fpCov = sp ? sp[0] : 0; ch.draw(); };

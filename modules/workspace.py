@@ -202,6 +202,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "stockf": stockf or {},
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
+        "fpServer": _fp_server(),
         "gannoos": _gann_oos(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
@@ -221,6 +222,21 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
         return {"sym": symbol, "tf": {"1h": "1H", "1d": "1D", "1w": "1W"}.get(tf, tf), "rows": rows}
     except Exception:
         return None
+
+
+def _fp_server() -> str:
+    """FOOTPRINT_SERVER_URL (env or Streamlit Secrets): the base URL of the always-on footprint recorder (recorder/footprint_recorder.py). Empty = the page keeps its own browser store only.
+    A URL is not a secret; only https (or localhost for tests) is accepted, a trailing slash is dropped."""
+    import os
+    v = os.environ.get("FOOTPRINT_SERVER_URL", "")
+    if not v:
+        try:
+            import streamlit as st
+            v = str(st.secrets.get("FOOTPRINT_SERVER_URL", "") or "")
+        except Exception:
+            v = ""
+    v = v.strip().rstrip("/")
+    return v if v.startswith("https://") or v.startswith("http://localhost") or v.startswith("http://127.0.0.1") else ""
 
 
 def _fh_token() -> str:

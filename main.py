@@ -2916,13 +2916,13 @@ def _ac_go(lesson_id: str, level: int):
 
 
 def _academy_lab_tools():
-    """Four short lessons on the Lab Summary sections (docs/academy/visual/10-13): what each section shows, from the code; lazy read, a missing file degrades to a message."""
+    """Four short lessons on the Lab Summary sections (docs/academy/lab_tools/): what each section shows, from the code; lazy read, a missing file degrades to a message."""
     from modules.lab_shared import t as _t
     lessons = [("10-validation-lab", _t("جدول المعمل الكامل", "Full lab table")), ("11-calibration", _t("المعايرة: داخل/خارج العينة", "Calibration: in / out of sample")),
                ("12-rotation", _t("دوران الفئات", "Class rotation")), ("13-evidence-summary", _t("ملخص الأدلة لكل Setup", "Evidence per setup"))]
     names = dict(lessons)
     pick = st.radio(L("Lesson"), [k for k, _n in lessons], format_func=lambda k: names[k], key="ac_lab_pick", horizontal=True, label_visibility="collapsed")
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "academy", "visual", pick + ".md")
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "academy", "lab_tools", pick + ".md")
     try:
         st.markdown(open(p, encoding="utf-8").read())
     except OSError:

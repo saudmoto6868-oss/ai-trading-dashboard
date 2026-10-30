@@ -106,6 +106,26 @@ with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
         _mf_render()
         st.stop()
 
+# ---- Build stamp: which commit this running app was built from (so a stale deploy is visible at a glance) ----
+@st.cache_resource
+def _build_stamp() -> str:
+    import subprocess
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%h · %cd", "--date=format:%Y-%m-%d %H:%M"], capture_output=True, text=True, timeout=5,
+                             cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        head = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "HEAD")).read().strip()
+        return head[:7] if len(head) >= 40 or not head.startswith("ref:") else "unknown"
+    except Exception:
+        return "unknown"
+
+
+st.sidebar.caption(L("Build") + ": " + _build_stamp())
+
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))
 # OFF by default: every refresh re-runs the whole app on the server (Streamlit Cloud throttled the app's CPU on 2026-10-17).

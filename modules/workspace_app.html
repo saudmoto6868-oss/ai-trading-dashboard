@@ -1071,6 +1071,41 @@ const SR = {
   top(lv, n){ const R = lv.filter(x => x.kind === "R").slice(0, n), S = lv.filter(x => x.kind === "S").slice(0, n); return R.concat(S); }
 };
 const FP_BARS = 12, FP_PAGES = 120;   // footprint: how many newest candles get real per-price volume (was 3), and the cap of history-trades calls to fill them (was 40)
+/* FPS-BEGIN persistent footprint store: prints summed per 1-minute x price, kept in this browser (IndexedDB) for FPS.KEEP, plus the time ranges (from, to] that are KNOWN to be complete.
+   A candle of any timeframe >= 1m is rebuilt from the minutes; a candle outside the known ranges says "partial" instead of looking complete. Pure functions are tested in node (tests/test_footprint_store.py). */
+const FPS = {
+  MIN: 60000, KEEP: 72*3600000, DB: "xpix_fp", off: false,
+  pad: t => String(Math.max(0, Math.floor(t))).padStart(13, "0"),
+  join(cov, a, b){ if (!(b > a)) return cov.slice(); let na = a, nb = b; const out = [];   // add (a, b] to a sorted list of ranges; ranges that touch merge
+    cov.forEach(([x, y]) => { if (y < na || x > nb) out.push([x, y]); else { na = Math.min(na, x); nb = Math.max(nb, y); } }); out.push([na, nb]); return out.sort((p, q) => p[0] - q[0]); },
+  span(cov, t){ return cov.find(([x, y]) => t > x && t <= y) || null; },   // the known range that holds a print time, or null
+  has(cov, a, b){ return cov.some(([x, y]) => x <= a && y >= b); },       // is the whole stretch a..b inside one known range
+  group(trades){ const g = new Map(); trades.forEach(([t, p, q, side]) => { const k = Math.floor(t/FPS.MIN)*FPS.MIN; let m = g.get(k); if (!m) g.set(k, m = new Map()); let o = m.get(p); if (!o) m.set(p, o = [0, 0]); o[side === "Buy" ? 0 : 1] += q; }); return g; },
+  flat(m){ const a = []; m.forEach(([b, s], p) => a.push(p, b, s)); return a; },                       // one minute -> [price, buy, sell, price, buy, sell...]
+  merge(old, m){ const g = new Map(); if (old) for (let i = 0; i + 2 < old.length; i += 3) g.set(old[i], [old[i+1], old[i+2]]); m.forEach(([b, s], p) => { const o = g.get(p); if (o) g.set(p, [o[0] + b, o[1] + s]); else g.set(p, [b, s]); }); return FPS.flat(g); },
+  fold(mins, ch, ms, cov, now){   // stored minutes -> the candles of the chart (ms = candle length in ms, >= 60000); each candle gets .part when it is not wholly inside a known range
+    const d = ch.data; if (!d.length || ms < FPS.MIN) return 0; let n = 0; const ks = [...mins.keys()].sort((a, b) => a - b); let i = 0;
+    ks.forEach(k => { if (k < d[0].t) return; while (i + 1 < d.length && d[i+1].t <= k) i++; const key = d[i].t; let m = ch.fp.get(key); if (!m){ m = {px:new Map(), b:0, s:0}; ch.fp.set(key, m); }
+      const a = mins.get(k); for (let j = 0; j + 2 < a.length; j += 3){ let o = m.px.get(a[j]); if (!o) m.px.set(a[j], o = {b:0, s:0}); o.b += a[j+1]; o.s += a[j+2]; m.b += a[j+1]; m.s += a[j+2]; } n++; });
+    FPS.mark(ch, ms, cov, now); return n; },
+  mark(ch, ms, cov, now){ const d = ch.data; ch.fp.forEach((m, key) => { m.part = !FPS.has(cov, key, Math.min(key + ms, now || key + ms)) ? true : false; }); },
+  since(cov){ return cov.length ? cov[cov.length-1][0] : 0; },
+  open(){ return new Promise(res => { try { const rq = indexedDB.open(FPS.DB, 1); rq.onupgradeneeded = () => rq.result.createObjectStore("m"); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); rq.onblocked = () => res(null); } catch(e){ res(null); } }); },
+  async load(sym, from){   // {cov, mins} or null when IndexedDB is not usable
+    const db = FPS.off ? null : await FPS.open(); if (!db) return null;
+    return new Promise(res => { try { const tx = db.transaction("m", "readonly"), st = tx.objectStore("m"), mins = new Map(); let cov = [];
+        st.get("cov|"+sym).onsuccess = e => { cov = e.target.result || []; };
+        st.openCursor(IDBKeyRange.bound(sym+"|"+FPS.pad(from), sym+"|"+FPS.pad(9e12))).onsuccess = e => { const c = e.target.result; if (c){ mins.set(+String(c.key).split("|").pop(), c.value); c.continue(); } };
+        tx.oncomplete = () => { db.close(); res({cov, mins}); }; tx.onerror = tx.onabort = () => { db.close(); res(null); }; } catch(e){ res(null); } }); },
+  async commit(sym, trades, from, to){   // store the prints in (from, to] that no earlier commit (this tab, another tab, another panel) already holds, then mark (from, to] known. true on success
+    const db = FPS.off ? null : await FPS.open(); if (!db) return false;
+    return new Promise(res => { try { const tx = db.transaction("m", "readwrite"), st = tx.objectStore("m"), ck = "cov|"+sym;
+        st.get(ck).onsuccess = e => { const cov = e.target.result || [], keep = trades.filter(x => x[0] > from && x[0] <= to && !FPS.span(cov, x[0])), g = FPS.group(keep), ks = [...g.keys()]; let left = ks.length;
+          const fin = () => { const lo = Date.now() - FPS.KEEP; st.put(FPS.join(cov, from, to).filter(r => r[1] > lo).map(r => [Math.max(r[0], lo), r[1]]), ck); st.delete(IDBKeyRange.bound(sym+"|"+FPS.pad(0), sym+"|"+FPS.pad(lo - FPS.MIN))); };
+          if (!left) return fin(); ks.forEach(k => { const key = sym+"|"+FPS.pad(k); st.get(key).onsuccess = ev => { st.put(FPS.merge(ev.target.result, g.get(k)), key); if (!--left) fin(); }; }); };
+        tx.oncomplete = () => { db.close(); res(true); }; tx.onerror = tx.onabort = () => { db.close(); FPS.off = true; res(false); }; } catch(e){ res(false); } }); }   // a full disk / blocked store switches recording off for this page: the footprint still works from memory
+};
+/* FPS-END */
 const CandleCache = {   // last 300 candles per symbol + timeframe in this browser: a new tab / refresh paints at once, the live request then replaces them (max 16 entries, quota errors ignored)
   key(sym, tf){ return LS+"_cc|"+sym+"|"+tf; },
   get(sym, tf){ try { const o = JSON.parse(localStorage.getItem(this.key(sym, tf)) || "null"); if (!o || !o.r || o.r.length < 20 || Date.now() - o.t > 7*86400000) return null; return o.r.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], v:a[5]})); } catch(e){ return null; } },
@@ -2071,6 +2106,8 @@ Object.assign(CandleChart.prototype, {
   paintFp(c, py, dec, i0, i1, PB){
     const bw = this.bw, d = this.data, fmt = v => v >= 1000 ? (v/1000).toFixed(1)+"k" : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
     const big = this.fpOn && bw >= 44, mid = bw >= 20, fs = Math.max(9, Math.min(15, Math.round(bw/9)));
+    if (this.fpOn && this.fpCov){ c.save(); c.fillStyle = "rgba(139,141,152,.9)"; c.textAlign = "left"; c.font = "10px sans-serif"; const dt = new Date(this.fpCov), z = n => String(n).padStart(2, "0");
+      c.fillText(Lg("Footprint recorded without gaps since ", "الفوت برينت مسجّل بلا فجوات منذ ") + z(dt.getDate()) + "/" + z(dt.getMonth()+1) + " " + z(dt.getHours()) + ":" + z(dt.getMinutes()), 8, this.PB - 6); c.restore(); }
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step0 = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
     const OF = this.st.of, FM = OF.fpMode || "bidask", step = step0*(OF.fpRow || 1); this._fpStep = step; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
@@ -3978,9 +4015,11 @@ class Panel {
     this.chart.lvD = null; const lvIv = setInterval(() => { if (tok !== this.tok){ clearInterval(lvIv); return; } if (this.chart.lvOn && Date.now() - (this.lvT || 0) > 30000){ this.lvT = Date.now(); this.lvKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(lvIv)); this.chart.llD = null; const llIv = setInterval(() => { if (tok !== this.tok){ clearInterval(llIv); return; } if (this.chart.llOn && Date.now() - (this.llT || 0) > 30000){ this.llT = Date.now(); this.llKick(); } }, 1500); this.wsUnsubs.push(() => clearInterval(llIv));
     this.chart.fp = new Map(); this.chart.bub = []; this.chart.dom = new Map(); this.chart.flowB = []; this.chart.flowT = []; this.chart.sym = sym; const seenF = new Set();
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error || tok !== this.tok) return; this.chart.domAdd(b); if (this.chart.domOn || this.chart.vpOn) this.chart.drawData(); }));
+    this._fpRdy = 0; this._fpI = null; let fcov = [], fvEnd = 0, fpend = [];   // a new subscription (symbol / timeframe change) starts from the store again   // known-complete ranges (from the store + this panel), end of what this panel verified, prints waiting to be stored
+    const frec = r => { if (FPS.off) return; fpend.push([r.t, r.p, r.q, r.side]); if (fpend.length > 60000) fpend.splice(0, 20000); };
     this.wsUnsubs.push(Hub.sub("trades", sym, p => { if (p.error || tok !== this.tok) return; const ch = this.chart;
-      if (!ch._fpLd && ch.data.length && this.fpLoad) this.fpLoad();
-      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id)) return; seenF.add(r.id); if (ch._fpLoadedMax && +r.id <= ch._fpLoadedMax) return; ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
+      if (!this._fpRdy){ if (this.fpInit) this.fpInit(); return; }   // the store is read first: prints are re-sent by the next poll, so none is lost, and none is counted twice
+      (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => { if (seenF.has(r.id) || FPS.span(fcov, r.t)) return; seenF.add(r.id); if (ch._fpLoadedMax && +r.id <= ch._fpLoadedMax) return; frec(r); ch.fpAdd(r); }); if (ch.fpOn || ch.deltaOn || ch.vpOn) ch.drawData(); }));
     this.fpSave = () => { try { const ch = this.chart, d = ch.data; if (!ch.fpOn || !d.length || /^(HL:|Y:)/.test(sym)) return; const bars = [];   // the newest FP_BARS bars, with their rows: another tab or a refresh starts from this instead of from nothing
         for (let i = Math.max(0, d.length - FP_BARS); i < d.length; i++){ const m = ch.fp.get(d[i].t); if (m && m.px.size) bars.push([d[i].t, m.b, m.s, m.part ? 1 : 0, [...m.px].map(([pp, v]) => [pp, v.b, v.s])]); }
         if (bars.length) localStorage.setItem(LS+"_fp|"+sym+"|"+tf, JSON.stringify({t:Date.now(), max:ch._fpMax || 0, bars})); } catch(e){} };
@@ -3988,21 +4027,32 @@ class Panel {
         o.bars.forEach(([t, b, sl, part, px]) => { if (!have.has(t) || ch.fp.has(t)) return; ch.fp.set(t, {px:new Map(px.map(([pp, bb, ss]) => [pp, {b:bb, s:ss}])), b, s:sl, part:!!part}); });
         mx = o.max || 0; ch._fpMax = Math.max(ch._fpMax || 0, mx); ch._fpLoadedMax = mx; ch.drawData(); } catch(e){} return mx; };
     { const fpIv = setInterval(() => { if (tok !== this.tok){ clearInterval(fpIv); return; } if (!document.hidden) this.fpSave(); }, 20000); this.wsUnsubs.push(() => clearInterval(fpIv)); }
-    this.fpFill = async () => {   // footprint of the newest candles from OKX history-trades (a refresh or a new tab used to start with an empty footprint): newest trades first, back to the start of the FP_BARS-th candle (12) or after FP_PAGES calls
+    this.fpInit = () => {   // read the stored footprint of this symbol once (the live handler waits for it): older candles come from the store, a refresh no longer starts empty
+      if (this._fpI) return this._fpI; const ch = this.chart; if (!ch.data.length) return null; const hl = /^(HL:|Y:)/.test(sym), ms = (TFSEC[tf] || 0)*1000;
+      return this._fpI = (hl ? Promise.resolve(null) : FPS.load(sym, Math.max(ch.data[0].t, Date.now() - FPS.KEEP))).then(o => { if (tok !== this.tok) return;
+        if (o && o.cov.length){ if (ms >= FPS.MIN){ fcov = o.cov; FPS.fold(o.mins, ch, ms, fcov, fvEnd); } ch._fpLd = 1; ch._fpLoadedMax = 0; } else if (!ch._fpLd) this.fpLoad();   // empty or unusable store: the old 4-hour snapshot
+        this._fpRdy = 1; this.fpMark(); }); };
+    this.fpMark = () => { const ch = this.chart; FPS.mark(ch, (TFSEC[tf] || 0)*1000, fcov, fvEnd); const sp = fvEnd ? FPS.span(fcov, fvEnd) : null; ch.fpCov = sp ? sp[0] : 0; ch.draw(); };
+    const fcommit = async (from, to) => {   // prints in (from, to] are now known to be complete: store them, mark the range known
+      if (!(to > from) || /^(HL:|Y:)/.test(sym)) return; const take = fpend.filter(x => x[0] <= to); fpend = fpend.filter(x => x[0] > to);
+      await FPS.commit(sym, take, from, to); if (tok !== this.tok) return; fcov = FPS.join(fcov, from, to); fvEnd = Math.max(fvEnd, to); this.fpMark(); };
+    this.fpSync = async (stopT, maxPg, pace, idFloor) => {   // newest-first through history-trades until a print falls in a known range (everything newer is then fetched), is older than stopT, or is covered by the snapshot
+      const ch = this.chart; let after = "", newest = 0, oldest = Infinity, from = null;
+      for (let pg = 0; pg < maxPg && from === null; pg++){ if (tok !== this.tok || !ch.fpOn) return {cancel:true};
+        let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ break; } if (!rows || !rows.length) break;
+        for (const x of rows){ const t = +x.ts, sp = FPS.span(fcov, t); if (t > newest) newest = t;
+          if (sp){ from = sp[1]; break; } if (t < stopT){ from = stopT - 1; break; } if (idFloor && +x.tradeId <= idFloor){ from = Math.min(oldest, t); break; }
+          oldest = Math.min(oldest, t); if (seenF.has(x.tradeId)) continue; seenF.add(x.tradeId); const r = {id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}; frec(r); ch.fpAdd(r, true); }
+        ch.drawData(); after = rows[rows.length-1].tradeId; if (from === null) await new Promise(r => setTimeout(r, pace)); }
+      if (!newest) return null; return {from: from === null ? oldest : from, to: newest, capped: from === null}; };   // ran out of pages: only what was fetched is claimed, the rest stays "partial"
+    this.fpFill = async () => {   // footprint of the newest candles: the store holds the past, this fills the rest from OKX history-trades (newest first, back to the stored range or the FP_BARS-th candle)
       if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpFilled === sym+"|"+tf) return; const ch = this.chart, d = ch.data; if (d.length < 3) return; this._fpFilled = sym+"|"+tf;
-      const stopT = d[Math.max(0, d.length - FP_BARS)].t, svMax = ch._fpLd ? (ch._fpLoadedMax || 0) : this.fpLoad(); let after = "", lastTs = 0;   // trades up to the saved snapshot are already in it: the fill stops there
-      for (let pg = 0; pg < FP_PAGES; pg++){ if (tok !== this.tok || !ch.fpOn) { this._fpFilled = null; return; }
-        let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ return; }
-        if (!rows || !rows.length) return; let reached = false;
-        rows.forEach(x => { const t = +x.ts; if (t < stopT || (svMax && +x.tradeId <= svMax)){ reached = true; return; } lastTs = t; if (seenF.has(x.tradeId)) return; seenF.add(x.tradeId); ch.fpAdd({id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}, true); });
-        ch.drawData(); if (reached) return; after = rows[rows.length-1].tradeId; await new Promise(r => setTimeout(r, 180)); }
-      { let i = d.length - 1; while (i > 0 && d[i].t > lastTs) i--; const mm = lastTs && ch.fp.get(d[i].t); if (mm && lastTs > d[i].t + 1000) mm.part = true; ch.draw(); } };   // the call cap ended inside a candle: that candle is only partly filled and says so
-    this.fpCatch = async () => {   // the live tape poll (100 prints / poll) can miss prints on a busy market: page back through history-trades until a whole page is already known, so the newest candle is complete
-      if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpCatching) return; const ch = this.chart, d = ch.data; if (!ch.fpOn || !d.length) return; this._fpCatching = true;
-      try { let after = ""; for (let pg = 0; pg < 6; pg++){ let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ return; }
-          if (!rows || !rows.length) return; let fresh = 0;
-          rows.forEach(x => { if (seenF.has(x.tradeId) || +x.ts < d[0].t) return; seenF.add(x.tradeId); fresh++; ch.fpAdd({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}, true); });
-          if (fresh) ch.drawData(); if (!fresh) return; after = rows[rows.length-1].tradeId; await new Promise(r => setTimeout(r, 250)); } } finally { this._fpCatching = false; } };
+      await this.fpInit(); if (tok !== this.tok) return;
+      const r = await this.fpSync(d[Math.max(0, d.length - FP_BARS)].t, FP_PAGES, 180, ch._fpLoadedMax || 0);
+      if (r && r.cancel){ this._fpFilled = null; return; } if (r) await fcommit(r.from, r.to); this.fpMark(); };
+    this.fpCatch = async () => {   // the live tape poll (100 prints / poll) can miss prints on a busy market: page back until a print is inside the verified range, so the newest candle is complete and the gap-free range grows
+      if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpCatching) return; const ch = this.chart; if (!ch.fpOn || !ch.data.length) return; this._fpCatching = true;
+      try { const r = await this.fpSync(0, 25, 250, 0); if (r && !r.cancel) await fcommit(r.from, r.to); } finally { this._fpCatching = false; } };
     { const fcIv = setInterval(() => { if (tok !== this.tok){ clearInterval(fcIv); return; } if (!document.hidden && this.chart.fpOn && this._fpFilled === sym+"|"+tf) this.fpCatch(); }, 30000); this.wsUnsubs.push(() => clearInterval(fcIv)); }
     if (this.chart.fpOn) setTimeout(() => this.fpFill && this.fpFill(), 2500);
     this.wsUnsubs.push(Hub.sub("book", sym, b => { if (b.error) return; const tp = Hub.last["trades|"+sym]; limitUpdate(this.flt, b, tp && !tp.error ? tp.rows : null); this.syncMarks(); }));

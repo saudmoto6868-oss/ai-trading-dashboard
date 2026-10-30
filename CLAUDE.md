@@ -17,7 +17,7 @@ Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, n
   The deployed app cannot use MCP tools - only public APIs.
 
 ## Map
-- `main.py` Streamlit (header row + page tabs: Workspace, Scanner, Lab, Playbook, Performance, AI Analyst, Alerts; sidebar); `modules/i18n.py` `L()` Arabic; `modules/auth.py` login, READY BUT OFF until launch (owner: do not set APP_PASSWORD / APP_USERS before publishing).
+- `main.py` Streamlit (header row + page bar: Workspace, Radar, Technical Office, Academy, Playbook, Stats, Lab Summary, Research Hub, AI, Alerts; sidebar; indexes are fixed: Academy 7, Lab Summary 8, Research Hub 9 - new pages take the next free index); lab pages `modules/lab_summary.py` + `lab_shared.py`, Research Hub `modules/hub_*.py` (own rules, do not force Workspace/Radar assumptions on it), regime `modules/regime.py` (+ JS port in workspace_app.html, parity test), journal luck check `modules/mc_journal.py`; `modules/i18n.py` `L()` Arabic; `modules/auth.py` login, READY BUT OFF until launch (owner: do not set APP_PASSWORD / APP_USERS before publishing).
 - `modules/workspace_app.html` single-file JS app (chart, watchlist, DOM, order flow, Setup Card); built by `modules/workspace.py`.
   Data: `okx()` -> OKX REST; `Y:` symbols -> embedded Yahoo (`yfOkx`); `HL:xyz:*` -> Hyperliquid (`hlOkx`); `FH:*` -> Finnhub ws.
 - Guide character (`Guide` in workspace_app.html) -> AI via `modules/guide_ai.py` + hidden component `modules/guide_bridge/` (Gemini only by owner rule: `GEMINI_API_KEY`; Claude only if `GUIDE_PROVIDER`=claude; `GUIDE_MODEL`, `GEMINI_MODEL`, `GUIDE_DAILY_CAP`); live voice call = Gemini Live (`GLive`, ephemeral token from `live_token`, `GEMINI_LIVE_MODEL`, `GEMINI_VOICE`, `GUIDE_LIVE_CAP`).

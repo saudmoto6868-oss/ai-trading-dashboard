@@ -97,27 +97,34 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
+# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
-    _lab_choice = st.radio(
-        L("Lab"),
-        ["—", "⟁ Quant · Monte Carlo", "◈ Veles · Robustness", "⬡ Micro · Foundations"],
-        key="lab_choice",
-        label_visibility="collapsed",
-    )
-    if _lab_choice != "—":
-        if _lab_choice == "⟁ Quant · Monte Carlo":
-            from modules.quant_montecarlo import render as _mc_render
-            _mc_render()
-            st.stop()
-        elif _lab_choice == "◈ Veles · Robustness":
-            from modules.veles_robustness import render as _vr_render
-            _vr_render()
-            st.stop()
-        elif _lab_choice == "⬡ Micro · Foundations":
-            from modules.micro_foundations import render as _mf_render
-            _mf_render()
-            st.stop()
+    _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
+    if _lab_choice == "⬡ Micro · Foundations":
+        from modules.micro_foundations import render as _mf_render
+        _mf_render()
+        st.stop()
+
+# ---- Build stamp: which commit this running app was built from (so a stale deploy is visible at a glance) ----
+@st.cache_resource
+def _build_stamp() -> str:
+    import subprocess
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%h · %cd", "--date=format:%Y-%m-%d %H:%M"], capture_output=True, text=True, timeout=5,
+                             cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        head = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "HEAD")).read().strip()
+        return head[:7] if len(head) >= 40 or not head.startswith("ref:") else "unknown"
+    except Exception:
+        return "unknown"
+
+
+st.sidebar.caption(L("Build") + ": " + _build_stamp())
 
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))

@@ -2915,6 +2915,21 @@ def _ac_go(lesson_id: str, level: int):
     st.session_state[f"ac_les_{level}"] = lesson_id
 
 
+def _academy_lab_tools():
+    """Four short lessons on the Lab Summary sections (docs/academy/visual/10-13): what each section shows, from the code; lazy read, a missing file degrades to a message."""
+    from modules.lab_shared import t as _t
+    lessons = [("10-validation-lab", _t("جدول المعمل الكامل", "Full lab table")), ("11-calibration", _t("المعايرة: داخل/خارج العينة", "Calibration: in / out of sample")),
+               ("12-rotation", _t("دوران الفئات", "Class rotation")), ("13-evidence-summary", _t("ملخص الأدلة لكل Setup", "Evidence per setup"))]
+    names = dict(lessons)
+    pick = st.radio(L("Lesson"), [k for k, _n in lessons], format_func=lambda k: names[k], key="ac_lab_pick", horizontal=True, label_visibility="collapsed")
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "academy", "visual", pick + ".md")
+    try:
+        st.markdown(open(p, encoding="utf-8").read())
+    except OSError:
+        st.info(_t("الدرس مش موجود لسه: ", "Lesson not available yet: ") + pick)
+    st.caption(_t("الصفحة اللي بتشرحها: Lab Summary.", "The page these lessons explain: Lab Summary."))
+
+
 def _academy_path():
     """The learning path, laid out for a wide screen (owner 2026-10-23): small chrome, large explanation, three columns on one screen:
     lesson list | animated bullish / bearish diagrams + the idea | steps, setups, mistakes, platform, references, quiz."""
@@ -3166,11 +3181,13 @@ def render_academy_page():
     and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(kit_css(), unsafe_allow_html=True)
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References", "Lab tools"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
         _academy_path()
     elif view == "Schools":
         _academy_schools()
+    elif view == "Lab tools":
+        _academy_lab_tools()
     else:
         _academy_refs()
 

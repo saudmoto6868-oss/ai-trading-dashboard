@@ -14,5 +14,6 @@ _TEMPLATE = Path(__file__).with_name("micro_foundations.html")
 
 def render() -> None:
     """Called from main.py to display the Micro Foundations page."""
-    _html = _TEMPLATE.read_text(encoding="utf-8")
+    from modules.lab_banner import with_demo_banner
+    _html = with_demo_banner(_TEMPLATE.read_text(encoding="utf-8"), 'الشبكة والرسوم عشوائية (النص المرجعي فقط حقيقي)', 'grids and charts are random (only the reference text is real)')
     _components.html(_html, height=900, scrolling=True)

@@ -3432,6 +3432,22 @@ if PAGE == 4:   # perf
                 _c = st.columns(3)
                 _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric(L("Stats source"), _st["source"])
                 st.line_chart((1 + _ret).cumprod().rename("equity"))
+                from modules.mc_journal import mc_summary as _mc_summary
+                with st.expander(_xl("فحص الحظ — Monte Carlo على صفقاتك الحقيقية", "Luck check - Monte Carlo on your real trades"), expanded=False):
+                    _dd = st.slider(_xl("حد الخسارة الكاملة (هبوط من القمة %)", "Ruin threshold (drop from peak %)"), 10, 50, 20, 5, key="mc_ruin") / 100
+                    _mc = _mc_summary(_ret.values, ruin_dd=_dd, seed=7)
+                    if _mc.get("ok"):
+                        _m = st.columns(4)
+                        _m[0].metric(_xl("P-value (المتوسط > 0)", "P-value (mean > 0)"), f"{_mc['p_value']:.3f}")
+                        _m[1].metric(_xl("احتمال الخسارة الكاملة", "Ruin probability"), f"{_mc['ruin']*100:.1f}%")
+                        _m[2].metric(_xl("نطاق النهاية 5% / 95%", "Final range 5% / 95%"), f"{_mc['final_p5']:.2f}x / {_mc['final_p95']:.2f}x")
+                        _m[3].metric(_xl("عدد الصفقات", "Trades"), _mc["n"])
+                        _msg = {"not_evidence": _xl("أقل من 30 صفقة = مش دليل.", "Under 30 trades = NOT evidence."),
+                                "could_be_luck": _xl("النتيجة ممكن تكون حظ (P-value مش صغير).", "The result could be luck (p-value is not small)."),
+                                "unlikely_luck": _xl("المتوسط مش غالبًا حظ على العينة دي، بس ده مش إثبات حافة مستقبلية.", "The average is unlikely to be luck in this sample, but it does not prove a future edge.")}[_mc["verdict"]]
+                        (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
+                        st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
+                                       "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
                 import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:

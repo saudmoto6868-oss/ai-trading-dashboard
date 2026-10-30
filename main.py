@@ -1061,8 +1061,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 5, 6]   # the last two = planned (their pages say so)
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -3411,6 +3411,20 @@ if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calib
         render_lab_summary(_scan_store().get("payload") or {})
     except Exception as _lab_exc:
         st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
+    st.stop()
+if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
+    try:
+        import importlib as _il_hub
+        from modules import hub_ui as _hub_ui
+        _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
+        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
+                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
+                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
+        _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
+        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
+        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
+    except Exception as _hub_exc:
+        st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
 if PAGE == 4:   # perf
     _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"

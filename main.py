@@ -2123,7 +2123,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
-        out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
                     "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
@@ -2535,6 +2535,10 @@ def render_radar_signals(f):
     k = st.columns(3)
     k[0].metric(L("Signals live"), len(df)); k[1].metric(L("Symbols scanned"), len(data))
     k[2].metric(L("With positive lab net R"), int((df["Lab net R"].fillna(-1) > 0).sum()))
+    from collections import Counter as _Cnt
+    _rc = _Cnt(d_.get("regime") for d_ in data.values() if d_.get("regime"))
+    if _rc:
+        st.caption(L("Market regime of the scanned symbols now") + ": " + " · ".join(f"{r_} {n_}" for r_, n_ in _rc.most_common()))
     df["Kind"] = df["Kind"].map(L); df["Lab"] = df["Lab"].map(L)
     st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, use_container_width=True,
                  column_config={L("Lab net R"): st.column_config.NumberColumn(format="%+.3f")})
@@ -2717,11 +2721,13 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode")):
+        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
             n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
             ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
+            from modules.regime import REGIMES as _RG
+            sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
         top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     sel_mom = list(sel_mom_a) + list(sel_mom_v)
     quick = []
@@ -2739,7 +2745,7 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime)}
 
 
 def _radar_hits(d, f):
@@ -2753,6 +2759,8 @@ def _radar_hits(d, f):
 
 
 def _radar_pass(d, f):
+    if f.get("regime") and d.get("regime") not in f["regime"]:   # market-regime filter (Radar panel): symbols in another regime drop out
+        return False
     h, n = _radar_hits(d, f)
     if not n:
         return match_filters(d, [], f["want"], False)

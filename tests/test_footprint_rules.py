@@ -52,14 +52,14 @@ def test_rules():
 
 
 def test_wired_into_the_painter():
-    for k in ("this.fpAn(m, rows, step, OF)", "nPOC", "fpStack", "fpNaked", "fpAuc", "fpDelta", "an.runs.forEach", "fpMode", "fpRow", "step0*(OF.fpRow", "market/history-trades", "this.fpFill", "mm.part = true", "fpAdd(r, quiet)"):
+    for k in ("this.fpAn(m, rows, step, OF)", "nPOC", "fpStack", "fpNaked", "fpAuc", "fpDelta", "an.runs.forEach", "fpMode", "fpRow", "step0*(OF.fpRow", "market/history-trades", "this.fpFill", "m.part = !FPS.has(cov, key", "fpAdd(r, quiet)"):
         assert k in H, k
 
 
 def test_linked_panels_and_forward_test():
     for k in ("flowLevels(ft)", "Ws.flowLevels = sym", "function flowTag(sym, p, tol)", "flowTag(opts && opts.sym", "flowTag(panel.state.sym, r.p", "flowTag(panel.state.sym, e.p",   # footprint levels shown in the DOM, tape and limit tracker
               "Ws.flowConf = sym", "const FlowTest = ", "Ws.ftPop = anchor", "l.kind === \"stack\"", "n >= 100 && t > 3 && m1 > 0 && m2 > 0",
-              "this.fpSave = () =>", "this.fpLoad = () =>", "ch._fpLoadedMax && +r.id <= ch._fpLoadedMax", "svMax && +x.tradeId <= svMax"):   # the footprint survives a refresh and is shared by the tabs of one browser          # confluence v1 and its forward test with our own evidence gate
+              "this.fpSave = () =>", "this.fpLoad = () =>", "ch._fpLoadedMax && +r.id <= ch._fpLoadedMax", "idFloor && +x.tradeId <= idFloor"):   # the footprint survives a refresh and is shared by the tabs of one browser          # confluence v1 and its forward test with our own evidence gate
         assert k in H, k
 
 

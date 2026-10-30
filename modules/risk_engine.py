@@ -30,12 +30,9 @@ If no book matches, fall back to the original SR-based plan.
 from config import RR_TARGETS
 
 # ── signal-key → book classification ─────────────────────────────────────────
-_REVERSAL_KEYS  = frozenset({"msb_ob", "kzs", "liq_sweep", "sweep_high",
-                              "sweep_low", "unicorn"})
-_LEVELS_KEYS    = frozenset({"fib_ote", "fib_ext", "sr_bounce", "sr_break",
-                              "vwap_reclaim", "vwap_reject"})
-_TREND_KEYS     = frozenset({"ma_cross", "ma_slope", "sma200_cross",
-                              "ema_stack", "ew_r3_v"})
+_REVERSAL_KEYS  = frozenset({"msb_ob", "kzs", "sweep", "unicorn"})                       # real detector keys (checked against the lab file in tests/test_alert_keys_real.py)
+_LEVELS_KEYS    = frozenset({"ote", "fib", "ob", "fvg", "level", "vwap"})
+_TREND_KEYS     = frozenset({"ma_cross", "sma1040", "ema_stack", "turtle55"})
 
 
 def _detect_book(signals: list) -> str:
@@ -51,9 +48,12 @@ def _detect_book(signals: list) -> str:
 
 
 def _atr_estimate(score_result: dict) -> float:
-    """Rough ATR estimate from price when no candle data is available."""
+    """ATR(14) of the trigger timeframe when the scan carried it (score_result["atr"]); only without it, 0.5 % of the price as a rough fallback."""
+    a = score_result.get("atr")
+    if a and a > 0:
+        return float(a)
     price = score_result.get("price", 1.0)
-    return price * 0.005   # 0.5 % of price as ATR fallback
+    return price * 0.005
 
 
 def build_trade_plan(score_result: dict) -> dict:
@@ -88,12 +88,12 @@ def build_trade_plan(score_result: dict) -> dict:
         if long:
             # entry = bottom of zone (limit); stop = below zone + atr buffer
             entry    = zone_lo if zone_lo else price
-            stop_ref = (zone_lo - atr * 0.5) if zone_lo else price * 0.995
+            stop_ref = (zone_lo - atr * 0.5) if zone_lo else price - atr
             mid_lvl  = res_above[0] if res_above else entry + atr * 2
             liq_lvl  = res_above[1] if len(res_above) > 1 else mid_lvl + atr * 2
         else:
             entry    = zone_hi if zone_hi else price
-            stop_ref = (zone_hi + atr * 0.5) if zone_hi else price * 1.005
+            stop_ref = (zone_hi + atr * 0.5) if zone_hi else price + atr
             mid_lvl  = sup_below[0] if sup_below else entry - atr * 2
             liq_lvl  = sup_below[1] if len(sup_below) > 1 else mid_lvl - atr * 2
         risk_distance = abs(entry - stop_ref) or atr
@@ -107,11 +107,11 @@ def build_trade_plan(score_result: dict) -> dict:
         entry = price   # market / breakout
         if long:
             # stop = last swing low (from signals) or nearest support
-            stop_ref = swing_ref if (swing_ref and swing_ref < price) else (sup_below[0] if sup_below else price * 0.99)
+            stop_ref = swing_ref if (swing_ref and swing_ref < price) else (sup_below[0] if sup_below else price - atr * 1.5)
             risk_distance = price - stop_ref
             take_profits  = [entry + risk_distance * rr for rr in RR_TARGETS]
         else:
-            stop_ref = swing_ref if (swing_ref and swing_ref > price) else (res_above[0] if res_above else price * 1.01)
+            stop_ref = swing_ref if (swing_ref and swing_ref > price) else (res_above[0] if res_above else price + atr * 1.5)
             risk_distance = stop_ref - price
             take_profits  = [entry - risk_distance * rr for rr in RR_TARGETS]
 

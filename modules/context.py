@@ -77,7 +77,12 @@ def market_context(df, direction: str | None = None):
     except Exception: db = {"bias": None, "accumulation": False, "why": ""}
     try: pd_ = premium_discount(d)
     except Exception: pd_ = {"zone": None}
-    ctx = {"window": tw, "daily": db, "pd": pd_, "agree": {}}
+    try:
+        from modules.regime import classify as _regime
+        rg = _regime(d)
+    except Exception:
+        rg = {"regime": None}
+    ctx = {"window": tw, "daily": db, "pd": pd_, "regime": rg, "agree": {}}   # regime = market state NOW (shown, never counted in the stars)
     if direction in ("bullish", "bearish"):
         up = direction == "bullish"
         ctx["agree"] = {

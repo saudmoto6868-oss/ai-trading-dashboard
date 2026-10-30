@@ -114,3 +114,20 @@ def test_wired_into_the_panel():
     for k in ("FPS.span(fcov, r.t)", "this.fpInit", "this.fpSync", "fcommit(r.from, r.to)", "FPS.mark(ch", "Footprint recorded without gaps since", "_fpRdy"):
         assert k in H, k
     assert "if (seenF.has(x.tradeId) || +x.ts < d[0].t) return;" not in H     # the old catch-up loop is gone
+
+
+def test_book_history_gaps():
+    out = _run("""
+const M = 60000, T = 1700000000000, tol = 4*M;
+const solid = [0, 1, 2, 3, 4].map(i => [T + i*M, M]);                           // 5 minutes, no hole
+const holey = solid.concat([[T + 30*M, M], [T + 31*M, M]]);                    // app closed for 25 min, then recorded again
+const old5 = [[T, 5*M], [T + 5*M, 5*M], [T + 10*M, 5*M]];                      // compacted 5-min buckets are touching
+console.log(JSON.stringify({a: FPS.cover(solid, T + 5*M, tol), b: FPS.cover(holey, T + 32*M, tol), c: FPS.cover(holey, T + 60*M, tol), d: FPS.cover(old5, T + 15*M, tol), e: FPS.cover([], T, tol)}));""")
+    if out is None:
+        return
+    T = 1700000000000
+    assert out["a"] == {"oldest": T, "runFrom": T, "gaps": 0, "gapMs": 0}
+    assert out["b"]["gaps"] == 1 and out["b"]["runFrom"] == T + 30 * 60000 and out["b"]["gapMs"] == 25 * 60000   # one hole, the unbroken run starts after it
+    assert out["c"]["gaps"] == 2 and out["c"]["runFrom"] == 0                  # nothing recorded for the last 28 min: no unbroken run to now
+    assert out["d"]["gaps"] == 0
+    assert out["e"]["oldest"] == 0

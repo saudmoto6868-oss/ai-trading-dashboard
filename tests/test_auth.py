@@ -25,6 +25,8 @@ requests.get = requests.post = requests.request = lambda *a, **k: (_ for _ in ()
 requests.Session.request = lambda self, *a, **k: (_ for _ in ()).throw(requests.ConnectionError("offline test"))
 from streamlit.testing.v1 import AppTest  # noqa: E402
 os.environ.pop("APP_USERS"); os.environ["APP_PASSWORD"] = "s3cret"
+import re
+_N_PAGES = len(eval(re.search(r"_PAGE_ORDER = (\[[^\]]*\])", open(os.path.join(os.path.dirname(__file__), "..", "main.py"), encoding="utf8").read()).group(1)))   # the page bar after login = the pages main.py lists (was a hard-coded 7: failed since the pages grew)
 at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "main.py"), default_timeout=280)
 at.run()
 pages = lambda: [r for r in at.radio if r.key == "page"]   # the page selector (replaced st.tabs)
@@ -37,5 +39,5 @@ assert any("wait" in e.value for e in at.error) and not at.text_input, [e.value 
 at.session_state["auth_lock"] = 0
 at.run()
 at.text_input(key="auth_pw").input("s3cret"); at.button[0].click(); at.run()
-assert at.session_state["auth_ok"] and len(pages()) == 1 and len(pages()[0].options) == 7 and not at.exception, (at.exception,)
+assert at.session_state["auth_ok"] and len(pages()) == 1 and len(pages()[0].options) == _N_PAGES and not at.exception, (at.exception,)
 print("test_auth: all passed")

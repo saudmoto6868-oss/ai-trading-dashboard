@@ -1219,6 +1219,13 @@ const Journal = {
 setTimeout(() => { Journal.ingest(); Journal.track(); }, 1500);
 setInterval(() => { Journal.ingest(); Journal.track(); }, 30000);
 Alerts.subs.add(() => Journal.ingest());
+const RegimeCtx = {   // market regime of a setup's symbol on its own timeframe (candles via candlesTf, 5-minute cache); the Setup Card shows it as information, never as a pass / fail
+  c:{},
+  get(sym, tf){ const k = sym+"|"+tf, h = this.c[k]; if (h && (h.busy || Date.now() - h.t < 300000)) return h;
+    const o = this.c[k] = {t:h ? h.t : 0, v:h ? h.v : null, busy:true};
+    candlesTf(sym, tf, true, 200).then(rows => { this.c[k] = {t:Date.now(), v:Regime.of(rows), busy:false}; Setup.subs.forEach(f => f()); }).catch(() => { this.c[k] = {t:Date.now(), v:null, busy:false}; });
+    return o; }
+};
 const Setup = {sel:null, subs:new Set(), pick(e){ this.sel = e; this.subs.forEach(f => f()); }};   // the setup shown by the Setup Card widget (clicked chip / newest alert / best live setup)
 function setupHtml(e){
   const ar = lang === "ar", long_ = e.direction === "bullish", col = long_ ? "#0ecb81" : "#f6465d", pl = e.plan || null, a = e.ana || null, pct = Math.round(100*e.score/Math.max(1, e.max));
@@ -1233,6 +1240,7 @@ function setupHtml(e){
       [e.q >= 50 ? "ok" : e.q ? "mid" : "na", Lg("Lab evidence","أدلة المعمل"), e.q ? e.q+"/100" : "–"],
       [ofv === "agree" ? "ok" : ofv === "against" ? "bad" : ofv === "mixed" ? "mid" : "na", Lg("Order book + tape now","الأوردر بوك والصفقات دلوقتي"), c && c.of ? "book "+(c.of.book == null ? "–" : Math.round(c.of.book*100)+"%")+" · Δ2m "+(c.of.delta == null ? "–" : Math.round(c.of.delta*100)+"%") : "…"],
       [/KZ/.test(ses) ? "ok" : "mid", Lg("Time (NY session)","الوقت (جلسة نيويورك)"), ses],
+      (() => { const rg = RegimeCtx.get(e.symbol, TFC_ALL[e.tfk] || "1H"), v = rg && rg.v; return [v && v.regime ? "mid" : "na", Lg("Market regime (now, this timeframe)","حالة السوق (دلوقتي، نفس الفريم)"), v && v.regime ? v.regime.toUpperCase()+(v.adx != null ? " · ADX "+Math.round(v.adx) : "") : (rg && rg.busy ? "…" : "–")]; })(),
       [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
       [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"],
       (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })()];

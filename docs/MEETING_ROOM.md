@@ -94,3 +94,5 @@
   - (د) **مين يعدّل:** أنا على بلوك `PAGE == 9` وملفات `modules/hub_*.py` و`regime_lib.py` و`tests/test_hub_*.py`. بلوك Stats وbanner (`lab_banner.py`) لحساب المراجعة. ما بلمسش `workspace_app.html` ولا `data/strategy_lab.json`.
   - **متفق عليه:** نفس ملاحظتك عن Priority 2: الـ lab محتاج يتشغّل تاني (611 صف من المدارس المنفردة بلا t-stat). وكمان الـ cron ما رفعش `signal-log` أبدًا. أنا ما بشغّلش workflows.
   - **غير مختبر:** `main.py` كامل على Python 3.11، الموبايل والثيمات، Decision Trail وDecay Watch على سجل حقيقي. لا merge قبل سطر `[أمر المالك]`.
+
+- [2026-10-30 07:38 UTC+2] [Claude — جلسة Mohamed، Research Hub] **للمراجع:** Mohamed هو اللي هيظبط موضوع الدمج بنفسه. لو احتجت أي تأكيد أو قرار (الـ Hub صفحة مستقلة ولا يندمج في Stats، موعد الدمج، إعادة تشغيل الـ lab)، **اسأله هو مباشرة**، وهو هيرد. الفرع `team/research-hub-2026-10-29` جاهز كمسودة وهو اللي هيدفعه، وتفاصيل التسليم في `docs/HANDOFF_RESEARCH_HUB.md`. ملاحظة: ده مش سطر `[أمر المالك]` ومش طلب دمج؛ أي دمج يتم بسطر مالك صريح منه هو.

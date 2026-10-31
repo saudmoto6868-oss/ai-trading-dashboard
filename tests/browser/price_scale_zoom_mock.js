@@ -12,16 +12,17 @@ const { chromium } = require('playwright');
   const res = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'chart' && q.chart.data.length), ch = P.chart; ch.fit(); ch.paint();
     const rect = ch.cv.getBoundingClientRect(), ax = rect.left + (ch.W - ch.axw / 2) * ch.S, at = y => rect.top + y * ch.S, span = () => ch._hi - ch._lo, priceAt = y => ch._hi - (y / ch.PB) * (ch._hi - ch._lo);
     const wheel = (dy, y, shift) => { ch.cv.dispatchEvent(new WheelEvent('wheel', { deltaY: dy, clientX: ax, clientY: at(y), shiftKey: !!shift, bubbles: true, cancelable: true })); ch.paint(); };
-    const out = {}; const s0 = span(); const yA = ch.PB * 0.3, pA = priceAt(yA);
+    const out = {}; const s0 = span(); const yA = ch.candleY(), pA = priceAt(yA);
     wheel(3000, yA); out.hugeWheelFactor = +(span() / s0).toFixed(3);                         // one huge event: at most ~1.25x
-    out.anchorDrift = +Math.abs(priceAt(yA) - pA).toFixed(4);                               // the price under the cursor stayed (in price units; the span is ~10)
+    out.anchorDrift = +Math.abs(priceAt(yA) - pA).toFixed(4);   // anchor = middle of the candles                               // the price under the cursor stayed (in price units; the span is ~10)
     for (let i = 0; i < 80; i++) wheel(120, ch.PB * 0.5); out.maxOut = +(span() / s0).toFixed(2);   // capped
     for (let i = 0; i < 120; i++) wheel(-120, ch.PB * 0.5); out.maxIn = +(span() / s0).toFixed(3);  // capped on the way in too
     ch.fit(); ch.paint(); const s1 = span(); for (let i = 0; i < 6; i++) wheel(100, ch.PB * 0.4); for (let i = 0; i < 6; i++) wheel(-100, ch.PB * 0.4); out.reversible = +(span() / s1).toFixed(3);
     ch.fit(); ch.paint(); const s2 = span(); ch.lockR = null;
     for (let i = 0; i < 5; i++) { ch.cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: ax, clientY: at(100), pointerId: 1, buttons: 1, bubbles: true })); ch.cv.dispatchEvent(new PointerEvent('pointermove', { clientX: ax, clientY: at(100) + 300, pointerId: 1, buttons: 1, bubbles: true })); ch.cv.dispatchEvent(new PointerEvent('pointerup', { clientX: ax, clientY: at(400), pointerId: 1, bubbles: true })); ch.paint(); }
     out.dragFactor = +(span() / s2).toFixed(2); out.yZoom = +ch.yZoom.toFixed(3);
+    ch.fit(); ch.paint(); for (let i = 0; i < 25; i++) wheel(-120, ch.PB * 0.9); { let l = 1e9, h = -1e9; for (let i = Math.max(0, Math.floor(ch.idx(0))); i <= Math.min(ch.data.length-1, Math.ceil(ch.r)); i++) { l = Math.min(l, ch.data[i].l); h = Math.max(h, ch.data[i].h); } const mid = (l + h) / 2; out.midInView = mid <= ch._hi && mid >= ch._lo ? 1 : 0; }   // zoomed in hard, wheel far from the candles: their middle is still on screen
     return out; });
-  const ok = res.hugeWheelFactor <= 1.26 && res.hugeWheelFactor >= 1.0 && res.anchorDrift < 0.35 && res.maxOut <= 8.1 && res.maxIn >= 0.049 && Math.abs(res.reversible - 1) < 0.02 && res.yZoom <= 8 && res.yZoom >= 0.05 && !errs.length;
+  const ok = res.hugeWheelFactor <= 1.26 && res.hugeWheelFactor >= 1.0 && res.anchorDrift < 0.35 && res.maxOut <= 8.1 && res.maxIn >= 0.049 && Math.abs(res.reversible - 1) < 0.02 && res.yZoom <= 8 && res.yZoom >= 0.05 && res.midInView === 1 && !errs.length;
   console.log(JSON.stringify(res), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

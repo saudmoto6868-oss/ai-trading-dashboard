@@ -1618,6 +1618,10 @@ class CandleChart {
     this.yZoom = 1; this.yShift = 0; const [bl, bh] = this.range(Math.max(0, Math.floor(this.idx(0)) - 1), Math.min(n - 1, Math.ceil(this.r))); this.yZoom = y0; this.yShift = s0;   // the auto (or locked) range at zoom 1
     const sp1 = (bh - bl)*z1; if (!(sp1 > 0)) return; const hi1 = pa + frac*sp1, mid1 = hi1 - sp1/2; this.yZoom = z1; this.yShift = (mid1 - (bh + bl)/2)/sp1;
   }
+  candleY(){   // y (px from the plot top) of the middle of the candles on screen, clamped into view: the anchor for price-axis zoom (MT5 feel: the candles scale around themselves and never run away; the cursor is only the anchor for Shift + wheel)
+    const n = this.data.length, lo0 = this._lo, hi0 = this._hi; if (!n || !(hi0 > lo0) || !(this.PB > 0)) return (this.PB || 0)/2;
+    let l = Infinity, h = -Infinity; for (let i = Math.max(0, Math.floor(this.idx(0))); i <= Math.min(n-1, Math.ceil(this.r)); i++){ const d = this.data[i]; if (d.l < l) l = d.l; if (d.h > h) h = d.h; }
+    if (!isFinite(l) || !isFinite(h)) return this.PB/2; return Math.max(0.1*this.PB, Math.min(0.9*this.PB, (hi0 - (l + h)/2)/(hi0 - lo0)*this.PB)); }
   clampR(){
     const n = this.data.length, maxR = n - 1 + 0.7*this.PR/this.bw, minR = Math.min(n-1, 3);
     this.r = Math.max(minR, Math.min(maxR, this.r));
@@ -1626,7 +1630,7 @@ class CandleChart {
   idx(x){ return this.r + 0.5 - (this.PR - x)/this.bw; }
   wheel(e){
     const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
-    if (mx > this.W-this.axw){ this._bookFit = false; this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }   // wheel over the price axis: anchored at the cursor, at most ~15 % a notch
+    if (mx > this.W-this.axw){ this._bookFit = false; this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), this.candleY()); this.drawSoon(); return; }   // wheel over the price axis: anchored at the cursor, at most ~15 % a notch
     if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.drawSoon(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
     if (e.shiftKey){ this._bookFit = false; this.freezeY(); this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }   // Shift + wheel = price zoom, price scale stays where you put it
     const anchor = this.idx(mx), f = Math.exp(-Math.max(-120, Math.min(120, e.deltaY))*0.0015);   // one wheel event can zoom at most ~20 % (high-resolution wheels / trackpads send huge deltas)
@@ -1679,7 +1683,7 @@ class CandleChart {
     if (this.toolMove(e)){ this.drawSoon(); return; }
     if (this.drag){
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
-      if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.PB/2); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
+      if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); if (this.drag.ty > 6) this.freezeY(); this.r -= dx/this.bw; this.yShift += dy/Math.max(1, this.PB); this.clampR(); this.checkMore(); }
     }
     this.drawSoon();

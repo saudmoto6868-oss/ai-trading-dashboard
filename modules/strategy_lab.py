@@ -197,7 +197,8 @@ def chain_row(name, rs, base, ins, oos):
     t = float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 2 and d.std() > 0 else 0.0
     return {"key": "*CHAIN*", "school": "Chain", "tf": "all", "side": name, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
             "t": round(t, 2), "is_n": len(ins), "is_avgR": _stat(ins).get("avgR"), "oos_n": len(oos), "oos_avgR": _stat(oos).get("avgR"),
-            "edge": bool(s["n"] >= 100 and t > 3 and (_stat(oos).get("avgR") or 0) > 0 and (_stat(ins).get("avgR") or 0) > 0)}
+            "edge": bool(s["n"] >= 100 and t > 3 and (_stat(oos).get("avgR") or 0) > 0 and (_stat(ins).get("avgR") or 0) > 0),
+            "net": round(s["avgR"] - COST_R, 3) if s.get("avgR") is not None else None}   # net = avgR minus the planning cost per trade (COST_R)
 
 
 def summarize(all_events, all_bars):
@@ -215,6 +216,7 @@ def summarize(all_events, all_bars):
                 continue
             g = grade(e["chain"]); gs = ["grade " + g] + ["layer " + k for k in CHAIN if e["chain"][k]] + ["no " + k for k in CHAIN if not e["chain"][k]]
             gs += ["grade " + g + " / " + e["key"]]
+            gs += [("loc / " if e["chain"]["loc"] else "no loc / ") + e["key"]]   # docs/PIPELINE.md step 2: does the location layer help THIS detector? (IS/OOS + net of costs in the same row)
             for name in gs + ["all signals"]:
                 c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
     rows = [chain_row(k, *v) for k, v in chain.items()]

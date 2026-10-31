@@ -32,6 +32,9 @@ rows, conf, cfl = sl.summarize([("1h", "X", ev)], [("1h", "X", br)])
 ch = [r for r in rows if r["key"] == "*CHAIN*"]
 assert any(r["side"] == "all signals" for r in ch) and all("t" in r and "oos_n" in r for r in ch)
 assert next(r for r in ch if r["side"] == "all signals")["n"] == len(ev)
+assert all(r["net"] == round(r["avgR"] - sl.COST_R, 3) for r in ch if r.get("avgR") is not None), "chain rows carry net of cost"
+lk = [r for r in ch if r["side"].startswith(("loc / ", "no loc / "))]
+assert lk and sum(r["n"] for r in lk) == len(ev), "every event lands in exactly one loc / no loc row"
 md = sl.report(rows, conf, cfl, {"built": 0, "symbols": ["X"], "tfs": ["1h"]})
 assert "## Chain grades" in md and "*CHAIN*" not in md.split("## Chain grades")[0], "chain rows leaked into detector tables"
 print("ok strategy chain", len(ev), "events")

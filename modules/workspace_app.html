@@ -1114,7 +1114,7 @@ const FPS = {
     ks.forEach(k => { if (k < d[0].t) return; while (i + 1 < d.length && d[i+1].t <= k) i++; const key = d[i].t; let m = ch.fp.get(key); if (!m){ m = {px:new Map(), b:0, s:0}; ch.fp.set(key, m); }
       const a = mins.get(k); for (let j = 0; j + 2 < a.length; j += 3){ let o = m.px.get(a[j]); if (!o) m.px.set(a[j], o = {b:0, s:0}); o.b += a[j+1]; o.s += a[j+2]; m.b += a[j+1]; m.s += a[j+2]; } n++; });
     FPS.mark(ch, ms, cov, now); return n; },
-  mark(ch, ms, cov, now){ const d = ch.data; ch.fp.forEach((m, key) => { m.part = !FPS.has(cov, key, Math.min(key + ms, now || key + ms)) ? true : false; }); },
+  mark(ch, ms, cov, now){ ch.fp.forEach((m, key) => { const b = Math.min(key + ms, now || key + ms); m.part = b > key ? !FPS.has(cov, key, b) : false; }); },   // a candle that starts after the verified end (just opened) is not flagged: nothing is missing from it yet
   cover(items, now, tol){   // items = [[bucket start, bucket length]] of recorded book history: where it starts, how many holes (> tol ms with nothing recorded) it has, and where the unbroken run that ends now begins
     const a = items.slice().sort((x, y) => x[0] - y[0]); if (!a.length) return {oldest:0, runFrom:0, gaps:0, gapMs:0}; let gaps = 0, gapMs = 0, run = a[0][0];
     for (let i = 1; i < a.length; i++){ const hole = a[i][0] - (a[i-1][0] + a[i-1][1]); if (hole > tol){ gaps++; gapMs += hole; run = a[i][0]; } }
@@ -4133,7 +4133,7 @@ class Panel {
     this.fpSync = async (stopT, maxPg, pace, idFloor) => {   // newest-first through history-trades until a print falls in a known range (everything newer is then fetched), is older than stopT, or is covered by the snapshot
       const ch = this.chart; let after = "", newest = 0, oldest = Infinity, from = null;
       for (let pg = 0; pg < maxPg && from === null; pg++){ if (tok !== this.tok || !ch.fpOn) return {cancel:true};
-        let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ break; } if (!rows || !rows.length) break;
+        let rows; try { rows = await okx("/market/history-trades?instId="+encodeURIComponent(sym)+"&type=1&limit=100"+(after ? "&after="+after : "")); } catch(e){ this._fpBackoff = Date.now() + 60000; break; } if (!rows || !rows.length) break;
         for (const x of rows){ const t = +x.ts, sp = FPS.span(fcov, t); if (t > newest) newest = t;
           if (sp){ from = sp[1]; break; } if (t < stopT){ from = stopT - 1; break; } if (idFloor && +x.tradeId <= idFloor){ from = Math.min(oldest, t); break; }
           oldest = Math.min(oldest, t); if (seenF.has(x.tradeId)) continue; seenF.add(x.tradeId); const r = {id:x.tradeId, t, p:+x.px, q:+x.sz, side:x.side === "buy" ? "Buy" : "Sell"}; frec(r); ch.fpAdd(r, true); }
@@ -4145,7 +4145,7 @@ class Panel {
       const r = await this.fpSync(d[Math.max(0, d.length - FP_BARS)].t, FP_PAGES, 180, ch._fpLoadedMax || 0);
       if (r && r.cancel){ this._fpFilled = null; return; } if (r) await fcommit(r.from, r.to); this.fpMark(); };
     this.fpCatch = async () => {   // the live tape poll (100 prints / poll) can miss prints on a busy market: page back until a print is inside the verified range, so the newest candle is complete and the gap-free range grows
-      if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpCatching) return; const ch = this.chart; if (!ch.fpOn || !ch.data.length) return; this._fpCatching = true;
+      if (tok !== this.tok || /^(HL:|Y:)/.test(sym) || this._fpCatching || Date.now() < (this._fpBackoff || 0)) return; const ch = this.chart; if (!ch.fpOn || !ch.data.length) return; this._fpCatching = true;
       try { const r = await this.fpSync(0, 25, 250, 0); if (r && !r.cancel) await fcommit(r.from, r.to); } finally { this._fpCatching = false; } };
     { const fcIv = setInterval(() => { if (tok !== this.tok){ clearInterval(fcIv); return; } if (!document.hidden && this.chart.fpOn && this._fpFilled === sym+"|"+tf) this.fpCatch(); }, 30000); this.wsUnsubs.push(() => clearInterval(fcIv)); }
     if (this.chart.fpOn) setTimeout(() => this.fpFill && this.fpFill(), 2500);

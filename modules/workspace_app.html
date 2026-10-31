@@ -1120,6 +1120,16 @@ const FPS = {
     for (let i = 1; i < a.length; i++){ const hole = a[i][0] - (a[i-1][0] + a[i-1][1]); if (hole > tol){ gaps++; gapMs += hole; run = a[i][0]; } }
     const tail = now - (a[a.length-1][0] + a[a.length-1][1]); if (tail > tol){ gaps++; gapMs += tail; run = 0; }   // nothing recorded lately: there is no unbroken run up to now
     return {oldest:a[0][0], runFrom:run, gaps, gapMs}; },
+  hmMerge(H, o, cut){   // saved book history o = {step, b:{t:{w, m, c:[[row, size]]}}} into the live one H = {step, b:Map}; same grid only; a cell keeps the larger size. returns buckets touched
+    if (!o || !o.step || !o.b) return 0; if (!H.step || !H.b.size) H.step = o.step; if (H.step !== o.step) return 0; let n = 0;
+    Object.keys(o.b).forEach(k => { const t = +k; if (t < cut) return; const x = o.b[k], cur = H.b.get(t);
+      if (!cur){ H.b.set(t, {w:x.w, m:x.m, c:new Map(x.c)}); n++; return; }
+      let ch = false; x.c.forEach(([r, q]) => { const v = cur.c.get(r); if (v == null || q > v){ cur.c.set(r, q); ch = true; } }); if (ch) n++; });
+    return n; },
+  async getHm(sym){ const db = FPS.off ? null : await FPS.open(); if (!db) return null;
+    return new Promise(res => { try { let out = null; const tx = db.transaction("m", "readonly"); tx.objectStore("m").get("hm|"+sym).onsuccess = e => { out = e.target.result || null; }; tx.oncomplete = () => { db.close(); res(out); }; tx.onerror = tx.onabort = () => { db.close(); res(null); }; } catch(e){ res(null); } }); },
+  async putHm(sym, obj){ const db = FPS.off ? null : await FPS.open(); if (!db) return false;
+    return new Promise(res => { try { const tx = db.transaction("m", "readwrite"); tx.objectStore("m").put(obj, "hm|"+sym); tx.oncomplete = () => { db.close(); res(true); }; tx.onerror = tx.onabort = () => { db.close(); res(false); }; } catch(e){ res(false); } }); },
   since(cov){ return cov.length ? cov[cov.length-1][0] : 0; },
   open(){ return new Promise(res => { try { const rq = indexedDB.open(FPS.DB, 1); rq.onupgradeneeded = () => rq.result.createObjectStore("m"); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); rq.onblocked = () => res(null); } catch(e){ res(null); } }); },
   async pull(base, sym, a, b){   // the always-on recorder (CFG.fpServer, recorder/footprint_recorder.py): {cov, mins} of the minutes it heard, or null
@@ -2034,6 +2044,7 @@ Object.assign(CandleChart.prototype, {
     let raw = null; try { raw = localStorage.getItem(LS+"_hm_"+this.sym); } catch(e){}
     const s = raw ? (() => { try { return JSON.parse(raw); } catch(e){ return null; } })() : null, cut = nowS() - 7*86400e3;
     if (s && s.step && s.b){ this.hm.step = s.step; Object.keys(s.b).forEach(k => { if (+k < cut) return; const o = s.b[k]; this.hm.b.set(+k, {w:o.w, m:o.m, c:new Map(o.c)}); }); }
+    { const H = this.hm, sym = this.sym; FPS.getHm(sym).then(o => { if (this.hm !== H || !o) return; if (FPS.hmMerge(H, o, cut)){ this._hmOldN = null; this._hmMerge = null; this._hmIdb = sym; this.draw(); } else if (o.step) this._hmIdb = sym; }); }   // older history saved in IndexedDB joins what localStorage had
   },
   hmAdd(sn){
     this.hmInit(); const H = this.hm, mid = (sn.bb + sn.ba)/2; if (!sn.lv.length || !mid) return;
@@ -2048,7 +2059,9 @@ Object.assign(CandleChart.prototype, {
     nb.forEach(o => { const lim = o.w > 60000 ? 40 : 150; if (o.c.size > lim){ const top = [...o.c.entries()].sort((a, b) => b[1] - a[1]).slice(0, lim); o.c = new Map(top); } }); H.b = nb;
     const pack = () => { const b = {}; nb.forEach((o, t) => { if (t >= now - 7*86400e3) b[t] = {w:o.w, m:+o.m.toPrecision(7), c:[...o.c.entries()].map(([k, q]) => [k, +q.toPrecision(4)])}; }); return {step:H.step, b}; };  // fix: save all buckets within 7-day window (prev condition skipped 1-3h minute-resolution buckets)
     try {
-      const j = pack();
+      const j = pack(), sym = this.sym, wasIdb = this._hmIdb === sym;   // IndexedDB first (no 5 MB shared quota); the localStorage copy is removed only after IndexedDB confirmed the write
+      FPS.putHm(sym, wasIdb ? j : JSON.parse(JSON.stringify(j))).then(ok => { if (ok){ this._hmIdb = sym; try { localStorage.removeItem(LS+"_hm_"+sym); } catch(e){} } else if (this._hmIdb === sym) this._hmIdb = null; });
+      if (wasIdb) return;   // already in IndexedDB: skip the old capped localStorage write
       let txt = JSON.stringify(j);
       // If storage is tight, prune oldest buckets in small batches; preserve recent history
       // and never delete another symbol's history as a side effect of this save.

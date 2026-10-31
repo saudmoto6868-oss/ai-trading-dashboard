@@ -35,3 +35,24 @@ A grade or a "grade / detector" combo counts only if: **n >= 100, t > 3 vs rando
    and the 5 layers; signals in failing combos get demoted.
 4. Journal: store the grade + layers with every trade; Performance shows win % / avg R per grade, so live trades check the lab.
 5. Repeat weekly (lab cron); keep only what still passes out-of-sample. Drop layers that do not help.
+
+## Result of the first real lab run (data/strategy_lab.json, built 2026-10-31, 12 symbols x 5 TFs, 1.5 ATR stop, no costs)
+Read honestly - **the chain did NOT raise quality yet**:
+- All 62,719 signals: avg R -0.019 (t -0.79). No row passes the gate (`edge` = 0 rows).
+- **Grade does not rank trades**: A+++ n 485 -0.040R, A+ n 9,671 -0.016R, A n 21,849 -0.031R, B -0.013R, C -0.008R.
+  More agreeing layers did not mean better trades. Do **not** wire "grade" into the scanner ranking as a quality score.
+- Layers one by one (avg R with the layer vs. without): `loc` (location) +0.023R with t 2.25 and positive in BOTH halves
+  (IS +0.020 / OOS +0.026) vs -0.031R without it (t -2.10): the only layer that is consistent in both halves - keep testing it.
+  `htf` with the layer -0.026R (t -2.45) is worse than without (-0.009R); `vol` has t +2.93 but both halves negative;
+  `reg` (volatility) and `time` show nothing.
+- Best detectors (n >= 100): `sess_amd` n 663, +0.117R at RR 1.5 (+0.22R at RR 3, t 3.2); in the chain "A+ / sess_amd" n 122 +0.204R
+  (IS +0.245 / OOS +0.163, t 2.47). Promising but it does NOT pass the gate (t < 3 at RR 1.5, ~50 detectors x several RRs were tested, so a
+  t of 3 is partly luck, and the per-detector rows carry no IS/OOS split yet). `sma1040` +0.5R but n 49 = not evidence.
+- **Earlier claim withdrawn**: `level` "passes the edge gate" (+0.08R, n 3,150) - on the larger run it is -0.003R at RR 1.5 (n 5,098, t -0.15).
+- Not tested: trading costs / slippage, other stop sizes per layer, the lab's 1m series are shortest history, no live data.
+
+## Next (measured, not guessed)
+1. Add IS/OOS halves to the per-detector rows (needed to judge `sess_amd`).
+2. Test `loc` as a hard filter on the 2-3 best detectors (only `sess_amd` first), with a cost model (0.05R/trade) and a fresh out-of-sample window.
+3. Journal (step 4) stays: store grade + layers so live trades confirm or kill this.
+Nothing is promoted to "A+++" until it passes: n >= 100, t > 3, positive in both halves, after costs.

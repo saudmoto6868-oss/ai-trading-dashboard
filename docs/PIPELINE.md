@@ -55,5 +55,5 @@ Read honestly - **the chain did NOT raise quality yet**:
 0. **Done (code, awaiting the next weekly lab run):** chain table now has `loc / <detector>` and `no loc / <detector>` rows (n, t vs random, IS/OOS halves, `net` = avgR - 0.10R cost). Per-detector rows already compute IS/OOS in code; the committed JSON rows predate that (they show no t / IS / OOS), the next run fills them. Mock-tested on synthetic candles only.
 1. Add IS/OOS halves to the per-detector rows (needed to judge `sess_amd`).
 2. Test `loc` as a hard filter on the 2-3 best detectors (only `sess_amd` first), with a cost model (0.05R/trade) and a fresh out-of-sample window.
-3. Journal (step 4) stays: store grade + layers so live trades confirm or kill this.
+3. **Done (code):** every new journal trade stores the 5 layers + grade (`Chain` in `workspace_app.html`, same definitions as the lab; parity test `tests/test_journal_chain_parity.py`, 40 candle sets). Journal stats show win % / avg R per grade and per location layer; CSV has `grade,htf,loc,vol,reg,time`. Info only - nothing is filtered by it. Old trades show "not recorded". Mock-tested only (no live data); the layers are read from the last candle at log time (not necessarily a closed bar).
 Nothing is promoted to "A+++" until it passes: n >= 100, t > 3, positive in both halves, after costs.

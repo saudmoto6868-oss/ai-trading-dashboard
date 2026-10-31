@@ -52,7 +52,7 @@ def test_rules():
 
 
 def test_wired_into_the_painter():
-    for k in ("this.fpAn(m, rows, step, OF)", "nPOC", "fpStack", "fpNaked", "fpAuc", "fpDelta", "an.runs.forEach", "fpMode", "fpRow", "step0*(OF.fpRow", "market/history-trades", "this.fpFill", "m.part = !FPS.has(cov, key", "fpAdd(r, quiet)"):
+    for k in ("this.fpAn(m, rows, step, OF)", "nPOC", "fpStack", "fpNaked", "fpAuc", "fpDelta", "an.runs.forEach", "fpMode", "fpRow", "step0*(OF.fpRow", "market/history-trades", "this.fpFill", "m.part = b > key ? !FPS.has(cov, key, b)", "fpAdd(r, quiet)"):
         assert k in H, k
 
 

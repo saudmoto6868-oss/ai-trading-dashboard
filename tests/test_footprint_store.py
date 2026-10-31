@@ -131,3 +131,24 @@ console.log(JSON.stringify({a: FPS.cover(solid, T + 5*M, tol), b: FPS.cover(hole
     assert out["c"]["gaps"] == 2 and out["c"]["runFrom"] == 0                  # nothing recorded for the last 28 min: no unbroken run to now
     assert out["d"]["gaps"] == 0
     assert out["e"]["oldest"] == 0
+
+
+def test_book_history_merge_and_store():
+    out = _run("""
+const T = 1700000000000, cut = T - 1000;
+const H = {step: 0.1, b: new Map([[T, {w: 60000, m: 1, c: new Map([[5, 10], [6, 3]])}]])};
+const o = {step: 0.1, b: {[T]: {w: 60000, m: 1, c: [[5, 4], [6, 9], [7, 2]]}, [T + 60000]: {w: 60000, m: 1, c: [[5, 1]]}, [T - 99999]: {w: 60000, m: 1, c: [[5, 1]]}}};
+const n = FPS.hmMerge(H, o, cut);
+const diff = FPS.hmMerge({step: 0.2, b: new Map([[T, {w: 1, m: 1, c: new Map()}]])}, o, cut);
+const empty = {step: 0, b: new Map()}; FPS.hmMerge(empty, o, cut);
+const ok = await FPS.putHm("Z", o), back = await FPS.getHm("Z"), none = await FPS.getHm("NOPE");
+__fail(true); const bad = await FPS.putHm("Z", o);
+console.log(JSON.stringify({n, cells: [...H.b.get(T).c.entries()], buckets: H.b.size, diff, emptyStep: empty.step, emptyN: empty.b.size, ok, same: JSON.stringify(back) === JSON.stringify(o), none, bad}));""")
+    if out is None:
+        return
+    assert out["n"] == 2 and out["buckets"] == 2                               # the bucket older than the cut is ignored, the new minute is added
+    assert dict((k, v) for k, v in out["cells"]) == {5: 10, 6: 9, 7: 2}         # larger size wins per cell, new rows are added
+    assert out["diff"] == 0                                                     # a different price grid is never mixed in
+    assert out["emptyStep"] == 0.1 and out["emptyN"] == 2                       # an empty history adopts the saved grid
+    assert out["ok"] is True and out["same"] is True and out["none"] is None
+    assert out["bad"] is False                                                  # a failing store reports it: the caller keeps the localStorage copy

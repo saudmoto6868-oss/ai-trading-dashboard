@@ -35,6 +35,17 @@ assert next(r for r in ch if r["side"] == "all signals")["n"] == len(ev)
 assert all(r["net"] == round(r["avgR"] - sl.COST_R, 3) for r in ch if r.get("avgR") is not None), "chain rows carry net of cost"
 lk = [r for r in ch if r["side"].startswith(("loc / ", "no loc / "))]
 assert lk and sum(r["n"] for r in lk) == len(ev), "every event lands in exactly one loc / no loc row"
+pr = [r for r in rows if r["key"] == "*PREREG*"]
+assert len(pr) == 2 and all(r["n"] == 0 and not r["edge"] for r in pr), "before the freeze date nothing counts"
+assert all(e["ts"] > 0 for e in ev)
+# fabricated events: 150 winners with loc after the freeze, 50 before it (must not count), 20 without loc (must not count)
+mk = lambda ts, loc, r: {"key": "sess_amd", "ts": ts, "r": r, "base": -1.0, "ses": "London 07-12", "chain": {"loc": loc, "htf": True, "vol": True, "reg": True, "time": True}}
+fab = [mk(sl.PREREG_CUTOFF_MS + 1000 + i, True, 1.5 if i % 2 else -1.0) for i in range(150)] + [mk(sl.PREREG_CUTOFF_MS - 1000 - i, True, 1.5) for i in range(50)] + [mk(sl.PREREG_CUTOFF_MS + 5 + i, False, 1.5) for i in range(20)]
+h1 = {r["side"]: r for r in sl.prereg_rows([("1h", "X", fab)])}["H1 sess_amd + loc"]
+assert h1["n"] == 150 and h1["since"] == sl.PREREG_CUTOFF_MS, h1
+assert h1["avgR"] == 0.25 and h1["net"] == 0.15, h1
+assert h1["edge"] is True, h1                      # n 150, t vs random > 3, net > 0 in both halves
+assert {r["side"]: r for r in sl.prereg_rows([("1h", "X", fab[:60])])}["H1 sess_amd + loc"]["edge"] is False, "n < 100 never passes"
 md = sl.report(rows, conf, cfl, {"built": 0, "symbols": ["X"], "tfs": ["1h"]})
 assert "## Chain grades" in md and "*CHAIN*" not in md.split("## Chain grades")[0], "chain rows leaked into detector tables"
 print("ok strategy chain", len(ev), "events")

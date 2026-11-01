@@ -179,7 +179,7 @@ def walk(df, tf, stride=4, seed=0, peers=()):
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
                            "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
-                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2})
+                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2, "ts": int(ts.value // 10**6)})   # ts = signal bar time in ms (the pre-registered tests slice by date)
     return events, bars
 
 
@@ -201,6 +201,30 @@ def chain_row(name, rs, base, ins, oos):
             "net": round(s["avgR"] - COST_R, 3) if s.get("avgR") is not None else None}   # net = avgR minus the planning cost per trade (COST_R)
 
 
+# PRE-REGISTERED hypotheses (frozen 2026-11-01 from the lab run built 2026-11-01 05:05 UTC; docs/PREREG_2026-11-01.md). They were picked from ~1,257 rows of that run,
+# so that run's numbers are biased upward: only signals AFTER the cutoff count. Two hypotheses only, parameters never re-tuned on these data.
+PREREG_CUTOFF_MS = 1793509500000
+PREREG = {"H1 sess_amd + loc": lambda e: e["key"] == "sess_amd" and bool(e["chain"]["loc"]),
+          "H2 ohl_open + Late 20-24": lambda e: e["key"] == "ohl_open" and e.get("ses") == "Late 20-24"}
+PREREG_GATE = {"n": 100, "t": 3.0}   # pass = n >= 100, t vs random direction > 3, net (after COST_R) > 0 in the whole sample AND in both time halves
+
+
+def prereg_rows(all_events):
+    out = []
+    for name, f in PREREG.items():
+        ev = [e for _tf, _sym, evs in all_events for e in evs if e.get("ts", 0) > PREREG_CUTOFF_MS and "chain" in e and f(e)]
+        ev.sort(key=lambda e: e["ts"]); h = len(ev) // 2
+        r = np.array([e["r"] for e in ev], float); b = np.array([e["base"] for e in ev], float)
+        net = lambda a: round(float(a.mean()) - COST_R, 3) if len(a) else None
+        t = float((r - b).mean() / ((r - b).std(ddof=1) / np.sqrt(len(r)))) if len(r) > 2 and (r - b).std() > 0 else 0.0
+        n1, n2 = net(r[:h]), net(r[h:])
+        ok = bool(len(r) >= PREREG_GATE["n"] and t > PREREG_GATE["t"] and (net(r) or -1) > 0 and (n1 or -1) > 0 and (n2 or -1) > 0)
+        out.append({"key": "*PREREG*", "school": "Pre-registered", "tf": "all", "side": name, "n": len(r), "win": round(100 * float((r >= RR - 1e-9).mean()), 1) if len(r) else None,
+                    "avgR": round(float(r.mean()), 3) if len(r) else None, "net": net(r), "t": round(t, 2), "is_n": h, "is_avgR": net(r[:h]), "oos_n": len(r) - h, "oos_avgR": net(r[h:]),
+                    "edge": ok, "since": PREREG_CUTOFF_MS})
+    return out
+
+
 def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
@@ -220,6 +244,7 @@ def summarize(all_events, all_bars):
             for name in gs + ["all signals"]:
                 c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
     rows = [chain_row(k, *v) for k, v in chain.items()]
+    rows += prereg_rows(all_events)
     var = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
@@ -331,8 +356,8 @@ def lunar_split(times, closes):
 
 
 def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
-    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]
-    rows = [r for r in rows if r["key"] != "*CHAIN*" and r["school"] != "exit"]
+    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]; pr = [r for r in rows if r["key"] == "*PREREG*"]
+    rows = [r for r in rows if r["key"] not in ("*CHAIN*", "*PREREG*") and r["school"] != "exit"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     _net = lambda a: "" if a is None else round(a - COST_R, 3)   # owner rule: judge after 0.1R costs
@@ -342,6 +367,12 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
          "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | net avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ok, 1):
         L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {_net(r.get('avgR'))} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
+    if pr:
+        L += ["", "## Pre-registered tests (signals after the freeze date only; docs/PREREG_2026-11-01.md)", "",
+              "| hypothesis | n | win % | avg R | net avg R | t vs random | net 1st half (n) | net 2nd half (n) | PASS |", "|---|---|---|---|---|---|---|---|---|"]
+        for r in pr:
+            L.append(f"| {r['side']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {r.get('net')} | {r['t']:+.2f} | {r.get('is_avgR')} ({r['is_n']}) | {r.get('oos_avgR')} ({r['oos_n']}) | {'YES' if r['edge'] else ''} |")
+        L += ["", f"Gate: n >= {PREREG_GATE['n']}, t > {PREREG_GATE['t']}, net > 0 overall and in both time halves. Under n = {PREREG_GATE['n']} it is not evidence, whatever the numbers say.", ""]
     sch = {}
     for r in ok:
         a = sch.setdefault(r["school"], [0, 0.0]); a[0] += r["n"]; a[1] += r["n"] * (r.get("avgR") or 0)

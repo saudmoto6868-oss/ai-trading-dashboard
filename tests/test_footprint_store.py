@@ -152,3 +152,17 @@ console.log(JSON.stringify({n, cells: [...H.b.get(T).c.entries()], buckets: H.b.
     assert out["emptyStep"] == 0.1 and out["emptyN"] == 2                       # an empty history adopts the saved grid
     assert out["ok"] is True and out["same"] is True and out["none"] is None
     assert out["bad"] is False                                                  # a failing store reports it: the caller keeps the localStorage copy
+
+
+def test_new_candle_is_not_flagged_and_rate_limit_pauses():
+    out = _run("""
+const T = 1700000100000 - (1700000100000 % 60000), ms = 60000;
+const ch = {data: [], fp: new Map([[T - ms, {}], [T, {}], [T + ms, {}]])};
+FPS.mark(ch, ms, [[T - 1, T + 30000]], T + 30000);     // verified up to half-way through candle T; candle T+1m has not started
+console.log(JSON.stringify({prev: ch.fp.get(T - ms).part, cur: ch.fp.get(T).part, next: ch.fp.get(T + ms).part}));""")
+    if out is None:
+        return
+    assert out["prev"] is True       # before the known range starts: partial
+    assert out["cur"] is False       # the forming candle is complete up to the verified end
+    assert out["next"] is False      # a candle that just opened has nothing missing yet
+    assert "this._fpBackoff = Date.now() + 60000" in H and "Date.now() < (this._fpBackoff || 0)" in H

@@ -3660,8 +3660,8 @@ class Panel {
         this.rect.x = Math.max(-this.rect.w+80, Math.min(Ws.el.clientWidth-60, snap(ox+ev.clientX-sx)));
         this.rect.y = Math.max(0, Math.min(Ws.el.clientHeight-26, snap(oy+ev.clientY-sy))); this.apply();
       };
-      const up = () => { this.head.removeEventListener("pointermove", mv); this.head.removeEventListener("pointerup", up); this.root.classList.remove("drag"); Ws.save(); };
-      this.head.addEventListener("pointermove", mv); this.head.addEventListener("pointerup", up);
+      const up = () => { this.head.removeEventListener("pointermove", mv); this.head.removeEventListener("pointerup", up); this.head.removeEventListener("pointercancel", up); this.root.classList.remove("drag"); Ws.save(); };
+      this.head.addEventListener("pointermove", mv); this.head.addEventListener("pointerup", up); this.head.addEventListener("pointercancel", up);
     });
     this.head.addEventListener("dblclick", () => this.toggleMax());
     this.rzs.forEach(g => g.addEventListener("pointerdown", e => {   // edge / corner grips: n s e w ne nw se sw
@@ -3673,14 +3673,14 @@ class Panel {
         if (d.includes("w")){ const w = Math.max(MW, snap(o.w - dx)); r.x = o.x + o.w - w; r.w = w; }
         if (d.includes("n")){ const h = Math.max(MH, snap(o.h - dy)), y = Math.max(0, o.y + o.h - h); r.h = o.y + o.h - y; r.y = y; }
         this.apply(); };
-      const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
-      g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up); }));
+      const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeEventListener("pointercancel", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
+      g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up); }));
     this.rz.addEventListener("pointerdown", e => { if (this.locked) return;
       e.stopPropagation(); this.rz.setPointerCapture(e.pointerId); this.root.classList.add("drag");
       const sx = e.clientX, sy = e.clientY, ow = this.rect.w, oh = this.rect.h;
       const mv = ev => { this.rect.w = Math.max(160, snap(ow+ev.clientX-sx)); this.rect.h = Math.max(90, snap(oh+ev.clientY-sy)); this.apply(); };
-      const up = () => { this.rz.removeEventListener("pointermove", mv); this.rz.removeEventListener("pointerup", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
-      this.rz.addEventListener("pointermove", mv); this.rz.addEventListener("pointerup", up);
+      const up = () => { this.rz.removeEventListener("pointermove", mv); this.rz.removeEventListener("pointerup", up); this.rz.removeEventListener("pointercancel", up); this.root.classList.remove("drag"); this.max = false; Ws.save(); };
+      this.rz.addEventListener("pointermove", mv); this.rz.addEventListener("pointerup", up); this.rz.addEventListener("pointercancel", up);
     });
   }
   symSelect(){

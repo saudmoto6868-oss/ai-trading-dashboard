@@ -183,6 +183,10 @@ body.mob #bar{height:auto;min-height:40px;flex-wrap:wrap;padding:4px 6px;gap:6px
 body.mob button,body.mob select,body.mob input{min-height:32px;font-size:13px}
 body.mob .tb{flex-wrap:wrap;gap:4px}
 body.mob canvas{touch-action:pan-y}body.mob.mt5 canvas{touch-action:none}
+html,body{overscroll-behavior:none}   /* a pull at the top / bottom of the widget never chains to the page = no pull-to-refresh that reloads everything (tablets / phones) */
+body.tab canvas{touch-action:none}   /* tablets: the chart itself handles one finger = move, two fingers = zoom (horizontal spread = time, vertical spread = price), drag on the price axis = price scale; the browser must not scroll / zoom the page under the finger */
+body.tch .rz{width:30px;height:30px}body.tch .rz-s{height:14px}body.tch .rz-n{height:10px}body.tch .rzh{min-width:12px}   /* finger-sized resize handles on touch screens */
+body.tch .ph button,body.tch .tb button,body.tch .tb select{min-height:34px;min-width:34px}
 body.mob.mt5 #ws{overflow:hidden!important;padding:0 0 50px!important}
 body.mob.mt5 .panel{display:none!important}
 body.mob.mt5 .panel.mact{display:flex!important;height:100%!important;margin:0;border-radius:0;border-left:0;border-right:0}
@@ -1674,7 +1678,7 @@ class CandleChart {
       this._lpT = setTimeout(() => { if (this.drag && Math.hypot(this.drag.x - sx, this.drag.y - sy) < 8 && !this.pinch){ this._lp = true; this.drag = null; const rc = this.cv.getBoundingClientRect(); this.mouse = {x:(sx - rc.left)/this.S, y:(sy - rc.top)/this.S}; this.draw(); } }, 450); }   // long press = crosshair
     if (e.pointerType === "touch"){ const tp = this.tp = this.tp || new Map(); tp.set(e.pointerId, {x:e.clientX, y:e.clientY});
       if (tp.size === 2){ const [a, b] = [...tp.values()], rect = this.cv.getBoundingClientRect(), mid = ((a.x + b.x)/2 - rect.left)/this.S;   // two fingers = pinch zoom on time
-        this.pinch = {d0:Math.max(20, Math.abs(a.x - b.x)), bw0:this.bw, mid, anchor:this.idx(mid)}; this.drag = null; return; } }
+        this.pinch = {d0:Math.max(20, Math.abs(a.x - b.x)), dy0:Math.max(20, Math.abs(a.y - b.y)), vert:Math.abs(a.y - b.y) > Math.abs(a.x - b.x)*1.2, dyP:Math.max(20, Math.abs(a.y - b.y)), bw0:this.bw, mid, anchor:this.idx(mid)}; this.drag = null; return; } }   // vert = the two fingers started mostly one above the other: that spread zooms the PRICE scale
     try { this.cv.setPointerCapture(e.pointerId); } catch(_){} this.cv.focus({preventScroll:true});
     { const r0 = this.cv.getBoundingClientRect(), mx0 = (e.clientX - r0.left)/this.S, my = (e.clientY - r0.top)/this.S, hit = this.layoutHit(mx0, my);
       if (hit){
@@ -1691,7 +1695,8 @@ class CandleChart {
   }
   move(e){
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
-      const P = this.pinch, f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.drawSoon(); this.checkMore(); return; }
+      const P = this.pinch; if (P.vert){ const dy = Math.max(20, Math.abs(v[0].y - v[1].y)); this._bookFit = false; if (!this.lockR) this.freezeY(); this.zoomY(P.dyP/dy, this.candleY()); P.dyP = dy; this.drawSoon(); return; }   // price pinch: spreading the fingers magnifies the candles, anchored on the middle of the candles (never flies away)
+      const f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.drawSoon(); this.checkMore(); return; }
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:(e.clientX-rect.left)/this.S, y:(e.clientY-rect.top)/this.S}; XH_CHARTS.add(this); xhSync(this);
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.drawSoon(); return; }   // crosshair mode (long press): move the cross, do not pan
@@ -3596,6 +3601,8 @@ const Ws = { panels:[], z:10, el:null, seq:1 };
 
 // phones / small tablets (the Streamlit iframe is as wide as the screen): stacked layout + touch gestures
 const MOB = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();   // phones and tablets only: a narrow desktop window keeps the desktop layout (width alone switched it, 2026-10-19)
+const TCH = (() => { try { return navigator.maxTouchPoints > 0 || matchMedia("(pointer:coarse)").matches; } catch(e){ return false; } })();   // a touch screen (iPadOS reports a Mac user agent, so this does not rely on the user agent)
+const TAB = TCH && (() => { try { return Math.min(screen.width, screen.height) >= 600 || Math.min(innerWidth, innerHeight) >= 600; } catch(e){ return false; } })();   // tablet-sized touch screen: the chart keeps every gesture (phones keep the page scroll in the stacked layout)
 let MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
 const mobH = type => { const sh = Math.min((window.screen && screen.availHeight) || 800, 1000); return Math.round(sh*(type === "chart" || type === "tvc" ? .72 : type === "dom" || type === "tape" || type === "limits" ? .6 : .5)); };
 class Panel {
@@ -6295,7 +6302,7 @@ function applyLang(rebuild){
   let saved = null; try { const own = sessionStorage.getItem(LS+"_tab"); if (own) saved = JSON.parse(own); } catch(e){}
   if (!saved) saved = store.get(LS, null);   // task 54: a reloaded tab keeps its own layout
   lang = CFG.lang || (saved && saved.lang) || "en";
-  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("mt5", MT5); buildBar();
+  document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen

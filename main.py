@@ -82,6 +82,7 @@ if "ws_lang" not in st.session_state and _url_pref("lang", ("en", "ar"), None): 
 st.markdown("""
 <style>
     .stApp { background-color: #0b0e11; color: #eaecef; }
+    html, body, .stApp, [data-testid="stAppViewContainer"], section.main { overscroll-behavior-y: none; }   /* touch screens: pulling down at the top must not reload the whole app */
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }

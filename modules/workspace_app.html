@@ -3603,7 +3603,8 @@ const Ws = { panels:[], z:10, el:null, seq:1 };
 const MOB = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();   // phones and tablets only: a narrow desktop window keeps the desktop layout (width alone switched it, 2026-10-19)
 const TCH = (() => { try { return navigator.maxTouchPoints > 0 || matchMedia("(pointer:coarse)").matches; } catch(e){ return false; } })();   // a touch screen (iPadOS reports a Mac user agent, so this does not rely on the user agent)
 const TAB = TCH && (() => { try { return Math.min(screen.width, screen.height) >= 600 || Math.min(innerWidth, innerHeight) >= 600; } catch(e){ return false; } })();   // tablet-sized touch screen: the chart keeps every gesture (phones keep the page scroll in the stacked layout)
-let MT5 = MOB && store.get(LS+"_mt5", true) !== false;   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
+let MT5 = MOB && store.get(LS+"_mt5", !TAB) !== false;   // tablets: the full workspace by default (the phone MetaTrader layout hides the toolbar); a phone keeps MT5 on. The choice is remembered either way
+//   // phones: MetaTrader-style layout (option, on by default; the bar button switches it)
 const mobH = type => { const sh = Math.min((window.screen && screen.availHeight) || 800, 1000); return Math.round(sh*(type === "chart" || type === "tvc" ? .72 : type === "dom" || type === "tape" || type === "limits" ? .6 : .5)); };
 class Panel {
   constructor(type, rect, state){
@@ -4893,21 +4894,39 @@ class Panel {
   /* ---- TradingView chart: TradingView's free embeddable Advanced Chart (their data + tools, live for crypto exchanges; some
      stock / index feeds are delayed by TradingView). Follows the linked symbol; any TradingView symbol can be typed. ---- */
   build_tvc(){
-    const S = this.state, ar = lang === "ar", L = (e, a) => ar ? a : e; S.sym = S.sym || SYMS[0]; S.tvtf = S.tvtf || "15";
+    const S = this.state, ar = lang === "ar", L = (e, a) => ar ? a : e; S.sym = S.sym || SYMS[0];
+    // TradingView's embed widget forgets everything inside it (interval, indicators, chart type) whenever its frame is rebuilt: a refresh, a symbol change, a closed + re-opened widget. A page cannot read or write
+    // another site's frame, so the settings are chosen HERE, passed to the widget on every load, and kept in this browser: per widget (saved with the workspace) and as the default for the next TradingView widget you open.
+    const TVK = LS+"_tvset", TVD = (() => { try { return store.get(TVK, null) || {}; } catch(e){ return {}; } })();
+    S.tvtf = S.tvtf || TVD.tvtf || "15"; if (!Array.isArray(S.tvst)) S.tvst = Array.isArray(TVD.tvst) ? TVD.tvst.slice() : []; S.tvsty = S.tvsty || TVD.tvsty || "1";
+    const tvKeep = () => { try { store.set(TVK, {tvtf:S.tvtf, tvst:S.tvst, tvsty:S.tvsty}); } catch(e){} };
     const tb = el("div","tb"), inp = el("input"), tf = el("select"), go = el("button",null,"↻"), tab = el("button",null,"↗"), vf = el("div","vf"), note = el("div","m");
     this.symSel = this.symSelect(); inp.style.cssText = "flex:1;min-width:90px"; inp.placeholder = L("TradingView symbol, e.g. OKX:BTCUSDT","رمز TradingView، مثلاً OKX:BTCUSDT"); tab.title = L("Open on TradingView","افتح على TradingView");
     [["1","1m"],["5","5m"],["15","15m"],["60","1H"],["240","4H"],["D","1D"],["W","1W"]].forEach(([v, t]) => { const o = el("option"); o.value = v; o.textContent = t; tf.append(o); }); tf.value = S.tvtf;
     note.style.cssText = "padding:2px 6px;font-size:10px"; note.textContent = L("TradingView's own widget and data (no key). Crypto is live; some stock / index symbols are delayed by TradingView. Signals and drawings of this app are not inside it.",
       "ويدجت وبيانات TradingView نفسها (من غير مفتاح). الكريبتو لحظي؛ بعض الأسهم والمؤشرات متأخرة من TradingView. إشارات ورسومات التطبيق مش جواه.");
-    tb.append(this.symSel, inp, tf, go, tab); this.body.append(tb, vf, note); this.body.style.display = "flex"; this.body.style.flexDirection = "column"; vf.style.flex = "1";
+    const TVSTUDY = [["RSI@tv-basicstudies","RSI"],["MACD@tv-basicstudies","MACD"],["MASimple@tv-basicstudies","SMA"],["MAExp@tv-basicstudies","EMA"],["BB@tv-basicstudies","Bollinger"],["Volume@tv-basicstudies","Volume"],["VWAP@tv-basicstudies","VWAP"],
+      ["Stochastic@tv-basicstudies","Stoch"],["StochasticRSI@tv-basicstudies","StochRSI"],["ATR@tv-basicstudies","ATR"],["ADX@tv-basicstudies","ADX"],["IchimokuCloud@tv-basicstudies","Ichimoku"],["PSAR@tv-basicstudies","SAR"],["PivotPointsStandard@tv-basicstudies","Pivots"]];
+    const TVSTYLE = [["1",L("Candles","شموع")],["0",L("Bars","أعمدة")],["2",L("Line","خط")],["3",L("Area","مساحة")],["8",L("Heikin Ashi","هيكين آشي")],["9",L("Hollow","شموع مفرغة")]];
+    const cfgB = el("button", null, "ƒx"), pop = el("div"); cfgB.title = L("Indicators and chart type of this TradingView chart. They are saved here and applied every time the widget loads","مؤشرات ونوع شارت تريدنج فيو. بتتحفظ هنا وبتتطبق كل مرة الويدجت يفتح");
+    pop.style.cssText = "display:none;position:absolute;z-index:30;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px;max-width:260px;box-shadow:0 6px 20px #0008;font-size:12px"; pop.className = "tvpop";
+    const popFill = () => { pop.innerHTML = ""; const hd = el("div", "m", L("Chart type","نوع الشارت")); hd.style.marginBottom = "4px"; const st = el("select"); TVSTYLE.forEach(([v, t]) => { const o = el("option"); o.value = v; o.textContent = t; st.append(o); }); st.value = S.tvsty; st.onchange = () => { S.tvsty = st.value; tvKeep(); load(); }; pop.append(hd, st);
+      const h2 = el("div", "m", L("Indicators","المؤشرات")); h2.style.margin = "8px 0 4px"; pop.append(h2); const g = el("div"); g.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:2px 10px";
+      TVSTUDY.forEach(([id, t]) => { const lb = el("label"); lb.style.cssText = "display:flex;gap:5px;align-items:center;cursor:pointer;min-height:26px"; const cb = el("input"); cb.type = "checkbox"; cb.checked = S.tvst.includes(id);
+        cb.onchange = () => { S.tvst = cb.checked ? S.tvst.concat([id]) : S.tvst.filter(x => x !== id); tvKeep(); load(); }; lb.append(cb, document.createTextNode(t)); g.append(lb); }); pop.append(g);
+      const nt = el("div", "m", L("Indicators you add inside TradingView's own toolbar cannot be remembered (a page cannot read another site's frame): add them here instead.","المؤشرات اللي بتضيفها من شريط تريدنج فيو نفسه مش بتتحفظ (الصفحة مش بتقدر تقرا فريم موقع تاني): ضيفها من هنا.")); nt.style.cssText = "margin-top:6px;font-size:10px"; pop.append(nt); };
+    cfgB.onclick = e => { e.stopPropagation(); if (pop.style.display === "block"){ pop.style.display = "none"; return; } popFill(); const r = cfgB.getBoundingClientRect(), br = this.body.getBoundingClientRect(); pop.style.left = Math.max(2, Math.min(r.left - br.left, br.width - 270))+"px"; pop.style.top = (r.bottom - br.top + 2)+"px"; pop.style.display = "block"; };
+    document.addEventListener("pointerdown", e => { if (pop.style.display === "block" && !pop.contains(e.target) && e.target !== cfgB) pop.style.display = "none"; });
+    this.body.style.position = "relative";
+    tb.append(this.symSel, inp, tf, cfgB, go, tab); this.body.append(tb, vf, note, pop); this.body.style.display = "flex"; this.body.style.flexDirection = "column"; vf.style.flex = "1";
     const url = () => { const sym = (S.tvsym || tvSym(S.sym)).trim(); S.tvsym_last = sym;
-      return "https://s.tradingview.com/embed-widget/advanced-chart/?locale="+(ar ? "ar_AE" : "en")+"#"+encodeURIComponent(JSON.stringify({symbol:sym, interval:S.tvtf, timezone:"Etc/UTC", theme:"dark", colorTheme:"dark", style:"1",
-        autosize:true, width:"100%", height:"100%", allow_symbol_change:true, hide_side_toolbar:false, withdateranges:true, save_image:false, details:false, calendar:false, support_host:"https://www.tradingview.com"})); };
+      return "https://s.tradingview.com/embed-widget/advanced-chart/?locale="+(ar ? "ar_AE" : "en")+"#"+encodeURIComponent(JSON.stringify({symbol:sym, interval:S.tvtf, timezone:"Etc/UTC", theme:"dark", colorTheme:"dark",
+        autosize:true, width:"100%", height:"100%", allow_symbol_change:true, studies:S.tvst.slice(), style:S.tvsty, hide_side_toolbar:false, withdateranges:true, save_image:false, details:false, calendar:false, support_host:"https://www.tradingview.com"})); };
     const load = () => { inp.value = S.tvsym || tvSym(S.sym); vf.innerHTML = ""; const f = el("iframe","vid"); f.src = url(); f.referrerPolicy = "strict-origin-when-cross-origin"; f.allow = "fullscreen; clipboard-write";
       f.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"); f.style.cssText = "width:100%;height:100%;border:0"; vf.append(f); Ws.save(); };
     inp.onkeydown = e => { if (e.key === "Enter"){ S.tvsym = inp.value.trim().toUpperCase(); load(); } };
     go.onclick = () => { S.tvsym = inp.value.trim().toUpperCase() === tvSym(S.sym) ? "" : inp.value.trim().toUpperCase(); load(); };
-    tf.onchange = () => { S.tvtf = tf.value; load(); };
+    tf.onchange = () => { S.tvtf = tf.value; tvKeep(); load(); };
     tab.onclick = () => window.open("https://www.tradingview.com/chart/?symbol="+encodeURIComponent(S.tvsym_last || tvSym(S.sym)), "_blank", "noopener");
     this.resub = () => { this.setTitle(); S.tvsym = ""; load(); };   // a linked symbol change wins over a typed symbol
     load();
@@ -6247,20 +6266,79 @@ function welcome(){
     {opacity:1, transform:"none", filter:"none", boxShadow:"0 0 0 0 transparent"}], {duration:900, delay:200 + i*110, easing:"cubic-bezier(.2,.7,.2,1)", fill:"backwards"}));
 }
 /* toolbar */
-// task 26: record the whole workspace (every chart, table and widget visible on screen). The browser asks which tab or window to share;
-// the file is a WebM you download when you click again (or when the shared screen is stopped from the browser).
+// Workspace capture. Desktop: the browser's own screen share (getDisplayMedia) records the real pixels. Tablets / phones have NO screen share API (iPadOS Safari, Android Chrome),
+// so the workspace is rebuilt from the page itself: DOM -> SVG foreignObject -> canvas (every chart canvas is copied as an image; a TradingView frame is a labelled box because the browser
+// never lets a page read a cross-origin frame), and the video is that picture with the live chart canvases drawn over it. Same file as the desktop one (WebM, or MP4 on Safari).
+const Snap = {
+  PROPS: (() => { const sd = ["top","right","bottom","left"], o = ["display","position","top","right","bottom","left","width","height","min-width","min-height","max-width","max-height","box-sizing","z-index","float","clear","overflow-x","overflow-y",
+      "visibility","opacity","transform","transform-origin","flex-grow","flex-shrink","flex-basis","flex-direction","flex-wrap","align-items","align-self","align-content","justify-content","order","gap","row-gap","column-gap",
+      "grid-template-columns","grid-template-rows","grid-column-start","grid-column-end","grid-row-start","grid-row-end","color","background-color","background-image","background-size","background-position","background-repeat",
+      "font-family","font-size","font-weight","font-style","line-height","letter-spacing","text-align","text-transform","text-decoration-line","text-overflow","text-indent","white-space","word-break","overflow-wrap","direction","vertical-align",
+      "border-top-left-radius","border-top-right-radius","border-bottom-left-radius","border-bottom-right-radius","box-shadow","fill","stroke","stroke-width","filter","object-fit","list-style-type","table-layout","border-collapse","border-spacing"];
+    sd.forEach(d => o.push("margin-"+d, "padding-"+d, "border-"+d+"-width", "border-"+d+"-style", "border-"+d+"-color")); return o; })(),
+  async dom(scale){   // -> canvas with the whole page (scale 1 = CSS pixels)
+    const root = document.body, vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), clone = root.cloneNode(true);
+    const src = [root, ...root.querySelectorAll("*")], dst = [clone, ...clone.querySelectorAll("*")], swap = [], PR = Snap.PROPS;
+    for (let k = 0; k < src.length; k++){ const a = src[k], b = dst[k], tag = a.tagName; if (tag === "SCRIPT" || tag === "STYLE" || tag === "LINK"){ swap.push([b, null]); continue; }
+      const cs = getComputedStyle(a); if (cs.display === "none"){ swap.push([b, null]); continue; }
+      let st = ""; for (let m = 0; m < PR.length; m++){ const v = cs.getPropertyValue(PR[m]); if (v) st += PR[m]+":"+v+";"; }
+      if (tag === "CANVAS"){ const r = a.getBoundingClientRect(), im = document.createElement("img"); try { im.setAttribute("src", a.toDataURL("image/png")); } catch(e){} im.setAttribute("style", st+"width:"+r.width+"px;height:"+r.height+"px"); swap.push([b, im]); continue; }
+      if (tag === "IFRAME"){ const r = a.getBoundingClientRect(), bx = document.createElement("div"); bx.setAttribute("style", st+"width:"+r.width+"px;height:"+r.height+"px;display:flex;align-items:center;justify-content:center;background:#131722;color:#8a9099;font:12px sans-serif");
+        bx.textContent = Lg("TradingView (a page cannot capture another site's frame)","TradingView (المتصفح مش بيسمح بتصوير فريم موقع تاني)"); swap.push([b, bx]); continue; }
+      b.setAttribute("style", st);
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT"){ if (tag === "TEXTAREA") b.textContent = a.value; else if (tag === "SELECT"){ [...b.options].forEach((o, n) => { if (a.options[n] && a.options[n].selected) o.setAttribute("selected", "selected"); else o.removeAttribute("selected"); }); } else b.setAttribute("value", a.value); } }
+    swap.forEach(([o, n]) => { try { n ? o.replaceWith(n) : o.remove(); } catch(e){} });
+    clone.setAttribute("style", (clone.getAttribute("style") || "")+";width:"+vw+"px;height:"+vh+"px;margin:0;overflow:hidden");
+    const xml = new XMLSerializer().serializeToString(clone).replace(/#/g, "%23");
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'+vw+'" height="'+vh+'"><foreignObject x="0" y="0" width="100%" height="100%">'+xml+'</foreignObject></svg>';
+    const img = new Image(); img.decoding = "sync"; await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("svg")); img.src = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg).replace(/%2523/g, "%23"); });
+    const c = document.createElement("canvas"), sc = scale || Math.min(2, window.devicePixelRatio || 1); c.width = Math.round(vw*sc); c.height = Math.round(vh*sc); const x = c.getContext("2d"); x.fillStyle = "#0b0e11"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); return c; },
+  comp(scale){   // fallback when the DOM picture is refused: panel boxes with titles + the chart canvases (always works)
+    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = scale || 1, c = document.createElement("canvas"); c.width = Math.round(vw*sc); c.height = Math.round(vh*sc);
+    const x = c.getContext("2d"); x.scale(sc, sc); x.fillStyle = "#0b0e11"; x.fillRect(0, 0, vw, vh); x.font = "12px sans-serif"; x.textBaseline = "middle";
+    document.querySelectorAll(".panel").forEach(pn => { const r = pn.getBoundingClientRect(); if (r.width < 4 || r.height < 4 || getComputedStyle(pn).display === "none") return; x.fillStyle = "#161a1e"; x.fillRect(r.left, r.top, r.width, r.height); x.strokeStyle = "#2b3139"; x.strokeRect(r.left + .5, r.top + .5, r.width - 1, r.height - 1);
+      const t = pn.querySelector(".ph"); x.fillStyle = "#eaecef"; x.fillText(t ? t.textContent.trim().slice(0, 60) : "", r.left + 8, r.top + 13); });
+    document.querySelectorAll("canvas").forEach(cv => { const r = cv.getBoundingClientRect(); if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > vh) return; try { x.drawImage(cv, r.left, r.top, r.width, r.height); } catch(e){} });
+    return c; },
+  async shot(scale){ try { return await Snap.dom(scale); } catch(e){ return Snap.comp(scale); } },
+  async save(blob, name){   // tablets: the share sheet ("Save image / Save to Files"), else a normal download
+    try { const f = new File([blob], name, {type: blob.type}); if (TCH && navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
+    const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 8000); },
+  mime(){ if (!window.MediaRecorder) return ""; return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || ""; }
+};
+function wsShotBtn(){
+  const b = el("button", null, "📸"); b.title = Lg("Screenshot of the whole workspace (PNG). Works on tablets too; a TradingView frame shows as a box", "لقطة شاشة لمساحة العمل كلها (PNG). بتشتغل على التابلت كمان؛ فريم تريدنج فيو بيظهر كمربع");
+  b.onclick = async () => { if (b._busy) return; b._busy = true; b.classList.add("on");
+    try { const c = await Snap.shot(); c.toBlob(bl => { if (!bl){ alert(Lg("The screenshot could not be made","ماقدرتش أعمل اللقطة")); return; } Snap.save(bl, "workspace-"+new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")+".png"); }, "image/png"); }
+    catch(e){ alert(Lg("The screenshot could not be made: ","ماقدرتش أعمل اللقطة: ")+(e && e.message || e)); } finally { b._busy = false; b.classList.remove("on"); } };
+  return b;
+}
 function wsRecBtn(){
-  const b = el("button",null,"🖥"); let rec = null, chunks = [];
-  b.title = Lg("Record the workspace: the browser asks which tab or screen to share; click again to stop and download", "تسجيل مساحة العمل: المتصفح يسألك أي تاب أو شاشة تشارك؛ اضغط تاني للإيقاف والتحميل");
-  const finish = (stream) => { try { stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
+  const b = el("button", null, "🖥"); let rec = null, chunks = [], timer = null, kill = null;
+  b.title = Lg("Record the whole workspace as a video. Desktop: the browser asks which tab / screen to share. Tablet / phone: the page is recorded from inside (charts live; other widgets refresh every few seconds). Click again to stop and save",
+    "سجّل مساحة العمل كلها فيديو. الكمبيوتر: المتصفح يسألك أي تاب/شاشة. التابلت/الموبايل: الصفحة بتتسجل من جوه (الشارتات لايف والويدجتس التانية بتتحدّث كل كام ثانية). اضغط تاني للإيقاف والحفظ");
+  const finish = stream => { try { stream && stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
+  const attach = (stream, mime, ext) => {
+    chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: 6000000}, mime ? {mimeType: mime} : {})); } catch(e){ finish(stream); rec = null; alert(Lg("Recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return false; }
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = () => { finish(stream); clearInterval(timer); if (kill) kill(); const type = (mime || "video/webm").split(";")[0]; if (chunks.length) Snap.save(new Blob(chunks, {type}), "workspace-"+Date.now()+"."+ext); rec = null; b.classList.remove("on"); b.textContent = "🖥"; };
+    rec.start(1000); b.classList.add("on"); b.textContent = "⏹"; return true; };
+  const inside = async () => {   // no screen share API (tablets / phones): draw the page into a canvas and record that
+    const mime = Snap.mime(); if (!mime || !HTMLCanvasElement.prototype.captureStream){ alert(Lg("This browser cannot record video from the page (no MediaRecorder / captureStream). Use the 📸 screenshot, or record the tablet with its own screen recorder","المتصفح ده مش بيسجّل فيديو من الصفحة. استخدم 📸 للقطة، أو سجّل بمسجل شاشة التابلت نفسه")); return; }
+    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = Math.min(1, 1280/vw), out = document.createElement("canvas"); out.width = Math.round(vw*sc); out.height = Math.round(vh*sc);
+    const x = out.getContext("2d"); let base = null, busy = false; const refresh = async () => { if (busy) return; busy = true; try { base = await Snap.shot(sc); } catch(e){} busy = false; };
+    await refresh(); const frame = () => { x.fillStyle = "#0b0e11"; x.fillRect(0, 0, out.width, out.height); if (base) x.drawImage(base, 0, 0, out.width, out.height);
+      document.querySelectorAll("canvas").forEach(cv => { if (cv === out) return; const r = cv.getBoundingClientRect(); if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > vh) return; try { x.drawImage(cv, r.left*sc, r.top*sc, r.width*sc, r.height*sc); } catch(e){} }); };
+    frame(); const fi = setInterval(frame, 66), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 15 fps, widgets every 4 s, 10 minutes at most
+    kill = () => { clearInterval(fi); clearInterval(ri); clearTimeout(stopT); kill = null; };
+    const stream = out.captureStream(15); const ext = /mp4/.test(mime) ? "mp4" : "webm"; if (!attach(stream, mime, ext)) kill(); };
   b.onclick = async () => {
     if (rec){ rec.stop(); return; }
-    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:30, max:30}, width:{ideal:2560, max:2560}, height:{ideal:1440, max:1440}}, audio:false}); } catch(e){ return; }
-    chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: 8000000}, MediaRecorder.isTypeSupported("video/webm") ? {mimeType:"video/webm"} : {})); } catch(e){ finish(stream); return; }
-    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-    rec.onstop = () => { finish(stream); const url = URL.createObjectURL(new Blob(chunks, {type:"video/webm"})); const a = document.createElement("a"); a.href = url; a.download = "workspace-" + Date.now() + ".webm"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 4000); rec = null; b.classList.remove("on"); };
+    const gdm = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia; if (!gdm){ await inside(); return; }
+    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:30, max:30}, width:{ideal:2560, max:2560}, height:{ideal:1440, max:1440}}, audio:false}); }
+    catch(e){ if (e && /Security|TypeError|NotSupported/i.test(e.name || "")) await inside(); return; }   // blocked inside this frame (permissions policy): record from inside; a cancelled picker just returns
+    const mime = MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : ""; if (!attach(stream, mime, "webm")) return;
     const vt = stream.getVideoTracks()[0]; if (vt) vt.onended = () => { if (rec && rec.state !== "inactive") rec.stop(); };
-    rec.start(); b.classList.add("on");
   };
   return b;
 }
@@ -6278,7 +6356,7 @@ function buildBar(){
 zSet(+store.get(zKey, zDef));   // the saved size applies from the start, so the charts open at it too
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
-if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsRecBtn(), el("span","sp")); }
+if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
     const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };
@@ -6287,7 +6365,8 @@ if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsRecBtn(), el("span","sp")
       setTimeout(() => Ws.panels.forEach(p => { try { p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw()); } catch(_){} }), 60); };
     mtLbl();
     const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
-    menu.append(mt, zr); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
+    const cap = el("div"); cap.style.cssText = "display:flex;align-items:center;gap:8px;padding:8px 12px"; cap.append(el("span", null, Lg("Capture","التصوير")), wsShotBtn(), wsRecBtn());
+    menu.append(mt, zr, cap); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
     bar.append(sel, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
   zSet(+store.get(zKey, zDef)); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);

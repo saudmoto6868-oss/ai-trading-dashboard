@@ -1576,7 +1576,8 @@ class CandleChart {
   destroy(){ this.ro.disconnect(); }
   cw(){ if (!this.colOn) return 0; const mx = Math.max(60, Math.round(this.W*0.65 - this.axw));   // the candle area keeps at least 35 % of the chart (owner 2026-10-24)
     if (this.colW) return Math.max(60, Math.min(mx, this.colW)); const big = (TFSEC[this.tf] || 3600) >= 14400;   // 4H / 1D / 1W: the default column is slimmer so it does not cover levels
-    return Math.min(mx, big ? Math.max(90, Math.min(140, Math.round(this.W*0.16))) : Math.max(120, Math.min(200, Math.round(this.W*0.26)))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
+    const nar = this.W < 520;   // a small panel (tablet grid, phone): the candles keep more of the width, the column is slimmer
+    return Math.min(mx, big ? Math.max(nar ? 64 : 90, Math.min(140, Math.round(this.W*(nar ? 0.14 : 0.16)))) : Math.max(nar ? 84 : 120, Math.min(200, Math.round(this.W*(nar ? 0.22 : 0.26))))); }   // order-flow column sits between the plot and the price axis; drag its left edge to resize
   subActive(){ return this.subOrd.filter(k => this[k+"On"]); }
   get axw(){ return this._axw || (this._axw = Math.max(44, Math.min(200, +store.get(LS+"_axw", 62) || 62))); } set axw(v){ this._axw = v; store.set(LS+"_axw", v); }
   get PR(){ return this.W - this.axw - this.cw(); } subHs(){ const a = this.subActive().map(k => Math.max(18, Math.round(this.H*this.st[k].hp/100))); const tot = a.reduce((x,y) => x+y, 0), cap = Math.max(0, this.H - 70); /* a pane can shrink to its title strip (18 px) or grow until the price area is 70 px */ return tot > cap && tot ? a.map(v => v*cap/tot) : a; }
@@ -1638,6 +1639,7 @@ class CandleChart {
   freezeY(){   // price scale -> manual at the range on screen right now (TradingView: dragging the chart vertically switches auto-scale off); the ⇅ / 🔒 button switches it back
     if (this.lockR || this._lo == null || !isFinite(this._lo) || !isFinite(this._hi) || this._hi <= this._lo) return;
     const mid = (this._lo + this._hi)/2, half = (this._hi - this._lo)/2/1.12; this.lockR = [mid - half, mid + half]; this.yZoom = 1; this.yShift = 0; this.onFree && this.onFree(); }
+  autoY(){ this.lockR = null; this.yZoom = 1; this.yShift = 0; this.onFree && this.onFree(); }   // price scale back to automatic (the same thing the toolbar's Auto / Manual button does)
   zoomY(f, ay){   // price-scale zoom by factor f, anchored at the price under y = ay (px from the top of the plot): that price stays put, so the candles do not fly away. One call changes the scale by at most 25 %, and the scale stays between 0.05x and 8x of the auto range (the old limits were 0.02x .. 60x: a few wheel clicks flattened the candles into a line)
     const n = this.data.length, z0 = this.yZoom, z1 = Math.max(0.05, Math.min(8, z0*Math.max(0.8, Math.min(1.25, f)))); if (!n || z1 === z0) return;
     const lo0 = this._lo, hi0 = this._hi; if (!isFinite(lo0) || !isFinite(hi0) || !(hi0 > lo0) || !(this.PB > 0)){ this.yZoom = z1; return; }
@@ -1712,7 +1714,10 @@ class CandleChart {
     if (this.drag){
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
       if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
-      else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); if (this.drag.ty > 6) this.freezeY(); this.r -= dx/this.bw; this.yShift += dy/Math.max(1, this.PB); this.clampR(); this.checkMore(); }
+      else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
+        const vert = e.pointerType !== "touch" || (this.drag.ty > 28 && this.drag.ty > 1.6*this.drag.tx);   // a finger: only a clearly VERTICAL drag turns the price scale manual; a sideways swipe (even a wobbly one) just moves time and never locks the scale
+        if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
+        this.r -= dx/this.bw; this.clampR(); this.checkMore(); }
     }
     this.drawSoon();
   }
@@ -1762,6 +1767,11 @@ class CandleChart {
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
     { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
+    this._autoChip = null;
+    { const n = this.data.length, lo = this._lo, hi = this._hi;   // the price scale is manual and the newest candle is outside it (a finger drag locked it): a big tap target brings the candles back
+      if (this.lockR && n && lo != null && hi != null && isFinite(lo) && isFinite(hi)){ const lc = this.data[n-1].c; if (lc < lo || lc > hi){ const c = this.ctx, w = TCH ? 112 : 92, h2 = TCH ? 34 : 22, x = Math.max(6, this.PR - w - 10), y = 30;
+        c.save(); c.fillStyle = "rgba(240,185,11,.95)"; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h2, 6) : c.rect(x, y, w, h2); c.fill(); c.fillStyle = "#111"; c.font = "bold "+(TCH ? 14 : 12)+"px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText("⇅ "+(lang === "ar" ? "أوتو" : "Auto"), x + w/2, y + h2/2); c.restore(); this._autoChip = {x, y, w, h:h2}; } } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
   _paint(){
@@ -2337,7 +2347,7 @@ Object.assign(CandleChart.prototype, {
         c.strokeStyle = "rgba(74,163,255,.35)"; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(gx0, yA + .5); c.lineTo(gx1, yA + .5); c.moveTo(gx0, yB + .5); c.lineTo(gx1, yB + .5); c.stroke(); c.setLineDash([]); } }
     if (this.domOn && B.length){ const sn = B[B.length-1], ps = sn.lv.map(x => x[0]), mid = (sn.bb + sn.ba)/2; if (ps.length && mid){ const cov = (Math.max(...ps) - Math.min(...ps))/mid*100/2; c.fillStyle = "#6b7684"; c.fillText(Lg("book depth ±"+cov.toFixed(2)+"% (exchange limit)", "عمق الدفتر ±"+cov.toFixed(2)+"% (حد البورصة)"), gx0, 36); } }
     if (this.domOn && vpfOn){ c.fillStyle = "#6b7684"; c.textAlign = "left"; c.fillText(Lg("▒ dim = estimated candle-volume profile (approx.) · bright = live/saved order book","▒ الخافت = توزيع تقديري لحجم الشموع (تقريبي) · الساطع = دفتر الأوامر الحي/المحفوظ"), gx0, 46); }
-    if (this.domOn){ const bx = gx0, by = PB - 22, bw_ = Math.min(110, gw - 10); for (let q = 0; q < bw_; q++){ c.fillStyle = scheme === "side" ? hexA(OF.color, .15 + .85*(q/(bw_ - 1))) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*(q/(bw_-1))**2)+","+Math.round(30 + 210*(q/(bw_-1))**3)+",1)" : ramp(q/(bw_ - 1)); c.fillRect(bx + q, by, 1.2, 6); } c.fillStyle = "#9aa4b2"; c.font = "8px sans-serif"; c.textAlign = "left"; c.fillText(Lg("small","صغير"), bx, by - 2); c.textAlign = "right"; c.fillText(Lg("big orders","أوامر كبيرة"), bx + bw_, by - 2); c.textAlign = "left"; }
+    if (this.domOn){ const bx = gx0, by = PB - 22, bw_ = Math.min(110, gw - 10); for (let q = 0; q < bw_; q++){ c.fillStyle = scheme === "side" ? hexA(OF.color, .15 + .85*(q/(bw_ - 1))) : scheme === "amber" ? "rgba(255,"+Math.round(190 + 65*(q/(bw_-1))**2)+","+Math.round(30 + 210*(q/(bw_-1))**3)+",1)" : ramp(q/(bw_ - 1)); c.fillRect(bx + q, by, 1.2, 6); } c.fillStyle = "#9aa4b2"; c.font = "8px sans-serif"; if (bw_ >= 84){ c.textAlign = "left"; c.fillText(Lg("small","صغير"), bx, by - 2); c.textAlign = "right"; c.fillText(Lg("big orders","أوامر كبيرة"), bx + bw_, by - 2); } else if (bw_ >= 44){ c.textAlign = "right"; c.fillText(Lg("big","كبير"), bx + bw_, by - 2); } c.textAlign = "left"; }   // narrow column: the two words would run over each other and out of the panel
     if (this.domOn && B.length < 2){ c.fillText(Lg("collecting the live book... (builds from now on)", "بيجمع الدفتر لايف... (بيتبني من دلوقتي)"), gx0, 26); }
     { const hb = Hub.last["book|"+this.sym], ht = Hub.last["trades|"+this.sym], er = (hb && hb.error) || (ht && ht.error); c.textAlign = "left"; c.font = "9px sans-serif"; c.fillStyle = er ? "#f6465d" : "#5e6673";
       c.fillText(er ? ("⚠ " + (hb && hb.error ? "book: " : "trades: ") + String(er).slice(0, 40)) : ("book " + (this.flowB || []).length + " · prints " + (this.flowT || []).length), gx0, PB - 6); }
@@ -2347,7 +2357,7 @@ Object.assign(CandleChart.prototype, {
     this._scX = null;
     if (this.syncOn && this.scOn !== false){ const room = this.H - 20 - PB - 6;
       if (room >= 96){ this.paintSyncCard(c, X0 + 4, XE - 3, PB, {top:PB + 3, h:room}); }
-      else { const sx1 = this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2; this.paintSyncCard(c, gx0 + 2, sx1, PB); } }   // the ✕ is drawn by the card itself (both layouts)
+      else if (this.H >= 330 && gw >= 150){ const sx1 = this.domOn && gw >= 230 ? gx1 - 92 : gx1 - 2; this.paintSyncCard(c, gx0 + 2, sx1, PB); } }   // a small panel / narrow column: the card would sit on top of the heat map, so it stays off (the setting / a taller panel brings it back)   // the ✕ is drawn by the card itself (both layouts)
   },
   gaugeData(now){   // buy/sell pressure from REAL data only: aggressor volume of the last 2 min of prints, and bid vs ask size resting within 0.5 % of the mid (latest book snapshot)
     const W = 120000, T = (this.flowT || []).filter(x => x.t >= now - W); let b = 0, s = 0; T.forEach(x => { if (x.side === "Buy") b += x.q; else s += x.q; });
@@ -2767,6 +2777,7 @@ Object.assign(CandleChart.prototype, {
   toolDown(e){
     const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
     if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
+    const ac = this._autoChip; if (ac && q.x >= ac.x && q.x <= ac.x+ac.w && q.y >= ac.y && q.y <= ac.y+ac.h){ this.autoY(); this._autoChip = null; this.draw(); return true; }
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }

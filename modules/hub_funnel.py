@@ -112,7 +112,8 @@ def run(lab_path: Path | None = None, root=None, publish: bool = True) -> dict |
     except (FileNotFoundError, ValueError, OSError):
         return None
     truth = hub_core.read("truth", root) or {}
-    res = funnel(data.get("rows", []), truth.get("bonferroni_t"))
+    rows = [r for r in data.get("rows", []) if r.get("key") not in ("*STOP*", "*PREREG*")]   # the stop study and the pre-registered tests are not part of the detector search
+    res = funnel(rows, truth.get("bonferroni_t"))
     res["breakeven"] = breakeven_table(data.get("rows", []))
     res["used_truth_bar"] = truth.get("bonferroni_t") is not None
     if publish:

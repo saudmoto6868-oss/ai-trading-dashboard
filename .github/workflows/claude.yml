@@ -28,7 +28,7 @@ jobs:
       id-token: write
       actions: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
         with:
           fetch-depth: 1
       # quick key check: prints only the HTTP status + error type (never the key), so a bad key / no credit is obvious in the log
@@ -43,11 +43,11 @@ jobs:
             -H "content-type: application/json" -d '{"model":"claude-haiku-5-5","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}')
           echo "Anthropic API status: $code"; python3 -c "import json;d=json.load(open('r.json'));print('error:', (d.get('error') or {}).get('type'), (d.get('error') or {}).get('message'))" || true
           rm -f r.json; [ "$code" = "200" ] || { echo "::error::Anthropic key check failed ($code) - see the error line above"; exit 1; }
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.12"
       - run: pip install -q -r requirements.txt
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@4845bacbb38b3c4b15d948f035349786f678e068  # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Sonnet: good for code work and much cheaper than the default; python allowed so it can run the tests

@@ -17,8 +17,8 @@ const { chromium } = require('playwright');
     const rect = ch.cv.getBoundingClientRect(), X = x => rect.left + x * ch.S, Y = y => rect.top + y * ch.S;
     const ev = (type, id, x, y) => ch.cv.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true }));
     const wait = ms => new Promise(r => setTimeout(r, ms));
-    // 1) one-finger drag: moves time (r) and, since the price scale unlocks, the price too
-    const r0 = ch.r, ys0 = ch.yShift; ev('pointerdown', 1, X(300), Y(200)); for (let i = 1; i <= 8; i++) { ev('pointermove', 1, X(300) + i * 15, Y(200) + i * 8); await wait(16); } ev('pointerup', 1, X(420), Y(264));
+    // 1) one-finger drag, clearly vertical (a sideways swipe never locks the price scale: tests/browser/touch_scale_column_mock.js): moves time (r) and the price too
+    const r0 = ch.r, ys0 = ch.yShift; ev('pointerdown', 1, X(300), Y(200)); for (let i = 1; i <= 8; i++) { ev('pointermove', 1, X(300) + i * 6, Y(200) + i * 16); await wait(16); } ev('pointerup', 1, X(348), Y(328));
     out.panMovedTime = Math.abs(ch.r - r0) > 3; out.panMovedPrice = !!ch.lockR || Math.abs(ch.yShift - ys0) > 1e-6;
     // 2) two-finger horizontal spread = time zoom
     ch.fit(); ch.paint(); const bw0 = ch.bw; ev('pointerdown', 1, X(300), Y(200)); ev('pointerdown', 2, X(340), Y(200)); for (let i = 1; i <= 8; i++) { ev('pointermove', 1, X(300) - i * 15, Y(200)); ev('pointermove', 2, X(340) + i * 15, Y(200)); await wait(16); } ev('pointerup', 1, X(180), Y(200)); ev('pointerup', 2, X(460), Y(200));

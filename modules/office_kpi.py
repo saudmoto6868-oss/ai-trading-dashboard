@@ -52,7 +52,7 @@ def load(path=LAB_FILE) -> dict:
 
 
 def _detector_rows(d: dict) -> list:
-    return [r for r in d.get("rows", []) if r.get("key") not in ("*CHAIN*", "*ALL*") and r.get("school") != "exit"]
+    return [r for r in d.get("rows", []) if r.get("key") not in ("*CHAIN*", "*ALL*", "*STOP*", "*PREREG*") and r.get("school") != "exit"]
 
 
 def net(r: dict) -> float:

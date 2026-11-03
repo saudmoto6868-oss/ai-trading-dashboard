@@ -1250,6 +1250,30 @@ const Journal = {
     } finally { this.busy = false; }
     if (changed) this.save();
   },
+  /* STOP TEST on YOUR trades (owner 2026-11-03: "most trades hit the stop and then reach the target"). For every finished trade, replay the candles after the entry with the SAME target and a stop k x the original risk
+     (k = 1 is the real stop). Shows how many stopped trades did reach the target later, and what a wider stop would have done to the average R. Mark-to-close at the end of the trade's life when neither was hit. A tiny sample proves nothing (n < 30). */
+  KS: [1, 1.25, 1.5, 2, 3],
+  simOne(tr, rows, bm){
+    const long_ = tr.dir === "bullish", risk = Math.abs(tr.entry - tr.sl), rr = tr.rr || Math.abs(tr.tp1 - tr.entry)/risk; if (!(risk > 0) || !(rr > 0)) return null; const end = tr.t0 + (JEXP[tr.tfk] || 3*86400e3);
+    const bars = rows.filter(c => c.t + bm > tr.t0 && c.t < end); if (!bars.length || rows[0].t > tr.t0 + bm) return null;   // the candle history must reach back to the entry
+    const full = Date.now() >= end;   // false = the trade's life is not over yet: counted "so far" (a later recovery would be missed) and replayed again later
+    const adv = bars.map(c => long_ ? (tr.entry - c.l)/risk : (c.h - tr.entry)/risk); let ti = -1; for (let i = 1; i < bars.length; i++){ if (long_ ? bars[i].h >= tr.tp1 : bars[i].l <= tr.tp1){ ti = i; break; } }   // the entry candle only counts for the stop (like the tracker)
+    const lastC = bars[bars.length-1].c, mtm = (long_ ? lastC - tr.entry : tr.entry - lastC)/risk, out = {};
+    this.KS.forEach(k => { let js = -1; for (let i = 0; i < adv.length; i++){ if (adv[i] >= k - 1e-9){ js = i; break; } } out[k] = js >= 0 && (ti < 0 || js <= ti) ? -k : ti >= 0 ? rr : Math.max(-k, Math.min(rr, mtm)); });
+    let j1 = -1; for (let i = 0; i < adv.length; i++){ if (adv[i] >= 1 - 1e-9){ j1 = i; break; } }
+    return {r:out, rr, full, rec:j1 >= 0 && (ti < 0 || j1 < ti) ? (ti >= 0 ? 1 : 0) : null, mae:ti >= 0 ? Math.max(...adv.slice(0, ti + 1)) : null}; },
+  async simStops(){
+    if (this._sim) return; const todo = this.list.filter(t => (t.status === "sl" || t.status === "tp" || t.status === "exp") && t.fill !== false && (!t.stk || !t.stk.full) && t.entry && t.sl && t.tp1 && (!t._stkT || Date.now() - t._stkT > 3600e3)); if (!todo.length) return; this._sim = true; let ch = false;
+    try { const bySym = {}; todo.forEach(t => (bySym[t.symbol] = bySym[t.symbol] || []).push(t));
+      for (const sym of Object.keys(bySym)){ const trs = bySym[sym], age = Date.now() - Math.min(...trs.map(t => t.t0)), bar = age < 4.5*3600e3 ? JBAR["1m"] : age < 12*86400e3 ? JBAR["1H"] : JBAR["1D"];
+        let rows; try { rows = (await okx("/market/candles?instId="+encodeURIComponent(sym)+"&bar="+bar[0]+"&limit=300")).map(r => ({t:+r[0], h:+r[2], l:+r[3], c:+r[4]})).reverse(); } catch(e){ continue; }
+        trs.forEach(tr => { tr._stkT = Date.now(); const o = this.simOne(tr, rows, bar[1]); if (o){ const prev = JSON.stringify(tr.stk || null); tr.stk = o; if (JSON.stringify(o) !== prev) ch = true; } }); } } finally { this._sim = false; }
+    if (ch) this.save(); },
+  stopTable(list){   // rows per stop distance + the "stopped, then reached the target" share, from the trades that have a replay
+    const S = list.filter(t => t.stk); if (!S.length) return null; const n = S.length, rr = S.reduce((a, t) => a + t.stk.rr, 0)/n;
+    const rows = this.KS.map(k => { const v = S.map(t => t.stk.r[k]); return {k, n, win:100*v.filter((x, i) => x >= S[i].stk.rr - 1e-9).length/n, avg:v.reduce((a, b) => a + b, 0)/n}; });
+    const st = S.filter(t => t.stk.rec != null), rec = st.filter(t => t.stk.rec === 1).length, mae = S.map(t => t.stk.mae).filter(x => x != null).sort((a, b) => a - b), q = f => mae.length ? mae[Math.min(mae.length - 1, Math.floor(f*mae.length))] : null;
+    return {n, full:S.filter(t => t.stk.full).length, rows, stopped:st.length, rec, mae:{n:mae.length, p50:q(.5), p75:q(.75), p90:q(.9)}}; },
   stats(minPct, since){
     const L = this.list.filter(t => t.pct >= minPct && t.t0 >= since), closed = L.filter(t => t.status === "tp" || t.status === "sl").sort((a,b) => a.t1 - b.t1), W = closed.filter(t => t.status === "tp");
     const gp = W.reduce((a,t) => a + t.r, 0), gl = closed.length - W.length; let eq = 0, peak = 0, dd = 0; const curve = closed.map(t => { eq += t.r; peak = Math.max(peak, eq); dd = Math.max(dd, peak - eq); return {t:t.t1, v:eq}; });
@@ -1258,8 +1282,8 @@ const Journal = {
       best: closed.length ? Math.max(...closed.map(t => t.r)) : 0, worst: closed.length ? Math.min(...closed.map(t => t.r)) : 0, dd, curve};
   }
 };
-setTimeout(() => { Journal.ingest(); Journal.track(); }, 1500);
-setInterval(() => { Journal.ingest(); Journal.track(); }, 30000);
+setTimeout(() => { Journal.ingest(); Journal.track(); Journal.simStops(); }, 1500);
+setInterval(() => { Journal.ingest(); Journal.track(); Journal.simStops(); }, 30000);
 Alerts.subs.add(() => Journal.ingest());
 const RegimeCtx = {   // market regime of a setup's symbol on its own timeframe (candles via candlesTf, 5-minute cache); the Setup Card shows it as information, never as a pass / fail
   c:{},
@@ -4708,12 +4732,16 @@ class Panel {
       const rowsT = Object.entries(byT).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td></tr>').join("");
       const mkRows = f => { const o = {}; st.closed.forEach(t => { const k = f(t); (o[k] = o[k] || {w:0,n:0,r:0}).n++; o[k].r += t.r; if (t.status === "tp") o[k].w++; }); return Object.entries(o).sort((a,b) => b[1].n - a[1].n).map(([k,v]) => '<tr><td>'+esc(k)+'</td><td>'+v.n+'</td><td style="color:'+(v.w/v.n >= .5 ? "#0ecb81" : "#f6465d")+'">'+Math.round(100*v.w/v.n)+'%</td><td style="color:'+(v.r >= 0 ? "#0ecb81" : "#f6465d")+'">'+f2(v.r/v.n)+'</td></tr>').join("") || '<tr><td class="m">–</td></tr>'; };
       const rowsF = mkRows(t => t.tfk || "?"), rowsP = mkRows(t => t.pct >= 70 ? "≥70%" : t.pct >= 50 ? "50-69%" : "<50%");
+      const ST = Journal.stopTable(st.closed), f2s = v => (v >= 0 ? "+" : "") + v.toFixed(2);
+      const stopHtml = !ST ? '<div class="m" style="padding:2px 4px">'+esc(Lg("no finished trade has its candle replay yet (needs the candle history to reach the entry)","لسه مفيش صفقة اتعمل لها إعادة تشغيل الشموع (محتاج تاريخ شموع يوصل للدخول)"))+'</div>'
+        : '<table class="rdt"><tr><th>'+esc(Lg("stop x risk","الستوب × المخاطرة"))+'</th><th>n</th><th>'+esc(Lg("win %","فوز %"))+'</th><th>'+esc(Lg("avg R","متوسط R"))+'</th></tr>'+ST.rows.map(r => '<tr><td>'+r.k+(r.k === 1 ? " ("+esc(Lg("real","الفعلي"))+")" : "")+'</td><td>'+r.n+'</td><td>'+Math.round(r.win)+'%</td><td style="color:'+(r.avg >= 0 ? "#0ecb81" : "#f6465d")+'">'+f2s(r.avg)+'</td></tr>').join("")+'</table>'
+        +'<div class="m" style="padding:3px 4px;font-size:10px">'+esc(Lg("Stopped trades that reached the target later: ","صفقات ضربت الستوب وبعدين وصلت الهدف: "))+'<b>'+ST.rec+' / '+ST.stopped+'</b>'+(ST.mae.n ? ' · '+esc(Lg("how far winners went against you first (R): median ","لحد فين الرابحة عكست ضدك الأول (R): الوسيط "))+ST.mae.p50.toFixed(2)+' · 75% '+ST.mae.p75.toFixed(2)+' · 90% '+ST.mae.p90.toFixed(2) : '')+'<br>'+esc(Lg("trades replayed: ","صفقات اتعملها إعادة تشغيل: "))+ST.n+esc(Lg(" ("+ST.full+" with the full time window; the rest are counted so far and can only miss recoveries that come later)"," ("+ST.full+" بنافذة وقتها كاملة؛ الباقي لحد دلوقتي وممكن تفوته تعافي لسه جاي)"))+(ST.n < 30 ? '<br>'+esc(Lg("under 30 trades = not evidence","أقل من 30 صفقة = مش دليل")) : '')+'</div>';
       const rowsG = mkRows(t => t.chain ? t.chain.g : "not recorded"), rowsL = mkRows(t => !t.chain ? "not recorded" : t.chain.loc ? Lg("with location","مع الموقع") : Lg("against location","ضد الموقع"));
       const rowsO = mkRows(t => (t.ctx && t.ctx.of) || "not recorded"), rowsN = mkRows(t => !t.ctx ? "not recorded" : t.ctx.news ? Lg("news ±1h","خبر قريب") : Lg("no news","مفيش خبر")), rowsK = mkRows(t => (t.ctx && t.ctx.ses) || "not recorded"),
         rowsI = mkRows(t => !t.ctx || !t.ctx.oi ? "not recorded" : ({longs:Lg("new longs","لونجات جديدة"), cover:Lg("short covering","تغطية شورت"), shorts:Lg("new shorts","شورتات جديدة"), closing:Lg("longs closing","لونجات بتقفل")})[t.ctx.oi] + " · " + (t.dir > 0 || t.dir === "bullish" ? "long" : "short"));
       const side = '<div class="jside"><div class="jl">'+esc(T("jStrat"))+'</div><table class="rdt">'+(rowsS || '<tr><td class="m">–</td></tr>')+'</table><div class="jl" style="margin-top:6px">'+esc(T("rdType"))+'</div><table class="rdt">'+(rowsT || '<tr><td class="m">–</td></tr>')+'</table>'
         +'<div class="jl" style="margin-top:6px">'+esc(Lg("Timeframe (n · win · avg R)","الفريم (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsF+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Strength (n · win · avg R)","القوة (عدد · نجاح · متوسط R)"))+'</div><table class="rdt">'+rowsP+'</table>'
-        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Order flow at entry","الأوردر فلو وقت الدخول"))+'</div><table class="rdt">'+rowsO+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Session","الجلسة"))+'</div><table class="rdt">'+rowsK+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Chain grade (htf · location · volume · regime · time)","درجة السلسلة (اتجاه · موقع · فوليوم · ريجيم · وقت)"))+'</div><table class="rdt">'+rowsG+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Location layer (long low / short high of range)","طبقة الموقع (شراء من الأسفل / بيع من الأعلى)"))+'</div><table class="rdt">'+rowsL+'</table>'+'<div class="jl" style="margin-top:6px">'+esc(Lg("High-impact news","الأخبار القوية"))+'</div><table class="rdt">'+rowsN+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Open interest at entry (4h)","العقود المفتوحة وقت الدخول (4س)"))+'</div><table class="rdt">'+rowsI+'</table></div>';
+        +'<div class="jl" style="margin-top:6px">'+esc(Lg("Order flow at entry","الأوردر فلو وقت الدخول"))+'</div><table class="rdt">'+rowsO+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Session","الجلسة"))+'</div><table class="rdt">'+rowsK+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Stop test: the same trades with a wider stop (same target)","اختبار الستوب: نفس الصفقات بستوب أوسع (نفس الهدف)"))+'</div>'+stopHtml+'<div class="jl" style="margin-top:6px">'+esc(Lg("Chain grade (htf · location · volume · regime · time)","درجة السلسلة (اتجاه · موقع · فوليوم · ريجيم · وقت)"))+'</div><table class="rdt">'+rowsG+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Location layer (long low / short high of range)","طبقة الموقع (شراء من الأسفل / بيع من الأعلى)"))+'</div><table class="rdt">'+rowsL+'</table>'+'<div class="jl" style="margin-top:6px">'+esc(Lg("High-impact news","الأخبار القوية"))+'</div><table class="rdt">'+rowsN+'</table><div class="jl" style="margin-top:6px">'+esc(Lg("Open interest at entry (4h)","العقود المفتوحة وقت الدخول (4س)"))+'</div><table class="rdt">'+rowsI+'</table></div>';
       h += '<div class="jrow">'+cal+side+'</div>';
       // trades table
       const last = st.all.slice().sort((a,b) => b.t0 - a.t0).slice(0, 25);

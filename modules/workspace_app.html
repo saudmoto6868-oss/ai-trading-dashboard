@@ -502,9 +502,9 @@ const hlCat = id => HL_CAT[hlBase(id)] || "Stocks", hlLabel = id => HL_LBL[hlBas
 const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:new Set(),
   /* one shared path for every /info call: identical calls share a short cache and one in-flight request, and a 429 stops ALL calls for a while (Retry-After, capped) instead of every widget retrying */
   cache:new Map(), inflight:new Map(), cool:0,
-  async post(body){ const key = JSON.stringify(body), now = Date.now();
+  async post(body, ttl){ const key = JSON.stringify(body), now = Date.now();   // ttl = how long an identical answer is reused (default 1.5 s; the candle polls pass more)
     if (now < this.cool) throw new Error("Hyperliquid rate limit: waiting before retry");
-    const hit = this.cache.get(key); if (hit && now - hit.t < 1500) return hit.v;
+    const hit = this.cache.get(key); if (hit && now - hit.t < (ttl || 1500)) return hit.v;
     if (this.inflight.has(key)) return this.inflight.get(key);
     const p = (async () => { try { const r = await fetch(HL_API+"/info", {method:"POST", headers:{"Content-Type":"application/json"}, body:key});
         if (r.status === 429){ const ra = +r.headers.get("Retry-After") || 0, wait = Math.min(60000, Math.max(15000, ra*1000)); this.cool = Date.now() + wait + Math.random()*2000; throw new Error("Hyperliquid HTTP 429"); }
@@ -518,7 +518,7 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
     if (b.ids.has(id)) return; b.ids.add(id); b.rows.push({tradeId:id, ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"});
     if (b.rows.length > 600){ b.rows.sort((p, q) => +q.ts - +p.ts); b.rows.length = 400; b.ids = new Set(b.rows.map(r => r.tradeId)); } },
   async trades(coin){ if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
-    const b = this.tr[coin]; if (!b || b.rows.length < 10){ const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // seed / socket down: REST
+    const b = this.tr[coin], sd = this.seedT = this.seedT || {}; if ((!b || b.rows.length < 10) && Date.now() - (sd[coin] || 0) > 4000){ sd[coin] = Date.now(); const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // REST seed at most every 4 s per coin (it costs ~20 of the 1200 request weight per minute; the socket fills the buffer on its own)   // seed / socket down: REST
     return (this.tr[coin] || {rows:[]}).rows.slice().sort((p, q) => +q.ts - +p.ts).slice(0, 300); },
   async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
     (meta.universe || []).forEach((u, i) => { const c = ctxs[i] || {}, id = "HL:"+u.name, px = +(c.midPx || c.markPx), vol = +c.dayNtlVlm || 0, oi = +c.openInterest || 0;
@@ -526,7 +526,7 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
       const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
     this.list = L; this.t = Date.now(); },
   start(){ if (this.on) return; this.on = true; this.state = "connecting";
-    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 4000); };
+    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
     ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
@@ -544,7 +544,7 @@ async function hlOkx(path){   // answers the OKX REST paths the widgets use, in 
   const q = new URLSearchParams(path.split("?")[1] || ""), id = q.get("instId"), coin = hlCoin(id);
   if (/\/market\/(history-)?candles/.test(path)){ const iv = HL_IV[q.get("bar")]; if (!iv) throw new Error("timeframe "+q.get("bar")+" not available on Hyperliquid");
     const lim = Math.min(+q.get("limit") || 100, 1000), end = q.get("after") ? +q.get("after") - 1 : Date.now(), start = end - lim*HL_MS[iv];
-    const rows = await HL.post({type:"candleSnapshot", req:{coin, interval:iv, startTime:start, endTime:end}});
+    const poll = lim <= 5 && !q.get("after"), rows = await HL.post({type:"candleSnapshot", req:{coin, interval:iv, startTime:poll ? Math.floor(start/HL_MS[iv])*HL_MS[iv] : start, endTime:poll ? Math.floor(end/5000)*5000 : end}}, poll ? 5000 : 0);   // the live poll (3 bars): its time window is rounded so charts on the same symbol and timeframe send ONE identical request, reused for 5 s (a candle poll costs ~20 of Hyperliquid's 1200 request weight per minute)
     return (rows || []).map(k => [String(k.t), String(k.o), String(k.h), String(k.l), String(k.c), String(k.v), "0", "0", "1"]).reverse(); }
   if (/\/market\/ticker/.test(path)){ if (!HL.t) await HL.ctx(); const x = HL.q[id]; if (!x) throw new Error("unknown Hyperliquid market "+coin); return [{instId:id, last:String(x.last), open24h:String(x.open || x.last), vol24h:String(x.vol || 0)}]; }
   if (/\/market\/books/.test(path)){ const b = await HL.post({type:"l2Book", coin}), lv = (b && b.levels) || [[], []], f = a => a.map(x => [String(x.px), String(x.sz), "0", String(x.n || 0)]);
@@ -1189,7 +1189,7 @@ const isRL = e => /rate limit|429/i.test(String(e && e.message || e || ""));   /
 const offTxt = (sym, e) => isRL(e) ? T("busy") : (/^HL:/.test(String(sym || "")) ? T("offlineHL") : T("offline"));   // the text says WHICH venue and whether it is only a pause
 const LLC = new Map();   // symbol -> {t, v, p}: shared MTF LLT candles (see llKick)
 async function llFetch(sym){
-  const c = LLC.get(sym), now = Date.now(); if (c && c.p) return c.p; if (c && c.v && now - c.t < 25000) return c.v;
+  const c = LLC.get(sym), now = Date.now(); if (c && c.p) return c.p; if (c && c.v && now - c.t < (/^HL:/.test(sym) ? 90000 : 25000)) return c.v;   // Hyperliquid: 6 candle requests per refresh, so refresh every 90 s (the levels only change when a candle closes)
   const bars = {"5M":"5m", "15M":"15m", "1H":"1H", "4H":"4H", "D1":"1Dutc", "W1":"1Wutc"}, rec = {t:now, v:c ? c.v : null, p:null};
   rec.p = (async () => { const o = {}; let hard = 0;
     for (const [k, b] of Object.entries(bars)){
@@ -4324,7 +4324,7 @@ class Panel {
         if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
       }
       if (!this.chart.data.length) fails++;
-      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || 2000));
+      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || (/^HL:/.test(sym) ? 6000 : 2000)));   // Hyperliquid: 6 s (its request weight is limited per minute; 4 gold charts polling every 2 s alone were ~1500 of 1200)
     };
     this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);

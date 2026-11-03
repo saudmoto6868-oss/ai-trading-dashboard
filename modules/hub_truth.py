@@ -107,7 +107,7 @@ def run(lab_path: Path | None = None, root: Path | None = None) -> dict | None:
         data = json.loads((lab_path or LAB_FILE).read_text())
     except (FileNotFoundError, ValueError, OSError):
         return None
-    res = judge(data.get("rows", []), extra_trials=hub_core.total_trials(list(OTHER_TABS), root))
+    res = judge([r for r in data.get("rows", []) if r.get("key") not in ("*STOP*", "*PREREG*")], extra_trials=hub_core.total_trials(list(OTHER_TABS), root))
     keep = [v for v in res["verdicts"] if v["promote"] or (v["bh"] and v["t"] > 0)][:50]
     hub_core.publish(SPEC.id, keep, res["n_trials"],
                      extra={k: res[k] for k in ("bonferroni_t", "expected_max_null_t", "n_promotable", "luck_verdict", "n_total")}, root=root)

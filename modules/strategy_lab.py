@@ -87,6 +87,34 @@ def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):
     return float(np.clip(d * (cl[j] - e) / stop_d, -1.0, rr))
 
 
+# STOP STUDY (owner 2026-11-03: "most trades hit the stop and then go on to the target - where could the stop sit so it is not reached?").
+# Same entries, the target price fixed (RR x STOP_ATR x ATR = 2.25 ATR), only the stop distance changes (in ATR). Every result is in ATR units, so different stops compare fairly.
+STOP_K = (1.0, 1.5, 2.0, 2.5, 3.0)
+
+
+def stop_study(hi, lo, cl, i, d, atr_i, H, rr=None):
+    """-> {'stp': {k: pnl in ATR for stop k*ATR}, 'rec': 1 / 0 / None, 'mae': ATR or None}.
+    stp: +target distance if the target is hit first, -k if the stop is hit first (a bar touching both counts as the stop), else the close at the horizon clipped to [-k, target].
+    rec (stop 1.5 ATR, the lab's base): 1 = the stop was hit and the target was reached LATER inside the same horizon (the owner's case), 0 = stopped and the target never came,
+    None = not stopped.  mae: how far (ATR) price went against the trade before the target, for trades that reach the target inside the horizon (None otherwise)."""
+    T = (RR if rr is None else rr) * STOP_ATR; e = cl[i]; end = min(len(cl), i + 1 + H); a = atr_i if atr_i > 0 else 1e-12
+    adv = np.maximum(0.0, (e - lo[i + 1:end]) / a if d > 0 else (hi[i + 1:end] - e) / a)                    # adverse excursion of each bar (ATR)
+    fav = (hi[i + 1:end] - e) / a if d > 0 else (e - lo[i + 1:end]) / a
+    hit = np.nonzero(fav >= T)[0]; jt = int(hit[0]) if len(hit) else None                                      # first bar that reaches the target
+    out = {}
+    for k in STOP_K:
+        st = np.nonzero(adv >= k)[0]; js = int(st[0]) if len(st) else None
+        if js is not None and (jt is None or js <= jt): out[k] = -k
+        elif jt is not None: out[k] = T
+        else:
+            j = end - 1; out[k] = float(np.clip(d * (cl[j] - e) / a, -k, T)) if j > i else 0.0
+    js15 = np.nonzero(adv >= STOP_ATR)[0]; rec = None
+    if len(js15):
+        rec = 1 if (jt is not None and jt > int(js15[0])) else 0
+    mae = float(adv[:jt + 1].max()) if jt is not None and len(adv[:jt + 1]) else None
+    return {"stp": out, "rec": rec, "mae": mae}
+
+
 # exit variants tested on the SAME entries: target multiple and break-even stop (the question: which RR / exit gives the best expectancy)
 # (target R, break-even stop, horizon in bars or None = the timeframe's own horizon). "h16" = a 16-bar window: on 15m that is the 4-hour scalp.
 VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True),
@@ -179,7 +207,8 @@ def walk(df, tf, stride=4, seed=0, peers=()):
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
                            "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
-                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2, "ts": int(ts.value // 10**6)})   # ts = signal bar time in ms (the pre-registered tests slice by date)
+                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2, "ts": int(ts.value // 10**6),
+                           "stop": stop_study(hi, lo, cl, i, d, atr[i], H), "mirror": stop_study(hi, lo, cl, i, -d, atr[i], H)})   # ts = signal bar time in ms (the pre-registered tests slice by date)
     return events, bars
 
 
@@ -225,6 +254,34 @@ def prereg_rows(all_events):
     return out
 
 
+
+def stop_rows(all_events):
+    """Rows '*STOP*': per stop distance (and per timeframe) the average result in ATR; the share of stopped trades that reached the target later (and the same for the mirror = opposite direction,
+    the yardstick: a random-looking market 'recovers' too); how far winners went against us first (MAE quantiles)."""
+    out = []; groups = defaultdict(list)
+    for tf, _sym, evs in all_events:
+        for e in evs:
+            if "stop" in e:
+                groups["all"].append(e); groups[tf].append(e)
+    for g, evs in groups.items():
+        T = RR * STOP_ATR; cost = COST_R * STOP_ATR
+        for k in STOP_K:
+            x = np.array([e["stop"]["stp"][k] for e in evs], float); m = np.array([e["mirror"]["stp"][k] for e in evs], float); n = len(x)
+            net = x - cost; t = float(net.mean() / (net.std(ddof=1) / np.sqrt(n))) if n > 2 and net.std() > 0 else 0.0
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": f"stop {k} ATR", "n": n, "win": round(100 * float((x >= T - 1e-9).mean()), 1), "stop_pct": round(100 * float((x <= -k + 1e-9).mean()), 1),
+                        "avg_atr": round(float(x.mean()), 3), "net_atr": round(float(net.mean()), 3), "mirror_atr": round(float(m.mean()), 3), "avgR": round(float(x.mean()) / STOP_ATR, 3),
+                        "net": round(float(net.mean()) / STOP_ATR, 3), "t": round(t, 2), "edge": False})
+        sr = [e["stop"]["rec"] for e in evs if e["stop"]["rec"] is not None]; mr = [e["mirror"]["rec"] for e in evs if e["mirror"]["rec"] is not None]
+        if sr:
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": "stopped at 1.5 ATR, target reached later", "n": len(sr), "win": round(100 * float(np.mean(sr)), 1),
+                        "mirror_win": round(100 * float(np.mean(mr)), 1) if mr else None, "stopped_share": round(100 * len(sr) / len(evs), 1), "edge": False})
+        ma = np.array([e["stop"]["mae"] for e in evs if e["stop"]["mae"] is not None], float)
+        if len(ma) >= 10:
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": "MAE of trades that reached the target (ATR)", "n": len(ma), "p50": round(float(np.percentile(ma, 50)), 2),
+                        "p75": round(float(np.percentile(ma, 75)), 2), "p90": round(float(np.percentile(ma, 90)), 2), "edge": False})
+    return out
+
+
 def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
@@ -245,6 +302,7 @@ def summarize(all_events, all_bars):
                 c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
     rows = [chain_row(k, *v) for k, v in chain.items()]
     rows += prereg_rows(all_events)
+    rows += stop_rows(all_events)
     var = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
@@ -356,8 +414,8 @@ def lunar_split(times, closes):
 
 
 def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
-    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]; pr = [r for r in rows if r["key"] == "*PREREG*"]
-    rows = [r for r in rows if r["key"] not in ("*CHAIN*", "*PREREG*") and r["school"] != "exit"]
+    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]; pr = [r for r in rows if r["key"] == "*PREREG*"]; sp = [r for r in rows if r["key"] == "*STOP*"]
+    rows = [r for r in rows if r["key"] not in ("*CHAIN*", "*PREREG*", "*STOP*") and r["school"] != "exit"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     _net = lambda a: "" if a is None else round(a - COST_R, 3)   # owner rule: judge after 0.1R costs
@@ -367,6 +425,16 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
          "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | net avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ok, 1):
         L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {_net(r.get('avgR'))} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
+    if sp:
+        L += ["", "## Stop study: where should the stop sit? (same entries, target fixed at %.2f ATR, results in ATR, cost %.2f ATR)" % (RR * STOP_ATR, COST_R * STOP_ATR), "",
+              "| group | stop | n | target hit % | stopped % | avg ATR | net ATR | mirror avg ATR | t (net vs 0) |", "|---|---|---|---|---|---|---|---|---|"]
+        for r in [r for r in sp if r["side"].startswith("stop ") and r["tf"] in ("all", "1h", "4h", "15m", "1d", "1m")]:
+            L.append(f"| {r['tf']} | {r['side'][5:]} | {r['n']} | {r['win']} | {r['stop_pct']} | {r['avg_atr']} | {r['net_atr']} | {r['mirror_atr']} | {r['t']:+.2f} |")
+        L += ["", "| group | question | n | value |", "|---|---|---|---|"]
+        for r in [r for r in sp if not r["side"].startswith("stop ")]:
+            v = (f"{r['win']} % reached it later (mirror direction {r.get('mirror_win')} %); {r['stopped_share']} % of all trades were stopped" if "win" in r else f"p50 {r['p50']} · p75 {r['p75']} · p90 {r['p90']}")
+            L.append(f"| {r['tf']} | {r['side']} | {r['n']} | {v} |")
+        L += ["", "Reading: a stop that is never reached only helps if the AVERAGE (net ATR) goes up, not just the target-hit share; compare with the mirror column (the opposite direction on the same bars).", ""]
     if pr:
         L += ["", "## Pre-registered tests (signals after the freeze date only; docs/PREREG_2026-11-01.md)", "",
               "| hypothesis | n | win % | avg R | net avg R | t vs random | net 1st half (n) | net 2nd half (n) | PASS |", "|---|---|---|---|---|---|---|---|---|"]

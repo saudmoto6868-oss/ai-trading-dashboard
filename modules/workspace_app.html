@@ -2393,6 +2393,12 @@ Object.assign(CandleChart.prototype, {
       c.strokeStyle = col; c.globalAlpha = solid ? .85 : .55; c.lineWidth = 1; c.setLineDash(solid ? [] : [4,4]); c.beginPath(); c.moveTo(0, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.fillStyle = col; c.fillText(lab+" "+Number(v).toFixed(v < 1 ? 5 : 2), PR-4, y-3); }); });
     c.restore();
   },
+  llPick(k, t, px){   // which edge of the previous candle a timeframe shows: its high or its low. The TradingView script takes "whichever is nearer to the price", which makes the line JUMP from one edge to the other (the whole range of that timeframe: 200-300 USD on BTC 1H / 4H) every time the price ticks across the middle of the candle.
+    // Here the choice has hysteresis: it changes only once the price is clearly (a fifth of the range) past the middle, and starts over when a new previous candle arrives.
+    const S = this._llSide || (this._llSide = {}), key = t.ph+"|"+t.pl, o = S[k], r = t.ph - t.pl; let side;
+    if (!o || o.key !== key || !(r > 0)) side = Math.abs(px - t.ph) < Math.abs(px - t.pl) ? "h" : "l";
+    else { const pos = (px - t.pl)/r; side = o.side === "l" ? (pos > 0.7 ? "h" : "l") : (pos < 0.3 ? "l" : "h"); }
+    S[k] = {key, side}; return side === "h" ? t.ph : t.pl; },
   paintLL(c, py, PR, i0, i1){   // "MTF Liquidity Levels & Targets" (port of the user's TradingView script): previous-candle high/low per timeframe, X77 EMA77/144 cross target, predictive target number, targets table
     const d = this.data, n = d.length, D = this.llD; if (n < 30) return; const bw = this.bw, last = d[n-1], px = last.c, sym = String(this.sym || "");
     const CFG = {len:30, maxATR:15, minP:70, maxP:170, mult:1.5}, f = v => v == null || !isFinite(v) ? "-" : Number(v).toFixed(v < 1 ? 5 : v < 10 ? 4 : v < 1000 ? 3 : 2);
@@ -2401,7 +2407,7 @@ Object.assign(CandleChart.prototype, {
     const DEF = [["5M","#fff9c4","#14181f"],["15M","#ff9800","#14181f"],["1H","#4caf50","#ffffff"],["4H","#2196f3","#ffffff"],["D1","#f44336","#ffffff"],["W1","#b0bec5","#14181f"]], use = {};
     const tag = (x, y, txt, bg, fg) => { const w = c.measureText(txt).width + 8; c.fillStyle = bg; c.fillRect(x, y - 7, w, 14); c.fillStyle = fg; c.textAlign = "left"; c.fillText(txt, x + 4, y); };
     // 1) OHL: for each timeframe the previous candle's high or low, whichever is nearer to the price; hidden when farther than maxATR x ATR
-    if (D) DEF.forEach(([k, bg, fg]) => { const t = D[k]; if (!t) return; const dh = Math.abs(px - t.ph), dl = Math.abs(px - t.pl), u = dh < dl ? t.ph : t.pl; use[k] = u; if (Math.min(dh, dl) > atr*CFG.maxATR) return; const y = py(u); if (!isFinite(y) || y < -10 || y > this.PB + 10) return;
+    if (D) DEF.forEach(([k, bg, fg]) => { const t = D[k]; if (!t) return; const dh = Math.abs(px - t.ph), dl = Math.abs(px - t.pl), u = this.llPick(k, t, px); use[k] = u; if (Math.min(dh, dl) > atr*CFG.maxATR) return; const y = py(u); if (!isFinite(y) || y < -10 || y > this.PB + 10) return;
       c.strokeStyle = bg; c.lineWidth = k === "W1" ? 3 : 2; c.beginPath(); c.moveTo(x0, y); c.lineTo(Math.min(xe, PR), y); c.stroke(); if (xe < PR) tag(xe, y, f(u)+" | "+k, bg, fg); });
     // 2) X77: the last EMA77 / EMA144 cross -> target = the level inside [min..max pips] nearest to the entry (VWAP, EMA77, EMA144, 1H / 4H / D previous-candle level), else the middle of the range
     const ema = (L) => { const k = 2/(L+1), o = new Array(n); let e = d[0].c; for (let i = 0; i < n; i++){ e = i ? d[i].c*k + e*(1-k) : d[0].c; o[i] = e; } return o; }, e77 = ema(77), e144 = ema(144); let xi = -1, xd = 0; for (let i = n-1; i > 0; i--){ if (e77[i-1] <= e144[i-1] && e77[i] > e144[i]){ xi = i; xd = 1; break; } if (e77[i-1] >= e144[i-1] && e77[i] < e144[i]){ xi = i; xd = -1; break; } }
@@ -2411,7 +2417,7 @@ Object.assign(CandleChart.prototype, {
       const y = py(best), rx = x0 + CFG.len*bw; if (isFinite(y) && y > -10 && y < this.PB + 10){ c.strokeStyle = "#ffd700"; c.lineWidth = 3; c.beginPath(); c.moveTo(x0, y); c.lineTo(Math.min(rx, PR), y); c.stroke();
         if (rx + 12*bw < PR){ const bh = Math.abs(py(best + atr*0.15) - py(best - atr*0.15)); c.fillStyle = "#ffd700"; c.strokeStyle = "#14181f"; c.lineWidth = 2; c.fillRect(rx - 2*bw, y - bh/2, 10*bw, bh); c.strokeRect(rx - 2*bw, y - bh/2, 10*bw, bh); c.fillStyle = "#ffd700"; c.font = "bold 12px sans-serif"; c.textAlign = "left"; c.fillText("X77 "+f(best), rx + 9*bw, y); c.font = "10px sans-serif"; } } }
     // 3) predictive target number above the last candle: price +/- 1.5 ATR in the direction of the average 3 / 5-bar momentum; gold when a previous-candle high/low sits between the price and the target, grey when the last candle goes against it
-    const mom = ((px - d[n-4].c)/3 + (px - d[n-6].c)/5)/2, bull = mom > 0, tUp = px + atr*CFG.mult, tDn = px - atr*CFG.mult, cur = bull ? tUp : tDn; let cross = false;
+    const mom = ((px - d[n-4].c)/3 + (px - d[n-6].c)/5)/2, bull = (this._llBull == null || Math.abs(mom) > atr*0.08) ? (this._llBull = mom > 0) : this._llBull, tUp = px + atr*CFG.mult, tDn = px - atr*CFG.mult, cur = bull ? tUp : tDn; let cross = false;
     if (D) DEF.forEach(([k]) => { const t = D[k]; if (!t) return; if (bull ? (t.ph > px && t.ph <= tUp) : (t.pl < px && t.pl >= tDn)) cross = true; });
     { const col = cross ? "#ffb800" : (bull && last.c < last.o) || (!bull && last.c > last.o) ? "#9e9e9e" : bull ? "#00e676" : "#ff5252", y = py(last.h + atr*0.5); c.fillStyle = col; c.font = "bold 18px sans-serif"; c.textAlign = "center"; if (isFinite(y)) c.fillText(f(cur), x0, Math.max(12, y)); }
     // 4) targets table (bottom right of the plot): per timeframe close +/- 1.5 / 2 / 2.5 ATR of THAT timeframe, direction = its 3-bar momentum

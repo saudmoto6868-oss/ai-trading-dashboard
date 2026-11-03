@@ -3204,7 +3204,7 @@ def render_info_strip():
     dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
     items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
     items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
-    items.append(f"{html.escape(L('Last lab run'))} {built}")
+    items.append(f"{html.escape(L('Last lab run'))} {html.escape(str(built))}")
     items.append(html.escape(L("No automatic orders")))
     st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"
                 "border:1px solid #2b3139;border-radius:6px;padding:3px 10px;margin:0 0 6px'>" + "".join(f"<span>{x}</span>" for x in items) + "</div>",

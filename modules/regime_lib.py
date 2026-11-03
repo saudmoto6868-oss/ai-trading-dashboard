@@ -4,13 +4,14 @@ each candle (trailing windows, no look-ahead):
   Crash   5-bar return below -2 sigma of its trailing distribution
   HiVol   ATR(14) above 1.5x its trailing median
   Squeeze Bollinger width in the bottom 20% of its trailing range
-  Trend   ADX(14) > 25        Chop  ADX(14) < 20        Mixed  everything else
+  Trend   ADX(14) > 25        Chop  ADX(14) < 20 and ATR(14) below its trailing median        Mixed  everything else
 (first match wins, in that order). '' while warming up (first WARM bars)."""
 from __future__ import annotations
 
 import numpy as np
 
 REGIMES = ("Crash", "HiVol", "Squeeze", "Trend", "Chop", "Mixed")
+TO_RADAR = {"HiVol": "Hi-Vol"}   # modules/regime.py (Radar / Workspace chip) spells it Hi-Vol; Thin exists only there (it needs volume, the hub series has none)
 WARM = 220            # bars needed before labels are trusted (longest trailing window + ADX warm-up)
 
 
@@ -65,7 +66,8 @@ def label(high, low, close) -> list:
     a = adx(high, low, close)
     r5 = np.full(n, np.nan)
     r5[5:] = close[5:] / close[:-5] - 1.0
-    r5_sd = _trailing(r5, 100, lambda s: s.std(ddof=1) if len(s) > 2 else np.nan)
+    r5_mu = _trailing(r5, 100, np.mean)
+    r5_sd = _trailing(r5, 100, lambda s: s.std(ddof=0) if len(s) > 10 else np.nan)
     mid = _trailing(close, 20, np.mean)
     sd = _trailing(close, 20, lambda s: s.std(ddof=0))
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -75,7 +77,7 @@ def label(high, low, close) -> list:
     for i in range(WARM, n):
         if np.isnan(a[i]) or np.isnan(atr_med[i]) or np.isnan(r5_sd[i]) or np.isnan(bbw_p20[i]):
             continue
-        if r5[i] < -2 * r5_sd[i]:
+        if r5_sd[i] > 0 and (r5[i] - r5_mu[i]) / r5_sd[i] < -2:
             out[i] = "Crash"
         elif atr[i] > 1.5 * atr_med[i]:
             out[i] = "HiVol"
@@ -83,7 +85,7 @@ def label(high, low, close) -> list:
             out[i] = "Squeeze"
         elif a[i] > 25:
             out[i] = "Trend"
-        elif a[i] < 20:
+        elif a[i] < 20 and atr[i] < atr_med[i]:
             out[i] = "Chop"
         else:
             out[i] = "Mixed"

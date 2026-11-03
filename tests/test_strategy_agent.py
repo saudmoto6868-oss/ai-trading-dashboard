@@ -26,5 +26,23 @@ def test_contradiction_and_empty_are_reported():
     assert A.finish({"name": "x", "rules": []})["errors"] == ["no testable rule yet"]
 
 
+def test_daily_cap_and_text_limit():
+    os.environ["AGENT_DAILY_CAP"] = "2"
+    A._DAY.update(day="", n=0)
+    assert A._spend_ok() and A._spend_ok() and not A._spend_ok()          # the third call of the day is refused
+    A._DAY.update(day="2000-01-01", n=99)                                  # a new day resets the counter
+    assert A._spend_ok() and A._DAY["n"] == 1
+    os.environ["AGENT_DAILY_CAP"] = "oops"                                 # a bad value falls back to the default, never crashes
+    A._DAY.update(day="", n=0)
+    assert A._spend_ok()
+    os.environ["AGENT_DAILY_CAP"] = "0"; A._DAY.update(day="", n=0)
+    try:
+        A.ask("x" * 10, [], "key")
+        raise AssertionError("ask must refuse when the cap is 0")
+    except RuntimeError as e:
+        assert "AGENT_DAILY_CAP" in str(e)
+    os.environ.pop("AGENT_DAILY_CAP"); assert A.MAX_TEXT == 4000
+
+
 if __name__ == "__main__":
-    test_number_and_indicator_rules(); test_contradiction_and_empty_are_reported(); print("ok strategy_agent")
+    test_number_and_indicator_rules(); test_contradiction_and_empty_are_reported(); test_daily_cap_and_text_limit(); print("ok strategy_agent")

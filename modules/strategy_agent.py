@@ -6,9 +6,30 @@ Free first (owner rule): Google Gemini free tier with GEMINI_API_KEY from Stream
 """
 from __future__ import annotations
 
+import datetime as _dt
 import json
 
 from modules import strategy_rules as SR
+
+MAX_TEXT = 4000                      # characters of the owner's idea that are sent to the model (keeps one call cheap)
+_DAY = {"day": "", "n": 0}           # whole-app counter of model calls today (resets with the day or a server restart)
+
+
+def _spend_ok() -> bool:
+    """Daily cap on paid model calls for the whole app (AGENT_DAILY_CAP in Secrets/env, default 100), so a stuck loop or
+    an abusive visitor cannot run up the bill. Counts every attempt, also failed ones."""
+    from modules import ai_provider as AP
+    today = _dt.date.today().isoformat()
+    if _DAY["day"] != today:
+        _DAY["day"], _DAY["n"] = today, 0
+    try:
+        cap = int(AP._cfg("AGENT_DAILY_CAP", "100"))
+    except ValueError:
+        cap = 100
+    if _DAY["n"] >= cap:
+        return False
+    _DAY["n"] += 1
+    return True
 
 SYSTEM = (
     "You are the backtest assistant of a trading dashboard. The owner explains a trading idea. Reply in the owner's language, "
@@ -61,6 +82,9 @@ def to_strategy(ans: dict) -> dict:
 def ask(text: str, history: list, key: str, model: str = "gemini-flash-latest", provider: str = "gemini") -> dict:
     """One turn with the agent. history: [{"q":..., "a":...}]. Returns the answer dict plus 'strategy' and 'errors'.
     provider 'openai' = ChatGPT (modules/ai_provider.py, owner 2026-10-23), 'gemini' = the free Google key (default / fallback)."""
+    text = str(text)[:MAX_TEXT]
+    if not _spend_ok():
+        raise RuntimeError("the daily limit of agent calls is reached (AGENT_DAILY_CAP) - try tomorrow or raise the cap in Secrets")
     if provider == "openai":
         from modules import ai_provider as AP
         msgs = []

@@ -226,3 +226,5 @@
 | 2026-11-03 18:45:43 | mcp__github__create_pull_request |  | نجح |
 | 2026-11-03 18:46:17 | Bash | git status --short / | نجح |
 | 2026-11-03 18:50:52 | mcp__github__merge_pull_request |  | نجح |
+| 2026-11-03 18:51:27 | Bash | git status --short / | نجح |
+| 2026-11-03 22:34:49 | mcp__github__list_pull_requests |  | نجح |

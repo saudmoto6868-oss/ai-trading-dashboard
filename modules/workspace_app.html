@@ -2035,8 +2035,14 @@ Object.assign(CandleChart.prototype, {
       const ex = T_.reduce((a, x) => a + (Math.abs(x.p - p) <= tk*0.6 ? x.q : 0), 0); E.push({t:B.t, p, q:drop, kind:ex >= 0.5*drop ? "fill" : "pull", bid:p <= mid}); });
     if (E.length > 300) E.splice(0, 100);
   },
+  zlTick(b, t){   // ZONE FORWARD TEST (ported from feat/orderflow-zonetest, no UI change): a SIDE tracker (it does not touch the heat-map flashes / limits list / sync lights) feeds FlowRead; every confluence zone (2+ sources) is logged and judged by the price path against a control level. Export: chart settings -> "Export zone test log"; judged offline by modules/zone_eval.py. Description, not a signal.
+    try { const bids = (b.deep ? b.deep.bids : b.bids) || [], asks = (b.deep ? b.deep.asks : b.asks) || []; if (!bids.length || !asks.length) return; const fr = this.zfr = this.zfr || FlowRead.newState(); fr.big = settings.big; FlowRead.update(fr, {t, bids, asks}, this.flowT || []);
+      if (t - (this._zlT || 0) < 600) return; this._zlT = t; const m_ = (bids[0].p + asks[0].p)/2; if (!isFinite(m_) || !m_) return;
+      const R = FlowRead.read(fr, {now:t, snap:{t, bids, asks}, trades:(this.flowT || []).filter(x => x.t >= t - 120000), events:(fr.ev || []).slice(), fmtP:v => fmtP(v)}); if (!R) return;
+      const zl = this.zlog = this.zlog || {recs:store.get(LS+"_zlog_"+this.sym, [])}; (R.zones || []).forEach(z => ZoneLog.add(zl, z, m_, t)); ZoneLog.step(zl, m_, t);
+      if (t - (this._zlS || 0) > 15000){ this._zlS = t; store.set(LS+"_zlog_"+this.sym, zl.recs); } } catch(e){} },
   domAdd(b){
-    this.lastBook = b; this.bkTrack(b); if (this.domOn) { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Record heatmap history only while the order-flow book layer is enabled
+    this.lastBook = b; this.zlTick(b, nowS()); this.bkTrack(b); if (this.domOn) { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Record heatmap history only while the order-flow book layer is enabled
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
     (b.asks || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"a"}); });
@@ -3960,6 +3966,7 @@ class Panel {
       {id:"llt", label:Lg("XPIX targets table (show / hide)","جدول أهداف XPIX (إظهار / إخفاء)"), tip:Lg("The targets table of the MTF Liquidity Levels & Targets indicator (bottom right of the chart). Switch it off to keep only the lines and the target number.","جدول الأهداف الخاص بمؤشر XPIX (أسفل يمين الشارت). أغلقه لو عايز الخطوط ورقم الهدف بس."), get:() => ch().llTbl !== false, set:v => { ch().llTbl = v; this.state.llt = v; ch().draw(); }},
       {id:"dcol", label:Lg("Order-flow column (heat map + bubbles)","عمود Order Flow (هيت ماب + فقاعات)"), tip:Lg("A separate column right of the price axis on the same price scale: a yellow liquidity heat map of resting orders from the order book (stronger = bigger orders, also far from the price) and bubbles of what actually traded at each price (green = buying, red = selling). The latest candle moves to the middle of the chart. Both fill up live while this chart is open (OKX gives no order-book history).","عمود منفصل يمين محور السعر على نفس مقياس السعر: هيت ماب أصفر للأوامر الواقفة في دفتر الأوامر (أقوى = أوامر أكبر، حتى لو بعيدة عن السعر) وفقاعات للي اتنفذ فعلاً عند كل سعر (أخضر شراء، أحمر بيع). آخر شمعة بتروح لنص الشارت. الاتنين بيتبنوا لايف وانت فاتح الشارت (OKX مبتدّيش تاريخ لدفتر الأوامر)."), get:() => ch().colOn, set:v => { const c_ = ch(); c_.colOn = v; this.state.dcol = v; if (v){ c_.domOn = c_.bubOn = true; this.state.dom = this.state.bub = true; } c_.fit(); }},
       {id:"ofg", label:Lg("Order-flow gauge (buy / sell pressure)","مقياس ضغط الشراء والبيع (Order Flow)"), tip:Lg("Show or hide the pressure gauge in the order-flow column. You can also hide it with its ✕.","إظهار أو إخفاء مقياس الضغط في عمود Order Flow. تقدر كمان تخفيه بزر ✕ بتاعه."), get:() => ch().gaOn !== false, set:v => { ch().gaOn = v; this.state.ofg = v; ch().draw(); }},
+      {id:"zlog", label:Lg("Export zone test log (JSON)","تصدير سجل اختبار المناطق (JSON)"), tip:Lg("Downloads the forward-test records of the confluence zones of this symbol (kept in this browser). The Technical Office > Flow lab judges them against control levels.","بينزّل سجل الاختبار الأمامي لمناطق الالتقاء للرمز ده (محفوظ في المتصفح). المكتب الفني ← معمل الأوردر فلو بيحكم عليه مقابل مستويات كنترول."), get:() => false, set:v => { if (v) exportZoneLog(ch()); }},
       {id:"ofs", label:Lg("Order-flow card (lights, OI, setups)","كارت Order Flow (الإشارات، OI، الأفكار)"), tip:Lg("Show or hide the card under the order-flow column. You can also hide it with its ✕.","إظهار أو إخفاء الكارت تحت عمود Order Flow. تقدر كمان تخفيه بزر ✕ بتاعه."), get:() => ch().scOn !== false, set:v => { ch().scOn = v; this.state.ofs = v; ch().draw(); }},
       {id:"div", label:Lg("Divergence lines (RSI / MACD / Volume)","خطوط الدايفرجنس (RSI / MACD / الفوليوم)"), tip:Lg("Draws regular bullish (green) and bearish (red) divergences on the RSI and MACD panes and on the volume bars: price makes a new swing extreme but the indicator (or volume) does not confirm. Needs the RSI / MACD panes switched on.","يرسم الدايفرجنس العادي الصاعد (أخضر) والهابط (أحمر) على بانل RSI وMACD وعلى أعمدة الفوليوم: السعر يعمل قمة/قاع جديد والمؤشر (أو الفوليوم) ما يأكدش. لازم بانل RSI / MACD يكونوا شغالين."), get:() => ch().divOn, set:v => { ch().divOn = v; this.state.div = v; }},
       {id:"mt5", label:Lg("MT5 pack (MA ribbon + SAR + fractals)","حزمة MT5 (ريبون MA + SAR + فراكتال)"), tip:Lg("Copied from the MT5 phone chart: 5 moving averages (periods adjustable), Parabolic SAR as yellow diamonds, and Williams fractals as red/green arrows. The exact MT5 periods are not known - set them in the settings.","منقولة من شارت MT5 على الموبايل: 5 متوسطات متحركة (الفترات قابلة للتعديل)، وParabolic SAR كمعينات صفراء، وفراكتال ويليامز كأسهم حمرا/خضرا. فترات MT5 الحقيقية مش معروفة - اضبطها من الإعدادات."), get:() => ch().mt5On, set:v => { ch().mt5On = v; this.state.mt5 = v; }, sty:"mt5", params:[P("sar","SAR on (1/0)",0,1,1), P("step","SAR step",0.005,0.1,0.005), P("max","SAR max",0.05,1,0.05), P("frc","Fractals on (1/0)",0,1,1), P("fr","Fractal bars each side",1,5,1), P("rib","MA ribbon on (1/0)",0,1,1), P("ema","MA type 0=SMA 1=EMA",0,1,1), P("p1","MA 1",2,400,1), P("p2","MA 2",2,400,1), P("p3","MA 3",2,400,1), P("p4","MA 4",2,400,1), P("p5","MA 5",2,400,1)]},
@@ -5467,6 +5474,148 @@ Ws.fmtPop = anchor => {
     const c2 = el("input"); c2.type = "checkbox"; c2.checked = Fmt.cmp; c2.onchange = () => { Fmt.cmp = c2.checked; apply(); }; row(Lg("Compact sizes (K / M)","أحجام مختصرة (K / M)"), c2); }
   document.body.append(pop); setTimeout(() => { const off = ev => { if (!pop.contains(ev.target) && ev.target !== anchor){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; document.addEventListener("pointerdown", off, true); }, 0);
 };
+/* FLOWREAD:BEGIN - pure functions (no DOM): ONE wall tracker shared by the heat-map flashes, the limits list and the sync lights, plus the plain-language reading of the order book + tape + limits. Tested by tests/test_flow_read.py (node). Every sentence it produces DESCRIBES what was seen in the last minutes; it never predicts (research: no order-flow signal is proven net of costs, so this is context). Limits stated on purpose: snapshots (1-2 s) miss orders placed and pulled between two polls; one venue is a partial view. */
+const FlowRead = (() => {
+  const med = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
+  const tickOf = ps => { const s = [...new Set(ps)].sort((a, b) => a - b); let t = Infinity; for (let i = 1; i < s.length; i++){ const d = s[i] - s[i-1]; if (d > 1e-12 && d < t) t = d; } return t === Infinity ? 0 : t; };
+  const newState = () => ({walls:new Map(), prevT:0, prev:null, mids:[], big:5, ev:[]});
+  // snap = {t, bids:[{p,q}], asks:[{p,q}]} (any order); trades = [{t,p,q,side:"Buy"|"Sell"}] (any age: only prints after the previous snapshot count).
+  // -> events [{t, kind:"PLACED"|"PULLED"|"FILLED"|"REFILL", side:"bid"|"ask", p, q, age (ms the wall had rested), dist (fraction of mid), ratio (printed qty / vanished qty), near (price had been approaching)}]
+  function update(st, snap, trades, opt){
+    const big = (opt && opt.big) || st.big || 5, bids = snap.bids || [], asks = snap.asks || [];
+    if (!bids.length || !asks.length) return [];
+    let bb = -Infinity, ba = Infinity; bids.forEach(x => { if (x.p > bb) bb = x.p; }); asks.forEach(x => { if (x.p < ba) ba = x.p; });
+    if (!(bb < ba)) return [];
+    const t = snap.t, mid = (bb + ba)/2, all = bids.concat(asks), m = med(all.map(x => x.q));
+    let lo = Infinity, hi = -Infinity; all.forEach(x => { if (x.p < lo) lo = x.p; if (x.p > hi) hi = x.p; });
+    const tk = tickOf(all.map(x => x.p)) || mid*1e-4, sizeAt = new Map(); all.forEach(x => sizeAt.set(x.p, (sizeAt.get(x.p) || 0) + x.q));
+    const tr = (trades || []).filter(x => x.t > st.prevT && x.t <= t + 1000);
+    st.mids.push([t, mid]); while (st.mids.length && t - st.mids[0][0] > 60000) st.mids.shift();
+    const midAgo = ms => { let r = st.mids[0] ? st.mids[0][1] : mid; for (const [tt, mm] of st.mids){ if (t - tt >= ms) r = mm; else break; } return r; };
+    const tradedAt = p => tr.reduce((a, x) => a + (Math.abs(x.p - p) <= tk*0.6 ? x.q : 0), 0);
+    let mx = 0; all.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005 && x.q > mx) mx = x.q; });
+    const thr = Math.max(big*m, ((opt && opt.rel) || st.rel || 0.25)*mx);   // a wall must be big against the typical level AND a real share (25 %) of the biggest level near price: on a 2000-level crypto ladder 5 x median is a few cents of BTC that flicker all the time
+    const cur = new Map(); bids.forEach(x => { if (m > 0 && x.q >= thr) cur.set("bid|"+x.p, x.q); }); asks.forEach(x => { if (m > 0 && x.q >= thr) cur.set("ask|"+x.p, x.q); });
+    const events = [], pw = st.prev;
+    const ev = (kind, w, q, extra) => { const dist = Math.abs(w.p - mid)/mid, d0 = Math.abs(w.p - midAgo(10000))/midAgo(10000);
+      events.push(Object.assign({t, kind, side:w.side, p:w.p, q, age:t - w.first, dist, near:d0 > dist*1.25}, extra || {})); };
+    cur.forEach((q, k) => {
+      const w = st.walls.get(k);
+      if (!w){ const i = k.indexOf("|"), side = k.slice(0, i), p = +k.slice(i + 1), seen = !!pw && p >= pw.lo && p <= pw.hi;   // seen: the previous snapshot already covered this price, so it is a genuinely new order (not a level that entered the book window because price moved)
+        const nw = {side, p, first:t, last:t, q, qMax:q, n:1, refills:0, lastRefill:0, born:seen ? "placed" : "entered"}; st.walls.set(k, nw); if (seen) ev("PLACED", nw, q); return; }
+      w.n++; w.last = t; const ex = tradedAt(w.p);
+      if (q < 0.6*w.q){ const drop = w.q - q, ratio = ex/drop; ev(ratio >= 0.5 ? "FILLED" : "PULLED", w, drop, {ratio:+ratio.toFixed(2), partial:true}); }
+      else if (ex >= 0.5*w.q && q >= 0.8*w.q && t - w.lastRefill > 10000){ w.refills++; w.lastRefill = t; ev("REFILL", w, ex, {refills:w.refills}); }   // hit by prints and the shown size is back: a refill (absorption-like), never called an iceberg
+      w.q = q; if (q > w.qMax) w.qMax = q;
+    });
+    st.walls.forEach((w, k) => {
+      if (cur.has(k)) return;
+      if (w.p < lo || w.p > hi){ st.walls.delete(k); return; }   // left the visible ladder because price moved: not an event
+      const now_ = sizeAt.get(w.p) || 0;
+      if (now_ >= 0.6*w.q){ if (now_ < thr*0.7) st.walls.delete(k); else w.q = now_; return; }   // only the 'big' bar moved (median changed): not an event
+      const drop = w.q - now_, ratio = tradedAt(w.p)/drop; ev(ratio >= 0.5 ? "FILLED" : "PULLED", w, drop, {ratio:+ratio.toFixed(2)}); st.walls.delete(k);
+    });
+    st.prev = {lo, hi, t}; st.prevT = t; st.ev.push(...events); if (st.ev.length > 300) st.ev.splice(0, 100);
+    return events;
+  }
+  const fq = q => q >= 1e6 ? (q/1e6).toFixed(1)+"M" : q >= 1000 ? (q/1000).toFixed(1)+"k" : q >= 10 ? q.toFixed(0) : q.toFixed(2);
+  const fa = ms => ms < 90000 ? Math.round(ms/1000)+" s" : Math.round(ms/60000)+" m";
+  const defP = p => p >= 1000 ? p.toFixed(1) : p >= 1 ? p.toFixed(3) : p.toPrecision(4);
+  // ctx = {now, snap:{t,bids,asks}, trades:[{t,p,q,side,tier}], events:[engine events + {kind:"ABSORB", side, p, q, t}], fmtP}
+  // -> {tilt:{book,tape,lim,dir,label}, lines:[{sev, side:"bid"|"ask"|null, p, en, ar}], facts}
+  function read(st, ctx){
+    const now = ctx.now, fp = ctx.fmtP || defP, snap = ctx.snap, lines = [], F = {};
+    const stale = snap ? (now - snap.t)/1000 : null;
+    let bb = -Infinity, ba = Infinity; if (snap){ (snap.bids || []).forEach(x => { if (x.p > bb) bb = x.p; }); (snap.asks || []).forEach(x => { if (x.p < ba) ba = x.p; }); }
+    const mid = isFinite(bb) && isFinite(ba) ? (bb + ba)/2 : null; F.mid = mid;
+    if (stale != null && stale > 6) lines.push({sev:5, side:null, p:null, en:"Book data is "+Math.round(stale)+" s old: the reading is unreliable", ar:"داتا الدفتر قديمة ("+Math.round(stale)+" ث): القراءة مش موثوقة"});
+    if (mid == null) return {tilt:{book:null, tape:null, lim:0, dir:0, label:{en:"no book", ar:"مفيش دفتر"}}, lines, facts:F};
+    let bd = 0, ad = 0; snap.bids.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) bd += x.q; }); snap.asks.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) ad += x.q; });
+    const book = bd + ad > 0 ? (bd - ad)/(bd + ad) : null; F.book = {bid:bd, ask:ad, v:book};
+    const T = (ctx.trades || []).filter(x => x.t >= now - 120000); let b2 = 0, s2 = 0, b30 = 0, s30 = 0; T.forEach(x => { const buy = x.side === "Buy"; if (buy) b2 += x.q; else s2 += x.q; if (x.t >= now - 30000){ if (buy) b30 += x.q; else s30 += x.q; } });
+    const tape = b2 + s2 > 0 ? (b2 - s2)/(b2 + s2) : null; F.tape = {buy:b2, sell:s2, v:tape, v30:b30 + s30 > 0 ? (b30 - s30)/(b30 + s30) : null};
+    const evs = (ctx.events || []).filter(e => now - e.t <= 120000); let lim = 0, nl = 0;
+    evs.forEach(e => { if (now - e.t > 60000) return; const v = e.kind === "PLACED" ? (e.side === "bid" ? 1 : -1) : e.kind === "PULLED" ? (e.side === "bid" ? -1 : 1) : e.kind === "FILLED" ? (e.side === "ask" ? 1 : -1) : (e.kind === "ABSORB" || e.kind === "REFILL") ? (e.side === "bid" ? 1 : -1) : 0; lim += v; if (v) nl++; });
+    const sg = (v, th) => v == null ? 0 : v >= th ? 1 : v <= -th ? -1 : 0, L = [sg(book, .15), sg(tape, .2), nl ? sg(lim, 1) : 0], dir = L.every(x => x === 1) ? 1 : L.every(x => x === -1) ? -1 : 0;
+    const act = L.filter(x => x !== 0), mixed = act.some(x => x > 0) && act.some(x => x < 0);
+    const label = dir > 0 ? {en:"all three lean buying", ar:"التلاتة بيميلوا للشراء"} : dir < 0 ? {en:"all three lean selling", ar:"التلاتة بيميلوا للبيع"} : mixed ? {en:"book / tape / limits disagree", ar:"الدفتر والشريط والليمت متعارضين"} : act.length ? {en:"one of three leans "+(act[0] > 0 ? "buying" : "selling"), ar:"واحد من التلاتة بيميل لل"+(act[0] > 0 ? "شراء" : "بيع")} : {en:"balanced / quiet", ar:"متوازن / هادي"};
+    const sd = s => s === "bid" ? {en:"bid", ar:"شراء"} : {en:"ask", ar:"بيع"}, bp = d => Math.round(d*1e4);
+    const pulled = evs.filter(e => e.kind === "PULLED").sort((a, b) => b.t - a.t), near = pulled.find(e => e.dist <= 0.002 && e.age >= 8000) || pulled.find(e => e.near && e.age >= 8000);
+    if (near) lines.push({sev:4, side:near.side, p:near.p, en:sd(near.side).en[0].toUpperCase()+sd(near.side).en.slice(1)+" wall "+fq(near.q)+" at "+fp(near.p)+" pulled without trading ("+bp(near.dist)+" bp from price, rested "+fa(near.age)+")", ar:"حائط "+sd(near.side).ar+" "+fq(near.q)+" على "+fp(near.p)+" اتسحب من غير تنفيذ (على بُعد "+bp(near.dist)+"bp من السعر، قاعد "+fa(near.age).replace(" s", " ث").replace(" m", " د")+")"});
+    else if (pulled.length >= 3) lines.push({sev:2, side:null, p:null, en:pulled.length+" walls pulled in the last 2 min without trading", ar:pulled.length+" حيطان اتسحبت من غير تنفيذ في آخر دقيقتين"});
+    const ab = evs.filter(e => e.kind === "ABSORB").sort((a, b) => b.t - a.t)[0];
+    if (ab) lines.push({sev:4, side:ab.side, p:ab.p, en:"Absorption-like at "+fp(ab.p)+": "+(ab.side === "ask" ? "aggressive buying" : "aggressive selling")+" "+fq(ab.q)+" met resting orders without moving price", ar:"امتصاص محتمل عند "+fp(ab.p)+": "+(ab.side === "ask" ? "شراء" : "بيع")+" عدواني "+fq(ab.q)+" اتقابل بأوامر معلّقة من غير ما السعر يتحرك"});
+    const rf = evs.filter(e => e.kind === "REFILL").sort((a, b) => b.t - a.t)[0];
+    if (rf) lines.push({sev:4, side:rf.side, p:rf.p, en:"Refill at "+fp(rf.p)+" ("+rf.refills+"x): prints hit the "+sd(rf.side).en+" wall and its size came back", ar:"إعادة ملء عند "+fp(rf.p)+" ("+rf.refills+"×): الصفقات بتضرب حائط ال"+sd(rf.side).ar+" وحجمه بيرجع"});
+    const fl = evs.filter(e => e.kind === "FILLED" && !e.partial).sort((a, b) => b.t - a.t)[0];
+    if (fl) lines.push({sev:3, side:fl.side, p:fl.p, en:sd(fl.side).en[0].toUpperCase()+sd(fl.side).en.slice(1)+" wall "+fq(fl.q)+" at "+fp(fl.p)+" was traded through ("+Math.round(fl.ratio*100)+"% printed)", ar:"حائط "+sd(fl.side).ar+" "+fq(fl.q)+" على "+fp(fl.p)+" اتنفذ ("+Math.round(fl.ratio*100)+"% صفقات)"});
+    if (book != null && tape != null && Math.abs(book) >= .15 && Math.abs(tape) >= .2){ const same = (book > 0) === (tape > 0);
+      lines.push({sev:2, side:null, p:null, en:"Book "+(book > 0 ? "+" : "")+Math.round(book*100)+"% vs tape "+(tape > 0 ? "+" : "")+Math.round(tape*100)+"%: "+(same ? "agree" : "disagree (resting size and prints point opposite ways)"), ar:"الدفتر "+(book > 0 ? "+" : "")+Math.round(book*100)+"% والشريط "+(tape > 0 ? "+" : "")+Math.round(tape*100)+"%: "+(same ? "متفقين" : "متعارضين (الأوامر المعلقة والصفقات في اتجاهين مختلفين)")}); }
+    const walls = [...st.walls.values()].filter(w => Math.abs(w.p - mid)/mid <= 0.005 && now - w.first >= 20000); ["bid", "ask"].forEach(s => { const w = walls.filter(x => x.side === s).sort((a, b) => b.q - a.q)[0];
+      if (w) lines.push({sev:1, side:s, p:w.p, en:"Biggest "+sd(s).en+" wall "+fq(w.q)+" at "+fp(w.p)+" ("+bp(Math.abs(w.p - mid)/mid)+" bp, resting "+fa(now - w.first)+(w.refills ? ", refilled "+w.refills+"x" : "")+")", ar:"أكبر حائط "+sd(s).ar+" "+fq(w.q)+" على "+fp(w.p)+" (بُعد "+bp(Math.abs(w.p - mid)/mid)+"bp، قاعد "+fa(now - w.first).replace(" s", " ث").replace(" m", " د")+(w.refills ? "، اتملى "+w.refills+"×" : "")+")"}); });
+    const big = T.filter(x => now - x.t <= 60000).sort((a, b) => b.q - a.q)[0], mq = med(T.map(x => x.q));
+    if (big && mq > 0 && big.q >= 6*mq) lines.push({sev:1, side:null, p:big.p, en:"Largest print: "+(big.side === "Buy" ? "buy" : "sell")+" "+fq(big.q)+" at "+fp(big.p)+" "+Math.round((now - big.t)/1000)+" s ago", ar:"أكبر صفقة: "+(big.side === "Buy" ? "شراء" : "بيع")+" "+fq(big.q)+" عند "+fp(big.p)+" من "+Math.round((now - big.t)/1000)+" ث"});
+    const tk_ = tickOf((snap.bids || []).concat(snap.asks || []).map(x => x.p)) || mid*1e-4, Z = zonesOf(st, now, mid, tk_, evs, T);
+    const tolZ = Math.max(3*tk_, mid*0.0003), inZone = l => l.p != null && Z.some(z => l.p >= z.lo - tolZ && l.p <= z.hi + tolZ);
+    for (let i = lines.length - 1; i >= 0; i--) if (inZone(lines[i]) && lines[i].sev < 5) lines.splice(i, 1);   // the zone line already names these ingredients
+    Z.forEach(z => lines.push({zone:true, sev:z.strength >= 3 ? 4.5 : 3.5, side:null, p:z.p, en:"Confluence at "+fp(z.p)+": "+zTxt(z, "en")+" ("+z.strength+" of 4 sources)", ar:"منطقة التقاء عند "+fp(z.p)+": "+zTxt(z, "ar")+" ("+z.strength+" من 4 مصادر)"}));
+    if (!lines.length) lines.push({sev:0, side:null, p:null, en:"Quiet: no wall pulled or traded through, no absorption in the last 2 min", ar:"هادي: مفيش حائط اتسحب أو اتنفذ ومفيش امتصاص في آخر دقيقتين"});
+    lines.sort((a, b) => b.sev - a.sev);
+    return {tilt:{book, tape, lim, dir, label}, lines, facts:F, zones:Z};
+  }
+  // heat level 0..1 from a resting size: liquidity filter (hmCut = hide cells below this % of the biggest), colour ceiling (hmTop = % of the biggest that already gets the brightest colour), contrast (hmGam exponent, 0 = the site default `gam`), brightness (hmBri) and the old 'Heat x' (dom)
+  const level = (q, mx, OF, gam) => {
+    const top = Math.max(.05, (OF.hmTop || 100)/100), cut = Math.max(0, Math.min(.9, (OF.hmCut || 0)/100));
+    let u = q/((mx || 1)*top); if (u > 1) u = 1; if (u <= cut) return 0; u = (u - cut)/(1 - cut);
+    return Math.min(1, Math.pow(u, OF.hmGam || gam)*(OF.dom || 1)*(OF.hmBri || 1));
+  };
+  // confluence zones: where SEVERAL independent things happened at the same price in the last 2 minutes. Sources: book (a wall that rested >= 15 s), limits (a wall pulled after resting / traded through / refilled), tape (absorption-like), prints (a big print). 2+ sources = a zone of interest; it says WHERE to look, not which way price goes.
+  function zonesOf(st, now, mid, tk, evs, trades){
+    const tol = Math.max(3*tk, mid*0.0003), pts = [];
+    st.walls.forEach(w => { if (now - w.first >= 15000 && Math.abs(w.p - mid)/mid <= 0.005) pts.push({p:w.p, src:"book", side:w.side, q:w.q}); });
+    evs.forEach(e => { if (e.kind === "ABSORB") pts.push({p:e.p, src:"tape", side:e.side, q:e.q});
+      else if (e.kind === "REFILL" || e.kind === "FILLED" || (e.kind === "PULLED" && e.age >= 8000)) pts.push({p:e.p, src:"limits", side:e.side, q:e.q, kind:e.kind}); });
+    const mq = med(trades.map(x => x.q)); trades.forEach(x => { if (now - x.t <= 60000 && mq > 0 && x.q >= 6*mq) pts.push({p:x.p, src:"prints", side:x.side === "Buy" ? "ask" : "bid", q:x.q}); });
+    pts.sort((a, b) => a.p - b.p); const groups = [];
+    pts.forEach(x => { const g = groups[groups.length - 1]; if (g && x.p - g.hi <= tol && x.p - g.lo <= 2*tol){ g.items.push(x); g.hi = Math.max(g.hi, x.p); } else groups.push({lo:x.p, hi:x.p, items:[x]}); });
+    return groups.map(g => { const srcs = [...new Set(g.items.map(i => i.src))], qs = g.items.reduce((a, i) => a + i.q, 0), p = g.items.reduce((a, i) => a + i.p*i.q, 0)/(qs || 1); return {p, lo:g.lo, hi:g.hi, srcs, strength:srcs.length, items:g.items}; })
+      .filter(z => z.strength >= 2).sort((a, b) => b.strength - a.strength || b.items.length - a.items.length).slice(0, 3);
+  }
+  const zTxt = (z, lg) => z.srcs.map(s => { const it = z.items.filter(i => i.src === s);
+    if (s === "book"){ const b = it.slice().sort((a, c) => c.q - a.q)[0]; return lg === "ar" ? "حائط "+(b.side === "bid" ? "شراء" : "بيع")+" "+fq(b.q) : (b.side === "bid" ? "bid" : "ask")+" wall "+fq(b.q); }
+    if (s === "limits"){ const M = lg === "ar" ? {PULLED:"اتسحب", FILLED:"اتنفذ", REFILL:"إعادة ملء"} : {PULLED:"pulled", FILLED:"traded through", REFILL:"refill"}; return [...new Set(it.map(i => i.kind))].map(k => M[k]).join("/"); }
+    if (s === "tape") return lg === "ar" ? "امتصاص محتمل" : "absorption-like";
+    const pr = it.slice().sort((a, c) => c.q - a.q)[0]; return lg === "ar" ? "صفقة كبيرة "+(pr.side === "ask" ? "شراء" : "بيع")+" "+fq(pr.q) : "big "+(pr.side === "ask" ? "buy" : "sell")+" print "+fq(pr.q); }).join(" + ");
+  return {newState, update, read, med, tickOf, level, zonesOf};
+})();
+/* Zone forward test (owner 2026-10-23): every confluence zone (2+ sources) is logged once per 5 min with its price; afterwards the price path decides what happened at it: 'hold' = after touching the level price moved >= RBP bp BACK to the side it came from, 'break' = it went >= RBP bp THROUGH. Every zone has a CONTROL level (the mirror price across the mid at creation: an arbitrary level at the same distance) tracked the same way, so a hold rate means something only against the control's. Direction-neutral on purpose: it asks "do these zones matter at all", not "which way". Pure; the page stores the records per symbol. */
+const ZoneLog = (() => {
+  const RBP = 6, TOUCH = 1.5, TTL = 900000, DEDUP = 300000;   // reaction 6 bp, touch = within 1.5 bp or crossed, 15 min life, the same zone is not re-logged for 5 min
+  const track = () => ({touchT:0, out:null});
+  function add(log, z, mid, now){
+    if (log.recs.some(r => now - r.t < DEDUP && Math.abs(r.p - z.p)/mid*1e4 <= 4)) return null;
+    const r = {t:now, p:z.p, strength:z.strength, srcs:z.srcs.slice(), mid0:mid, from:mid > z.p ? 1 : -1, ctl:2*mid - z.p, z:track(), c:track(), last:mid};
+    log.recs.push(r); if (log.recs.length > 300) log.recs.splice(0, 50); return r;
+  }
+  function one(r, tr, L, from, mid){
+    if (tr.out) return; const bp = x => x/mid*1e4;
+    if (!tr.touchT){ const crossed = (r.last - L)*(mid - L) <= 0; if (Math.abs(bp(mid - L)) <= TOUCH || crossed) tr.touchT = 1; else return; }
+    const d = bp((mid - L)*from);   // + = back on the side price came from (a hold), - = through the level
+    if (d >= RBP) tr.out = "hold"; else if (d <= -RBP) tr.out = "break";
+  }
+  function step(log, mid, now){ log.recs.forEach(r => { if (r.done) return; if (now - r.t > TTL){ r.done = true; return; } one(r, r.z, r.p, r.from, mid); one(r, r.c, r.ctl, -r.from, mid); r.last = mid; }); }
+  function stats(log){
+    const S = {n:log.recs.length, z:{touch:0, hold:0, brk:0}, c:{touch:0, hold:0, brk:0}, pair:0, diff:0, t:0}, ds = [];
+    log.recs.forEach(r => { [["z", r.z], ["c", r.c]].forEach(([k, tr]) => { if (tr.touchT) S[k].touch++; if (tr.out === "hold") S[k].hold++; else if (tr.out === "break") S[k].brk++; });
+      if (r.z.out && r.c.out) ds.push((r.z.out === "hold" ? 1 : 0) - (r.c.out === "hold" ? 1 : 0)); });
+    S.pair = ds.length; if (ds.length > 1){ const m = ds.reduce((a, b) => a + b, 0)/ds.length, sd = Math.sqrt(ds.reduce((a, b) => a + (b - m)*(b - m), 0)/(ds.length - 1)); S.diff = +m.toFixed(3); S.t = sd > 0 ? +(m/(sd/Math.sqrt(ds.length))).toFixed(2) : 0; }
+    return S;
+  }
+  return {add, step, stats, RBP, TTL};
+})();
+/* FLOWREAD:END */
+const exportZoneLog = ch => { const zl = ch.zlog || {recs:store.get(LS+"_zlog_"+ch.sym, [])}, blob = new Blob([JSON.stringify({sym:ch.sym, built:Date.now(), rbp:ZoneLog.RBP, ttl:ZoneLog.TTL, recs:zl.recs})], {type:"application/json"}), a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "zone_log_"+ch.sym+".json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };   // the zone forward-test records, judged offline by modules/zone_eval.py
 /* ---- Flow confluence v1 (frozen rules) + its forward test. DESCRIPTION, not advice: it counts how many of four readings agree at a footprint level, writes every firing to a log and measures what price did afterwards.
    Rules (do not edit in place; a change makes a new version): 1) price is inside an untouched stacked-imbalance zone of the chart's footprint (gives the side: buy stack = up, sell stack = down);
    2) the current bar's delta has the same sign; 3) the last 60 s of tape is > 55 % in that direction; 4) an absorption by the same side within 3 rows in the last 2 min. Fires at 3 of 4 with rule 1 required; 5 min cool-down per symbol and side. ---- */
@@ -5484,9 +5633,11 @@ const FlowTest = (() => { let log = []; try { log = JSON.parse(localStorage.getI
   const save = () => { try { localStorage.setItem(LS+"_ft", JSON.stringify(log.slice(-400))); } catch(e){} }, HZ = [["m5", 300000], ["m30", 1800000], ["h1", 3600000]];
   const lastPx = sym => { const P = Ws.panels.find(p => p.chart && p.chart.sym === sym && p.chart.data.length); return P ? P.chart.data[P.chart.data.length - 1].c : null; };
   const tick = () => { if (document.hidden) return; Ws.panels.forEach(P => { if (!P.chart || !P.chart.fpOn) return; const sym = P.chart.sym, cf = Ws.flowConf(sym); if (!cf || cf.n < 3 || !cf.dir) return;
-      if (log.some(e => e.sym === sym && e.dir === cf.dir && Date.now() - e.t < 300000)) return; log.push({t:Date.now(), sym, dir:cf.dir, px:cf.px, parts:cf.parts.join("+"), v:1, r:{}}); save(); }); };
+      if (log.some(e => e.sym === sym && e.dir === cf.dir && (e.ty || "conf") === "conf" && Date.now() - e.t < 300000)) return; log.push({t:Date.now(), sym, dir:cf.dir, px:cf.px, parts:cf.parts.join("+"), v:1, ty:"conf", r:{}}); save(); });
+    Ws.panels.forEach(P => { if (!P.chart || !P.chart.fpOn || !P.chart.data.length) return; const c = P.chart, d = c.data, sym = c.sym, A = c.cvdAn(d, c.fp, 12), dv = A.div.find(x => x.i === d.length - 2);   // CVD divergence v1: only on the bar that has just closed; bull = up, bear = down
+      if (!dv) return; const dir = dv.side === "bull" ? 1 : -1; if (log.some(e => e.sym === sym && e.ty === "div" && e.bt === d[dv.i].t)) return; log.push({t:Date.now(), sym, dir, px:d[d.length - 1].c, parts:"cvd-div", v:1, ty:"div", bt:d[dv.i].t, r:{}}); save(); }); };
   const evalPending = () => { let ch = false; const now = Date.now(); log.forEach(e => HZ.forEach(([k, ms]) => { if (e.r[k] == null && now - e.t >= ms){ const px = lastPx(e.sym); if (px != null){ e.r[k] = +(((px - e.px)/e.px)*1e4*e.dir).toFixed(2); ch = true; } } })); if (ch) save(); };   // signed move in bps in the direction of the reading
-  const stats = k => { const a = log.filter(e => e.r[k] != null).map(e => e.r[k]), n = a.length; if (!n) return {n:0}; const mean = a.reduce((x, y) => x + y, 0)/n, sd = Math.sqrt(a.reduce((x, y) => x + (y - mean)**2, 0)/Math.max(1, n - 1)), t = n > 1 && sd > 0 ? mean/(sd/Math.sqrt(n)) : 0;
+  const stats = (k, ty) => { const a = log.filter(e => (e.ty || "conf") === (ty || "conf") && e.r[k] != null).map(e => e.r[k]), n = a.length; if (!n) return {n:0}; const mean = a.reduce((x, y) => x + y, 0)/n, sd = Math.sqrt(a.reduce((x, y) => x + (y - mean)**2, 0)/Math.max(1, n - 1)), t = n > 1 && sd > 0 ? mean/(sd/Math.sqrt(n)) : 0;
     const h = Math.floor(n/2), m1 = h ? a.slice(0, h).reduce((x, y) => x + y, 0)/h : 0, m2 = n - h ? a.slice(h).reduce((x, y) => x + y, 0)/(n - h) : 0;
     return {n, mean, hit:100*a.filter(v => v > 0).length/n, t, ok:n >= 100 && t > 3 && m1 > 0 && m2 > 0}; };
   setInterval(tick, 5000); setInterval(evalPending, 10000);
@@ -5497,7 +5648,7 @@ Ws.ftPop = anchor => {
   const L = FlowTest.log(), nm = {m5:"5m", m30:"30m", h1:"1h"};
   let h = '<div style="font-weight:700;margin-bottom:4px">'+esc(Lg("Flow confluence v1: forward test","توافق الفلو v1: الاختبار الأمامي"))+'</div><div class="m" style="font-size:10px;line-height:1.5;margin-bottom:6px">'+esc(Lg("Fires when 3 of 4 agree at an untouched stacked-imbalance zone: level, bar delta, tape share, absorption. A reading, not advice. It counts as evidence only with n ≥ 100, t > 3 and both halves positive.","بتسجّل لما 3 من 4 يتفقوا عند منطقة إمبالانس مكدّس لسه ما اتلمستش: المستوى، دلتا الشمعة، حصة الشريط، الامتصاص. قراءة مش نصيحة. بتعتبر دليل بس لما n ≥ 100 وt > 3 والنصين موجبين."))+'</div>';
   h += '<table class="fx"><tr><th>'+esc(Lg("after","بعد"))+'</th><th class="r">n</th><th class="r">'+esc(Lg("avg bps","متوسط نقطة"))+'</th><th class="r">'+esc(Lg("hit %","نجاح %"))+'</th><th class="r">t</th><th>'+esc(Lg("verdict","الحكم"))+'</th></tr>';
-  FlowTest.HZ.forEach(([k]) => { const st = FlowTest.stats(k); h += '<tr><td>'+nm[k]+'</td><td class="r">'+st.n+'/100</td>'+(st.n ? '<td class="r '+(st.mean >= 0 ? "g" : "rd")+'">'+st.mean.toFixed(1)+'</td><td class="r">'+st.hit.toFixed(0)+'</td><td class="r">'+st.t.toFixed(1)+'</td><td style="font-size:10px">'+esc(st.ok ? Lg("passes the gate","عدّى البوابة") : Lg("not evidence yet","لسه مش دليل"))+'</td>' : '<td class="r m">–</td><td class="r m">–</td><td class="r m">–</td><td class="m" style="font-size:10px">'+esc(Lg("waiting","مستني"))+'</td>')+'</tr>'; });
+  [["conf", Lg("Confluence","التوافق")], ["div", Lg("CVD divergence","تباعد CVD")]].forEach(([ty, tn]) => FlowTest.HZ.forEach(([k]) => { const st = FlowTest.stats(k, ty); h += '<tr><td>'+esc(tn)+' '+nm[k]+'</td><td class="r">'+st.n+'/100</td>'+(st.n ? '<td class="r '+(st.mean >= 0 ? "g" : "rd")+'">'+st.mean.toFixed(1)+'</td><td class="r">'+st.hit.toFixed(0)+'</td><td class="r">'+st.t.toFixed(1)+'</td><td style="font-size:10px">'+esc(st.ok ? Lg("passes the gate","عدّى البوابة") : Lg("not evidence yet","لسه مش دليل"))+'</td>' : '<td class="r m">–</td><td class="r m">–</td><td class="r m">–</td><td class="m" style="font-size:10px">'+esc(Lg("waiting","مستني"))+'</td>')+'</tr>'; }));
   h += '</table><div style="margin-top:6px;font-weight:600">'+esc(Lg("Latest firings","آخر التسجيلات"))+' ('+L.length+')</div>';
   h += L.length ? '<table class="fx">'+L.slice(-8).reverse().map(e => '<tr><td>'+hms(e.t)+'</td><td>'+esc(e.sym)+'</td><td class="'+(e.dir > 0 ? "g" : "rd")+'">'+(e.dir > 0 ? "▲" : "▼")+'</td><td class="r">'+fmtP(e.px)+'</td><td class="m" style="font-size:10px">'+esc(e.parts)+'</td><td class="r m">'+["m5", "m30", "h1"].map(k => e.r[k] == null ? "–" : e.r[k]).join(" / ")+'</td></tr>').join("")+'</table>' : '<div class="m">'+esc(Lg("Nothing yet. Turn the footprint on for a chart and let it run.","لسه مفيش. شغّل الفوت برنت على شارت وسيبه شغال."))+'</div>';
   const clr = el("button", null, Lg("Clear the log","امسح السجل")); clr.style.marginTop = "6px"; clr.onclick = () => { FlowTest.clear(); pop.remove(); }; clr.onpointerdown = e => e.stopPropagation();

@@ -1062,8 +1062,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub"]   # 8 = Lab Summary (owner 2026-10-28: the four lab tables merged into one page); Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms"]   # 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 10 = Prop Firms inserted before AI/Alerts
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -3496,3 +3496,11 @@ if PAGE == 4:   # perf
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:
             st.error(f"Could not read the file: {type(_e).__name__}: {_e}")
+
+if PAGE == 10:   # prop firms (added 2026-11-04)
+    try:
+        from modules.prop_firms import render_prop_firms
+        render_prop_firms()
+    except Exception as _pf_exc:
+        st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
+    st.stop()

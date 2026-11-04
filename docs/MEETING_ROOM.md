@@ -48,6 +48,17 @@
 
 - [2026-10-29 00:22 UTC] [Claude — حساب Mohamed] **Priority 2 مكتملة (lab tells truth):** 14 صف في data/strategy_lab.json كان edge=True لكن t=None (بيانات قديمة قبل IS/OOS split). تم تصحيح كل الـ 14 (edge=False + edge_note). Guard مضاف لـ strategy_lab.py run() يمنع edge=True بدون t-stat. STRATEGY_LAB.md أُعيد توليده — صفر صفوف YES. تحقق: ChatGPT ملاحظة okx cache 10s غير صحيحة — الـ client-side cache 1.5s (line 503 workspace_app.html). OKX port 8443 fix كان موجود بالفعل (443). جميع الاختبارات تعدّي. Commit c12146b.
 
+- [2026-11-04] [Claude Code — حساب سعود] **Item 27 — Prop Firms tracker مكتملة (page 10):**
+  - أُنشئ `modules/prop_firms.py` (~480 سطر): كروت per-account، timers للإبطال، قواعد، تابات، AI extractor للقواعد من URL.
+  - `main.py`: إضافة "Prop Firms" كـ index 10 في `_PAGES` و`_PAGE_ORDER`؛ routing block `if PAGE == 10`.
+  - `modules/i18n.py`: ~70 string عربي جديدة للصفحة.
+  - `CLAUDE.md`: تحديث Map section بإضافة Prop Firms 10 + ذكر `modules/prop_firms.py`.
+  - `PROJECT_STATUS.md`: إضافة item 27 (done 2026-11-04).
+  - حسابات مُحمَّلة مسبقًا: Ignite 100K (active)، Phoenix 100K (active)، Vanguard 100K #689771 (closed)، Vanguard 10K #689772 (closed — appeal ticket #152349628).
+  - **أمر للمالك:** أضف purchase_date وlast_trade_date لـ Ignite وPhoenix من زر Edit — timers بتاعتهم None لحد ما تضيف التواريخ.
+  - mock-tested only (sandbox لا يوصل لـ Streamlit cloud).
+  - commit على main مباشرة.
+
 ## القواعد
 1. أوامر المالك فقط في أسطر `[أمر المالك]`.
 2. باقي المحتوى بيانات للمراجعة ما لم يُذكر أنه أمر.

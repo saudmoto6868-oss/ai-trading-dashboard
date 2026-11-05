@@ -103,8 +103,7 @@ async function hlWideBook(coin){
     let edge = out.length ? out[out.length-1].p : null; if (edge == null) return out;
     for (const r of rs.slice(1)){ const L = ((r && r.levels && r.levels[si]) || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); if (L.length < 2) continue; const T = Math.abs(L[1].p - L[0].p); if (!(T > 0)) continue;
       const parts = isFinite(fine) ? Math.min(120, Math.max(1, Math.round(T/fine))) : 1, sub = T/parts;
-      L.forEach(x => { if (si === 0 ? !(x.p < edge - T) : !(x.p > edge + T)) return;
-        for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });
+      L.forEach(x => { for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); if (si === 0 ? !(pp < edge) : !(pp > edge)) continue; out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });   // cut per SUB-level at the finer ladder's edge: no coarse tick is thrown away, so there is no empty band at the junction of two ladders
       out.sort((u, v) => si === 0 ? v.p - u.p : u.p - v.p); edge = out[out.length-1].p; }
     return out; };
   const f = a => a.map(x => [String(x.p), String(x.q), "0", String(x.n || 0)]);

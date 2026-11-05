@@ -550,8 +550,7 @@ async function hlWideBook(coin){
     let edge = out.length ? out[out.length-1].p : null; if (edge == null) return out;
     for (const r of rs.slice(1)){ const L = ((r && r.levels && r.levels[si]) || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); if (L.length < 2) continue; const T = Math.abs(L[1].p - L[0].p); if (!(T > 0)) continue;
       const parts = isFinite(fine) ? Math.min(120, Math.max(1, Math.round(T/fine))) : 1, sub = T/parts;
-      L.forEach(x => { if (si === 0 ? !(x.p < edge - T) : !(x.p > edge + T)) return;
-        for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });
+      L.forEach(x => { for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); if (si === 0 ? !(pp < edge) : !(pp > edge)) continue; out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });   // cut per SUB-level at the finer ladder's edge: no coarse tick is thrown away, so there is no empty band at the junction of two ladders
       out.sort((u, v) => si === 0 ? v.p - u.p : u.p - v.p); edge = out[out.length-1].p; }
     return out; };
   const f = a => a.map(x => [String(x.p), String(x.q), "0", String(x.n || 0)]);
@@ -3785,9 +3784,10 @@ const OFM = {
     const sample = []; for (let yy = 2; yy < ph; yy += 5){ const price = pr(yy); for (let k = Math.max(0, snaps.length - 60); k < snaps.length; k += 5){ const v = val(snaps[k], price); if (v > 0) sample.push(v); } }
     sample.sort((a, b) => a - b); const vmax = sample.length ? sample[Math.min(sample.length - 1, Math.floor(sample.length*0.97))] : 1;
     const tmp = OFM._tmp = OFM._tmp || document.createElement("canvas"); if (tmp.width !== pw || tmp.height !== ph){ tmp.width = pw; tmp.height = ph; } const tc = tmp.getContext("2d"), img = tc.createImageData(pw, ph), d = img.data, PAL = OFM.PAL, inv = vmax > 0 ? 1/vmax : 1; let j = 0;
-    const ghostT = snaps[0].t; let ghostPx = 0;   // before the first snapshot there is NO history (the page just opened): the first book is shown dimmed as a ghost so the liquidity landscape is visible at once; it is marked, never passed off as real history
-    for (let x = 0; x < pw; x++){ const tcol = t0 + (x + .5)/pw*win; while (j + 1 < snaps.length && snaps[j+1].t <= tcol) j++; const ghost = tcol < ghostT, sn = ghost ? snaps[0] : snaps[j], ok = sn && (ghost || (sn.t <= tcol && tcol - sn.t < 9000)); if (ghost) ghostPx = x;
-      for (let y = 0; y < ph; y++){ const o4 = (y*pw + x)*4; let ci = 0; if (ok){ const v = val(sn, pr(y)); if (v > 0){ const u = Math.sqrt(Math.min(1, v*inv)); ci = Math.max(1, Math.round(u*255*(ghost ? 0.5 : 1))); } }
+    const ghostT = snaps[0].t; let ghostPx = 0, A = 0, Bi = -1, Cj = -1; const dt = win/pw, HOLD = 120000, ns = snaps.length;   // each book HOLDS until the next one (a cell stretches sideways), up to 2 min; a pixel column covering several books shows the biggest size (no black stripes between sparse snapshots)
+    for (let x = 0; x < pw; x++){ const tcol = t0 + (x + .5)/pw*win; while (A < ns && snaps[A].t < tcol - dt/2) A++; while (Bi + 1 < ns && snaps[Bi+1].t <= tcol + dt/2) Bi++; while (Cj + 1 < ns && snaps[Cj+1].t <= tcol) Cj++;
+      const ghost = tcol < ghostT; let from, to; if (ghost){ from = to = 0; } else if (A <= Bi){ from = Math.max(A, Bi - 7); to = Bi; if (Cj >= 0 && Cj < from && tcol - snaps[Cj].t < HOLD) from = Cj; } else if (Cj >= 0 && tcol - snaps[Cj].t < HOLD){ from = to = Cj; } else { from = 1; to = 0; } if (ghost) ghostPx = x;
+      for (let y = 0; y < ph; y++){ const o4 = (y*pw + x)*4; let ci = 0; if (from <= to){ const price = pr(y); let v = 0; for (let k = from; k <= to; k++){ const w = val(snaps[k], price); if (w > v) v = w; } if (v > 0){ const u = Math.sqrt(Math.min(1, v*inv)); ci = Math.max(1, Math.round(u*255*(ghost ? 0.5 : 1))); } }
         d[o4] = PAL[ci*3]; d[o4+1] = PAL[ci*3+1]; d[o4+2] = PAL[ci*3+2]; d[o4+3] = 255; } }
     tc.putImageData(img, 0, 0); c.drawImage(tmp, 0, 0);
     // axes: price (right of the plot), time (bottom)

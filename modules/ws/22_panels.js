@@ -172,14 +172,14 @@ class Panel {
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
     const shotB = el("button",null,"📷"); shotB.title = Lg("Screenshot of the chart (PNG, download)","لقطة شاشة للشارت (PNG، تتحمل)");
     shotB.onclick = () => dl(this.chart.cv.toDataURL("image/png"), fname("png"));
-    const recB = el("button",null,"🎥"); recB.title = Lg("Record the chart as video (WebM, download when stopped)","سجّل فيديو للشارت (WebM، يتحمل لما توقف)"); let rec = null, chunks = [];
+    const recB = el("button",null,"🎥"); recB.title = Lg("Record the chart as video (MP4 / WebM, highest quality, download when stopped)","سجّل فيديو للشارت (WebM، يتحمل لما توقف)"); let rec = null, chunks = [], recExt = "webm";
     recB.onclick = () => {
       if (rec){ rec.stop(); return; }
       if (!window.MediaRecorder || !this.chart.cv.captureStream){ alert(Lg("Video recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return; }
-      const mime = ["video/webm;codecs=vp9","video/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
-      rec = new MediaRecorder(this.chart.cv.captureStream(30), {mimeType: mime, videoBitsPerSecond: 8000000}); chunks = [];
+      const stream = this.chart.cv.captureStream(60), q = Snap.hq(stream, {w:this.chart.cv.width, h:this.chart.cv.height, fps:60}), mime = q.mime; recExt = q.ext;   // best codec + a bitrate that follows the canvas size (was a fixed 8 Mbps VP9)
+      rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: q.bps}, mime ? {mimeType: mime} : {})); chunks = [];
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-      rec.onstop = () => { dl(URL.createObjectURL(new Blob(chunks, {type: "video/webm"})), fname("webm")); rec = null; recB.classList.remove("on"); recB.textContent = "🎥"; };
+      rec.onstop = () => { dl(URL.createObjectURL(new Blob(chunks, {type: recExt === "mp4" ? "video/mp4" : "video/webm"})), fname(recExt)); rec = null; recB.classList.remove("on"); recB.textContent = "🎥"; };
       rec.start(1000); recB.classList.add("on"); recB.textContent = "⏹";
     };
     this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";

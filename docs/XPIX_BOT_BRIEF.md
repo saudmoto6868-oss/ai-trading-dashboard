@@ -39,3 +39,6 @@
 ## اللي محتاج رد من الفريق
 - هل Hermes هيفضل مسؤول عن جروب Hermes، وبوت XPiX يشتغل لوحده بتوكن منفصل؟
 - مكان تشغيل المتصفح اللي فاتح المنصة (مفتوح طول الوقت؟) واللينك اللي بيفتحه.
+
+## تحديث 2026-11-05: `window.XCMD` اتبنت (PR منفصل، mock-tested)
+الأوامر (كلها بترجّع `{ok:true,...}` أو `{ok:false,err}`): `state()`, `list()`, `setSymbol(sym)`, `setTf(tf)`, `toggle(indId,on)`, `draw({kind:"hline"|"vline"|"trend"|"rect"|"text", price | points:[{t,p}], text, color:"#rrggbb", label})`, `clearDrawings()`, `addPanel(type)`, `closePanel(id)`, `await shot(scale)` (PNG data URL). الرموز والفريمات محصورة في قايمة التطبيق، وaddPanel بيرفض `web`/`video`/`tvc`. مفيش eval ولا أي أمر صفقات. الاستدعاء من Playwright: `frame.evaluate(() => XCMD.state())` جوه iframe المنصة. الملف: `modules/ws/27_xcmd.js`، الاختبار: `tests/browser/xcmd_mock.js`.

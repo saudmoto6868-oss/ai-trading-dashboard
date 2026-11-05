@@ -56,3 +56,6 @@
 - أي متصفح جديد / بروفايل Playwright فاضي / أتمتة (بوت XPiX عن طريق `XCMD`) بتفتح الصفحة تلاقي الستاندر، مش workspace فاضي. `XCMD.state()` بيرجّع 8 بانلز. الرمز يتغيّر بـ`XCMD.setSymbol(sym)` (الجروب #1 كله بيتبع)، والفريمات بـ`XCMD.setTf`.
 - **+ Widget ← Layout:** "Standard: 4 charts + order flow" (يرجّع الستاندر)، "Save current layout as my standard" (يحفظ التخطيط الحالي في `localStorage` للمتصفح ده ويبقى هو الستاندر ليه)، "Blank" (workspace فاضي، وبيفضل فاضي بعد الـReload).
 - الموبايل (أول زيارة) لسه بياخد التخطيط القصير القديم (`Ws.defaultsMobile`).
+
+## تحديث 2026-11-05: XCMD خطوة 2 (XPiX Agent)
+- `params(ind)` يرجّع كل إعدادات المؤشر (نفس حقول ⚙)، و`setParam(ind,key,value)` يغيّر واحد بتحقق (مدى/اختيارات/#rrggbb) ويتحفظ مع التقسيمة، و`layout('standard'|'blank'|'save')`. الأدوات: `tools/xpix_agent/` (README). Mock-tested فقط.

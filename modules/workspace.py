@@ -204,6 +204,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "fhToken": str(fh_token or ""),
         "fpServer": _fp_server(),
         "gannoos": _gann_oos(),
+        "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
@@ -222,6 +223,29 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
         return {"sym": symbol, "tf": {"1h": "1H", "1d": "1D", "1w": "1W"}.get(tf, tf), "rows": rows}
     except Exception:
         return None
+
+
+def _build_id() -> str:
+    """Short git commit of the running code ('' when it cannot be read): shown in the Workspace bar so the owner can see at once which build is live (after a merge the app needs a few minutes + a Reboot)."""
+    import re
+    try:
+        import subprocess
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(Path(__file__).resolve().parent.parent), capture_output=True, text=True, timeout=3)
+        v = r.stdout.strip()
+        if r.returncode == 0 and re.fullmatch(r"[0-9a-f]{6,40}", v):
+            return v
+    except Exception:
+        pass
+    try:   # no git binary: read .git/HEAD (and the ref file it points to)
+        g = Path(__file__).resolve().parent.parent / ".git"
+        h = (g / "HEAD").read_text().strip()
+        if h.startswith("ref:"):
+            h = (g / h.split(" ", 1)[1].strip()).read_text().strip()
+        if re.fullmatch(r"[0-9a-f]{40}", h):
+            return h[:7]
+    except Exception:
+        pass
+    return ""
 
 
 def _fp_server() -> str:

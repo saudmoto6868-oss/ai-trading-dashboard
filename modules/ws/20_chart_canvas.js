@@ -125,7 +125,10 @@ class CandleChart {
   wheel(e){
     const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
     if (mx > this.W-this.axw){ this._bookFit = false; this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), this.candleY()); this.drawSoon(); return; }   // wheel over the price axis: anchored at the cursor, at most ~15 % a notch
-    if (mx > this.PR && this.colWide > 0 && this.domOn && !e.shiftKey){ const cur = this.colWideR || this._wideAutoR || 0.02; this.colWideR = Math.max(0.004, Math.min(OFM.SPAN, cur*Math.exp(e.deltaY*0.0015))); this.onWideR && this.onWideR(); this.drawSoon(); return; }   // WIDE column: wheel = PRICE range (zoom out to see walls hundreds of dollars away), Shift + wheel = time window
+    if (mx > this.PR && this.colWide > 0 && this.domOn){   // WIDE column: wheel = TIME (the map stretches / squeezes sideways around the newest edge), Shift + wheel = PRICE range (zoom out to walls hundreds of dollars away)
+      if (e.shiftKey){ const cur = this.colWideR || this._wideAutoR || 0.02; this.colWideR = Math.max(0.004, Math.min(OFM.SPAN, cur*Math.exp(e.deltaY*0.0015))); this.onWideR && this.onWideR(); }
+      else { const cur = this.flowSpan || this._wideWin || 120000; this.flowSpan = Math.max(15000, Math.min(1800000, cur*Math.exp(e.deltaY*0.0012))); }
+      this.drawSoon(); return; }
     if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.drawSoon(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
     if (e.shiftKey){ this._bookFit = false; this.freezeY(); this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }   // Shift + wheel = price zoom, price scale stays where you put it
     const anchor = this.idx(mx), f = Math.exp(-Math.max(-120, Math.min(120, e.deltaY))*0.0015);   // one wheel event can zoom at most ~20 % (high-resolution wheels / trackpads send huge deltas)
@@ -150,7 +153,7 @@ class CandleChart {
     try { this.cv.setPointerCapture(e.pointerId); } catch(_){} this.cv.focus({preventScroll:true});
     { const r0 = this.cv.getBoundingClientRect(), mx0 = (e.clientX - r0.left)/this.S, my = (e.clientY - r0.top)/this.S, hit = this.layoutHit(mx0, my);
       if (hit){
-        if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.colWideR = 0; this.onWideR && this.onWideR(); this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
+        if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.colWideR = 0; this.flowSpan = 0; this.onWideR && this.onWideR(); this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
         if (hit.kind === "axw"){ this.axDrag = {x:e.clientX, w:this.axw}; return; }
         if (hit.kind === "up" || hit.kind === "dn"){ this.swapSub(hit.k, hit.kind === "up" ? -1 : 1); return; }
         if (hit.kind === "x"){ this[hit.k+"On"] = false; this.onSubOff && this.onSubOff(hit.k); this.resize ? this.resize() : 0; this.draw(); return; }   // ✕ = turn the pane off

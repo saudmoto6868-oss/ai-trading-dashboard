@@ -97,7 +97,8 @@ const HL_MS = {"1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":7
    STITCHED: the native 20 levels, then the coarser ladders only BEYOND the finer one's edge (one coarse tick skipped, so nothing is counted twice), each coarse level spread over its range in fine steps (size / parts) so the
    heat map is continuous. Gold: about +-2000 USD with the nSigFigs 2 ladder (the sub-levels are <= 1 USD apart so the map has no stripes). Coarse ladders are reused for 4 s (weight 2 each). Answers in OKX's shape like the native call. */
 async function hlWideBook(coin){
-  const NS = [5, 4, 3, 2], rs = await Promise.all([HL.post({type:"l2Book", coin}), ...NS.map(n => HL.post({type:"l2Book", coin, nSigFigs:n}, 4000).catch(() => null))]);
+  const NS = [5, 4, 3, 2], CL = HL.coarse = HL.coarse || {};   // a coarse ladder that times out / is rate-limited falls back to its last good copy (< 2 min old): without it the snapshot had NO far walls and the map showed a black stripe until the next good one
+  const rs = await Promise.all([HL.post({type:"l2Book", coin}), ...NS.map(async n => { const k = coin+"|"+n; try { const v = await HL.post({type:"l2Book", coin, nSigFigs:n}, 4000); if (v && v.levels) CL[k] = {t:Date.now(), v}; return v; } catch(e){ const c = CL[k]; return c && Date.now() - c.t < 120000 ? c.v : null; } })]);
   const base = rs[0], lv0 = (base && base.levels) || [[], []];
   const side = si => { const out = (lv0[si] || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); let fine = Infinity; for (let i = 1; i < out.length; i++){ const d = Math.abs(out[i].p - out[i-1].p); if (d > 1e-12 && d < fine) fine = d; }
     let edge = out.length ? out[out.length-1].p : null; if (edge == null) return out;

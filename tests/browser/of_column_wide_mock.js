@@ -1,5 +1,5 @@
 // MOCK-TESTED ONLY (mocked Hyperliquid candles + wide l2Book). WIDE mode of the chart's order-flow column (owner 2026-11-05: the column covered only the chart's few dollars; wants the whole book with
-// support / resistance): default ON, own price scale over the whole book (never narrower than the chart), snapshots collected, labelled S/R lines, switch off = old chart-aligned column.
+// support / resistance): default ON, own price scale over the whole book; wheel = time (horizontal stretch), Shift + wheel = price range (never narrower than the chart), snapshots collected, labelled S/R lines, switch off = old chart-aligned column.
 // Run: NODE_PATH=$(npm root -g) node tests/browser/of_column_wide_mock.js /tmp/ws.html [shot.png]
 const { chromium } = require('playwright');
 (async () => {
@@ -20,9 +20,11 @@ const { chromium } = require('playwright');
   await p.evaluate(() => { Ws.build([['chart', { x: 10, y: 10, w: 900, h: 520 }, { sym: 'HL:xyz:GOLD', tf: '5m', group: 0, dcol: true, dom: true, bub: true }]]); Ws.save(); }); await p.waitForTimeout(9000);
   const r = await p.evaluate(async () => { const P = Ws.panels.find(q => q.type === 'chart'), ch = P.chart, out = { wide: ch.colWide, snaps: ch.wom.snaps.length, cov: ch.wom.snaps.length ? ch.wom.snaps[ch.wom.snaps.length-1].cov : 0, cw: ch.cw() };
     const cv = ch.cv; const c2 = cv.getContext('2d'), s = cv.width / (ch.W || cv.width), x0 = Math.round(ch.PR * s), w = Math.round(out.cw * s), d = c2.getImageData(x0 + 4, 20, w - 8, Math.round((ch.PB || 300) * s) - 40).data; let col = 0; for (let i = 0; i < d.length; i += 4 * 9) if (d[i] + d[i+1] + d[i+2] > 150) col++; out.colored = col;
-    out.autoR = ch._wideAutoR; { const rc = ch.cv.getBoundingClientRect(); ch.wheel({ clientX: rc.left + ch.PR + 20, clientY: rc.top + 100, deltaY: 400, shiftKey: false, preventDefault(){} }); } out.manualR = ch.colWideR; out.savedR = P.state.cwr; { const rc = ch.cv.getBoundingClientRect(); ch.wheel({ clientX: rc.left + ch.PR + 20, clientY: rc.top + 100, deltaY: 4000, shiftKey: false, preventDefault(){} }); } out.maxR = ch.colWideR;
+    out.autoR = ch._wideAutoR; const rc = ch.cv.getBoundingClientRect(), W = (dy, sh) => ch.wheel({ clientX: rc.left + ch.PR + 20, clientY: rc.top + 100, deltaY: dy, shiftKey: sh, preventDefault(){} });
+    W(400, false); out.span1 = ch.flowSpan; W(-400, false); out.span2 = ch.flowSpan; out.priceUntouched = ch.colWideR === 0;   // plain wheel = TIME only
+    W(400, true); out.manualR = ch.colWideR; out.savedR = P.state.cwr; W(4000, true); out.maxR = ch.colWideR;   // Shift + wheel = PRICE range
     out.item = !!(P.indItems && P.indItems.find(i => i.id === 'cwide')); const it = P.indItems.find(i => i.id === 'cwide'); it.set(false); out.off = ch.colWide; out.saved = P.state.cwide; ch.draw(); it.set(true); out.on = ch.colWide; return out; });
   if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
-  const ok = r.wide === 1 && r.snaps >= 3 && r.cov > 3 && r.autoR >= 0.09 && r.manualR > r.autoR && r.savedR === r.manualR && r.maxR >= 0.29 && r.colored > 150 && r.item && r.off === 0 && r.saved === false && r.on === 1 && errs.length === 0;
+  const ok = r.wide === 1 && r.snaps >= 3 && r.cov > 3 && r.autoR >= 0.09 && r.span1 > 0 && r.span2 < r.span1 && r.priceUntouched && r.manualR > r.autoR && r.savedR === r.manualR && r.maxR >= 0.29 && r.colored > 150 && r.item && r.off === 0 && r.saved === false && r.on === 1 && errs.length === 0;
   console.log(JSON.stringify(r), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

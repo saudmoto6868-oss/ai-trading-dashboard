@@ -1,0 +1,27 @@
+name: Workspace parts sync
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "modules/ws/**"
+      - "modules/workspace_app.html"
+      - "scripts/build_workspace.py"
+      - ".github/workflows/workspace-parts-sync.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parts-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: workspace_app.html must equal the build of modules/ws/
+        run: python scripts/build_workspace.py --check

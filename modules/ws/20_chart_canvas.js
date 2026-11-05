@@ -14,7 +14,7 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.S = 1; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
-    this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.colWide = 0; this.colOwn = false; this.colWideR = 0; this.wom = {snaps:[]}; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
+    this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.colWide = 0; this.colOwn = false; this.colWideR = 0; this.flowOff = 0; this.colWideC = 0; this.wom = {snaps:[]}; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
     this.st = {vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",hmBright:1,color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5, fpMode:"bidask", fpRow:1, fpImb:3, fpStk:3, fpMin:10, fpDiag:1, fpStack:1, fpNaked:1, fpDelta:1, fpAuc:1}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
@@ -156,7 +156,7 @@ class CandleChart {
     try { this.cv.setPointerCapture(e.pointerId); } catch(_){} this.cv.focus({preventScroll:true});
     { const r0 = this.cv.getBoundingClientRect(), mx0 = (e.clientX - r0.left)/this.S, my = (e.clientY - r0.top)/this.S, hit = this.layoutHit(mx0, my);
       if (hit){
-        if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.colWideR = 0; this.flowSpan = 0; this.onWideR && this.onWideR(); this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
+        if (hit.kind === "col"){ const now = Date.now(); if (this._colClick && now - this._colClick < 350){ this.colW = 0; this.colWideR = 0; this.flowSpan = 0; this.flowOff = 0; this.colWideC = 0; this.onWideR && this.onWideR(); this.onLayout && this.onLayout(); this.draw(); this._colClick = 0; return; } this._colClick = now; this.colDrag = {x:e.clientX, w:this.cw()}; return; }
         if (hit.kind === "axw"){ this.axDrag = {x:e.clientX, w:this.axw}; return; }
         if (hit.kind === "up" || hit.kind === "dn"){ this.swapSub(hit.k, hit.kind === "up" ? -1 : 1); return; }
         if (hit.kind === "x"){ this[hit.k+"On"] = false; this.onSubOff && this.onSubOff(hit.k); this.resize ? this.resize() : 0; this.draw(); return; }   // ✕ = turn the pane off
@@ -165,7 +165,8 @@ class CandleChart {
       } }
     if (this.toolDown(e)) return;
     const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
-    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-this.axw || (!this.colOwn && this.inColStrip(mx))};   // drag on the column's price strip = the same vertical zoom as dragging the chart's price axis
+    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-this.axw || (!this.colOwn && this.inColStrip(mx)), col: this.colWide > 0 && this.domOn && this.colOn && mx > this.PR && mx < this.W-this.axw && !this.inColStrip(mx)};   // col = the press started on the wide column's MAP: dragging it moves ITS time (sideways) and, with its own price scale, its price (up / down)   // drag on the column's price strip = the same vertical zoom as dragging the chart's price axis
+    if (this.drag.col){ const nw = Date.now(); if (this._mapClick && nw - this._mapClick < 350){ this.flowOff = 0; this.colWideC = 0; this._mapClick = 0; this.drawSoon(); } else this._mapClick = nw; }   // double-click on the map: back to now / the current price
   }
   move(e){
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
@@ -188,8 +189,10 @@ class CandleChart {
       if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
         const vert = e.pointerType !== "touch" || (this.drag.ty > 28 && this.drag.ty > 1.6*this.drag.tx);   // a finger: only a clearly VERTICAL drag turns the price scale manual; a sideways swipe (even a wobbly one) just moves time and never locks the scale
-        if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
-        this.r -= dx/this.bw; this.clampR(); this.checkMore(); }
+        if (this.drag.col && this.colOwn === true){ const R2 = this.colWideR || this._wideAutoR || 0.02; this.colWideC = Math.max(-OFM.SPAN, Math.min(OFM.SPAN, (this.colWideC || 0) + dy/Math.max(1, this.PB)*2*R2)); }   // own price scale: drag up / down moves the column's price window
+        else if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
+        if (this.drag.col){ const win = this._wideWin || this.flowSpan || 120000, pw = Math.max(60, this.cw() - OFM.CAX - OFM.CDP); this.flowOff = Math.max(0, Math.min(OFM.KEEP - Math.min(win, OFM.KEEP), (this.flowOff || 0) + dx*win/pw)); /* drag right = look further back in time */ }
+        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); } }
     }
     this.drawSoon();
   }

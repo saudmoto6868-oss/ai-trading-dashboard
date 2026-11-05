@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
       if (body.type === 'metaAndAssetCtxs') return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify([{ universe: [{ name: 'xyz:GOLD' }] }, [{ midPx: '4100', dayNtlVlm: '9e8', openInterest: '1e6', prevDayPx: '4090' }]]) });
       return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: '[]' }); }
     if (!/okx\.com\/api\/v5/.test(u)) return r.abort(); return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1500); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1500); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2500);
   const res = await p.evaluate(async () => { const tfs = ['1m', '3m', '5m', '13m', '15m', '30m', '1H', '2H', '3H', '4H', '6H', '7H', '8H', '12H', '1D', '3D', '1W', '1M'], out = {};
     for (const tf of tfs) { try { const rows = await candlesTf('HL:xyz:GOLD', tf, 'quick'); out[tf] = rows.length; } catch (e) { out[tf] = 'ERR ' + String(e.message || e).slice(0, 70); } } return out; });
   console.log(JSON.stringify(res), 'intervals asked', [...asked].join(','), 'errors', errs.length, errs[0] || ''); await b.close();

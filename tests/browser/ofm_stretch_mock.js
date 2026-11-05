@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); }); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); }); await p.waitForTimeout(1000);
   const r = await p.evaluate(() => { const mid = 4127, NB = OFM.NB, base = mid*(1 - OFM.SPAN), step = mid*2*OFM.SPAN/NB, now = nowS(), mk = t => { const arr = new Float32Array(NB).fill(1); const wi = Math.floor((mid + 20 - base)/step); for (let k = -1; k <= 1; k++) arr[wi + k] = 60; return { t, mid, bb: mid - .05, ba: mid + .05, base, step, arr, cov: 5 }; };
     const snaps = [mk(now - 110000), mk(now - 50000), mk(now - 8000)], cv = document.createElement('canvas'), W = 300, H = 300; cv.width = W; cv.height = H; const c = cv.getContext('2d'), opt = { compact: true, win: 120000 };
     OFM.render(c, { snaps, trades: [] }, {}, W, H, opt); const R = opt.outR, hi = mid*(1 + R), lo = mid*(1 - R), ph = H - 14, pw = W - 50 - 40, y = Math.round((hi - (mid + 20))/(hi - lo)*ph), x0 = Math.round((now - 110000 - (now - 120000))/120000*pw);

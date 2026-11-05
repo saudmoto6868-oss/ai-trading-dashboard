@@ -9,7 +9,7 @@ const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket p
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
-const acGet = () => { try { return sessionStorage.getItem("ai_ac") !== "0"; } catch(e){ return true; } };   // ON unless this tab switched it off (owner 2026-11-05: the standard layout has centred charts)   // (it was OFF by default, a free chart like TradingView: with it on every live tick and data load re-centres the view on the latest candle and undoes a manual pan; the ⊙ button turns it off)
+const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };   // OFF by default (free chart, like TradingView): with it on, every live tick and every data load re-centres the view on the latest candle and undoes a manual pan. The ⊙ button turns it on; the STANDARD layout charts start with it on (state.ac)
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
 /* ?ws_reset=1 on the page link = clear this browser's saved Workspace (layout, widget settings, drawings); the journal is kept */
 try { const q = new URLSearchParams(window.parent.location.search); if (q.get("ws_reset") === "1"){

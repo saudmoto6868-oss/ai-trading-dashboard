@@ -15,7 +15,7 @@ const { chromium } = require('playwright');
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     if (/okx\.com\/api\/v5\/public\/time/.test(u)) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: [{ ts: String(Date.now()) }] }) });
     return r.abort(); });
-  const URL = 'file://' + process.argv[2], build = sym => p.evaluate(s => { Ws.build([['chart', { x: 10, y: 10, w: 900, h: 520 }, { sym: s, tf: '5m', group: 0, dcol: true, dom: true, bub: true }]]); }, sym);
+  const URL = 'file://' + process.argv[2] + '?blank=1', build = sym => p.evaluate(s => { Ws.build([['chart', { x: 10, y: 10, w: 900, h: 520 }, { sym: s, tf: '5m', group: 0, dcol: true, dom: true, bub: true }]]); }, sym);
   await p.goto(URL); await p.waitForTimeout(800); await build('HL:xyz:GOLD'); await p.waitForTimeout(11000);
   const A = await p.evaluate(async () => { const ch = Ws.panels.find(q => q.type === 'chart').chart, sn = ch.wom.snaps; await OFM.save('HL:xyz:GOLD', sn); return { n: sn.length, first: sn[0].t, last: sn[sn.length-1].t }; });
   await p.waitForTimeout(500); await p.goto(URL); await p.waitForTimeout(800); await build('HL:xyz:GOLD'); await p.waitForTimeout(3500);

@@ -115,6 +115,7 @@ function applyLang(rebuild){
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaultsMobile().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
+  else if (/[?&]blank=1\b/.test(location.search)) Ws.build([]);   // ?blank=1 (the mock tests build their own layouts) keeps the old empty start
   else { Ws.build(Ws.defaults()); Ws.save(); }   // first visit / a fresh browser / any automation: the STANDARD layout (watch list + 4 charts with order flow + DOM / limits / tape), never an empty workspace; "Blank" in the Layout menu still gives a blank canvas
   if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
   try { welcome(); } catch(e){}

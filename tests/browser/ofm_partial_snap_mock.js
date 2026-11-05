@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); }); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); }); await p.waitForTimeout(1000);
   const r = await p.evaluate(() => { const mid = 4127, full = { bids: [], asks: [] }, near = { bids: [], asks: [] };
     for (let i = 0; i < 400; i++) { const d = 0.1 + i * 1.5; full.bids.push({ p: mid - d, q: 2 }); full.asks.push({ p: mid + d, q: 2 }); if (i < 20) { near.bids.push({ p: mid - 0.1 - i * 0.1, q: 1 }); near.asks.push({ p: mid + 0.1 + i * 0.1, q: 1 }); } }
     const f = OFM.snap({ deep: full }), part = OFM.snap({ deep: near }), kept = OFM.snap({ deep: near }, f), idx = (s, price) => Math.floor((price - s.base)/s.step);

@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 120)));
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1500); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1500); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2000);
   const res = await p.evaluate(async () => { const out = {}; for (const sym of ['Y:EURUSD=X', 'Y:COMI.CA', 'Y:2222.SR', 'Y:^CASE30']) { out[sym] = {}; for (const tf of ['1m', '5m', '15m', '30m', '1H', '2H', '4H', '6H', '1D', '1W']) { try { const r = await candlesTf(sym, tf, 'quick'); out[sym][tf] = r.length; } catch (e) { out[sym][tf] = 'ERR'; } } } return out; });
   Object.entries(res).forEach(([s, v]) => console.log(s, JSON.stringify(v))); console.log('errors', errs.length, errs[0] || ''); await b.close();
 })();

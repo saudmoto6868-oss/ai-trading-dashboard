@@ -15,7 +15,7 @@ const { chromium } = require('playwright');
     if (/candles/.test(u)) { if (bar === '1s' && /KAU/.test(u)) return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '51000', msg: 'Parameter bar error', data: [] }) });   // assumption: no 1s candles for this swap
       const ms = IV[bar] || 6e4; return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: mk(ms, 300).reverse().map(x => [String(x[0]), String(x[1]), String(x[2]), String(x[3]), String(x[4]), '5', '0', '0', '1']) }) }); }
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3000);
   const out = []; for (const sym of ['HL:xyz:GOLD', 'KAU-USDT-SWAP']) for (const tf of ['15s', '1m', '5m', '1H', '4H', '1D']) {
     const r = await p.evaluate(async ([sym, tf]) => { const P = Ws.panels.filter(q => q.type === 'chart' && q.chart)[0]; P.state.sym = sym; P.state.tf = tf; P.chart.tf = tf; P.chart.sym = sym; try { P.symSel && (P.symSel.value = sym); P.tfSel.value = tf; } catch (e) {} P.resub();
       await new Promise(z => setTimeout(z, 3500)); const c = P.chart, d = c.data, lo = Math.min(...d.map(k => k.l)), hi = Math.max(...d.map(k => k.h));

@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(1200);
   const r = await p.evaluate(() => { const ch = Ws.panels.find(q => q.type === 'chart').chart; ch.colOn = true; ch.colW = 0; const out = {};
     for (const [W, tf] of [[400, '1m'], [700, '1m'], [1000, '1m'], [1400, '1m'], [1000, '1D']]) { ch.W = W; ch.tf = tf; ch._axw = 62; out[W + tf] = { cw: ch.cw(), candlesPct: Math.round(100 * (W - 62 - ch.cw()) / W) }; } return out; });

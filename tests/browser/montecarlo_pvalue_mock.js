@@ -6,7 +6,7 @@ const { chromium } = require('playwright'); const path = require('path');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
   const p = await (await b.newContext()).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 120)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + path.resolve(process.argv[2])); await p.waitForTimeout(1500);
+  await p.goto('file://' + path.resolve(process.argv[2]) + '?blank=1'); await p.waitForTimeout(1500);
   const res = await p.evaluate(() => {
     const g = (seed, n, mu) => { let a = seed; const r = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
       return Array.from({ length: n }, () => { let s = 0; for (let i = 0; i < 12; i++) s += r(); return +(mu + (s - 6)).toFixed(3); }); };   // ~N(mu, 1) in R

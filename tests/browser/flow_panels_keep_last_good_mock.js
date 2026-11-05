@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     if (/market\/books/.test(u)) { bookCalls++; if (fail) return r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: '{}' }); const lv = (b0, s) => Array.from({ length: 60 }, (_, i) => [String(b0 + s * i), String(1 + i % 5), '0', '1']); return r.fulfill(J([{ bids: lv(60000, -1), asks: lv(60001, 1), ts: String(Date.now()) }])); }
     if (/market\/trades/.test(u)) { if (fail) return r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: '{}' }); return r.fulfill(J(Array.from({ length: 30 }, (_, i) => ({ tradeId: String(1000 + i), ts: String(Date.now() - i * 800), px: String(60000 + i), sz: '0.5', side: i % 2 ? 'buy' : 'sell' })))); }
     return r.fulfill(J([])); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(4000);
   const st = () => p.evaluate(() => { const o = {}; Ws.panels.filter(q => q.type === 'dom' || q.type === 'tape').forEach(q => { o[q.type] = { err: !!q.root.querySelector('.err'), rows: q.root.querySelectorAll('tr').length, txt: (q.root.querySelector('.err') || {}).textContent || '' }; }); return o; });
   const okS = await st(); fail = true; await p.waitForTimeout(5500); const early = await st(); await p.waitForTimeout(14000); const late = await st();

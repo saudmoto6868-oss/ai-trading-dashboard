@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
     if (/\/market\/candles/.test(u)) { const m = Math.floor(NOW / M) * M; for (let i = 0; i < 300; i++) data.push([String(m - i * M), '100', '101', '99', '100', '1', '0', '0', '1']); }
     else if (/history-trades/.test(u)) histCalls++;
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   await p.evaluate(async () => { await new Promise(r => { const q = indexedDB.deleteDatabase('xpix_fp'); q.onsuccess = q.onerror = q.onblocked = r; }); localStorage.clear(); });
   await p.reload(); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2500);
   const res = await p.evaluate(async () => { const P = Ws.panels.filter(q => q.type === 'chart' && q.chart)[0], ch = P.chart; P.state.tf = '1m'; ch.tf = '1m'; P.tfSel.value = '1m'; ch.fpOn = true; P.state.fp = true; P.resub(); await new Promise(r => setTimeout(r, 4500));

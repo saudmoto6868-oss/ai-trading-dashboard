@@ -9,7 +9,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort(); const now = Math.floor(Date.now() / 3600000) * 3600000, o = []; let c = 100;
     for (let i = 0; i < 300; i++) { c += Math.sin(i / 7) * 2; o.push([String(now - (300 - i) * 3600000), String(c - 0.5), String(c + 1), String(c - 1), String(c), '10', '0', '0', '1']); }
     o.reverse(); return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: o }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3000);
   const out = { noGdm: await p.evaluate(() => !(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)), buttons: await p.evaluate(() => [...document.querySelectorAll('#bar button')].map(x => x.textContent).filter(t => /📸|🖥|⏹/.test(t)).join('')) };
   // screenshot
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 20000 }), p.evaluate(() => [...document.querySelectorAll('#bar button')].find(x => x.textContent === '📸').click())]);

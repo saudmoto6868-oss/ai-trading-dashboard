@@ -2665,9 +2665,9 @@ Object.assign(CandleChart.prototype, {
         c.restore(); c.textAlign = "center"; }
       if (n === 0 && w.pts.length > 2){   // Fib retracement % on each corrective wave endpoint (2, 4, A)
         const P = w.pts; c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center";
-        for (let k = 1; k + 1 < P.length; k += 2){   // odd indices = corrective wave endpoints (2, 4)
-          const leg = Math.abs(P[k-1].p - P[k].p), impulse = Math.abs(P[k].p - P[k-1].p);   // retracement vs prior impulse leg
-          const pct = impulse > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / Math.abs(P[k-2 >= 0 ? k-2 : 0].p - P[k-1].p) * 1000) / 10 : null;
+        for (let k = 2; k < P.length; k += 2){   // P[0] = start, P[i] = end of wave i: even indices 2 and 4 end the corrective waves
+          const imp = Math.abs(P[k-1].p - P[k-2].p);   // retracement of the impulse leg before it (wave 1 for wave 2, wave 3 for wave 4)
+          const pct = imp > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / imp * 1000) / 10 : null;
           if (pct === null || !isFinite(pct)) continue;
           const x = this.x(P[k].i), y = py(P[k].p), above = P[k].up; // corrective wave point — below the prior high (bull)
           c.globalAlpha = .85; c.fillStyle = "#cfd6dd";
@@ -4727,7 +4727,9 @@ class Panel {
     const lg = el("select"); [[0,"0%"],[40,"≥ 40%"],[50,"≥ 50%"],[60,"≥ 60%"],[70,"≥ 70%"]].forEach(([v,l]) => lg.append(Object.assign(el("option"), {value:v, textContent:Lg("Log only","سجّل بس")+" "+l}))); lg.value = String(Journal.cfg.min);
     lg.title = Lg("Only setups at or above this strength are recorded from now on (weak ones stay out of the statistics). Existing records are not changed.","الصفقات اللي قوتها أقل من كده مش هتتسجل من دلوقتي (عشان ما تبوّظش الإحصائيات). السجلات القديمة ما بتتغيرش.");
     lg.onchange = () => { Journal.cfg.min = +lg.value; store.set(LS+"_jset", Journal.cfg); };
-    tb.append(rng, cf, lg, csvB, clr); const box = el("div","jr"); this.body.append(tb, box); this.body.style.overflow = "auto";
+    tb.append(rng, cf, lg, csvB, clr); const box = el("div","jr");
+    const loc = el("div","m jlocal"); loc.style.cssText = "font-size:11px;padding:3px 8px;opacity:.85"; loc.textContent = Lg("Local · this browser only. For personal review, not evidence of performance (the server signal log is the source of truth).","محلي · في المتصفح ده بس. للمراجعة الشخصية، مش دليل أداء (المصدر الأساسي سجل السيرفر).");
+    this.body.append(tb, loc, box); this.body.style.overflow = "auto";
     const f2 = v => (v >= 0 ? "+" : "") + v.toFixed(2);
     const draw = () => {
       const since = S.jr === "0" ? 0 : Date.now() - (+S.jr)*86400e3, st = Journal.stats(+S.jc, since);

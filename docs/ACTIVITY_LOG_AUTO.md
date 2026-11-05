@@ -450,18 +450,3 @@
 | 2026-11-05 07:37:54 | Read | /tmp/claude-0/-home-user-ai-trading-dashboard/b1e182f6-cf04-55fa-baa5-c686cc386872/scratchpad/ofcol6.png | نجح |
 | 2026-11-05 07:38:02 | Bash | python3 tests/test_workspace_parts_sync.py / tail | نجح |
 | 2026-11-05 07:38:15 | mcp__github__create_pull_request |  | نجح |
-| 2026-11-05 08:10:33 | Bash | git checkout -q -- | نجح |
-| 2026-11-05 08:11:52 | Bash | python3 - <<'E' p='modules/ws/22_ofmap.js' | نجح |
-| 2026-11-05 08:12:00 | Bash | sed -i "s/fine = | نجح |
-| 2026-11-05 08:12:24 | Bash | cat > tests/browser/ofm_cells_contrast_mock.js <<'E' | نجح |
-| 2026-11-05 08:12:53 | Bash | python3 - <<'E' s=open('tests/browser/ofm_cells_contrast_mock.js').read() | نجح |
-| 2026-11-05 08:13:20 | Bash | python3 - <<'E' s=open('/tmp/cells_dbg.js').read() | نجح |
-| 2026-11-05 08:13:37 | Bash | python3 - <<'E' p='tests/browser/ofm_cells_contrast_mock.js' | نجح |
-| 2026-11-05 08:13:51 | Bash | sed -i 's/for (let | نجح |
-| 2026-11-05 08:15:33 | Bash | sed -i 's/r.sameBlocks > | نجح |
-| 2026-11-05 08:15:39 | Bash | NODE_PATH=$(npm root -g) timeout | نجح |
-| 2026-11-05 08:15:49 | Bash | sed -i 's/ && | نجح |
-| 2026-11-05 08:16:11 | Bash | NODE_PATH=$(npm root -g) timeout | نجح |
-| 2026-11-05 08:16:13 | Read | /tmp/claude-0/-home-user-ai-trading-dashboard/b1e182f6-cf04-55fa-baa5-c686cc386872/scratchpad/ofcol7.png | نجح |
-| 2026-11-05 08:16:20 | Bash | python3 tests/test_workspace_parts_sync.py / tail | نجح |
-| 2026-11-05 08:16:31 | mcp__github__create_pull_request |  | نجح |

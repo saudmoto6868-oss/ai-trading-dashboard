@@ -2665,9 +2665,9 @@ Object.assign(CandleChart.prototype, {
         c.restore(); c.textAlign = "center"; }
       if (n === 0 && w.pts.length > 2){   // Fib retracement % on each corrective wave endpoint (2, 4, A)
         const P = w.pts; c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center";
-        for (let k = 1; k + 1 < P.length; k += 2){   // odd indices = corrective wave endpoints (2, 4)
-          const leg = Math.abs(P[k-1].p - P[k].p), impulse = Math.abs(P[k].p - P[k-1].p);   // retracement vs prior impulse leg
-          const pct = impulse > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / Math.abs(P[k-2 >= 0 ? k-2 : 0].p - P[k-1].p) * 1000) / 10 : null;
+        for (let k = 2; k < P.length; k += 2){   // P[0] = start, P[i] = end of wave i: even indices 2 and 4 end the corrective waves
+          const imp = Math.abs(P[k-1].p - P[k-2].p);   // retracement of the impulse leg before it (wave 1 for wave 2, wave 3 for wave 4)
+          const pct = imp > 0 ? Math.round(Math.abs(P[k].p - P[k-1].p) / imp * 1000) / 10 : null;
           if (pct === null || !isFinite(pct)) continue;
           const x = this.x(P[k].i), y = py(P[k].p), above = P[k].up; // corrective wave point — below the prior high (bull)
           c.globalAlpha = .85; c.fillStyle = "#cfd6dd";

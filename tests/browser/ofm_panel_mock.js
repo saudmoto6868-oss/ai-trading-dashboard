@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
     else if (/market\/trades/.test(u)) { data = Array.from({ length: 30 }, (_, i) => ({ tradeId: String(n * 100 + i), px: String(100 + Math.sin((n + i) / 4) * 0.4), sz: String(1 + (i % 5)), side: i % 2 ? 'buy' : 'sell', ts: String(Date.now() - i * 500) })); }
     else if (/candles/.test(u)) { const H = 3600000, T0 = Math.floor(Date.now() / H) * H - 100 * H; data = Array.from({ length: 100 }, (_, i) => [String(T0 + i * H), '100', '101', '99', '100', '10', '0', '0', '1']).reverse(); }
     return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', msg: '', data }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   await p.evaluate(() => { Ws.build([['ofm', { x: 10, y: 10, w: 900, h: 560 }, { sym: 'BTC-USDT', group: 0 }]]); Ws.save(); }); await p.waitForTimeout(9000);
   const r = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'ofm'), cv = P && P.ofmCv; if (!cv) return { err: 'no panel' }; const c = cv.getContext('2d'), W = cv.width, H = cv.height, d = c.getImageData(0, 0, W - 140, H - 20).data;
     let colored = 0, bright = 0; for (let i = 0; i < d.length; i += 4 * 7) { if (d[i] + d[i+1] + d[i+2] > 120) colored++; if (d[i] > 200 && d[i+1] > 150) bright++; }

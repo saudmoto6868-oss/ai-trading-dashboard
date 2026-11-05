@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
     else if (/history-trades/.test(u)) { const a = (u.match(/after=(\d+)/) || [])[1], start = a ? 1000000 - (+a) + 1 : -extra; for (let n = start; n < Math.min(N, start + 100); n++) data.push(trade(n)); }
     else if (/\/market\/trades/.test(u)) { for (let n = -extra; n < -extra + 3; n++) data.push(trade(n)); }   // the live poll only ever sees the 3 newest prints: a gap
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
   const sleepN = ms => new Promise(r => setTimeout(r, ms));
   const ph1 = await p.evaluate(async () => {
     const P = Ws.panels.filter(q => q.type === 'chart' && q.chart)[0], ch = P.chart; ch.fpOn = true; P.state.fp = true; P._fpFilled = null;

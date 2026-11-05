@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
       if (body.type === 'l2Book') { const t = { 5: 0.1, 4: 1, 3: 10, 2: 100 }[body.nSigFigs] || 0.1; calls[body.nSigFigs || 'native'] = (calls[body.nSigFigs || 'native'] || 0) + 1; data = ladder(t); }
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   const r = await p.evaluate(async () => { const w = (await hlOkx('/market/books-full?instId=' + encodeURIComponent('HL:xyz:GOLD') + '&sz=2000'))[0], n = (await hlOkx('/market/books?instId=' + encodeURIComponent('HL:xyz:GOLD') + '&sz=20'))[0];
     const B = w.bids.map(x => +x[0]), A = w.asks.map(x => +x[0]), Bq = w.bids.map(x => +x[1]), Aq = w.asks.map(x => +x[1]);
     const mono = (a, d) => a.every((v, i) => i === 0 || (d < 0 ? v < a[i-1] - 1e-9 : v > a[i-1] + 1e-9));

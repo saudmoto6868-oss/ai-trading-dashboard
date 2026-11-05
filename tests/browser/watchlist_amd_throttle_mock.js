@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
     const now = Math.floor(Date.now() / 60000) * 60000, o = []; for (let i = 0; i < 100; i++) o.push([String(now - i * 60000), '100', '101', '99', '100', '1', '0', '0', '1']);
     if (/candles\?instId=C\d+-USDT&bar=1H&limit=60/.test(u)) amd.push(Date.now());
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: /candles/.test(u) ? o : [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1200); await p.evaluate(n => { SYMS.length = 0; n.forEach(x => SYMS.push(x)); Ws.build(Ws.defaults()); Ws.save(); }, names); await p.waitForTimeout(1500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1200); await p.evaluate(n => { SYMS.length = 0; n.forEach(x => SYMS.push(x)); Ws.build(Ws.defaults()); Ws.save(); }, names); await p.waitForTimeout(1500);
   await p.evaluate(() => { const w = Ws.panels.find(q => q.type === 'watch'); w.state.u = { cat: '__mine' }; w.wDraw(); }); await p.waitForTimeout(9000);
   const gaps = amd.slice(1).map((t, i) => t - amd[i]); console.log(amd.map(t => t - amd[0]).join(","));console.log(JSON.stringify({ amdReqsIn9s: amd.length, minGapMs: gaps.length ? Math.min(...gaps) : null }), 'errors', errs.length, errs[0] || ''); await b.close();
 })();

@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort(); const now = Math.floor(Date.now() / 3600000) * 3600000, o = []; let c = 100;
     for (let i = 0; i < 300; i++) { c += Math.sin(i / 7) * 2; o.push([String(now - (300 - i) * 3600000), String(c - 0.5), String(c + 1), String(c - 1), String(c), '10', '0', '0', '1']); }
     o.reverse(); return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: /candles/.test(u) ? o : [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
   const res = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'chart' && q.chart.data.length), ch = P.chart; ch.fit(); ch.paint();
     const rect = ch.cv.getBoundingClientRect(), ax = rect.left + (ch.W - ch.axw / 2) * ch.S, at = y => rect.top + y * ch.S, span = () => ch._hi - ch._lo, priceAt = y => ch._hi - (y / ch.PB) * (ch._hi - ch._lo);
     const wheel = (dy, y, shift) => { ch.cv.dispatchEvent(new WheelEvent('wheel', { deltaY: dy, clientX: ax, clientY: at(y), shiftKey: !!shift, bubbles: true, cancelable: true })); ch.paint(); };

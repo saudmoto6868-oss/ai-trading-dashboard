@@ -13,7 +13,7 @@ async function run(offsetMs) {
       const data = body.type === 'metaAndAssetCtxs' ? [{ universe: [{ name: 'xyz:GOLD' }] }, [{ midPx: '4126', dayNtlVlm: '1e9', openInterest: '1e5', prevDayPx: '3940' }]] : [];
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   await p.evaluate(() => { Ws.build([['chart', { x: 10, y: 10, w: 700, h: 420 }, { sym: 'HL:xyz:GOLD', tf: '5m', group: 0 }]]); }); await p.waitForTimeout(4000);
   const banner = await p.evaluate(() => { const e = document.getElementById('clkw'); return e ? e.textContent : null; });
   await b.close(); return { ends, banner, errs, now: Date.now() };

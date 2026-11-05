@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', async r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort(); const h = { 'access-control-allow-origin': '*' };
     if (/candles/.test(u)) { if (slow) await new Promise(z => setTimeout(z, 8000)); const now = Math.floor(Date.now() / 60000) * 60000, o = []; for (let i = 0; i < 300; i++) o.push([String(now - i * 60000), '100', '101', '99', String(100 + (i % 7)), '1', '0', '0', '1']); return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: o }) }); }
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(4500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(4500);
   const n0 = await p.evaluate(() => Ws.panels.filter(q => q.type === 'chart' && q.chart && !/s$/.test(q.state.tf || '')).map(q => q.chart.data.length)); const cached = await p.evaluate(() => Object.keys(localStorage).filter(k => /_cc\|/.test(k)).length);
   slow = true; await p.reload(); await p.waitForTimeout(2500);
   const n1 = await p.evaluate(() => Ws.panels.filter(q => q.type === 'chart' && q.chart && !/s$/.test(q.state.tf || '')).map(q => q.chart.data.length));

@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     if (/okx\.com\/api\/v5\/public\/time/.test(u)) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: [{ ts: String(Date.now()) }] }) });
     return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   await p.evaluate(() => { Ws.build([['chart', { x: 10, y: 10, w: 900, h: 520 }, { sym: 'HL:xyz:GOLD', tf: '5m', group: 0, dcol: true, dom: true, bub: true }]]); Ws.save(); }); await p.waitForTimeout(8000);
   const info = () => p.evaluate(() => { const ch = Ws.panels.find(q => q.type === 'chart').chart, rc = ch.cv.getBoundingClientRect(), cw = ch.cw(); return { visR: ch._hi - ch._lo, lock: ch.lockR ? ch.lockR.slice() : null, yZoom: ch.yZoom, span: ch.flowSpan || 0, hi: ch._hi - ch._lo, mapX: rc.left + ch.PR + 40, stripX: rc.left + ch.PR + cw - OFM.CAX - OFM.CDP + 25, y: rc.top + 180 }; });
   const rng = a => a.lock ? a.lock[1] - a.lock[0] : null;

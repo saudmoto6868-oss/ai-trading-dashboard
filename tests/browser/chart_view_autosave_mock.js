@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort(); const now = Math.floor(Date.now() / 60000) * 60000; let px = 60000; const o = [];
     for (let i = 0; i < 300; i++) { const t = now - (299 - i) * 60000, op = px, c = px + Math.sin(i / 7) * 120, h = Math.max(op, c) + 30, l = Math.min(op, c) - 30; px = c; o.push([String(t), String(op), String(h), String(l), String(c), '10', '10', '600000', '1']); }
     return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: /candles/.test(u) ? o.reverse() : [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3500);
   const info = () => p.evaluate(() => { const A = Ws.panels.filter(q => q.type === 'chart' && q.chart)[0], c = A.chart, r = c.cv.getBoundingClientRect(); return { bw: +c.bw.toFixed(3), back: +((c.data.length - 1) - c.r).toFixed(2), lock: !!c.lockR, lockR: c.lockR && c.lockR.map(v => Math.round(v)), x: r.left + r.width * .4, y: r.top + r.height * .4 }; });
   const a0 = await info();
   await p.mouse.move(a0.x, a0.y); await p.mouse.down(); await p.mouse.move(a0.x + 120, a0.y + 40, { steps: 8 }); await p.mouse.up();   // pan + vertical drag (price scale -> manual)

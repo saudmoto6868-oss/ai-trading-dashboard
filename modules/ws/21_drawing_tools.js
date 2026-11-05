@@ -457,6 +457,22 @@ Object.assign(CandleChart.prototype, {
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
+  paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc. Settings = the Pine script's settings (this.st.msb)
+    const n = this.data.length; if (n < 20) return; const S = this.st.msb, zl = Math.max(2, Math.round(+S.zl) || 9), fib = isFinite(+S.fib) ? +S.fib : 0.237;
+    const key = n+"|"+this.data[n-1].c+"|"+this.data[0].t+"|"+zl+"|"+fib; if (!this._msb || this._msb.k !== key){ let r = {zz:[], ev:[], boxes:[]}; try { r = msbCalc(this.data, zl, fib); } catch(e){} this._msb = {k:key, r}; }
+    const R = this._msb.r, xr = this.x(n - 1 + 10), fa = +S.fa || .3, px = +S.tx || 10, del = !!S.del;
+    const CK = {"ob|true":["obuF","obuB","obuT"], "ob|false":["obeF","obeB","obeT"], "bb|true":["bbuF","bbuB","bbuT"], "bb|false":["bbeF","bbeB","bbeT"]};
+    c.save(); c.textBaseline = "middle";
+    if (S.zz) R.zz.forEach(z => { if (this.x(z[0]) > this.W && this.x(z[2]) > this.W) return; c.globalAlpha = .6; c.strokeStyle = "#8a94a3"; c.lineWidth = 1; c.beginPath(); c.moveTo(this.x(z[0]), py(z[1])); c.lineTo(this.x(z[2]), py(z[3])); c.stroke(); });
+    const live = {}; R.boxes.forEach(B => { if (B.end < 0 || !del){ const k = B.kind+B.bull; (live[k] = live[k] || []).push(B); } });
+    const keep = new Set(); Object.values(live).forEach(a => a.slice(-5).forEach(B => keep.add(B)));
+    R.boxes.forEach(B => { if (!keep.has(B)) return; const ks = CK[B.kind+"|"+B.bull], xa = this.x(B.i), xe = B.end >= 0 ? this.x(B.end) : xr, y1 = py(B.hi), y2 = py(B.lo); if (xe < 0 || xa > this.W) return;
+      c.globalAlpha = fa; c.fillStyle = S[ks[0]]; c.fillRect(xa, y1, xe - xa, y2 - y1); c.globalAlpha = .95; c.strokeStyle = S[ks[1]]; c.lineWidth = 1; c.strokeRect(xa + .5, y1 + .5, xe - xa, y2 - y1);
+      c.fillStyle = S[ks[2]]; c.font = px+"px sans-serif"; c.textAlign = "right"; c.fillText(B.lbl, xe - 3, (y1 + y2)/2); });
+    R.ev.forEach(E => { if (this.x(E.x0) > this.W) return; const col = E.bull ? S.obuB : S.obeB, y = py(E.y); c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = +S.w || 2; c.setLineDash(S.dash ? S.dash.split(",").map(Number) : []); c.beginPath(); c.moveTo(this.x(E.x0), y); c.lineTo(this.x(E.x1), y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = col; c.font = "bold "+px+"px sans-serif"; c.textAlign = "center"; c.fillText("MSB", this.x(E.xm), y + (E.bull ? -8 : 8)); });
+    c.restore();
+  },
   paintBB(c, py, dec, i0, i1){   // Bollinger bands (period / deviation from the BB+Stoch+OsMA indicator settings)
     const B = this.bsoV; if (!B) return; const line = (arr, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(arr[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } c.stroke(); };
     c.save(); c.globalAlpha = .07; c.fillStyle = "#26c6da"; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(B.up[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } for (let i = i1; i >= i0; i--) c.lineTo(this.x(i), py(B.lo[i])); c.fill();

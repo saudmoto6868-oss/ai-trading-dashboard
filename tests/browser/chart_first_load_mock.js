@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     reqs.push(u.replace(/.*v5/, '').slice(0, 70)); const hist = /history-candles/.test(u); if (hist) await new Promise(x => setTimeout(x, 800));
     const after = +(new URL(u).searchParams.get('after')) || Math.floor(Date.now() / 60000) * 60000 + 60000;
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: rows(hist ? 100 : 300, after - 60000, 60000) }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1200);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1200);
   await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(3000);
   const st = () => p.evaluate(() => Ws.panels.filter(q => q.type === 'chart').map(q => q.chart ? q.chart.data.length : -1));
   console.log('t+3s bars per chart', JSON.stringify(await st()), 'candle reqs so far', reqs.length);

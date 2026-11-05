@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort();
     let data = []; if (/candles/.test(u)) { const lim = +(/limit=(\d+)/.exec(u) || [0, 300])[1], after = /after=(\d+)/.exec(u); let arr = bars; if (after) arr = bars.filter(x => +x[0] < +after[1]); data = arr.slice(-lim).reverse(); }
     return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', msg: '', data }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   const r = await p.evaluate(async () => {
     Ws.build([['chart', { x: 10, y: 10, w: 700, h: 420 }, { sym: 'BTC-USDT', tf: '1H', group: 0 }]]); await new Promise(r => setTimeout(r, 2500));
     const P = Ws.panels.find(q => q.type === 'chart'), ch = P.chart, out = { loaded: ch.data.length };

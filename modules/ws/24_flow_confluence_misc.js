@@ -81,7 +81,7 @@ document.addEventListener("contextmenu", e => {
       [Lg("Reset colours","رجّع الألوان"), () => { delete P.state.col; delete P.state.bg; P.paint(); Ws.save(); }], null, [Lg("Close widget","إغلاق الويدجت"), () => { if (!P.locked) P.close(); }, true]);
   } else if (!P && !inp){
     items.length && items.push(null);
-    ["chart","setup","signals","dom","tape","limits","watch","scanner","news","notes"].forEach(k => items.push(["+ "+T(k), () => Ws.add(k)]));
+    ["chart","setup","signals","dom","tape","limits","ofm","watch","scanner","news","notes"].forEach(k => items.push(["+ "+T(k), () => Ws.add(k)]));
     items.push(null, [Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
   }
   if (!items.length) items.push([Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
@@ -225,7 +225,7 @@ function insights(text){
 
 /* ---------------- workspace manager ---------------- */
 Ws.el = document.getElementById("ws");
-const SYMW = ["chart","dom","tape","limits","liq","posn","tvc"];
+const SYMW = ["chart","dom","tape","limits","ofm","liq","posn","tvc"];
 // app symbol -> TradingView symbol (crypto on OKX like the app; TradFi on liquid TradingView feeds)
 function tvSym(s){ s = String(s || "");
   const TF_ = {GOLD:"OANDA:XAUUSD", SILVER:"OANDA:XAGUSD", OIL:"TVC:USOIL", WTI:"TVC:USOIL", BRENT:"TVC:UKOIL", SP500:"OANDA:SPX500USD", SPX:"OANDA:SPX500USD", NASDAQ:"OANDA:NAS100USD", NDX:"OANDA:NAS100USD",

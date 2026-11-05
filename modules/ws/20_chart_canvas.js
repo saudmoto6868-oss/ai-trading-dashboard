@@ -127,7 +127,7 @@ class CandleChart {
     if (mx > this.W-this.axw){ this._bookFit = false; this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), this.candleY()); this.drawSoon(); return; }   // wheel over the price axis: anchored at the cursor, at most ~15 % a notch
     if (mx > this.PR && this.colWide > 0 && this.domOn){   // WIDE column: wheel = TIME (the map stretches / squeezes sideways around the newest edge), Shift + wheel = PRICE range (zoom out to walls hundreds of dollars away)
       if (e.shiftKey){ const cur = this.colWideR || this._wideAutoR || 0.02; this.colWideR = Math.max(0.004, Math.min(OFM.SPAN, cur*Math.exp(e.deltaY*0.0015))); this.onWideR && this.onWideR(); }
-      else { const cur = this.flowSpan || this._wideWin || 120000; this.flowSpan = Math.max(15000, Math.min(1800000, cur*Math.exp(e.deltaY*0.0012))); }
+      else { const cur = this.flowSpan || this._wideWin || 120000; this.flowSpan = Math.max(10000, Math.min(OFM.KEEP, cur*Math.exp(e.deltaY*0.0016))); }
       this.drawSoon(); return; }
     if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.drawSoon(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
     if (e.shiftKey){ this._bookFit = false; this.freezeY(); this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }   // Shift + wheel = price zoom, price scale stays where you put it

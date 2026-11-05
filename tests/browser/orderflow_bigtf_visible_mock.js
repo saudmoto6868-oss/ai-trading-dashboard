@@ -13,6 +13,7 @@ const { chromium } = require('playwright');
     for (const tf of ['1H', '4H', '1D']) { ch.tf = tf; ch.paint(); const k = ch.S || 1, dpr = window.devicePixelRatio || 1, x0 = Math.floor((ch.PR + 8) * k * dpr), w = Math.max(1, Math.floor((ch.cw() - 12) * k * dpr)), h = Math.max(1, Math.floor((ch.PB - 40) * k * dpr)), y0 = Math.floor(30 * k * dpr);
       const d = ch.ctx.getImageData(x0, y0, w, h).data; let lit = 0, n = 0; for (let i = 0; i < d.length; i += 4) { n++; if (d[i] + d[i + 1] + d[i + 2] > 70) lit++; } out[tf] = { litPct: +(100 * lit / n).toFixed(1), vpf: ch.st.of.vpf === undefined ? 'auto' : ch.st.of.vpf }; }
     return out; });
-  const ok = ['1H', '4H', '1D'].every(t => res[t].litPct > 8) && !errs.length;
+  // the column is the WIDE map now (default since 2026-11-05): one fresh book = a thin lit band + the label strips, so the bar is "not blank and as readable as 1H" (it was 0 % on 4H / 1D: the column was too narrow to draw anything)
+  const ok = ['1H', '4H', '1D'].every(t => res[t].litPct > 5 && res[t].litPct >= 0.75 * res['1H'].litPct) && !errs.length;
   console.log(JSON.stringify(res), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

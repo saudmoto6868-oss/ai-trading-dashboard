@@ -37,7 +37,8 @@ class CandleChart {
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
   }
   destroy(){ this.ro.disconnect(); }
-  cw(){ if (!this.colOn) return 0; const mx = Math.max(60, Math.round(this.W*0.65 - this.axw));   // the candle area keeps at least 35 % of the chart (owner 2026-10-24)
+  cw(){ if (!this.colOn) return 0; const r = this.cw0(); return this.colWide > 0 && this.domOn ? Math.min(Math.max(60, Math.round(this.W*0.65 - this.axw)), Math.max(r, this.colW ? 120 : this.W < 520 ? 125 : 150)) : r; }   // the WIDE map needs >= 120 px (two label strips + a map of >= 30 px): below that it drew NOTHING (a blank column on 4H / 1D and in small panels)
+  cw0(){ const mx = Math.max(60, Math.round(this.W*0.65 - this.axw));   // the candle area keeps at least 35 % of the chart (owner 2026-10-24)
     if (this.colW) return Math.max(60, Math.min(mx, this.colW)); const big = (TFSEC[this.tf] || 3600) >= 14400;   // 4H / 1D / 1W: the default column is slimmer so it does not cover levels
     const nar = this.W < 520;   // a small panel (tablet grid, phone): the candles keep more of the width, the column is slimmer
     return Math.min(mx, big ? Math.max(nar ? 72 : 130, Math.min(nar ? 150 : 240, Math.round(this.W*(nar ? 0.20 : 0.24)))) : Math.max(nar ? 96 : 180, Math.min(nar ? 220 : 340, Math.round(this.W*(nar ? 0.30 : 0.34))))); }   // bigger default (owner 2026-11-05: "too small"); the candles still keep >= 35 %, drag the edge or double-click to change/reset   // order-flow column sits between the plot and the price axis; drag its left edge to resize

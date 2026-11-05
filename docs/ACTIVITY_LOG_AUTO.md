@@ -295,3 +295,4 @@
 | 2026-11-05 01:49:48 | Bash | cat > tests/browser/xcmd_mock.js <<'E' | نجح |
 | 2026-11-05 01:50:10 | Bash | python3 - <<'E' p='docs/WORKSPACE_PARTS.md' | نجح |
 | 2026-11-05 01:50:12 | mcp__github__create_pull_request |  | نجح |
+| 2026-11-05 01:50:53 | Bash | git checkout -q -- | نجح |

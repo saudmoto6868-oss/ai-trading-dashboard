@@ -288,7 +288,28 @@ Ws.histUI = () => { const H = Ws.hist, u = document.getElementById("undoB"), r =
 document.addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey) || e.altKey) return; const t = e.target, tn = t && t.tagName; if (tn === "INPUT" || tn === "TEXTAREA" || tn === "SELECT" || (t && t.isContentEditable)) return;
   const k = e.key.toLowerCase(); if (k === "z" && !e.shiftKey){ e.preventDefault(); Ws.undo(); } else if ((k === "z" && e.shiftKey) || k === "y"){ e.preventDefault(); Ws.redo(); } });
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
+/* THE STANDARD LAYOUT (owner 2026-11-05: "this is the standard; whoever opens the workspace - a browser, a Telegram bot, any automation - finds it, never an empty workspace"): watch list on the left,
+   four linked charts (5m / 15m / 4H / 1D) with the order-flow column open, and DOM / Limit tracking / Time & Sales on the right. No tall strip on top: the charts start right under the toolbar and are as big as possible.
+   Symbols can be changed (linked group #1 follows the watch list). "Save current as my standard" (+ Widget > Layout) replaces it for this browser. */
 Ws.defaults = () => {
+  try { const mine = store.get(LS+"_std", null); if (mine && mine.v >= 7 && Array.isArray(mine.panels) && mine.panels.length) return mine.panels.map(p => [p.type, p.rect, JSON.parse(JSON.stringify(p.state || {}))]); } catch(e){}
+  return Ws.builtinStandard(); };
+Ws.builtinStandard = () => {
+  const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
+  const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on
+  return [
+    ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
+    ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],
+    ["chart", {x:x2, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
+    ["chart", {x:x1, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"4H", ema:E}, OF)],
+    ["chart", {x:x2, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"1D", ema:E}, OF)],
+    ["dom", {x:rx, y:0, w:pw, h:H}, {sym:S0, group:1}],
+    ["limits", {x:rx + pw + g, y:0, w:pw, h:H}, {sym:S0, group:1}],
+    ["tape", {x:rx + 2*(pw + g), y:0, w:rw - 2*(pw + g), h:H}, {sym:S0, group:1}],
+  ]; };
+/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */
+Ws.defaultsMobile = () => {
   const W = Ws.el.clientWidth || 1200, H0 = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10, rh = 150, oy = rh + 10, H = H0 - oy;
   const lw = r(W*0.22), x1 = lw+10, cw = r(W*0.36), x2 = x1+cw+10, dw = r(W*0.18), x3 = x2+dw+10, tw = W-x3;
   const top = r(H*0.7), wh = r(H*0.62), sh = 0;

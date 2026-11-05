@@ -456,7 +456,7 @@ const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket p
 const SYMS = CFG.symbols.slice();
 const LS = "ai_ws_v5";
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
-const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };   // OFF by default (free chart, like TradingView): with it on, every live tick and every data load re-centred the view on the latest candle and undid the user's zoom / pan. The ⊙ button turns it on.
+const acGet = () => { try { return sessionStorage.getItem("ai_ac") !== "0"; } catch(e){ return true; } };   // ON unless this tab switched it off (owner 2026-11-05: the standard layout has centred charts)   // (it was OFF by default, a free chart like TradingView: with it on every live tick and data load re-centres the view on the latest candle and undoes a manual pan; the ⊙ button turns it off)
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
 /* ?ws_reset=1 on the page link = clear this browser's saved Workspace (layout, widget settings, drawings); the journal is kept */
 try { const q = new URLSearchParams(window.parent.location.search); if (q.get("ws_reset") === "1"){
@@ -6151,7 +6151,28 @@ Ws.histUI = () => { const H = Ws.hist, u = document.getElementById("undoB"), r =
 document.addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey) || e.altKey) return; const t = e.target, tn = t && t.tagName; if (tn === "INPUT" || tn === "TEXTAREA" || tn === "SELECT" || (t && t.isContentEditable)) return;
   const k = e.key.toLowerCase(); if (k === "z" && !e.shiftKey){ e.preventDefault(); Ws.undo(); } else if ((k === "z" && e.shiftKey) || k === "y"){ e.preventDefault(); Ws.redo(); } });
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
+/* THE STANDARD LAYOUT (owner 2026-11-05: "this is the standard; whoever opens the workspace - a browser, a Telegram bot, any automation - finds it, never an empty workspace"): watch list on the left,
+   four linked charts (5m / 15m / 4H / 1D) with the order-flow column open, and DOM / Limit tracking / Time & Sales on the right. No tall strip on top: the charts start right under the toolbar and are as big as possible.
+   Symbols can be changed (linked group #1 follows the watch list). "Save current as my standard" (+ Widget > Layout) replaces it for this browser. */
 Ws.defaults = () => {
+  try { const mine = store.get(LS+"_std", null); if (mine && mine.v >= 7 && Array.isArray(mine.panels) && mine.panels.length) return mine.panels.map(p => [p.type, p.rect, JSON.parse(JSON.stringify(p.state || {}))]); } catch(e){}
+  return Ws.builtinStandard(); };
+Ws.builtinStandard = () => {
+  const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
+  const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on
+  return [
+    ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
+    ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],
+    ["chart", {x:x2, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
+    ["chart", {x:x1, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"4H", ema:E}, OF)],
+    ["chart", {x:x2, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"1D", ema:E}, OF)],
+    ["dom", {x:rx, y:0, w:pw, h:H}, {sym:S0, group:1}],
+    ["limits", {x:rx + pw + g, y:0, w:pw, h:H}, {sym:S0, group:1}],
+    ["tape", {x:rx + 2*(pw + g), y:0, w:rw - 2*(pw + g), h:H}, {sym:S0, group:1}],
+  ]; };
+/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */
+Ws.defaultsMobile = () => {
   const W = Ws.el.clientWidth || 1200, H0 = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10, rh = 150, oy = rh + 10, H = H0 - oy;
   const lw = r(W*0.22), x1 = lw+10, cw = r(W*0.36), x2 = x1+cw+10, dw = r(W*0.18), x3 = x2+dw+10, tw = W-x3;
   const top = r(H*0.7), wh = r(H*0.62), sh = 0;
@@ -6762,8 +6783,8 @@ function buildBar(){
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
   [[Lg("Decision","القرار"), ["chart","setup","signals","alerts"]], [Lg("Execution / order flow","التنفيذ والأوردر فلو"), ["dom","tape","limits","risk"]], [Lg("Markets","الأسواق"), ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]], [Lg("Context (fundamental)","السياق (الأساسي)"), ["fund","macrof","stockf","cmc","news"]], [Lg("Review","المراجعة"), ["journal","notes"]], [Lg("Settings","الإعدادات"), ["settings"]]]
     .forEach(([g, ts]) => { const og_ = Object.assign(el("optgroup"), {label:g}); ts.forEach(t => og_.append(Object.assign(el("option"), {textContent:T(t), value:t}))); sel.append(og_); });
-  const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
-  sel.onchange = () => { const v = sel.value; if (v === "@trading"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
+  const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@std",Lg("Standard: 4 charts + order flow","الستاندر: ٤ شارتس + أوردر فلو")],["@save",Lg("Save current layout as my standard","احفظ التخطيط الحالي كستاندر بتاعي")],["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
+  sel.onchange = () => { const v = sel.value; if (v === "@trading" || v === "@std"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@save"){ try { store.set(LS+"_std", { v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) }); alert(Lg("Saved: this layout is now your standard (it opens first, and \"Standard\" restores it).", "اتحفظ: التخطيط ده بقى الستاندر بتاعك (بيفتح أول حاجة، و«الستاندر» بيرجّعه).")); } catch(e){} } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
   const ub = el("button", null, "↶"), rb = el("button", null, "↷"); ub.id = "undoB"; rb.id = "redoB"; ub.onclick = () => Ws.undo(); rb.onclick = () => Ws.redo(); ub.style.cssText = rb.style.cssText = "padding:2px 8px;font-size:14px";
   const zKey = LS+"_us_"+(CFG.ui || "classic"), zDef = {lux:1.06, hud:1.04}[CFG.ui] || 1, zSet = v => { v = Math.max(.5, Math.min(1.4, Math.round(v*100)/100)); document.documentElement.style.setProperty("--us", v); CHART_S = Math.max(.5, Math.min(1.4, v/zDef)); store.set(zKey, v); zLbl.textContent = Math.round(v*100)+"%"; setTimeout(() => { try { Ws.panels.forEach(p => p.chart && (p.chart.resize ? p.chart.resize() : 0, p.chart.draw())); } catch(e){} }, 320); };
   const zm = el("button", null, "−"), zp = el("button", null, "+"), zLbl = el("span"); zm.title = Lg("Smaller interface","تصغير الواجهة"); zp.title = Lg("Bigger interface","تكبير الواجهة"); zLbl.style.cssText = "color:var(--mut);min-width:34px;text-align:center;cursor:pointer"; zLbl.title = Lg("Back to the theme's size","رجوع لحجم الثيم");
@@ -6799,8 +6820,8 @@ function applyLang(rebuild){
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
   if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
-  else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaults().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
-  else Ws.build([]);   // blank canvas by default; "Trading layout" button adds the preset
+  else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaultsMobile().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
+  else { Ws.build(Ws.defaults()); Ws.save(); }   // first visit / a fresh browser / any automation: the STANDARD layout (watch list + 4 charts with order flow + DOM / limits / tape), never an empty workspace; "Blank" in the Layout menu still gives a blank canvas
   if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
   try { welcome(); } catch(e){}
   if (CFG.mrxOn) try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // off until the official launch (MRX_LIVE=1): no presenter on screen, no photo in the DOM   // the presenter comes on stage by himself after start-up unless he was sent off (✕)

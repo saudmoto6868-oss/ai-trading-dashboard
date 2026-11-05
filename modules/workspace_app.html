@@ -2604,7 +2604,20 @@ Object.assign(CandleChart.prototype, {
     }
     if (!out.length && z.length >= 4){ const w = z.slice(-4), s = w[0].k === "H" ? -1 : 1;   // A-B-C zigzag: C beyond A, B retraces less than 100% of A
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
-    this._ew = {k, v:out}; return out;
+    this._ew = {k, v:out}; this._ewf = this.ewForming(z, out); return out;
+  },
+  ewForming(z, out){   // an impulse still being built (waves 1-4 so far) after the last finished count: pivots only, no forecast; returns {up, pts:[{i,p,txt}], next, broke} or null
+    const top = out[0]; let base = -1; if (top){ if (top.abc.length < 3) return null; base = top.abc[2].i; }
+    const q = z.filter(x => x.i >= base); if (q.length < 3) return null;
+    const rule = (P, s) => P.length > 2 && s*(P[2]-P[0]) <= 0 ? Lg("wave 2 went past the start of wave 1", "الموجة 2 عدّت بداية الموجة 1") : P.length > 3 && s*(P[3]-P[1]) <= 0 ? Lg("wave 3 did not pass the end of wave 1", "الموجة 3 ما عدّتش نهاية الموجة 1") : P.length > 4 && s*(P[4]-P[1]) <= 0 ? Lg("wave 4 overlaps wave 1", "الموجة 4 داخلة في الموجة 1") : null;
+    let broke = null;
+    for (let m = Math.min(4, q.length-1); m >= 2; m--){
+      const w = q.slice(-(m+1)), up = w[0].k === "L", s = up ? 1 : -1, P = w.map(x => x.p);
+      if (s*(P[1]-P[0]) <= 0) continue;
+      const r = rule(P, s); if (r){ if (!broke) broke = r; continue; }
+      return {up, pts:w.map((x, j) => ({i:x.i, p:x.p, txt:j ? String(j) : "", up:x.k === "H"})), next:m+1, broke};
+    }
+    return null;
   },
   htfList(tf){   // six frames around this chart (owner 2026-10-19: "5 to 6 frames", option 3 = smaller ones too): up to two smaller, then the bigger ones; weekly and monthly are always there when bigger
     const L = ["1m","5m","15m","1H","4H","1D","1W","1M"], i = L.indexOf(tf); if (i < 0) return [];
@@ -2649,8 +2662,15 @@ Object.assign(CandleChart.prototype, {
     c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;
     c.globalAlpha = .7; c.fillStyle = "#000"; c.fillRect(6, y - 11, w, 14); c.globalAlpha = 1; c.fillStyle = "#9aa4b1"; c.fillText(txt, 11, y); c.restore();
   },
+  paintEWforming(c, py){   // dashed line through the pivots of the impulse in progress + "forming: wave N next" (and the rule that cancelled a longer count)
+    const f = this._ewf; if (!f) return; const col = f.up ? "#0ecb81" : "#f6465d";
+    c.save(); c.globalAlpha = .8; c.strokeStyle = col; c.lineWidth = 1.2; c.setLineDash([5,4]); c.beginPath(); f.pts.forEach((q, i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.setLineDash([]);
+    c.font = "bold 11px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; f.pts.forEach(q => { if (!q.txt) return; const x = this.x(q.i), y = py(q.p), yy = q.up ? y - 13 : y + 13; c.fillStyle = "#0b0e11"; c.beginPath(); c.arc(x, yy, 8, 0, 6.3); c.fill(); c.strokeStyle = col; c.lineWidth = 1; c.stroke(); c.fillStyle = col; c.fillText(q.txt, x, yy + .5); });
+    c.restore(); this.indNote(c, 2, Lg("Elliott forming: wave ", "إليوت بيتكوّن: الموجة ")+f.next+Lg(" next", " جاية")+(f.broke ? " · "+Lg("longer count dropped: ", "عدّ أطول اتلغى: ")+f.broke : ""));
+  },
   paintEWauto(c, py, dec){
-    const list = this.ewCount(); if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    const list = this.ewCount(); this.paintEWforming(c, py);
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }

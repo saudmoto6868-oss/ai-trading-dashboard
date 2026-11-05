@@ -540,6 +540,23 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
 // OKX timeframe -> Hyperliquid candle interval (bars Hyperliquid does not have -> clear error)
 const HL_IV = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1H":"1h","2H":"2h","4H":"4h","8H":"8h","12Hutc":"12h","1D":"1d","1Dutc":"1d","3Dutc":"3d","1W":"1w","1Wutc":"1w","1M":"1M","1Mutc":"1M"};
 const HL_MS = {"1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":72e5,"4h":144e5,"8h":288e5,"12h":432e5,"1d":864e5,"3d":2592e5,"1w":6048e5,"1M":2592e6};
+/* Hyperliquid's l2Book answers only 20 levels a side (gold: about +-2 USD = +-0.05 %), so the order-flow heat map was a thin strip. l2Book also takes nSigFigs (5, 4, 3 = ticks of 10x each, still 20 levels a side), so the book is
+   STITCHED: the native 20 levels, then the coarser ladders only BEYOND the finer one's edge (one coarse tick skipped, so nothing is counted twice), each coarse level spread over its range in fine steps (size / parts) so the
+   heat map is continuous. Gold: about +-200 USD (+-5 %). Coarse ladders are reused for 4 s (weight 2 each). Answers in OKX's shape like the native call. */
+async function hlWideBook(coin){
+  const NS = [5, 4, 3], rs = await Promise.all([HL.post({type:"l2Book", coin}), ...NS.map(n => HL.post({type:"l2Book", coin, nSigFigs:n}, 4000).catch(() => null))]);
+  const base = rs[0], lv0 = (base && base.levels) || [[], []];
+  const side = si => { const out = (lv0[si] || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); let fine = Infinity; for (let i = 1; i < out.length; i++){ const d = Math.abs(out[i].p - out[i-1].p); if (d > 1e-12 && d < fine) fine = d; }
+    let edge = out.length ? out[out.length-1].p : null; if (edge == null) return out;
+    for (const r of rs.slice(1)){ const L = ((r && r.levels && r.levels[si]) || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); if (L.length < 2) continue; const T = Math.abs(L[1].p - L[0].p); if (!(T > 0)) continue;
+      const parts = isFinite(fine) ? Math.min(50, Math.max(1, Math.round(T/fine))) : 1, sub = T/parts;
+      L.forEach(x => { if (si === 0 ? !(x.p < edge - T) : !(x.p > edge + T)) return;
+        for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });
+      out.sort((u, v) => si === 0 ? v.p - u.p : u.p - v.p); edge = out[out.length-1].p; }
+    return out; };
+  const f = a => a.map(x => [String(x.p), String(x.q), "0", String(x.n || 0)]);
+  return [{bids:f(side(0)), asks:f(side(1)), ts:String((base && base.time) || Date.now())}];
+}
 async function hlOkx(path){   // answers the OKX REST paths the widgets use, in OKX's shape, from Hyperliquid
   const q = new URLSearchParams(path.split("?")[1] || ""), id = q.get("instId"), coin = hlCoin(id);
   if (/\/market\/(history-)?candles/.test(path)){ const iv = HL_IV[q.get("bar")]; if (!iv) throw new Error("timeframe "+q.get("bar")+" not available on Hyperliquid");
@@ -547,7 +564,8 @@ async function hlOkx(path){   // answers the OKX REST paths the widgets use, in 
     const poll = lim <= 5 && !q.get("after"), rows = await HL.post({type:"candleSnapshot", req:{coin, interval:iv, startTime:poll ? Math.floor(start/HL_MS[iv])*HL_MS[iv] : start, endTime:poll ? Math.floor(end/5000)*5000 : end}}, poll ? 5000 : 0);   // the live poll (3 bars): its time window is rounded so charts on the same symbol and timeframe send ONE identical request, reused for 5 s (a candle poll costs ~20 of Hyperliquid's 1200 request weight per minute)
     return (rows || []).map(k => [String(k.t), String(k.o), String(k.h), String(k.l), String(k.c), String(k.v), "0", "0", "1"]).reverse(); }
   if (/\/market\/ticker/.test(path)){ if (!HL.t) await HL.ctx(); const x = HL.q[id]; if (!x) throw new Error("unknown Hyperliquid market "+coin); return [{instId:id, last:String(x.last), open24h:String(x.open || x.last), vol24h:String(x.vol || 0)}]; }
-  if (/\/market\/books/.test(path)){ const b = await HL.post({type:"l2Book", coin}), lv = (b && b.levels) || [[], []], f = a => a.map(x => [String(x.px), String(x.sz), "0", String(x.n || 0)]);
+  if (/\/market\/books/.test(path)){ const wide = /books-full/.test(path) || +q.get("sz") >= 100; if (wide) return hlWideBook(coin);
+    const b = await HL.post({type:"l2Book", coin}), lv = (b && b.levels) || [[], []], f = a => a.map(x => [String(x.px), String(x.sz), "0", String(x.n || 0)]);
     return [{bids:f(lv[0] || []), asks:f(lv[1] || []), ts:String(b.time || Date.now())}]; }
   if (/\/market\/trades/.test(path)) return HL.trades(coin);   // newest first, like OKX (the old REST-only version returned oldest first and only ~10 prints)
   throw new Error("not available for Hyperliquid markets");

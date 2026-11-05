@@ -521,3 +521,8 @@
 | 2026-11-05 09:17:30 | Bash | sed -i 's/\[30,4\]\]/[30,4],[14,-2]]/' tests/browser/msb_mock.js | نجح |
 | 2026-11-05 09:19:49 | Bash | export NODE_PATH=$(npm root -g) | نجح |
 | 2026-11-05 09:19:55 | Bash | git add -A && | نجح |
+| 2026-11-05 09:20:10 | Bash | git status --short && | نجح |
+| 2026-11-05 09:20:17 | Bash | grep -n "psar" modules/ws/20_chart_canvas.js | نجح |
+| 2026-11-05 09:20:19 | Bash | sed -n 296,298p modules/ws/22_panels.js | نجح |
+| 2026-11-05 09:20:22 | Bash | grep -n "state.st" modules/ws/22_panels.js | نجح |
+| 2026-11-05 09:20:44 | Bash | python3 - <<'EOF' p='modules/ws/20_chart_canvas.js'; | نجح |

@@ -33,6 +33,7 @@ class XpixAgent {
   symbol(s, panel){ return this.x("setSymbol", s, panel); }
   async tf(t, panel){ const st = await this.state(), hit = st.ok && st.tfs.find(k => k.toLowerCase() === String(t).toLowerCase()); return this.x("setTf", hit || t, panel); }   // "1h" -> "1H"
   toggle(ind, on, panel){ return this.x("toggle", ind, !!on, panel); } addPanel(type){ return this.x("addPanel", type); } closePanel(id){ return this.x("closePanel", id); }
+  params(ind, panel){ return this.x("params", ind, panel); } setParam(ind, key, value, panel){ return this.x("setParam", ind, key, value, panel); } layout(name){ return this.x("layout", name); }
   draw(o, panel){ return this.x("draw", o, panel); } clearDrawings(panel){ return this.x("clearDrawings", panel); }
   // ---- screenshots (real browser pixels, scale 2 by default) ----
   async shot(o = {}){ const out = path.resolve(o.out || "xpix_" + new Date().toISOString().replace(/[:.]/g, "-") + ".png"); fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -46,13 +47,15 @@ async function cli(argv){
   const [cmd, ...a] = rest;
   if (!cmd || cmd === "help" || cmd === "--help"){ console.log(`XPiX Agent: node xpix_agent.js [--url U] [--headed] [--profile DIR] <command>
   pages | page <name|index> | state | list | symbol <SYM> | tf <TF> | toggle <indicator> <on|off> | addpanel <type> | closepanel <id>
+  params <indicator> | set <indicator> <key> <value> | layout <standard|blank|save>
   draw '<json>' | cleardrawings | shot [--out f.png] [--full] [--workspace] [--scale N] | batch '<json array of {cmd,args}>'
   Flags: --panel <id> targets one chart panel. Env: XPIX_URL, XPIX_PROFILE, XPIX_CHROME. Read / view / draw only.`); return 0; }
   const ag = new XpixAgent({ url: opt.url, profile: opt.profile, headed: opt.headed }); await ag.start();
   const one = async (c, args) => { const P = opt.panel;
     switch (c){ case "pages": return ag.pages(); case "page": return ag.openPage(args[0]); case "state": return ag.state(); case "list": return ag.list(P);
       case "symbol": return ag.symbol(args[0], P); case "tf": return ag.tf(args[0], P); case "toggle": return ag.toggle(args[0], /^(on|1|true)$/i.test(args[1] || "on"), P);
-      case "addpanel": return ag.addPanel(args[0]); case "closepanel": return ag.closePanel(args[0]); case "draw": return ag.draw(JSON.parse(args[0]), P); case "cleardrawings": return ag.clearDrawings(P);
+      case "addpanel": return ag.addPanel(args[0]); case "closepanel": return ag.closePanel(args[0]); case "params": return ag.params(args[0], P); case "set": return ag.setParam(args[0], args[1], args[2], P); case "layout": return ag.layout(args[0]);
+      case "draw": return ag.draw(JSON.parse(args[0]), P); case "cleardrawings": return ag.clearDrawings(P);
       case "shot": return ag.shot({ out: opt.out, full: opt.full, workspace: opt.workspace, scale: opt.scale ? +opt.scale : 1 }); default: throw new Error("unknown command: " + c); } };
   let res; try { res = cmd === "batch" ? await (async () => { const o = []; for (const s of JSON.parse(a[0])) o.push(await one(s.cmd, s.args || [])); return o; })() : await one(cmd, a); }
   catch(e){ res = { ok: false, err: String(e.message || e) }; } finally { await ag.stop(); }

@@ -122,12 +122,14 @@ class CandleChart {
   }
   x(i){ return this.PR - (this.r - i + 0.5)*this.bw; }
   idx(x){ return this.r + 0.5 - (this.PR - x)/this.bw; }
+  inColStrip(mx){ return this.colWide > 0 && this.domOn && this.colOn && mx >= this.PR + this.cw() - OFM.CAX - OFM.CDP && mx < this.PR + this.cw() - OFM.CDP; }   // the price-label strip of the wide column: its own little PRICE axis (wheel / drag = vertical zoom)
   wheel(e){
     const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
     if (mx > this.W-this.axw){ this._bookFit = false; this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), this.candleY()); this.drawSoon(); return; }   // wheel over the price axis: anchored at the cursor, at most ~15 % a notch
-    if (mx > this.PR && this.colWide > 0 && this.domOn){   // WIDE column. Wheel = TIME (the map stretches / squeezes sideways around the newest edge). Shift + wheel = PRICE: on the CHART's price scale (candles and map move together, like the old column) or, in own-scale mode, the column's own range
-      if (e.shiftKey && !this.colOwn){ this._bookFit = false; this.freezeY(); this.zoomY(Math.exp(Math.max(-120, Math.min(120, e.deltaY))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }
-      if (e.shiftKey){ const cur = this.colWideR || this._wideAutoR || 0.02; this.colWideR = Math.max(0.004, Math.min(OFM.SPAN, cur*Math.exp(e.deltaY*0.0015))); this.onWideR && this.onWideR(); }
+    if (mx > this.PR && this.colWide > 0 && this.domOn){   // WIDE column. Wheel on the MAP = TIME (horizontal stretch). Wheel on the price strip (or Shift + wheel anywhere on the column) = PRICE (vertical): the CHART's price scale (candles, yellow line and map move together) or, in own-scale mode, the column's own range
+      const dy = e.deltaY || e.deltaX, price = e.shiftKey || this.inColStrip(mx);   // Windows turns Shift + wheel into a SIDEWAYS wheel (deltaX): that is why the vertical zoom never moved
+      if (price && !this.colOwn){ this._bookFit = false; this.freezeY(); this.zoomY(Math.exp(Math.max(-120, Math.min(120, dy))*0.0012), (e.clientY - rect.top)/this.S); this.drawSoon(); return; }
+      if (price){ const cur = this.colWideR || this._wideAutoR || 0.02; this.colWideR = Math.max(0.004, Math.min(OFM.SPAN, cur*Math.exp(dy*0.0015))); this.onWideR && this.onWideR(); }
       else { const cur = this.flowSpan || this._wideWin || 120000; this.flowSpan = Math.max(10000, Math.min(OFM.KEEP, cur*Math.exp(e.deltaY*0.0016))); }
       this.drawSoon(); return; }
     if (mx > this.PR){ this.flowSpan = Math.max(20000, Math.min((this.st.of.hmm || "fix") === "fix" ? 604800000 : 1200000, this.fspan(nowS())*Math.exp(e.deltaY*0.001))); this.drawSoon(); return; }   // over the order-flow column: wheel = time zoom (20 s .. 20 min)
@@ -163,7 +165,7 @@ class CandleChart {
       } }
     if (this.toolDown(e)) return;
     const rect = this.cv.getBoundingClientRect(), mx = (e.clientX - rect.left)/this.S;
-    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-this.axw};
+    this.drag = {x:e.clientX, y:e.clientY, axis: mx > this.W-this.axw || (!this.colOwn && this.inColStrip(mx))};   // drag on the column's price strip = the same vertical zoom as dragging the chart's price axis
   }
   move(e){
     if (this.pinch && this.tp && this.tp.has(e.pointerId)){ this.tp.set(e.pointerId, {x:e.clientX, y:e.clientY}); const v = [...this.tp.values()]; if (v.length < 2) return;
@@ -177,7 +179,7 @@ class CandleChart {
     if (this.subDrag){ const dh = ((this.subDrag.y - e.clientY)/this.S)/Math.max(1, this.H)*100; this.st[this.subDrag.k].hp = Math.max(1, Math.min(92, Math.round((this.subDrag.hp + dh)*10)/10)); /* drag the divider all the way down or up */ this.resize(); this.drawSoon(); return; }
     if (this.subMove){ const act = this.subActive(), i = act.indexOf(this.subMove.k), P = this._panes || [], me = P.find(q => q.k === this.subMove.k);
       if (me && i >= 0){ const my = this.mouse.y; if (i > 0 && my < me.y0 - 4) this.swapSub(this.subMove.k, -1); else if (i < act.length-1 && my > me.y0 + me.h + 8) this.swapSub(this.subMove.k, 1); } return; }
-    { const hh = this.layoutHit(this.mouse.x, this.mouse.y); this.cv.style.cursor = hh ? ((hh.kind === "col" || hh.kind === "axw") ? "ew-resize" : hh.kind === "size" ? "ns-resize" : hh.kind === "move" ? "grab" : "pointer") : (this.tool === "cur" ? "" : "crosshair"); }
+    { const hh = this.layoutHit(this.mouse.x, this.mouse.y); this.cv.style.cursor = hh ? ((hh.kind === "col" || hh.kind === "axw") ? "ew-resize" : hh.kind === "size" ? "ns-resize" : hh.kind === "move" ? "grab" : "pointer") : (this.tool === "cur" ? "" : "crosshair"); if (!hh && !this.colOwn && this.inColStrip(this.mouse.x)) this.cv.style.cursor = "ns-resize"; }   // the column's price strip behaves like a price axis
     if (this.tool === "cur" && this.drawingsVisible && !this.drag && !this.dragD && this.mouse){ const q0 = this.pt(e);
       if (q0.x <= this.PR && q0.y <= this.PB){ const hd = this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q0.x, q0.y)); if (hd) this.cv.style.cursor = hd.lock ? "not-allowed" : "move"; } }
     if (this.toolMove(e)){ this.drawSoon(); return; }

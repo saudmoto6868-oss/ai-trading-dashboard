@@ -633,6 +633,9 @@ class Panel {
         }
         else {
           const data = this.chart.data.slice();
+          { const lastT = data.length ? data[data.length-1].t : 0, step = (TFSEC[tf] || 60)*1000, now = Date.now(), ga = this._gapAt = (this._gapAt || []).filter(x => now - x < 600000);
+            if (lastT && rows.length && rows[0].t > lastT + 2*step && ga.length < 2){   // saved / old candles + fresh ones = a hole in the chart (owner 2026-11-05, 15m gold): drop the old ones and load the whole history again
+              ga.push(now); CandleCache.drop(sym, tf); this.chart.data = []; clearTimeout(this.timer); return loop(true); } }
           rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });
           this.chart.setData(data, false);
         }

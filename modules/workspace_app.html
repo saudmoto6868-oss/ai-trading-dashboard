@@ -1176,6 +1176,7 @@ const FPS = {
 const CandleCache = {   // last 300 candles per symbol + timeframe in this browser: a new tab / refresh paints at once, the live request then replaces them (max 16 entries, quota errors ignored)
   key(sym, tf){ return LS+"_cc|"+sym+"|"+tf; },
   get(sym, tf){ try { const o = JSON.parse(localStorage.getItem(this.key(sym, tf)) || "null"); if (!o || !o.r || o.r.length < 20 || Date.now() - o.t > 7*86400000) return null; return o.r.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], v:a[5]})); } catch(e){ return null; } },
+  drop(sym, tf){ try { localStorage.removeItem(this.key(sym, tf)); } catch(e){} },
   put(sym, tf, rows){ try { if (!rows || rows.length < 20) return; const k = this.key(sym, tf), idx = JSON.parse(localStorage.getItem(LS+"_cci") || "[]").filter(x => x !== k); idx.push(k);
       while (idx.length > 16){ localStorage.removeItem(idx.shift()); }
       localStorage.setItem(k, JSON.stringify({t:Date.now(), r:rows.slice(-300).map(x => [x.t, x.o, x.h, x.l, x.c, x.v || 0])})); localStorage.setItem(LS+"_cci", JSON.stringify(idx)); } catch(e){} }
@@ -4346,6 +4347,9 @@ class Panel {
         }
         else {
           const data = this.chart.data.slice();
+          { const lastT = data.length ? data[data.length-1].t : 0, step = (TFSEC[tf] || 60)*1000, now = Date.now(), ga = this._gapAt = (this._gapAt || []).filter(x => now - x < 600000);
+            if (lastT && rows.length && rows[0].t > lastT + 2*step && ga.length < 2){   // saved / old candles + fresh ones = a hole in the chart (owner 2026-11-05, 15m gold): drop the old ones and load the whole history again
+              ga.push(now); CandleCache.drop(sym, tf); this.chart.data = []; clearTimeout(this.timer); return loop(true); } }
           rows.forEach(k => { const j = data.length ? data.findIndex(z => z.t === k.t) : -1; if (j >= 0) data[j] = k; else if (!data.length || k.t > data[data.length-1].t) data.push(k); });
           this.chart.setData(data, false);
         }

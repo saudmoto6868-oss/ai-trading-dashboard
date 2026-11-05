@@ -225,6 +225,8 @@ async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest f
   return out.map(({n:_n, ...r}) => r);
 }
 const isRL = e => /rate limit|429/i.test(String(e && e.message || e || ""));   // a rate limit is a pause, not a failure
+const hlPoll = tf => { const s = TFSEC[tf] || 60; return s >= 86400 ? 45000 : s >= 14400 ? 30000 : s >= 3600 ? 20000 : s >= 900 ? 10000 : 6000; };   // Hyperliquid candle poll period by timeframe: a daily candle does not need a 6 s poll (weight limit ~1200 / min per IP)
+const ageTxt = ms => { const m = Math.round(ms/60000); return m < 90 ? m+Lg(" min", " دقيقة") : m < 2880 ? Math.round(m/60)+Lg(" h", " ساعة") : Math.round(m/1440)+Lg(" days", " يوم"); };
 const offTxt = (sym, e) => isRL(e) ? T("busy") : (/^HL:/.test(String(sym || "")) ? T("offlineHL") : T("offline"));   // the text says WHICH venue and whether it is only a pause
 const LLC = new Map();   // symbol -> {t, v, p}: shared MTF LLT candles (see llKick)
 async function llFetch(sym){

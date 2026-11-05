@@ -638,11 +638,12 @@ class Panel {
         }
       } catch(e){
         if (!isRL(e)) setStatus(false); this.msg.textContent = isRL(e) ? offTxt(sym, e) : offTxt(sym, e)+" ("+(e.message||e)+")";
+        { const d = this.chart.data, lt = d.length ? d[d.length-1].t : 0, ag = lt ? Date.now() - lt : 0; if (lt && ag > 3*(TFSEC[tf] || 60)*1000 + 60000) this.msg.textContent += " · ⚠ "+Lg("the last candle shown is ", "آخر شمعة معروضة من ")+ageTxt(ag)+Lg(" old: this price is NOT live", " فاتت: السعر ده مش حي"); }   // owner 2026-11-05: charts showed saved candles (~90 off the live price) with only a small rate-limit line
         const sd = CFG.seed;
         if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
       }
       if (!this.chart.data.length) fails++;
-      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || (/^HL:/.test(sym) ? 6000 : 2000)));   // Hyperliquid: 6 s (its request weight is limited per minute; 4 gold charts polling every 2 s alone were ~1500 of 1200)
+      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || (/^HL:/.test(sym) ? hlPoll(tf) : 2000)));   // Hyperliquid: 6 s (its request weight is limited per minute; 4 gold charts polling every 2 s alone were ~1500 of 1200)
     };
     this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);

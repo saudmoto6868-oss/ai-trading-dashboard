@@ -254,3 +254,5 @@
 | 2026-11-05 00:55:22 | mcp__github__create_pull_request |  | نجح |
 | 2026-11-05 00:58:35 | Bash | git checkout -q -- | نجح |
 | 2026-11-05 00:58:37 | mcp__github__create_pull_request |  | نجح |
+| 2026-11-05 00:58:52 | Bash | git status --short / | نجح |
+| 2026-11-05 01:04:38 | mcp__github__merge_pull_request |  | نجح |

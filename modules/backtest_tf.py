@@ -54,8 +54,11 @@ def fetch_long(symbol, tf, bars=1000, base_url=None, sleep=0.12):
     return df.sort_values("time").reset_index(drop=True)[["time", "open", "high", "low", "close", "volume"]]
 
 
+COST_PCT = float(os.environ.get("BT_COST_PCT", "0.001"))   # DECISIONS.md #2: 0.1 % of the price for the round trip (a planning estimate, not a measurement); in R it is COST_PCT x entry / stop distance
+
+
 def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):
-    """-> list of (tags, 'tp'|'sl'|'exp') for one candle series."""
+    """-> list of (tags, 'tp'|'sl'|'exp', rr, cost_R) for one candle series (rr = the TP1 reward in R, cost_R = the round-trip cost in R of this plan)."""
     out, H = [], HORIZON[tf]
     hi, lo = df["high"].values, df["low"].values
     for i in range(warm, len(df) - 2, stride):
@@ -83,23 +86,32 @@ def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):
                 res = "tp"
                 break
         tags = sorted({tag_for(s, True)[0] for s in r["signals"]}) + ["*"]   # "*" = every signal together
-        out.append((tags, res))
+        risk = abs(entry - stop); rr = abs(tp1 - entry) / risk
+        out.append((tags, res, round(rr, 3), round(COST_PCT * abs(entry) / risk, 4)))
     return out
 
 
 def aggregate(results):
-    """results: {tf: [(tags, res)]} -> {strategy: {tf: {n, hit, tp, sl, exp}}}"""
-    stats = {}
+    """results: {tf: [(tags, res[, rr, cost_R])]} -> {strategy: {tf: {n, hit, tp, sl, exp, avgR, net}}}.
+    avgR = mean R of the resolved trades (tp = +rr, sl = -1; no costs), net = avgR minus the mean round-trip cost in R (DECISIONS.md #2): a hit rate alone says nothing about money.
+    Rows without rr (old results) have no avgR / net."""
+    stats, acc = {}, {}
     for tf, rows in results.items():
-        for tags, res in rows:
+        for row in rows:
+            tags, res = row[0], row[1]
             for g in tags:
                 d = stats.setdefault(g, {}).setdefault(tf, {"tp": 0, "sl": 0, "exp": 0})
                 d[res] += 1
+                if len(row) > 3 and res in ("tp", "sl"):
+                    a = acc.setdefault((g, tf), [0, 0.0, 0.0]); a[0] += 1; a[1] += row[2] if res == "tp" else -1.0; a[2] += row[3]
     for g, per in stats.items():
         for tf, d in per.items():
             n = d["tp"] + d["sl"]
             d["n"] = n
             d["hit"] = round(d["tp"] / n, 3) if n else None
+            a = acc.get((g, tf))
+            if a and a[0]:
+                d["avgR"] = round(a[1] / a[0], 3); d["net"] = round(a[1] / a[0] - a[2] / a[0], 3)
     return stats
 
 
@@ -108,6 +120,17 @@ def best_tf(stats):
     out = {}
     for g, per in stats.items():
         ok = [(d["hit"], tf) for tf, d in per.items() if d["n"] >= MIN_N and d["hit"] is not None]
+        if ok:
+            out[g] = max(ok)[1]
+    return out
+
+
+def best_tf_net(stats):
+    """-> {strategy: tf with the highest NET average R (after the round-trip cost) among tfs with >= MIN_N resolved trades}; only strategies where that net is above 0 get an entry:
+    a timeframe with the best hit rate but a negative net is not 'best', it is the least bad."""
+    out = {}
+    for g, per in stats.items():
+        ok = [(d["net"], tf) for tf, d in per.items() if d["n"] >= MIN_N and d.get("net") is not None and d["net"] > 0]
         if ok:
             out[g] = max(ok)[1]
     return out
@@ -127,7 +150,7 @@ def run(symbols, tfs=TFS, bars=1000, stride=6, base_url=None, fetch=fetch_long, 
             if progress:
                 progress(sym, tf)
     stats = aggregate(results)
-    return {"built": int(time.time()), "symbols": list(symbols), "min_n": MIN_N, "stats": stats, "best": best_tf(stats)}
+    return {"built": int(time.time()), "symbols": list(symbols), "min_n": MIN_N, "stats": stats, "best": best_tf(stats), "best_net": best_tf_net(stats), "cost_pct": COST_PCT}
 
 
 def save(payload, path=OUT):

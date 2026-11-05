@@ -21,6 +21,14 @@ const { chromium } = require('playwright');
     opt = { compact: true, win: 120000 }; OFM.render(c, { snaps: [mk(now - 60000, true), mk(now - 3000, true)], trades: [] }, {}, W, H, opt); const R = opt.outR, hi = mid*(1 + R), lo = mid*(1 - R), ph = H - 14, ys = []; for (let k = -6; k <= 6; k++) ys.push(Math.round((hi - (base + (wi + k + .5)*step))/(hi - lo)*ph));
     const xc = Math.round(pw*0.85); let lit = 0; const yy0 = Math.min(...ys), yy1 = Math.max(...ys); for (let y = yy0; y <= yy1; y++) if (px(xc, y) > 330) lit++;
     return { win, x0, pw, fillStart: x0/pw, hairLit: lit, hairRows: yy1 - yy0 + 1 }; });
-  const ok = r.tot > 100 && r.lit/r.tot > 0.95 && r2.fillStart < 0.2 && r2.win >= 60000 && r2.win <= 100000 && r2.hairLit/r2.hairRows > 0.92 && errs.length === 0;
-  console.log(JSON.stringify({ r, r2 }), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
+  const r3 = await p.evaluate(() => { const mid = 4127, NB = OFM.NB, base = mid*(1 - OFM.SPAN), step = mid*2*OFM.SPAN/NB, now = nowS(), fbase = mid*(1 - OFM.FSPAN), fstep = mid*2*OFM.FSPAN/OFM.NF;
+    // LINKED scale: the map uses the chart's own price window, and two walls 1.2 USD apart stay two rows (the fine array), a row between them stays dark
+    const arr = new Float32Array(NB).fill(1), fine = new Float32Array(OFM.NF); const fi = price => Math.floor((price - fbase)/fstep); [mid + 0.8, mid + 2.0].forEach(pp => { for (let k = -1; k <= 1; k++) fine[fi(pp) + k] = 80; });
+    const sn = t => ({ t, mid, bb: mid - .05, ba: mid + .05, base, step, arr, fine, fbase, fstep, cov: 5 }), cv = document.createElement('canvas'), W = 300, H = 300; cv.width = W; cv.height = H; const c = cv.getContext('2d');
+    const lo = mid - 4, hi = mid + 4, opt = { compact: true, ylink: [lo, hi], win: 120000 }; OFM.render(c, { snaps: [sn(now - 60000), sn(now - 3000)], trades: [] }, {}, W, H, opt);
+    const ph = H - 14, pw = W - 50 - 40, yOf = v => Math.round((hi - v)/(hi - lo)*ph), px = (x, y) => { const d = c.getImageData(x, y, 1, 1).data; return d[0] + d[1] + d[2]; }, xc = Math.round(pw*0.8);
+    return { R: opt.outR, expectR: 4/mid, w1: px(xc, yOf(mid + 0.8)), w2: px(xc, yOf(mid + 2.0)), gap: px(xc, yOf(mid + 1.4)) }; });
+  r3.ok = Math.abs(r3.R - r3.expectR) < 1e-9 && r3.w1 > 330 && r3.w2 > 330 && r3.gap < 260;
+  const ok = r.tot > 100 && r.lit/r.tot > 0.95 && r2.fillStart < 0.2 && r2.win >= 60000 && r2.win <= 100000 && r2.hairLit/r2.hairRows > 0.92 && r3.ok && errs.length === 0;
+  console.log(JSON.stringify({ r, r2, r3 }), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

@@ -73,6 +73,7 @@ function wsRecBtn(){
 }
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
+  if (CFG.build){ const bld = el("span", "bld", "build "+CFG.build); bld.title = Lg("The commit of the code that is running now (after a merge the app needs a few minutes and a Reboot from Streamlit Cloud)", "رقم الكومت اللي شغال دلوقتي (بعد أي دمج التطبيق بياخد كام دقيقة ومحتاج Reboot من Streamlit Cloud)"); bld.style.cssText = "order:99;margin-left:auto;font:10px ui-monospace,Menlo,Consolas,monospace;color:#6b7684;padding:0 8px;white-space:nowrap;align-self:center"; bar.append(bld); }   // which build is live
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
   [[Lg("Decision","القرار"), ["chart","setup","signals","alerts"]], [Lg("Execution / order flow","التنفيذ والأوردر فلو"), ["dom","tape","limits","risk"]], [Lg("Markets","الأسواق"), ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]], [Lg("Context (fundamental)","السياق (الأساسي)"), ["fund","macrof","stockf","cmc","news"]], [Lg("Review","المراجعة"), ["journal","notes"]], [Lg("Settings","الإعدادات"), ["settings"]]]
     .forEach(([g, ts]) => { const og_ = Object.assign(el("optgroup"), {label:g}); ts.forEach(t => og_.append(Object.assign(el("option"), {textContent:T(t), value:t}))); sel.append(og_); });

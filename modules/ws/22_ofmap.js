@@ -3,7 +3,7 @@
    (the wide book: OKX up to 2000 levels a side, Hyperliquid stitched by hlWideBook), the mid price as a line, trade prints as bubbles, and the CURRENT book as bars on the right. Reads the same Hub "book" and
    "trades" feeds as the other panels (no extra requests). Description of what rests in the book, never a signal. Snapshots are kept per panel in memory only (max 30 min). */
 const OFM = {
-  NB: 1500, SPAN: 0.30, NF: 1200, FSPAN: 0.015, AX: 64, DP: 74, TB: 18,
+  NB: 1500, SPAN: 0.30, NF: 1200, FSPAN: 0.015, CAX: 50, CDP: 40, AX: 64, DP: 74, TB: 18,   // CAX / CDP = compact (column) widths of the price-label strip and the current-book bars
   RANGES: [[0.0025, "±0.25%"], [0.005, "±0.5%"], [0.01, "±1%"], [0.02, "±2%"], [0.05, "±5%"], [0.1, "±10%"], [0.2, "±20%"], [0.3, "±30%"]],
   WINS: [[120000, "2m"], [300000, "5m"], [900000, "15m"], [1800000, "30m"]],
   PAL: (() => { const st = [[0, 8, 12, 22], [.12, 14, 40, 92], [.3, 18, 96, 170], [.5, 30, 190, 190], [.68, 120, 220, 90], [.82, 245, 200, 40], [.93, 240, 90, 40], [1, 255, 245, 235]], out = new Uint8Array(256*3);
@@ -50,7 +50,7 @@ const OFM = {
   render(c, o, S, W, H, opt){
     const compact = !!opt.compact; c.fillStyle = "#0b0e11"; c.fillRect(0, 0, W, H); c.font = (compact ? "9px" : "10px")+" ui-monospace,Menlo,Consolas,monospace";
     const lastS = o.snaps[o.snaps.length-1], last = o.snaps.latest && lastS && o.snaps.latest.t > lastS.t ? o.snaps.latest : lastS; if (!last){ c.fillStyle = "#6b7684"; c.textAlign = "left"; c.textBaseline = "top"; c.fillText(Lg("waiting for the order book…","بانتظار دفتر الأوامر…"), 8, 8); return; }
-    const AX = compact ? 50 : OFM.AX, DP = compact ? 40 : OFM.DP, TB = compact ? 14 : OFM.TB, pw = W - AX - DP, ph = H - TB; if (pw < 30 || ph < 40) return;
+    const AX = compact ? OFM.CAX : OFM.AX, DP = compact ? OFM.CDP : OFM.DP, TB = compact ? 14 : OFM.TB, pw = W - AX - DP, ph = H - TB; if (pw < 30 || ph < 40) return;
     const visHalf = opt.vis && last.mid > 0 ? (opt.vis[1] - opt.vis[0])/2/last.mid : 0, Rm = compact ? (opt.rman > 0 ? Math.min(OFM.SPAN, opt.rman) : Math.max(0.004, Math.min(OFM.SPAN, Math.max(Math.min(last.cov/100*1.02, 0.10), visHalf*1.1)))) : Math.min(OFM.SPAN, S.omR || 0.01);    // wide column: the whole book, never narrower than what the chart shows
     const link = opt.ylink && opt.ylink[1] > opt.ylink[0] ? opt.ylink : null, R = link ? (link[1] - link[0])/2/last.mid : Rm, mid = last.mid, lo = link ? link[0] : mid*(1 - R), hi = link ? link[1] : mid*(1 + R), t1 = nowS(), snaps = o.snaps, win = opt.win || (compact ? Math.max(60000, Math.min(480000, (t1 - snaps[0].t)*1.04 + 4000)) : (S.omW || 300000)), t0 = t1 - win; opt.outWin = win;   // wide column: the time window FITS the recorded history, so the heat map always fills the whole width and stretches sideways as time passes (Shift + wheel = a fixed window)
     opt.outR = R;
@@ -85,6 +85,7 @@ const OFM = {
         const t = q.price.toFixed(dec)+"  "+(q.v >= 1000 ? (q.v/1000).toFixed(1)+"K" : q.v >= 10 ? Math.round(q.v) : q.v.toFixed(1)); c.font = "bold "+(compact ? "9px" : "10px")+" ui-monospace,Menlo,Consolas,monospace"; const w = c.measureText(t).width + 6; c.fillStyle = "rgba(11,14,17,.82)"; c.fillRect(2, y - 7, w, 13); c.fillStyle = sell ? "#f6465d" : "#0ecb81"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(t, 5, y); }); }
     // what the chart shows now: a bracket on the left edge of the heat map
     if (opt.vis){ const y1 = Math.max(0, yOf(opt.vis[1])), y2 = Math.min(ph, yOf(opt.vis[0])); if (y2 > y1){ c.strokeStyle = "rgba(240,185,11,.9)"; c.lineWidth = 2; c.beginPath(); c.moveTo(pw - 1, y1); c.lineTo(pw - 4, y1); c.lineTo(pw - 4, y2); c.lineTo(pw - 1, y2); c.stroke(); c.fillStyle = "rgba(240,185,11,.08)"; c.fillRect(0, y1, pw, y2 - y1); } }
+    if (compact){ c.fillStyle = "#6b7684"; c.font = "8px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; c.textBaseline = "top"; c.fillText("↕ "+Lg("price", "سعر"), pw + 3, 2); }   // wheel / drag on this strip = PRICE zoom (vertical); wheel on the map = TIME (horizontal)
     const ym = yOf(mid); if (link && ym >= 0 && ym <= ph){ c.strokeStyle = "rgba(240,185,11,.95)"; c.lineWidth = 1; c.setLineDash([5, 3]); c.beginPath(); c.moveTo(0, ym + .5); c.lineTo(pw, ym + .5); c.stroke(); c.setLineDash([]); }   // the yellow last-price line runs through the candles AND the map (same price scale)
     c.fillStyle = "#f0b90b"; c.fillRect(pw, ym - 7, AX, 14); c.fillStyle = "#0b0e11"; c.textAlign = "left"; c.textBaseline = "middle"; c.font = (compact ? "9px" : "10px")+" ui-monospace,Menlo,Consolas,monospace"; c.fillText(mid.toFixed(dec + (st < 1 ? 0 : 1)), pw + 3, ym);
     // current book as bars on the right

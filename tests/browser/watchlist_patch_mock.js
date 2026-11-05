@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
     if (/market\/tickers/.test(u)) { n++; const d = ['BTC-USDT', 'ETH-USDT'].map((id, i) => ({ instId: id, last: String(100 * (i + 1) + n * 0.37), open24h: '100', bidPx: '1', askPx: '1', high24h: '1', low24h: '1' })); return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: d }) }); }
     const now = Math.floor(Date.now() / 60000) * 60000, o = []; for (let i = 0; i < 100; i++) o.push([String(now - i * 60000), '100', '101', '99', '100', '1', '0', '0', '1']);
     return r.fulfill({ status: 200, contentType: 'application/json', headers: h, body: JSON.stringify({ code: '0', data: /candles/.test(u) ? o : [] }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1200); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(5000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1200); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(5000);
   await p.evaluate(() => { const w = Ws.panels.find(q => q.type === 'watch'); w.state.u = { cat: '__mine' }; w.wDraw(); }); await p.waitForTimeout(3500);
     const r1 = await p.evaluate(() => { const c = document.querySelector('table.wt tr.wr td:nth-child(2)'); if (c) c.__mark = 1; const t = document.querySelector('table.wt tr.wr td:nth-child(3)'); return { rows: document.querySelectorAll('table.wt tr.wr').length, price: t && t.textContent }; });
   await p.waitForTimeout(9000);

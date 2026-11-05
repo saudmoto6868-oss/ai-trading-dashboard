@@ -233,3 +233,59 @@ const maOf = (a, n, type) => {   // one moving average of a series: null before 
 };
 const stochK = (d, k, slow) => smaOf(d.map((x, i) => { if (i < k-1) return 50; let hh = -Infinity, ll = Infinity; for (let j = i-k+1; j <= i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return hh > ll ? (x.c - ll)/(hh - ll)*100 : 50; }), slow);
 const rsiOf = (cl, L) => { let ag = 0, al = 0; return cl.map((v, i) => { if (!i) return 50; const d = v - cl[i-1], g = Math.max(d, 0), l = Math.max(-d, 0); if (i <= L){ ag += g/L; al += l/L; } else { ag = (ag*(L-1) + g)/L; al = (al*(L-1) + l)/L; } return i < L ? 50 : al === 0 ? 100 : 100 - 100/(1 + ag/al); }); };
+
+// ---- MSB: Market Structure Break + Order Block (OB) + Breaker/Mitigation Block (BB/MB) ----
+// Port of the TradingView script "Market Structure Break & Order Block" (c) EmreKb, Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/).
+// Same logic (zigzag pivots -> structure break confirmed by a fib factor -> OB / BB boxes, boxes die when price closes through them); not bit-exact with Pine (the "same pivots" guard uses the intended meaning).
+function msbCalc(D, zl, fibF){
+  const n = D.length, NA = NaN; zl = Math.max(2, zl|0); fibF = +fibF;
+  const hiP = [NA,NA,NA,NA,NA], hiI = [NA,NA,NA,NA,NA], loP = [NA,NA,NA,NA,NA], loI = [NA,NA,NA,NA,NA];
+  const out = {zz:[], ev:[], boxes:[]}; if (n < zl + 5) return out;
+  const upS = new Array(n).fill(false), dnS = new Array(n).fill(false), l0iS = new Array(n).fill(NA);
+  let trend = 1, market = 1, lastUp = -1, lastDn = -1, lastLowEq = 0, lastHighEq = 0, lastL0 = NA, lastH0 = NA;
+  for (let t = 0; t < n; t++){
+    const from = Math.max(0, t - zl + 1); let hh = -Infinity, ll = Infinity;
+    for (let j = from; j <= t; j++){ if (D[j].h > hh) hh = D[j].h; if (D[j].l < ll) ll = D[j].l; }
+    const toUp = D[t].h >= hh, toDn = D[t].l <= ll; upS[t] = toUp; dnS[t] = toDn;
+    const prev = trend; trend = trend === 1 && toDn ? -1 : trend === -1 && toUp ? 1 : trend;
+    // bars since to_up[1] / to_down[1] were last true
+    const sU = lastUp >= 0 ? t - (lastUp + 1) : NA, sD = lastDn >= 0 ? t - (lastDn + 1) : NA;
+    const lenL = Math.max(1, isFinite(sU) && sU > 0 ? sU : 1), lenH = Math.max(1, isFinite(sD) && sD > 0 ? sD : 1);
+    let lowVal = Infinity, highVal = -Infinity;
+    for (let j = Math.max(0, t - lenL + 1); j <= t; j++) lowVal = Math.min(lowVal, D[j].l);
+    for (let j = Math.max(0, t - lenH + 1); j <= t; j++) highVal = Math.max(highVal, D[j].h);
+    if (lowVal === D[t].l) lastLowEq = t; if (highVal === D[t].h) lastHighEq = t;
+    if (toUp) lastUp = t; if (toDn) lastDn = t;   // used as [1] by the next bar
+    if (trend !== prev){
+      if (trend === 1){ loP.push(lowVal); loI.push(lastLowEq); } else { hiP.push(highVal); hiI.push(lastHighEq); }
+      if (n > 0){ const a = hiP.length, b = loP.length;
+        const h0 = hiP[a-1], h0i = hiI[a-1], l0 = loP[b-1], l0i = loI[b-1];
+        if (trend === 1) out.zz.push([h0i, h0, l0i, l0]); else out.zz.push([l0i, l0, h0i, h0]); }
+    }
+    const a = hiP.length, b = loP.length, h0 = hiP[a-1], h0i = hiI[a-1], h1 = hiP[a-2], h1i = hiI[a-2], l0 = loP[b-1], l0i = loI[b-1], l1 = loP[b-2], l1i = loI[b-2];
+    l0iS[t] = l0i; (out._h0iz = out._h0iz || new Array(n).fill(NA))[t] = h0i;
+    if (![h0,h0i,h1,h1i,l0,l0i,l1,l1i].every(isFinite)) continue;
+    const old = market;
+    if (!(lastL0 === l0 || lastH0 === h0)){
+      if (market === 1 && l0 < l1 && l0 < l1 - Math.abs(h0 - l1) * fibF) market = -1;
+      else if (market === -1 && h0 > h1 && h0 > h1 + Math.abs(h1 - l0) * fibF) market = 1;
+    }
+    if (market === old) continue;
+    lastL0 = l0; lastH0 = h0;
+    const scan = (fromI, toI, wantBear) => { let r = t, a1 = Math.round(fromI), b1 = Math.round(toI); const st = a1 <= b1 ? 1 : -1;
+      for (let i = a1; st > 0 ? i <= b1 : i >= b1; i += st){ if (i < 0 || i >= n) continue; const bear = D[i].o > D[i].c, bull = D[i].o < D[i].c; if (wantBear ? bear : bull) r = i; } return r; };
+    const l0iz = t - zl >= 0 ? l0iS[t - zl] : l0i, h0iz = t - zl >= 0 ? out._h0iz && out._h0iz[t - zl] : h0i;
+    const mk = (idx, kind, bull, lbl) => out.boxes.push({i: idx, t, kind, bull, hi: D[idx].h, lo: D[idx].l, lbl});
+    if (market === 1){
+      out.ev.push({t, bull:true, x0:h1i, x1:h0i, y:h1, xm:Math.round((h1i + l0i)/2)});
+      mk(scan(h1i, isFinite(l0iz) ? l0iz : l0i, true), "ob", true, "Bu-OB");
+      mk(scan(l1i - zl, h1i, false), "bb", true, l0 < l1 ? "Bu-BB" : "Bu-MB");
+    } else {
+      out.ev.push({t, bull:false, x0:l1i, x1:l0i, y:l1, xm:Math.round((l1i + h0i)/2)});
+      mk(scan(l1i, isFinite(h0iz) ? h0iz : h0i, false), "ob", false, "Be-OB");
+      mk(scan(h1i - zl, l1i, true), "bb", false, h0 > h1 ? "Be-BB" : "Be-MB");
+    }
+  }
+  out.boxes.forEach(B => { B.end = -1; for (let j = B.t + 1; j < n; j++){ if (B.bull ? D[j].c < B.lo : D[j].c > B.hi){ B.end = j; break; } } });
+  return out;
+}

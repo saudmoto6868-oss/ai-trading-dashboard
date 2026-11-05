@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1700, height: 950 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 120)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   const res = await p.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); const sp = Array.from({ length: 40 }, (_, i) => 100 + Math.sin(i / 4) * 3);
     const mk = (symbol, score) => ({ symbol, direction: 'bullish', ttype: 'Day Trade', tfk: '1h', score, max: 10, tags: [], spark: sp, plan: { entry: 101, stop: 99, tps: [104, 105, 106] } });
     CFG.ready = [mk('BTC-USDT', 9), mk('HL:xyz:GOLD', 8), mk('Y:EURUSD=X', 7)]; Ws.build([['signals', { x: 0, y: 0, w: 700, h: 300 }, {}], ['setup', { x: 0, y: 300, w: 500, h: 300 }, {}], ['ready', { x: 700, y: 0, w: 500, h: 300 }, {}]]); await wait(800);

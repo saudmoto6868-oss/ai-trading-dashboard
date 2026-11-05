@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort();
     if (/\/rubik\//.test(u)) { rub++; return r.abort('failed'); }  // no CORS header, like OKX
     return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"code":"0","data":[]}' }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1500);
   const coins = ['BTC','ETH','SOL','XRP','DOGE','ADA','AVAX','LINK','DOT','TRX','LTC','BCH','ATOM','NEAR','APT','ARB','OP','INJ','SUI','SEI'];
   const before = rub;
   const res = await p.evaluate(async cs => { const out = await Promise.all(cs.map(c => okx('/rubik/stat/contracts/open-interest-volume?ccy=' + c + '&period=1H').then(() => 'ok', e => String(e.message || e).slice(0, 40)))); return out.reduce((a, x) => (a[x] = (a[x] || 0) + 1, a), {}); }, coins);

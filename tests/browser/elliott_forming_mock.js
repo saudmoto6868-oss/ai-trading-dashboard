@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(1500);
   const r = await p.evaluate(() => {
     const ch = Ws.panels.find(q => q.type === 'chart').chart, mk = a => a.map(([k, pr], i) => ({ k, p: pr, i: 10 + i * 5 })), sum = f => f && { up: f.up, next: f.next, n: f.pts.length, broke: !!f.broke };

@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (/hyperliquid\.xyz/.test(u)) return r.fulfill({ status: 429, contentType: 'text/plain', body: 'rate limited' }); return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   const r = await p.evaluate(async () => {
     const poll = { m5: hlPoll('5m'), m15: hlPoll('15m'), h1: hlPoll('1H'), h4: hlPoll('4H'), d1: hlPoll('1D'), m1: hlPoll('1m') };
     const H = 300000, T0 = Math.floor((Date.now() - 3 * 3600000) / H) * H - 100 * H, rows = Array.from({ length: 100 }, (_, i) => ({ t: T0 + i * H, o: 4040, h: 4042, l: 4038, c: 4041, v: 1 }));

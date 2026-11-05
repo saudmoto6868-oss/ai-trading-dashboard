@@ -30,3 +30,6 @@
 
 ## لو عندك فرع قديم عدّل `workspace_app.html` مباشرة
 هيتعارض. الحل: طبّق نفس التعديل على الجزء المقابل (دوّر على النص بـ`grep -n` في `modules/ws/`)، وبعدين شغّل السكربت. ما تحلّش الconflict في `workspace_app.html` نفسه، لأنه هيتولّد من جديد.
+
+## الستاندر
+`Ws.defaults()` بقت بترجّع التخطيط الستاندر (٤ شارتس + أوردر فلو + watch/DOM/limits/tape) أو التخطيط اللي المستخدم حفظه (`ai_ws_v5_std`). التخطيط القديم اتنقل لـ`Ws.defaultsMobile()` (للموبايل بس). اختبار: `tests/browser/standard_layout_mock.js` (حطّ `HL:xyz:GOLD` في رموز الصفحة).

@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort();
     const body = /candles/.test(u) ? { code: '0', data: candles() } : /books/.test(u) ? { code: '0', data: [book] } : { code: '0', data: [] };
     return r.fulfill({ status: 200, contentType: 'application/json', headers: hdr, body: JSON.stringify(body) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1200);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1200);
   await p.evaluate(() => { Ws.build([['chart', { x: 0, y: 0, w: 700, h: 500 }, { sym: 'BTC-USDT', tf: '1m', dcol: true, dom: true }], ['dom', { x: 710, y: 0, w: 380, h: 500 }, { sym: 'BTC-USDT' }]]); Ws.save(); });
   await p.waitForTimeout(6000);
   const info = () => p.evaluate(() => { const ch = Ws.panels.find(x => x.type === 'chart'), dm = Ws.panels.find(x => x.type === 'dom'); const g = ch.gSelTb;

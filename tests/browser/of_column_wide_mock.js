@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     if (/okx\.com\/api\/v5\/public\/time/.test(u)) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: [{ ts: String(Date.now()) }] }) });
     return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   await p.evaluate(() => { Ws.build([['chart', { x: 10, y: 10, w: 900, h: 520 }, { sym: 'HL:xyz:GOLD', tf: '5m', group: 0, dcol: true, dom: true, bub: true }]]); Ws.save(); }); await p.waitForTimeout(9000);
   const r = await p.evaluate(async () => { const P = Ws.panels.find(q => q.type === 'chart'), ch = P.chart, out = { wide: ch.colWide, snaps: ch.wom.snaps.length, cov: ch.wom.snaps.length ? ch.wom.snaps[ch.wom.snaps.length-1].cov : 0, cw: ch.cw() };
     const cv = ch.cv; const c2 = cv.getContext('2d'), s = cv.width / (ch.W || cv.width), x0 = Math.round(ch.PR * s), w = Math.round(out.cw * s), d = c2.getImageData(x0 + 4, 20, w - 8, Math.round((ch.PB || 300) * s) - 40).data; let col = 0; for (let i = 0; i < d.length; i += 4 * 9) if (d[i] + d[i+1] + d[i+2] > 150) col++; out.colored = col;

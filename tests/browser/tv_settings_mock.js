@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 160)));
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (/tradingview\.com/.test(u)) return r.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>tv</body></html>' }); return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000);
   const cfg = () => p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'tvc'); const f = P && P.body.querySelector('iframe'); if (!f) return null; const h = JSON.parse(decodeURIComponent(f.src.split('#')[1])); return { interval: h.interval, style: h.style, studies: h.studies, saved: JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /_tvset$/.test(k)) || 'x') || 'null') }; });
   await p.evaluate(() => { Ws.clear(); Ws.add('tvc'); }); await p.waitForTimeout(800);
   const r0 = await cfg();

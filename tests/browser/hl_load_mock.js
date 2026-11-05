@@ -14,7 +14,7 @@ const { chromium } = require('playwright');
       return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(data) }); }
     if (/okx\.com/.test(u)) { const k = 'OKX:' + (u.split('/api/v5')[1] || '').split('?')[0]; if (start) cnt[k] = (cnt[k] || 0) + 1; return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data: [] }) }); }
     return r.abort(); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2000);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(2000);
   await p.evaluate(() => { const cs = Ws.panels.filter(q => q.type === 'chart'); const tfs = ['15m', '4h', '1h', '15m']; cs.forEach((P, i) => { P.state.sym = 'HL:xyz:GOLD'; P.state.tf = tfs[i % 4]; P.state.tfk = tfs[i % 4]; if (P.resub) P.resub(); }); });
   await p.waitForTimeout(8000); const types = await p.evaluate(() => Ws.panels.map(q => q.type + ':' + (q.state.sym || '') + ':' + (q.state.tf || '')).join(' | ')); console.log(types);
   start = Date.now(); await p.waitForTimeout(+process.argv[3] || 60000);

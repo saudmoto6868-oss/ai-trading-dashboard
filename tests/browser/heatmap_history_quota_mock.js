@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 120)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); });
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800); await p.evaluate(() => { Ws.build(Ws.defaults()); });
   const res = await p.evaluate(async () => { const ch = Ws.panels.find(q => q.type === 'chart').chart; const out = {}; ch.sym = 'TEST-USDT'; ch.hm = null; ch.hmInit(); const now = Date.now();
     for (let m = 0; m < 7*24*60; m += 3) { const t = now - m*60000, lv = []; for (let i = 0; i < 90; i++) lv.push([100 + i*0.5, 1 + ((i*7 + m) % 13)]); ch.hmAdd({ t, bb: 120, ba: 120.5, lv }); }
     out.buckets = ch.hm.b.size; FPS.off = true; ch._hmIdb = null; localStorage.setItem('other_key', 'keep'); const t0 = performance.now(); ch.hmSave(now); out.saveMs = Math.round(performance.now() - t0);

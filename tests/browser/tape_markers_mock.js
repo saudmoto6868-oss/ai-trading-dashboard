@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 700, height: 420 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 120)));
   await p.route('**/*', r => r.request().url().startsWith('file:') ? r.continue() : r.abort());
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(800);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(800);
   const res = await p.evaluate(() => { const rows = [
     { side: 'Buy', p: 80900, q: 0.4, notional: 32000, t: Date.now(), tier: 'normal' }, { side: 'Sell', p: 80899, q: 4.2, notional: 340000, t: Date.now(), tier: 'whale', isNew: true },
     { side: 'Buy', p: 80901, q: 1.9, notional: 150000, t: Date.now(), tier: 'smart' }, { side: 'Sell', p: 80898, q: 3.1, notional: 250000, t: Date.now(), tier: 'normal', absorb: true }];

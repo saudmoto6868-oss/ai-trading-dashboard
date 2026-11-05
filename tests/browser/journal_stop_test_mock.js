@@ -14,7 +14,7 @@ const { chromium } = require('playwright');
   bars[11] = mk(T0 + 11 * H, 100.5, 95, 96);                                                      // C: dips to 95 (2.5 R) the bar after its entry bar (index 10), target never comes
   await p.route('**/*', r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (!/okx\.com\/api\/v5/.test(u)) return r.abort();
     const data = /candles/.test(u) ? (/bar=1H/.test(u) ? bars.slice().reverse() : []) : []; return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: '0', data }) }); });
-  await p.goto('file://' + process.argv[2]); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(1500);
+  await p.goto('file://' + process.argv[2] + '?blank=1'); await p.waitForTimeout(1000); await p.evaluate(() => { Ws.build(Ws.defaults()); Ws.save(); }); await p.waitForTimeout(1500);
   const out = await p.evaluate(async ([T0, H]) => {
     const base = { symbol: 'BTC-USDT', dir: 'bullish', tfk: '1h', ttype: 'Scalp', entry: 100, sl: 98, tp1: 103, rr: 1.5, score: 8, max: 10, pct: 80, tags: [], fill: true, status: 'sl', r: -1, t0: T0, t1: T0 + 3 * H };
     Journal.list = [Object.assign({}, base, { id: 'A', key: 'A' }), Object.assign({}, base, { id: 'B', key: 'B', status: 'tp', r: 1.5, t0: T0 + 5 * H, t1: T0 + 7 * H }),

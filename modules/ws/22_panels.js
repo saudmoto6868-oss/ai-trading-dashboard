@@ -46,7 +46,7 @@ class Panel {
     this.bindDrag(); this.setTitle(); this.build();
     this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
   }
-  setTitle(){ { const hasS = ["chart","dom","tape","limits","fund","liq","posn","tvc"].includes(this.type); this.ttl.innerHTML = esc(T(this.type)) + (hasS ? " · "+symIcon(this.state.sym, 14)+esc(this.state.sym) : ""); } this.grp.title = T("group"); }
+  setTitle(){ { const hasS = ["chart","dom","tape","limits","ofm","fund","liq","posn","tvc"].includes(this.type); this.ttl.innerHTML = esc(T(this.type)) + (hasS ? " · "+symIcon(this.state.sym, 14)+esc(this.state.sym) : ""); } this.grp.title = T("group"); }
   paint(){ const c = this.state.col, b = this.state.bg;
     this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
@@ -708,6 +708,7 @@ class Panel {
     this.tapeBox = el("div"); this.legBox = el("div","legend"); this.legBox.textContent = T("legend");
     this.body.append(tb, hd, this.tapeBox, this.legBox); bindColResize(this, this.tapeBox, "tape", TAPE_COLS); this.resub();
   }
+  build_ofm(){ OFM.build(this); }
   /* ---- limits ---- */
   build_limits(){
     const tb = el("div","tb"); this.symSel = this.symSelect(); tb.append(this.symSel, this.winSelect("lwin", 900000), Ws.fmtBtn());
@@ -1652,6 +1653,8 @@ Panel.prototype.resub = function(){
     };
     this.unsubs.push(Hub.sub("trades", sym, p => { last = p; this.rerender(); }));
     this.unsubs.push(Hub.sub("book", sym, b => { book = b.error ? null : b; drawDepth(this.depthCv, book); }));
+  } else if (this.type === "ofm"){
+    OFM.resub(this, sym);
   } else if (this.type === "limits"){
     this.lt = {prev:null, events:[], sym, abs:new Set()}; let book = null;
     this.rerender = () => { this.evBox.innerHTML = renderEvents(this, this.lt.events); };

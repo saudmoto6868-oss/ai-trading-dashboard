@@ -36,6 +36,7 @@ Object.assign(CandleChart.prototype, {
       const zl = this.zlog = this.zlog || {recs:store.get(LS+"_zlog_"+this.sym, [])}; (R.zones || []).forEach(z => ZoneLog.add(zl, z, m_, t)); ZoneLog.step(zl, m_, t);
       if (t - (this._zlS || 0) > 15000){ this._zlS = t; store.set(LS+"_zlog_"+this.sym, zl.recs); } } catch(e){} },
   domAdd(b){
+    if (this.colWide > 0 && this.domOn){ const sn = OFM.snap(b); if (sn){ const w = this.wom.snaps; w.push(sn); const cut = nowS() - 1900000; while ((w.length > 2 && w[0].t < cut) || w.length > 1600) w.shift(); } }   // snapshots for the WIDE order-flow column (Order Flow Map renderer)
     this.lastBook = b; this.zlTick(b, nowS()); this.bkTrack(b); if (this.domOn) { const fb = this.flowB = this.flowB || []; fb.push({t:nowS(), bb:b.bids && b.bids[0] ? b.bids[0].p : 0, ba:b.asks && b.asks[0] ? b.asks[0].p : 0, lv:this.bucketBook((b.deep ? b.deep.bids : b.bids) || [], (b.deep ? b.deep.asks : b.asks) || [])}); if (fb.length > 900) fb.splice(0, 200); this.flowDiff(fb); this.hmAdd(fb[fb.length-1]); }   // Record heatmap history only while the order-flow book layer is enabled
     const d = this.data; if (!d.length) return; const t = d[d.length-1].t; let m = this.dom.get(t); if (!m){ m = new Map(); this.dom.set(t, m); if (this.dom.size > 300){ const ks = [...this.dom.keys()].sort((a,b) => a-b); for (let j = 0; j < 60; j++) this.dom.delete(ks[j]); } }
     (b.bids || []).forEach(x => { const o = m.get(x.p); if (!o || x.q > o.q) m.set(x.p, {q:x.q, side:"b"}); });
@@ -291,6 +292,11 @@ Object.assign(CandleChart.prototype, {
     const tick = tickOfLevels(((this.flowB && this.flowB.length && this.flowB[this.flowB.length-1].lv) || []).map(a => ({p:a[0], q:a[1]})));
     this.onGroupSel && this.onGroupSel(true, this.ofStepNow(), tick); },
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
+    if (this.colWide > 0 && this.domOn){   // WIDE mode (owner 2026-11-05: "the column covers only the chart's few dollars; I want the whole book, weekly support / resistance"): the column has its OWN price scale over the whole book (never narrower than the chart), the biggest resting orders as labelled lines, a bracket for what the chart shows
+      const cwW = this.cw(); this.placeGroupSel(false); this._colTx = null; c.save(); c.beginPath(); c.rect(PR, 0, cwW, PB); c.clip(); c.translate(PR, 0);
+      OFM.render(c, {snaps:this.wom.snaps, trades:this.bub}, {omB:true}, cwW, PB, {compact:true, vis:[this._lo, this._hi], win:Math.max(120000, Math.min(1800000, this.fspan(nowS())))}); c.restore();
+      if (this.syncOn && this.scOn !== false){ const room = this.H - 20 - PB - 6; if (room >= 96) this.paintSyncCard(c, PR + 4, PR + cwW - 3, PB, {top:PB + 3, h:room}); }   // the sync card keeps its place under the plot (never over the map)
+      return; }
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;
     const fixedHm0 = (OF.hmm || "fix") === "fix", qa = span/8, anchor = fixedHm0 && (this.flowSpan || span > 900000) ? Math.ceil(now/qa)*qa : now;   // fixed mode: the time axis is anchored to a grid of span/8, so cells stand still and only jump one step when the window fills (no continuous sliding)
     const tx = t => gx1 - (anchor - t)/span*gw;   // time -> x

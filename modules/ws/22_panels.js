@@ -6,6 +6,9 @@
   document.addEventListener("visibilitychange", wake); window.addEventListener("focus", wake); window.addEventListener("online", wake); window.addEventListener("pageshow", wake); }
 /* ---------------- widget panels ---------------- */
 const Ws = { panels:[], z:10, el:null, seq:1 };
+// the workspace frame is much taller than the screen: a maximised panel fits what is ON SCREEN (the visible slice), not the whole frame
+Ws.viewRect = () => { const full = {y:0, h:Ws.el.clientHeight}; try { const fe = window.frameElement; if (!fe) return full; const r = fe.getBoundingClientRect(), top = Math.max(0, -r.top), bot = Math.min(innerHeight, window.parent.innerHeight - r.top), off = Ws.el.offsetTop || 0, y0 = Math.max(top, off), y = y0 - off, h = Math.max(300, Math.min(Ws.el.clientHeight - y, bot - y0));
+  return isFinite(h) && isFinite(y) ? {y:Math.max(0, Math.min(y, Ws.el.clientHeight - h)), h} : full; } catch(e){ return full; } };
 
 // phones / small tablets (the Streamlit iframe is as wide as the screen): stacked layout + touch gestures
 const MOB = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia("(pointer:coarse)").matches && window.innerWidth < 1100); } catch(e){ return false; } })();   // phones and tablets only: a narrow desktop window keeps the desktop layout (width alone switched it, 2026-10-19)
@@ -55,7 +58,7 @@ class Panel {
   toggleMax(){
     if (MOB && MT5) return;   // phones, MT5 layout: the widget is already full screen
     if (MOB){ this.max = !this.max; this.apply(); this.root.scrollIntoView({block:"start"}); return; }
-    if (!this.max){ this.prev = Object.assign({}, this.rect); this.rect = {x:0,y:0,w:Ws.el.clientWidth,h:Ws.el.clientHeight}; this.max = true; this.min = false; this.root.classList.remove("min"); }
+    if (!this.max){ this.prev = Object.assign({}, this.rect); { const v = Ws.viewRect(); this.rect = {x:0, y:v.y, w:Ws.el.clientWidth, h:v.h}; } this.max = true; this.min = false; this.root.classList.remove("min"); }
     else { this.rect = this.prev; this.max = false; }
     this.apply(); this.front(); Ws.save();
   }

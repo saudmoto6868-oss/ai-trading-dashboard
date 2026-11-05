@@ -181,3 +181,22 @@ function applyLang(rebuild){
   obs.observe(document.body, {childList:true, subtree:true}); sched();
   window.__xpixCols = {movePerm};   // for tests
 })();
+
+/* Tablet: the workspace frame is much taller than the screen and a finger on a chart moves the chart, so there was nothing to scroll the page with.
+   A small handle (⇕) on the right edge of the VISIBLE part: drag it up / down and the page scrolls. Touch screens only; hidden when the frame fits the screen. */
+(() => {
+  if (!TCH || MOB) return; let fe = null; try { fe = window.frameElement; } catch(e){} if (!fe) return;
+  const rail = document.createElement("div"); rail.id = "xrail"; rail.textContent = "⇕"; rail.title = "Drag up / down to scroll the page";
+  rail.style.cssText = "position:absolute;right:4px;width:38px;height:104px;border-radius:19px;background:rgba(240,185,11,.30);border:1px solid rgba(240,185,11,.7);color:#f0b90b;display:none;align-items:center;justify-content:center;font:bold 20px sans-serif;z-index:99999;touch-action:none;user-select:none;-webkit-user-select:none";
+  document.body.append(rail);
+  const scroller = () => { try { let e = fe; while (e && (e = e.parentElement)){ const o = window.parent.getComputedStyle(e).overflowY; if (/(auto|scroll)/.test(o) && e.scrollHeight > e.clientHeight + 20) return e; } } catch(e){} return null; };
+  const place = () => { try { const r = fe.getBoundingClientRect(), H = window.parent.innerHeight, top = Math.max(0, -r.top), bot = Math.min(innerHeight, H - r.top);
+    if (innerHeight < H + 120){ rail.style.display = "none"; return; }   // the frame fits on the screen: nothing to scroll
+    rail.style.display = "flex"; rail.style.top = Math.round(top + (bot - top)/2 - 52)+"px"; } catch(e){} };
+  let sy = null; rail.addEventListener("pointerdown", e => { sy = e.screenY; rail.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
+  rail.addEventListener("pointermove", e => { if (sy == null) return; const dy = (e.screenY - sy)*2.2; sy = e.screenY; try { const sc = scroller(); sc ? sc.scrollBy({top:dy}) : window.parent.scrollBy({top:dy}); } catch(e){} });
+  const end = () => { sy = null; }; rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
+  let q = 0; const sched = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; place(); }); };
+  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(place, 1500); place();
+  window.__xpixRail = {place, rail};   // for tests
+})();

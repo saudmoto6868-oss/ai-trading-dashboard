@@ -294,7 +294,7 @@ Object.assign(CandleChart.prototype, {
   paintCol(c, py, PB, PR, i0, i1){   // Bookmap / ATAS style: a time-scrolling liquidity heat map + trade bubbles on the chart's price scale. x = TIME (newest at the right edge), independent of the candle timeframe. Wheel over it = time zoom, drag its left edge = width.
     if (this.colWide > 0 && this.domOn){   // WIDE mode (owner 2026-11-05: "the column covers only the chart's few dollars; I want the whole book, weekly support / resistance"): the column has its OWN price scale over the whole book (never narrower than the chart), the biggest resting orders as labelled lines, a bracket for what the chart shows
       const cwW = this.cw(); this.placeGroupSel(false); this._colTx = null; c.save(); c.beginPath(); c.rect(PR, 0, cwW, PB); c.clip(); c.translate(PR, 0);
-      OFM.render(c, {snaps:this.wom.snaps, trades:this.bub}, {omB:true}, cwW, PB, {compact:true, vis:[this._lo, this._hi], win:Math.max(120000, Math.min(1800000, this.fspan(nowS())))}); c.restore();
+      const wo = {compact:true, vis:[this._lo, this._hi], rman:this.colWideR, win:Math.max(120000, Math.min(1800000, this.fspan(nowS())))}; OFM.render(c, {snaps:this.wom.snaps, trades:this.bub}, {omB:true}, cwW, PB, wo); this._wideAutoR = wo.outR; c.restore();
       if (this.syncOn && this.scOn !== false){ const room = this.H - 20 - PB - 6; if (room >= 96) this.paintSyncCard(c, PR + 4, PR + cwW - 3, PB, {top:PB + 3, h:room}); }   // the sync card keeps its place under the plot (never over the map)
       return; }
     const OF = this.st.of, X0 = PR, CW = this.cw(), XE = X0 + CW, lo = this._lo, hi = this._hi, now = nowS(), span = this.fspan(now), gx0 = X0 + 5, gx1 = XE - 3, gw = gx1 - gx0;

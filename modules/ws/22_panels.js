@@ -513,6 +513,8 @@ class Panel {
     this.chart.srData = null;   // S/R levels belong to the symbol: never draw the previous symbol's levels while the new one loads
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
+    { const ch = this.chart; ch.wom = {snaps:[]}; if (ch.colWide > 0) OFM.restore(this, sym, tok);   // the wide column's book history belongs to its symbol: a new symbol starts empty (or from its saved copy)
+      const iv = setInterval(() => { if (tok !== this.tok){ clearInterval(iv); return; } if (ch.colWide > 0 && !document.hidden && ch.wom.snaps.length > 4) OFM.save(sym, ch.wom.snaps); }, 20000); this.wsUnsubs.push(() => clearInterval(iv)); }
     const chan = "candle"+okxBar(tf), subMin = TFSEC[tf] < 60;
     this.chart.loadDraws(LS+"_dr_"+sym);
     if (this.jsub) Journal.subs.delete(this.jsub);

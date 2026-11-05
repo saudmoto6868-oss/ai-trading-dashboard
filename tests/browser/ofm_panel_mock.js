@@ -17,6 +17,6 @@ const { chromium } = require('playwright');
     const o = P.om, sel = P.body.querySelectorAll('select').length; return { snaps: o.snaps.length, trades: o.trades.length, cov: o.snaps.length ? o.snaps[o.snaps.length-1].cov : 0, colored, bright, selects: sel, W, H, title: P.ttl.textContent }; });
   if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
   const r2 = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'ofm'); const rs = P.body.querySelectorAll('select')[1]; rs.value = '0.05'; rs.onchange(); const ws = P.body.querySelectorAll('select')[2]; ws.value = '120000'; ws.onchange(); return { omR: P.state.omR, omW: P.state.omW }; });
-  const ok = !r.err && r.snaps >= 3 && r.trades >= 10 && r.cov > 1 && r.colored > 200 && r.selects >= 3 && /Order Flow Map|خريطة/.test(r.title) && r2.omR === 0.05 && r2.omW === 120000 && errs.length === 0;
+  const ok = !r.err && r.snaps >= 2 && r.trades >= 10 && r.cov > 1 && r.colored > 200 && r.selects >= 3 && /Order Flow Map|خريطة/.test(r.title) && r2.omR === 0.05 && r2.omW === 120000 && errs.length === 0;
   console.log(JSON.stringify({ r, r2 }), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

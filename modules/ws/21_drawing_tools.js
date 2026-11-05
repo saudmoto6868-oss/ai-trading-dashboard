@@ -457,6 +457,19 @@ Object.assign(CandleChart.prototype, {
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
+  paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc
+    const n = this.data.length; if (n < 20) return; const key = n+"|"+this.data[n-1].c+"|"+this.data[0].t; if (!this._msb || this._msb.k !== key){ let r = {zz:[], ev:[], boxes:[]}; try { r = msbCalc(this.data, 9, 0.33); } catch(e){} this._msb = {k:key, r}; }
+    const R = this._msb.r, G = "#0ecb81", Rd = "#f6465d", xr = this.x(n - 1 + 10);
+    c.save(); c.font = "10px sans-serif"; c.textBaseline = "middle";
+    const live = {ob:{}, bb:{}}; R.boxes.forEach(B => { if (B.end < 0) (live[B.kind][B.bull] = live[B.kind][B.bull] || []).push(B); });
+    const keep = new Set(); Object.values(live).forEach(o => Object.values(o).forEach(a => a.slice(-5).forEach(B => keep.add(B))));
+    R.boxes.forEach(B => { if (B.end >= 0 || !keep.has(B)) return; const xa = this.x(B.i), y1 = py(B.hi), y2 = py(B.lo); if (this.x(n - 1) < 0 || xr < xa) return; const col = B.bull ? G : Rd;
+      c.globalAlpha = B.kind === "ob" ? .22 : .14; c.fillStyle = col; c.fillRect(xa, y1, xr - xa, y2 - y1); c.globalAlpha = .9; c.strokeStyle = col; c.lineWidth = 1; c.strokeRect(xa + .5, y1 + .5, xr - xa, y2 - y1);
+      c.fillStyle = col; c.textAlign = "right"; c.fillText(B.lbl, xr - 3, (y1 + y2)/2); });
+    R.ev.forEach(E => { if (E.t < i0 - 400 || this.x(E.x0) > this.W) return; const col = E.bull ? G : Rd, y = py(E.y); c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); c.moveTo(this.x(E.x0), y); c.lineTo(this.x(E.x1), y); c.stroke();
+      c.fillStyle = col; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillText("MSB", this.x(E.xm), y + (E.bull ? -8 : 8)); });
+    c.restore();
+  },
   paintBB(c, py, dec, i0, i1){   // Bollinger bands (period / deviation from the BB+Stoch+OsMA indicator settings)
     const B = this.bsoV; if (!B) return; const line = (arr, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(arr[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } c.stroke(); };
     c.save(); c.globalAlpha = .07; c.fillStyle = "#26c6da"; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(B.up[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } for (let i = i1; i >= i0; i--) c.lineTo(this.x(i), py(B.lo[i])); c.fill();

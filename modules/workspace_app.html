@@ -1601,6 +1601,62 @@ const maOf = (a, n, type) => {   // one moving average of a series: null before 
 };
 const stochK = (d, k, slow) => smaOf(d.map((x, i) => { if (i < k-1) return 50; let hh = -Infinity, ll = Infinity; for (let j = i-k+1; j <= i; j++){ hh = Math.max(hh, d[j].h); ll = Math.min(ll, d[j].l); } return hh > ll ? (x.c - ll)/(hh - ll)*100 : 50; }), slow);
 const rsiOf = (cl, L) => { let ag = 0, al = 0; return cl.map((v, i) => { if (!i) return 50; const d = v - cl[i-1], g = Math.max(d, 0), l = Math.max(-d, 0); if (i <= L){ ag += g/L; al += l/L; } else { ag = (ag*(L-1) + g)/L; al = (al*(L-1) + l)/L; } return i < L ? 50 : al === 0 ? 100 : 100 - 100/(1 + ag/al); }); };
+
+// ---- MSB: Market Structure Break + Order Block (OB) + Breaker/Mitigation Block (BB/MB) ----
+// Port of the TradingView script "Market Structure Break & Order Block" (c) EmreKb, Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/).
+// Same logic (zigzag pivots -> structure break confirmed by a fib factor -> OB / BB boxes, boxes die when price closes through them); not bit-exact with Pine (the "same pivots" guard uses the intended meaning).
+function msbCalc(D, zl, fibF){
+  const n = D.length, NA = NaN; zl = Math.max(2, zl|0); fibF = +fibF;
+  const hiP = [NA,NA,NA,NA,NA], hiI = [NA,NA,NA,NA,NA], loP = [NA,NA,NA,NA,NA], loI = [NA,NA,NA,NA,NA];
+  const out = {zz:[], ev:[], boxes:[]}; if (n < zl + 5) return out;
+  const upS = new Array(n).fill(false), dnS = new Array(n).fill(false), l0iS = new Array(n).fill(NA);
+  let trend = 1, market = 1, lastUp = -1, lastDn = -1, lastLowEq = 0, lastHighEq = 0, lastL0 = NA, lastH0 = NA;
+  for (let t = 0; t < n; t++){
+    const from = Math.max(0, t - zl + 1); let hh = -Infinity, ll = Infinity;
+    for (let j = from; j <= t; j++){ if (D[j].h > hh) hh = D[j].h; if (D[j].l < ll) ll = D[j].l; }
+    const toUp = D[t].h >= hh, toDn = D[t].l <= ll; upS[t] = toUp; dnS[t] = toDn;
+    const prev = trend; trend = trend === 1 && toDn ? -1 : trend === -1 && toUp ? 1 : trend;
+    // bars since to_up[1] / to_down[1] were last true
+    const sU = lastUp >= 0 ? t - (lastUp + 1) : NA, sD = lastDn >= 0 ? t - (lastDn + 1) : NA;
+    const lenL = Math.max(1, isFinite(sU) && sU > 0 ? sU : 1), lenH = Math.max(1, isFinite(sD) && sD > 0 ? sD : 1);
+    let lowVal = Infinity, highVal = -Infinity;
+    for (let j = Math.max(0, t - lenL + 1); j <= t; j++) lowVal = Math.min(lowVal, D[j].l);
+    for (let j = Math.max(0, t - lenH + 1); j <= t; j++) highVal = Math.max(highVal, D[j].h);
+    if (lowVal === D[t].l) lastLowEq = t; if (highVal === D[t].h) lastHighEq = t;
+    if (toUp) lastUp = t; if (toDn) lastDn = t;   // used as [1] by the next bar
+    if (trend !== prev){
+      if (trend === 1){ loP.push(lowVal); loI.push(lastLowEq); } else { hiP.push(highVal); hiI.push(lastHighEq); }
+      if (n > 0){ const a = hiP.length, b = loP.length;
+        const h0 = hiP[a-1], h0i = hiI[a-1], l0 = loP[b-1], l0i = loI[b-1];
+        if (trend === 1) out.zz.push([h0i, h0, l0i, l0]); else out.zz.push([l0i, l0, h0i, h0]); }
+    }
+    const a = hiP.length, b = loP.length, h0 = hiP[a-1], h0i = hiI[a-1], h1 = hiP[a-2], h1i = hiI[a-2], l0 = loP[b-1], l0i = loI[b-1], l1 = loP[b-2], l1i = loI[b-2];
+    l0iS[t] = l0i; (out._h0iz = out._h0iz || new Array(n).fill(NA))[t] = h0i;
+    if (![h0,h0i,h1,h1i,l0,l0i,l1,l1i].every(isFinite)) continue;
+    const old = market;
+    if (!(lastL0 === l0 || lastH0 === h0)){
+      if (market === 1 && l0 < l1 && l0 < l1 - Math.abs(h0 - l1) * fibF) market = -1;
+      else if (market === -1 && h0 > h1 && h0 > h1 + Math.abs(h1 - l0) * fibF) market = 1;
+    }
+    if (market === old) continue;
+    lastL0 = l0; lastH0 = h0;
+    const scan = (fromI, toI, wantBear) => { let r = t, a1 = Math.round(fromI), b1 = Math.round(toI); const st = a1 <= b1 ? 1 : -1;
+      for (let i = a1; st > 0 ? i <= b1 : i >= b1; i += st){ if (i < 0 || i >= n) continue; const bear = D[i].o > D[i].c, bull = D[i].o < D[i].c; if (wantBear ? bear : bull) r = i; } return r; };
+    const l0iz = t - zl >= 0 ? l0iS[t - zl] : l0i, h0iz = t - zl >= 0 ? out._h0iz && out._h0iz[t - zl] : h0i;
+    const mk = (idx, kind, bull, lbl) => out.boxes.push({i: idx, t, kind, bull, hi: D[idx].h, lo: D[idx].l, lbl});
+    if (market === 1){
+      out.ev.push({t, bull:true, x0:h1i, x1:h0i, y:h1, xm:Math.round((h1i + l0i)/2)});
+      mk(scan(h1i, isFinite(l0iz) ? l0iz : l0i, true), "ob", true, "Bu-OB");
+      mk(scan(l1i - zl, h1i, false), "bb", true, l0 < l1 ? "Bu-BB" : "Bu-MB");
+    } else {
+      out.ev.push({t, bull:false, x0:l1i, x1:l0i, y:l1, xm:Math.round((l1i + h0i)/2)});
+      mk(scan(l1i, isFinite(h0iz) ? h0iz : h0i, false), "ob", false, "Be-OB");
+      mk(scan(h1i - zl, l1i, true), "bb", false, h0 > h1 ? "Be-BB" : "Be-MB");
+    }
+  }
+  out.boxes.forEach(B => { B.end = -1; for (let j = B.t + 1; j < n; j++){ if (B.bull ? D[j].c < B.lo : D[j].c > B.hi){ B.end = j; break; } } });
+  return out;
+}
 /* ---------------- own candlestick chart (canvas) ---------------- */
 function niceTicks(lo, hi, n){
   const range = Math.max(hi-lo, 1e-12), raw = range/n, mag = Math.pow(10, Math.floor(Math.log10(raw))), nm = raw/mag;
@@ -1919,6 +1975,7 @@ class CandleChart {
     if (this.bsoOn && this.bbShow) this.paintBB(c, py, dec, i0, i1);
     if (this.volOn && vmax) this.paintDiv(c, "vol", [1], i => this.x(i), i => PB - this.data[i].v/vmax*PB*(this.st.vol.h/100), i0, i1);
     if (this.donOn) this.paintDon(c, py, i0, i1);
+    if (this.msbOn) this.paintMsb(c, py, i0, i1);
     if (this.mt5On) this.paintMt5(c, py, i0, i1);
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
@@ -2537,6 +2594,19 @@ Object.assign(CandleChart.prototype, {
       for (let i = Math.max(i0, L); i <= i1; i++){ let v = k === "u" ? -Infinity : Infinity; for (let j = i-L; j < i; j++) v = k === "u" ? Math.max(v, cl[j]) : Math.min(v, cl[j]); const x = this.x(i), y = py(v); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; } c.stroke(); }); });
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
+  },
+  paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc
+    const n = this.data.length; if (n < 20) return; const key = n+"|"+this.data[n-1].c+"|"+this.data[0].t; if (!this._msb || this._msb.k !== key){ let r = {zz:[], ev:[], boxes:[]}; try { r = msbCalc(this.data, 9, 0.33); } catch(e){} this._msb = {k:key, r}; }
+    const R = this._msb.r, G = "#0ecb81", Rd = "#f6465d", xr = this.x(n - 1 + 10);
+    c.save(); c.font = "10px sans-serif"; c.textBaseline = "middle";
+    const live = {ob:{}, bb:{}}; R.boxes.forEach(B => { if (B.end < 0) (live[B.kind][B.bull] = live[B.kind][B.bull] || []).push(B); });
+    const keep = new Set(); Object.values(live).forEach(o => Object.values(o).forEach(a => a.slice(-5).forEach(B => keep.add(B))));
+    R.boxes.forEach(B => { if (B.end >= 0 || !keep.has(B)) return; const xa = this.x(B.i), y1 = py(B.hi), y2 = py(B.lo); if (this.x(n - 1) < 0 || xr < xa) return; const col = B.bull ? G : Rd;
+      c.globalAlpha = B.kind === "ob" ? .22 : .14; c.fillStyle = col; c.fillRect(xa, y1, xr - xa, y2 - y1); c.globalAlpha = .9; c.strokeStyle = col; c.lineWidth = 1; c.strokeRect(xa + .5, y1 + .5, xr - xa, y2 - y1);
+      c.fillStyle = col; c.textAlign = "right"; c.fillText(B.lbl, xr - 3, (y1 + y2)/2); });
+    R.ev.forEach(E => { if (E.t < i0 - 400 || this.x(E.x0) > this.W) return; const col = E.bull ? G : Rd, y = py(E.y); c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); c.moveTo(this.x(E.x0), y); c.lineTo(this.x(E.x1), y); c.stroke();
+      c.fillStyle = col; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.fillText("MSB", this.x(E.xm), y + (E.bull ? -8 : 8)); });
+    c.restore();
   },
   paintBB(c, py, dec, i0, i1){   // Bollinger bands (period / deviation from the BB+Stoch+OsMA indicator settings)
     const B = this.bsoV; if (!B) return; const line = (arr, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(arr[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } c.stroke(); };
@@ -4046,7 +4116,7 @@ class Panel {
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
     this.chart.readOn = this.state.read === true; this.chart.colWide = this.state.cwide === false ? 0 : 1; this.chart.colOwn = this.state.cown === true; this.chart.colWideR = +this.state.cwr || 0; this.chart.onWideR = () => { this.state.cwr = this.chart.colWideR || 0; Ws.save(); }; this.chart.gaOn = this.state.ofg !== false; this.chart.scOn = this.state.ofs !== false; this.chart.onOfX = () => { this.state.ofg = this.chart.gaOn; this.state.ofs = this.chart.scOn; Ws.save(); };   // ✕ on the order-flow gauge / sync card: hidden per chart, restored from the Order-flow menu
     this.chart.onKzsTbl = () => { this.state.kzst = false; Ws.save(); };   // Kill Zone Sniper table ✕ (turning the indicator off and on again brings it back)   // the table's own ✕ (turn it back on from the indicator settings)
-    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; if (!this.state.dcol && (this.state.dom || this.state.bub)) this.state.dcol = true; this.chart.colOn = !!this.state.dcol; this.chart.colW = Math.max(0, Math.min(2000, +this.state.colW || 0)); { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
+    this.chart.onSubH = () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); }; this.chart.planLen = this.state.planLen || 40; this.chart.onPlanLen = n => { this.state.planLen = n; Ws.save(); }; this.chart.harmOn = !!this.state.harm; this.chart.bvdOn = !!this.state.bvd; this.chart.ewOn = !!this.state.ew; this.chart.oteAlways = !!this.state.oteAlways; this.chart.vpOn = !!this.state.vp; this.chart.llOn = !!this.state.ll; this.chart.llTbl = this.state.llt !== false; this.chart.smtOn = !!this.state.smt; if (!this.state.dcol && (this.state.dom || this.state.bub)) this.state.dcol = true; this.chart.colOn = !!this.state.dcol; this.chart.colW = Math.max(0, Math.min(2000, +this.state.colW || 0)); { const ALL = ["rsi","macd","adx","cci","zn","bso","rm","r2"], so = Array.isArray(this.state.subOrd) ? this.state.subOrd.filter(k => ALL.includes(k)) : []; this.chart.subOrd = so.concat(ALL.filter(k => !so.includes(k))); } this.chart.onLayout = () => { this.state.colW = this.chart.colW || 0; this.state.subOrd = this.chart.subOrd.slice(); Ws.save(); }; this.chart.divOn = this.state.div !== false; this.chart.donOn = !!this.state.don; this.chart.msbOn = !!this.state.msb; this.chart.mt5On = !!this.state.mt5; this.chart.lvOn = !!this.state.lv; this.chart.znOn = !!this.state.zn; this.chart.bsoOn = !!this.state.bso; this.chart.rmOn = !!this.state.rm; this.chart.r2On = !!this.state.r2; this.chart.bbShow = this.state.bbShow !== false; this.chart.fpOn = !!this.state.fp; this.chart.bubOn = !!this.state.bub; this.chart.dotOn = !!this.state.dot; this.chart.domOn = !!this.state.dom; this.chart.mkOn = !!this.state.mk; this.ofSync(); this.chart.deltaOn = !!this.state.dl; this.chart.rsiOn = !!this.state.rsi; this.chart.macdOn = !!this.state.macd; this.chart.adxOn = !!this.state.adx; this.chart.cciOn = !!this.state.cci; this.chart.psarOn = !!this.state.psar; this.chart.calcEma();
     this.chart.setupMode = this.state.smode || "lines"; this.chart.kz = !!this.state.kz; this.chart.kzsOn = !!this.state.kzs; this.chart.kzsTbl = this.state.kzst !== false; this.chart.gannOn = !!this.state.gann; this.chart.liqOn = !!this.state.liq; this.chart.syncOn = this.state.sync !== false; this.chart.astroOn = !!this.state.astro; kzb.classList.toggle("on", this.chart.kz); this.kzb = kzb;
     // left drawing toolbar
     const dt = el("div","dt"); this.toolBtns = {};
@@ -4200,6 +4270,7 @@ class Panel {
       {id:"ofs", label:Lg("Order-flow card (lights, OI, setups)","كارت Order Flow (الإشارات، OI، الأفكار)"), tip:Lg("Show or hide the card under the order-flow column. You can also hide it with its ✕.","إظهار أو إخفاء الكارت تحت عمود Order Flow. تقدر كمان تخفيه بزر ✕ بتاعه."), get:() => ch().scOn !== false, set:v => { ch().scOn = v; this.state.ofs = v; ch().draw(); }},
       {id:"div", label:Lg("Divergence lines (RSI / MACD / Volume)","خطوط الدايفرجنس (RSI / MACD / الفوليوم)"), tip:Lg("Draws regular bullish (green) and bearish (red) divergences on the RSI and MACD panes and on the volume bars: price makes a new swing extreme but the indicator (or volume) does not confirm. Needs the RSI / MACD panes switched on.","يرسم الدايفرجنس العادي الصاعد (أخضر) والهابط (أحمر) على بانل RSI وMACD وعلى أعمدة الفوليوم: السعر يعمل قمة/قاع جديد والمؤشر (أو الفوليوم) ما يأكدش. لازم بانل RSI / MACD يكونوا شغالين."), get:() => ch().divOn, set:v => { ch().divOn = v; this.state.div = v; }},
       {id:"mt5", label:Lg("MT5 pack (MA ribbon + SAR + fractals)","حزمة MT5 (ريبون MA + SAR + فراكتال)"), tip:Lg("Copied from the MT5 phone chart: 5 moving averages (periods adjustable), Parabolic SAR as yellow diamonds, and Williams fractals as red/green arrows. The exact MT5 periods are not known - set them in the settings.","منقولة من شارت MT5 على الموبايل: 5 متوسطات متحركة (الفترات قابلة للتعديل)، وParabolic SAR كمعينات صفراء، وفراكتال ويليامز كأسهم حمرا/خضرا. فترات MT5 الحقيقية مش معروفة - اضبطها من الإعدادات."), get:() => ch().mt5On, set:v => { ch().mt5On = v; this.state.mt5 = v; }, sty:"mt5", params:[P("sar","SAR on (1/0)",0,1,1), P("step","SAR step",0.005,0.1,0.005), P("max","SAR max",0.05,1,0.05), P("frc","Fractals on (1/0)",0,1,1), P("fr","Fractal bars each side",1,5,1), P("rib","MA ribbon on (1/0)",0,1,1), P("ema","MA type 0=SMA 1=EMA",0,1,1), P("p1","MA 1",2,400,1), P("p2","MA 2",2,400,1), P("p3","MA 3",2,400,1), P("p4","MA 4",2,400,1), P("p5","MA 5",2,400,1)]},
+      {id:"msb", label:Lg("MSB — Market Structure Break (OB + BB)","MSB — كسر هيكل السوق (OB + BB)"), tip:Lg("Port of EmreKb's TradingView script (MPL 2.0): zigzag pivots, a structure break (MSB) line, the Order Block (OB) and the Breaker / Mitigation Block (BB / MB) boxes; a box disappears when price closes through it. Mock-tested only, not bit-exact with Pine.","نسخة من سكريبت EmreKb على TradingView (MPL 2.0): خطوط زيجزاج، كسر الهيكل MSB، وصناديق Order Block (OB) و Breaker / Mitigation (BB / MB)؛ الصندوق بيختفي لما السعر يقفل عبره. اتختبر بـ mock بس وليس مطابق حرفياً للـ Pine."), get:() => ch().msbOn, set:v => { ch().msbOn = v; this.state.msb = v; }},
       {id:"don", label:Lg("Donchian ensemble","قنوات Donchian (مجمّعة)"), tip:Lg("Donchian channels on closes (20 / 60 / 150 bars) and how many of the 9 lookbacks (5-360) are in an up or down breakout. Idea from the SSRN paper 'Catching Crypto Trends'; the thresholds are this dashboard's own.","قنوات Donchian على الإغلاق (20 / 60 / 150 شمعة) وكام فترة من 9 (5-360) في حالة اختراق صاعد أو هابط. الفكرة من ورقة SSRN 'Catching Crypto Trends'، والعتبات من عندنا."), get:() => ch().donOn, set:v => { ch().donOn = v; this.state.don = v; }},
       {id:"zn", label:Lg("Scalp zones (Stoch+RSI)","زونات السكالب (Stoch+RSI)"), tip:Lg("Stoch 5,9,3 with RSI 14. Sell zone 85-90, TP line 50, Buy zone 10-15; SELL/BUY marks when the line leaves a zone. Rebuilt from a screenshot - the original custom indicator is not public.","Stoch 5,9,3 مع RSI 14. منطقة بيع 85-90، خط TP عند 50، منطقة شراء 10-15؛ علامات SELL/BUY لما الخط يخرج من المنطقة. مبني من لقطة شاشة."), get:() => ch().znOn, set:v => { ch().znOn = v; this.state.zn = v; }, sty:"zn", params:[P("k","Stoch K",2,50,1), P("d","Stoch D",1,50,1), P("s","Slowing",1,10,1), P("rl","RSI length",2,50,1), P("sell","Sell level",60,95,1), P("buy","Buy level",5,40,1), P("hp","Height %",1,92,1)]},
       {id:"bso", label:Lg("Bollinger + Stoch + OsMA","بولينجر + Stoch + OsMA"), tip:Lg("Bollinger Bands on the price (20,2) with a pane of Stoch 5,3,3 and OsMA 12,26,9. SELL/BUY marks when Stoch leaves 80/20 and crosses its signal.","بولينجر على السعر (20,2) مع Stoch 5,3,3 وOsMA 12,26,9. علامات SELL/BUY لما Stoch يخرج من 80/20 ويقطع الإشارة."), get:() => ch().bsoOn, set:v => { ch().bsoOn = v; this.state.bso = v; }, sty:"bso", params:[P("bb","BB period",5,100,1), P("dev","BB deviation",0.5,4,0.1), P("k","Stoch K",2,50,1), P("d","Stoch D",1,50,1), P("s","Slowing",1,10,1), P("fast","OsMA fast",2,100,1), P("slow","OsMA slow",2,200,1), P("sig","OsMA signal",1,100,1), P("hp","Height %",1,92,1)], col2:true},

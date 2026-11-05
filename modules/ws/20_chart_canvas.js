@@ -316,6 +316,7 @@ class CandleChart {
     if (this.bsoOn && this.bbShow) this.paintBB(c, py, dec, i0, i1);
     if (this.volOn && vmax) this.paintDiv(c, "vol", [1], i => this.x(i), i => PB - this.data[i].v/vmax*PB*(this.st.vol.h/100), i0, i1);
     if (this.donOn) this.paintDon(c, py, i0, i1);
+    if (this.msbOn) this.paintMsb(c, py, i0, i1);
     if (this.mt5On) this.paintMt5(c, py, i0, i1);
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);

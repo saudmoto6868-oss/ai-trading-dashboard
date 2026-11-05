@@ -95,14 +95,14 @@ const HL_IV = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1H":"1h","
 const HL_MS = {"1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":72e5,"4h":144e5,"8h":288e5,"12h":432e5,"1d":864e5,"3d":2592e5,"1w":6048e5,"1M":2592e6};
 /* Hyperliquid's l2Book answers only 20 levels a side (gold: about +-2 USD = +-0.05 %), so the order-flow heat map was a thin strip. l2Book also takes nSigFigs (5, 4, 3 = ticks of 10x each, still 20 levels a side), so the book is
    STITCHED: the native 20 levels, then the coarser ladders only BEYOND the finer one's edge (one coarse tick skipped, so nothing is counted twice), each coarse level spread over its range in fine steps (size / parts) so the
-   heat map is continuous. Gold: about +-200 USD (+-5 %). Coarse ladders are reused for 4 s (weight 2 each). Answers in OKX's shape like the native call. */
+   heat map is continuous. Gold: about +-2000 USD with the nSigFigs 2 ladder (the sub-levels are <= 1 USD apart so the map has no stripes). Coarse ladders are reused for 4 s (weight 2 each). Answers in OKX's shape like the native call. */
 async function hlWideBook(coin){
-  const NS = [5, 4, 3], rs = await Promise.all([HL.post({type:"l2Book", coin}), ...NS.map(n => HL.post({type:"l2Book", coin, nSigFigs:n}, 4000).catch(() => null))]);
+  const NS = [5, 4, 3, 2], rs = await Promise.all([HL.post({type:"l2Book", coin}), ...NS.map(n => HL.post({type:"l2Book", coin, nSigFigs:n}, 4000).catch(() => null))]);
   const base = rs[0], lv0 = (base && base.levels) || [[], []];
   const side = si => { const out = (lv0[si] || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); let fine = Infinity; for (let i = 1; i < out.length; i++){ const d = Math.abs(out[i].p - out[i-1].p); if (d > 1e-12 && d < fine) fine = d; }
     let edge = out.length ? out[out.length-1].p : null; if (edge == null) return out;
     for (const r of rs.slice(1)){ const L = ((r && r.levels && r.levels[si]) || []).map(x => ({p:+x.px, q:+x.sz, n:+x.n || 0})); if (L.length < 2) continue; const T = Math.abs(L[1].p - L[0].p); if (!(T > 0)) continue;
-      const parts = isFinite(fine) ? Math.min(50, Math.max(1, Math.round(T/fine))) : 1, sub = T/parts;
+      const parts = isFinite(fine) ? Math.min(120, Math.max(1, Math.round(T/fine))) : 1, sub = T/parts;
       L.forEach(x => { if (si === 0 ? !(x.p < edge - T) : !(x.p > edge + T)) return;
         for (let j = 0; j < parts; j++){ const pp = x.p + (j - (parts-1)/2)*sub*(si === 0 ? -1 : 1); out.push({p:+pp.toFixed(10), q:x.q/parts, n:Math.round(x.n/parts)}); } });
       out.sort((u, v) => si === 0 ? v.p - u.p : u.p - v.p); edge = out[out.length-1].p; }

@@ -59,6 +59,14 @@ class XpixAgent {
     const st = fs.statSync(R.out); return { ok: true, out: R.out, bytes: st.size, frames: fr.length, seconds: +(fr[fr.length - 1].t - fr[0].t).toFixed(2), fps: R.fps, size: R.w + "x" + R.h };
   }
   async record(sec, o = {}){ const a = await this.recStart(o); await this.page.waitForTimeout(Math.max(1, +sec) * 1000); const b = await this.recStop(); return b.ok ? Object.assign(b, { started: a.ok }) : b; }
+  // ---- one entry point for the CLI and the HTTP server: a fixed allow-list of commands (nothing is evaluated) ----
+  async run(c, args = [], o = {}){ const P = o.panel, m = /^(\d+)x(\d+)$/.exec(o.size || ""), RO = () => ({ out: o.out, fps: o.fps, crf: o.crf, w: m ? +m[1] : undefined, h: m ? +m[2] : undefined });
+    switch (c){ case "pages": return this.pages(); case "page": return this.openPage(args[0]); case "state": return this.state(); case "list": return this.list(P);
+      case "symbol": return this.symbol(args[0], P); case "tf": return this.tf(args[0], P); case "toggle": return this.toggle(args[0], /^(on|1|true)$/i.test(String(args[1] == null ? "on" : args[1])), P);
+      case "addpanel": return this.addPanel(args[0]); case "closepanel": return this.closePanel(args[0]); case "params": return this.params(args[0], P); case "set": return this.setParam(args[0], args[1], args[2], P); case "layout": return this.layout(args[0]);
+      case "recstart": return this.recStart(RO()); case "recstop": return this.recStop(); case "record": return this.record(Math.min(+args[0] || 5, 600), RO()); case "wait": await this.page.waitForTimeout(Math.min(+args[0] || 1, 120) * 1000); return { ok: true };
+      case "draw": return this.draw(typeof args[0] === "string" ? JSON.parse(args[0]) : args[0], P); case "cleardrawings": return this.clearDrawings(P);
+      case "shot": return this.shot({ out: o.out, full: o.full, workspace: o.workspace, scale: o.scale ? +o.scale : 1 }); default: throw new Error("unknown command: " + c); } }
   // ---- screenshots (real browser pixels, scale 2 by default) ----
   async shot(o = {}){ const out = path.resolve(o.out || "xpix_" + new Date().toISOString().replace(/[:.]/g, "-") + ".png"); fs.mkdirSync(path.dirname(out), { recursive: true });
     if (o.workspace){ const f = await this.ws(), r = await f.evaluate(s => XCMD.shot(s), o.scale || 1); if (!r.ok) throw new Error(r.err); fs.writeFileSync(out, Buffer.from(r.png.split(",")[1], "base64")); return { ok: true, out, w: r.w, h: r.h, kind: "workspace-canvas" }; }
@@ -76,17 +84,10 @@ async function cli(argv){
   draw '<json>' | cleardrawings | shot [--out f.png] [--full] [--workspace] [--scale N] | batch '<json array of {cmd,args}>'
   Flags: --panel <id> targets one chart panel. Env: XPIX_URL, XPIX_PROFILE, XPIX_CHROME. Read / view / draw only.`); return 0; }
   const ag = new XpixAgent({ url: opt.url, profile: opt.profile, headed: opt.headed }); await ag.start();
-  const RO = () => { const m = /^(\d+)x(\d+)$/.exec(opt.size || ""); return { out: opt.out, fps: opt.fps, crf: opt.crf, w: m ? +m[1] : undefined, h: m ? +m[2] : undefined }; };
-  const one = async (c, args) => { const P = opt.panel;
-    switch (c){ case "pages": return ag.pages(); case "page": return ag.openPage(args[0]); case "state": return ag.state(); case "list": return ag.list(P);
-      case "symbol": return ag.symbol(args[0], P); case "tf": return ag.tf(args[0], P); case "toggle": return ag.toggle(args[0], /^(on|1|true)$/i.test(args[1] || "on"), P);
-      case "addpanel": return ag.addPanel(args[0]); case "closepanel": return ag.closePanel(args[0]); case "params": return ag.params(args[0], P); case "set": return ag.setParam(args[0], args[1], args[2], P); case "layout": return ag.layout(args[0]);
-      case "recstart": return ag.recStart(RO()); case "recstop": return ag.recStop(); case "record": return ag.record(args[0] || 5, RO()); case "wait": await ag.page.waitForTimeout((+args[0] || 1) * 1000); return { ok: true };
-      case "draw": return ag.draw(JSON.parse(args[0]), P); case "cleardrawings": return ag.clearDrawings(P);
-      case "shot": return ag.shot({ out: opt.out, full: opt.full, workspace: opt.workspace, scale: opt.scale ? +opt.scale : 1 }); default: throw new Error("unknown command: " + c); } };
+  const one = (c, args) => ag.run(c, args, opt);
   let res; try { res = cmd === "batch" ? await (async () => { const o = []; for (const s of JSON.parse(a[0])) o.push(await one(s.cmd, s.args || [])); return o; })() : await one(cmd, a); }
   catch(e){ res = { ok: false, err: String(e.message || e) }; } finally { await ag.stop(); }
   console.log(JSON.stringify(res)); return res && res.ok === false ? 1 : 0;
 }
-module.exports = { XpixAgent };
+module.exports = { XpixAgent, COMMANDS: ["pages","page","state","list","symbol","tf","toggle","addpanel","closepanel","params","set","layout","recstart","recstop","record","wait","draw","cleardrawings","shot"] };
 if (require.main === module) cli(process.argv.slice(2)).then(c => process.exit(c));

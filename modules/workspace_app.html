@@ -543,7 +543,7 @@ const HL_MS = {"1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":7
 async function hlOkx(path){   // answers the OKX REST paths the widgets use, in OKX's shape, from Hyperliquid
   const q = new URLSearchParams(path.split("?")[1] || ""), id = q.get("instId"), coin = hlCoin(id);
   if (/\/market\/(history-)?candles/.test(path)){ const iv = HL_IV[q.get("bar")]; if (!iv) throw new Error("timeframe "+q.get("bar")+" not available on Hyperliquid");
-    const lim = Math.min(+q.get("limit") || 100, 1000), end = q.get("after") ? +q.get("after") - 1 : Date.now(), start = end - lim*HL_MS[iv];
+    await clockReady(); const lim = Math.min(+q.get("limit") || 100, 1000), end = q.get("after") ? +q.get("after") - 1 : nowS(), start = end - lim*HL_MS[iv];   // nowS() = the exchange's time (PC clock + measured skew): a PC clock that is hours behind used to ask Hyperliquid for OLD candles (owner 2026-11-05: gold charts ~90 below the live price)
     const poll = lim <= 5 && !q.get("after"), rows = await HL.post({type:"candleSnapshot", req:{coin, interval:iv, startTime:poll ? Math.floor(start/HL_MS[iv])*HL_MS[iv] : start, endTime:poll ? Math.floor(end/5000)*5000 : end}}, poll ? 5000 : 0);   // the live poll (3 bars): its time window is rounded so charts on the same symbol and timeframe send ONE identical request, reused for 5 s (a candle poll costs ~20 of Hyperliquid's 1200 request weight per minute)
     return (rows || []).map(k => [String(k.t), String(k.o), String(k.h), String(k.l), String(k.c), String(k.v), "0", "0", "1"]).reverse(); }
   if (/\/market\/ticker/.test(path)){ if (!HL.t) await HL.ctx(); const x = HL.q[id]; if (!x) throw new Error("unknown Hyperliquid market "+coin); return [{instId:id, last:String(x.last), open24h:String(x.open || x.last), vol24h:String(x.vol || 0)}]; }
@@ -1055,7 +1055,14 @@ async function okxLiqs(sym){
     out.push({t:+x.ts, p, side:x.side === "sell" ? "L" : "S", usd:c.inv ? q*c.v : q*c.v*p}); }); });
   return out.sort((a, b) => b.t - a.t);
 }
-async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} }
+async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} clockWarn(); }
+let _clk = null; const clockReady = () => _clk || (_clk = Promise.race([syncClock(), new Promise(r => setTimeout(r, 2500))]));   // the first Hyperliquid candle request waits (max 2.5 s) for the first clock measurement
+function clockWarn(){   // the PC clock is hours off (owner's was ~14 h behind): charts, countdowns, sessions and alerts all use it, so say it loudly once
+  try { const sk = SKEW, bad = Math.abs(sk) > 120000; let e = document.getElementById("clkw");
+    if (!bad){ if (e) e.remove(); return; } if (window._clkwOff) return;
+    const mins = Math.round(Math.abs(sk)/60000), t = mins >= 90 ? Math.round(mins/60)+Lg(" hours", " ساعة") : mins+Lg(" min", " دقيقة"), behind = sk > 0;
+    if (!e){ e = document.createElement("div"); e.id = "clkw"; e.style.cssText = "position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;border:1px solid #f6465d;border-radius:6px;padding:5px 12px;font:600 12px sans-serif;max-width:90%;cursor:pointer;text-align:center"; e.onclick = () => { window._clkwOff = true; e.remove(); }; document.body.append(e); }
+    e.textContent = "⚠ "+Lg("Your computer's clock is "+t+(behind ? " BEHIND" : " AHEAD of")+" the real time: set it to automatic (Windows: Settings > Time & language > Sync now). Click to hide.", "ساعة جهازك "+(behind ? "متأخرة" : "متقدمة")+" "+t+" عن الوقت الحقيقي: اظبطها أوتوماتيك (ويندوز: Settings > Time & language > Sync now). اضغط للإخفاء."); } catch(e){} }
 syncClock(); setInterval(syncClock, 300000);
 function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
 const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();

@@ -94,7 +94,14 @@ async function okxLiqs(sym){
     out.push({t:+x.ts, p, side:x.side === "sell" ? "L" : "S", usd:c.inv ? q*c.v : q*c.v*p}); }); });
   return out.sort((a, b) => b.t - a.t);
 }
-async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} }
+async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} clockWarn(); }
+let _clk = null; const clockReady = () => _clk || (_clk = Promise.race([syncClock(), new Promise(r => setTimeout(r, 2500))]));   // the first Hyperliquid candle request waits (max 2.5 s) for the first clock measurement
+function clockWarn(){   // the PC clock is hours off (owner's was ~14 h behind): charts, countdowns, sessions and alerts all use it, so say it loudly once
+  try { const sk = SKEW, bad = Math.abs(sk) > 120000; let e = document.getElementById("clkw");
+    if (!bad){ if (e) e.remove(); return; } if (window._clkwOff) return;
+    const mins = Math.round(Math.abs(sk)/60000), t = mins >= 90 ? Math.round(mins/60)+Lg(" hours", " ساعة") : mins+Lg(" min", " دقيقة"), behind = sk > 0;
+    if (!e){ e = document.createElement("div"); e.id = "clkw"; e.style.cssText = "position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;border:1px solid #f6465d;border-radius:6px;padding:5px 12px;font:600 12px sans-serif;max-width:90%;cursor:pointer;text-align:center"; e.onclick = () => { window._clkwOff = true; e.remove(); }; document.body.append(e); }
+    e.textContent = "⚠ "+Lg("Your computer's clock is "+t+(behind ? " BEHIND" : " AHEAD of")+" the real time: set it to automatic (Windows: Settings > Time & language > Sync now). Click to hide.", "ساعة جهازك "+(behind ? "متأخرة" : "متقدمة")+" "+t+" عن الوقت الحقيقي: اظبطها أوتوماتيك (ويندوز: Settings > Time & language > Sync now). اضغط للإخفاء."); } catch(e){} }
 syncClock(); setInterval(syncClock, 300000);
 function aggBars(rows, n, unitMs){ const W = n*unitMs, out = []; rows.forEach(r => { const b = Math.floor(r.t/W)*W, l = out[out.length-1]; if (l && l.t === b){ l.h = Math.max(l.h, r.h); l.l = Math.min(l.l, r.l); l.c = r.c; l.v += r.v; l.n++; } else out.push({t:b, o:r.o, h:r.h, l:r.l, c:r.c, v:r.v, n:1}); }); return out; }
 const parseRows = rows => rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse();

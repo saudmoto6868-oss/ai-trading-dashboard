@@ -1,5 +1,6 @@
 // MOCK-TESTED ONLY (mocked Hyperliquid l2Book with nSigFigs). The order-flow heat map was a thin strip on Hyperliquid markets because l2Book gives 20 levels a side (gold ~ +-2 USD). hlWideBook stitches
 // the native ladder with the nSigFigs 5 / 4 / 3 / 2 ladders (tick 0.1 / 1 / 10 / 100: +-1000 USD walls on gold are in the book) beyond its edge and spreads each coarse level over its range, so the book covers ~+-5 % with a continuous density (a sub-level of the 10-USD ladder is capped at 50 parts, so it carries 2 fine ticks of size: density stays equal).
+// No empty band at the junction of two ladders (consecutive levels <= ~1 USD apart over the whole +-47 %).
 // Run: NODE_PATH=$(npm root -g) node tests/browser/hl_wide_book_mock.js /tmp/ws.html
 const { chromium } = require('playwright');
 (async () => {
@@ -15,7 +16,7 @@ const { chromium } = require('playwright');
   const r = await p.evaluate(async () => { const w = (await hlOkx('/market/books-full?instId=' + encodeURIComponent('HL:xyz:GOLD') + '&sz=2000'))[0], n = (await hlOkx('/market/books?instId=' + encodeURIComponent('HL:xyz:GOLD') + '&sz=20'))[0];
     const B = w.bids.map(x => +x[0]), A = w.asks.map(x => +x[0]), Bq = w.bids.map(x => +x[1]), Aq = w.asks.map(x => +x[1]);
     const mono = (a, d) => a.every((v, i) => i === 0 || (d < 0 ? v < a[i-1] - 1e-9 : v > a[i-1] + 1e-9));
-    return { nb: B.length, na: A.length, minB: Math.min(...B), maxA: Math.max(...A), monoB: mono(B, -1), monoA: mono(A, 1), qmin: Math.min(...Bq, ...Aq), qmax: Math.max(...Bq, ...Aq), firstSame: w.bids.slice(0, 20).every((x, i) => Math.abs(+x[0] - +n.bids[i][0]) < 1e-9) && w.asks.slice(0, 20).every((x, i) => Math.abs(+x[0] - +n.asks[i][0]) < 1e-9), nativeN: n.bids.length }; });
-  const ok = r.nativeN === 20 && r.minB <= 4127 * 0.6 && r.maxA >= 4127 * 1.4 && r.monoB && r.monoA && r.qmin > 0.85 && r.qmax < 9.5 && r.firstSame && r.nb > 100 && errs.length === 0 && calls['4'] && calls['3'] && calls['2'];
+    return { nb: B.length, na: A.length, minB: Math.min(...B), maxA: Math.max(...A), monoB: mono(B, -1), monoA: mono(A, 1), qmin: Math.min(...Bq, ...Aq), qmax: Math.max(...Bq, ...Aq), gapB: Math.max(...B.slice(1).map((v, i) => Math.abs(B[i] - v))), gapA: Math.max(...A.slice(1).map((v, i) => Math.abs(v - A[i]))), firstSame: w.bids.slice(0, 20).every((x, i) => Math.abs(+x[0] - +n.bids[i][0]) < 1e-9) && w.asks.slice(0, 20).every((x, i) => Math.abs(+x[0] - +n.asks[i][0]) < 1e-9), nativeN: n.bids.length }; });
+  const ok = r.nativeN === 20 && r.minB <= 4127 * 0.6 && r.maxA >= 4127 * 1.4 && r.monoB && r.monoA && r.gapB <= 1.05 && r.gapA <= 1.05 && r.qmin > 0.85 && r.qmax < 9.5 && r.firstSame && r.nb > 100 && errs.length === 0 && calls['4'] && calls['3'] && calls['2'];
   console.log(JSON.stringify({ r, calls }), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

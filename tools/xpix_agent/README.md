@@ -17,6 +17,9 @@ node tools/xpix_agent/xpix_agent.js state                         # panels, symb
 node tools/xpix_agent/xpix_agent.js symbol HL:xyz:GOLD            # (--panel p2 for one chart)
 node tools/xpix_agent/xpix_agent.js tf 15m
 node tools/xpix_agent/xpix_agent.js toggle msb on                 # any indicator id from `list`
+node tools/xpix_agent/xpix_agent.js params msb                    # every setting of an indicator (key, type, range, current value)
+node tools/xpix_agent/xpix_agent.js set msb fib 0.3               # change a setting (validated: range / options / #rrggbb colours); saved with the layout
+node tools/xpix_agent/xpix_agent.js layout standard               # standard | blank | save (= "save current layout as my standard")
 node tools/xpix_agent/xpix_agent.js shot --out gold.png           # browser pixels at scale 2; --full = whole page; --workspace = workspace canvas
 node tools/xpix_agent/xpix_agent.js batch '[{"cmd":"page","args":["workspace"]},{"cmd":"tf","args":["5m"]},{"cmd":"shot"}]'
 ```
@@ -25,4 +28,5 @@ Env: `XPIX_URL`, `XPIX_PROFILE`, `XPIX_CHROME` (a specific Chrome binary).
 
 ## Status (honest)
 - Tested here against the real Streamlit app in a sandbox **without live prices** (OKX / Hyperliquid unreachable): pages, state, symbol / timeframe, indicator toggle, draw, screenshots work. Not tested with live data, on a Mac, or headed.
-- Not built yet: high-quality video recording (step 3), settings-panel editing, HTTP wrapper for n8n (step 4).
+- Step 2 (settings + layouts) is mock-tested (`tests/browser/xcmd_settings_mock.js`) and was run through the agent against the real Streamlit app without live prices.
+- Not built yet: high-quality video recording (step 3), HTTP wrapper for n8n (step 4). Moving / resizing panels by command is not there.

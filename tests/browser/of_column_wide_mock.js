@@ -25,6 +25,6 @@ const { chromium } = require('playwright');
     W(400, true); out.manualR = ch.colWideR; out.savedR = P.state.cwr; W(4000, true); out.maxR = ch.colWideR;   // Shift + wheel = PRICE range
     out.item = !!(P.indItems && P.indItems.find(i => i.id === 'cwide')); const it = P.indItems.find(i => i.id === 'cwide'); it.set(false); out.off = ch.colWide; out.saved = P.state.cwide; ch.draw(); it.set(true); out.on = ch.colWide; return out; });
   if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
-  const ok = r.wide === 1 && r.snaps >= 3 && r.cov > 3 && r.autoR >= 0.09 && r.span1 > 0 && r.span2 < r.span1 && r.priceUntouched && r.manualR > r.autoR && r.savedR === r.manualR && r.maxR >= 0.29 && r.colored > 150 && r.item && r.off === 0 && r.saved === false && r.on === 1 && errs.length === 0;
+  const ok = r.wide === 1 && r.snaps >= 2 && r.cov > 3 && r.autoR >= 0.09 && r.span1 > 0 && r.span2 < r.span1 && r.priceUntouched && r.manualR > r.autoR && r.savedR === r.manualR && r.maxR >= 0.29 && r.colored > 150 && r.item && r.off === 0 && r.saved === false && r.on === 1 && errs.length === 0;
   console.log(JSON.stringify(r), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

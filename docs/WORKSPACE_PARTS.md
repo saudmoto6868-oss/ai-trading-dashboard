@@ -13,6 +13,7 @@
 | `15_ws_hub_indicators` | WebSocket، Hub، الأيقونات، الصوت، مؤشرات (ADX/CCI/SAR/دايفرجنس) |
 | `20_chart_canvas` | شارت الكانفس |
 | `21_drawing_tools` | أدوات الرسم |
+| `22_ofmap` | **Order Flow Map** (`OFM`, نوع بانل `ofm`): هيت ماب للدفتر الواسع (الوقت × السعر) + خط السعر + فقاعات الصفقات + أعمدة الدفتر الحالي. بتقرا من `Hub` نفس الدفتر والصفقات (من غير طلبات زيادة) |
 | `22_panels` | الـWs والـpanels كلها |
 | `23_orderflow` | تجميع الأسعار، FLOWREAD، ZoneLog |
 | `24_flow_confluence_misc` | Flow confluence وما بعده لحد الـGuide |

@@ -18,6 +18,7 @@
 | `24_flow_confluence_misc` | Flow confluence وما بعده لحد الـGuide |
 | `25_guide` | الشخصية الإرشادية، GVoice، GLive |
 | `26_snap` | اللقطة والتسجيل |
+| `27_xcmd` | `window.XCMD`: طبقة أوامر آمنة للسائقين الخارجيين (بوت XPiX عبر Playwright): state/setSymbol/setTf/toggle/draw/clearDrawings/addPanel/closePanel/shot. قراءة + رسم فقط، مفيش أوامر صفقات |
 | `99_tail` | إغلاق السكربت والصفحة |
 
 ## القاعدة

@@ -269,3 +269,16 @@
 | 2026-11-05 01:21:54 | Bash | cat .github/workflows/orderflow-cache-regression.yml | نجح |
 | 2026-11-05 01:22:04 | Bash | cat > .github/workflows/workspace-parts-sync.yml <<'E' | نجح |
 | 2026-11-05 01:22:08 | mcp__github__create_pull_request |  | نجح |
+| 2026-11-05 01:29:33 | Bash | git checkout -q -- | نجح |
+| 2026-11-05 01:29:36 | Bash | grep -n -o ".\{0,90\}colW.\{0,110\}" | نجح |
+| 2026-11-05 01:29:38 | Bash | sed -n 36,46p modules/ws/20_chart_canvas.js | نجح |
+| 2026-11-05 01:29:42 | Bash | grep -n -o ".\{0,120\}dcol.\{0,120\}" | نجح |
+| 2026-11-05 01:29:47 | Bash | git log origin/main --oneline | نجح |
+| 2026-11-05 01:29:51 | Bash | grep -n -i "dedicated" | نجح |
+| 2026-11-05 01:29:54 | Bash | for b in fix/orderflow-dedicated-panel-clean | نجح |
+| 2026-11-05 01:29:59 | Bash | grep -n -i "صغير\/small\/screenshot\/لقطة\/الصورة\/مش | نجح |
+| 2026-11-05 01:30:35 | Bash | python3 - <<'E' p='modules/ws/20_chart_canvas.js' | نجح |
+| 2026-11-05 01:30:38 | Bash | grep -o 'const TFSEC | نجح |
+| 2026-11-05 01:30:45 | Bash | sed -i "s/\[1000, '1d'\]/[1000, | نجح |
+| 2026-11-05 01:30:51 | Bash | git add modules/ws/20_chart_canvas.js modules/workspace_app.html | نجح |
+| 2026-11-05 01:30:56 | mcp__github__create_pull_request |  | نجح |

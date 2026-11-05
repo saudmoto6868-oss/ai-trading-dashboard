@@ -521,7 +521,7 @@ Object.assign(CandleChart.prototype, {
     c.globalAlpha = 1; c.font = "10px sans-serif"; c.fillStyle = "#ffd54f"; c.fillText("SMT ⇄ "+(this.smtName || "")+(inv ? " (inverse)" : "")+"  ·  "+(this.smtD.length ? "" : ""), 8, 24);
     smtFind(A, B, inv).filter(e => A[e.i2].i >= i0 - 5).forEach(e => { const up = e.side === "up", col = up ? "#0ecb81" : "#f6465d", a1 = A[e.i1], a2 = A[e.i2], key = up ? "l" : "h";
       c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.moveTo(this.x(a1.i), py(a1[key])); c.lineTo(this.x(a2.i), py(a2[key])); c.stroke();                       // the market that made the new extreme
-      c.strokeStyle = "#ffd54f"; c.lineWidth = 1.4; c.beginPath(); c.moveTo(this.x(A[e.j1].i), py(pv(e.j1, key))); c.lineTo(this.x(A[e.j2].i), py(pv(e.j2, key))); c.stroke();   // ... and the one that refused
+      // (the yellow line of the market that refused was removed: it was drawn at a RESCALED price, so it floated in the chart at a level that means nothing; the SMT ▲ / ▼ mark says it)
       const x = this.x(a2.i), y = py(a2[key]) + (up ? 16 : -16); c.fillStyle = "#0b0e11"; c.fillRect(x-17, y-8, 34, 14); c.strokeStyle = col; c.strokeRect(x-17, y-8, 34, 14); c.fillStyle = col; c.textAlign = "center"; c.fillText("SMT "+(up ? "▲" : "▼"), x, y+3); c.textAlign = "left"; });
     c.restore();
   },

@@ -372,6 +372,35 @@ class Panel {
       {id:"cci", label:"CCI", get:() => ch().cciOn, set:v => { ch().cciOn = v; this.state.cci = v; }, sty:"cci", params:[P("len","Length",2,200,1), P("hp","Height %",1,92,1)]},
       {id:"psar", label:"Parabolic SAR", get:() => ch().psarOn, set:v => { ch().psarOn = v; this.state.psar = v; }, sty:"psar", col2:true, params:[P("step","Step",0.005,0.1,0.005), P("max","Max",0.05,1,0.05)]},
     ];
+    // ---- the indicator list, ORDERED into groups: everything that belongs to one indicator sits under it (indented, "↳"), the short name is in brackets. Only labels / order / grouping: no indicator changes what it does. ----
+    { const G = (en, ar) => ({en, ar}), GR = {
+        trend:G("Trend & levels","الاتجاه والمستويات"), struct:G("Structure & patterns","الهيكل والأنماط"), sess:G("Sessions & signals","الجلسات والإشارات"), vol:G("Volume & delta","الفوليوم والدلتا"),
+        flow:G("Order flow","الأوردر فلو"), osc:G("Oscillators","المؤشرات التذبذبية") },
+      O = [   // [id, group, level (1 = belongs to the line above), English label, Arabic label]
+        ["ma","trend",0,"Moving averages (MA) · SMA / EMA / WMA, up to 7","المتوسطات المتحركة (MA) · SMA / EMA / WMA حتى 7"], ["vwap","trend",0,"VWAP","VWAP"], ["mt5","trend",0,"MT5 pack (MT5) · MA ribbon + SAR + fractals","حزمة MT5 (MT5) · ريبون MA + SAR + فراكتال"],
+        ["don","trend",0,"Donchian ensemble (DON)","قنوات Donchian المجمّعة (DON)"], ["psar","trend",0,"Parabolic SAR (PSAR)","بارابوليك SAR (PSAR)"], ["lv","trend",0,"Open levels 4H / D / W / M (LV)","مستويات الفتح 4س / يوم / أسبوع / شهر (LV)"],
+        ["ll","trend",0,"MTF Liquidity Levels & Targets · XPIX (LL)","مستويات سيولة وأهداف متعددة الفريمات · XPIX (LL)"], ["llt","trend",1,"Targets table (LLT)","جدول الأهداف (LLT)"],
+        ["msb","struct",0,"Market Structure Break · OB · BB (MSB)","كسر هيكل السوق · OB · BB (MSB)"], ["ew","struct",0,"Elliott waves (EW) · auto 1-2-3-4-5 / A-B-C","موجات إليوت (EW) · تلقائي 1-2-3-4-5 / A-B-C"], ["ote","struct",1,"OTE waiting zone (OTE)","منطقة انتظار OTE (OTE)"],
+        ["harm","struct",0,"Harmonic patterns (HARM)","الأنماط التوافقية (HARM)"], ["smt","struct",0,"SMT divergence with a correlated market (SMT)","دايفرجنس SMT مع سوق مرتبط (SMT)"],
+        ["gann","struct",0,"Gann: price angles, time levels, star (GANN)","جان: زوايا السعر، مستويات الزمن، النجمة (GANN)"], ["astro","struct",1,"Gann astro: moon, aspects, planetary lines (ASTRO) · optional","جان الفلكي: القمر، الزوايا، خطوط الكواكب (ASTRO) · اختياري"],
+        ["sig","sess",0,"Signals: Elliott · OB · FVG · trade plan (SIG)","الإشارات: إليوت · OB · FVG · خطة الصفقة (SIG)"], ["sbox","sess",1,"Trade box: setup as a box, not lines (SBOX)","صندوق الصفقة بدل الخطوط (SBOX)"],
+        ["kz","sess",0,"Sessions & Kill Zones (KZ)","الجلسات وكيل زونز (KZ)"], ["kzs","sess",1,"Kill Zone Sniper · JOAT style (KZS)","كيل زون سنايبر · JOAT (KZS)"],
+        ["volume","vol",0,"Volume · colour by delta (VOL)","الفوليوم · لون حسب الدلتا (VOL)"], ["vp","vol",0,"Volume Profile · POC / VA (VP)","بروفايل الفوليوم · POC / VA (VP)"], ["bvd","vol",0,"Breakout Volume Delta (BVD)","دلتا فوليوم الاختراق (BVD)"],
+        ["fp","vol",0,"Footprint candles · sell × buy per price (FP)","شموع الفوتبرنت · بيع × شراء لكل سعر (FP)"], ["delta","vol",0,"Delta per candle (DELTA)","الدلتا لكل شمعة (DELTA)"],
+        ["dcol","flow",0,"Order-flow column · heat map + bubbles (DCOL)","عمود الأوردر فلو · هيت ماب + فقاعات (DCOL)"], ["cwide","flow",1,"WIDE map · the whole book + support / resistance lines (WIDE)","خريطة واسعة · الدفتر كله + خطوط الدعم والمقاومة (WIDE)"],
+        ["cown","flow",1,"OWN price scale · wheel = time, Shift + wheel = range (OWN)","مقياس سعر خاص · العجلة = زمن، Shift + العجلة = المدى (OWN)"], ["ofg","flow",1,"Gauge · buy / sell pressure (GAUGE)","مقياس ضغط الشراء والبيع (GAUGE)"],
+        ["ofs","flow",1,"Card · lights, OI, setups (CARD)","كارت · الإشارات، OI، الأفكار (CARD)"], ["read","flow",1,"Flow reading · what book + tape + limits did (READ)","قراءة الأوردر فلو · اللي عمله الدفتر والشريط والليمت (READ)"],
+        ["bub","flow",0,"Bubbles · big prints (BUB)","الفقاعات · الصفقات الكبيرة (BUB)"], ["dot","flow",0,"Sweep ◆ / absorption ⊗ dots (DOT)","نقاط السحب ◆ / الامتصاص ⊗ (DOT)"], ["dom","flow",0,"Depth heat-map (DOM)","هيت ماب العمق (DOM)"],
+        ["mk","flow",0,"BUY / SELL markers + targets (MK)","علامات الشراء/البيع + الأهداف (MK)"], ["dot3","flow",0,"Depth of Trade · bubbles + DOM + dots + BUY/SELL (DOT3)","عمق الصفقة · فقاعات + DOM + نقاط + شراء/بيع (DOT3)"],
+        ["flow","flow",0,"Order-flow lines · classic absorb / sweep (FLOW)","خطوط الأوردر فلو · امتصاص / سحب كلاسيك (FLOW)"], ["sync","flow",0,"Order-flow sync · book + tape + limits (SYNC)","تزامن الأوردر فلو · الدفتر + الصفقات + الليمت (SYNC)"],
+        ["liqm","flow",0,"Liquidations · OKX (LIQ)","التصفيات · OKX (LIQ)"], ["zlog","flow",0,"⬇ DOWNLOAD zone test log · JSON file, opens the save dialog (ZLOG)","⬇ تحميل سجل اختبار المناطق · ملف JSON، بيفتح نافذة الحفظ (ZLOG)"],
+        ["rsi","osc",0,"RSI","RSI"], ["r2","osc",0,"RSI(2) + OsMA · MT5 window 1 (R2)","RSI(2) + OsMA · نافذة MT5 رقم 1 (R2)"], ["rm","osc",0,"RSI + MA extremes 92 / 8 (RM)","RSI + MA مع مستويات 92 / 8 (RM)"],
+        ["div","osc",1,"Divergence lines · RSI / MACD / Volume (DIV)","خطوط الدايفرجنس · RSI / MACD / الفوليوم (DIV)"], ["macd","osc",0,"MACD","MACD"], ["adx","osc",0,"ADX / DMI","ADX / DMI"], ["cci","osc",0,"CCI","CCI"],
+        ["zn","osc",0,"Scalp zones · Stoch + RSI (ZN)","زونات السكالب · Stoch + RSI (ZN)"], ["bso","osc",0,"Bollinger + Stoch + OsMA (BSO)","بولينجر + Stoch + OsMA (BSO)"], ["bbshow","osc",1,"Bollinger bands on the price chart (BB)","خطوط البولنجر على الشارت (BB)"]];
+      const byId = new Map(items.map(it => [it.id, it])), done = new Set(), ordered = [];
+      O.forEach(([id, g, lv, en, ar]) => { const it = byId.get(id); if (!it) return; it.label = Lg(en, ar); it.grp = GR[g]; it.lvl = lv; done.add(id); ordered.push(it); });
+      items.forEach(it => { if (!done.has(it.id)){ it.grp = it.grp || G("Other","أخرى"); ordered.push(it); } });   // anything not listed keeps working, at the end
+      items.splice(0, items.length, ...ordered); }
     this.indItems = items;   // task 22: the Master button turns these off/on together
     const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
@@ -392,8 +421,10 @@ class Panel {
           b.onclick = e => { e.stopPropagation(); items.forEach(it => { if (it.id === "ma") ch().maL.forEach(m => m.on = md.on.includes("ma") && (!md.ma || md.ma.includes(m.len))); else if (!KEEP.includes(it.id)) it.set(md.on.includes(it.id)); }); this.state.mode = md.id; save(); render(); };
           mr.append(b); });
         pop.append(mr); }
+      let lastGrp = null;
       (UI.min ? items.filter(it => it.open && it.get()) : items).forEach(it => {   // folded: only the indicators whose settings are open
-        const row = el("div","irow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!it.get();
+        if (!UI.min && it.grp && it.grp !== lastGrp){ lastGrp = it.grp; const gh = el("div","igrp", esc(Lg(it.grp.en, it.grp.ar))); gh.style.cssText = "margin:8px 0 2px;padding:2px 4px;font:bold 10px sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--acc,#f0b90b);border-bottom:1px solid var(--line)"; pop.append(gh); }
+        const row = el("div","irow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!it.get(); if (it.lvl) row.style.paddingInlineStart = (it.lvl*16)+"px";
         cb.onchange = () => { it.set(cb.checked); if (!KEEP.includes(it.id)) this.state.mode = ""; save(); render(); }; const lb = el("label",null,esc(it.label)); if (it.tip) lb.title = it.tip; lb.onclick = () => { cb.checked = !cb.checked; cb.onchange(); };
         row.append(cb, lb);
         if (it.id === "dot3"){ const g = el("button",null,"⚙"); g.title = T("ofSet"); g.onclick = e => { e.stopPropagation(); Ws.ofPanel(g, this.chart, () => { this.state.st = JSON.parse(JSON.stringify(this.chart.st)); Ws.save(); this.chart.draw(); }); }; row.append(g); }

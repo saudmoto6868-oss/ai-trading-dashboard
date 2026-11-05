@@ -146,7 +146,7 @@ const Hub = {
           payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
         } else if (kind === "trades"){
           const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
-          { const mx = d.length ? Math.max(...d.map(x => +x.ts || 0)) : 0; if (mx > 0 && Math.abs(mx - nowS()) > 60000) SKEW = mx - Date.now(); }   // PC clock wrong and /public/time failed: take the exchange time from the prints
+          { const mx = d.length ? Math.max(...d.map(x => +x.ts || 0)) : 0; if (mx > 0 && Math.abs(mx - nowS()) > 60000) SKEW = Math.round(mx - Date.now()); }   // PC clock wrong and /public/time failed: take the exchange time from the prints
           payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");

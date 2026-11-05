@@ -94,7 +94,7 @@ async function okxLiqs(sym){
     out.push({t:+x.ts, p, side:x.side === "sell" ? "L" : "S", usd:c.inv ? q*c.v : q*c.v*p}); }); });
   return out.sort((a, b) => b.t - a.t);
 }
-async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = +r[0].ts + (t1-t0)/2 - t1; } catch(e){} clockWarn(); }
+async function syncClock(){ try { const t0 = Date.now(), r = await okx("/public/time"), t1 = Date.now(); if (r && r[0] && +r[0].ts > 0) SKEW = Math.round(+r[0].ts + (t1-t0)/2 - t1); } catch(e){} clockWarn(); }
 let _clk = null; const clockReady = () => _clk || (_clk = Promise.race([syncClock(), new Promise(r => setTimeout(r, 2500))]));   // the first Hyperliquid candle request waits (max 2.5 s) for the first clock measurement
 function clockWarn(){   // the PC clock is hours off (owner's was ~14 h behind): charts, countdowns, sessions and alerts all use it, so say it loudly once
   try { const sk = SKEW, bad = Math.abs(sk) > 120000; let e = document.getElementById("clkw");

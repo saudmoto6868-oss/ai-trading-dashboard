@@ -6,7 +6,7 @@ Read + view + draw only. No orders, no trading, no broker/TradingView logins, no
   XPIX_URL            platform URL (default http://localhost:8501)
   XPIX_PROFILE        Chromium profile dir (default ~/.xpix_bot_profile) - keeps the layout/drawings between runs
 Run: python scripts/xpix_bot.py
-Commands: /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
+Commands: /plan | /smt | /help | /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
 Spot desk (modules/spot_query.py, needs SPOT_GH_TOKEN + SPOT_GH_REPO in the env): /spot | /inv <no / shop / date> | /find <text> | /spotalerts | /spotxl
 HONESTY: nothing here has been run against Telegram unless the owner says so; the XCMD part was tested live (tests/browser/xcmd_live.py)."""
 import os, subprocess, sys, time, json, pathlib
@@ -32,8 +32,12 @@ def tg(method, **kw):
     return r.json()
 
 
-def say(text):
-    tg("sendMessage", data={"chat_id": OWNER, "text": text[:4000]})
+def say(text, html=False):
+    d = {"chat_id": OWNER, "text": text[:4000]}
+    if html:
+        d["parse_mode"] = "HTML"
+        d["disable_web_page_preview"] = True
+    tg("sendMessage", data=d)
 
 
 def send_doc(name, data, caption=""):
@@ -129,6 +133,34 @@ def cmd_today(p, s):
     return _cache[key][1]
 
 
+def cmd_plan(a):
+    """/plan [scalp|conf] [5m|15m|1h] [SYMBOL ...] : today's trades by timeframe confluence (standard) or a scalp on one timeframe (modules/day_plan.py)."""
+    from modules import day_plan as D
+    from modules.market_cache import get_klines
+    mode, trig, syms = "conf", None, []
+    for x in a:
+        lx = x.lower()
+        if lx in ("scalp", "conf"):
+            mode = lx
+        elif lx in ("5m", "15m", "1h"):
+            trig = (lx,)
+        else:
+            syms.append(x.upper() if "-" in x or ":" in x else x.upper() + "-USDT")
+    syms = syms or [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+    plans = D.scan(syms, lambda s_, t_: get_klines(s_, t_, 300), mode=mode, trigger_tfs=trig)
+    return D.format_telegram(plans, ar=True)
+
+
+def cmd_smt():
+    """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
+    from modules import intermarket as IM
+    from modules.market_cache import get_klines
+    ev = IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300))
+    if not ev:
+        return "No clear SMT between the correlated pairs right now."
+    return "SMT now:\n" + "\n".join(f"• {c['label']} · {c['session']} · {c['bars_ago']} bars" for c in IM.chips(ev, ar=False, limit=15))
+
+
 def ask_claude(text, deep=False):
     cmd = ["claude", "-p", text, "--model", "opus" if deep else "sonnet", "--allowedTools", "Read,Grep,Glob",
            "--append-system-prompt", RULES]
@@ -158,6 +190,12 @@ def handle(p, text):
     if c == "/today":
         r = cmd_today(p, a[1] if len(a) > 1 else "BTC")
         return (send_photo(r[0], r[1]) if r[0] else say(r[1]))
+    if c == "/plan":
+        return say(cmd_plan(a[1:]), html=True)
+    if c == "/smt":
+        return say(cmd_smt())
+    if c in ("/help", "/start"):
+        return say("/plan [scalp|conf] [5m|15m|1h] [SYMBOL...] day plan · /smt intermarket SMT · /shot SYMBOL TF · /today SYMBOL · /signals · /alerts · /deep <text> · any other text = ask Claude (read-only).")
     if c == "/signals":
         return say(cmd_signals())
     if c == "/alerts":

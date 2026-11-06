@@ -28,6 +28,7 @@ jobs:
         with:
           path: |
             .tg_sent.json
+            .tc_sent.json
             .signal_log.jsonl
           key: tg-sent-${{ github.run_id }}
           restore-keys: tg-sent-
@@ -36,6 +37,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m modules.tg_cron
+      - name: Trade Classes bounce trades (Day trade + Swing, price at a support / resistance zone)
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m modules.tclass_cron
       - name: Spot desk alerts (online ledger; skipped when SPOT_GH_* are not set)
         if: always()
         env:

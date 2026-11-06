@@ -21,6 +21,8 @@
 | SMC / ICT | context |
 | Elliott / Gann / Harmonic | context |
 
+> تغطية المدارس في الكود (جدول كامل بالفجوات): [`SCHOOLS_COVERAGE_2026-11-06.md`](SCHOOLS_COVERAGE_2026-11-06.md)
+
 ## Lab
 
 أي ترقية لـ primary تمر بـ `docs/academy/DEVELOPMENT_NOTES.md` (خيارات R*) وتكاليف حقيقية.

@@ -8,6 +8,11 @@ Read + view + draw only. No orders, no trading, no broker/TradingView logins, no
 Run: python scripts/xpix_bot.py
 Commands: /plan | /smt | /help | /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
 Spot desk (modules/spot_query.py, needs SPOT_GH_TOKEN + SPOT_GH_REPO in the env): /spot | /inv <no / shop / date> | /find <text> | /spotalerts | /spotxl
+Spot analyzer: /spotchart GOLD (image of the analyzer) | /outlook GOLD (weekly Arabic briefing + image)
+Platform: /panel tape|dom|ofm|limits|liq|signals|posn | /ind ew|gann|smt|div|harm|kz|vp|rsi|macd on|off | /help
+Arabic free text is routed by modules/bot_router.py ("ابعتلي صورة الدهب على الأسبوعي مع اليوت"); anything else -> Claude.
+Weekly briefing on its own: XPIX_OUTLOOK_SYMS (default GOLD,BTC), XPIX_OUTLOOK_DAY (0=Mon .. 6=Sun, default 6),
+XPIX_OUTLOOK_HOUR (Mac local time, default 20); state in ~/.xpix_bot_state.json (sent once per ISO week).
 HONESTY: nothing here has been run against Telegram unless the owner says so; the XCMD part was tested live (tests/browser/xcmd_live.py)."""
 import os, subprocess, sys, time, json, pathlib
 import requests
@@ -86,6 +91,18 @@ class Platform:
         for c in (s, s + "-USDT"):
             if c in syms:
                 return c
+
+    def panel(self, typ):
+        """Open a widget once (Time & Sales, DOM, order-flow map, limit tracking ...)."""
+        have = [q["type"] for q in self.x("XCMD.state()")["panels"]]
+        if typ in have:
+            return {"ok": True, "already": True}
+        r = self.x(f"XCMD.addPanel({json.dumps(typ)})")
+        time.sleep(3)
+        return r
+
+    def ind(self, ind_id, on=True):
+        return self.x(f"XCMD.toggle({json.dumps(ind_id)}, {str(bool(on)).lower()})")
 
     def shot(self, sym=None, tf=None, out="/tmp/xpix_shot.png"):
         if sym:
@@ -171,9 +188,94 @@ def ask_claude(text, deep=False):
         return f"Claude Code call failed: {e}"
 
 
+HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر تداول):
+• اكتب عادي بالعربي: «ابعتلي صورة الدهب على الأسبوعي مع اليوت» · «افتح التايم اند سيلز للبيتكوين» · «الدهب هيطلع الأسبوع الجاي؟» · «وريني المحلل للفضة» · «هات فاتورة INV-12»
+• /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
+• /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
+• /spot · /inv رقم · /find نص · /spotalerts · /spotxl
+• /signals · /alerts · /today BTC · /deep سؤال"""
+TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
+IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
+          "rsi": "RSI", "macd": "MACD", "adx": "ADX", "fp": "الفوت برينت", "delta": "الدلتا", "ote": "OTE", "msb": "MSB"}
+PANEL_AR = {"tape": "التايم اند سيلز", "dom": "عمق السوق", "ofm": "خريطة الأوردر فلو", "limits": "تتبع الأوامر", "liq": "التصفيات", "signals": "الإشارات",
+            "posn": "التمركز", "rsihm": "خريطة RSI"}
+
+
+def spot_image(p, asset, outlook=False):
+    """Analyzer image (+ the Arabic weekly briefing) for one asset, rendered in the bot's own browser."""
+    from modules import spot_dash, spot_outlook
+    b, msg = spot_outlook.build(asset)
+    if not any(r.get("ok") for r in b["reads"].values()):
+        return say(f"مفيش شموع لـ {asset} دلوقتي ({', '.join(b.get('errors', []))}).")
+    png = spot_dash.to_png(spot_dash.render(b, True), f"/tmp/xpix_spot_{asset}.png", ctx=p.ctx)
+    send_photo(png, (msg if outlook else f"محلل السبوت - {asset} · الدرجة {b['conf']['score']:+d}")[:1000])
+    if outlook and len(msg) > 1000:
+        say(msg)
+
+
+def run_actions(p, acts):
+    """Execute router actions (whitelisted) and answer with one screenshot + an Arabic line of what was done."""
+    from modules import bot_router
+    done, shot = [], None
+    for a in acts:
+        c = a["cmd"]
+        if c == "ledger":
+            from modules import spot_query
+            reply, files = spot_query.handle(a["text"])
+            say(reply or "مفيش نتيجة.")
+            for name, data in files:
+                send_doc(name, data)
+            return
+        if c in ("outlook", "spotchart"):
+            return spot_image(p, a["asset"], outlook=(c == "outlook"))
+        if c == "panel":
+            r = p.panel(a["type"])
+            done.append(("فتحت " if r.get("ok") else "مقدرتش أفتح ") + PANEL_AR.get(a["type"], a["type"]))
+        elif c == "ind":
+            r = p.ind(a["id"], a["on"])
+            done.append(("شغّلت " if a["on"] else "طفّيت ") + IND_AR.get(a["id"], a["id"]) + ("" if r.get("ok") else f" (مش متاح: {r.get('err')})"))
+        elif c == "shot":
+            shot = a
+    if shot is not None:
+        syms = p.x("XCMD.state()")["sym"]
+        sym = bot_router.platform_symbols(shot.get("asset"), syms)
+        if shot.get("asset") and not sym:
+            return say(f"الرمز {shot['asset']} مش في قايمة المنصة.")
+        png, err = p.shot(sym, shot.get("tf"))
+        cap = " · ".join(done + [x for x in (sym, TF_AR.get(shot.get("tf"), shot.get("tf") or "")) if x])
+        return send_photo(png, cap or "المنصة دلوقتي") if png else say(err)
+    if done:
+        say(" · ".join(done))
+
+
+def weekly_due(now=None, state_path=os.path.expanduser("~/.xpix_bot_state.json")):
+    """True once per ISO week, at/after XPIX_OUTLOOK_DAY + XPIX_OUTLOOK_HOUR (Mac local time)."""
+    import datetime as _dt
+    now = now or _dt.datetime.now()
+    day, hour = int(os.environ.get("XPIX_OUTLOOK_DAY", "6")), int(os.environ.get("XPIX_OUTLOOK_HOUR", "20"))
+    wk = "%d-W%02d" % now.isocalendar()[:2]
+    try:
+        st = json.load(open(state_path))
+    except Exception:
+        st = {}
+    if st.get("outlook_week") == wk or now.weekday() != day or now.hour < hour:
+        return False
+    st["outlook_week"] = wk
+    json.dump(st, open(state_path, "w"))
+    return True
+
+
 def handle(p, text):
     a = text.strip().split()
     c = a[0].lower().split("@")[0] if a else ""
+    if c in ("/help", "/start", "مساعدة"):
+        return say(HELP_AR)
+    if c in ("/spotchart", "/outlook"):
+        return spot_image(p, (a[1] if len(a) > 1 else "GOLD").upper(), outlook=(c == "/outlook"))
+    if c == "/panel" and len(a) > 1:
+        return run_actions(p, [{"cmd": "panel", "type": a[1].lower()}, {"cmd": "shot"}])
+    if c == "/ind" and len(a) > 1:
+        return run_actions(p, [{"cmd": "ind", "id": a[1].lower(), "on": (a[2].lower() != "off") if len(a) > 2 else True}, {"cmd": "shot"}])
     if c in ("/spot", "/inv", "/find", "/spotalerts", "/spotxl"):   # spot desk ledger (read-only)
         from modules import spot_query
         reply, files = spot_query.handle(text)
@@ -202,6 +304,11 @@ def handle(p, text):
         return say(cmd_signals(True))
     if c == "/deep":
         return say(ask_claude(" ".join(a[1:]), deep=True))
+    if not c.startswith("/"):
+        from modules import bot_router
+        acts = bot_router.route(text)
+        if acts:
+            return run_actions(p, acts)
     return say(ask_claude(text))
 
 
@@ -224,6 +331,12 @@ def main():
                         say(f"error: {str(e)[:300]}")
             except requests.RequestException:
                 time.sleep(5)
+            try:                                     # weekly Arabic briefing (gold, bitcoin ...) with the analyzer image
+                if weekly_due():
+                    for asset in [x.strip().upper() for x in os.environ.get("XPIX_OUTLOOK_SYMS", "GOLD,BTC").split(",") if x.strip()]:
+                        spot_image(p, asset, outlook=True)
+            except Exception as e:
+                say(f"weekly briefing error: {str(e)[:200]}")
 
 
 if __name__ == "__main__":

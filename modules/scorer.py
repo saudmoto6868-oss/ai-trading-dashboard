@@ -32,7 +32,7 @@ from modules.signals import (
 # These add a WATCH signal but cannot drive a CALL on their own.
 # Elliott is context because the lab shows low t-stat and it is primarily a «map» tool.
 # Add "Gann", "Harmonic", "SMC" here as their detectors are built.
-CONTEXT_FAMILIES: tuple = ("Elliott",)
+CONTEXT_FAMILIES: tuple = ("Elliott", "PA")   # PA = price action + range patterns (modules/pa_patterns.py): flags until the lab has evidence
 
 # Trigger families = ALL_FAMILIES minus context families
 TRIGGER_FAMILIES: tuple = tuple(f for f in ALL_FAMILIES if f not in CONTEXT_FAMILIES)

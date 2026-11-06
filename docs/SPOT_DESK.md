@@ -67,6 +67,31 @@ older copy (`SPOT_BACKUP_KEEP=1`). Offline -> nothing is deleted. Log: `~/Librar
 The bot needs `SPOT_GH_TOKEN` + `SPOT_GH_REPO` in its own environment (the Mac), next to `XPIX_BOT_TOKEN` / `XPIX_OWNER_CHAT_ID`.
 It never writes the ledger (adding records from Telegram = later, only with the owner's OK).
 
+## Telegram bot - platform control + spot (owner 2026-11-06)
+Write normally in Arabic; `modules/bot_router.py` turns it into SAFE actions (view / screenshot / symbol / timeframe /
+widget / indicator / analyzer / briefing / ledger). Nothing places an order. Unknown text -> Claude answers.
+| You write | The bot does |
+|---|---|
+| ابعتلي صورة الدهب على الأسبوعي مع اليوت | Elliott on, gold, 1W, screenshot |
+| افتح التايم اند سيلز للبيتكوين | opens Time & Sales, BTC, screenshot |
+| افتح تتبع الأوامر وعمق السوق | Limit Tracking + DOM, screenshot |
+| شوفلي SMT على الايث 4 ساعات / شيل الجان | indicator on / off + screenshot |
+| الدهب هيطلع الأسبوع الجاي؟ | weekly briefing in Arabic + analyzer image |
+| وريني المحلل للفضة | analyzer image |
+| هات فاتورة INV-12 / مراكزي / اكسل | ledger answers + files |
+Commands: `/help`, `/shot BTC 4H`, `/panel tape|dom|ofm|limits|liq|signals|posn`, `/ind ew|gann|smt|div|harm|kz|vp|rsi|macd on|off`,
+`/spotchart GOLD`, `/outlook GOLD`, `/spot`, `/inv`, `/find`, `/spotalerts`, `/spotxl`.
+**Weekly briefing on its own** (bot running on the Mac): every `XPIX_OUTLOOK_DAY` (0 Mon .. 6 Sun, default 6) at/after
+`XPIX_OUTLOOK_HOUR` (default 20, Mac time) for `XPIX_OUTLOOK_SYMS` (default `GOLD,BTC`): this week's move in $/oz (or $ and %),
+the typical weekly move (ATR 14 weekly), the side of the schools, where it may go next week (next target / support), ICT zone,
+SMC demand zone, Elliott, Gann time window, SMT, the staged buys and the invalidation. Statistical range, not a promise.
+
+## Backtest (runs on its own)
+`.github/workflows/spot-backtest.yml` every Monday 03:17 UTC (+ "Run workflow" button): `scripts/spot_backtest.py` walks
+crypto majors + gold / silver / copper / platinum week by week (1W + 1M score, no look-ahead), measures 4- and 12-week returns
+by score bucket and sends a short Arabic result to Telegram (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`). The Analyzer is an
+optional tab (last one, loads only on request) until the result says the score helps.
+
 ## Keys / secrets summary
 | Name | Where | Why |
 |---|---|---|

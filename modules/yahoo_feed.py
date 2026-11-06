@@ -15,7 +15,8 @@ HDR = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 HOSTS = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
 # our tf -> (yahoo interval, range, bars to merge)
 TF = {"1m": ("1m", "7d", 1), "5m": ("5m", "60d", 1), "15m": ("15m", "60d", 1), "30m": ("30m", "60d", 1),
-      "1h": ("60m", "730d", 1), "4h": ("60m", "730d", 4), "1d": ("1d", "5y", 1), "1w": ("1wk", "10y", 1)}
+      "1h": ("60m", "730d", 1), "4h": ("60m", "730d", 4), "1d": ("1d", "5y", 1), "1w": ("1wk", "10y", 1),
+      "1mo": ("1mo", "max", 1)}   # monthly (Spot desk, 2026-11-06): full history for gold / silver / copper futures
 
 FOREX = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURGBP=X", "EURJPY=X", "GBPJPY=X", "USDEGP=X", "USDSAR=X", "GC=F", "SI=F", "DX-Y.NYB"]
 INDICES = ["^IXIC", "^NDX", "^GSPC", "^DJI", "^RUT", "^VIX", "^GDAXI", "^FTSE", "^N225", "^HSI"]

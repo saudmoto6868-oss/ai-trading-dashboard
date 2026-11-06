@@ -1062,8 +1062,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms"]   # 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 10 = Prop Firms inserted before AI/Alerts
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_PAGE_ORDER = [0, 1, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -3508,4 +3508,12 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
         render_prop_firms()
     except Exception as _pf_exc:
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
+    st.stop()
+
+if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
+    try:
+        from modules.spot_page import render as _spot_render
+        _spot_render()
+    except Exception as _sp_exc:
+        st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
     st.stop()

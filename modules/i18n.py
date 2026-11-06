@@ -721,3 +721,6 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], section[da
 [data-testid="stExpander"] summary, [data-testid="stAlert"] { direction: rtl; text-align: right; }
 .stTabs [data-baseweb="tab-list"] { direction: rtl; }
 </style>"""
+
+# Spot desk page (modules/spot_page.py) - added 2026-11-06
+AR.update({"Spot": "السبوت"})

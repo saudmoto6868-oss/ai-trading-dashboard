@@ -22,7 +22,7 @@ from modules.lab_banner import with_demo_banner  # noqa: E402
 h = with_demo_banner("<html><body class='x'><p>hi</p></body></html>")
 assert h.index("demo-banner") > h.index("<body") and h.index("demo-banner") < h.index("<p>hi</p>"), h
 assert "DEMO" in h and "not evidence" in h and with_demo_banner("<p>no body</p>").startswith("<div")
-for f in ("edge_map_app", "robustness_app", "execution_app", "micro_foundations"):
+for f in ("edge_map_app", "execution_app", "micro_foundations"):   # Robustness now reads the real lab rows (no mock page)
     src = open(os.path.join(ROOT, "modules", f + ".html"), encoding="utf8").read()
     assert 'id="demo-banner"' in with_demo_banner(src), f
 mc = open(os.path.join(ROOT, "modules", "montecarlo_app.html"), encoding="utf8").read()
@@ -35,6 +35,8 @@ for tab in ("Monte Carlo", "Edge Map", "Robustness", "Execution"):
     at.run()
     assert not at.exception, (tab, [str(e.value)[:200] for e in at.exception])
     assert not at.error, (tab, [str(e.value)[:200] for e in at.error])
+    if tab == "Robustness":   # real lab rows -> a table (or the honest "no data" note), never the mock page
+        assert at.dataframe or any("strategy_lab.json" in str(i.value) for i in at.info), "Robustness shows neither the lab table nor the no-data note"
     print("ok stats tab:", tab)
 
 at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)

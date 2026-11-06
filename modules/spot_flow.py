@@ -98,7 +98,7 @@ def _safe(fn, *a):
     try:
         return fn(*a)
     except Exception as e:
-        return {"ok": False, "why": f"{type(e).__name__}"}
+        return {"ok": False, "why": f"{type(e).__name__}: {str(e)[:120]}"}
 
 
 def crypto(base: str) -> dict:

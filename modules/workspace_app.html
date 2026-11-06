@@ -6889,7 +6889,10 @@ function wsRecBtn(){
     frame(); const fi = setInterval(frame, 40), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 25 fps, widgets every 4 s, 10 minutes at most
     kill = () => { clearInterval(fi); clearInterval(ri); clearTimeout(stopT); kill = null; };
     const stream = out.captureStream(25), q = Snap.hq(stream, {w:out.width, h:out.height, fps:25}); if (!attach(stream, q)) kill(); };
+  const G = () => { try { return window.parent && window.parent.__xpixRec; } catch(e){ return null; } };   // the page-wide recorder (modules/screen_recorder.js): it keeps recording when you change page
+  { const sync = () => { const g = G(); if (g){ const st = g.state(); b.classList.toggle("on", st.recording); b.textContent = st.recording ? "⏹" : "🖥"; } }; setInterval(sync, 700); }
   b.onclick = async () => {
+    { const g = G(); if (g){ g.toggle(); return; } }
     if (rec){ rec.stop(); return; }
     const gdm = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia; if (!gdm){ await inside(); return; }
     let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:60, max:60}, width:{ideal:7680}, height:{ideal:4320}}, audio:false}); }

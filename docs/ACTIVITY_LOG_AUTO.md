@@ -667,3 +667,36 @@
 | 2026-11-06 04:16:24 | Bash | python3 - <<'EOF' p='tests/browser/run_all.sh'; | نجح |
 | 2026-11-06 04:16:31 | Bash | git add -A && | نجح |
 | 2026-11-06 04:16:43 | mcp__github__create_pull_request |  | نجح |
+| 2026-11-06 04:23:37 | Bash | git checkout -q -- | نجح |
+| 2026-11-06 04:23:39 | Bash | grep -o '_mk("[A-Za-z ]*", | نجح |
+| 2026-11-06 04:23:55 | Bash | grep -n "^def detect_all" | نجح |
+| 2026-11-06 04:23:59 | Bash | grep -n "ALL_FAMILIES\/PRIMARY_FAMILIES\/CONFIRM_FAMILIES\/FAMILY_ICONS\/^DETECTORS" modules/signals.py | نجح |
+| 2026-11-06 04:24:02 | Bash | sed -n 1,30p modules/patterns.py | نجح |
+| 2026-11-06 04:24:05 | Bash | grep -n "^#\/^/" docs/SCHOOLS.md | نجح |
+| 2026-11-06 04:24:07 | Bash | sed -n 1,40p docs/SCHOOLS.md | نجح |
+| 2026-11-06 04:24:21 | Bash | sed -n 28,45p modules/signals.py | نجح |
+| 2026-11-06 04:24:29 | Bash | sed -n 160,200p modules/strategy_lab.py | نجح |
+| 2026-11-06 04:24:45 | Bash | grep -n "^def signal_ar" | نجح |
+| 2026-11-06 04:24:48 | Bash | sed -n 100,135p modules/chart_scan.py | نجح |
+| 2026-11-06 04:25:03 | Bash | grep -n "^def _flip_text" | نجح |
+| 2026-11-06 04:25:23 | Bash | sed -n 286,330p modules/arabic.py | نجح |
+| 2026-11-06 04:25:49 | Write | /home/user/ai-trading-dashboard/modules/pa_patterns.py | نجح |
+| 2026-11-06 04:25:59 | Bash | grep -n -i "\btop\b\/\bbottom\b" | نجح |
+| 2026-11-06 04:26:21 | Bash | python3 - <<'EOF' import | نجح |
+| 2026-11-06 04:26:24 | Bash | grep -n '"school"\/\["school"\]\/school=' modules/*.py | نجح |
+| 2026-11-06 04:26:26 | Bash | grep -n "SCHOOL" modules/chart_scan.py | نجح |
+| 2026-11-06 04:26:38 | Bash | python3 - <<'EOF' import | نجح |
+| 2026-11-06 04:26:46 | Bash | python3 - <<'EOF' p='modules/chart_scan.py'; | نجح |
+| 2026-11-06 04:27:05 | Bash | cat > tests/test_pa_patterns.py <<'EOF' | نجح |
+| 2026-11-06 04:27:12 | Bash | python3 - <<'EOF' p='modules/pa_patterns.py'; | نجح |
+| 2026-11-06 04:27:20 | Bash | sed -i 's/brk = | نجح |
+| 2026-11-06 04:27:27 | Bash | python3 - <<'EOF' p='tests/test_pa_patterns.py'; | نجح |
+| 2026-11-06 04:27:34 | Bash | python3 - <<'EOF' import | نجح |
+| 2026-11-06 04:27:40 | Bash | python3 - <<'EOF' p='modules/pa_patterns.py'; | نجح |
+| 2026-11-06 04:27:46 | Bash | python3 - <<'EOF' p='tests/test_pa_patterns.py'; | نجح |
+| 2026-11-06 04:27:51 | Bash | python3 - <<'EOF' p='modules/signals.py'; | نجح |
+| 2026-11-06 04:29:15 | Bash | ls tests/test_*.py / wc | نجح |
+| 2026-11-06 04:29:17 | Bash | PYTHONPATH=. python3 tests/test_school_filters.py 2>&1 | نجح |
+| 2026-11-06 04:29:24 | Bash | python3 - <<'EOF' p='modules/chart_scan.py'; | نجح |
+| 2026-11-06 04:29:30 | Bash | cat > tests/test_school_filters_fire.py <<'EOF' | نجح |
+| 2026-11-06 04:32:20 | Bash | cat > docs/SCHOOLS_COVERAGE_2026-11-06.md <<'EOF' | نجح |

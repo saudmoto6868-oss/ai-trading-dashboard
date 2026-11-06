@@ -56,6 +56,7 @@ TAGS = {
     "MA": ("متوسطات", "#5a6b7d", "#fff"),
     "VWAP": ("VWAP", "#5a6b7d", "#fff"),
     "TL": ("كسر ترند", "#e0a030", "#000"),
+    "PA": ("برايس أكشن", "#90a4ae", "#000"),
 }
 KEY_TAGS = {
     "m2022": ("Model 2022", "#00bcd4", "#000"),
@@ -85,6 +86,8 @@ KEY_TAGS = {
     "po3": ("Power of 3", "#ce93d8", "#000"),
     "sma1040": ("SMA 10/40", "#aed581", "#000"),
     "turtle55": ("تيرتل 55", "#4fc3f7", "#000"),
+    "pa_engulf": ("ابتلاع", "#90a4ae", "#000"), "pa_pin": ("بين بار", "#90a4ae", "#000"), "pa_inside": ("إنسايد بار", "#90a4ae", "#000"), "pa_star": ("نجمة", "#90a4ae", "#000"),
+    "rect": ("مستطيل", "#a1887f", "#000"), "dbl": ("قمتين/قاعين", "#a1887f", "#000"), "wyck": ("وايكوف", "#b39ddb", "#000"),
 }
 
 
@@ -303,6 +306,21 @@ def signal_ar(s: dict, ar: bool | None = None) -> tuple:
         n = "".join(ch for ch in s["name"] if ch.isdigit()) or "20"
         return (f"{'اختراق' if bull else 'كسر'} آخر {n} شمعة",
                 f"إغلاق {'فوق أعلى' if bull else 'تحت أدنى'} {n} شمعة عند {f('lvl')}")
+    if k == "pa_engulf":
+        return (f"ابتلاع {'صاعد' if bull else 'هابط'} عند {'دعم' if bull else 'مقاومة'}", f"جسم الشمعة ابتلع جسم الشمعة السابقة عند {'دعم' if bull else 'مقاومة'} {f('lvl')} بعد {'هبوط' if bull else 'صعود'}: {'المشترون' if bull else 'البائعون'} سيطروا عند المستوى. تلميح سياقي، مش صفقة لوحده")
+    if k == "pa_pin":
+        return (f"{'مطرقة / بين بار' if bull else 'نجمة السقوط / بين بار'}", f"ذيل طويل رفض {'الدعم' if bull else 'المقاومة'} {f('lvl')} والإغلاق في {'الجزء العلوي' if bull else 'الجزء السفلي'} من الشمعة: تم رفض {'البائعين' if bull else 'المشترين'}")
+    if k == "pa_inside":
+        return ("كسر إنسايد بار", f"اتكسرت الشمعة الداخلية: إغلاق {up} {'قمة' if bull else 'قاع'} الشمعة الأم {f('hi')} (اتجاه {'صاعد' if bull else 'هابط'} أو عند {'دعم' if bull else 'مقاومة'})")
+    if k == "pa_star":
+        return (f"{'نجمة الصباح' if bull else 'نجمة المساء'} عند {'قاع' if bull else 'قمة'}", f"شمعة {'هابطة' if bull else 'صاعدة'} ثم شمعة تردد صغيرة ثم شمعة {'صاعدة' if bull else 'هابطة'} تغلق {up} منتصف الأولى عند {'قاع' if bull else 'قمة'} {f('lo')}")
+    if k == "rect":
+        rt = bool(v.get("retest"))
+        return (f"{'اختراق' if bull else 'كسر'} مستطيل" + (" + إعادة اختبار" if rt else ""), f"السعر أغلق {up} مستطيل (أعلى {f('hi')}، أسفل {f('lo')}، {v.get('touches', '?')}+ لمسات)" + (" وأعاد اختبار الحافة المكسورة" if rt else ""))
+    if k == "dbl":
+        return (f"{'قاعين' if bull else 'قمتين'} + كسر خط العنق", f"قمتان/قاعان عند {f('lo') if bull else f('lo')} وإغلاق {up} خط العنق {f('neck')}")
+    if k == "wyck":
+        return (f"وايكوف: {'سبرينج' if bull else 'أبثراست'}", f"السعر {'نزل تحت قاع' if bull else 'طلع فوق قمة'} النطاق {f('lo') if bull else f('hi')} ثم رجع داخله: سحب سيولة داخل نطاق")
     return (s.get("name", ""), s.get("detail", ""))
 
 

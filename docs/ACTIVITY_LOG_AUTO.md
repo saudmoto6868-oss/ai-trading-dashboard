@@ -1056,3 +1056,6 @@
 | 2026-11-06 15:55:08 | Bash | python3 - <<'EOF' import | نجح |
 | 2026-11-06 15:55:45 | Bash | git status --short && | نجح |
 | 2026-11-06 21:12:37 | Bash | git pull -q origin | نجح |
+| 2026-11-06 21:12:42 | Bash | git add -A && | نجح |
+| 2026-11-06 21:12:46 | Bash | git pull -q --no-rebase | نجح |
+| 2026-11-06 21:12:50 | Bash | git pull --no-rebase --no-edit | نجح |

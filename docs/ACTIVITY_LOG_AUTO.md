@@ -1050,3 +1050,4 @@
 | 2026-11-06 15:55:39 | Bash | sed -i 's/assert g\["trials"\] | نجح |
 | 2026-11-06 16:00:54 | Bash | for t in tests/test_*.py; | نجح |
 | 2026-11-06 16:01:01 | Bash | PYTHONPATH=. timeout 300 python3 | نجح |
+| 2026-11-06 16:01:09 | Bash | git add modules/quant_robustness.py tests/test_quant_robustness.py | نجح |

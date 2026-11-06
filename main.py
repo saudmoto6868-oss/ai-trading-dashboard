@@ -758,6 +758,7 @@ def _dayplan_worker(store):
     try:
         from modules import day_plan as _DP
         store["dayplan"] = _DP.scan(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300), mode="conf")
+        store["dayplan_watch"] = _DP.scan_watch(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300))
         store["dayplan_t"] = time.time()
         store.pop("dayplan_err", None)
     except Exception as e_:
@@ -765,6 +766,11 @@ def _dayplan_worker(store):
         store["dayplan_t"] = time.time() - 600
     finally:
         store["dayplan_running"] = False
+
+
+def _dayplan_watch():
+    _dayplan_events()
+    return _scan_store().get("dayplan_watch", [])
 
 
 def _dayplan_events():
@@ -3293,6 +3299,7 @@ if PAGE == 0:   # workspace
                 _tga_n2, _tga_e2 = _DP.dispatch(_dayplan_events(), _tg_sent(), _tga.send, top_n=int(tg_top))
                 if _tga_e2:
                     st.sidebar.warning("Telegram day plan: " + _tga_e2)
+                _DP.dispatch(_dayplan_watch(), _tg_sent(), _tga.send, top_n=2, resend_after_s=2 * 3600, fmt=lambda it_: _DP.format_watch(it_))   # heads-ups: context setups that agree with the 1D + 4H bias
             except Exception:
                 pass
             if _err:

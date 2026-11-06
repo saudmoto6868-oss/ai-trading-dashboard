@@ -28,6 +28,6 @@ strategy lab (`strategy_lab.py`, keys in `SCHOOL`); "Chart" = drawn in the Works
 ## Still not built (ideas ranked by usefulness, owner decides)
 1. **Day plan**: per symbol, top-down (1D / 4H bias, 1H / 15m / 5m setups), grouped by session / kill zone, with the schools that agree. The pieces exist (HTF alignment in `scorer`, sessions in `intermarket.session_of`); the board does not.
 2. Gann bounce in the scanner (needs the grid decision above).
-3. Telegram alert for SMT and for the new context setups (only when two schools agree).
-4. Exits: the plan has stop + take-profits; the lab tests "break-even after 1R" and fixed RR. Missing: partials, trailing stop, time stop, "exit if the school's invalidation level breaks".
+3. ~~Telegram alert for the new context setups~~ done 2026-11-06 as "Watch" alerts (agree with the 1D + 4H bias); SMT Telegram alert still missing.
+4. Exits: partial + trailing now exist in the Day plan and are measured by the lab (`pt_*` rows). Still missing: time stop, "exit if the school's invalidation level breaks".
 5. Volume-profile setups (POC / VAH / VAL reaction) as a scanner key; anchored VWAP; pivot points. Ichimoku / Supertrend only if the lab shows they add something over Donchian.

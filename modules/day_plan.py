@@ -150,10 +150,10 @@ def exit_plan(plan: dict, mode: str, atr: float | None, point: float, trail_star
             "text_ar": f"نص الكمية عند TP1 ({plan['take_profits'][0]}). الوقف للتعادل أول ما الصفقة تعدي +{round((be_at or 0) / point)} نقطة (أو +1R أيهما الأول)، وبعدها وقف متحرك {TRAIL_ATR} ATR ورا أحسن سعر للجزء الباقي، والهدف الأخير TP3."}
 
 
-def simulate_exit(bars: pd.DataFrame, direction: str, entry: float, stop: float, ex: dict, atr: float | None = None) -> dict:
-    """Walk `bars` (candles AFTER the entry) with the exit rules of `ex` (exit_plan). Conservative: a candle that touches the stop and a target uses the stop first.
-    -> {'r': total R of the whole position, 'events': [...], 'closed': bool}"""
-    long = direction in ("bullish", "Long", "long")
+def simulate_arrays(hi, lo, cl, direction, entry: float, stop: float, ex: dict, atr: float | None = None) -> dict:
+    """The exit walk on plain arrays of the candles AFTER the entry (also used by the weekly lab: strategy_lab VARIANTS 'pt_*').
+    Conservative: a candle that touches the stop and a target uses the stop first. -> {'r': total R of the whole position, 'events': [...], 'closed': bool}"""
+    long = direction in ("bullish", "Long", "long", 1)
     sg = 1 if long else -1
     r0 = abs(entry - stop)
     if r0 <= 0:
@@ -162,19 +162,19 @@ def simulate_exit(bars: pd.DataFrame, direction: str, entry: float, stop: float,
     part = ex.get("partial")
     pos, real, stop_cur, extreme = 1.0, 0.0, stop, entry
     be_done, tp1_done, events = False, False, []
-    for i, row in enumerate(bars.itertuples(index=False)):
-        hi, lo, cl = float(row.high), float(row.low), float(row.close)
-        if (lo <= stop_cur) if long else (hi >= stop_cur):
+    for i in range(len(cl)):
+        h_, l_, c_ = float(hi[i]), float(lo[i]), float(cl[i])
+        if (l_ <= stop_cur) if long else (h_ >= stop_cur):
             real += pos * sg * (stop_cur - entry) / r0
             events.append((i, "stop", round(stop_cur, 6)))
             return {"r": round(real, 4), "events": events, "closed": True}
-        extreme = max(extreme, hi) if long else min(extreme, lo)
+        extreme = max(extreme, h_) if long else min(extreme, l_)
         fav = sg * (extreme - entry)
         if ex.get("be_at") and not be_done and fav >= ex["be_at"]:
             stop_cur = entry
             be_done = True
             events.append((i, "breakeven", entry))
-        if part and not tp1_done and ((hi >= part["at"]) if long else (lo <= part["at"])):
+        if part and not tp1_done and ((h_ >= part["at"]) if long else (l_ <= part["at"])):
             real += part["fraction"] * sg * (part["at"] - entry) / r0
             pos -= part["fraction"]
             tp1_done = True
@@ -184,13 +184,18 @@ def simulate_exit(bars: pd.DataFrame, direction: str, entry: float, stop: float,
             tr = extreme - sg * ex["trail_atr"] * atr
             stop_cur = max(stop_cur, tr) if long else min(stop_cur, tr)
         last = tps[-1]
-        if (hi >= last) if long else (lo <= last):
+        if (h_ >= last) if long else (l_ <= last):
             real += pos * sg * (last - entry) / r0
             events.append((i, "target", last))
             return {"r": round(real, 4), "events": events, "closed": True}
-    if len(bars):
-        real += pos * sg * (float(bars["close"].iloc[-1]) - entry) / r0
+    if len(cl):
+        real += pos * sg * (float(cl[-1]) - entry) / r0
     return {"r": round(real, 4), "events": events, "closed": False}
+
+
+def simulate_exit(bars: pd.DataFrame, direction: str, entry: float, stop: float, ex: dict, atr: float | None = None) -> dict:
+    """Walk `bars` (candles AFTER the entry, columns high / low / close) with the exit rules of `ex` (exit_plan)."""
+    return simulate_arrays(bars["high"].to_numpy(float), bars["low"].to_numpy(float), bars["close"].to_numpy(float), direction, entry, stop, ex, atr)
 
 
 def build(symbol: str, frames: dict, mode: str = "conf", trigger_tfs=None, schools=None, min_points: float = 0, min_stars: int = 2, min_rr: float = 1.0,
@@ -243,6 +248,63 @@ def build(symbol: str, frames: dict, mode: str = "conf", trigger_tfs=None, schoo
     return out
 
 
+CONTEXT_FAMS = ("PA", "Elliott")
+
+
+def watch(symbol: str, frames: dict, clock: dict | None = None) -> list:
+    """WATCH items: context setups (price action, rectangle / double bottom, Wyckoff, Elliott) on a trigger timeframe that point the SAME way as the 1D + 4H bias. They are not trades (no plan,
+    no star): a heads-up for a level to watch. Each: {id, symbol, tf, direction, names, schools, bias, session}."""
+    from modules.scorer import cached_detect
+    views = {tf: tf_view(frames.get(tf), tf) for tf in ("1d", "4h")}
+    bias, _ = htf_bias({k: v for k, v in views.items() if v})
+    if bias is None:
+        return []
+    clock = clock or session_clock()
+    out = []
+    for tf in CONF_TRIGGERS:
+        df = frames.get(tf)
+        if df is None or len(df) < 60:
+            continue
+        sigs, _ = cached_detect(df)
+        ctx = [x for x in sigs if x["family"] in CONTEXT_FAMS and x["direction"] == bias]
+        if ctx:
+            out.append({"id": f"watch|{symbol}|{bias}|{tf}|{ctx[0].get('key')}", "symbol": symbol, "tf": tf, "direction": bias, "names": [x["name"] for x in ctx[:4]], "schools": schools_of(ctx),
+                        "bias": bias, "session": clock, "price": float(df["close"].iloc[-1])})
+    return out
+
+
+def scan_watch(symbols, fetch) -> list:
+    clock = session_clock()
+    res = []
+    for sym in symbols:
+        frames = {}
+        for tf in CHAIN:
+            try:
+                frames[tf] = fetch(sym, tf)
+            except Exception:
+                frames[tf] = None
+        try:
+            res += watch(sym, frames, clock)
+        except Exception:
+            continue
+    return res
+
+
+def format_watch(items, ar: bool = True, limit: int = 6) -> str:
+    import html
+    esc = html.escape
+    if not items:
+        return "👀 <b>للمراقبة</b>\nمفيش سياق مهم دلوقتي." if ar else "👀 <b>Watch</b>\nNothing worth watching right now."
+    lines = [f"👀 <b>{'للمراقبة (مش صفقة)' if ar else 'Watch (not a trade)'}</b> · {esc(session_label(items[0]['session'], ar))}"]
+    for w in items[:limit]:
+        up = w["direction"] == "bullish"
+        bias = ("اتجاه 1D+4H صاعد" if up else "اتجاه 1D+4H هابط") if ar else ("1D+4H bias up" if up else "1D+4H bias down")
+        lines.append(f"\n{'🟢' if up else '🔴'} <b>{esc(w['symbol'])}</b> {w['tf'].upper()} · {bias} · {w['price']}\n"
+                     f"{esc(', '.join(w['names']))}\n<i>{esc(', '.join(w['schools']))}</i>")
+    lines.append("\n<i>سياق مش إشارة دخول؛ ما اتقاسش في اللاب لسه (n<30).</i>" if ar else "\n<i>Context, not an entry signal; not measured by the lab yet (n<30).</i>")
+    return "\n".join(lines)[:3900]
+
+
 def scan(symbols, fetch, mode: str = "conf", **kw) -> list:
     """fetch(symbol, tf) -> DataFrame | None. Plans for every symbol, best first (a failing symbol is skipped)."""
     clock = session_clock()
@@ -284,7 +346,7 @@ def format_telegram(plans, ar: bool = True, limit: int = 6) -> str:
     return "\n".join(lines)[:3900]
 
 
-def dispatch(plans, sent: dict, send_fn, top_n: int = 3, resend_after_s: int = 4 * 3600, now: float | None = None) -> tuple[int, str | None]:
+def dispatch(plans, sent: dict, send_fn, top_n: int = 3, resend_after_s: int = 4 * 3600, now: float | None = None, fmt=None) -> tuple[int, str | None]:
     """Send the best plans not sent recently: one message per plan. -> (how many, last error)."""
     import time
     now = now or time.time()
@@ -293,7 +355,7 @@ def dispatch(plans, sent: dict, send_fn, top_n: int = 3, resend_after_s: int = 4
         old = sent.get(p["id"])
         if old and now - old < resend_after_s:
             continue
-        err = send_fn(format_telegram([p]))
+        err = send_fn((fmt or format_telegram)([p]))
         if err:
             break
         sent[p["id"]] = now

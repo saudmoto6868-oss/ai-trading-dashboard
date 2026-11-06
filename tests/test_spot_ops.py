@@ -187,3 +187,23 @@ except RuntimeError:
     pass
 assert out.exists()   # the good copy is still there
 print("test_spot_ops OK")
+
+# self test + non-conflict 422 shows GitHub's own message
+from modules.spot_store import self_test
+assert self_test(LocalStore(tempfile.mkdtemp()))[0]
+
+
+class Refuse(FakeGH):
+    def put(self, url, json=None, timeout=None):
+        return Resp(422, {"message": "Invalid request. Branch main not found"})
+
+
+g2 = GitHubStore("tok", "me/data", session=Refuse())
+try:
+    g2.save({"txs": []})
+    raise AssertionError("must fail")
+except RuntimeError as e:
+    assert "Branch main not found" in str(e) and "changed" not in str(e), e
+ok, why = self_test(g2)
+assert not ok and "422" in why
+print("test_spot_ops self-test OK")

@@ -3,8 +3,9 @@
 Tabs: Crypto (OKX spot list like the watchlist + high-timeframe plan) / Metals (gold, silver, platinum, palladium, copper
 in USD and EGP, karats) / Ledger & invoices (buys + sells, PDF upload, print, Excel) / Alerts (buy / sell / stop,
 Telegram) / News & sources.
-Storage: data/spot/ on the server disk (git-ignored: private). Streamlit Cloud may wipe the disk on a restart, so
-the page offers a full backup (ZIP) + restore. Nothing here places an order."""
+Storage, Excel & fields: online store (modules/spot_store.py: private GitHub repo when SPOT_GH_* are set, else the local
+disk), ZIP backup / restore, Excel export / template / import with saved column matching, the owner's custom fields.
+Nothing here places an order."""
 from __future__ import annotations
 
 import io
@@ -19,9 +20,7 @@ import streamlit as st
 
 from modules import spot_core as C
 
-ROOT = Path(__file__).resolve().parent.parent / "data" / "spot"
-DB = ROOT / "ledger.json"
-FILES = ROOT / "files"
+STORE = None   # tests / callers can set a store; otherwise spot_store.get_store() (GitHub when SPOT_GH_* exist, else local disk)
 METAL_LIST = list(C.METALS)
 
 
@@ -34,51 +33,65 @@ def T(en: str, ar: str) -> str:
 
 
 # ---------------------------------------------------------------- storage
+def _store():
+    global STORE
+    if STORE is None:
+        from modules.spot_store import get_store
+        STORE = get_store()
+    return STORE
+
+
 def _empty() -> dict:
-    return {"txs": [], "alerts": [], "sources": [], "settings": {"budget": 1000.0, "fx_manual": None, "tg_auto": False}}
+    return {"txs": [], "alerts": [], "sources": [], "settings": {"budget": 1000.0, "fx_manual": None, "tg_auto": False, "custom_fields": [],
+                                                              "import_forms": {}, "visible_cols": []}}
 
 
-def load() -> dict:
-    if "spot_db" not in st.session_state:
+def load(force: bool = False) -> dict:
+    if force or "spot_db" not in st.session_state:
         d = _empty()
         try:
-            if DB.exists():
-                d.update(json.loads(DB.read_text(encoding="utf8")))
-        except Exception:
-            pass
+            got = _store().load()
+            if got:
+                d.update(got)
+                d["settings"] = {**_empty()["settings"], **got.get("settings", {})}
+        except Exception as e:
+            st.error(T("Could not read the ledger", "مقدرتش أقرا السجل") + f": {e}")
         st.session_state["spot_db"] = d
     return st.session_state["spot_db"]
 
 
-def save(d: dict) -> None:
+def save(d: dict, msg: str = "") -> bool:
     st.session_state["spot_db"] = d
     try:
-        ROOT.mkdir(parents=True, exist_ok=True)
-        DB.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf8")
+        _store().save(d, msg)
+        return True
     except Exception as e:
-        st.warning(T("Could not write to the server disk", "مقدرتش أحفظ على السيرفر") + f": {type(e).__name__}. " +
-                   T("Download a backup.", "نزّل نسخة احتياطية."))
+        st.error(T("NOT saved", "ماتحفظش") + f": {e}")
+        return False
 
 
 def backup_zip(d: dict) -> bytes:
     bio = io.BytesIO()
+    s = _store()
     with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("ledger.json", json.dumps(d, ensure_ascii=False, indent=1))
-        if FILES.exists():
-            for f in FILES.iterdir():
-                z.write(f, f"files/{f.name}")
+        for f in sorted({f for t in d["txs"] for f in t.get("files", [])}):
+            b = s.get_file(f)
+            if b is not None:
+                z.writestr(f"files/{f}", b)
     return bio.getvalue()
 
 
 def restore_zip(data: bytes) -> dict:
+    s = _store()
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         d = _empty()
-        d.update(json.loads(z.read("ledger.json").decode("utf8")))
-        FILES.mkdir(parents=True, exist_ok=True)
+        got = json.loads(z.read("ledger.json").decode("utf8"))
+        d.update(got)
+        d["settings"] = {**_empty()["settings"], **got.get("settings", {})}
         for n in z.namelist():
             if n.startswith("files/") and not n.endswith("/"):
-                name = Path(n).name   # no path parts from the archive
-                (FILES / name).write_bytes(z.read(n))
+                s.put_file(Path(n).name, z.read(n))   # no path parts from the archive
     return d
 
 
@@ -116,6 +129,8 @@ def _n(x, nd=2):
         return "—"
     if x == 0:
         return "0"
+    if abs(x) >= 100000:
+        return f"{x:,.0f}"
     return f"{x:,.{nd}f}" if abs(x) >= 1 else f"{x:,.6f}"
 
 
@@ -265,53 +280,156 @@ def _tab_metals(d, met, fx, fx_src, egp):
     _show_plan(pick, spot_data.METAL_Y[pick], d, met[pick]["px"], fx, egp)
 
 
-def _tx_form(d, fx):
-    with st.form("sp_txf", clear_on_submit=True):
-        a, b, c3, d4 = st.columns(4)
-        side = a.radio(T("Side", "النوع"), ["buy", "sell"], format_func=lambda s: T(s.title(), "شراء" if s == "buy" else "بيع"), horizontal=True)
-        asset = b.selectbox(T("Asset", "الأصل"), METAL_LIST + [T("Crypto (type below)", "كريبتو (اكتبها تحت)")])
-        coin = c3.text_input(T("Coin (if crypto)", "العملة (لو كريبتو)"), placeholder="BTC")
-        dt = d4.date_input(T("Date", "التاريخ"), value=date.today())
-        a, b, c3, d4 = st.columns(4)
-        qty = a.number_input(T("Quantity", "الكمية"), min_value=0.0, step=0.01, format="%.6f")
-        unit = b.selectbox(T("Unit", "الوحدة"), ["oz", "g", "kg", "lb", "coin"])
-        purity = c3.selectbox(T("Karat / purity", "العيار / النقاوة"), ["24K / 999", "21K", "18K", "925", "950", "pure"])
-        price = d4.number_input(T("Price per unit", "سعر الوحدة"), min_value=0.0, step=1.0, format="%.4f")
-        a, b, c3, d4 = st.columns(4)
-        cur = a.radio(T("Currency", "العملة"), ["USD", "EGP"], horizontal=True)
-        rate = b.number_input(T("USD/EGP at that time", "سعر الدولار وقتها"), min_value=0.0, value=float(fx or 0), step=0.05)
-        fees = c3.number_input(T("Fees / workmanship (same currency)", "مصاريف / مصنعية (بنفس العملة)"), min_value=0.0, step=1.0)
-        inv = d4.text_input(T("Invoice no.", "رقم الفاتورة"))
-        a, b, c3 = st.columns([2, 1, 3])
-        party = a.text_input(T("Shop / client / exchange", "المحل / العميل / المنصة"))
-        ch = b.selectbox(T("Channel", "القناة"), ["B2C", "B2B", "Exchange"])
-        notes = c3.text_input(T("Notes", "ملاحظات"))
-        up = st.file_uploader(T("Invoice / receipt (PDF or image)", "الفاتورة / الإيصال (PDF أو صورة)"), type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
-        if st.form_submit_button(T("Save", "سجّل"), type="primary"):
-            ast = (coin.strip().upper() or "BTC") if asset not in METAL_LIST else asset
-            pmap = {"24K / 999": 1.0, "21K": 0.875, "18K": 0.75, "925": 0.925, "950": 0.95, "pure": 1.0}
-            p = pmap[purity] if ast in METAL_LIST else 1.0
-            if ast in ("SILVER", "PLATINUM", "PALLADIUM") and purity == "24K / 999":
-                p = 0.999
-            if qty <= 0 or price <= 0:
-                st.error(T("Quantity and price must be > 0.", "الكمية والسعر لازم يبقوا أكبر من صفر."))
-                return
-            tx = C.new_tx(side=side, asset=ast, qty=qty, unit=unit if ast in METAL_LIST else "coin", purity=p, price=price, currency=cur,
-                          fx=rate or None, fees=fees, invoice_no=inv, party=party, channel=ch, notes=notes, date=dt.isoformat())
-            if up:
-                FILES.mkdir(parents=True, exist_ok=True)
-                for f in up:
-                    safe = "".join(ch_ for ch_ in Path(f.name).name if ch_.isalnum() or ch_ in "._-")[-80:] or "file"
-                    name = f"{tx['id']}_{safe}"
-                    (FILES / name).write_bytes(f.getvalue())
-                    tx["files"].append(name)
-            d["txs"].append(tx)
-            save(d)
-            st.success(T("Saved.", "اتسجل."))
+FIELD_META = {k: (en, ar, t, o) for k, en, ar, t, o in C.FIELDS}
+PURITY_PICK = {"24K / 999.9": 1.0, "999": 0.999, "21K (875)": 0.875, "18K (750)": 0.75, "925": 0.925, "950": 0.95, "900": 0.9}
+MAIN_KEYS = ["side", "asset", "date", "item_type", "qty", "unit", "price", "currency", "fx"]
+COST_KEYS = ["workmanship_per_g", "fees", "tax", "other_costs", "gross_weight"]
+
+
+OPT_AR = {"buy": "شراء", "sell": "بيع", "bar": "سبيكة", "coin": "عملة / جنيه ذهب", "jewelry": "مشغولات", "scrap": "كسر", "crypto": "كريبتو",
+          "other": "تاني", "cash": "كاش", "bank": "تحويل بنكي", "instapay": "انستاباي", "card": "كارت", "settled": "متسوّي", "pending": "معلّق",
+          "cancelled": "ملغي", "Exchange": "منصة"}
+
+
+def _lab(k: str) -> str:
+    en, ar, _, _ = FIELD_META[k]
+    return T(en, ar)
+
+
+def _widget(k: str, val, key: str, fx=None):
+    """One input for a standard field, typed by the schema."""
+    en, ar, t, opts = FIELD_META[k]
+    lab = T(en, ar)
+    if t == "select":
+        opts = list(opts)
+        return st.selectbox(lab, opts, index=opts.index(val) if val in opts else 0, key=key,
+                            format_func=lambda o: T(o, OPT_AR.get(o, o)) if not (k == "unit" and o == "coin") else T("coin", "عملة"))
+    if t == "number":
+        v = float(val) if isinstance(val, (int, float)) and not (isinstance(val, float) and math.isnan(val)) else (float(fx) if k == "fx" and fx else 0.0)
+        return st.number_input(lab, value=v, step=0.01 if k in ("qty", "gross_weight") else 1.0, format="%.6f" if k in ("qty", "gross_weight") else "%.4f", key=key)
+    if t == "date":
+        try:
+            dv = date.fromisoformat(str(val)[:10]) if val else (date.today() if k == "date" else None)
+        except ValueError:
+            dv = date.today()
+        return st.date_input(lab, value=dv, key=key)
+    return st.text_input(lab, value=str(val or ""), key=key)
+
+
+def _custom_widget(c: dict, val, key: str):
+    t = c.get("type", "text")
+    if t == "number":
+        try:
+            v = float(val)
+        except (TypeError, ValueError):
+            v = 0.0
+        return st.number_input(c["label"], value=v, key=key)
+    if t == "date":
+        try:
+            return st.date_input(c["label"], value=date.fromisoformat(str(val)[:10]) if val else None, key=key)
+        except ValueError:
+            return st.date_input(c["label"], value=None, key=key)
+    if t == "select":
+        opts = [o.strip() for o in str(c.get("options", "")).split(",") if o.strip()] or [""]
+        return st.selectbox(c["label"], opts, index=opts.index(val) if val in opts else 0, key=key)
+    return st.text_input(c["label"], value=str(val or ""), key=key)
+
+
+def _record_form(d: dict, fx, tx: dict | None = None):
+    """Add (tx None) or edit one record. Every standard field + the owner's custom fields + files."""
+    base = tx or C.new_tx(fx=fx)
+    pre = f"spe_{tx['id']}_" if tx else "spn_"
+    custom = d["settings"].get("custom_fields", [])
+    with st.form(pre + "form", clear_on_submit=tx is None):
+        vals = {}
+        st.markdown("**" + T("Main", "الأساسي") + "**")
+        cols = st.columns(3)
+        for i, k in enumerate(MAIN_KEYS):
+            with cols[i % 3]:
+                vals[k] = _widget(k, base.get(k), pre + k, fx)
+        c1, c2 = st.columns(2)
+        with c1:
+            pur_lab = next((l for l, v in PURITY_PICK.items() if abs(v - float(base.get("purity") or 1)) < 1e-9), "24K / 999.9")
+            pur = st.selectbox(T("Karat / purity", "العيار / النقاوة"), list(PURITY_PICK), index=list(PURITY_PICK).index(pur_lab), key=pre + "pur")
+        with c2:
+            vals["invoice_no"] = _widget("invoice_no", base.get("invoice_no"), pre + "invoice_no")
+        with st.expander(T("Costs and weights", "التكاليف والأوزان"), expanded=bool(tx)):
+            cols = st.columns(3)
+            for i, k in enumerate(COST_KEYS):
+                with cols[i % 3]:
+                    vals[k] = _widget(k, base.get(k), pre + k)
+        with st.expander(T("Party, payment, place, references", "الطرف والدفع والمكان والمراجع"), expanded=bool(tx)):
+            rest = [k for k in C.FIELD_KEYS if k not in MAIN_KEYS + COST_KEYS + ["purity", "invoice_no"]]
+            cols = st.columns(3)
+            for i, k in enumerate(rest):
+                with cols[i % 3]:
+                    vals[k] = _widget(k, base.get(k), pre + k)
+        extra = dict(base.get("extra") or {})
+        if custom:
+            with st.expander(T("My fields", "خاناتي"), expanded=True):
+                cols = st.columns(3)
+                for i, c in enumerate(custom):
+                    with cols[i % 3]:
+                        extra[c["key"]] = _custom_widget(c, extra.get(c["key"]), pre + "x_" + c["key"])
+        up = st.file_uploader(T("Invoice / receipt files (PDF, image, Excel)", "ملفات الفاتورة / الإيصال (PDF، صورة، Excel)"),
+                              type=["pdf", "png", "jpg", "jpeg", "xlsx"], accept_multiple_files=True, key=pre + "up")
+        if not st.form_submit_button(T("Save changes", "احفظ التعديل") if tx else T("Save", "سجّل"), type="primary"):
+            return
+    for k in ("date", "settlement_date"):
+        if vals.get(k) is not None and hasattr(vals[k], "isoformat"):
+            vals[k] = vals[k].isoformat()
+    for k, v in list(extra.items()):
+        if hasattr(v, "isoformat"):
+            extra[k] = v.isoformat()
+    vals["asset"] = str(vals.get("asset") or "").strip().upper()
+    if not vals["asset"] or float(vals.get("qty") or 0) <= 0 or float(vals.get("price") or 0) <= 0:
+        st.error(T("Asset, quantity and price are required.", "الأصل والكمية والسعر لازم يتكتبوا."))
+        return
+    vals["purity"] = PURITY_PICK[pur] if C.is_metal(vals["asset"]) else 1.0
+    if not C.is_metal(vals["asset"]):
+        vals["unit"] = "coin"
+    if not vals.get("fx"):
+        vals["fx"] = None
+    rec = C.new_tx(**vals, extra=extra)
+    if tx:
+        rec["id"], rec["files"], rec["created"] = tx["id"], list(tx.get("files", [])), tx.get("created")
+        rec["edited"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    s = _store()
+    for f in up or []:
+        rec["files"].append(s.put_file(f"{rec['id']}_{f.name}", f.getvalue()))
+    if tx:
+        d["txs"] = [rec if t["id"] == tx["id"] else t for t in d["txs"]]
+    else:
+        d["txs"].append(rec)
+    if save(d, f"spot: {'edit' if tx else 'add'} {rec['side']} {rec['asset']} {rec.get('invoice_no') or rec['id']}"):
+        st.success(T("Saved.", "اتسجل."))
+
+
+def _table(d: dict, txs: list[dict]):
+    custom = d["settings"].get("custom_fields", [])
+    allc = C.columns(custom)
+    labels = {k: T(en, ar) for k, en, ar in allc}
+    default = ["date", "side", "asset", "item_type", "qty", "unit", "purity", "price", "currency", "fx", "invoice_no", "party", "status"]
+    vis = d["settings"].get("visible_cols") or default
+    vis = st.multiselect(T("Columns shown (add any field)", "الأعمدة المعروضة (ضيف أي خانة)"), [k for k, _, _ in allc], default=[k for k in vis if k in labels],
+                         format_func=lambda k: labels[k], key="sp_vis")
+    if vis != d["settings"].get("visible_cols"):
+        d["settings"]["visible_cols"] = vis
+        st.session_state["spot_db"] = d
+    rows = []
+    for t in txs:
+        r = {labels[k]: v for (k, _, _), v in zip([c for c in allc if c[0] in vis], C.row_values(t, [c for c in allc if c[0] in vis]))}
+        u, fu = C.tx_usd(t)
+        r[T("Costs", "التكاليف")] = round(C.costs(t), 2)
+        r["USD"] = None if math.isnan(u) else round(u + (fu if t["side"] == "buy" else -fu), 2)
+        r["📎"] = len(t.get("files", []))
+        rows.append(r)
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
 def _tab_ledger(d, px, fx, egp):
-    _tx_form(d, fx)
+    with st.expander(T("➕ New record (buy / sell)", "➕ تسجيل جديد (شراء / بيع)"), expanded=not d["txs"]):
+        _record_form(d, fx)
     txs = d["txs"]
     pos = C.positions(txs, px, fx)
     tot = C.totals(pos)
@@ -328,57 +446,140 @@ def _tab_ledger(d, px, fx, egp):
                "metal_part_egp": T("from metal price", "من سعر المعدن"), "fx_part_egp": T("from the dollar", "من الدولار")}
         st.dataframe(pd.DataFrame([{hdr[c]: (round(p[c], 6 if c == "qty" else 2) if isinstance(p.get(c), float) else p.get(c)) for c in cols} for p in pos]),
                      hide_index=True, width="stretch")
-        st.caption(T("qty = pure oz for metals (copper: lb), coins for crypto. metal_part = price move, fx_part = dollar move since each buy.",
-                     "الكمية = أونصة صافية للمعادن (النحاس رطل) وعدد العملات للكريبتو. metal_part = حركة السعر، fx_part = حركة الدولار من وقت كل شراء."))
+        st.caption(T("qty = pure oz for metals (copper: lb), coins for crypto. Cancelled records are not counted.",
+                     "الكمية = أونصة صافية للمعادن (النحاس رطل) وعدد العملات للكريبتو. التسجيلات الملغية مش بتتحسب."))
     if not txs:
         st.info(T("No records yet.", "مفيش تسجيلات لسه."))
-    else:
-        st.dataframe(pd.DataFrame([{c: t.get(c) for c in C.TX_COLS} | {"files": len(t.get("files", []))} for t in txs]), hide_index=True, width="stretch")
-        sel = st.selectbox(T("Record", "التسجيل"), [t["id"] for t in txs][::-1],
-                           format_func=lambda i: next(f"{t['date']} · {t['side']} · {t['asset']} · {t['qty']} {t['unit']} · {t.get('invoice_no') or i}" for t in txs if t["id"] == i), key="sp_sel")
-        tx = next(t for t in txs if t["id"] == sel)
-        a, b, c3 = st.columns(3)
-        html = C.invoice_html(tx)
-        a.download_button(T("Invoice (HTML, print / save PDF)", "الفاتورة (HTML للطباعة / PDF)"), html.encode("utf8"), file_name=f"invoice_{tx.get('invoice_no') or tx['id']}.html", mime="text/html")
-        if b.button(T("Print preview", "معاينة الطباعة"), key="sp_prev"):
-            import streamlit.components.v1 as components
-            components.html(html, height=520, scrolling=True)
-        if c3.button(T("Delete record", "امسح التسجيل"), key="sp_del"):
+        return
+    q = st.text_input(T("Search any field (invoice, shop, date, serial ...)", "دوّر في أي خانة (فاتورة، محل، تاريخ، سيريال ...)"), key="sp_q_led")
+    from modules.spot_query import search
+    shown = search(txs, q) if q.strip() else sorted(txs, key=lambda t: str(t.get("date", "")), reverse=True)
+    _table(d, shown)
+    if not shown:
+        return
+    sel = st.selectbox(T("Record", "التسجيل"), [t["id"] for t in shown],
+                       format_func=lambda i: next(f"{t['date']} · {t['side']} · {t['asset']} · {t['qty']} {t['unit']} · {t.get('invoice_no') or i}" for t in shown if t["id"] == i), key="sp_sel")
+    tx = next(t for t in txs if t["id"] == sel)
+    a, b, c3 = st.columns(3)
+    html = C.invoice_html(tx)
+    a.download_button(T("Invoice (HTML, print / save PDF)", "الفاتورة (HTML للطباعة / PDF)"), html.encode("utf8"), file_name=f"invoice_{tx.get('invoice_no') or tx['id']}.html", mime="text/html")
+    if b.button(T("Print preview", "معاينة الطباعة"), key="sp_prev"):
+        import streamlit.components.v1 as components
+        components.html(html, height=560, scrolling=True)
+    if c3.button(T("Delete record", "امسح التسجيل"), key="sp_del"):
+        st.session_state["sp_del_ask"] = sel
+    if st.session_state.get("sp_del_ask") == sel:
+        st.warning(T("Delete this record and its files?", "تمسح التسجيل ده وملفاته؟"))
+        y, n_ = st.columns(2)
+        if y.button(T("Yes, delete", "أيوه امسح"), key="sp_del_yes"):
             for f in tx.get("files", []):
                 try:
-                    (FILES / f).unlink()
+                    _store().delete_file(f)
                 except Exception:
                     pass
             d["txs"] = [t for t in txs if t["id"] != sel]
-            save(d)
+            st.session_state.pop("sp_del_ask", None)
+            save(d, f"spot: delete {tx.get('invoice_no') or sel}")
             st.rerun()
-        for f in tx.get("files", []):
-            p = FILES / f
-            if p.exists():
-                st.download_button(f"📎 {f.split('_', 1)[-1]}", p.read_bytes(), file_name=f.split("_", 1)[-1], key=f"sp_f_{f}")
-            else:
-                st.caption(f"📎 {f}: " + T("file missing on this server (restore a backup)", "الملف مش موجود على السيرفر (رجّع نسخة احتياطية)"))
+        if n_.button(T("Cancel", "إلغاء"), key="sp_del_no"):
+            st.session_state.pop("sp_del_ask", None)
+            st.rerun()
+    for f in tx.get("files", []):
+        b_ = _store().get_file(f) if st.session_state.get("sp_show_files") == sel else None
+        if b_ is not None:
+            st.download_button(f"📎 {f.split('_', 1)[-1]}", b_, file_name=f.split("_", 1)[-1], key=f"sp_f_{f}")
+    if tx.get("files") and st.session_state.get("sp_show_files") != sel and st.button(T(f"Load {len(tx['files'])} attached file(s)", f"حمّل {len(tx['files'])} ملف مرفق"), key="sp_lf"):
+        st.session_state["sp_show_files"] = sel
+        st.rerun()
+    with st.expander(T("✏️ Edit this record", "✏️ عدّل التسجيل ده")):
+        _record_form(d, fx, tx)
+
+
+def _tab_setup(d, px, fx):
+    """Storage status, backups, Excel forms (template / import with column matching), custom fields."""
+    s = _store()
+    st.markdown("**" + T("Storage", "التخزين") + "**")
+    if s.kind == "github":
+        st.success(T("Online: ", "أونلاين: ") + s.describe() + T(" - every save is a commit (full history).", " - كل حفظ بيتسجل بتاريخه (history كامل)."))
+    else:
+        st.warning(T("Local disk only. Add SPOT_GH_TOKEN + SPOT_GH_REPO in Secrets to keep everything online (see docs/SPOT_DESK.md).",
+                     "على ديسك السيرفر بس. ضيف SPOT_GH_TOKEN و SPOT_GH_REPO في Secrets عشان كله يتحفظ أونلاين (شوف docs/SPOT_DESK.md)."))
+    if st.button(T("Reload from storage", "حمّل من التخزين تاني"), key="sp_reload"):
+        load(force=True)
+        st.rerun()
+    a, b = st.columns(2)
+    a.download_button(T("Full backup now (ZIP: ledger + files)", "نسخة احتياطية دلوقتي (ZIP: السجل + الملفات)"), backup_zip(d) if st.session_state.get("sp_zip_ok") else b"",
+                      file_name=f"spot_backup_{date.today()}.zip", mime="application/zip", disabled=not st.session_state.get("sp_zip_ok"), key="sp_zip_dl")
+    if not st.session_state.get("sp_zip_ok") and a.button(T("Prepare the ZIP", "جهّز الـ ZIP"), key="sp_zip_prep"):
+        st.session_state["sp_zip_ok"] = True
+        st.rerun()
+    rz = b.file_uploader(T("Restore a backup (replaces the ledger)", "رجّع نسخة احتياطية (هتستبدل السجل)"), type=["zip"], key="sp_rz")
+    if rz and b.button(T("Restore", "رجّع"), key="sp_rzb"):
+        save(restore_zip(rz.getvalue()), "spot: restore from backup")
+        st.rerun()
+    st.caption(T("Automatic copy on your Mac every 48 h (old copy deleted after the new one is verified): tools/spot_backup (docs/SPOT_DESK.md).",
+                 "نسخة أوتوماتيك على الماك كل 48 ساعة (القديمة بتتمسح بعد ما الجديدة تتأكد): tools/spot_backup (docs/SPOT_DESK.md)."))
     st.divider()
-    a, b, c3, d4 = st.columns(4)
+    custom = d["settings"].setdefault("custom_fields", [])
+    st.markdown("**" + T("Excel", "Excel") + "**")
+    a, b = st.columns(2)
     try:
-        a.download_button(T("Excel export", "تصدير Excel"), C.to_excel(txs, pos, px, fx), file_name=f"spot_{date.today()}.xlsx",
-                          mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        a.download_button(T("Export everything (Excel)", "صدّر كل حاجة (Excel)"), C.to_excel(d["txs"], C.positions(d["txs"], px, fx), px, fx, custom),
+                          file_name=f"spot_{date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="sp_xl_all")
     except Exception as e:
         a.caption(f"Excel: {type(e).__name__}")
-    xl = b.file_uploader(T("Excel import", "استيراد Excel"), type=["xlsx"], key="sp_xlin")
-    if xl and b.button(T("Add rows", "ضيف الصفوف"), key="sp_xladd"):
-        new = C.from_excel(xl.getvalue())
-        have = {t["id"] for t in d["txs"]}
-        d["txs"] += [t for t in new if t["id"] not in have]
-        save(d)
-        st.success(f"+{len([t for t in new if t['id'] not in have])}")
-    c3.download_button(T("Full backup (ZIP)", "نسخة احتياطية كاملة (ZIP)"), backup_zip(d), file_name=f"spot_backup_{date.today()}.zip", mime="application/zip")
-    rz = d4.file_uploader(T("Restore backup", "رجّع نسخة احتياطية"), type=["zip"], key="sp_rz")
-    if rz and d4.button(T("Restore (replaces)", "رجّع (هيستبدل)"), key="sp_rzb"):
-        save(restore_zip(rz.getvalue()))
-        st.rerun()
-    st.caption(T("Records live on the server disk (data/spot, not in git). Streamlit Cloud can wipe it on a restart: download a backup after you add invoices.",
-                 "التسجيلات محفوظة على السيرفر (data/spot ومش في git). Streamlit Cloud ممكن يمسحها لو اتعمل restart: نزّل نسخة احتياطية بعد ما تسجل فواتير."))
+    b.download_button(T("Blank form / template (Excel)", "فورم فاضية / تمبليت (Excel)"), C.template_xlsx(custom), file_name="spot_template.xlsx",
+                      mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="sp_xl_tpl")
+    xl = st.file_uploader(T("Import any Excel (ours or a shop / exchange sheet)", "استورد أي Excel (بتاعنا أو شيت محل / منصة)"), type=["xlsx"], key="sp_xlin")
+    if xl:
+        hdr, rows = C.read_sheet(xl.getvalue())
+        forms = d["settings"].setdefault("import_forms", {})
+        fn = st.selectbox(T("Saved form", "فورم محفوظة"), ["(auto)"] + list(forms), key="sp_form")
+        guess = forms.get(fn) or C.guess_mapping(hdr, custom)
+        opts = [""] + [k for k, _, _ in C.columns(custom)]
+        labels = {k: f"{k} · {T(en, ar)}" for k, en, ar in C.columns(custom)} | {"": T("(skip)", "(تجاهل)")}
+        st.caption(T(f"{len(rows)} rows. Match each column of the sheet to a field:", f"{len(rows)} صف. وصّل كل عمود في الشيت بخانة:"))
+        mapping = {}
+        cols = st.columns(3)
+        for i, h in enumerate(hdr):
+            with cols[i % 3]:
+                g = guess.get(h, "")
+                mapping[h] = st.selectbox(str(h), opts, index=opts.index(g) if g in opts else 0, format_func=lambda k: labels.get(k, k), key=f"sp_map_{i}")
+        keep = st.checkbox(T("Keep unmatched columns inside the record (nothing lost)", "احتفظ بالأعمدة اللي ماتوصلتش جوه التسجيل (مفيش حاجة تضيع)"), value=True, key="sp_keep")
+        new = C.import_rows(rows, mapping, keep)
+        st.caption(T(f"{len(new)} rows readable (need asset + quantity).", f"{len(new)} صف ينفع يتقري (لازم أصل + كمية)."))
+        a, b = st.columns(2)
+        name = a.text_input(T("Save this matching as a form named", "احفظ التوصيلة دي كفورم باسم"), key="sp_formname")
+        if a.button(T("Save form", "احفظ الفورم"), key="sp_formsave") and name.strip():
+            forms[name.strip()] = mapping
+            save(d, f"spot: import form {name.strip()}")
+        if b.button(T(f"Import {len(new)} rows", f"استورد {len(new)} صف"), type="primary", key="sp_xladd", disabled=not new):
+            have = {t["id"] for t in d["txs"]}
+            add = [t for t in new if t["id"] not in have]
+            d["txs"] += add
+            if save(d, f"spot: import {len(add)} rows from Excel"):
+                st.success(f"+{len(add)}")
+    st.divider()
+    st.markdown("**" + T("My fields (extra columns for every record)", "خاناتي (أعمدة زيادة لكل تسجيل)") + "**")
+    with st.form("sp_cf", clear_on_submit=True):
+        a, b, c3 = st.columns([2, 1, 2])
+        lab = a.text_input(T("Field name", "اسم الخانة"))
+        typ = b.selectbox(T("Type", "النوع"), ["text", "number", "date", "select"])
+        opt = c3.text_input(T("Choices (for select, comma separated)", "الاختيارات (للقايمة، بينهم فاصلة)"))
+        if st.form_submit_button(T("Add field", "ضيف خانة")) and lab.strip():
+            key = "".join(ch if ch.isalnum() else "_" for ch in lab.strip().lower())[:40] or f"f{len(custom) + 1}"
+            if key in {c["key"] for c in custom} or key in C.FIELD_KEYS:
+                key = f"{key}_{len(custom) + 1}"
+            custom.append({"key": key, "label": lab.strip(), "type": typ, "options": opt})
+            save(d, f"spot: field {lab.strip()}")
+    for i, c in enumerate(custom):
+        x, y = st.columns([6, 1])
+        x.markdown(f"• **{c['label']}** · {c['type']}" + (f" · {c['options']}" if c.get("options") else ""))
+        if y.button("✕", key=f"sp_cfdel_{i}"):
+            custom.pop(i)
+            save(d, "spot: remove field")
+            st.rerun()
+    st.caption(T("Removing a field hides it; values already saved stay inside the records.", "مسح الخانة بيخفيها بس؛ القيم المتسجلة بتفضل جوه التسجيلات."))
 
 
 def _tab_alerts(d, px):
@@ -483,7 +684,8 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر")])
+    tabs = st.tabs([T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
+                    T("Storage, Excel & fields", "التخزين والإكسل والخانات")])
     with tabs[0]:
         _tab_crypto(d, cr, fx)
     with tabs[1]:
@@ -494,4 +696,6 @@ def render() -> None:
         _tab_alerts(d, px)
     with tabs[4]:
         _tab_news(d)
+    with tabs[5]:
+        _tab_setup(d, px, fx)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

@@ -96,13 +96,11 @@ def boom(*a, **k):
 
 
 import tempfile
-from modules import spot_page
-spot_page.ROOT = __import__("pathlib").Path(tempfile.mkdtemp())
-spot_page.DB, spot_page.FILES = spot_page.ROOT / "ledger.json", spot_page.ROOT / "files"
 with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
     at = AppTest.from_string("""
-import modules.spot_page as sp, pathlib, tempfile
-sp.ROOT = pathlib.Path(tempfile.mkdtemp()); sp.DB = sp.ROOT / 'ledger.json'; sp.FILES = sp.ROOT / 'files'
+import modules.spot_page as sp, tempfile
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
 sp.render()
 """, default_timeout=60)
     at.run()
@@ -116,7 +114,8 @@ sp.render()
 # page with mocked live data: plan, metals table, ledger with a record, alerts hit
 at = AppTest.from_string("""
 import modules.spot_page as sp, modules.spot_data as sd, modules.spot_core as C, pathlib, tempfile, numpy as np, pandas as pd
-sp.ROOT = pathlib.Path(tempfile.mkdtemp()); sp.DB = sp.ROOT / 'ledger.json'; sp.FILES = sp.ROOT / 'files'
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
 rng = np.random.default_rng(5); n = 2600
 c = 4000 * np.exp(np.cumsum(rng.normal(0.0004, 0.012, n))); o = np.r_[c[0], c[:-1]]
 day = pd.DataFrame({'time': pd.date_range('2018-01-01', periods=n, freq='D'), 'open': o, 'high': np.maximum(o, c) * 1.01, 'low': np.minimum(o, c) * 0.99, 'close': c, 'volume': 1.0})
@@ -127,7 +126,8 @@ sd.crypto_tickers = lambda base_url=None: [{'sym': 'BTC-USDT', 'base': 'BTC', 'l
 sd.metal_prices = lambda: {a: {'px': v, 'prev': v * 0.99, 'src': 'mock'} for a, v in {'GOLD': 4040.0, 'SILVER': 48.0, 'PLATINUM': 1500.0, 'PALLADIUM': 1400.0, 'COPPER': 6.2}.items()}
 sd.usd_egp = lambda: {'rate': 47.5, 'time': '2026-11-06 00:00', 'src': 'mock'}
 if 'spot_db' not in __import__('streamlit').session_state:
-    d = sp._empty(); d['txs'].append(C.new_tx(side='buy', asset='GOLD', qty=10, unit='g', purity=0.875, price=5800, currency='EGP', fx=47.0, invoice_no='INV-1'))
+    d = sp._empty(); d['settings']['custom_fields'] = [{'key': 'vault_box', 'label': 'Vault box', 'type': 'text', 'options': ''}]
+    d['txs'].append(C.new_tx(side='buy', asset='GOLD', qty=10, unit='g', purity=0.875, price=5800, currency='EGP', fx=47.0, invoice_no='INV-1', vault_box='B7'))
     d['alerts'].append(C.new_alert('GOLD', 'buy', 4100)); __import__('streamlit').session_state['spot_db'] = d
 sp.render()
 """, default_timeout=120)

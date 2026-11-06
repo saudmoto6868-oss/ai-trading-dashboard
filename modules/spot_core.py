@@ -86,22 +86,83 @@ def local_gap(theory_egp: float, shop_egp: float) -> float | None:
     return (shop_egp / theory_egp - 1) * 100
 
 
-# ---------------------------------------------------------------- ledger
+# ---------------------------------------------------------------- ledger schema
+# (key, English label, Arabic label, type, options) - the form, the tables, Excel and the bot all read this one list.
+# Types: text / number / date / select. Costs that change P&L: fees, tax, other_costs, workmanship_per_g x weight in grams.
+FIELDS = [
+    ("date", "Date", "التاريخ", "date", None),
+    ("side", "Side", "النوع", "select", ["buy", "sell"]),
+    ("asset", "Asset", "الأصل", "text", None),
+    ("item_type", "Item type", "نوع الصنف", "select", ["bar", "coin", "jewelry", "scrap", "crypto", "other"]),
+    ("qty", "Quantity (net weight / coins)", "الكمية (الوزن الصافي / عدد العملات)", "number", None),
+    ("unit", "Unit", "الوحدة", "select", ["oz", "g", "kg", "lb", "coin"]),
+    ("gross_weight", "Gross weight (same unit)", "الوزن القائم (نفس الوحدة)", "number", None),
+    ("purity", "Purity (0-1)", "النقاوة (0-1)", "number", None),
+    ("price", "Price per unit", "سعر الوحدة", "number", None),
+    ("currency", "Currency", "العملة", "select", ["USD", "EGP"]),
+    ("fx", "USD/EGP at the time", "سعر الدولار وقتها", "number", None),
+    ("workmanship_per_g", "Workmanship per gram", "المصنعية للجرام", "number", None),
+    ("fees", "Fees / commission", "مصاريف / عمولة", "number", None),
+    ("tax", "Tax / VAT", "ضريبة", "number", None),
+    ("other_costs", "Other costs (shipping, insurance)", "تكاليف تانية (شحن، تأمين)", "number", None),
+    ("invoice_no", "Invoice no.", "رقم الفاتورة", "text", None),
+    ("party", "Shop / client / exchange", "المحل / العميل / المنصة", "text", None),
+    ("party_phone", "Party phone", "تليفون الطرف", "text", None),
+    ("party_tax_id", "Party tax id", "الرقم الضريبي للطرف", "text", None),
+    ("channel", "Channel", "القناة", "select", ["B2C", "B2B", "Exchange"]),
+    ("payment_method", "Payment method", "طريقة الدفع", "select", ["cash", "bank", "instapay", "card", "crypto", "other"]),
+    ("settlement_date", "Settlement date", "تاريخ التسوية", "date", None),
+    ("status", "Status", "الحالة", "select", ["settled", "pending", "cancelled"]),
+    ("location", "Vault / wallet / exchange", "الخزنة / المحفظة / المنصة", "text", None),
+    ("serial_no", "Serial no.", "الرقم التسلسلي", "text", None),
+    ("hallmark", "Hallmark / stamp", "الدمغة", "text", None),
+    ("order_id", "Order id", "رقم الأمر", "text", None),
+    ("tx_hash", "Tx hash", "هاش التحويل", "text", None),
+    ("reference", "Reference", "مرجع", "text", None),
+    ("notes", "Notes", "ملاحظات", "text", None),
+]
+FIELD_KEYS = [f[0] for f in FIELDS]
+NUM_KEYS = {f[0] for f in FIELDS if f[3] == "number"}
+DEFAULTS = {"side": "buy", "asset": "GOLD", "item_type": "bar", "qty": 0.0, "unit": "oz", "purity": 1.0, "price": 0.0, "currency": "USD",
+            "fx": None, "fees": 0.0, "tax": 0.0, "other_costs": 0.0, "workmanship_per_g": 0.0, "gross_weight": None, "status": "settled"}
+
+
 def new_tx(**kw) -> dict:
-    """One ledger row (buy or sell). Prices are PER UNIT of `unit` in `currency`; `fx` = EGP per 1 USD at that time."""
-    tx = {"id": uuid.uuid4().hex[:10], "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "side": "buy", "asset": "GOLD",
-          "qty": 0.0, "unit": "oz", "purity": 1.0, "price": 0.0, "currency": "USD", "fx": None, "fees": 0.0,
-          "invoice_no": "", "party": "", "channel": "", "notes": "", "files": []}
-    tx.update({k: v for k, v in kw.items() if k in tx or k in ("tags",)})
+    """One ledger row (buy or sell). Prices are PER UNIT of `unit` in `currency`; `fx` = EGP per 1 USD at that time.
+    Unknown keys go to `extra` (custom fields the owner added)."""
+    tx = {k: DEFAULTS.get(k, "") for k in FIELD_KEYS}
+    tx.update({"id": uuid.uuid4().hex[:10], "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "files": [], "extra": {},
+               "created": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+    for k, v in kw.items():
+        if k in tx and k != "extra":
+            tx[k] = v
+        elif k == "extra" and isinstance(v, dict):
+            tx["extra"].update(v)
+        else:
+            tx["extra"][k] = v
+    for k in NUM_KEYS:
+        if tx.get(k) in ("", None) and k not in ("fx", "gross_weight"):
+            tx[k] = DEFAULTS.get(k, 0.0)
     tx["asset"] = str(tx["asset"]).upper()
     tx["side"] = "sell" if str(tx["side"]).lower().startswith("s") else "buy"
     return tx
 
 
+def grams(qty: float, unit: str) -> float:
+    u = (unit or "").lower()
+    return qty * {"g": 1, "kg": 1000, "oz": OZ_G, "lb": LB_KG * 1000}.get(u, 0)
+
+
+def costs(tx: dict) -> float:
+    """Every extra cost of a row, in the row's currency: fees + tax + other costs + workmanship per gram x weight."""
+    f = lambda k: float(tx.get(k) or 0)
+    return f("fees") + f("tax") + f("other_costs") + f("workmanship_per_g") * grams(f("qty"), tx.get("unit", ""))
+
+
 def tx_usd(tx: dict) -> tuple[float, float]:
-    """(gross USD, fees USD) of one row. EGP rows need their fx; without it -> (nan, nan)."""
+    """(gross USD, costs USD) of one row. EGP rows need their fx; without it -> (nan, nan)."""
     gross = float(tx.get("qty") or 0) * float(tx.get("price") or 0)
-    fees = float(tx.get("fees") or 0)
+    fees = costs(tx)
     if str(tx.get("currency", "USD")).upper() == "EGP":
         fx = tx.get("fx")
         if not fx:
@@ -111,9 +172,9 @@ def tx_usd(tx: dict) -> tuple[float, float]:
 
 
 def tx_egp(tx: dict) -> tuple[float, float]:
-    """(gross EGP, fees EGP) with the row's own rate; nan when a USD row has no rate."""
+    """(gross EGP, costs EGP) with the row's own rate; nan when a USD row has no rate."""
     gross = float(tx.get("qty") or 0) * float(tx.get("price") or 0)
-    fees = float(tx.get("fees") or 0)
+    fees = costs(tx)
     if str(tx.get("currency", "USD")).upper() == "EGP":
         return gross, fees
     fx = tx.get("fx")
@@ -128,6 +189,8 @@ def positions(txs: list[dict], prices: dict | None = None, fx_now: float | None 
     prices = prices or {}
     book: dict = {}
     for tx in sorted(txs, key=lambda t: (str(t.get("date", "")), str(t.get("id", "")))):
+        if tx.get("status") == "cancelled":
+            continue
         a = str(tx.get("asset", "")).upper()
         q = base_qty(a, float(tx.get("qty") or 0), tx.get("unit", "oz"), float(tx.get("purity") or 1.0))
         if q <= 0:
@@ -229,22 +292,43 @@ def alert_text(h: dict, ar: bool = True) -> str:
 
 
 # ---------------------------------------------------------------- Excel
-TX_COLS = ["id", "date", "side", "asset", "qty", "unit", "purity", "price", "currency", "fx", "fees", "invoice_no", "party", "channel", "notes"]
+TX_COLS = ["id"] + FIELD_KEYS   # kept for older callers
 
 
-def to_excel(txs: list[dict], pos: list[dict], prices: dict, fx_now: float | None) -> bytes:
-    """Workbook with Transactions / Positions / Prices sheets."""
-    from openpyxl import Workbook
+def columns(custom: list[dict] | None = None) -> list[tuple]:
+    """[(column key, English, Arabic)] = id + every standard field + the owner's custom fields ('x_<key>')."""
+    cols = [("id", "Id", "المعرف")] + [(k, en, ar) for k, en, ar, _, _ in FIELDS]
+    cols += [(f"x_{c['key']}", c.get("label", c["key"]), c.get("label", c["key"])) for c in (custom or [])]
+    return cols
+
+
+def row_values(tx: dict, cols: list[tuple]) -> list:
+    return [tx.get("extra", {}).get(k[2:]) if k.startswith("x_") else tx.get(k) for k, _, _ in cols]
+
+
+def _style(sh):
     from openpyxl.styles import Font, PatternFill
+    for c in sh[1]:
+        c.font = Font(bold=True)
+        c.fill = PatternFill("solid", fgColor="F0B90B")
+    for col in sh.columns:
+        sh.column_dimensions[col[0].column_letter].width = max(10, min(30, max(len(str(c.value or "")) for c in col) + 2))
+    sh.freeze_panes = "A2"
+
+
+def to_excel(txs: list[dict], pos: list[dict], prices: dict, fx_now: float | None, custom: list[dict] | None = None) -> bytes:
+    """Workbook: Transactions (every field + custom + totals) / Positions / Prices / Guide."""
+    from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "Transactions"
-    ws.append(TX_COLS + ["usd_total", "egp_total"])
+    cols = columns(custom)
+    ws.append([k for k, _, _ in cols] + ["costs", "usd_total", "egp_total"])
     for t in txs:
         u, fu = tx_usd(t)
         e, fe = tx_egp(t)
-        ws.append([t.get(c) for c in TX_COLS] + [None if math.isnan(u) else round(u + (fu if t["side"] == "buy" else -fu), 2),
-                                                 None if math.isnan(e) else round(e + (fe if t["side"] == "buy" else -fe), 2)])
+        sg = 1 if t.get("side") == "buy" else -1
+        ws.append(row_values(t, cols) + [round(costs(t), 2), None if math.isnan(u) else round(u + sg * fu, 2), None if math.isnan(e) else round(e + sg * fe, 2)])
     ws2 = wb.create_sheet("Positions")
     pc = ["asset", "qty", "avg_usd", "cost_usd", "value_usd", "unreal_usd", "unreal_pct", "realized_usd", "avg_egp", "cost_egp", "value_egp",
           "unreal_egp", "metal_part_egp", "fx_part_egp", "realized_egp"]
@@ -256,45 +340,103 @@ def to_excel(txs: list[dict], pos: list[dict], prices: dict, fx_now: float | Non
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     for a, px in prices.items():
         ws3.append([a, px, fx_now, now])
-    hdr = PatternFill("solid", fgColor="F0B90B")
+    _guide(wb.create_sheet("Guide"), cols)
     for sh in (ws, ws2, ws3):
-        for c in sh[1]:
-            c.font = Font(bold=True)
-            c.fill = hdr
-        for col in sh.columns:
-            sh.column_dimensions[col[0].column_letter].width = max(10, min(28, max(len(str(c.value or "")) for c in col) + 2))
+        _style(sh)
     bio = io.BytesIO()
     wb.save(bio)
     return bio.getvalue()
 
 
-def from_excel(data: bytes) -> list[dict]:
-    """Transactions sheet (or the first sheet) -> ledger rows; unknown columns ignored, missing ones defaulted."""
+def _guide(sh, cols):
+    types = {k: (t, o) for k, _, _, t, o in FIELDS}
+    sh.append(["column", "English", "العربي", "type", "allowed values"])
+    for k, en, ar in cols:
+        t, o = types.get(k, ("text", None))
+        sh.append([k, en, ar, t, ", ".join(o) if o else ""])
+    _style(sh)
+
+
+def template_xlsx(custom: list[dict] | None = None) -> bytes:
+    """Empty Transactions sheet with every column + an example row + the Guide sheet (the owner's 'form')."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Transactions"
+    cols = columns(custom)
+    ws.append([k for k, _, _ in cols])
+    ex = new_tx(side="buy", asset="GOLD", item_type="bar", qty=10, unit="g", purity=0.875, price=5800, currency="EGP", fx=47.5,
+                workmanship_per_g=120, invoice_no="EXAMPLE-1", party="Shop name", channel="B2C", payment_method="cash", notes="delete this example row")
+    ex["id"] = ""
+    ws.append(row_values(ex, cols))
+    _style(ws)
+    _guide(wb.create_sheet("Guide"), cols)
+    bio = io.BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+def read_sheet(data: bytes) -> tuple[list[str], list[dict]]:
+    """Any workbook -> (header names, rows as dicts) of the 'Transactions' sheet or the first sheet. Values only."""
     from openpyxl import load_workbook
     wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     ws = wb["Transactions"] if "Transactions" in wb.sheetnames else wb.worksheets[0]
     rows = list(ws.iter_rows(values_only=True))
     if not rows:
-        return []
-    hdr = [str(h or "").strip().lower() for h in rows[0]]
+        return [], []
+    hdr = [str(h).strip() if h is not None else f"col{i + 1}" for i, h in enumerate(rows[0])]
+    return hdr, [dict(zip(hdr, r)) for r in rows[1:] if any(v not in (None, "") for v in r)]
+
+
+def guess_mapping(headers: list[str], custom: list[dict] | None = None) -> dict:
+    """{their column: our key ('' = skip)} by exact key, English or Arabic label (case / spaces ignored)."""
+    norm = lambda x: "".join(str(x).lower().split()).replace("_", "")
+    idx = {}
+    for k, en, ar in columns(custom):
+        for n in (k, en, ar):
+            idx.setdefault(norm(n), k)
+    return {h: idx.get(norm(h), "") for h in headers}
+
+
+def import_rows(rows: list[dict], mapping: dict, extra_unmapped: bool = False) -> list[dict]:
+    """Rows + mapping -> ledger rows. Our key 'x_<k>' = custom field. Rows without asset or qty are skipped.
+    extra_unmapped=True keeps unmapped columns in `extra` under their own names (nothing is lost)."""
     out = []
-    for r in rows[1:]:
-        d = {h: v for h, v in zip(hdr, r) if h in TX_COLS and v is not None}
-        if not d.get("asset") or not d.get("qty"):
+    for r in rows:
+        d, extra = {}, {}
+        for col, v in r.items():
+            if v in (None, ""):
+                continue
+            key = mapping.get(col, "")
+            if key.startswith("x_"):
+                extra[key[2:]] = v
+            elif key:
+                d[key] = v
+            elif extra_unmapped:
+                extra[str(col)] = v
+        if not d.get("asset") or d.get("qty") in (None, ""):
             continue
-        for k in ("qty", "price", "fees", "purity"):
+        for k in NUM_KEYS:
             if k in d:
-                d[k] = float(d[k])
-        if d.get("fx") not in (None, ""):
-            d["fx"] = float(d["fx"])
-        if "date" in d and hasattr(d["date"], "strftime"):
-            d["date"] = d["date"].strftime("%Y-%m-%d")
+                try:
+                    d[k] = float(str(d[k]).replace(",", ""))
+                except ValueError:
+                    d.pop(k)
+        for k in ("date", "settlement_date"):
+            if k in d and hasattr(d[k], "strftime"):
+                d[k] = d[k].strftime("%Y-%m-%d")
         tid = d.pop("id", None)
-        tx = new_tx(**d)
+        tx = new_tx(**d, extra=extra)
         if tid:
             tx["id"] = str(tid)
         out.append(tx)
     return out
+
+
+def from_excel(data: bytes, custom: list[dict] | None = None) -> list[dict]:
+    """Our own export / template back into ledger rows (columns matched automatically)."""
+    hdr, rows = read_sheet(data)
+    return import_rows(rows, guess_mapping(hdr, custom))
 
 
 # ---------------------------------------------------------------- invoice (print / save as PDF from the browser)
@@ -307,6 +449,11 @@ def invoice_html(tx: dict, shop: str = "6868 X") -> str:
     pur = tx.get("purity") or 1
     pur_txt = next((k for k, v in METALS.get(tx.get("asset"), ("", {}))[1].items() if abs(v - float(pur)) < 1e-6), f"{float(pur):.3f}")
 
+    skip = {"date", "side", "asset", "qty", "unit", "purity", "price", "currency", "fx", "invoice_no", "party", "channel", "notes"}
+    det = [(ar, tx.get(k)) for k, _, ar, _, _ in FIELDS if k not in skip and tx.get(k) not in (None, "", 0, 0.0)]
+    det += [(k, v) for k, v in (tx.get("extra") or {}).items() if v not in (None, "")]
+    det_html = ("<table><tr><th>بيان</th><th>القيمة</th></tr>" + "".join(f"<tr><td>{a}</td><td>{b}</td></tr>" for a, b in det) + "</table>") if det else ""
+
     def f(x):
         return "—" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:,.2f}"
     return f"""<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فاتورة {tx.get('invoice_no') or tx['id']}</title>
@@ -317,7 +464,7 @@ table{{width:100%;border-collapse:collapse;margin-top:18px}}td,th{{border:1px so
 <table><tr><th>الصنف</th><th>العيار / النقاوة</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>العملة</th></tr>
 <tr><td>{name}</td><td>{pur_txt}</td><td>{tx.get('qty')}</td><td>{tx.get('unit')}</td><td>{f(float(tx.get('price') or 0))}</td><td>{tx.get('currency')}</td></tr></table>
 <table><tr><th>البند</th><th>دولار</th><th>جنيه</th></tr>
-<tr><td>القيمة</td><td>{f(u)}</td><td>{f(e)}</td></tr><tr><td>مصاريف / مصنعية</td><td>{f(fu)}</td><td>{f(fe)}</td></tr>
+<tr><td>القيمة</td><td>{f(u)}</td><td>{f(e)}</td></tr><tr><td>مصنعية + مصاريف + ضريبة + تكاليف</td><td>{f(fu)}</td><td>{f(fe)}</td></tr>
 <tr class="t"><td>الإجمالي</td><td>{f(u + fu if tx.get('side') == 'buy' else u - fu)}</td><td>{f(e + fe if tx.get('side') == 'buy' else e - fe)}</td></tr>
 <tr><td>سعر الصرف المستخدم</td><td colspan="2">{tx.get('fx') or '—'} جنيه / دولار</td></tr></table>
-<p class="m">{tx.get('notes') or ''}</p><button onclick="window.print()">طباعة / حفظ PDF</button></body></html>"""
+{det_html}<p class="m">{tx.get('notes') or ''}</p><button onclick="window.print()">طباعة / حفظ PDF</button></body></html>"""

@@ -1073,6 +1073,11 @@ with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
+try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
+    from modules.screen_recorder import render as _render_rec
+    _render_rec()
+except Exception:
+    pass
 _focus = bool(st.session_state.get("focus_ws"))
 try:   # phones: the Workspace frame = about one screen (its widgets scroll inside it); header row wraps into two lines
     _IS_MOBILE = any(k in (st.context.headers.get("User-Agent", "") or "") for k in ("Mobi", "Android", "iPhone"))

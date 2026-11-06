@@ -171,6 +171,6 @@ def text_ar(br: dict) -> str:
         lines.append(f"• {h['label']}: {h['verdict_ar']} ({h['score']:+d}){lv}")
     for g in br.get("guard", []):
         lines.append(f"📦 اللي معاك: {g['action_ar']} - {g['why']}")
-    lines += br["flow"]["lines"][:3] + br["inst"]["lines"][:2]
+    lines += ["📊 الأوردر فلو:"] + ["  " + x for x in br["flow"]["lines"][:8]] + ["🏦 المؤسسات:"] + ["  " + x.strip() for x in br["inst"]["lines"][:4]]
     lines.append("قواعد، لسه من غير باك تيست لكل مدة. مفيش أي أمر بيتنفذ.")
     return "\n".join(lines)

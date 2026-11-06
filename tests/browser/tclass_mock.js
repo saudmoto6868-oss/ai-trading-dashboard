@@ -35,6 +35,20 @@ function candles(bar, limit) {   // OKX shape, newest first; a clean range with 
   const al = await p.evaluate(() => { const take = SYMS.filter(s => { const r = TC.res["Position|" + s]; return r && r.ideas[0] && r.ideas[0].j.verdict === "TAKE" && r.ideas[0].now; }).length;
     return { take, alerts: Alerts.list.filter(a => a.card && a.card.src === "tclass" && a.card.ttype === "Position").length, menu: [...document.querySelectorAll("#bar option")].some(o => o.value === "tclass") }; });
   console.log('alerts', JSON.stringify(al)); ok = ok && al.alerts === al.take && al.menu;
+  // new schools on, "My strategies" editor saves a rule, next-session line, journal leaderboard line
+  const ui2 = await p.evaluate(async () => { const pn = Ws.panels.find(x => x.type === "tclass"), st = pn.state.tc;
+    const btn = [...pn.body.querySelectorAll("button")].find(b => /My strategies|استراتيجياتي/.test(b.textContent)); btn.click();
+    const ed = document.getElementById("tcEd"), hasNq = !!ed && /Nasdaq VWAP stretch/.test(ed.textContent);
+    [...ed.querySelectorAll("button")].find(b => /New strategy|استراتيجية جديدة/.test(b.textContent)).click();
+    const ed2 = document.getElementById("tcEd"); ed2.querySelector("input:not([type])").value = "EMA test"; [...ed2.querySelectorAll("button")].find(b => /Save|احفظ/.test(b.textContent)).click();
+    const saved = TC.customs().map(c => c.name);
+    const sel = pn.body.querySelector("select"); sel.value = "Day Trade"; sel.dispatchEvent(new Event("change"));
+    await new Promise(r => setTimeout(r, 200)); while (TC.busy) await new Promise(r => setTimeout(r, 200));
+    const txt = pn.body.querySelector(".sum").innerText;
+    return { dets: st.dets, hasNq, saved, session: /Next session|الجلسة الجاية/.test(txt), board: /Schools in your journal|المدارس في الجورنال/.test(txt),
+      dets2: [...new Set(SYMS.flatMap(s => ((TC.res["Day Trade|" + s] || {}).ideas || []).map(x => x.det)))] }; });
+  console.log('ui2', JSON.stringify(ui2));
+  ok = ok && ["vwap", "ma", "session", "custom"].every(k => ui2.dets.includes(k)) && ui2.hasNq && ui2.saved.includes("EMA test") && ui2.saved.length === 2 && ui2.session && ui2.board;
   // harmonic school: a hand-built bullish Gartley (X 100, A 110, B 103.82, C 107.6, D 102.14) -> TC.harm gives a valid long
   const hm = await p.evaluate(() => { const piv = [[0, 104], [40, 100], [60, 110], [75, 103.82], [88, 107.6], [104, 102.14]], rows = [];
     for (let i = 0; i <= 104; i++){ let k = 0; while (piv[k+1][0] < i) k++; const [i0, p0] = piv[k], [i1, p1] = piv[k+1], c = p0 + (p1 - p0)*(i - i0)/(i1 - i0) + 0.03*Math.sin(i*12.9898), o = rows.length ? rows[rows.length-1].c : c, w = 0.08*(1 + 0.5*Math.abs(Math.sin(i*7.31)));

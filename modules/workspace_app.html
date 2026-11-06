@@ -6391,6 +6391,30 @@ const TCE = {
   // a rejection candle at the level on the entry timeframe: the last CLOSED bar has a wick >= 45% of its range toward the level and closes in our favour
   rejection(rows, side){ if (!rows || rows.length < 3) return false; const c = rows[rows.length - 2], rg = c.h - c.l; if (!(rg > 0)) return false;
     return side > 0 ? (Math.min(c.o, c.c) - c.l)/rg >= 0.45 && c.c >= c.o - rg*0.1 : (c.h - Math.max(c.o, c.c))/rg >= 0.45 && c.c <= c.o + rg*0.1; },
+  /* ---- indicators + session levels + user rules (pure; used by the VWAP / MA / session schools and "My strategies") ---- */
+  sma(v, n){ const o = new Array(v.length).fill(NaN); let s = 0; for (let i = 0; i < v.length; i++){ s += v[i]; if (i >= n) s -= v[i-n]; if (i >= n - 1) o[i] = s/n; } return o; },
+  rsi(v, n){ n = n || 14; const o = new Array(v.length).fill(NaN); let g = 0, l = 0; for (let i = 1; i < v.length; i++){ const d = v[i] - v[i-1], up = Math.max(d, 0), dn = Math.max(-d, 0);
+      if (i <= n){ g += up; l += dn; if (i === n){ g /= n; l /= n; o[i] = l ? 100 - 100/(1 + g/l) : 100; } } else { g = (g*(n-1) + up)/n; l = (l*(n-1) + dn)/n; o[i] = l ? 100 - 100/(1 + g/l) : 100; } } return o; },
+  // VWAP anchored at each UTC day start (crypto / perpetuals trade 24h) with +-1 / +-2 standard-deviation bands; no volume -> equal weights
+  vwapSession(rows){ const n = rows.length, vw = new Array(n), sd = new Array(n); let day = null, pv = 0, vv = 0, p2 = 0;
+    for (let i = 0; i < n; i++){ const r = rows[i], d = Math.floor((r.t || 0)/864e5); if (d !== day){ day = d; pv = 0; vv = 0; p2 = 0; }
+      const tp = (r.h + r.l + r.c)/3, v = r.v > 0 ? r.v : 1; pv += tp*v; vv += v; p2 += tp*tp*v; vw[i] = pv/vv; sd[i] = Math.sqrt(Math.max(0, p2/vv - vw[i]*vw[i])); }
+    return {vw, sd}; },
+  // previous UTC day high / low, today's open, this week's open (Monday 00:00 UTC), from intraday rows -> {pdh, pdl, dopen, wopen} (null when not enough days)
+  dayLevels(rows){ const n = rows.length; if (!n || !rows[0].t) return {}; const days = new Map(); rows.forEach(r => { const d = Math.floor(r.t/864e5), x = days.get(d); if (!x) days.set(d, {o:r.o, h:r.h, l:r.l}); else { x.h = Math.max(x.h, r.h); x.l = Math.min(x.l, r.l); } });
+    const ks = [...days.keys()].sort((a, b) => a - b), today = ks[ks.length-1], prev = ks.length > 1 ? days.get(ks[ks.length-2]) : null, wk = d => Math.floor((d + 3)/7);   // epoch day 0 = Thursday -> +3 makes weeks start on Monday
+    const w0 = ks.find(d => wk(d) === wk(today)); return {pdh:prev ? prev.h : null, pdl:prev ? prev.l : null, dopen:days.get(today).o, wopen:w0 != null ? days.get(w0).o : null}; },
+  indicators(rows){ const c = rows.map(r => r.c), v = this.vwapSession(rows), L = this.dayLevels(rows);
+    const I = {close:c, open:rows.map(r => r.o), high:rows.map(r => r.h), low:rows.map(r => r.l), ema9:this.ema(c, 9), ema21:this.ema(c, 21), ema50:this.ema(c, 50), ema200:this.ema(c, 200),
+      sma20:this.sma(c, 20), sma50:this.sma(c, 50), rsi14:this.rsi(c, 14), vwap:v.vw, vwapU1:v.vw.map((x, i) => x + v.sd[i]), vwapL1:v.vw.map((x, i) => x - v.sd[i]),
+      vwapU2:v.vw.map((x, i) => x + 2*v.sd[i]), vwapL2:v.vw.map((x, i) => x - 2*v.sd[i])};
+    ["pdh","pdl","dopen","wopen"].forEach(k => { I[k] = L[k] == null ? null : c.map(() => L[k]); }); return I; },
+  RULE_SRC: ["close","open","high","low","ema9","ema21","ema50","ema200","sma20","sma50","vwap","vwapU1","vwapL1","vwapU2","vwapL2","rsi14","pdh","pdl","dopen","wopen"],
+  // one user rule on the last closed state (index i): {a, op: ">" "<" "xa" (crosses above) "xb" (crosses below), b: indicator or "value", v: number, off: points added to b}
+  rule(r, I, i, ps){ const get = (k, j) => k === "value" ? +r.v : (I[k] && I[k][j] != null ? I[k][j] : NaN), off = (+r.off || 0)*(ps || 1);
+    const A = get(r.a, i), B = get(r.b, i) + off, A0 = get(r.a, i - 1), B0 = get(r.b, i - 1) + off; if (!(A === A) || !(B === B)) return false;
+    return r.op === ">" ? A > B : r.op === "<" ? A < B : r.op === "xa" ? A0 <= B0 && A > B : r.op === "xb" ? A0 >= B0 && A < B : false; },
+  rulesOk(rules, I, i, ps){ return !!(rules && rules.length) && rules.every(r => this.rule(r, I, i, ps)); },
   /* ---- deliberation (pure): every idea gets a case FOR, a case AGAINST, hard stops, a second look, then a verdict ---- */
   swings(rows, k){ k = k || 3; const out = []; for (let i = k; i < rows.length - k; i++){ let H = true, L = true; for (let j = i - k; j <= i + k; j++){ if (j === i) continue; if (rows[j].h >= rows[i].h) H = false; if (rows[j].l <= rows[i].l) L = false; } if (H) out.push({i, p:rows[i].h, k:"H"}); if (L) out.push({i, p:rows[i].l, k:"L"}); } return out; },
   // break of structure in the last `fresh` bars: a close beyond the newest confirmed swing high / low that no earlier close had broken.
@@ -6494,7 +6518,12 @@ const TC = {
   res:{}, busy:false, prog:"", subs:new Set(), next:{},
   // the schools ("detectors"); the English name is the stable key used in journal tags ("TC <name>")
   DETS: [["bounce","S/R bounce","ارتداد دعم/مقاومة"], ["vp","Volume profile","فوليوم بروفايل"], ["struct","Breakout / BOS / MSS","اختراق / كسر هيكل"], ["smt","SMT","SMT"],
-         ["elliott","Elliott","إليوت"], ["harmonic","Harmonic","هارمونيك"], ["scanner","Scanner setups","إعدادات السكانر"]],
+         ["elliott","Elliott","إليوت"], ["harmonic","Harmonic","هارمونيك"], ["scanner","Scanner setups","إعدادات السكانر"],
+         ["vwap","VWAP","VWAP"], ["ma","Moving averages","المتوسطات"], ["session","Session levels","مستويات الجلسة"], ["custom","My strategies","استراتيجياتي"]],
+  // "My strategies": the owner's own rules (saved in this browser). The first one is the owner's Nasdaq idea, UNTESTED: long only when price is >= 25 points under the session VWAP.
+  CUSTOM_DEFAULT: [{id:"nqvwap", name:"Nasdaq VWAP stretch (long only)", side:"long", sym:"XYZ100|NAS|NDX|NQ|US100|USTEC", stop:1, on:true, rules:[{a:"close", op:"<", b:"vwap", off:-25}], note:"owner idea, not backtested"}],
+  customs(){ const v = store.get(LS+"_tc_custom", null); return Array.isArray(v) ? v : this.CUSTOM_DEFAULT.map(x => JSON.parse(JSON.stringify(x))); },
+  saveCustoms(v){ store.set(LS+"_tc_custom", v); this.next = {}; },
   detName(k){ const d = this.DETS.find(x => x[0] === k); return d ? Lg(d[1], d[2]) : k; },
   detKey(k){ const d = this.DETS.find(x => x[0] === k); return "TC "+(d ? d[1] : k); },
   // SMT partner when the server list (CFG.smt) has none: Hyperliquid TradFi pairs
@@ -6563,6 +6592,27 @@ const TC = {
     if (on("harmonic")) try { this.harm(sym, style, R, st.bias, [], {}).forEach(h => mk("harmonic", h.direction === "bullish" ? 1 : -1, h.plan.entry, h.plan.stop, h.why.includes("price is at the zone now"), h.plan.entry, tagTxt(h.tags[0][0]), h.plan.tps)); } catch(e){}
     if (on("scanner")) readyList(true).filter(e => e.symbol === sym && e.ttype === style && e.src !== "tclass").forEach(e =>
       mk("scanner", e.direction === "bullish" ? 1 : -1, e.plan.entry, e.plan.stop, Math.abs(px - e.plan.entry) <= a*0.5, e.plan.entry, Lg("Scanner: ","السكانر: ")+(e.tags || []).slice(0, 3).map(t => tagTxt(t[0])).join(" · "), e.plan.tps));
+    const I_ = TCE.indicators(R), li = n - 1, intraday = style === "Scalp" || style === "Day Trade";
+    if (on("vwap") && intraday){ const vw = I_.vwap[li], sdv = (I_.vwapU2[li] - vw)/2;
+      if (sdv > 0){
+        if (px <= I_.vwapL2[li]) mk("vwap", 1, px, px - Math.max(a, sdv), true, vw, Lg("VWAP −2σ: back to VWAP","VWAP −2σ: رجوع للـVWAP"), [vw, I_.vwapU1[li]]);
+        if (px >= I_.vwapU2[li]) mk("vwap", -1, px, px + Math.max(a, sdv), true, vw, Lg("VWAP +2σ: back to VWAP","VWAP +2σ: رجوع للـVWAP"), [vw, I_.vwapL1[li]]);
+        const e = I_.ema21, up = e[li] > e[li-5], dn = e[li] < e[li-5];
+        if (up && px > vw && R[li].l <= vw + a*0.2 && px - vw <= a*0.6) mk("vwap", 1, px, vw - a*0.6, true, vw, Lg("Pullback to VWAP in an uptrend","رجوع لـVWAP في ترند صاعد"));
+        if (dn && px < vw && R[li].h >= vw - a*0.2 && vw - px <= a*0.6) mk("vwap", -1, px, vw + a*0.6, true, vw, Lg("Pullback to VWAP in a downtrend","رجوع لـVWAP في ترند هابط")); } }
+    if (on("ma") && n > 60){ const e9 = I_.ema9, e21 = I_.ema21, e50 = I_.ema50, e200 = I_.ema200, lo5 = Math.min(...R.slice(-5).map(r => r.l)), hi5 = Math.max(...R.slice(-5).map(r => r.h));
+      for (let k = li; k > li - 3; k--){
+        if (e9[k-1] <= e21[k-1] && e9[k] > e21[k] && px > e200[li]){ mk("ma", 1, px, lo5 - a*0.2, true, e21[li], Lg("EMA 9/21 cross up, above EMA200","تقاطع EMA 9/21 لفوق، فوق EMA200")); break; }
+        if (e9[k-1] >= e21[k-1] && e9[k] < e21[k] && px < e200[li]){ mk("ma", -1, px, hi5 + a*0.2, true, e21[li], Lg("EMA 9/21 cross down, below EMA200","تقاطع EMA 9/21 لتحت، تحت EMA200")); break; } }
+      if (n > 220) for (let k = li; k > li - 5; k--){
+        if (e50[k-1] <= e200[k-1] && e50[k] > e200[k]){ mk("ma", 1, px, px - 2*a, true, e200[li], Lg("Golden cross 50/200","التقاطع الذهبي 50/200")); break; }
+        if (e50[k-1] >= e200[k-1] && e50[k] < e200[k]){ mk("ma", -1, px, px + 2*a, true, e200[li], Lg("Death cross 50/200","تقاطع الموت 50/200")); break; } } }
+    if (on("session") && intraday) [["pdh","PDH"], ["pdl","PDL"], ["dopen",Lg("daily open","افتتاح اليوم")], ["wopen",Lg("weekly open","افتتاح الأسبوع")]].forEach(([k, nm]) => {
+      const L = I_[k] && I_[k][li]; if (L == null) return; const d = px - L;
+      if (Math.abs(d) <= a*0.5){ const sd = d >= 0 ? 1 : -1; mk("session", sd, px, L - sd*a*0.6, true, L, Lg("At ","عند ")+nm+" "+fmtP(L)); }   // above the level = it holds as support, below = resistance
+      if ((k === "pdh" && R[li].c > L && R[li-1].c <= L) || (k === "pdl" && R[li].c < L && R[li-1].c >= L)){ const sd = k === "pdh" ? 1 : -1; mk("session", sd, px, L - sd*a*0.8, true, L, Lg("Break of ","كسر ")+nm+" "+fmtP(L)); } });
+    if (on("custom")) this.customs().forEach(cs => { if (cs.on === false) return; let okSym = true; try { okSym = !cs.sym || new RegExp(cs.sym, "i").test(sym); } catch(e){ okSym = false; } if (!okSym) return;
+      const sd = cs.side === "short" ? -1 : 1; if (TCE.rulesOk(cs.rules, I_, li, ps)) mk("custom", sd, px, px - sd*a*(+cs.stop || 1), true, px, "★ "+cs.name); });
     return {ideas:out, ctx:{px, a, ps, tPts, auto, ev, lv, nodes}};
   },
   // the case for / against of every idea, with the live context (journal, news, regime, open trades)
@@ -6610,6 +6660,43 @@ const TC = {
       const sym = k.slice(style.length + 1), c = this.card(sym, style, x, r), g = c.symbol+"|"+c.direction+"|"+c.ttype, old = Alerts.list.find(a => a.card && a.card.symbol+"|"+a.card.direction+"|"+a.card.ttype === g);
       if (old && old.card.src !== "tclass" && old.card.score/Math.max(1, old.card.max) >= c.score/c.max) return;
       Alerts.add("tc|"+g+"|"+c.plan.stop.toPrecision(6), "scan", sym, sym+" · "+(c.direction === "bullish" ? "Long" : "Short")+" · "+ttTxt(style)+" · "+x.label+" · "+c.pts+Lg(" pts"," نقطة"), c.direction === "bullish" ? "#0ecb81" : "#f6465d", c); }); },
+  // next kill zone / session (New York time, the same clock as Ctx.session) -> {name, in}
+  nextSession(){ try { const f = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false}).formatToParts(new Date()), m = (+f.find(x => x.type === "hour").value % 24)*60 + +f.find(x => x.type === "minute").value;
+      const L = [["London KZ", 120], ["NY AM KZ", 420], ["NY PM KZ", 810], ["Asia", 1200]].map(([nm, st]) => [nm, (st - m + 1440) % 1440]).sort((a, b) => a[1] - b[1])[0], h = Math.floor(L[1]/60), mm = L[1] % 60;
+      return {name:L[0], in:(h ? h+"h " : "")+mm+"m"}; } catch(e){ return null; } },
+  // "My strategies" editor: name, side, symbols (regex), stop in ATR, rules [a op b (+/- points)]; saved in this browser
+  editor(anchor, onSave){
+    const old = document.getElementById("tcEd"); if (old){ old.remove(); return; }
+    const m = el("div"); m.id = "tcEd"; m.dir = lang === "ar" ? "rtl" : "ltr"; m.style.cssText = "position:fixed;z-index:99999;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);width:min(560px,96vw);max-height:80vh;overflow:auto";
+    m.onpointerdown = e => e.stopPropagation(); let list = this.customs(), cur = null;
+    const SRC = TCE.RULE_SRC, OPS = [[">", ">"], ["<", "<"], ["xa", Lg("crosses above","يقطع لفوق")], ["xb", Lg("crosses below","يقطع لتحت")]];
+    const sel = (opts, v) => { const s = el("select"); opts.forEach(o => { const [k, l] = Array.isArray(o) ? o : [o, o]; s.append(Object.assign(el("option"), {value:k, textContent:l})); }); s.value = v; return s; };
+    const paint = () => { m.innerHTML = '<b style="color:#f0b90b">★ '+esc(Lg("My strategies","استراتيجياتي"))+'</b> <span class="m" style="font-size:11px">'+esc(Lg("judged by the same engine (case for / against, second look); untested until the journal has 30+ trades","بتتحكم بنفس المحرك (ليه أدخل / ليه لأ، مراجعة تانية)؛ مش مجربة لحد ما الجورنال يبقى فيه 30+ صفقة"))+'</span>';
+      list.forEach((cs, i) => { const r = el("div"); r.style.cssText = "display:flex;gap:6px;align-items:center;margin-top:6px"; const on = el("input"); on.type = "checkbox"; on.checked = cs.on !== false; on.onchange = () => { cs.on = on.checked; this.saveCustoms(list); onSave(); };
+        const t = el("span", null, esc(cs.name)+' <span class="m" style="font-size:11px">'+(cs.side === "short" ? "▼" : "▲")+" "+esc((cs.rules || []).map(x => x.a+" "+x.op+" "+(x.b === "value" ? x.v : x.b)+(+x.off ? (x.off > 0 ? " +" : " ")+x.off+"pt" : "")).join(" & "))+'</span>'); t.style.flex = "1";
+        const ed = el("button", null, "✎"), del = el("button", null, "✕"); ed.onclick = () => { cur = JSON.parse(JSON.stringify(cs)); cur._i = i; form(); }; del.onclick = () => { list.splice(i, 1); this.saveCustoms(list); onSave(); paint(); };
+        r.append(on, t, ed, del); m.append(r); });
+      const nb = el("button", null, "＋ "+Lg("New strategy","استراتيجية جديدة")); nb.style.marginTop = "8px"; nb.onclick = () => { cur = {id:"c"+Date.now(), name:"", side:"long", sym:"", stop:1, on:true, rules:[{a:"close", op:">", b:"ema21", off:0}]}; form(); }; m.append(nb); };
+    const form = () => { paint(); const f = el("div"); f.style.cssText = "margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:grid;gap:6px";
+      const nm = el("input"); nm.placeholder = Lg("Name","الاسم"); nm.value = cur.name; const sd = sel([["long", Lg("Long","شراء")], ["short", Lg("Short","بيع")]], cur.side);
+      const sy = el("input"); sy.placeholder = Lg("Symbols (optional, e.g. XYZ100|NQ)","الرموز (اختياري، مثلًا XYZ100|NQ)"); sy.value = cur.sym || ""; const stp = el("input"); stp.type = "number"; stp.step = "0.1"; stp.value = cur.stop || 1; stp.title = Lg("Stop in ATR","الستوب بالـATR"); stp.style.width = "70px";
+      const r1 = el("div"); r1.style.cssText = "display:flex;gap:6px;flex-wrap:wrap"; r1.append(nm, sd, sy, document.createTextNode(Lg("stop ATR ","ستوب ATR ")), stp); f.append(r1);
+      const rbox = el("div"); f.append(rbox);
+      const rules = () => { rbox.innerHTML = ""; cur.rules.forEach((ru, k) => { const rw = el("div"); rw.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:2px 0";
+          const A = sel(SRC, ru.a), O = sel(OPS, ru.op), B = sel(SRC.concat([["value", Lg("number","رقم")]]), ru.b), V = el("input"), OF = el("input"), X = el("button", null, "✕");
+          V.type = "number"; V.step = "any"; V.value = ru.v != null ? ru.v : ""; V.style.width = "70px"; V.hidden = ru.b !== "value"; OF.type = "number"; OF.step = "any"; OF.value = ru.off || 0; OF.style.width = "70px"; OF.title = Lg("+/- points added to the right side","+/- نقاط على الطرف اليمين");
+          A.onchange = () => ru.a = A.value; O.onchange = () => ru.op = O.value; B.onchange = () => { ru.b = B.value; V.hidden = ru.b !== "value"; }; V.oninput = () => ru.v = +V.value; OF.oninput = () => ru.off = +OF.value; X.onclick = () => { cur.rules.splice(k, 1); rules(); };
+          rw.append(A, O, B, V, document.createTextNode(Lg(" ± pts "," ± نقاط ")), OF, X); rbox.append(rw); }); };
+      rules();
+      const add = el("button", null, "＋ "+Lg("rule","شرط")), sv = el("button", null, "💾 "+Lg("Save","احفظ")), cn = el("button", null, Lg("Cancel","إلغاء"));
+      add.onclick = () => { cur.rules.push({a:"close", op:"<", b:"vwap", off:0}); rules(); };
+      sv.onclick = () => { cur.name = nm.value.trim() || Lg("My strategy","استراتيجيتي"); cur.side = sd.value; cur.sym = sy.value.trim(); cur.stop = +stp.value || 1; if (cur.sym){ try { new RegExp(cur.sym); } catch(e){ alert(Lg("Symbols: not a valid pattern","الرموز: صيغة غلط")); return; } }
+        if (!cur.rules.length){ alert(Lg("Add at least one rule","ضيف شرط واحد على الأقل")); return; } const i = cur._i; delete cur._i; if (i != null) list[i] = cur; else list.push(cur); this.saveCustoms(list); cur = null; onSave(); paint(); };
+      cn.onclick = () => { cur = null; paint(); };
+      const r3 = el("div"); r3.style.cssText = "display:flex;gap:6px"; r3.append(add, sv, cn); f.append(r3); m.append(f); };
+    paint(); document.body.append(m); const r = anchor.getBoundingClientRect(); m.style.top = Math.min(r.bottom + 4, innerHeight - 100)+"px"; m.style.left = Math.max(6, Math.min(r.left, innerWidth - m.offsetWidth - 6))+"px";
+    setTimeout(() => document.addEventListener("pointerdown", function h(ev){ if (!m.contains(ev.target) && ev.target !== anchor){ m.remove(); document.removeEventListener("pointerdown", h, true); } }, true), 0);
+  },
   // forward record from the journal for one style (+ one school): the real test
   record(style, det){ const key = det ? this.detKey(det) : null, L_ = (Journal.list || []).filter(t => (t.tags || []).some(g => key ? g === key : /^TC /.test(g)) && (!style || t.ttype === style));
     const done = L_.filter(t => t.status === "tp" || t.status === "sl"), w = done.filter(t => t.status === "tp").length, R = done.reduce((s, t) => s + (t.r || 0), 0);
@@ -6617,7 +6704,7 @@ const TC = {
 };
 Panel.prototype.build_tclass = function(){
   const S = this.state.tc = Object.assign({style:"Scalp", tgt:0, uni:"watch", cls:"All", max:20, show:"tw", dir:"both", dets:TC.DETS.map(d => d[0]), push:true}, this.state.tc || {});
-  if (!Array.isArray(S.dets)) S.dets = TC.DETS.map(d => d[0]);
+  if (!Array.isArray(S.dets) || S.detsV !== 2){ S.dets = TC.DETS.map(d => d[0]); S.detsV = 2; }   // v2 added VWAP / MA / session / my strategies: switched on for saved layouts too
   if (!document.getElementById("tcCss")){ const st = el("style"); st.id = "tcCss"; st.textContent =
     ".tcw .tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.tcw .tb select,.tcw .tb button{font-size:12px}"
     +".tcw .sum{font-size:12px;padding:5px 6px;margin:4px 0;border:1px solid var(--line);border-radius:6px;line-height:1.5}"
@@ -6648,7 +6735,10 @@ Panel.prototype.build_tclass = function(){
     setTimeout(() => document.addEventListener("pointerdown", function h(ev){ if (!m.contains(ev.target)){ m.remove(); document.removeEventListener("pointerdown", h, true); } }, true), 0); };
   const rf = stop_(el("button", null, "⟳ "+Lg("Study now","ادرس دلوقتي"))), pu = el("label"), pc = stop_(el("input")); pc.type = "checkbox"; pc.checked = S.push !== false;
   pu.append(pc, document.createTextNode(Lg(" → Alerts"," ← التنبيهات"))); pu.title = Lg("Send TAKE trades (price at the zone) to Alerts, the Setup Card, the top strip and the journal","ابعت صفقات «ادخل» (السعر عند المنطقة) للتنبيهات وكارت الصفقة والشريط والجورنال");
-  pc.onchange = () => { S.push = pc.checked; Ws.save(); }; tb.append(schB, rf, pu);
+  pc.onchange = () => { S.push = pc.checked; Ws.save(); };
+  const myB = stop_(el("button", null, "★ "+Lg("My strategies","استراتيجياتي"))); myB.title = Lg("Add your own rules (e.g. price 25 points under VWAP, EMA cross ...): they are judged like every other school","ضيف قواعدك (مثلًا السعر تحت الـVWAP بـ25 نقطة، تقاطع متوسطات ...): بتتحكم عليها زي أي مدرسة");
+  myB.onclick = e => { e.stopPropagation(); TC.editor(myB, () => go(true)); };
+  tb.append(schB, myB, rf, pu);
   const sum = el("div","sum"), box = el("div"); this.body.append(tb, sum, box);
   const chartSym = () => { const ch = Ws.panels.find(p => p.type === "chart"); return ch ? ch.state.sym : SYMS[0]; };
   const syms = () => (S.uni === "watch" ? SYMS.slice() : [chartSym()]).filter(s => S.cls === "All" || symClass(s) === S.cls).slice(0, S.max || 20);
@@ -6688,6 +6778,12 @@ Panel.prototype.build_tclass = function(){
     list.sort((a, b) => (TC_VR[b[2][0].j.verdict] - TC_VR[a[2][0].j.verdict]) || (b[2][0].j.score - a[2][0].j.score));
     const bo = list.find(([, , ids]) => ids[0].j.verdict !== "SKIP");
     if (bo) sum.innerHTML += '<br>🏆 '+esc(Lg("Best of all now: ","الأفضل من الكل دلوقتي: "))+'<b>'+esc(bo[0].replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+' '+(bo[2][0].side > 0 ? "▲" : "▼")+' '+esc(bo[2][0].label)+'</b> ('+VT[bo[2][0].j.verdict]+', '+bo[2][0].j.score+')';
+    { const ns = TC.nextSession(), cand = list.filter(([, , ids]) => ids[0].j.verdict !== "SKIP" && ["session","vwap","struct","bounce","vp"].includes(ids[0].det)).slice(0, 5);
+      if (ns && (S.style === "Scalp" || S.style === "Day Trade")) sum.innerHTML += '<br>⏰ '+esc(Lg("Next session: ","الجلسة الجاية: "))+'<b>'+esc(ns.name)+'</b> '+esc(Lg("in ","بعد "))+ns.in
+        +(cand.length ? ' · '+esc(Lg("candidates before it: ","المرشحين قبلها: "))+cand.map(([s_, , ids]) => esc(s_.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+" "+(ids[0].side > 0 ? "▲" : "▼")+" "+esc(ids[0].label)).join(" · ") : ""); }
+    { const lb = TC.DETS.map(d => [d, TC.record(S.style, d[0])]).filter(([, r]) => r.done > 0).sort((x, y) => (y[1].avgR || 0) - (x[1].avgR || 0));
+      sum.innerHTML += '<br><span class="m">📚 '+esc(Lg("Schools in your journal (","المدارس في الجورنال ("))+esc(ttTxt(S.style))+'): '+(lb.length ? lb.map(([d, r]) => esc(Lg(d[1], d[2]))+" "+r.done+" · "+Math.round(100*r.win/r.done)+"% · "+(r.avgR >= 0 ? "+" : "")+r.avgR.toFixed(2)+"R").join(" | ")
+        +esc(Lg(" — the engine adds / removes weight from a school after 10 closed trades; under 30 = not evidence"," — المحرك بيزوّد / يقلل وزن المدرسة بعد 10 صفقات مقفولة؛ أقل من 30 = مش دليل")) : esc(Lg("no closed trades yet","لسه مفيش صفقات مقفولة")))+'</span>'; }
     let h = "", shown = 0;
     list.forEach(([s, r, ids]) => { const x = ids[0]; if (!showOk(x.j.verdict)) return; shown++;
       const others = ids.slice(1, 4).map(o => esc(o.label)+" ("+VT[o.j.verdict]+", "+o.j.score+")").join(" · ");

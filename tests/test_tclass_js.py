@@ -62,6 +62,20 @@ out.kz = J({scalp:true, ses:"off-KZ"}).pros.some(p => /kill zone/.test(p[1]));
 const up = []; for (let i = 0; i < 80; i++){ const c = i < 50 ? 100 + 10*Math.sin(i/5) : 100 + (i - 50)*0.6; up.push({o:c, h:c + .3 + 0.05*Math.abs(Math.sin(i*7.3)), l:c - .3 - 0.05*Math.abs(Math.sin(i*3.1)), c}); }
 out.brk = TCE.structure(up, 40).map(x => x.side+x.kind);
 out.vp = TCE.vpNodes({bins:[1,2,9,2,1,1,6,1,1,1], lo:0, st:1, poc:2.5, vah:3, val:2}).map(x => x.src);
+// ---- indicators, session levels, user rules ----
+const D = 864e5, day0 = 20000*D;   // a Monday 00:00 UTC is day 20000+? (checked via wopen below)
+const ir = []; for (let i = 0; i < 300; i++){ const t = day0 + i*3600e3, c = 20000 + 40*Math.sin(i/6) + (i >= 290 ? -(i - 289)*20 : 0); ir.push({t, o:c, h:c + 5, l:c - 5, c, v:10}); }
+const I = TCE.indicators(ir), li = ir.length - 1;
+out.vw = {last:I.vwap[li], u2:I.vwapU2[li] > I.vwap[li], l2:I.vwapL2[li] < I.vwap[li]};
+const DL = TCE.dayLevels(ir); out.dl = {pdh:DL.pdh, pdl:DL.pdl, has:DL.dopen != null && DL.wopen != null};
+// owner's Nasdaq idea: close < vwap - 25 pts (ps 1)
+out.nq = TCE.rulesOk([{a:"close", op:"<", b:"vwap", off:-25}], I, li, 1);
+out.nqNo = TCE.rulesOk([{a:"close", op:"<", b:"vwap", off:-25}], I, 100, 1) === (I.close[100] < I.vwap[100] - 25);
+out.xa = (() => { const J = {a:[1, 3], b:[2, 2]}; return [TCE.rule({a:"a", op:"xa", b:"b"}, J, 1, 1), TCE.rule({a:"a", op:"xb", b:"b"}, J, 1, 1), TCE.rule({a:"a", op:">", b:"value", v:2.5}, J, 1, 1)]; })();
+out.empty = TCE.rulesOk([], I, li, 1);
+out.rsi = [TCE.rsi([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], 14)[15], TCE.sma([1,2,3,4], 2)[3]];
+const hourly = []; for (let i = 0; i < 48; i++) hourly.push({t:day0 + i*3600e3, o:i, h:i + 1, l:i - 1, c:i, v:1});
+out.dl2 = TCE.dayLevels(hourly);
 process.stdout.write(JSON.stringify(out));
 """
 r = subprocess.run(["node", "-e", js], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
@@ -95,4 +109,9 @@ assert o["down"] == "WAIT", o["down"]                                           
 assert o["kz"] is False                                                                # "off-KZ" is not a kill zone
 assert any(x.startswith("1") for x in o["brk"]), o["brk"]
 assert o["vp"][:3] == ["POC", "VAH", "VAL"] and "HVN" in o["vp"], o["vp"]
+assert o["vw"]["u2"] and o["vw"]["l2"], o["vw"]
+assert o["nq"] is True and o["nqNo"] is True, (o["nq"], o["nqNo"])          # last bars fall ~200 pts under the session VWAP: the Nasdaq rule fires
+assert o["xa"] == [True, False, True] and o["empty"] is False, o["xa"]
+assert o["rsi"][0] == 100 and o["rsi"][1] == 3.5, o["rsi"]
+assert o["dl2"]["pdh"] == 24 and o["dl2"]["pdl"] == -1 and o["dl2"]["dopen"] == 24, o["dl2"]   # hours 0-23 = yesterday (high 23+1, low 0-1), today opens at 24
 print("ok tclass engine: %d events (%d long / %d short), median bounce %.2f, auto target %s pts" % (o["n"], o["longs"], o["shorts"], o["st"]["median"], c[0]["autoPts"]))

@@ -242,7 +242,7 @@ def build(symbol: str, frames: dict, mode: str = "conf", trigger_tfs=None, schoo
             "entry": pl["entry"], "stop": pl["stop_loss"], "tps": tps, "book": pl.get("book"), "risk_points": round(risk / pt), "move_points": round(move), "rr1": round(rr1, 2),
             "point": pt, "confluence": {"bias": bias, "bias_strength": strength, "agree": agree, "n": len(agree), "of": len(CHAIN), "views": {t: views[t]["dir"] for t in CHAIN if t in views}},
             "schools": sch, "reasons": [f"{s.get('icon', '')} {s['name']}" for s in v["signals"][:6]], "keys": [s.get("key") for s in v["signals"]],
-            "exit": ex, "session": clock, "t": str(v["time"]),
+            "exit": ex, "atr": v["atr"], "session": clock, "t": str(v["time"]),
         })
     out.sort(key=lambda p: (-p["confluence"]["n"], -p["stars"], -p["rr1"]))
     return out
@@ -303,6 +303,78 @@ def format_watch(items, ar: bool = True, limit: int = 6) -> str:
                      f"{esc(', '.join(w['names']))}\n<i>{esc(', '.join(w['schools']))}</i>")
     lines.append("\n<i>سياق مش إشارة دخول؛ ما اتقاسش في اللاب لسه (n<30).</i>" if ar else "\n<i>Context, not an entry signal; not measured by the lab yet (n<30).</i>")
     return "\n".join(lines)[:3900]
+
+
+# detector keys worth a Telegram alert of their own (owner 2026-11-06: SMT, CRT, CISD, ICT, Elliott wave 3, any chart pattern that points a direction from 100 points)
+ALERT_KEYS = ("cisd", "crt", "kzs", "sweep", "m2022", "ew3", "ew5", "wavec", "smt", "po3", "judas", "sess_amd", "orb", "unicorn", "breaker", "msb_ob",
+              "rect", "dbl", "wyck", "pa_engulf", "pa_pin", "pa_inside", "pa_star", "tlbreak", "liqline")
+
+
+def setup_alerts(symbol: str, frames: dict, keys=ALERT_KEYS, min_points: float = 100, tfs=("15m", "1h", "4h"), clock: dict | None = None, min_rr: float = 1.0) -> list:
+    """One alert per detector key that fired on a timeframe, with its OWN plan (entry / stop / targets built only from that signal) and the expected move in points. A key whose plan
+    cannot reach `min_points` is dropped. Not a trade recommendation: the text carries the higher-timeframe bias so you can see whether it goes with or against it."""
+    views = {tf: tf_view(frames.get(tf), tf) for tf in CHAIN}
+    views = {k: v for k, v in views.items() if v}
+    bias, _ = htf_bias(views)
+    clock = clock or session_clock()
+    out = []
+    for tf in tfs:
+        v = views.get(tf)
+        if not v:
+            continue
+        from modules.scorer import cached_detect
+        sigs, _e = cached_detect(frames[tf])
+        for d in ("bullish", "bearish"):
+            for k in keys:
+                mine = [x for x in sigs if x.get("key") == k and x["direction"] == d]
+                if not mine:
+                    continue
+                sub = {**v, "signals": mine}
+                try:
+                    pl = _plan(sub, d)
+                except Exception:
+                    continue
+                risk = abs(pl["entry"] - pl["stop_loss"])
+                pt = point_size(symbol, v["price"])
+                if risk <= 0:
+                    continue
+                tps = pl["take_profits"]
+                move = max(abs(t - pl["entry"]) for t in tps) / pt
+                if move < min_points or abs(tps[0] - pl["entry"]) / risk < min_rr:
+                    continue
+                out.append({"id": f"setup|{symbol}|{k}|{d}|{tf}", "symbol": symbol, "key": k, "tf": tf, "direction": d, "names": [x["name"] for x in mine[:2]], "schools": schools_of(mine),
+                            "entry": pl["entry"], "stop": pl["stop_loss"], "tps": tps, "risk_points": round(risk / pt), "move_points": round(move), "bias": bias,
+                            "with_bias": bias == d if bias else None, "session": clock, "price": v["price"]})
+    return out
+
+
+def scan_setups(symbols, fetch, **kw) -> list:
+    clock = session_clock()
+    res = []
+    for sym in symbols:
+        frames = {}
+        for tf in CHAIN:
+            try:
+                frames[tf] = fetch(sym, tf)
+            except Exception:
+                frames[tf] = None
+        try:
+            res += setup_alerts(sym, frames, clock=clock, **kw)
+        except Exception:
+            continue
+    res.sort(key=lambda a: (not a["with_bias"], -a["move_points"]))
+    return res
+
+
+def format_setup(a: dict, ar: bool = True) -> str:
+    import html
+    esc = html.escape
+    up = a["direction"] == "bullish"
+    wb = {True: ("مع اتجاه 1D+4H", "with the 1D+4H bias"), False: ("عكس اتجاه 1D+4H", "against the 1D+4H bias"), None: ("1D+4H مش محسوم", "1D+4H undecided")}[a["with_bias"]]
+    return (f"🔔 <b>{esc(a['key'].upper())}</b> {'🟢' if up else '🔴'} <b>{esc(a['symbol'])}</b> {a['tf'].upper()} · {wb[0] if ar else wb[1]}\n"
+            f"{'دخول' if ar else 'Entry'} {a['entry']} · {'وقف' if ar else 'Stop'} {a['stop']} ({a['risk_points']} {'نقطة' if ar else 'pts'}) · {'أهداف' if ar else 'Targets'} {' / '.join(str(x) for x in a['tps'])} · "
+            f"{'حركة محتملة' if ar else 'possible move'} {a['move_points']} {'نقطة' if ar else 'pts'}\n<i>{esc(', '.join(a['names']))} · {esc(session_label(a['session'], ar))}</i>\n"
+            f"<i>{'تنبيه سيتاب مش توصية؛ ما اتقاسش كله في اللاب (n<30 للجديد).' if ar else 'A setup alert, not advice; new detectors are not lab-measured yet (n<30).'}</i>")[:3900]
 
 
 def scan(symbols, fetch, mode: str = "conf", **kw) -> list:

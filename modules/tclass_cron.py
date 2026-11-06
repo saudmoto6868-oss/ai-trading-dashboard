@@ -4,8 +4,8 @@
     python -m modules.tclass_cron --dry    # print what WOULD be sent (no Telegram call)
 
 Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Optional: TC_STYLES="Day Trade,Swing" (the job runs every 30 min, too slow for Scalp)
-TC_MIN=4 (strength out of 6) TC_TOP=3 TC_SYMBOLS="BTC-USDT,ETH-USDT" (default: config.CRYPTO_SYMBOLS) TC_TARGET=0 (points, 0 = auto).
-Only trades with price AT the zone now are sent. Already-sent trades are remembered in .tc_sent.json (actions/cache); a trade is
+TC_MIN=3 (minimum score; only verdict TAKE is ever sent) TC_TOP=3 TC_SYMBOLS="BTC-USDT,ETH-USDT" (default: config.CRYPTO_SYMBOLS) TC_TARGET=0 (points, 0 = auto).
+Only the best idea of each symbol, verdict TAKE (same deliberation as the widget), with price AT the zone now, is sent. Already-sent trades are remembered in .tc_sent.json (actions/cache); a trade is
 re-sent only after 12 h. The log prints counts only."""
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ RESEND_S = 12 * 3600
 
 
 def key(c: dict) -> str:
-    return f"{c['symbol']}|{c['direction']}|{c['style']}|{c['level']:.6g}"
+    return f"{c['symbol']}|{c['direction']}|{c['style']}|{c['det']}|{c['level']:.6g}"
 
 
 def load_state() -> dict:
@@ -37,8 +37,8 @@ def save_state(sent: dict):
 
 def pick(cands: list[dict], sent: dict, min_score: int, top: int, now: float | None = None) -> list[dict]:
     now = now or time.time()
-    ok = [c for c in cands if c["now"] and c["score"] >= min_score and now - sent.get(key(c), 0) > RESEND_S]
-    ok.sort(key=lambda c: (-c["score"], -c["rr"]))
+    ok = [c for c in cands if c["now"] and c["j"]["verdict"] == "TAKE" and c["j"]["score"] >= min_score and now - sent.get(key(c), 0) > RESEND_S]
+    ok.sort(key=lambda c: (-c["j"]["score"], -c["j"]["rr"]))
     return ok[:max(1, top)]
 
 
@@ -53,12 +53,14 @@ def main(argv=None) -> int:
     else:
         from config import CRYPTO_SYMBOLS
         syms = list(CRYPTO_SYMBOLS)
-    min_s, top, tgt = int(os.environ.get("TC_MIN", "4")), int(os.environ.get("TC_TOP", "3")), float(os.environ.get("TC_TARGET", "0"))
+    min_s, top, tgt = float(os.environ.get("TC_MIN", "3")), int(os.environ.get("TC_TOP", "3")), float(os.environ.get("TC_TARGET", "0"))
     cands, errs = [], 0
     for st in styles:
         for s in syms:
             try:
-                cands += TC.scan(s, st, get_klines, target_pts=tgt)
+                r = TC.scan(s, st, get_klines, target_pts=tgt)
+                if r:
+                    cands.append(r[0])   # the best idea of the symbol only (the others lost the comparison)
             except Exception:
                 errs += 1
     sent = load_state()

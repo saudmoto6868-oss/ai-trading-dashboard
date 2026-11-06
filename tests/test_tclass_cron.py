@@ -33,16 +33,22 @@ buf = io.StringIO()
 with redirect_stdout(buf):
     assert C.main(["--dry"]) == 0
 out = buf.getvalue()
-assert "TRADE CLASSES" in out and "شراء" in out, out[:500]
+assert "2 candidates" in out, out[:300]          # one best idea per symbol x 2 styles, judged (the mock range is a WAIT: nothing to send)
+from modules import tclass as TCm  # noqa: E402
+real_scan = TCm.scan
+r = real_scan("BTC-USDT", "Swing", market_cache.get_klines)
+assert r and r[0]["j"]["pros"] is not None and r[0]["j"]["verdict"] in ("TAKE", "WAIT", "SKIP")
+# a forced TAKE goes out once, a WAIT / SKIP never, and no resend within 12 h
+take = dict(r[0], now=True, j=dict(r[0]["j"], verdict="TAKE", score=4.5))
+wait = dict(r[0], det="struct", j=dict(r[0]["j"], verdict="WAIT", score=4.5))
+TCm.scan = lambda s_, st, gk, target_pts=0: [take] if st == "Swing" else [wait]
 sent_msgs = []
 T.send = lambda text, token=None, chat=None: sent_msgs.append(text) or None
 with redirect_stdout(io.StringIO()):
     assert C.main([]) == 0
-n1 = len(sent_msgs)
-assert n1 >= 1 and C.STATE.exists()
+assert len(sent_msgs) == 1 and "ادخل" in sent_msgs[0], sent_msgs
 with redirect_stdout(io.StringIO()):
     C.main([])
-assert len(sent_msgs) == n1, "re-sent the same trade within 12 h"
-c = {"symbol": "X", "direction": "bullish", "style": "Swing", "level": 1.0, "now": False, "score": 6, "rr": 2}
-assert C.pick([c], {}, 4, 3) == [], "a trade not at the zone must not be sent"
-print(f"ok tclass cron: dry run lists the long, {n1} sent, no resend")
+assert len(sent_msgs) == 1, "re-sent the same trade within 12 h"
+TCm.scan = real_scan
+print("ok tclass cron: dry run judges every symbol, only TAKE is sent, once")

@@ -56,6 +56,7 @@ SCHOOL = {
     "harm_gartley_tight": "Harmonic: Gartley", "harm_bat_tight": "Harmonic: Bat", "harm_butterfly_tight": "Harmonic: Butterfly", "harm_crab_tight": "Harmonic: Crab", "harm_cypher_tight": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
+    "pa_engulf": "Price action", "pa_pin": "Price action", "pa_inside": "Price action", "pa_star": "Price action", "rect": "Chart patterns (range)", "dbl": "Chart patterns (range)", "wyck": "Wyckoff",
 }
 for _n in ("gartley", "bat", "butterfly", "crab", "cypher"):   # harmonic on volatility-scaled swings (added 2026-10-19)
     SCHOOL.update({f"harm_vol_{_n}": f"Harmonic: {_n.title()} (vol swings)", f"harm_vol_{_n}_tight": f"Harmonic: {_n.title()} (vol swings)"})

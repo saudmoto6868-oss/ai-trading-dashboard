@@ -79,6 +79,9 @@ STRATEGY_FILTERS = {
     "st_bvd": ("Breakout + volume delta (strong close through a swing)", ("extra", "bvd")),
     "st_smt": ("SMT divergence (correlated pairs, e.g. BTC / ETH / SOL)", ("key", "smt")),
     "st_crt": ("CRT - Candle Range Theory (HTF range sweep + reclaim)", ("key", "crt")),
+    "st_pa_engulf": ("Price action · engulfing at support / resistance", ("key", "pa_engulf")), "st_pa_pin": ("Price action · hammer / pin bar at a level", ("key", "pa_pin")),
+    "st_pa_inside": ("Price action · inside-bar breakout", ("key", "pa_inside")), "st_pa_star": ("Price action · morning / evening star at a swing", ("key", "pa_star")),
+    "st_rect": ("Rectangle (range) breakout + retest", ("key", "rect")), "st_dbl": ("Double top / bottom neckline break", ("key", "dbl")), "st_wyck": ("Wyckoff spring / upthrust (range sweep)", ("key", "wyck")),
     "st_sessamd": ("ICT session AMD: Asian range swept in London, back inside (intraday)", ("key", "sess_amd")),
     "st_orb": ("Session opening-range breakout (first 15 min of London / New York)", ("key", "orb")),
     "st_kzs": ("Kill Zone Sniper (sweep + displacement inside London / NY kill zone, volume-confirmed)", ("key", "kzs")),
@@ -111,6 +114,9 @@ SCHOOL_FILTERS = {
     "sch_mom":      ("School · Momentum / divergence",    ("school", "Momentum / divergence")),
     "sch_level":    ("School · Levels / breakouts",       ("school", "Levels / breakouts")),
     "sch_smt":      ("School · Intermarket / SMT",        ("school", "Intermarket (SMT)")),
+    "sch_pa":       ("School · Price action (candles at levels)", ("school", "Price action")),
+    "sch_rect":     ("School · Chart patterns (rectangle / double top-bottom)", ("school", "Chart patterns (range)")),
+    "sch_wyck":     ("School · Wyckoff (spring / upthrust)", ("school", "Wyckoff")),
 }
 STRATEGY_FILTERS.update(SCHOOL_FILTERS)
 
@@ -269,9 +275,14 @@ def strategy_flags(df: pd.DataFrame, peers: dict | None = None):
                 sigs = list(sigs) + smt_signals(df, pdf, psym, inv)
             except Exception:
                 pass
+    try:
+        from modules.strategy_lab import SCHOOL as _SCHOOL   # detector key -> school name (the weekly lab's grouping)
+    except Exception:
+        _SCHOOL = {}
     for sg in sigs:
+        sch = _SCHOOL.get(sg.get("key")) or ("Elliott wave" if sg.get("family") == "Elliott" else None)   # the signals themselves carry no 'school': the "School ·" filters never fired before (found 2026-11-06)
         for fid, (_lab, (kind, val)) in STRATEGY_FILTERS.items():
-            if sg.get(kind) == val:
+            if sg.get(kind) == val or (kind == "school" and sch and sch.startswith(val)):
                 flags.add(fid)
                 sides.setdefault(fid, set()).add("buy" if sg.get("direction") == "bullish" else "sell")
     try:
@@ -294,7 +305,8 @@ def strategy_flags(df: pd.DataFrame, peers: dict | None = None):
             if sd:
                 flags.add(fid); sides.setdefault(fid, set()).add(sd)
         for hp in find_harmonics(d):
-            flags.add("st_harm"); sides.setdefault("st_harm", set()).add("buy" if hp["dir"] == "bull" else "sell")
+            for fid in ("st_harm", "sch_harmonic"):
+                flags.add(fid); sides.setdefault(fid, set()).add("buy" if hp["dir"] == "bull" else "sell")
     except Exception:
         pass
     return flags, sides

@@ -84,11 +84,52 @@ function wsRecBtn(){
   };
   return b;
 }
+/* widget menu: the native <select> stays (layouts, tests, XCMD use it) but is hidden on desktop; a styled menu opens from the "+ Widget" button:
+   colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
+const WGROUPS = () => [
+  [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
+  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["dom","tape","limits","risk"]],
+  [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
+  [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
+  [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
+  [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
+const WCODE = {tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+  fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
+const WNEW = new Set(["tclass"]);   // gets a small NEW mark in the menu
+function wMenuBtn(sel){
+  if (!document.getElementById("wmCss")){ const st = el("style"); st.id = "wmCss"; st.textContent =
+    "#wmBtn{font-weight:700;padding:2px 10px;border-radius:5px;border:1px solid #f0b90b;color:#f0b90b;background:rgba(240,185,11,.08);cursor:pointer}#wmBtn:hover,#wmBtn.on{background:#f0b90b;color:#000}"
+    +"#wmenu{position:fixed;z-index:99999;background:var(--panel,#161a1e);border:1px solid var(--line,#2b3139);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:10px;max-height:82vh;overflow:auto;width:min(620px,96vw);column-count:2;column-gap:12px;font-family:inherit}"
+    +"@media (max-width:640px){#wmenu{column-count:1}}"
+    +"#wmenu .wg{break-inside:avoid;margin-bottom:10px;border-radius:8px;padding:6px;background:linear-gradient(180deg,color-mix(in srgb,var(--gc) 12%,transparent),transparent 70%);border-top:2px solid var(--gc)}"
+    +"#wmenu .wh{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gc);padding:2px 4px 6px}"
+    +"#wmenu .wi{display:flex;align-items:center;gap:9px;width:100%;padding:6px 6px;border:0;border-radius:6px;background:none;color:var(--txt,#eaecef);font-size:14px;font-weight:600;cursor:pointer;text-align:start}"
+    +"#wmenu .wi:hover,#wmenu .wi:focus{background:color-mix(in srgb,var(--gc) 22%,transparent);outline:none}"
+    +"#wmenu .wb{flex:none;min-width:38px;height:24px;padding:0 5px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font:800 11px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em;color:#0b0e11;background:linear-gradient(135deg,var(--gc),color-mix(in srgb,var(--gc) 60%,#fff));box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}"
+    +"#wmenu .wnew{margin-inline-start:auto;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;background:#f6465d;color:#fff}";
+    document.head.append(st); }
+  const b = el("button", null, esc(T("add"))+" ▾"); b.id = "wmBtn"; b.title = Lg("Add a widget","أضف ويدجت");
+  const close = () => { const m = document.getElementById("wmenu"); if (m) m.remove(); b.classList.remove("on"); document.removeEventListener("pointerdown", out, true); document.removeEventListener("keydown", esc_, true); };
+  const out = e => { const m = document.getElementById("wmenu"); if (m && !m.contains(e.target) && e.target !== b) close(); }, esc_ = e => { if (e.key === "Escape") close(); };
+  const pick = v => { close(); sel.value = v; sel.onchange(); };
+  b.onclick = () => { if (document.getElementById("wmenu")) return close();
+    const m = el("div"); m.id = "wmenu"; m.dir = lang === "ar" ? "rtl" : "ltr";
+    const groups = WGROUPS().concat([[lang === "ar" ? "التخطيط" : "Layout", "#2ec4b6", [...sel.querySelectorAll("option")].map(o => o.value).filter(v => v.startsWith("@"))]]);
+    groups.forEach(([g, col, ts]) => { const box = el("div","wg"); box.style.setProperty("--gc", col); box.append(el("div","wh", esc(g)));
+      ts.forEach(t => { const o = [...sel.options].find(x => x.value === t); if (!o) return; const it = el("button","wi"); it.dataset.v = t;
+        it.innerHTML = '<span class="wb">'+esc(WCODE[t] || t.slice(0,3).toUpperCase())+'</span><span>'+esc(o.textContent)+'</span>'+(WNEW.has(t) ? '<span class="wnew">NEW</span>' : '');
+        it.onclick = () => pick(t); box.append(it); });
+      m.append(box); });
+    document.body.append(m); const r = b.getBoundingClientRect(), w = m.offsetWidth;
+    m.style.top = Math.min(r.bottom + 4, innerHeight - 60)+"px"; m.style.left = Math.max(6, Math.min(lang === "ar" ? r.right - w : r.left, innerWidth - w - 6))+"px";
+    b.classList.add("on"); setTimeout(() => { document.addEventListener("pointerdown", out, true); document.addEventListener("keydown", esc_, true); }, 0); };
+  return b;
+}
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
   if (CFG.build){ const bld = el("span", "bld", "build "+CFG.build); bld.title = Lg("The commit of the code that is running now (after a merge the app needs a few minutes and a Reboot from Streamlit Cloud)", "رقم الكومت اللي شغال دلوقتي (بعد أي دمج التطبيق بياخد كام دقيقة ومحتاج Reboot من Streamlit Cloud)"); bld.style.cssText = "order:99;margin-left:auto;font:10px ui-monospace,Menlo,Consolas,monospace;color:#6b7684;padding:0 8px;white-space:nowrap;align-self:center"; bar.append(bld); }   // which build is live
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
-  [[Lg("Decision","القرار"), ["chart","setup","signals","alerts","tclass"]], [Lg("Execution / order flow","التنفيذ والأوردر فلو"), ["dom","tape","limits","risk"]], [Lg("Markets","الأسواق"), ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]], [Lg("Context (fundamental)","السياق (الأساسي)"), ["fund","macrof","stockf","cmc","news"]], [Lg("Review","المراجعة"), ["journal","notes"]], [Lg("Settings","الإعدادات"), ["settings"]]]
+  WGROUPS().map(([g, , ts]) => [g, ts])
     .forEach(([g, ts]) => { const og_ = Object.assign(el("optgroup"), {label:g}); ts.forEach(t => og_.append(Object.assign(el("option"), {textContent:T(t), value:t}))); sel.append(og_); });
   const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@std",Lg("Standard: 4 charts + order flow","الستاندر: ٤ شارتس + أوردر فلو")],["@save",Lg("Save current layout as my standard","احفظ التخطيط الحالي كستاندر بتاعي")],["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
   sel.onchange = () => { const v = sel.value; if (v === "@trading" || v === "@std"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@save"){ try { store.set(LS+"_std", { v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) }); alert(Lg("Saved: this layout is now your standard (it opens first, and \"Standard\" restores it).", "اتحفظ: التخطيط ده بقى الستاندر بتاعك (بيفتح أول حاجة، و«الستاندر» بيرجّعه).")); } catch(e){} } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
@@ -99,7 +140,8 @@ function buildBar(){
 zSet(+store.get(zKey, zDef));   // the saved size applies from the start, so the charts open at it too
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
-if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el("span","sp")); }
+sel.style.display = "none"; const wmb = wMenuBtn(sel);
+if (!MOB){ bar.append(sel, wmb, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
     const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };
@@ -110,7 +152,7 @@ if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el
     const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
     const cap = el("div"); cap.style.cssText = "display:flex;align-items:center;gap:8px;padding:8px 12px"; cap.append(el("span", null, Lg("Capture","التصوير")), wsShotBtn(), wsRecBtn());
     menu.append(mt, zr, cap); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
-    bar.append(sel, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
+    bar.append(sel, wmb, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
   zSet(+store.get(zKey, zDef)); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }

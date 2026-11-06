@@ -51,6 +51,15 @@ def digest_slot(now_utc: datetime):
     return None
 
 
+def horizon_slot(now_utc: datetime):
+    """The 4-hour mark (NY clock 00/04/08/12/16/20) this pass falls in, within the first 30 minutes; None otherwise. Returns 'YYYY-MM-DD-HH'."""
+    from modules.event_clock import NY
+    loc = now_utc.astimezone(NY)
+    if loc.hour % 4 == 0 and loc.minute < 30:
+        return loc.strftime("%Y-%m-%d-%H")
+    return None
+
+
 def review_due(now_utc: datetime):
     from modules.event_clock import NY
     loc = now_utc.astimezone(NY)
@@ -73,7 +82,12 @@ def build_top(fetch, syms, top: int = 7):
             calm[s] = daily_top.calm_stats(fetch(s, "1h"))
         except Exception:
             calm[s] = None
-    items = daily_top.rank(plans, smt, watch, calm, top=top)
+    from modules import brain
+    try:
+        weights = brain.school_weights(brain.load(), brain.load_graded())
+    except Exception:
+        weights = {}
+    items = daily_top.rank(plans, smt, watch, calm, top=top, weights=weights)
     return items, plans, watch, smt
 
 
@@ -120,6 +134,36 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
                 out(f"smt|{e['id']}", f"🔔 <b>SMT</b> {intermarket.chips([e], ar=True)[0]['label']} · {e['session']}\n{e['text_ar']}")
     except Exception:
         pass
+    # liquidity sweeps of previous day / week / month highs and lows and the Asian range (fresh: last 3 hourly candles)
+    try:
+        from modules import level_sweeps
+        for a in level_sweeps.scan(syms, fetch)[:int(os.environ.get("BRAIN_MAX_SWEEPS", "4"))]:
+            out(a["id"], level_sweeps.format_sweep(a))
+    except Exception as e:
+        msgs.append(f"(sweeps skipped: {type(e).__name__})")
+    # news from outside the calendar (RSS, tiers A / B / C); dedupe by normalized title
+    if os.environ.get("BRAIN_NEWS", "1") != "0":
+        try:
+            from modules import news_watch
+            items, _dead = news_watch.fetch_all(news_watch.default_fetch_text)
+            for a in news_watch.alerts(items, now_utc)[:int(os.environ.get("BRAIN_MAX_NEWS", "3"))]:
+                out(a["id"], news_watch.format_news(a))
+        except Exception as e:
+            msgs.append(f"(news skipped: {type(e).__name__})")
+    # all-horizon scan (scalp / day / swing / position), A+ and A only, at the 4-hour marks of the New York clock
+    hs = horizon_slot(now_utc)
+    if hs and f"hz|{hs}" not in sent:
+        try:
+            from modules import horizons
+            plans = horizons.scan(syms, fetch)
+            if plans or os.environ.get("BRAIN_HZ_EMPTY", "0") == "1":
+                out(f"hz|{hs}", horizons.format_digest(plans))
+            else:
+                sent[f"hz|{hs}"] = now
+            if plans and not dry:
+                brain.record([dict(p, points=len(p["schools"])) for p in plans], now)
+        except Exception as e:
+            msgs.append(f"(horizons skipped: {type(e).__name__})")
     slot = digest_slot(now_utc)
     if slot and f"top7|{slot[1]}|{slot[0]}" not in sent:
         items, _p, _w, _s = build_top(fetch, syms, int(os.environ.get("BRAIN_TOP", "7")))

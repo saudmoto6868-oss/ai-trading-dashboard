@@ -550,6 +550,10 @@ def _tab_setup(d, px, fx):
     else:
         st.warning(T("Local disk only. Add SPOT_GH_TOKEN + SPOT_GH_REPO in Secrets to keep everything online (see docs/SPOT_DESK.md).",
                      "على ديسك السيرفر بس. ضيف SPOT_GH_TOKEN و SPOT_GH_REPO في Secrets عشان كله يتحفظ أونلاين (شوف docs/SPOT_DESK.md)."))
+    if st.button(T("Test storage (save + read a test file)", "اختبر التخزين (يحفظ ويقرا ملف تجربة)"), key="sp_stest"):
+        from modules.spot_store import self_test
+        ok, why = self_test(s)
+        (st.success if ok else st.error)((T("Storage works: ", "التخزين شغال: ") if ok else T("Storage FAILED: ", "التخزين فشل: ")) + why)
     if st.button(T("Reload from storage", "حمّل من التخزين تاني"), key="sp_reload"):
         load(force=True)
         st.rerun()

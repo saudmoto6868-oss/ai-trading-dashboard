@@ -1004,3 +1004,7 @@
 | 2026-11-06 11:23:10 | Bash | python3 - <<'EOF' import | نجح |
 | 2026-11-06 11:23:18 | Bash | git add -A; git | نجح |
 | 2026-11-06 11:23:23 | SendUserFile |  | نجح |
+| 2026-11-06 11:05:08 | Bash | git status --short; git | نجح |
+| 2026-11-06 11:25:39 | Bash | git pull -q origin | نجح |
+| 2026-11-06 11:26:02 | Bash | git stash -q; git | نجح |
+| 2026-11-06 11:26:05 | Bash | git status --short / | نجح |

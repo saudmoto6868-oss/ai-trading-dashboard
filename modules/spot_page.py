@@ -152,6 +152,26 @@ def _plan_for(hist_sym: str) -> dict:
     return p
 
 
+def _plan_card(p: dict, lad: list, k: float, cur: str) -> str:
+    """The trade split as one visible card: 3 staged buys (30/30/40), take-profit targets, invalidation (owner 2026-11-06:
+    'I do not see the trade split')."""
+    A, D, P, L = "#f7b500", "#8d93a0", "#15171a", "#2a2d33"
+    def box(title, inner):
+        return (f'<div style="flex:1;min-width:230px;background:{P};border:1px solid {L};border-radius:8px;padding:12px">'
+                f'<div style="color:{D};font-size:12px;letter-spacing:.06em;margin-bottom:8px">{title}</div>{inner}</div>')
+    buys = "".join(f'<div style="display:flex;justify-content:space-between;background:{A};color:#111;border-radius:5px;padding:8px 10px;margin-top:6px;font-weight:700">'
+                   f'<span>{T("Buy", "شراء")} {i + 1} · {w}% · {_n(r["usd"] * k)} {cur}</span><span dir="ltr">{_n(r["price"] * k)}</span></div>'
+                   for i, (r, w) in enumerate(zip(lad, (30, 30, 40))))
+    avg = C.ladder_avg(lad)
+    buys += f'<div style="color:{D};font-size:12px;margin-top:6px">{T("Average if all fill", "المتوسط لو الكل اتنفذ")}: <b dir="ltr">{_n(avg * k) if avg else "—"}</b> {cur}</div>'
+    tps = "".join(f'<div style="display:flex;justify-content:space-between;border:1px solid {A};color:{A};border-radius:5px;padding:8px 10px;margin-top:6px;font-weight:700">'
+                  f'<span>T{i + 1} · <span dir="ltr">{(x / p["price"] - 1) * 100:+.1f}%</span></span><span dir="ltr">{_n(x * k)}</span></div>' for i, x in enumerate(p["sells"]))
+    inv = (f'<div style="font-size:26px;font-weight:800;color:#e05a5a" dir="ltr">{_n((p["invalidation"] or 0) * k)}</div>'
+           f'<div style="color:{D};font-size:12px">{T("Weekly close below it = plan void, stop adding.", "قفلة أسبوعية تحته = الخطة تتلغي ووقف الشراء.")}</div>')
+    return (f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 10px">{box(T("TRADE SPLIT - STAGED BUYS", "تقسيم الصفقة - الشراء على دفعات"), buys or "—")}'
+            f'{box(T("TAKE PROFIT", "جني الربح"), tps or "—")}{box(T("INVALIDATION", "الإلغاء"), inv)}</div>')
+
+
 def _show_plan(asset: str, hist_sym: str, d: dict, live_px: float | None, fx: float | None, egp: bool):
     from modules.spot_plan import ACTION_TXT
     with st.spinner(T("Reading 1D / 1W / 1M with the schools ...", "بقرا اليومي والويكلي والشهري بالمدارس ...")):
@@ -172,21 +192,13 @@ def _show_plan(asset: str, hist_sym: str, d: dict, live_px: float | None, fx: fl
     if live_px and abs(live_px / p["price"] - 1) > 0.02:
         st.caption(T(f"History source closes at {_n(p['price'])}; live price {_n(live_px)} (perp / futures vs spot differ).",
                      f"مصدر التاريخ قافل على {_n(p['price'])} والسعر اللايف {_n(live_px)} (الفيوتشر/البيربتشوال بيختلف شوية عن السبوت)."))
-    budget = st.number_input(T("Budget for this asset (USD)", "الميزانية للأصل ده (دولار)"), min_value=0.0, value=float(d["settings"].get("budget", 1000.0)),
+    bc, _ = st.columns([1, 3])
+    budget = bc.number_input(T("Budget (USD)", "الميزانية (دولار)"), min_value=0.0, value=float(d["settings"].get("budget", 1000.0)),
                              step=100.0, key=f"sp_bud_{asset}")
     lad = C.ladder(p["buys"], budget)
-    l1, l2 = st.columns(2)
-    with l1:
-        st.markdown("**" + T("Staged buys (30 / 30 / 40 %)", "الشراء على دفعات (30 / 30 / 40 %)") + "**")
-        st.dataframe(pd.DataFrame([{T("Level", "المستوى"): _n(r["price"] * k), cur: _n(r["usd"] * k), T("Qty", "الكمية"): _n(r["qty"], 6)} for r in lad]),
-                     hide_index=True, width="stretch")
-        avg = C.ladder_avg(lad)
-        if avg:
-            st.caption(T("Average if all fill", "المتوسط لو كله اتنفذ") + f": {_n(avg * k)} {cur}")
-    with l2:
-        st.markdown("**" + T("Sell / take-profit levels", "مستويات البيع / جني الربح") + "**")
-        st.dataframe(pd.DataFrame([{T("Target", "الهدف"): f"T{i + 1}", cur: _n(x * k), "%": f"{(x / p['price'] - 1) * 100:+.1f}%"} for i, x in enumerate(p["sells"])]),
-                     hide_index=True, width="stretch")
+    st.markdown(_plan_card(p, lad, k, cur), unsafe_allow_html=True)
+    st.caption(T("Backtest (Mondays, 22 markets): the score alone did NOT pick better entries - use the levels, not the score, and size small.",
+                 "الباك تيست (كل اتنين، 22 سوق): الدرجة لوحدها ماختارتش نقط دخول أحسن - اشتغل بالمستويات مش بالدرجة، وبكمية صغيرة."))
     vt = {1: "🟢", -1: "🔴", 0: "⚪"}
     st.dataframe(pd.DataFrame([{"TF": r["tf"], T("Trend", "الاتجاه"): vt[r.get("v_trend", 0)] if r["available"] else T("no data", "مفيش داتا"),
                                 "Elliott": vt.get(r.get("v_elliott", 0)), "SMC / ICT": vt.get(r.get("v_smc_ict", 0)),
@@ -251,13 +263,14 @@ def _tab_crypto(d, cr, fx):
     rows = [r for r in cr if not q or q in r["base"]]
     if top.isdigit():
         rows = rows[:int(top)]
-    df = pd.DataFrame([{"#": i + 1, T("Coin", "العملة"): r["base"], "USD": r["last"], "24h %": None if r["chg24"] is None else round(r["chg24"], 2),
-                        T("Volume 24h (USD)", "الفوليوم 24 ساعة"): round(r["vol_usd"])} | ({"EGP": round(r["last"] * fx, 4)} if b2b and fx else {})
-                       for i, r in enumerate(rows)])
-    st.dataframe(df, hide_index=True, width="stretch", height=320)
     pick = st.selectbox(T("Plan for", "خطة لـ"), [r["base"] for r in rows] or ["BTC"], key="sp_cr_pick")
     live = next((r["last"] for r in cr if r["base"] == pick), None)
     _show_plan(pick, f"{pick}-USDT", d, live, fx, b2b)
+    with st.expander(T(f"Coin list ({len(rows)})", f"قايمة العملات ({len(rows)})")):
+        df = pd.DataFrame([{"#": i + 1, T("Coin", "العملة"): r["base"], "USD": r["last"], "24h %": None if r["chg24"] is None else round(r["chg24"], 2),
+                            T("Volume 24h (USD)", "الفوليوم 24 ساعة"): round(r["vol_usd"])} | ({"EGP": round(r["last"] * fx, 4)} if b2b and fx else {})
+                           for i, r in enumerate(rows)])
+        st.dataframe(df, hide_index=True, width="stretch", height=320)
     with st.expander(T("Scan the list (plan score for each coin)", "مسح القايمة (درجة الخطة لكل عملة)")):
         n = st.slider(T("How many coins (biggest volume first)", "كام عملة (الأكبر فوليوم الأول)"), 5, 60, 20, key="sp_scan_n")
         if st.button(T("Run the scan", "شغّل المسح"), key="sp_scan"):

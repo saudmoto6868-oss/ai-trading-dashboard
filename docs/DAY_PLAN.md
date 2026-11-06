@@ -19,5 +19,9 @@ and the next kill zone.
 **Telegram.** Standard plans are scanned in the background every 15 min and the best new ones are sent (one message each, not repeated for 4 h) when Telegram alerts are on. The bot (`scripts/xpix_bot.py`):
 `/plan [scalp|conf] [5m|15m|1h] [SYMBOL ...]`, `/smt`, `/help`; any other text goes to Claude (read-only).
 
+**Exits are measured.** The weekly lab (`strategy_lab.VARIANTS`, rows `pt_1.5_3`, `pt_1.0_3`, `pt_1.5_5`, `trail_only` in the "Exit variants" table) replays the same entries with the partial + trailing exit through `day_plan.simulate_arrays` next to the fixed-RR variants; read the net-R column there (one `LAB_COST_R` per trade) before trusting "the stop moves" over a fixed target. Until the first weekly run reports n >= 30 per row, the standard exit is a design choice, not evidence.
+
+**Watch alerts.** Context setups (price action, rectangle / double bottom, Wyckoff, Elliott) that agree with the 1D + 4H bias are sent to Telegram as "👀 Watch" (at most 2, not repeated for 2 h) and via the bot `/watch`. They are not trades: no plan, no star.
+
 **Honest limits.** Stars are the scanner's evidence count, not a win rate. New detectors are context until the weekly lab has n >= 30 per key. No plan was checked against live prices or backtested as a whole here
 (`simulate_exit` is a replay tool, not a result). Nothing here places orders. Not financial advice.

@@ -116,11 +116,19 @@ class GitHubStore:
         if self._sha.get(path):
             body["sha"] = self._sha[path]
         r = self.s.put(self._url(path), json=body, timeout=60)
-        if r.status_code == 409 or r.status_code == 422:   # someone else saved in between: refuse instead of overwriting
+        msg_gh = ""
+        if r.status_code not in (200, 201):
+            try:
+                msg_gh = str(r.json().get("message", ""))[:160]
+            except Exception:
+                msg_gh = ""
+        if r.status_code == 409 or (r.status_code == 422 and "sha" in msg_gh.lower()):   # someone else saved in between
             self._sha.pop(path, None)
             raise RuntimeError("the online ledger changed since it was loaded (another device / the bot); reload the page and redo the change")
         if r.status_code not in (200, 201):
-            raise RuntimeError(f"GitHub store HTTP {r.status_code} on {path}")
+            hint = {401: "token wrong or expired", 403: "token has no Contents: write on this repo", 404: "repo name wrong or token cannot see it",
+                    422: "GitHub refused the data"}.get(r.status_code, "")
+            raise RuntimeError(f"GitHub store HTTP {r.status_code} on {path}: {msg_gh} {('(' + hint + ')') if hint else ''}".strip())
         self._sha[path] = r.json().get("content", {}).get("sha")
 
     def load(self) -> dict | None:
@@ -153,6 +161,19 @@ class GitHubStore:
             return []
         r.raise_for_status()
         return sorted(x["name"] for x in r.json() if x.get("type") == "file")
+
+
+def self_test(store) -> tuple[bool, str]:
+    """Write + read back + delete a tiny file: proves the store really saves (for the 'Test storage' button)."""
+    import time as _t
+    name = f"_selftest_{int(_t.time())}.txt"
+    try:
+        n = store.put_file(name, b"ok")
+        back = store.get_file(n)
+        store.delete_file(n)
+        return (back == b"ok"), ("saved, read back and deleted a test file" if back == b"ok" else "saved but could not read it back")
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
 
 
 def get_store():

@@ -26,3 +26,10 @@ Memory is the Actions cache (like `.tg_sent.json`): a cache eviction loses the h
 - Silver Bullet / session-open *setups* (the heads-up exists; a detector that grades the FVG-after-sweep inside the window is the Kill Zone Sniper / Silver Bullet keys already in the scanner).
 - Previous day / week / month high-low sweeps as their own alert (the generic `sweep`, `crt`, `kzs` keys cover part of it).
 - Real Telegram sending and live data were NOT tested here (mock-tested only).
+
+## Brain v2 (2026-11-06)
+- **News outside the calendar** (`modules/news_watch.py`): RSS/Atom from central banks and agencies (tier A), business press (B), crypto press (C, strong topics only). Keyword classification, impact >= 2, de-duplicated by title, max 3 hours old. It says "can move either way"; the hawkish/dovish tag is a reading of the words, not a forecast. Feed reachability from GitHub Actions is NOT verified; `/news` shows how many sources did not answer. `BRAIN_NEWS=0` turns it off.
+- **Liquidity sweeps** (`modules/level_sweeps.py`): previous day / week / month high-low and the Asian range, fresh within 3 hourly candles; a hint of reversal, not an entry. `/sweeps`.
+- **Horizons** (`modules/horizons.py`): scalp / day / swing / position, each with its own timeframe chain and exit style; grade A+ (>= 4 schools, bias agrees, R:R >= 2, not choppy) or A (>= 3 schools, R:R >= 1.5). Digest at every 4-hour mark of the New York clock (00/04/08/12/16/20), only when something qualifies. `/horizons [name]`. Logged into the brain for grading.
+- **Adaptive school weights** (`brain.school_weights`): EXPERIMENTAL multiplier 0.7-1.3 on the Top-7 school points, from graded average R, needs n >= 10 per school and shrinks small samples toward 1. Never touches the scanner or lab. `BRAIN_ADAPT=0` turns it off.
+- Not tested: live feeds, real Telegram, real data for 1W candles on every source; the horizons builder has only been run on empty/synthetic input.

@@ -176,6 +176,36 @@ def cmd_watch():
     return D.format_watch(D.scan_watch(syms, lambda s_, t_: get_klines(s_, t_, 300)), ar=True)
 
 
+def _syms():
+    return [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+
+
+def cmd_horizons(args):
+    """/horizons [scalp|day|swing|position] : A+ / A setups per holding horizon (modules/horizons.py)."""
+    from modules import horizons as HZ
+    from modules.market_cache import get_klines
+    hs = tuple(a.lower() for a in args if a.lower() in HZ.ALL) or HZ.ALL
+    return HZ.format_digest(HZ.scan(_syms(), lambda s_, t_: get_klines(s_, t_, 300), horizons=hs), ar=True)
+
+
+def cmd_sweeps():
+    """/sweeps : fresh sweeps of the previous day / week / month highs and lows and the Asian range."""
+    from modules import level_sweeps as LS
+    from modules.market_cache import get_klines
+    got = LS.scan(_syms(), lambda s_, t_: get_klines(s_, t_, 300))
+    return "\n\n".join(LS.format_sweep(a) for a in got[:6]) or "مفيش سحب سيولة جديد دلوقتي."
+
+
+def cmd_news():
+    """/news : high-impact headlines from outside the calendar (RSS, last 3 hours)."""
+    from datetime import datetime, timezone
+    from modules import news_watch as NW
+    items, dead = NW.fetch_all(NW.default_fetch_text)
+    al = NW.alerts(items, datetime.now(timezone.utc))
+    out = "\n\n".join(NW.format_news(a) for a in al[:5]) or "مفيش أخبار قوية من خارج الكالندر في آخر 3 ساعات."
+    return out + (f"\n\n<i>مصادر ما ردتش: {len(dead)} من {len(NW.SOURCES)}</i>" if dead else "")
+
+
 def cmd_smt():
     """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
     from modules import intermarket as IM
@@ -201,7 +231,7 @@ HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر ت
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
 • /brain GOLD أو «اعمل إيه في الدهب» (العقل المدبر: يوم/أسبوع/شهر/سنة + اللي معاك) · /ideas أو «أفكار السبوت» (مكتب الأفكار: صورة + الصفقات) · /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
-• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة · /horizons [scalp|day|swing|position] سيت أبس A+/A · /sweeps سحب سيولة · /news أخبار خارج الكالندر
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -332,6 +362,12 @@ def handle(p, text):
         return say(cmd_plan(a[1:]), html=True)
     if c == "/smt":
         return say(cmd_smt())
+    if c == "/horizons":
+        return say(cmd_horizons(a[1:]), html=True)
+    if c == "/sweeps":
+        return say(cmd_sweeps(), html=True)
+    if c == "/news":
+        return say(cmd_news(), html=True)
     if c == "/watch":
         return say(cmd_watch(), html=True)
     if c == "/signals":

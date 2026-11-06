@@ -254,6 +254,50 @@ def _tab_analyzer(cr, met):
     components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _brain(asset: str, cls: str, name: str, holdings_key: str) -> dict:
+    import json as _j
+    from modules import spot_brain
+    return spot_brain.run(asset, cls, name, holdings=_j.loads(holdings_key))
+
+
+def _tab_brain(d, px, met, cr, fx):
+    """Spot brain: one market -> day / week / month / year verdicts, order flow, institutions, holdings guard (mosaic)."""
+    from modules.spot_ideas import UNIVERSE
+    uni = list(UNIVERSE) + [(r["base"], "crypto", r["base"]) for r in cr[:30] if r["base"] not in {u[0] for u in UNIVERSE}]
+    a, b = st.columns([4, 1])
+    pick = a.selectbox(T("Market", "السوق"), range(len(uni)), format_func=lambda i: f"{uni[i][2]} · {uni[i][0]}", key="sp_br_pick")
+    if b.button(T("Refresh", "تحديث"), key="sp_br_ref"):
+        _brain.clear()
+    asset, cls, name = uni[pick]
+    import json as _j
+    pos = [{k: p.get(k) for k in ("asset", "qty", "avg_usd", "unreal_pct")} for p in C.positions(d["txs"], px, fx)]
+    with st.spinner(T("Thinking: schools, order flow, institutions, news ...", "بفكر: المدارس والأوردر فلو والمؤسسات والأخبار ...")):
+        try:
+            br = _brain(asset, cls, name, _j.dumps(pos, default=str))
+        except Exception as e:
+            st.error(f"{type(e).__name__}: {e}")
+            return
+    marks = []
+    for u in UNIVERSE:
+        if u[0] in met and met[u[0]].get("prev"):
+            marks.append({"name": u[2], "price": met[u[0]]["px"], "wk": (met[u[0]]["px"] / met[u[0]]["prev"] - 1) * 100, "score": 0})
+        r = next((r for r in cr if r["base"] == u[0]), None)
+        if r:
+            marks.append({"name": u[2], "price": r["last"], "wk": r["chg24"] or 0, "score": 0})
+    for m in marks:
+        m["score"] = 20 if m["wk"] > 0.3 else -20 if m["wk"] < -0.3 else 0
+    from modules import spot_brain_view
+    import streamlit.components.v1 as components
+    components.html(spot_brain_view.render(br, marks), height=1400, scrolling=True)
+    with st.expander(T("How it decided (thinking log)", "فكّر إزاي (سجل التفكير)")):
+        for k, h in br["horizons"].items():
+            st.markdown(f"**{h['label']}: {h['verdict_ar']} ({h['score']:+d})** - " + " · ".join(h["reasons"]))
+        st.markdown("\n".join(br.get("log", [])))
+    st.caption(T("24 h change used for the market list (weekly in the brain). Rules, not backtested per horizon yet.",
+                 "قايمة الأسواق بتغير 24 ساعة (العقل نفسه بالأسبوعي). قواعد، لسه من غير باك تيست لكل مدة."))
+
+
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def _desk(day: str) -> dict:
     from modules import spot_ideas
@@ -805,23 +849,25 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
+    tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
                     T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)")])
     with tabs[0]:
-        _tab_ideas()
+        _tab_brain(d, px, met, cr, fx)
     with tabs[1]:
-        _tab_crypto(d, cr, fx)
+        _tab_ideas()
     with tabs[2]:
-        _tab_metals(d, met, fx, fx_src, egp)
+        _tab_crypto(d, cr, fx)
     with tabs[3]:
-        _tab_ledger(d, px, fx, egp)
+        _tab_metals(d, met, fx, fx_src, egp)
     with tabs[4]:
-        _tab_alerts(d, px)
+        _tab_ledger(d, px, fx, egp)
     with tabs[5]:
-        _tab_news(d)
+        _tab_alerts(d, px)
     with tabs[6]:
+        _tab_news(d)
+    with tabs[7]:
         _tab_setup(d, px, fx)
-    with tabs[7]:   # owner 2026-11-06: an option on the side, loaded only on request
+    with tabs[8]:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)

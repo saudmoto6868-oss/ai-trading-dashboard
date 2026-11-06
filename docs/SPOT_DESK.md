@@ -92,6 +92,17 @@ crypto majors + gold / silver / copper / platinum week by week (1W + 1M score, n
 by score bucket and sends a short Arabic result to Telegram (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`). The Analyzer is an
 optional tab (last one, loads only on request) until the result says the score helps.
 
+## Daily ideas desk (first tab, owner 2026-11-06)
+`modules/spot_ideas.py` thinks about spot trades on 8 markets (gold, silver, copper, oil, EUR/USD, BTC, ETH, SOL) from the
+1M / 1W / 1D / 4H readings + the Radar detectors + chart patterns + tagged news (`spot_news.py`, keyword rules EN / AR):
+7 recipes - discount accumulation (SMC + ICT), 20 / 55-week breakout retest (classic / Turtle), bullish chart pattern,
+Elliott ABC end + daily CHoCH, RSI divergence in the discount, Gann level + time window, avoid / take profit (premium).
+An idea needs its first structural target >= 1.5 R. Each card: own chart, entry ladder, stop, targets, schools that agree,
+base + alternative scenario, KPIs, news. The thinking log says what was checked and why an idea was rejected.
+`modules/spot_board.py` draws it (reference picture style). Page: cached 6 h + Refresh + "Send to Telegram".
+Daily Telegram: `.github/workflows/spot-ideas.yml` 04:41 UTC (picture + text); bot `/ideas` or «أفكار السبوت».
+Not backtested; mock-tested only.
+
 ## Keys / secrets summary
 | Name | Where | Why |
 |---|---|---|

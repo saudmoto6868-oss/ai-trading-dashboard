@@ -254,6 +254,28 @@ def _tab_analyzer(cr, met):
     components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
 
 
+def _tab_library():
+    """Every setup of every school the spot desk knows + its weekly lab evidence (modules/spot_setups.py)."""
+    from modules import spot_setups as SS
+    rows = SS.library()
+    run = "—"
+    try:
+        run = json.loads(SS.EVIDENCE.read_text(encoding="utf8")).get("run", "—")
+    except Exception:
+        pass
+    st.caption(T(f"{len(rows)} setups. Weekly lab (Mondays): every setup on 1W and 1D, walk-forward on 18 markets; 'worked' needs n >= 30 and t >= 3. Last run: {run}",
+                 f"{len(rows)} سيت أب. المعمل الأسبوعي (كل اتنين): كل سيت أب على الأسبوعي واليومي على 18 سوق من غير ما يشوف المستقبل؛ «اشتغل» محتاج 30 مرة على الأقل و t ≥ 3. آخر تشغيل: {run}"))
+    schools = sorted({r["school"] for r in rows})
+    pick = st.multiselect(T("Schools", "المدارس"), schools, default=schools, key="sp_lib_sch")
+    q = st.text_input(T("Search", "بحث"), key="sp_lib_q").strip().lower()
+    show = [r for r in rows if r["school"] in pick and (not q or q in (r["name"] + r["id"] + r.get("why", "")).lower())]
+    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Side", "النوع"): r["side"], T("Source", "المصدر"): r["source"],
+                                T("Evidence", "النتيجة"): " · ".join(f"{k}: {v}" for k, v in r["evidence"].items()), T("Meaning", "معناه"): r.get("why", "")} for r in show]),
+                 hide_index=True, width="stretch", height=520)
+    st.caption(T("Adding a setup = one rule in spot_setups.py (CATALOG + spot_only); the next Monday lab measures it automatically. New ideas are reviewed by the school-review job (topic 'spot_setups').",
+                 "إضافة سيت أب = قاعدة واحدة في spot_setups.py (CATALOG + spot_only)، ومعمل الاتنين اللي بعده بيقيسه لوحده. الأفكار الجديدة بتتراجع في مهمة مراجعة المدارس (موضوع spot_setups)."))
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def _brain(asset: str, cls: str, name: str, holdings_key: str) -> dict:
     import json as _j
@@ -850,7 +872,7 @@ def render() -> None:
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
     tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
-                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)")])
+                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات")])
     with tabs[0]:
         _tab_brain(d, px, met, cr, fx)
     with tabs[1]:
@@ -873,4 +895,6 @@ def render() -> None:
             _tab_analyzer(cr, met)
         else:
             st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
+    with tabs[9]:
+        _tab_library()
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

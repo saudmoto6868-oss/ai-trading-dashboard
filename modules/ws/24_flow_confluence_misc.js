@@ -151,28 +151,35 @@ Ws.stratPop = (anchor, onChange) => {
 /* quick-jump strip: live setup chips from the scanner; click = load symbol + setup on the chart */
 // the top bar (another frame of the same page) shows the belt in the empty band under it when it can; this frame keeps its own strip as the fallback
 const ribHost = () => { try { for (const f of window.parent.document.querySelectorAll("iframe")){ const w = f.contentWindow; if (w && w !== window && typeof w.__xpixRibbon === "function" && f.getBoundingClientRect().height > 0) return w; } } catch(_){} return null; };
-const ribItem = (e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), pl = e.plan || {}, risk = Math.abs((pl.entry||0) - (pl.stop||0)),
+// SMT between correlated markets (modules/intermarket.py -> CFG.smt): their own chips, FIRST on the strip / ribbon, no strength % (an SMT is a hint, not a scored trade)
+const smtRows = () => (CFG.smtx || []).slice(0, 12).map(sm => ({symbol: sm.label.replace(/^SMT [▲▼] /, "").replace(/ \S+$/, ""), direction: sm.direction, tfk: (sm.tf || "").toUpperCase(), ttype: "", score: 0, max: 0, _smt: sm,
+  tags: [["SMT", sm.direction === "bullish" ? "#0ecb81" : "#f6465d", "#000", sm.text]]}));
+const smtBig = sm => /^(1h|4h|1d|1w)$/.test(sm.tf);
+Ws.showSmt = sm => { const cp = Ws.panels.filter(p => p.type === "chart" && p.chart); if (!cp.length) return; const a = cp[0], b = cp[1] || null;   // the pair on two charts, same timeframe
+  if (SYMS.includes(sm.a)) Ws.broadcast(a, sm.a); if (b && SYMS.includes(sm.b)) Ws.broadcast(b, sm.b); const tf = Object.keys(TFSEC).find(k => k.toLowerCase() === sm.tf); if (tf){ a.setTf(tf); b && b.setTf(tf); } };
+const ribItem = (e, i) => { if (e._smt){ const sm = e._smt; return {i, sym:e.symbol, dir:e.direction === "bullish" ? 1 : -1, tags:"SMT", meta:sm.tf.toUpperCase()+" · "+(sm.session || "")+" · "+sm.bars_ago+(lang === "ar" ? " شمعة" : " bars"), pct:null, hot:smtBig(sm), rr:null, fresh:sm.bars_ago <= 1, tip:sm.text}; }
+  const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), pl = e.plan || {}, risk = Math.abs((pl.entry||0) - (pl.stop||0)),
     rr = risk > 0 && pl.tps && pl.tps.length ? Math.abs(pl.tps[0] - pl.entry)/risk : null, fresh = e._t && Date.now() - e._t < 15*60000;
   return {i, sym:e.symbol.replace(/-(USDT|USDC|SWAP)$/,""), dir:long_ ? 1 : -1, tags:(e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "), meta:ttTxt(e.ttype)+" · "+(e.tfk||""), pct, hot:pct >= 70,
     rr:rr ? Math.round(rr*10)/10 : null, fresh, tip:(e.tags||[]).map(t => tagTip(t) || t[0]).join("\n")+(pl.entry ? "\n"+Lg("entry ","دخول ")+fmtP(pl.entry)+" · "+Lg("stop ","ستوب ")+fmtP(pl.stop)+" · "+Lg("target ","هدف ")+fmtP(pl.tps[0]) : "")}; };
 Ws.drawStrip = () => {
-  const box = document.getElementById("strip"); if (!box) return; const rows = readyList().slice(0, 40), TFC = TFC_ALL;
-  const sig = lang+"|"+rows.map(e => e.symbol+e.direction+e.tfk+e.score+(e.tags||[]).length).join(",")+"|"+(CFG.scanning ? 1 : 0);
+  const box = document.getElementById("strip"); if (!box) return; const rows = smtRows().concat(readyList().slice(0, 40)), TFC = TFC_ALL;
+  const sig = lang+"|"+rows.map(e => e.symbol+e.direction+e.tfk+e.score+(e.tags||[]).length+(e._smt ? e._smt.bars_ago : "")).join(",")+"|"+(CFG.scanning ? 1 : 0);
   const host = MOB ? null : ribHost();
   if (host){   // show it in the top bar: summary + chips (click = this frame shows the setup on the chart)
     document.body.classList.add("rib-out"); if (host.__xpixRibbonSig === sig) return;
     const items = rows.map(ribItem), up = items.filter(x => x.dir > 0).length;
     host.__xpixRibbon({sig, ar:lang === "ar", label:(lang === "ar" ? "إشارات حية" : "Live setups"), n:items.length, up, dn:items.length - up, empty:rows.length ? "" : (CFG.scanning ? T("scanning") : T("rdEmpty")), items},
-      i => { const e = rows[i]; if (e) Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); });
+      i => { const e = rows[i]; if (!e) return; if (e._smt){ Ws.showSmt(e._smt); return; } Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); });
     return; }
   document.body.classList.remove("rib-out");
   if (box._sig === sig) return; box._sig = sig;   // unchanged list: leave the strip alone (no flicker, no scroll reset)
   const keep = box.scrollLeft; box.innerHTML = ""; const lb = el("span","lbl"); lb.textContent = lang === "ar" ? "إشارات حية" : "Live setups"; box.append(lb);
   if (!rows.length){ const m = el("span","m"); m.textContent = CFG.scanning ? T("scanning") : T("rdEmpty"); box.append(m); box._loop = 0; return; }
   const mk = e => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), c = el("span","chip");
-    c.style.borderColor = long_ ? "#0ecb81" : "#f6465d"; if (pct >= 70){ c.classList.add("hot"); c.style.setProperty("--hc", long_ ? "#0ecb81" : "#f6465d"); } c.title = (e.tags||[]).map(t => tagTip(t) || t[0]).join("\n");
-    c.innerHTML = "<b>"+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+"</b> <span style='color:"+(long_?"#0ecb81":"#f6465d")+"'>"+(long_ ? "▲" : "▼")+"</span> "+esc((e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "))+" <span class='m'>"+esc(ttTxt(e.ttype))+" · "+esc(e.tfk||"")+" "+pct+"%</span>";
-    c.onclick = () => { if (box._moved) return; Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); }; return c; };
+    c.style.borderColor = long_ ? "#0ecb81" : "#f6465d"; if (e._smt ? smtBig(e._smt) : pct >= 70){ c.classList.add("hot"); c.style.setProperty("--hc", long_ ? "#0ecb81" : "#f6465d"); } c.title = e._smt ? e._smt.text : (e.tags||[]).map(t => tagTip(t) || t[0]).join("\n");
+    c.innerHTML = "<b>"+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+"</b> <span style='color:"+(long_?"#0ecb81":"#f6465d")+"'>"+(long_ ? "▲" : "▼")+"</span> "+esc((e.tags||[]).slice(0,2).map(t => tagTxt(t[0])).join(" · "))+" <span class='m'>"+(e._smt ? esc(e.tfk+" · "+(e._smt.session || "")+" · "+e._smt.bars_ago+(lang === "ar" ? " شمعة" : " bars")) : esc(ttTxt(e.ttype))+" · "+esc(e.tfk||"")+" "+pct+"%")+"</span>";
+    c.onclick = () => { if (box._moved) return; if (e._smt){ Ws.showSmt(e._smt); return; } Ws.showOnChart(Object.assign({tfc: TFC[e.tfk] || "1H"}, e)); }; return c; };
   const first = rows.map(mk); first.forEach(c => box.append(c));
   // wide enough to scroll -> a second copy follows the first so the belt loops with no jump
   const lblW = lb.offsetWidth + 5; let w1 = 0; first.forEach(c => w1 += c.offsetWidth + 5);

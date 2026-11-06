@@ -733,6 +733,41 @@ def _ws_universe(active):
     return tuple(x for x in out if not (x in seen or seen.add(x)))
 
 
+SMT_TFS = tuple(x.strip() for x in os.environ.get("SMT_TFS", "5m,15m,1h,4h,1d").split(",") if x.strip())
+
+
+def _smt_worker(store):
+    """SMT between correlated pairs on several timeframes (modules/intermarket.py), in its own thread: never holds the page or the main scan up."""
+    try:
+        from modules import intermarket as _IM
+        store["smt"] = _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=SMT_TFS)
+        store["smt_t"] = time.time()
+        store.pop("smt_err", None)
+    except Exception as e_:
+        store["smt_err"] = f"{type(e_).__name__}: {e_}"
+        store["smt_t"] = time.time() - 600   # retry in about 5 minutes
+    finally:
+        store["smt_running"] = False
+
+
+def _smt_chips(lang):
+    try:
+        from modules import intermarket as _IM
+        return _IM.chips(_smt_events(), ar=(lang == "ar"))
+    except Exception:
+        return []
+
+
+def _smt_events():
+    """The latest intermarket events (starts / refreshes the background scan when it is older than 15 minutes)."""
+    import threading
+    store = _scan_store()
+    if not store.get("smt_running") and time.time() - store.get("smt_t", 0) > 900 and time.time() - store.get("t0", 0) > 30:
+        store["smt_running"] = True
+        threading.Thread(target=_smt_worker, args=(store,), daemon=True).start()
+    return store.get("smt", [])
+
+
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 30-minute bucket changes or an empty result is older than 60 s."""
@@ -3252,7 +3287,7 @@ if PAGE == 0:   # workspace
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
+                         ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
                          ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         _ws_stat.empty()
         try:
@@ -3272,10 +3307,38 @@ if PAGE == 0:   # workspace
 
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
+def render_smt_board():
+    """Radar > SMT pairs: every correlated pair on the chosen timeframes; each event shows BOTH markets side by side."""
+    from modules import intermarket as _IM, intermarket_ui as _IMU
+    ar = _ui_lang() == "ar"
+    c1, c2 = st.columns([3, 1])
+    tfs = c1.multiselect(L("Timeframes"), list(_IM.TF_ORDER[:7])[::-1], default=[t for t in ("15m", "1h", "4h", "1d")], key="smt_tfs")
+    if c2.button(L("Rescan now"), key="smt_rescan"):
+        st.cache_data.clear()
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(tfs_t):
+        return _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=tfs_t)
+
+    with st.spinner(L("Comparing the correlated pairs...")):
+        ev = _run(tuple(tfs or ("1h",)))
+    st.caption(L("SMT = two correlated markets disagree at a swing (one makes a new low / high, the other refuses). A hint of reversal, not a trade by itself; no win rate is claimed here. Pairs that stopped moving together are skipped."))
+    if not ev:
+        st.info(L("No SMT between the correlated pairs on these timeframes right now."))
+        return
+    for e in ev[:40]:
+        st.markdown(_IMU.event_card(e, ar=ar), unsafe_allow_html=True)
+
+
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
-        if _rv != "Heat map":   # the market map has its own filters; the universe / timeframe controls do not apply to it
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
+            from modules import intermarket_ui as _IMU
+            st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
+        except Exception:
+            pass
+        if _rv not in ("Heat map", "SMT pairs"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
             render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
@@ -3283,8 +3346,10 @@ if PAGE == 1:   # cscan
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv)
-        if _rv == "Heat map":
+        _rf = _radar_filters(_rv) if _rv != "SMT pairs" else None
+        if _rv == "SMT pairs":
+            render_smt_board()
+        elif _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":
             render_radar_similar(_rf)

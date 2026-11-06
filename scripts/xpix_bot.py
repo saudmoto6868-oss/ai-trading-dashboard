@@ -193,6 +193,7 @@ HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر ت
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
 • /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -296,8 +297,6 @@ def handle(p, text):
         return say(cmd_plan(a[1:]), html=True)
     if c == "/smt":
         return say(cmd_smt())
-    if c in ("/help", "/start"):
-        return say("/plan [scalp|conf] [5m|15m|1h] [SYMBOL...] day plan · /smt intermarket SMT · /shot SYMBOL TF · /today SYMBOL · /signals · /alerts · /deep <text> · any other text = ask Claude (read-only).")
     if c == "/signals":
         return say(cmd_signals())
     if c == "/alerts":

@@ -19,5 +19,5 @@ IM.scan_pairs = lambda fetch, **k: []
 B.handle(None, "/smt")
 assert "No clear SMT" in sent[-1][1]["data"]["text"]
 B.handle(None, "/help")
-assert "/plan" in sent[-1][1]["data"]["text"]
+assert "/plan" in sent[-1][1]["data"]["text"] and "/smt" in sent[-1][1]["data"]["text"]
 print("ok bot /plan /smt /help")

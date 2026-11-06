@@ -96,6 +96,7 @@ Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after de
 
 - Mr X voice (owner: "still talks broken"): typed questions are now answered in Gemini Live's own voice (voice-only session, no mic, reused for follow-ups, closes after 2 quiet minutes); the robotic browser voice is never used when Gemini is available; 180 ms playback cushion so late audio chunks on a busy page do not leave gaps. Mock-tested (fake Live server: 2 typed questions over one session, no browser TTS).
 ## Change log (newest first)
+- 2026-11-06: Spot score backtest run 1 (GitHub Actions 42166341725): score >= 35 is NOT better (crypto 4w t -0.64, 12w t -1.63 leaning wrong way; metals no difference). Analyzer stays optional, score not a buy signal. Telegram summary not sent: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID missing in GitHub Actions secrets.
 - 2026-11-06 (later): item 28 phase 4 - Arabic bot routing + weekly briefing + spot backtest workflow; Analyzer is optional.
 - 2026-11-06 (later): item 28 phase 3 - Spot Analyzer tab (multi-timeframe charts + every school + confluence), mock-tested only.
 - 2026-11-06 (later): item 28 phase 2 (online store, fields, Excel forms, Mac backup, bot commands, server alerts). Owner action: create the private data repo + token (docs/SPOT_DESK.md).

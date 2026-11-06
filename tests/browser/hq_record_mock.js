@@ -12,6 +12,6 @@ const { chromium } = require('playwright');
     const q = Snap.hq({ getVideoTracks: () => [{ getSettings: () => ({ width: 1920, height: 1080, frameRate: 30 }) }] }); o.q1080 = q;
     const q8 = Snap.hq({ getVideoTracks: () => [{ getSettings: () => ({ width: 7680, height: 4320, frameRate: 60 }) }] }); o.q8k = q8.bps;
     return o; });
-  const ok = r.gdm && r.gdm.width.ideal >= 3840 && r.gdm.height.ideal >= 2160 && r.gdm.frameRate.ideal === 60 && !(r.gdm.width.max) && r.mr && r.mr.videoBitsPerSecond >= 40e6 && r.mr.videoBitsPerSecond <= 120e6 && r.q1080.bps >= 12e6 && r.q8k === 120e6 && /^(video\/mp4|video\/webm)/.test(r.mr.mimeType || 'video/webm') && !errs.length;
+  const ok = r.gdm && r.gdm.width.ideal >= 3840 && r.gdm.height.ideal >= 2160 && r.gdm.frameRate.ideal === 60 && !(r.gdm.width.max) && r.mr && r.mr.videoBitsPerSecond >= 100e6 && r.mr.videoBitsPerSecond <= 300e6 && r.q1080.bps >= 24e6 && r.q8k === 300e6 && /^(video\/mp4|video\/webm)/.test(r.mr.mimeType || 'video/webm') && !errs.length;
   console.log(JSON.stringify(r), 'errors', errs.length, errs[0] || '', ok ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok ? 0 : 1);
 })();

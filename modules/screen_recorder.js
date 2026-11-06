@@ -8,10 +8,10 @@
   const D = document, LSK = "xpix_rec_";
   const ls = { get(k, d){ try { const v = localStorage.getItem(LSK + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } }, set(k, v){ try { localStorage.setItem(LSK + k, JSON.stringify(v)); } catch(e){} } };
   const S = { v: 1, rec: null, stream: null, chunks: [], t0: 0, paused: false, pausedMs: 0, pAt: 0, flags: [], clips: [], q: ls.get("q", "max"), auto: ls.get("auto", true), fmt: null, subs: [], seq: 0 };
-  const Q = { max: { h264: .25, vp9: .16, cap: 250e6, name: "Max" }, high: { h264: .16, vp9: .10, cap: 120e6, name: "High" }, bal: { h264: .08, vp9: .05, cap: 40e6, name: "Balanced" } };
+  const Q = { max: { h264: .40, vp9: .25, cap: 300e6, min: 24e6, name: "Max" }, high: { h264: .20, vp9: .12, cap: 120e6, min: 12e6, name: "High" }, bal: { h264: .08, vp9: .05, cap: 40e6, min: 8e6, name: "Balanced" } };
   const ok = t => { try { return !!window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch(e){ return false; } };
   const pick = () => [["video/mp4;codecs=avc1.640034", "mp4", "h264"], ["video/mp4;codecs=avc1.640033", "mp4", "h264"], ["video/mp4;codecs=avc1", "mp4", "h264"], ["video/webm;codecs=vp9", "webm", "vp9"], ["video/webm;codecs=vp8", "webm", "vp9"], ["video/webm", "webm", "vp9"]].find(x => ok(x[0])) || ["", "webm", "vp9"];
-  const opts = (w, h, fps, q) => { const m = pick(), Z = Q[q || S.q] || Q.max; return { mime: m[0], ext: m[1], bps: Math.round(Math.max(12e6, Math.min(Z.cap, w * h * fps * Z[m[2]]))) }; };
+  const opts = (w, h, fps, q) => { const m = pick(), Z = Q[q || S.q] || Q.max; return { mime: m[0], ext: m[1], bps: Math.round(Math.max(Z.min || 12e6, Math.min(Z.cap, w * h * fps * Z[m[2]]))) }; };
   const fmtT = ms => { const s = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
   const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   const emit = () => { S.subs.forEach(f => { try { f(api.state()); } catch(e){} }); render(); };

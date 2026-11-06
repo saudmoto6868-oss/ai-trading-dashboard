@@ -40,9 +40,9 @@ const Snap = {
     const vt = stream && stream.getVideoTracks && stream.getVideoTracks()[0], st = vt && vt.getSettings ? vt.getSettings() : {}, w = st.width || (fb && fb.w) || 1920, h = st.height || (fb && fb.h) || 1080, fps = st.frameRate || (fb && fb.fps) || 30;
     try { if (vt) vt.contentHint = "detail"; } catch(e){}   // tell the encoder the picture is text / lines (charts), not film: it keeps edges sharp
     const ok = t => { try { return !!window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch(e){ return false; } };
-    const L = [["video/mp4;codecs=avc1.640034", "mp4", .16], ["video/mp4;codecs=avc1.640033", "mp4", .16], ["video/mp4;codecs=avc1", "mp4", .16], ["video/webm;codecs=vp9", "webm", .10], ["video/webm;codecs=vp8", "webm", .2], ["video/webm", "webm", .2]];
+    const L = [["video/mp4;codecs=avc1.640034", "mp4", .40], ["video/mp4;codecs=avc1.640033", "mp4", .40], ["video/mp4;codecs=avc1", "mp4", .40], ["video/webm;codecs=vp9", "webm", .25], ["video/webm;codecs=vp8", "webm", .2], ["video/webm", "webm", .2]];
     const m = L.find(x => ok(x[0])) || ["", "webm", .2];
-    return {mime: m[0], ext: m[1], bps: Math.round(Math.max(12e6, Math.min(120e6, w*h*fps*m[2]))), w, h, fps};
+    return {mime: m[0], ext: m[1], bps: Math.round(Math.max(24e6, Math.min(300e6, w*h*fps*m[2]))), w, h, fps};
   }
 };
 function wsShotBtn(){

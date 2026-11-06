@@ -37,6 +37,7 @@ FAMILY_ICONS = {
     "MSB-OB": "\U0001F9F1",     # brick
     "Fib": "\U0001F4D0",        # triangular ruler
     "Liquidity": "\U0001F4A7",  # droplet
+    "PA": "\U0001F56F\ufe0f",    # candle: price action / range patterns (context family, modules/pa_patterns.py)
 }
 PRIMARY_FAMILIES = ("Elliott", "Unicorn", "MSB-OB", "Fib", "Liquidity")
 CONFIRM_FAMILIES = ("MA", "VWAP", "TL")
@@ -128,6 +129,8 @@ _SWAPS = [
     ("buyers", "sellers"), ("longs", "shorts"), ("up-leg", "down-leg"), ("closed up", "closed down"),
     ("falling", "rising"), ("rising", "falling"),
     ("low", "high"), ("high", "low"),
+    ("Hammer / pin bar", "Shooting star / pin bar"), ("Morning star", "Evening star"), ("Double bottom", "Double top"), ("spring", "upthrust"), ("Bullish", "Bearish"),
+    ("lower wick", "upper wick"), ("upper part", "lower part"), ("top", "bottom"), ("bottom", "top"),   # price action / range detectors (modules/pa_patterns.py)
 ]
 _SWAP_MAP = dict(_SWAPS)
 _SWAP_RE = re.compile(r"(?<![\w{])(" + "|".join(sorted(map(re.escape, _SWAP_MAP), key=len, reverse=True)) + r")(?![\w}])")
@@ -140,6 +143,8 @@ def _flip_text(text: str) -> str:
 
 # stable ids so the Arabic text/tag layer does not depend on the English wording
 _KEY_PATTERNS = [
+    # price action / range detectors first: their names also contain words other patterns match ("-bar breakout")
+    (r"engulfing at", "pa_engulf"), (r"pin bar", "pa_pin"), (r"Inside-bar breakout", "pa_inside"), (r"(Morning|Evening) star", "pa_star"), (r"Rectangle breakout", "rect"), (r"Double (bottom|top) neckline", "dbl"), (r"Wyckoff (spring|upthrust)", "wyck"),
     (r"Trendline break", "tlbreak"), (r"Sweep \+ CISD", "cisd"), (r"Model 2022", "m2022"), (r"bullish cross", "ma_cross"), (r"EMA stack", "ema_stack"), (r"VWAP", "vwap"),
     (r"Wave 3 start", "ew3"), (r"Wave 5 start", "ew5"), (r"ABC correction", "abc"), (r"Wave C", "wavec"),
     (r"Zombie", "zombie"), (r"Order block \(", "ob"), (r"OTE entry", "ote"), (r"Fair value gap", "fvg"), (r"Breaker block", "breaker"), (r"Judas", "judas"), (r"Fib retracement", "fib"), (r"Structure break", "msb_ob"), (r"liquidity sweep", "sweep"),
@@ -1301,6 +1306,8 @@ DETECTORS_SESSION = (session_amd_bull, session_orb_bull)
 DETECTORS = (ma_bull, vwap_bull, trendbreak_bull, cisd_bull, model2022_bull, elliott_bull, fib_bull, msb_ob_bull, order_block_bull, unicorn_bull,
              sweep_signal_bull, zombie_bull, ote_bull, fvg_bull, breaker_bull, judas_bull, liq_break_bull, ohl_bull, key_level_bull, breakout_bull,
              rsi_div_bull, macd_div_bull, crt_bull, donchian_bull, sma1040_bull, turtle55_bull, session_amd_bull, session_orb_bull, killzone_sniper_bull, power_of_three_bull)
+from modules.pa_patterns import PA_DETECTORS as _PA_DETECTORS   # noqa: E402  price action + range schools (context family, lab-measured)
+DETECTORS = DETECTORS + _PA_DETECTORS
 
 
 def detect_all(df: pd.DataFrame, detectors=None):

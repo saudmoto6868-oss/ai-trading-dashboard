@@ -162,7 +162,7 @@ MRX_LIVE = os.environ.get("MRX_LIVE", "").strip() == "1"
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
-                         filters: dict | None = None, ready: list | None = None, scanning: bool = False,
+                         filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
                          fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "") -> str:
     news = list(news or [])
@@ -191,6 +191,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "links": links or [],
         "filters": filters or {},
         "ready": list(ready or []),
+        "smtx": list(smt or []),   # intermarket SMT events (the existing "smt" key holds the pair list for the chart indicator) (modules/intermarket.chips): shown on the strip / ribbon as their own chips
         "scanning": bool(scanning),
         "cls": asset_cls,
         "tfstats": tfstats or {},
@@ -279,7 +280,7 @@ def _fh_token() -> str:
 
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
-                     filters: dict | None = None, ready: list | None = None, scanning: bool = False,
+                     filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
     import streamlit.components.v1 as components
 
@@ -288,7 +289,7 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
     fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
-        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
+        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
         import streamlit as st
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
     components.html(doc, height=height, scrolling=False)

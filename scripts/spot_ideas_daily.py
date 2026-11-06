@@ -44,6 +44,8 @@ def main(argv=None) -> int:
             br = spot_brain.run(asset, cls, name)
             bt = spot_brain.text_ar(br)
             print(bt)
+            print("diag flow:", {k: (v.get("ok"), v.get("why")) for k, v in (br.get("raw_flow") or {}).items() if isinstance(v, dict)})
+            print("diag cot:", (br.get("raw_cot") or {}).get("ok"), (br.get("raw_cot") or {}).get("why"))
             if "--no-image" not in argv:
                 print("brain photo:", send_photo(to_png(spot_brain_view.render(br), f"brain_{asset}.png"), f"🧠 العقل المدبر - {name}") or "sent")
             print("brain text:", send(bt[:4000]) or "sent")

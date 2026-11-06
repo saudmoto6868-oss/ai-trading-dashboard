@@ -168,6 +168,14 @@ def cmd_plan(a):
     return D.format_telegram(plans, ar=True)
 
 
+def cmd_watch():
+    """/watch : context setups (price action, range patterns, Wyckoff, Elliott) that agree with the 1D + 4H bias; not entries."""
+    from modules import day_plan as D
+    from modules.market_cache import get_klines
+    syms = [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+    return D.format_watch(D.scan_watch(syms, lambda s_, t_: get_klines(s_, t_, 300)), ar=True)
+
+
 def cmd_smt():
     """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
     from modules import intermarket as IM
@@ -191,9 +199,9 @@ def ask_claude(text, deep=False):
 HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر تداول):
 • اكتب عادي بالعربي: «ابعتلي صورة الدهب على الأسبوعي مع اليوت» · «افتح التايم اند سيلز للبيتكوين» · «الدهب هيطلع الأسبوع الجاي؟» · «وريني المحلل للفضة» · «هات فاتورة INV-12»
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
-• /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
+• /ideas أو «أفكار السبوت» (مكتب الأفكار: صورة + الصفقات) · /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
-• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -214,6 +222,15 @@ def spot_image(p, asset, outlook=False):
         say(msg)
 
 
+def spot_ideas_msg(p):
+    """Today's ideas desk: board picture + Arabic text."""
+    from modules import spot_board, spot_dash, spot_ideas
+    r = spot_ideas.desk()
+    png = spot_dash.to_png(spot_board.render(r), "/tmp/xpix_spot_ideas.png", ctx=p.ctx)
+    send_photo(png, "🧠 مكتب أفكار السبوت")
+    say(spot_ideas.telegram_text(r))
+
+
 def run_actions(p, acts):
     """Execute router actions (whitelisted) and answer with one screenshot + an Arabic line of what was done."""
     from modules import bot_router
@@ -229,6 +246,8 @@ def run_actions(p, acts):
             return
         if c in ("outlook", "spotchart"):
             return spot_image(p, a["asset"], outlook=(c == "outlook"))
+        if c == "ideas":
+            return spot_ideas_msg(p)
         if c == "panel":
             r = p.panel(a["type"])
             done.append(("فتحت " if r.get("ok") else "مقدرتش أفتح ") + PANEL_AR.get(a["type"], a["type"]))
@@ -271,6 +290,8 @@ def handle(p, text):
     c = a[0].lower().split("@")[0] if a else ""
     if c in ("/help", "/start", "مساعدة"):
         return say(HELP_AR)
+    if c == "/ideas":
+        return spot_ideas_msg(p)
     if c in ("/spotchart", "/outlook"):
         return spot_image(p, (a[1] if len(a) > 1 else "GOLD").upper(), outlook=(c == "/outlook"))
     if c == "/panel" and len(a) > 1:
@@ -297,6 +318,8 @@ def handle(p, text):
         return say(cmd_plan(a[1:]), html=True)
     if c == "/smt":
         return say(cmd_smt())
+    if c == "/watch":
+        return say(cmd_watch(), html=True)
     if c == "/signals":
         return say(cmd_signals())
     if c == "/alerts":

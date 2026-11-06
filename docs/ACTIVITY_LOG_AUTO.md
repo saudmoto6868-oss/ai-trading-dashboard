@@ -958,3 +958,5 @@
 | 2026-11-06 11:03:47 | Read | /tmp/claude-0/-home-user-ai-trading-dashboard/97e6cfd7-8985-55ab-8173-04b3c06135da/scratchpad/g_crypto.png | نجح |
 | 2026-11-06 11:03:52 | Read | /tmp/claude-0/-home-user-ai-trading-dashboard/97e6cfd7-8985-55ab-8173-04b3c06135da/scratchpad/g_ledger.png | نجح |
 | 2026-11-06 11:04:27 | Bash | S=/tmp/claude-0/-home-user-ai-trading-dashboard/97e6cfd7-8985-55ab-8173-04b3c06135da/scratchpad; python3 - <<EOF | نجح |
+| 2026-11-06 11:04:38 | Bash | pkill -f "streamlit run"; | نجح |
+| 2026-11-06 11:04:42 | SendUserFile |  | نجح |

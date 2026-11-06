@@ -35,16 +35,19 @@ def _smt_side(sym, direction, smt_events):
     return n
 
 
-def score_plan(p: dict, smt_events=None, watch=None) -> tuple[int, list]:
+def score_plan(p: dict, smt_events=None, watch=None, weights: dict | None = None) -> tuple[int, list]:
     cf = p["confluence"]
     pts, why = 0, []
     pts += 2 * cf["n"]
     why.append(f"{cf['n']}/{cf['of']} timeframes agree ({', '.join(t.upper() for t in cf['agree'])})")
     pts += int(p["stars"])
     ns = len(p["schools"])
-    pts += ns
+    w = 0.0
+    for sc in p["schools"]:
+        w += (weights or {}).get(sc, 1.0)
+    pts += round(w) if weights else ns
     if ns:
-        why.append(f"{ns} school(s): {', '.join(p['schools'][:4])}")
+        why.append(f"{ns} school(s): {', '.join(p['schools'][:4])}" + (" (weighted by the brain, experimental)" if weights and any(sc in weights for sc in p["schools"]) else ""))
     sm = _smt_side(p["symbol"], p["direction"], smt_events)
     if sm:
         pts += 2 * min(sm, 2)
@@ -63,14 +66,14 @@ def score_plan(p: dict, smt_events=None, watch=None) -> tuple[int, list]:
     return pts, why
 
 
-def rank(plans, smt_events=None, watch=None, calm=None, top: int = 7, per_symbol: int = 1) -> list:
+def rank(plans, smt_events=None, watch=None, calm=None, top: int = 7, per_symbol: int = 1, weights: dict | None = None) -> list:
     """The top list. calm = {symbol: calm_stats}. One idea per symbol by default (the best timeframe)."""
     calm = calm or {}
     atrs = [c["atr_pct"] for c in calm.values() if c]
     cut = float(np.quantile(atrs, ATR_PCT_Q)) if len(atrs) >= 4 else None
     rows = []
     for p in plans:
-        pts, why = score_plan(p, smt_events, watch)
+        pts, why = score_plan(p, smt_events, watch, weights)
         c = calm.get(p["symbol"])
         choppy = bool(c and (c["er"] < CALM_ER or (cut is not None and c["atr_pct"] > cut)))
         rows.append({**p, "points": pts, "why": why, "calm": c, "choppy": choppy})

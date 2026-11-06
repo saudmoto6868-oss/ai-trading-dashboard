@@ -61,6 +61,18 @@ Ratios: gold / silver, copper / gold, ETH / BTC, coin / BTC (weekly closes, dash
 Per TF: mean of the votes x 100 (-100..100). Overall: weighted by the TF weights above. >= 35 accumulate, >= 10 hold / buy
 dips, <= -35 take profit / wait, else wait. The staged buys / targets / invalidation come from `spot_plan.py`.
 
+## Backtest result 1 (2026-11-06, run 42166341725, 18 coins + gold / silver / copper / platinum, 1W + 1M score)
+Non-overlapping samples, spot long, no costs:
+| Group | Horizon | score >= 35 | score <= -35 | all weeks | top vs rest |
+|---|---|---|---|---|---|
+| Crypto | 4 weeks (n 1038) | +0.45 % (n 187) | +0.79 % (n 221) | +1.43 % | t -0.64, no difference |
+| Crypto | 12 weeks (n 334) | -3.13 % (n 62) | +10.09 % (n 64) | +4.79 % | t -1.63, no difference (leans the wrong way) |
+| Metals | 4 weeks (n 236) | +1.90 % (n 71) | +1.49 % (n 8) | +1.22 % | t +0.59, no difference |
+| Metals | 12 weeks (n 76) | +4.76 % (n 25) | +4.70 % (n 2) | +4.44 % | not evidence (n < 30) |
+**Verdict: the combined score does NOT pick better spot entries.** On crypto a LOW score (after a fall) was followed by
+higher 12-week returns than a high score (buying weakness beat buying strength), but not significantly. The Analyzer stays an
+optional chart-reading tool; the score is not used as a buy signal. The test reruns every Monday.
+
 ## Next
 - Backtest the score on 1W / 1M across many coins + gold before trusting it (lab).
 - Telegram: send this screen as an image on request (`/spotchart BTC`), after the owner's bot setup.

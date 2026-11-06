@@ -750,6 +750,32 @@ def _smt_worker(store):
         store["smt_running"] = False
 
 
+DAY_SYMBOLS = tuple(x.strip() for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x.strip())
+
+
+def _dayplan_worker(store):
+    """Standard day plan (timeframe confluence) for the day-plan universe, in its own thread; feeds the Telegram alerts."""
+    try:
+        from modules import day_plan as _DP
+        store["dayplan"] = _DP.scan(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300), mode="conf")
+        store["dayplan_t"] = time.time()
+        store.pop("dayplan_err", None)
+    except Exception as e_:
+        store["dayplan_err"] = f"{type(e_).__name__}: {e_}"
+        store["dayplan_t"] = time.time() - 600
+    finally:
+        store["dayplan_running"] = False
+
+
+def _dayplan_events():
+    import threading
+    store = _scan_store()
+    if not store.get("dayplan_running") and time.time() - store.get("dayplan_t", 0) > 900 and time.time() - store.get("t0", 0) > 45:
+        store["dayplan_running"] = True
+        threading.Thread(target=_dayplan_worker, args=(store,), daemon=True).start()
+    return store.get("dayplan", [])
+
+
 def _smt_chips(lang):
     try:
         from modules import intermarket as _IM
@@ -3262,6 +3288,13 @@ if PAGE == 0:   # workspace
         if tg_on and not cached_ws.get("loading"):
             from modules import telegram_alerts as _tga
             _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))
+            try:   # day plan (timeframe confluence): the best new plans, one message each (not repeated for 4 hours)
+                from modules import day_plan as _DP
+                _tga_n2, _tga_e2 = _DP.dispatch(_dayplan_events(), _tg_sent(), _tga.send, top_n=int(tg_top))
+                if _tga_e2:
+                    st.sidebar.warning("Telegram day plan: " + _tga_e2)
+            except Exception:
+                pass
             if _err:
                 st.sidebar.warning("Telegram: " + _err)
             elif _n:
@@ -3307,6 +3340,43 @@ if PAGE == 0:   # workspace
 
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
+def render_day_plan(scan_symbols):
+    """Radar > Day plan: today's trades by session and timeframe confluence (modules/day_plan.py). Standard = confluence; option = scalp on one timeframe."""
+    from modules import day_plan as _DP, day_plan_ui as _DPU
+    ar = _ui_lang() == "ar"
+    st.markdown(_DPU.timeline_html(_DP.session_clock(), ar=ar), unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns([1.3, 1, 1.4, 1])
+    mode_lbl = c1.radio(L("Mode"), ["Timeframe confluence (standard)", "Scalp (one timeframe)"], key="dp_mode")
+    mode = "conf" if mode_lbl.startswith("Timeframe") else "scalp"
+    trig = None
+    if mode == "scalp":
+        trig = (c2.selectbox(L("Trigger timeframe"), ["5m", "15m", "1h"], key="dp_tf"),)
+    mv = c3.selectbox(L("Minimum possible move (points)"), ["Any", 100, 150, 200, 300, 1000], key="dp_pts")
+    stars = c4.slider(L("Min stars"), 1, 4, 2, key="dp_stars")
+    schools = st.multiselect(L("Only these schools (empty = all)"), ["SMC / ICT", "Elliott wave", "Fibonacci", "Liquidity", "Trend (MA)", "Levels / breakouts", "Time (sessions)", "Price action", "Chart patterns (range)", "Wyckoff", "Momentum / divergence", "Harmonic"], key="dp_sch")
+    uni = st.radio(L("Universe"), ["Day-plan list", "Current Radar universe"], horizontal=True, key="dp_uni")
+    tr = st.number_input(L("Stop starts moving after (points)"), 10, 5000, 100, 10, key="dp_trail", help=L("Standard mode: once a trade is this many points in profit the stop moves to break-even, then trails."))
+    syms = tuple(DAY_SYMBOLS if uni == "Day-plan list" else (scan_symbols or CRYPTO_SYMBOLS)[:20])
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(syms_t, mode_, trig_, sch_t, mv_, stars_, tr_):
+        return _DP.scan(list(syms_t), lambda s_, t_: get_klines(s_, t_, 300), mode=mode_, trigger_tfs=trig_, schools=list(sch_t) or None,
+                        min_points=(0 if mv_ == "Any" else float(mv_)), min_stars=stars_, trail_start_points=float(tr_))
+
+    with st.spinner(L("Building the day plan...")):
+        plans = _run(syms, mode, trig, tuple(schools), mv, int(stars), float(tr))
+    st.caption(L("Higher timeframes (1D + 4H) set the bias, the trigger timeframes give the entry; a plan is listed only when enough timeframes agree. Stars = the scanner's evidence count, not a win rate; new schools are context until the lab measures them. Not financial advice."))
+    if not plans:
+        st.info(L("No plan matches right now. Loosen the filters or wait for the next session."))
+        return
+    for p in plans[:30]:
+        st.markdown(_DPU.card_html(p, ar=ar), unsafe_allow_html=True)
+    if st.button(L("Send the top plans to Telegram"), key="dp_send"):
+        from modules import telegram_alerts as _tga
+        _n, _e = _DP.dispatch(plans, {}, _tga.send, top_n=3)
+        st.success(f"Telegram: {_n} sent") if not _e else st.warning(_e)
+
+
 def render_smt_board():
     """Radar > SMT pairs: every correlated pair on the chosen timeframes; each event shows BOTH markets side by side."""
     from modules import intermarket as _IM, intermarket_ui as _IMU
@@ -3332,13 +3402,13 @@ def render_smt_board():
 
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
         try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
             from modules import intermarket_ui as _IMU
             st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
         except Exception:
             pass
-        if _rv not in ("Heat map", "SMT pairs"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
+        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
             render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
@@ -3346,9 +3416,11 @@ if PAGE == 1:   # cscan
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv) if _rv != "SMT pairs" else None
+        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
         if _rv == "SMT pairs":
             render_smt_board()
+        elif _rv == "Day plan":
+            render_day_plan(SCAN_SYMBOLS)
         elif _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":

@@ -6,7 +6,7 @@ Read + view + draw only. No orders, no trading, no broker/TradingView logins, no
   XPIX_URL            platform URL (default http://localhost:8501)
   XPIX_PROFILE        Chromium profile dir (default ~/.xpix_bot_profile) - keeps the layout/drawings between runs
 Run: python scripts/xpix_bot.py
-Commands: /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
+Commands: /plan | /smt | /help | /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
 Spot desk (modules/spot_query.py, needs SPOT_GH_TOKEN + SPOT_GH_REPO in the env): /spot | /inv <no / shop / date> | /find <text> | /spotalerts | /spotxl
 Spot analyzer: /spotchart GOLD (image of the analyzer) | /outlook GOLD (weekly Arabic briefing + image)
 Platform: /panel tape|dom|ofm|limits|liq|signals|posn | /ind ew|gann|smt|div|harm|kz|vp|rsi|macd on|off | /help
@@ -37,8 +37,12 @@ def tg(method, **kw):
     return r.json()
 
 
-def say(text):
-    tg("sendMessage", data={"chat_id": OWNER, "text": text[:4000]})
+def say(text, html=False):
+    d = {"chat_id": OWNER, "text": text[:4000]}
+    if html:
+        d["parse_mode"] = "HTML"
+        d["disable_web_page_preview"] = True
+    tg("sendMessage", data=d)
 
 
 def send_doc(name, data, caption=""):
@@ -146,6 +150,34 @@ def cmd_today(p, s):
     return _cache[key][1]
 
 
+def cmd_plan(a):
+    """/plan [scalp|conf] [5m|15m|1h] [SYMBOL ...] : today's trades by timeframe confluence (standard) or a scalp on one timeframe (modules/day_plan.py)."""
+    from modules import day_plan as D
+    from modules.market_cache import get_klines
+    mode, trig, syms = "conf", None, []
+    for x in a:
+        lx = x.lower()
+        if lx in ("scalp", "conf"):
+            mode = lx
+        elif lx in ("5m", "15m", "1h"):
+            trig = (lx,)
+        else:
+            syms.append(x.upper() if "-" in x or ":" in x else x.upper() + "-USDT")
+    syms = syms or [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+    plans = D.scan(syms, lambda s_, t_: get_klines(s_, t_, 300), mode=mode, trigger_tfs=trig)
+    return D.format_telegram(plans, ar=True)
+
+
+def cmd_smt():
+    """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
+    from modules import intermarket as IM
+    from modules.market_cache import get_klines
+    ev = IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300))
+    if not ev:
+        return "No clear SMT between the correlated pairs right now."
+    return "SMT now:\n" + "\n".join(f"• {c['label']} · {c['session']} · {c['bars_ago']} bars" for c in IM.chips(ev, ar=False, limit=15))
+
+
 def ask_claude(text, deep=False):
     cmd = ["claude", "-p", text, "--model", "opus" if deep else "sonnet", "--allowedTools", "Read,Grep,Glob",
            "--append-system-prompt", RULES]
@@ -161,6 +193,7 @@ HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر ت
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
 • /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -260,6 +293,10 @@ def handle(p, text):
     if c == "/today":
         r = cmd_today(p, a[1] if len(a) > 1 else "BTC")
         return (send_photo(r[0], r[1]) if r[0] else say(r[1]))
+    if c == "/plan":
+        return say(cmd_plan(a[1:]), html=True)
+    if c == "/smt":
+        return say(cmd_smt())
     if c == "/signals":
         return say(cmd_signals())
     if c == "/alerts":

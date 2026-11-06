@@ -11,13 +11,14 @@ TF_EN = {"1m": "1 min", "13m": "13 min", "1h": "1 hour", "2h": "2 hours", "3h": 
 DIR_EN = {"bullish": "Bullish", "bearish": "Bearish", "neutral": "Neutral"}
 
 # tag text per detector family / key (colours stay in modules/arabic.py)
-TAGS_EN = {"Elliott": "Elliott", "Unicorn": "Unicorn", "MSB-OB": "MSB-OB", "Fib": "Fib", "MA": "MAs", "VWAP": "VWAP", "TL": "Trend break"}
+TAGS_EN = {"Elliott": "Elliott", "Unicorn": "Unicorn", "MSB-OB": "MSB-OB", "Fib": "Fib", "MA": "MAs", "VWAP": "VWAP", "TL": "Trend break", "PA": "Price action"}
 KEY_TAGS_EN = {
     "m2022": "Model 2022", "cisd": "CISD", "tlbreak": "Trend break", "sweep": "Liquidity", "liqline": "Liquidity", "breakout": "Breakout",
     "ohl_break": "Breakout", "ohl_open": "OHL", "level": "Support/Resistance", "zombie": "Zombie", "ew3": "Wave 3", "ob": "OB", "ote": "OTE",
     "fvg": "FVG", "breaker": "Breaker", "judas": "Judas", "crt": "CRT", "smt": "SMT", "rsi_div": "RSI divergence", "macd_div": "MACD divergence",
     "donch": "Donchian", "sess_amd": "Session AMD", "orb": "Opening range", "kzs": "KZ sniper", "po3": "Power of 3", "sma1040": "SMA 10/40",
     "turtle55": "Turtle 55",
+    "pa_engulf": "Engulfing", "pa_pin": "Pin bar", "pa_inside": "Inside bar", "pa_star": "Star", "rect": "Rectangle", "dbl": "Double top/bottom", "wyck": "Wyckoff",
 }
 
 

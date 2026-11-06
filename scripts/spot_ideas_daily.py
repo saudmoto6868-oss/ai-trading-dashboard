@@ -36,6 +36,19 @@ def main(argv=None) -> int:
         except Exception as e:
             print(f"photo skipped: {type(e).__name__}: {e}")
     print("text:", send(txt[:4000]) or "sent")
+    for asset in [x.strip().upper() for x in os.environ.get("SPOT_BRAIN_SYMS", "GOLD,BTC").split(",") if x.strip()]:
+        try:
+            from modules import spot_brain, spot_brain_view, spot_ideas as SI
+            from modules.spot_dash import to_png
+            cls, name = next(((c, n) for a, c, n in SI.UNIVERSE if a == asset), ("crypto", asset))
+            br = spot_brain.run(asset, cls, name)
+            bt = spot_brain.text_ar(br)
+            print(bt)
+            if "--no-image" not in argv:
+                print("brain photo:", send_photo(to_png(spot_brain_view.render(br), f"brain_{asset}.png"), f"🧠 العقل المدبر - {name}") or "sent")
+            print("brain text:", send(bt[:4000]) or "sent")
+        except Exception as e:
+            print(f"brain {asset} skipped: {type(e).__name__}: {e}")
     return 0
 
 

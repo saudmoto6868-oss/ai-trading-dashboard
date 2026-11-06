@@ -207,6 +207,39 @@ def _show_plan(asset: str, hist_sym: str, d: dict, live_px: float | None, fx: fl
 
 
 # ---------------------------------------------------------------- tabs
+@st.cache_data(ttl=900, show_spinner=False)
+def _bundle(asset: str) -> dict:
+    from modules import spot_dash
+    return spot_dash.load_bundle(asset)
+
+
+def _tab_analyzer(cr, met):
+    """Spot analyzer: pick a symbol -> 1M / 1W / 1D / 4H charts with every school + confluence (modules/spot_dash.py)."""
+    a, b = st.columns([3, 1])
+    metals = [m for m in METAL_LIST]
+    coins = [r["base"] for r in cr[:200]] or ["BTC", "ETH", "SOL"]
+    opts = metals + [c for c in coins if c not in metals]
+    pick = a.selectbox(T("Symbol", "الرمز"), opts, index=opts.index("BTC") if "BTC" in opts else 0, key="sp_an_sym",
+                       format_func=lambda x: T(x.title(), C.METAL_NAMES_AR[x]) if x in C.METAL_NAMES_AR else x)
+    if b.button(T("Refresh", "تحديث"), key="sp_an_ref"):
+        _bundle.clear()
+    with st.spinner(T("Loading 1M / 1W / 1D / 4H and reading every school ...", "بحمّل الشهري والأسبوعي واليومي والـ 4 ساعات وبقرا كل المدارس ...")):
+        try:
+            bd = _bundle(pick)
+        except Exception as e:
+            st.error(f"{type(e).__name__}: {e}")
+            return
+    if bd.get("errors"):
+        st.caption(T("Missing frames: ", "فريمات ناقصة: ") + ", ".join(bd["errors"]))
+    if not any(r.get("ok") for r in bd["reads"].values()):
+        st.warning(T("No candles for this symbol right now.", "مفيش شموع للرمز ده دلوقتي."))
+        return
+    from modules import spot_dash
+    from modules.i18n import lang
+    import streamlit.components.v1 as components
+    components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
+
+
 def _tab_crypto(d, cr, fx):
     if not cr:
         st.warning(T("OKX spot list unavailable right now.", "قايمة OKX سبوت مش متاحة دلوقتي."))
@@ -684,18 +717,20 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
+    tabs = st.tabs([T("Analyzer", "المحلل"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
                     T("Storage, Excel & fields", "التخزين والإكسل والخانات")])
     with tabs[0]:
-        _tab_crypto(d, cr, fx)
+        _tab_analyzer(cr, met)
     with tabs[1]:
-        _tab_metals(d, met, fx, fx_src, egp)
+        _tab_crypto(d, cr, fx)
     with tabs[2]:
-        _tab_ledger(d, px, fx, egp)
+        _tab_metals(d, met, fx, fx_src, egp)
     with tabs[3]:
-        _tab_alerts(d, px)
+        _tab_ledger(d, px, fx, egp)
     with tabs[4]:
-        _tab_news(d)
+        _tab_alerts(d, px)
     with tabs[5]:
+        _tab_news(d)
+    with tabs[6]:
         _tab_setup(d, px, fx)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

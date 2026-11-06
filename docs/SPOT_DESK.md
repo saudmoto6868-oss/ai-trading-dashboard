@@ -92,6 +92,18 @@ crypto majors + gold / silver / copper / platinum week by week (1W + 1M score, n
 by score bucket and sends a short Arabic result to Telegram (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`). The Analyzer is an
 optional tab (last one, loads only on request) until the result says the score helps.
 
+## Setup library (owner 2026-11-06: "every setup of every school, keep reviewing")
+`modules/spot_setups.py`: (1) every Radar detector + harmonic on 1M / 1W / 1D, bullish = buy, bearish = EXIT (spot never
+shorts); (2) spot-only setups (CATALOG): Elliott wave 2 / wave 3 go / wave 4 / wave 5 done; hidden / triple / MACD-histogram /
+MA-distance / OBV divergence, bearish divergence in the premium; Gann square of 9 + time window, 50 % of the range, 1x1 angle
+(scale = half the average bar range, stated), 90 / 180 / 360-day anniversaries; golden / death cross, 200-week reclaim / loss,
+52-week breakout, Bollinger squeeze; Mayer < 0.8 / > 2.4, under the 200-week; COT extremes; funding crowding, CVD absorption.
+Weekly lab `scripts/spot_setups_lab.py` (in spot-backtest.yml, Mondays): each setup on 1W (8-week return) and 1D (10-day),
+walk-forward on 18 markets vs the baseline, no overlap, Welch t; 'worked' needs n >= 30 AND t >= 3 (about 90 setups are tested
+together, so t = 2 happens by luck). Results committed to `data/spot_setup_evidence.json`, shown next to every live setup,
+in the library tab and used by the brain (setups the lab found worse are ignored). New ideas: school-review topic
+`spot_setups`. Adding a setup = one CATALOG entry + one rule in `spot_only`; the next Monday measures it.
+
 ## Spot brain (first tab, owner 2026-11-06: "a mastermind for spot only")
 `modules/spot_brain.py`: one market -> verdict on 4 horizons (day 1-3 d: 4H + order flow + news; week 1-4 w: 1D + 1W + recipes;
 month 1-3 m: 1W + 1M + ICT zone + COT; year 6-12 m: 1M + 200-week avg / Mayer / drawdown + COT) -> buy / accumulate / wait /

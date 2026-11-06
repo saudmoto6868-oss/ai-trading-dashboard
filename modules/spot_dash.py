@@ -402,7 +402,7 @@ def load_bundle(asset: str, candles=None) -> dict:
     return {"symbol": a, "sym": sym, "price": float(d1["close"].iloc[-1]) if d1 is not None and len(d1) else None,
             "asof": str(d1["time"].iloc[-1])[:16] if d1 is not None and len(d1) else "", "source": "Yahoo (delayed)" if (is_metal or extra) else "OKX spot",
             "reads": reads, "conf": conf, "stats": I.spot_stats(frames.get("1d"), frames.get("1w"), frames.get("1mo")),
-            "smt": smt, "smt_text": smt_text, "peer": peer_sym.replace("Y:", ""), "ratios": ratios, "plan": plan, "errors": errs}
+            "smt": smt, "smt_text": smt_text, "peer": peer_sym.replace("Y:", ""), "ratios": ratios, "plan": plan, "errors": errs, "frames": frames}
 
 
 def to_png(html: str, path: str, ctx=None, width: int = 1440) -> str:

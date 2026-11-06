@@ -168,6 +168,14 @@ def cmd_plan(a):
     return D.format_telegram(plans, ar=True)
 
 
+def cmd_watch():
+    """/watch : context setups (price action, range patterns, Wyckoff, Elliott) that agree with the 1D + 4H bias; not entries."""
+    from modules import day_plan as D
+    from modules.market_cache import get_klines
+    syms = [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+    return D.format_watch(D.scan_watch(syms, lambda s_, t_: get_klines(s_, t_, 300)), ar=True)
+
+
 def cmd_smt():
     """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
     from modules import intermarket as IM
@@ -193,7 +201,7 @@ HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر ت
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
 • /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
-• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -297,6 +305,8 @@ def handle(p, text):
         return say(cmd_plan(a[1:]), html=True)
     if c == "/smt":
         return say(cmd_smt())
+    if c == "/watch":
+        return say(cmd_watch(), html=True)
     if c == "/signals":
         return say(cmd_signals())
     if c == "/alerts":

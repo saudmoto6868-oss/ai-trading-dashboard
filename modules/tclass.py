@@ -341,7 +341,7 @@ def scan(sym: str, style: str, get_klines, target_pts: float = 0) -> list[dict]:
         confl = sorted({names[o["det"]] for o in ideas if o is not idea and o["side"] == s_ and o["det"] != idea["det"] and abs(o["entry"] - idea["entry"]) <= a})
         late = max(0.0, s_ * (px - idea["level"])) / max(1e-12, abs(idea["tps"][0] - idea["level"])) if idea["now"] else 0
         ctx = {"tf": tf, "ps": ps, "atr": a, "levels": levels, "bias": bias_, "setupB": setup_b, "trig": trig, "confl": confl, "vpAt": "", "hist": hist,
-               "late": late if late > 0.4 else 0, "regime": reg, "news": "", "openSame": False, "openOpp": False, "classOpen": 0, "jr": None, "scalp": style == "Scalp", "ses": ""}
+               "late": late if late > 0.4 else 0, "regime": reg, "regime_bad": reg in ("chop", "hivol", "crash"), "news": "", "openSame": False, "openOpp": False, "classOpen": 0, "jr": None, "scalp": style == "Scalp", "ses": ""}
         j = judge(idea, ctx)
         out.append(dict(idea, j=j, symbol=sym, style=style, direction="bullish" if s_ > 0 else "bearish", tfk=S["tfk"], ps=ps, notes=notes,
                         stack=f"{tf['bias']} → {tf['setup']} → {tf['entry']}"))
@@ -358,7 +358,7 @@ def fmt(c: dict) -> str:
     pl = j["plan"]
     V = {"TAKE": "ادخل ✅", "WAIT": "استنى ⏳", "SKIP": "ماتدخلش ⛔"}
     lines = [f"🎯 <b>TRADE CLASSES</b> {'🟢' if up else '🔴'} <b>{e(c['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {e(c['style'])} · {e(c['stack'])}",
-             f"القرار: <b>{V[j['verdict']]}</b> · {e(c['label'])} · النتيجة {j['score']}",
+             f"القرار: <b>{V[j['verdict']]}</b> · الدرجة <b>{j['grade']}</b> · {e(c['label'])} · النتيجة {j['score']}",
              f"\n<b>الخطة</b>\nدخول {_prec(pl['entry'])} · وقف {_prec(pl['stop'])}\nهدف {_prec(pl['tps'][0])} ({j['pts']} نقطة) / {_prec(pl['tps'][1])} · R:R 1:{_fix(j['rr'])}"]
     if j["pros"]:
         lines.append("\n<b>ليه أدخل</b>\n" + "\n".join("✔ " + e(p[2]) for p in j["pros"]))
@@ -533,5 +533,9 @@ def judge(idea: dict, c: dict) -> dict:
     if verdict == "WAIT" and not idea["now"]:
         second.append([f"Limit order at {_prec(entry)}: price has not reached the zone", f"أمر معلّق عند {_prec(entry)}: السعر لسه ماوصلش للمنطقة"])
     pct = max(0, min(100, _round((score + 4) / 12 * 100)))
-    return {"pros": pros, "cons": cons, "vetoes": vetoes, "second": second, "score": score, "pct": pct, "verdict": verdict,
+    conf = len(c.get("confl") or []) + (1 if c.get("vpAt") else 0) + (1 if h.get("n", 0) >= 10 and h["hitPct"] >= 0.55 else 0) + (1 if sb.get("available") and sb.get("bias") == want else 0)
+    aplus = (verdict == "TAKE" and bool(b.get("available") and b.get("bias") == want) and bool(c.get("trig")) and conf >= (3 if idea.get("det") in ("elliott", "harmonic", "smt") else 2) and rr >= 2 and not ob and score >= 5
+             and not c.get("regime_bad") and not (jr.get("done", 0) >= 10 and (jr.get("avgR") or 0) < 0))
+    grade = "A+" if aplus else "A" if verdict == "TAKE" else "B" if verdict == "WAIT" else "C"
+    return {"pros": pros, "cons": cons, "vetoes": vetoes, "second": second, "score": score, "pct": pct, "verdict": verdict, "grade": grade, "conf": conf,
             "plan": {"entry": entry, "stop": stop, "tps": tps}, "rr": rr, "pts": pt(tps[0] - entry), "blocked": ob if blocked else None}

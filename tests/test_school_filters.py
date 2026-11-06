@@ -16,11 +16,14 @@ EXPECTED_SCHOOLS = {
     "sch_mom":      "Momentum / divergence",
     "sch_level":    "Levels / breakouts",
     "sch_smt":      "Intermarket (SMT)",
+    "sch_pa":       "Price action",
+    "sch_rect":     "Chart patterns (range)",
+    "sch_wyck":     "Wyckoff",
 }
 
 
 def test_school_filters_present():
-    """All 10 school filter IDs exist in STRATEGY_FILTERS."""
+    """All 13 school filter IDs exist in STRATEGY_FILTERS."""
     import importlib, modules.chart_scan as cs
     importlib.reload(cs)
     for fid in EXPECTED_SCHOOLS:
@@ -66,7 +69,7 @@ def test_school_count():
     import importlib, modules.chart_scan as cs
     importlib.reload(cs)
     sch_keys = [k for k in cs.STRATEGY_FILTERS if k.startswith("sch_")]
-    assert len(sch_keys) == 10, f"Expected 10 school filters, got {len(sch_keys)}: {sch_keys}"
+    assert len(sch_keys) == 13, f"Expected 13 school filters, got {len(sch_keys)}: {sch_keys}"
     print("PASS test_school_count")
 
 

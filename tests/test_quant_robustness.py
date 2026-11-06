@@ -1,4 +1,4 @@
-"""Robustness tab reads the REAL lab rows: cell verdicts (n < 30 = not evidence, edge needs t > 3 + net > 0 in both halves),
+"""Robustness tab reads the REAL lab rows: cell verdicts (n < 30 = not evidence, edge needs t above max(3, Bonferroni) + net > 0 in both halves),
 net = avgR - 0.10R, 'survives trend' rule, and no invented numbers when the lab file is empty.
 Run: PYTHONPATH=. python tests/test_quant_robustness.py"""
 import os
@@ -31,5 +31,10 @@ g, o, b = m
 assert g["survives_trend"] and g["tested"] == 2 and g["passed"] == 2 and g["cells"]["ses-London 07-12"]["verdict"] == "not_evidence"
 assert not b["survives_trend"] and b["passed"] == 1
 assert not o["survives_trend"]                      # only one trend context with evidence -> not "survives"
+assert g["trials"] == 5 and g["t_bar"] == 3.0                      # few looks: the lab's own t > 3
 assert build_matrix([]) == []
+many = [row(f"k{i}", "trend-with", 100, 0.3, t=3.5) for i in range(300)]          # 300 looks: Bonferroni bar > 3.5, so no star
+mm = build_matrix(many)
+assert mm[0]["trials"] == 300 and mm[0]["t_bar"] > 3.5 and not any(c["verdict"] == "edge" for e in mm for c in e["cells"].values()), mm[0]["t_bar"]
+assert cell(row("a", "trend-with", 200, 0.3, t=3.5), t_bar=3.9)["verdict"] == "positive"
 print("ok quant_robustness")

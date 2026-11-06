@@ -4,7 +4,8 @@ Columns = contexts the weekly lab already splits every detector by: trend side (
 A cell = that detector's lab trades in that context: n, win %, avg R (gross), net R (avg R minus the planning cost COST_R), t vs a random
 direction baseline, and the in-sample / out-of-sample halves. Verdict per cell:
   * not_evidence  n < MIN_N (printed, never ranked)
-  * edge          n >= MIN_N, t > 3, net > 0, both halves (IS and OOS, net of costs) > 0 - the same strictness as the lab's edge flag + costs
+  * edge          n >= MIN_N, t above the bar, net > 0, both halves (IS and OOS, net of costs) > 0. Bar = max(3, Bonferroni t over every cell
+                  with n >= MIN_N on the page): ~300 cells are looked at, so a lone t of 3 is what luck alone gives (hub_core.bonferroni_t, same as Research Hub)
   * positive      net > 0 but not all of the above (unproven)
   * negative      net < 0
 "Survives the trend contexts" = at least 2 of with / flat / against have n >= MIN_N, and every one that does has net > 0 (flat is often empty). Past lab trades on candles only: not a forecast.
@@ -12,6 +13,7 @@ Markouts (1s / 10s / 60s after a fill) need real fill times + tick data; the lab
 """
 from __future__ import annotations
 
+from modules.hub_core import bonferroni_t
 from modules.lab_shared import MIN_N, _all_rows, t
 
 COST_R = 0.10   # same planning cost as the lab (strategy_lab.COST_R); lab avgR / is_avgR / oos_avgR are gross
@@ -28,7 +30,7 @@ def _net(v):
     return None if v is None else round(v - COST_R, 3)
 
 
-def cell(row: dict | None) -> dict:
+def cell(row: dict | None, t_bar: float = 3.0) -> dict:
     """One context cell from one lab row (None -> empty cell)."""
     if not row:
         return {"n": 0, "verdict": "none"}
@@ -37,7 +39,7 @@ def cell(row: dict | None) -> dict:
          "is_n": row.get("is_n"), "is_net": _net(row.get("is_avgR")), "oos_n": row.get("oos_n"), "oos_net": _net(row.get("oos_avgR"))}
     if n < MIN_N or avg is None:
         c["verdict"] = "not_evidence"
-    elif c["net"] > 0 and (c["t"] or 0) > 3 and (c["is_net"] or 0) > 0 and (c["oos_net"] or 0) > 0:
+    elif c["net"] > 0 and (c["t"] or 0) > t_bar and (c["is_net"] or 0) > 0 and (c["oos_net"] or 0) > 0:
         c["verdict"] = "edge"
     elif c["net"] > 0:
         c["verdict"] = "positive"
@@ -47,24 +49,26 @@ def cell(row: dict | None) -> dict:
 
 
 def build_matrix(rows: list[dict]) -> list[dict]:
-    """-> one entry per detector key (tf 'all'): {key, school, n_all, cells{ctx: cell}, tested, passed, survives_trend}, best first."""
+    """-> one entry per detector key (tf 'all'): {key, school, n_all, cells{ctx: cell}, tested, passed, survives_trend, trials, t_bar}, best first.
+    trials = every context cell with n >= MIN_N on the page (the multiple-testing count); t_bar = the t a star needs after that many looks."""
     by = {}
     for r in rows:
         if r.get("tf") != "all" or str(r.get("key", "")).startswith("*") or r.get("school") == "exit":
             continue
         if r.get("side") == "all" or r.get("side") in CONTEXTS:
             by.setdefault(r["key"], {})[r["side"]] = r
+    by = {k: v for k, v in by.items() if any(s in v for s in CONTEXTS)}
+    trials = sum(int(r.get("n") or 0) >= MIN_N for v in by.values() for s, r in v.items() if s in CONTEXTS)
+    t_bar = round(max(3.0, bonferroni_t(trials)), 2)
     out = []
     for k, sides in by.items():
-        if not any(s in sides for s in CONTEXTS):
-            continue
-        cells = {ctx: cell(sides.get(ctx)) for ctx in CONTEXTS}
+        cells = {ctx: cell(sides.get(ctx), t_bar) for ctx in CONTEXTS}
         tested = [c for c in cells.values() if c["n"] >= MIN_N]
         trend = [cells[x] for x in TREND_CTX if cells[x]["n"] >= MIN_N]   # 'flat' is often empty: judge the trend contexts that have evidence
         base = sides.get("all") or next(iter(sides.values()))
         out.append({"key": k, "school": base.get("school", "Other"), "n_all": int((sides.get("all") or {}).get("n") or 0), "cells": cells,
                     "tested": len(tested), "passed": sum(c["net"] > 0 for c in tested),
-                    "survives_trend": len(trend) >= 2 and all(c["net"] > 0 for c in trend)})
+                    "survives_trend": len(trend) >= 2 and all(c["net"] > 0 for c in trend), "trials": trials, "t_bar": t_bar})
     out.sort(key=lambda e: (-e["survives_trend"], -e["passed"], -(e["passed"] / e["tested"] if e["tested"] else 0), e["key"]))
     return out
 
@@ -86,10 +90,13 @@ def render() -> None:
         st.info(t("مفيش بيانات مختبر (data/strategy_lab.json فاضي أو مش موجود). مفيش أرقام تتعرض.",
                   "No lab data (data/strategy_lab.json missing or empty). No numbers to show."))
         return
+    bar, trials = mx[0]["t_bar"], mx[0]["trials"]
     st.caption(t(f"كل خانة = صافي R لكل صفقة بعد خصم تكلفة تقديرية {COST_R}R، وعدد الصفقات. أقل من {MIN_N} صفقة = مش دليل (⚠). "
-                 "⭐ = صافي موجب + t أكبر من 3 مقابل اتجاه عشوائي + موجب في نصّي البيانات (داخل وخارج العينة). صفقات تاريخية على شموع، مش توقع ولا نصيحة.",
+                 f"⭐ = صافي موجب + t أكبر من {bar} مقابل اتجاه عشوائي + موجب في نصّي البيانات (داخل وخارج العينة). "
+                 f"الحد {bar} مش 3 لأن الصفحة بتبص على {trials} خانة مرة واحدة (تصحيح Bonferroni)، فـ t=3 لوحدها ممكن تطلع بالحظ. صفقات تاريخية على شموع، مش توقع ولا نصيحة.",
                  f"Each cell = net R per trade after a {COST_R}R planning cost, and the trade count. Under {MIN_N} trades = not evidence (⚠). "
-                 "⭐ = net positive + t > 3 vs a random direction + positive in both halves (in- and out-of-sample). Past candle-based lab trades, not a forecast or advice."))
+                 f"⭐ = net positive + t > {bar} vs a random direction + positive in both halves (in- and out-of-sample). "
+                 f"The bar is {bar}, not 3, because the page looks at {trials} cells at once (Bonferroni), so a lone t of 3 can be luck. Past candle-based lab trades, not a forecast or advice."))
     schools = sorted({e["school"] for e in mx})
     c1, c2 = st.columns([2, 1])
     pick = c1.multiselect(t("المدرسة", "School"), schools, default=[], key="rb_school", placeholder=t("الكل", "All"))

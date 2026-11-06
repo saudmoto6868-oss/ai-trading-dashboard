@@ -35,5 +35,14 @@ function candles(bar, limit) {   // OKX shape, newest first; a clean range with 
   const sw = await p.evaluate(() => { const r = TC.res["Swing|BTC-USDT"] || {}; return { err: r.err || null, cards: (r.cards || []).map(c => c.ttype + "/" + c.tfc) }; });
   console.log('swing', JSON.stringify(sw));
   ok = ok && !sw.err && sw.cards.every(x => x === 'Swing/4H');
+  // harmonic school: a hand-built bullish Gartley (X 100, A 110, B 103.82, C 107.6, D 102.14) -> TC.harm gives a valid long card
+  const hm = await p.evaluate(() => { const piv = [[0, 104], [40, 100], [60, 110], [75, 103.82], [88, 107.6], [104, 102.14]], rows = [];
+    for (let i = 0; i <= 104; i++){ let k = 0; while (piv[k+1][0] < i) k++; const [i0, p0] = piv[k], [i1, p1] = piv[k+1], c = p0 + (p1 - p0)*(i - i0)/(i1 - i0) + 0.03*Math.sin(i*12.9898), o = rows.length ? rows[rows.length-1].c : c, w = 0.08*(1 + 0.5*Math.abs(Math.sin(i*7.31)));
+      rows.push({t:i*9e5, o, h:Math.max(o, c) + w, l:Math.min(o, c) - w, c, v:1}); }
+    return TC.harm("BTC-USDT", "Scalp", rows, [], [], {}).map(c => ({ dir: c.direction, school: c.school, tag: c.tags[0][0], ok: planOk(c.plan, c.direction) })); });
+  console.log('harmonic', JSON.stringify(hm));
+  ok = ok && hm.length >= 1 && hm[0].dir === 'bullish' && hm[0].school === 'harmonic' && /Gartley/.test(hm[0].tag) && hm[0].ok;
+  const opts = await p.evaluate(() => [...Ws.panels.find(x => x.type === "tclass").body.querySelectorAll("select")[2].options].map(o => o.value));
+  ok = ok && opts.includes('harmonic');
   console.log('errors', errs.length, errs[0] || ''); console.log(ok && !errs.length ? 'PASS' : 'FAIL'); await b.close(); process.exit(ok && !errs.length ? 0 : 1);
 })();

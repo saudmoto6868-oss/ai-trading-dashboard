@@ -6444,13 +6444,42 @@ const TC = {
       tags:[[tag, "#f0b90b", "#000", "S/R bounce: "+c.why.join(" · ")], ["دعم/مقاومة", "#4aa3ff", "#000", "Support / resistance zone (pivot cluster)"]],
       spark, ana:{sig:ar}, why:c.why, level:c.level, touches:c.touches, pts:c.pts, ps:c.ps, hist:c.st};
   },
+  /* Harmonic school: harmFind() (the chart's own detector, Gartley / Bat / Butterfly / Crab / Cypher, same rules as modules/harmonic.py) on the
+     SAME setup-timeframe candles (no extra request). Kept: a completed pattern whose D is <= 12 bars old and not finished (stop / last target
+     not touched), or a forming one (X-A-B-C, price heading for the PRZ). Plan = the detector's plan (entry D / PRZ mid, its stop, TP 0.382 / 0.618 AD). */
+  harm(sym, style, rows, biasRows, spark, opt){
+    if (typeof harmFind !== "function" || !rows || rows.length < 60) return [];
+    const n = rows.length, px = rows[n-1].c, a = TCE.atr(rows, 14), b = TCE.bias(biasRows), ps = TCE.pointSize(sym, px), S = TCE.STYLES[style], out = [];
+    harmFind(rows, 4).forEach(h => {
+      const pl = h.plan, s = h.dir === "bull" ? 1 : -1, dI = h.pts[h.pts.length - 1].i;
+      if (h.state === "done" && (n - 1 - dI > 12 || harmHit(pl, rows, dI))) return;
+      const entry = pl.entry, stop = pl.stop, tps = pl.tps.slice(0, 2); if (!(Math.abs(entry - stop) > 0)) return;
+      const near = Math.abs(px - entry) <= a*0.5, agree = b.available ? (b.bias === (s > 0 ? "bull" : "bear") ? 1 : b.bias === "neutral" ? 0 : -1) : 0, rr = Math.abs(tps[0] - entry)/Math.abs(entry - stop);
+      const rej = TCE.rejection(rows, s), why = [], pts = Math.round(Math.abs(tps[0] - entry)/ps); let score = 0;
+      if (h.state === "done"){ score++; why.push(h.name+" completed (D printed)"); } else why.push(h.name+" forming: limit order in the PRZ");
+      if (near){ score++; why.push("price is at the zone now"); }
+      if (agree > 0){ score++; why.push("higher timeframe agrees ("+b.bias+")"); } else if (agree < 0) why.push("COUNTER-TREND: higher timeframe is "+b.bias);
+      if (rr >= 1.5){ score++; why.push("R:R "+rr.toFixed(1)); }
+      if (rej){ score++; why.push("rejection candle at D"); }
+      if (entry >= h.prz.lo - h.prz.pad - a*0.1 && entry <= h.prz.hi + h.prz.pad + a*0.1){ score++; why.push("D inside the PRZ"); }
+      const long_ = s > 0, ar = [(long_ ? "شراء" : "بيع")+" من نموذج "+h.name+(h.state === "done" ? " مكتمل" : " بيتكوّن (أمر معلّق في منطقة الانعكاس PRZ)"),
+        "الدخول "+fmtP(entry)+" · الستوب "+fmtP(stop)+" · الهدف "+fmtP(tps[0])+" ("+pts+" نقطة) · R:R "+rr.toFixed(1),
+        "ترابط الفريمات: اتجاه "+S.bias+" ← إعداد "+S.setup+" ← دخول "+S.entry+": "+(agree > 0 ? "متوافق" : agree < 0 ? "عكس الاتجاه (حذر)" : "محايد"),
+        "مفيش نسبة نجاح تاريخية للهارمونيك هنا لسه؛ السجل الفعلي في الجورنال (أقل من 30 = مش دليل)"];
+      out.push({symbol:sym, direction:long_ ? "bullish" : "bearish", ttype:style, tfk:S.tfk, tfc:S.entry, score, max:6, src:"tclass", school:"harmonic",
+        plan:{entry, stop, tps}, zones:[{lo:h.prz.lo, hi:h.prz.hi, dir:long_ ? "bullish" : "bearish"}],
+        tags:[[Lg("Harmonic ","هارمونيك ")+h.name, "#b57cff", "#000", "Harmonic "+h.name+": "+why.join(" · ")]], spark, ana:{sig:ar}, why, pts, ps, level:entry, touches:0, hist:null});
+    });
+    return out;
+  },
   async scanSym(sym, style, opt){
     const S = TCE.STYLES[style];
     const [setup, bias] = await Promise.all([candlesTf(sym, S.setup, true, S.want), candlesTf(sym, S.bias, true, 120).catch(() => [])]);
     const lv = SR.compute(setup); let cs = TCE.candidates(sym, setup, lv, bias, null, Object.assign({hold:S.hold}, opt));
     if (cs.length){ const en = await candlesTf(sym, S.entry, true, 60).catch(() => null); if (en) cs = TCE.candidates(sym, setup, lv, bias, en, Object.assign({hold:S.hold}, opt)); }
-    const spark = setup.slice(-40).map(r => r.c);
-    return {t:Date.now(), n:setup.length, cards:cs.map(c => this.card(sym, style, c, spark)), raw:cs, bias:TCE.bias(bias)};
+    const spark = setup.slice(-40).map(r => r.c), cards = cs.map(c => Object.assign(this.card(sym, style, c, spark), {school:"bounce"}));
+    try { this.harm(sym, style, setup, bias, spark, opt).forEach(c => cards.push(c)); } catch(e){}
+    return {t:Date.now(), n:setup.length, cards, raw:cs, bias:TCE.bias(bias)};
   },
   // one pass over the symbols of one style (sequential, small pause between symbols: OKX / Hyperliquid limits)
   async run(style, syms, opt, force){
@@ -6483,7 +6512,7 @@ Panel.prototype.build_tclass = function(){
     s.onpointerdown = e => e.stopPropagation(); s.onchange = () => { S[key] = num ? +s.value : s.value; Ws.save(); if (key !== "school") go(true); else draw(); }; return s; };
   const stSel = mk([["Scalp",Lg("Scalp","سكالب")],["Day Trade",Lg("Day trade","داي تريد")],["Swing",Lg("Swing","سوينج")],["Position",Lg("Position","بوزشن")]], "style");
   const tgSel = mk(TCE.TARGETS.map(v => [v, v ? v+Lg(" pts"," نقطة") : Lg("Auto (measured)","تلقائي (مقاس)")]), "tgt", true);
-  const scSel = mk([["bounce",Lg("S/R bounce","ارتداد دعم/مقاومة")],["elliott",Lg("Elliott (scanner)","إليوت (السكانر)")],["ict",Lg("ICT / SMC (scanner)","ICT / SMC (السكانر)")],["classic",Lg("Classic (scanner)","كلاسيك (السكانر)")],["all",Lg("All schools","كل المدارس")]], "school");
+  const scSel = mk([["bounce",Lg("S/R bounce","ارتداد دعم/مقاومة")],["harmonic",Lg("Harmonic","هارمونيك")],["elliott",Lg("Elliott (scanner)","إليوت (السكانر)")],["ict",Lg("ICT / SMC (scanner)","ICT / SMC (السكانر)")],["classic",Lg("Classic (scanner)","كلاسيك (السكانر)")],["all",Lg("All schools","كل المدارس")]], "school");
   const unSel = mk([["chart",Lg("Chart symbol","رمز الشارت")],["watch",Lg("Watchlist (top 10)","الووتش ليست (أول 10)")]], "uni");
   const rf = el("button", null, "⟳"), pu = el("label"), pc = el("input"); rf.title = Lg("Scan now","افحص دلوقتي"); pc.type = "checkbox"; pc.checked = S.push !== false;
   pu.append(pc, document.createTextNode(Lg(" → Alerts"," ← التنبيهات"))); pu.title = Lg("Send strong trades (at the zone now, strength >= 4 of 6) to Alerts, the Setup Card and the top strip","ابعت الصفقات القوية (السعر عند المنطقة، قوة 4 من 6+) للتنبيهات وكارت الصفقة والشريط اللي فوق");
@@ -6493,26 +6522,27 @@ Panel.prototype.build_tclass = function(){
   this.body.append(tb, info, box, foot); this.body.style.overflow = "auto";
   const chartSym = () => { const ch = Ws.panels.find(p => p.type === "chart"); return ch ? ch.state.sym : SYMS[0]; };
   const syms = () => S.uni === "watch" ? SYMS.slice(0, 10) : [chartSym()];
-  const go = force => { if (S.school === "bounce" || S.school === "all") TC.run(S.style, syms(), {targetPts:S.tgt}, force); draw(); };
+  const own = () => S.school === "bounce" || S.school === "harmonic" || S.school === "all";
+  const go = force => { if (own()) TC.run(S.style, syms(), {targetPts:S.tgt}, force); draw(); };
   rf.onclick = () => go(true);
   const draw = () => {
     const St = TCE.STYLES[S.style], fr = TC.record(S.style);
     info.innerHTML = '<b style="color:#f0b90b">'+esc(ttTxt(S.style))+'</b> · '+esc(Lg("bias","اتجاه"))+' <b>'+St.bias+'</b> → '+esc(Lg("setup","إعداد"))+' <b>'+St.setup+'</b> → '+esc(Lg("entry","دخول"))+' <b>'+St.entry+'</b>'
       +(TC.busy ? ' · <span style="color:#4aa3ff">'+esc(Lg("scanning…","بيفحص…"))+'</span>' : '');
     let rows = [];
-    if (S.school === "bounce" || S.school === "all") syms().forEach(s => { const r = TC.res[S.style+"|"+s]; if (r) (r.cards || []).forEach(c => rows.push(c)); });
-    if (S.school !== "bounce"){ const want = S.school === "all" ? null : TC.SCHOOLS[S.school];
+    if (own()) syms().forEach(s => { const r = TC.res[S.style+"|"+s]; if (r) (r.cards || []).forEach(c => { if (S.school === "all" || (c.school || "bounce") === S.school) rows.push(c); }); });
+    if (S.school !== "bounce" && S.school !== "harmonic"){ const want = S.school === "all" ? null : TC.SCHOOLS[S.school];
       readyList().filter(e => e.ttype === S.style && e.src !== "tclass" && (!want || (e.tags || []).some(t => want.includes(t[0])))).forEach(e => rows.push(e)); }
     rows.sort((a, b) => (b.score/b.max - a.score/a.max));
     const errs = syms().map(s => TC.res[S.style+"|"+s]).filter(r => r && r.err);
-    if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(TC.busy ? Lg("scanning…","بيفحص…") : errs.length ? errs[0].err : (S.school === "bounce" ? Lg("No symbol is at a support / resistance zone right now for this style.","مفيش رمز عند منطقة دعم/مقاومة دلوقتي للنوع ده.") : Lg("No scanner setup of this school + style right now.","مفيش إعداد من المدرسة دي والنوع ده في السكانر دلوقتي.")))+'</div>'; }
+    if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(TC.busy ? Lg("scanning…","بيفحص…") : errs.length ? errs[0].err : (S.school === "harmonic" ? Lg("No active harmonic pattern on these symbols for this style.","مفيش نموذج هارمونيك شغال على الرموز دي للنوع ده.") : S.school === "bounce" ? Lg("No symbol is at a support / resistance zone right now for this style.","مفيش رمز عند منطقة دعم/مقاومة دلوقتي للنوع ده.") : Lg("No scanner setup of this school + style right now.","مفيش إعداد من المدرسة دي والنوع ده في السكانر دلوقتي.")))+'</div>'; }
     else {
       let h = '<table class="rdt"><tr><th>'+esc(T("symbol"))+'</th><th></th><th>'+esc(Lg("Level","المستوى"))+'</th><th>'+esc(Lg("Entry","الدخول"))+'</th><th>'+esc(T("stop"))+'</th><th>'+esc(Lg("Target","الهدف"))+'</th><th>R:R</th><th title="'+esc(Lg("Past bounces from a level on this symbol + setup timeframe (walk-forward): how often the move reached the target before the stop, out of n. Under 30 = not evidence.","الارتدادات اللي فاتت من مستوى على نفس الرمز والفريم (من غير بيانات مستقبلية): كام مرة الحركة وصلت للهدف قبل الستوب من n. أقل من 30 = مش دليل."))+'">'+esc(Lg("History","التاريخ"))+'</th><th>'+esc(T("rdStr"))+'</th></tr>';
       rows.slice(0, 60).forEach((e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1, e.max)), col = pct >= 67 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c", pl = e.plan;
         const ps = e.ps || TCE.pointSize(e.symbol, pl.entry), pts = e.pts || Math.round(Math.abs(pl.tps[0] - pl.entry)/ps), r0 = Math.abs(pl.entry - pl.stop), hs = e.hist;
         h += '<tr data-i="'+i+'" style="cursor:pointer" title="'+esc((e.ana && e.ana.sig ? e.ana.sig : (e.tags || []).map(t => "["+t[0]+"] "+(t[3] || ""))).join("\n"))+'"><td><b>'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b> <span class="m">'+esc(e.tfc || e.tfk || "")+'</span></td>'
           +'<td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+(long_ ? "▲ "+esc(T("long")) : "▼ "+esc(T("short")))+'</td>'
-          +'<td class="m">'+(e.src === "tclass" ? esc(fmtP(e.level))+' <span title="'+esc(Lg("touches","لمسات"))+'">×'+(e.touches || "")+'</span>' : esc((e.tags || []).slice(0, 2).map(t => tagTxt(t[0])).join(" · ")))+'</td>'
+          +'<td class="m">'+(e.school === "harmonic" ? esc(tagTxt(e.tags[0][0])) : e.src === "tclass" ? esc(fmtP(e.level))+' <span title="'+esc(Lg("touches","لمسات"))+'">×'+(e.touches || "")+'</span>' : esc((e.tags || []).slice(0, 2).map(t => tagTxt(t[0])).join(" · ")))+'</td>'
           +'<td>'+fmtP(pl.entry)+'</td><td style="color:#f6465d">'+fmtP(pl.stop)+'</td><td style="color:#0ecb81">'+fmtP(pl.tps[0])+' <span class="m">('+pts+Lg(" pts"," ن")+')</span></td><td>'+(r0 ? (Math.abs(pl.tps[0] - pl.entry)/r0).toFixed(1) : "–")+'</td>'
           +'<td class="m">'+(hs && hs.n ? (hs.hitPct == null ? "–" : Math.round(hs.hitPct*100)+"%")+' n'+hs.n+(hs.n < 30 ? '*' : '')+' · ~'+Math.round(hs.median/ps)+Lg(" pts"," ن") : "–")+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td></tr>'; });
@@ -6521,8 +6551,8 @@ Panel.prototype.build_tclass = function(){
     }
     foot.innerHTML = esc(Lg("Forward record of these bounce trades (journal, ","السجل الفعلي لصفقات الارتداد دي (الجورنال، "))+esc(ttTxt(S.style))+'): <b>'+fr.done+'</b> '+esc(Lg("closed","مقفولة"))+' · '+fr.win+' TP · '+(fr.avgR == null ? "–" : (fr.avgR >= 0 ? "+" : "")+fr.avgR.toFixed(2)+"R")+' · '+fr.open+' '+esc(Lg("open","مفتوحة"))
       +(fr.done < 30 ? ' · <b style="color:#f0b90b">'+esc(Lg("under 30 = not evidence","أقل من 30 = مش دليل"))+'</b>' : '')
-      +'<br>'+esc(Lg("* n under 30. Point size: forex = pip, gold 0.1, silver/oil/stocks 0.01, indices 1, crypto by price. The bounce size is measured on past candles of this symbol (no future data); it is information, not a promise. Harmonic patterns are drawn on the chart but are not in the scanner yet.",
-        "* n أقل من 30. حجم النقطة: الفوركس = بيب، الدهب 0.1، الفضة/البترول/الأسهم 0.01، المؤشرات 1، الكريبتو حسب السعر. حجم الارتداد مقاس على شموع الرمز اللي فاتت (من غير بيانات مستقبلية)؛ معلومة مش وعد. الهارمونيك بيترسم على الشارت بس لسه مش في السكانر."));
+      +'<br>'+esc(Lg("* n under 30. Point size: forex = pip, gold 0.1, silver/oil/stocks 0.01, indices 1, crypto by price. The bounce size is measured on past candles of this symbol (no future data); it is information, not a promise. Harmonic = the chart's own detector on the setup timeframe; no historical hit rate for it yet.",
+        "* n أقل من 30. حجم النقطة: الفوركس = بيب، الدهب 0.1، الفضة/البترول/الأسهم 0.01، المؤشرات 1، الكريبتو حسب السعر. حجم الارتداد مقاس على شموع الرمز اللي فاتت (من غير بيانات مستقبلية)؛ معلومة مش وعد. الهارمونيك = نفس كاشف الشارت على فريم الإعداد؛ لسه مفيش نسبة نجاح تاريخية ليه."));
     if (S.push !== false){ const all = []; Object.keys(TC.res).forEach(k => (TC.res[k].cards || []).forEach(c => all.push(c))); TC.push(all, S.min || 66); }
   };
   draw(); go(false); const iv = setInterval(() => go(false), 30000);

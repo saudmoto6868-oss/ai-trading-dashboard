@@ -396,3 +396,23 @@ def load_bundle(asset: str, candles=None) -> dict:
             "asof": str(d1["time"].iloc[-1])[:16] if d1 is not None and len(d1) else "", "source": "Yahoo futures" if is_metal else "OKX spot",
             "reads": reads, "conf": conf, "stats": I.spot_stats(frames.get("1d"), frames.get("1w"), frames.get("1mo")),
             "smt": smt, "smt_text": smt_text, "peer": peer_sym.replace("Y:", ""), "ratios": ratios, "plan": plan, "errors": errs}
+
+
+def to_png(html: str, path: str, ctx=None, width: int = 1440) -> str:
+    """Screenshot of the dashboard HTML (Telegram photo). ctx = an open Playwright browser context (the bot's), else a
+    throw-away headless Chromium is started. The page has no outside requests (pure SVG / CSS)."""
+    def _shot(page):
+        page.set_viewport_size({"width": width, "height": 1000})
+        page.set_content(html, wait_until="load")
+        page.wait_for_timeout(300)
+        page.screenshot(path=path, full_page=True)
+        page.close()
+    if ctx is not None:
+        _shot(ctx.new_page())
+        return path
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        _shot(b.new_page())
+        b.close()
+    return path

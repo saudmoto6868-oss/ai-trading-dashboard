@@ -717,20 +717,24 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Analyzer", "المحلل"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
-                    T("Storage, Excel & fields", "التخزين والإكسل والخانات")])
+    tabs = st.tabs([T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
+                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)")])
     with tabs[0]:
-        _tab_analyzer(cr, met)
-    with tabs[1]:
         _tab_crypto(d, cr, fx)
-    with tabs[2]:
+    with tabs[1]:
         _tab_metals(d, met, fx, fx_src, egp)
-    with tabs[3]:
+    with tabs[2]:
         _tab_ledger(d, px, fx, egp)
-    with tabs[4]:
+    with tabs[3]:
         _tab_alerts(d, px)
-    with tabs[5]:
+    with tabs[4]:
         _tab_news(d)
-    with tabs[6]:
+    with tabs[5]:
         _tab_setup(d, px, fx)
+    with tabs[6]:   # owner 2026-11-06: an option on the side, loaded only on request
+        if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
+            st.session_state["sp_an_on"] = True
+            _tab_analyzer(cr, met)
+        else:
+            st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

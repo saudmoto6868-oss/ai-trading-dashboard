@@ -22,7 +22,8 @@
   const elapsed = () => S.rec ? (S.paused ? S.pAt : Date.now()) - S.t0 - S.pausedMs : 0;
   async function start(){
     if (S.rec) return { ok: false, err: "already recording" };
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder){ alert("This browser cannot record the screen (no getDisplayMedia / MediaRecorder). Use a desktop Chrome / Edge / Firefox."); return { ok: false, err: "unsupported" }; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder){ const touch = (navigator.maxTouchPoints || 0) > 0 && !/Windows|Macintosh.*Chrome/.test(navigator.userAgent) || /iPad|iPhone|Android/i.test(navigator.userAgent);
+      alert(touch ? "Phones and tablets do not let a web page record the screen. Use the device's own recorder (it is the best quality there): iPhone / iPad: Control Center > Screen Recording (the red dot); Android: Quick Settings > Screen record. The clip lands in Photos / Gallery, and the editor here can open it from your files later." : "This browser cannot record the screen (no getDisplayMedia / MediaRecorder). Use desktop Chrome, Edge or Firefox."); return { ok: false, err: "unsupported" }; }
     let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always", frameRate: { ideal: 60, max: 60 }, width: { ideal: 7680 }, height: { ideal: 4320 } }, audio: false }); } catch(e){ return { ok: false, err: String(e && e.name || e) }; }   // the browser gives the real pixels of what you pick, never upscaled
     const vt = stream.getVideoTracks()[0], st = vt && vt.getSettings ? vt.getSettings() : {}; try { if (vt) vt.contentHint = "detail"; } catch(e){}   // charts / text, not film: keep edges sharp
     const w = st.width || 1920, h = st.height || 1080, fps = st.frameRate || 30, o = opts(w, h, fps);

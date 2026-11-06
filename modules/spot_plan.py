@@ -123,9 +123,11 @@ def plan(frames: dict, yearly=None) -> dict:
     buys = sorted(buys, reverse=True)[:3]
     sells = _pick(above, px, False)
     inval = (min(buys) - min(atr_w, 0.10 * min(buys))) if buys else None   # one weekly ATR under the lowest buy, at most 10 %
-    if score >= 40:
+    if score >= 35:   # same thresholds as the Analyzer (spot_dash) so the two never disagree
         action = "accumulate" if buys and px <= buys[0] * 1.03 else "hold_buy_dips"
-    elif score <= -40:
+    elif score >= 10:
+        action = "hold_buy_dips"
+    elif score <= -35:
         action = "take_profit_wait"
     else:
         action = "wait"
@@ -148,5 +150,5 @@ ACTION_TXT = {
     "accumulate": ("Accumulate (staged buys)", "تجميع على دفعات"),
     "hold_buy_dips": ("Hold / buy the dips at the levels", "احتفظ / اشتري على المستويات"),
     "take_profit_wait": ("Take profit / wait (spot never shorts)", "جني ربح / استنى (السبوت مفيهوش بيع على المكشوف)"),
-    "wait": ("Wait - schools disagree", "استنى - المدارس مش متفقة"),
+    "wait": ("Wait - no clear side", "استنى - مفيش اتجاه واضح"),
 }

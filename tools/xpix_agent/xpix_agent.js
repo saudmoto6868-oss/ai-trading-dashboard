@@ -38,13 +38,13 @@ class XpixAgent {
   // ---- video (high quality): CDP screencast frames (JPEG q95) -> ffmpeg H.264 (CRF 16, yuv420p, constant fps). Playwright's own recordVideo is low-bitrate VP8, so it is not used. Needs ffmpeg on the PATH. ----
   async recStart(o = {}){
     if (this.rec) throw new Error("already recording");
-    const fps = Math.max(5, Math.min(60, +o.fps || 30)), w = +o.w || 1920, h = +o.h || 1080, dir = fs.mkdtempSync(path.join(os.tmpdir(), "xpix_rec_"));
-    this.rec = { fps, w, h, dir, frames: [], out: path.resolve(o.out || "xpix_" + new Date().toISOString().replace(/[:.]/g, "-") + ".mp4"), crf: Math.max(10, Math.min(28, +o.crf || 16)), vp: this.page.viewportSize() };
+    const fps = Math.max(5, Math.min(60, +o.fps || 30)), w = +o.w || 1920, h = +o.h || 1080, ow = +o.outW || w, oh = Math.round(ow * h / w), dir = fs.mkdtempSync(path.join(os.tmpdir(), "xpix_rec_"));
+    this.rec = { fps, w, h, dir, frames: [], out: path.resolve(o.out || "xpix_" + new Date().toISOString().replace(/[:.]/g, "-") + ".mp4"), crf: Math.max(10, Math.min(28, +o.crf || 16)), outW: ow, outH: oh, vp: this.page.viewportSize() };
     await this.page.setViewportSize({ width: w, height: h }); await this.settle(300);
     const cdp = await this.ctx.newCDPSession(this.page); this.rec.cdp = cdp; let n = 0;
     cdp.on("Page.screencastFrame", async ev => { try { const f = path.join(dir, "f" + String(n++).padStart(6, "0") + ".jpg"); fs.writeFileSync(f, Buffer.from(ev.data, "base64")); this.rec.frames.push({ f, t: ev.metadata.timestamp }); await cdp.send("Page.screencastFrameAck", { sessionId: ev.sessionId }); } catch(e){} });
-    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 95, maxWidth: w, maxHeight: h, everyNthFrame: 1 });
-    return { ok: true, recording: true, w, h, fps, out: this.rec.out };
+    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 95, maxWidth: ow, maxHeight: oh, everyNthFrame: 1 });
+    return { ok: true, recording: true, w, h, outW: ow, outH: oh, fps, out: this.rec.out };
   }
   async recStop(){
     const R = this.rec; if (!R) throw new Error("not recording"); this.rec = null;
@@ -56,11 +56,11 @@ class XpixAgent {
     const r = spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-vf", "fps=" + R.fps + ",scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p", "-c:v", "libx264", "-preset", "slow", "-crf", String(R.crf), "-movflags", "+faststart", R.out], { encoding: "utf8" });
     if (r.error || r.status !== 0) return { ok: false, err: "ffmpeg failed: " + (r.error ? r.error.message + " (install ffmpeg: brew install ffmpeg)" : (r.stderr || "").slice(0, 300)), frames: fr.length, keptFrames: R.dir };
     try { fs.rmSync(R.dir, { recursive: true, force: true }); } catch(e){}
-    const st = fs.statSync(R.out); return { ok: true, out: R.out, bytes: st.size, frames: fr.length, seconds: +(fr[fr.length - 1].t - fr[0].t).toFixed(2), fps: R.fps, size: R.w + "x" + R.h };
+    const st = fs.statSync(R.out); return { ok: true, out: R.out, bytes: st.size, frames: fr.length, seconds: +(fr[fr.length - 1].t - fr[0].t).toFixed(2), fps: R.fps, size: R.w + "x" + R.h, frameSize: (R.outW || R.w) + "x" + (R.outH || R.h) };
   }
   async record(sec, o = {}){ const a = await this.recStart(o); await this.page.waitForTimeout(Math.max(1, +sec) * 1000); const b = await this.recStop(); return b.ok ? Object.assign(b, { started: a.ok }) : b; }
   // ---- one entry point for the CLI and the HTTP server: a fixed allow-list of commands (nothing is evaluated) ----
-  async run(c, args = [], o = {}){ const P = o.panel, m = /^(\d+)x(\d+)$/.exec(o.size || ""), RO = () => ({ out: o.out, fps: o.fps, crf: o.crf, w: m ? +m[1] : undefined, h: m ? +m[2] : undefined });
+  async run(c, args = [], o = {}){ const P = o.panel, m = /^(\d+)x(\d+)$/.exec(o.size || ""), K4 = /^4k$/i.test(o.res || ""), RO = () => ({ out: o.out, fps: K4 ? (o.fps || 60) : o.fps, crf: K4 ? (o.crf || 14) : o.crf, w: K4 ? 3840 : m ? +m[1] : undefined, h: K4 ? 2160 : m ? +m[2] : undefined });
     switch (c){ case "pages": return this.pages(); case "page": return this.openPage(args[0]); case "state": return this.state(); case "list": return this.list(P);
       case "symbol": return this.symbol(args[0], P); case "tf": return this.tf(args[0], P); case "toggle": return this.toggle(args[0], /^(on|1|true)$/i.test(String(args[1] == null ? "on" : args[1])), P);
       case "addpanel": return this.addPanel(args[0]); case "closepanel": return this.closePanel(args[0]); case "params": return this.params(args[0], P); case "set": return this.setParam(args[0], args[1], args[2], P); case "layout": return this.layout(args[0]);
@@ -75,12 +75,12 @@ class XpixAgent {
 
 async function cli(argv){
   const opt = {}, rest = []; for (let i = 0; i < argv.length; i++){ const a = argv[i]; if (a === "--headed") opt.headed = true; else if (a === "--full") opt.full = true; else if (a === "--workspace") opt.workspace = true;
-    else if (/^--(url|profile|out|scale|panel|json|fps|size|crf)$/.test(a)) opt[a.slice(2)] = argv[++i]; else rest.push(a); }
+    else if (/^--(url|profile|out|scale|panel|json|fps|size|crf|res)$/.test(a)) opt[a.slice(2)] = argv[++i]; else rest.push(a); }
   const [cmd, ...a] = rest;
   if (!cmd || cmd === "help" || cmd === "--help"){ console.log(`XPiX Agent: node xpix_agent.js [--url U] [--headed] [--profile DIR] <command>
   pages | page <name|index> | state | list | symbol <SYM> | tf <TF> | toggle <indicator> <on|off> | addpanel <type> | closepanel <id>
   params <indicator> | set <indicator> <key> <value> | layout <standard|blank|save>
-  record <seconds> [--out f.mp4] [--size 1920x1080] [--fps 30] [--crf 16]   (high quality H.264, needs ffmpeg) | recstart / recstop / wait <sec> (inside batch: record while other steps run)
+  record <seconds> [--out f.mp4] [--size 1920x1080] [--res 4k] [--fps 30] [--crf 16]   (high quality H.264, needs ffmpeg) | recstart / recstop / wait <sec> (inside batch: record while other steps run)
   draw '<json>' | cleardrawings | shot [--out f.png] [--full] [--workspace] [--scale N] | batch '<json array of {cmd,args}>'
   Flags: --panel <id> targets one chart panel. Env: XPIX_URL, XPIX_PROFILE, XPIX_CHROME. Read / view / draw only.`); return 0; }
   const ag = new XpixAgent({ url: opt.url, profile: opt.profile, headed: opt.headed }); await ag.start();

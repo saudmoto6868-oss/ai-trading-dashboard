@@ -33,7 +33,17 @@ const Snap = {
   async save(blob, name){   // tablets: the share sheet ("Save image / Save to Files"), else a normal download
     try { const f = new File([blob], name, {type: blob.type}); if (TCH && navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
     const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 8000); },
-  mime(){ if (!window.MediaRecorder) return ""; return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || ""; }
+  mime(){ if (!window.MediaRecorder) return ""; return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || ""; },
+  /* HIGH QUALITY video settings for a stream: the best codec this browser can record (H.264 MP4 first: hardware encoder on Mac / Windows and QuickTime / editors open it; then VP9 WebM, VP8),
+     and a bitrate that follows the REAL size and frame rate of the video track (about 0.16 bit per pixel per frame for H.264, 0.10 for VP9), 12 .. 120 Mbps: 4K at 60 fps is ~80 Mbps (it used to be a fixed 6-8 Mbps VP8, which is why recordings looked soft). */
+  hq(stream, fb){
+    const vt = stream && stream.getVideoTracks && stream.getVideoTracks()[0], st = vt && vt.getSettings ? vt.getSettings() : {}, w = st.width || (fb && fb.w) || 1920, h = st.height || (fb && fb.h) || 1080, fps = st.frameRate || (fb && fb.fps) || 30;
+    try { if (vt) vt.contentHint = "detail"; } catch(e){}   // tell the encoder the picture is text / lines (charts), not film: it keeps edges sharp
+    const ok = t => { try { return !!window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch(e){ return false; } };
+    const L = [["video/mp4;codecs=avc1.640034", "mp4", .40], ["video/mp4;codecs=avc1.640033", "mp4", .40], ["video/mp4;codecs=avc1", "mp4", .40], ["video/webm;codecs=vp9", "webm", .25], ["video/webm;codecs=vp8", "webm", .2], ["video/webm", "webm", .2]];
+    const m = L.find(x => ok(x[0])) || ["", "webm", .2];
+    return {mime: m[0], ext: m[1], bps: Math.round(Math.max(24e6, Math.min(300e6, w*h*fps*m[2]))), w, h, fps};
+  }
 };
 function wsShotBtn(){
   const b = el("button", null, "📸"); b.title = Lg("Screenshot of the whole workspace (PNG). Works on tablets too; a TradingView frame shows as a box", "لقطة شاشة لمساحة العمل كلها (PNG). بتشتغل على التابلت كمان؛ فريم تريدنج فيو بيظهر كمربع");
@@ -47,26 +57,29 @@ function wsRecBtn(){
   b.title = Lg("Record the whole workspace as a video. Desktop: the browser asks which tab / screen to share. Tablet / phone: the page is recorded from inside (charts live; other widgets refresh every few seconds). Click again to stop and save",
     "سجّل مساحة العمل كلها فيديو. الكمبيوتر: المتصفح يسألك أي تاب/شاشة. التابلت/الموبايل: الصفحة بتتسجل من جوه (الشارتات لايف والويدجتس التانية بتتحدّث كل كام ثانية). اضغط تاني للإيقاف والحفظ");
   const finish = stream => { try { stream && stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
-  const attach = (stream, mime, ext) => {
-    chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: 6000000}, mime ? {mimeType: mime} : {})); } catch(e){ finish(stream); rec = null; alert(Lg("Recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return false; }
+  const attach = (stream, q) => {
+    const mime = q.mime, ext = q.ext; chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: q.bps}, mime ? {mimeType: mime} : {})); } catch(e){ finish(stream); rec = null; alert(Lg("Recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return false; }
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = () => { finish(stream); clearInterval(timer); if (kill) kill(); const type = (mime || "video/webm").split(";")[0]; if (chunks.length) Snap.save(new Blob(chunks, {type}), "workspace-"+Date.now()+"."+ext); rec = null; b.classList.remove("on"); b.textContent = "🖥"; };
     rec.start(1000); b.classList.add("on"); b.textContent = "⏹"; return true; };
   const inside = async () => {   // no screen share API (tablets / phones): draw the page into a canvas and record that
     const mime = Snap.mime(); if (!mime || !HTMLCanvasElement.prototype.captureStream){ alert(Lg("This browser cannot record video from the page (no MediaRecorder / captureStream). Use the 📸 screenshot, or record the tablet with its own screen recorder","المتصفح ده مش بيسجّل فيديو من الصفحة. استخدم 📸 للقطة، أو سجّل بمسجل شاشة التابلت نفسه")); return; }
-    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = Math.min(1, 1280/vw), out = document.createElement("canvas"); out.width = Math.round(vw*sc); out.height = Math.round(vh*sc);
+    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = Math.min(1.5, 1920/vw), out = document.createElement("canvas"); out.width = Math.round(vw*sc); out.height = Math.round(vh*sc);
     const x = out.getContext("2d"); let base = null, busy = false; const refresh = async () => { if (busy) return; busy = true; try { base = await Snap.shot(sc); } catch(e){} busy = false; };
     await refresh(); const frame = () => { x.fillStyle = "#0b0e11"; x.fillRect(0, 0, out.width, out.height); if (base) x.drawImage(base, 0, 0, out.width, out.height);
       document.querySelectorAll("canvas").forEach(cv => { if (cv === out) return; const r = cv.getBoundingClientRect(); if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > vh) return; try { x.drawImage(cv, r.left*sc, r.top*sc, r.width*sc, r.height*sc); } catch(e){} }); };
-    frame(); const fi = setInterval(frame, 66), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 15 fps, widgets every 4 s, 10 minutes at most
+    frame(); const fi = setInterval(frame, 40), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 25 fps, widgets every 4 s, 10 minutes at most
     kill = () => { clearInterval(fi); clearInterval(ri); clearTimeout(stopT); kill = null; };
-    const stream = out.captureStream(15); const ext = /mp4/.test(mime) ? "mp4" : "webm"; if (!attach(stream, mime, ext)) kill(); };
+    const stream = out.captureStream(25), q = Snap.hq(stream, {w:out.width, h:out.height, fps:25}); if (!attach(stream, q)) kill(); };
+  const G = () => { try { return window.parent && window.parent.__xpixRec; } catch(e){ return null; } };   // the page-wide recorder (modules/screen_recorder.js): it keeps recording when you change page
+  { const sync = () => { const g = G(); if (g){ const st = g.state(); b.classList.toggle("on", st.recording); b.textContent = st.recording ? "⏹" : "🖥"; } }; setInterval(sync, 700); }
   b.onclick = async () => {
+    { const g = G(); if (g){ g.toggle(); return; } }
     if (rec){ rec.stop(); return; }
     const gdm = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia; if (!gdm){ await inside(); return; }
-    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:30, max:30}, width:{ideal:2560, max:2560}, height:{ideal:1440, max:1440}}, audio:false}); }
+    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:60, max:60}, width:{ideal:7680}, height:{ideal:4320}}, audio:false}); }
     catch(e){ if (e && /Security|TypeError|NotSupported/i.test(e.name || "")) await inside(); return; }   // blocked inside this frame (permissions policy): record from inside; a cancelled picker just returns
-    const mime = MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : ""; if (!attach(stream, mime, "webm")) return;
+    if (!attach(stream, Snap.hq(stream))) return;
     const vt = stream.getVideoTracks()[0]; if (vt) vt.onended = () => { if (rec && rec.state !== "inactive") rec.stop(); };
   };
   return b;

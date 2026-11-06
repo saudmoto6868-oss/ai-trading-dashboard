@@ -121,7 +121,7 @@ c = 4000 * np.exp(np.cumsum(rng.normal(0.0004, 0.012, n))); o = np.r_[c[0], c[:-
 day = pd.DataFrame({'time': pd.date_range('2018-01-01', periods=n, freq='D'), 'open': o, 'high': np.maximum(o, c) * 1.01, 'low': np.minimum(o, c) * 0.99, 'close': c, 'volume': 1.0})
 def rs(r): return day.set_index('time').resample(r).agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum'}).dropna().reset_index()
 F = {'1d': day.tail(300).reset_index(drop=True), '1w': rs('W').tail(300).reset_index(drop=True), '1mo': rs('MS')}
-sd.candles = lambda sym, tf, limit=300: sd.yearly(F['1mo']) if tf == '1y' else F[tf]
+sd.candles = lambda sym, tf, limit=300: sd.yearly(F['1mo']) if tf == '1y' else F.get(tf, F['1d'])
 sd.crypto_tickers = lambda base_url=None: [{'sym': 'BTC-USDT', 'base': 'BTC', 'last': 90000.0, 'chg24': 1.2, 'vol_usd': 1e9}, {'sym': 'ETH-USDT', 'base': 'ETH', 'last': 3000.0, 'chg24': -0.5, 'vol_usd': 5e8}]
 sd.metal_prices = lambda: {a: {'px': v, 'prev': v * 0.99, 'src': 'mock'} for a, v in {'GOLD': 4040.0, 'SILVER': 48.0, 'PLATINUM': 1500.0, 'PALLADIUM': 1400.0, 'COPPER': 6.2}.items()}
 sd.usd_egp = lambda: {'rate': 47.5, 'time': '2026-11-06 00:00', 'src': 'mock'}

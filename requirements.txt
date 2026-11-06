@@ -8,3 +8,4 @@ pandas-ta-classic
 biquote
 anthropic>=1.15,<2
 google-genai>=1.30
+openpyxl

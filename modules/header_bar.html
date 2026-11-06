@@ -130,7 +130,7 @@ document.addEventListener("pointerdown", e => { if (openId && !e.target.closest(
     $("ribL").innerHTML = esc(d.label)+(d.n ? ' <b>'+d.n+'</b> <span style="color:#0ecb81">▲'+d.up+'</span> <span style="color:#f6465d">▼'+d.dn+'</span>' : "");
     const keep = T.scrollLeft; T.innerHTML = ""; if (!d.n){ T.innerHTML = '<span style="color:var(--mut);font-size:10px">'+esc(d.empty)+'</span>'; loop = 0; return true; }
     const mk = x => { const c = document.createElement("span"), col = x.dir > 0 ? "#0ecb81" : "#f6465d"; c.className = "c"+(x.hot ? " hot" : ""); c.style.borderColor = col; c.style.setProperty("--hc", col); c.title = x.tip;
-      c.innerHTML = (x.fresh ? '<span class="nw">'+(d.ar ? "جديد" : "NEW")+'</span>' : "")+'<b>'+esc(x.sym)+'</b> <span style="color:'+col+'">'+(x.dir > 0 ? "▲" : "▼")+'</span> '+esc(x.tags)+' <span class="m">'+esc(x.meta)+' '+x.pct+'%</span>'+(x.rr ? ' <span class="rr">'+x.rr+'R</span>' : "");
+      c.innerHTML = (x.fresh ? '<span class="nw">'+(d.ar ? "جديد" : "NEW")+'</span>' : "")+'<b>'+esc(x.sym)+'</b> <span style="color:'+col+'">'+(x.dir > 0 ? "▲" : "▼")+'</span> '+esc(x.tags)+' <span class="m">'+esc(x.meta)+(x.pct != null ? ' '+x.pct+'%' : '')+'</span>'+(x.rr ? ' <span class="rr">'+x.rr+'R</span>' : "");
       c.onclick = () => { if (!moved && click) try { click(x.i); } catch(_){} }; return c; };
     const first = d.items.map(mk); first.forEach(c => T.append(c)); let w1 = 0; first.forEach(c => w1 += c.offsetWidth + 5);
     loop = w1 > T.clientWidth ? w1 : 0; if (loop){ const sp = document.createElement("span"); sp.style.cssText = "flex:none;width:12px"; T.append(sp); loop = w1 + 17; d.items.map(mk).forEach(c => T.append(c)); }

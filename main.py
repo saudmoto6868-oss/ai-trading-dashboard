@@ -733,6 +733,73 @@ def _ws_universe(active):
     return tuple(x for x in out if not (x in seen or seen.add(x)))
 
 
+SMT_TFS = tuple(x.strip() for x in os.environ.get("SMT_TFS", "5m,15m,1h,4h,1d").split(",") if x.strip())
+
+
+def _smt_worker(store):
+    """SMT between correlated pairs on several timeframes (modules/intermarket.py), in its own thread: never holds the page or the main scan up."""
+    try:
+        from modules import intermarket as _IM
+        store["smt"] = _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=SMT_TFS)
+        store["smt_t"] = time.time()
+        store.pop("smt_err", None)
+    except Exception as e_:
+        store["smt_err"] = f"{type(e_).__name__}: {e_}"
+        store["smt_t"] = time.time() - 600   # retry in about 5 minutes
+    finally:
+        store["smt_running"] = False
+
+
+DAY_SYMBOLS = tuple(x.strip() for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x.strip())
+
+
+def _dayplan_worker(store):
+    """Standard day plan (timeframe confluence) for the day-plan universe, in its own thread; feeds the Telegram alerts."""
+    try:
+        from modules import day_plan as _DP
+        store["dayplan"] = _DP.scan(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300), mode="conf")
+        store["dayplan_watch"] = _DP.scan_watch(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300))
+        store["dayplan_t"] = time.time()
+        store.pop("dayplan_err", None)
+    except Exception as e_:
+        store["dayplan_err"] = f"{type(e_).__name__}: {e_}"
+        store["dayplan_t"] = time.time() - 600
+    finally:
+        store["dayplan_running"] = False
+
+
+def _dayplan_watch():
+    _dayplan_events()
+    return _scan_store().get("dayplan_watch", [])
+
+
+def _dayplan_events():
+    import threading
+    store = _scan_store()
+    if not store.get("dayplan_running") and time.time() - store.get("dayplan_t", 0) > 900 and time.time() - store.get("t0", 0) > 45:
+        store["dayplan_running"] = True
+        threading.Thread(target=_dayplan_worker, args=(store,), daemon=True).start()
+    return store.get("dayplan", [])
+
+
+def _smt_chips(lang):
+    try:
+        from modules import intermarket as _IM
+        return _IM.chips(_smt_events(), ar=(lang == "ar"))
+    except Exception:
+        return []
+
+
+def _smt_events():
+    """The latest intermarket events (starts / refreshes the background scan when it is older than 15 minutes)."""
+    import threading
+    store = _scan_store()
+    if not store.get("smt_running") and time.time() - store.get("smt_t", 0) > 900 and time.time() - store.get("t0", 0) > 30:
+        store["smt_running"] = True
+        threading.Thread(target=_smt_worker, args=(store,), daemon=True).start()
+    return store.get("smt", [])
+
+
 def build_ws_payload(symbols=None):
     """Never blocks the page: returns the latest (possibly partial / still-loading) scan and starts a
     background refresh when the 30-minute bucket changes or an empty result is older than 60 s."""
@@ -1062,8 +1129,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms"]   # 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 10 = Prop Firms inserted before AI/Alerts
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_PAGE_ORDER = [0, 1, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -1073,6 +1140,11 @@ with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
+try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
+    from modules.screen_recorder import render as _render_rec
+    _render_rec()
+except Exception:
+    pass
 _focus = bool(st.session_state.get("focus_ws"))
 try:   # phones: the Workspace frame = about one screen (its widgets scroll inside it); header row wraps into two lines
     _IS_MOBILE = any(k in (st.context.headers.get("User-Agent", "") or "") for k in ("Mobi", "Android", "iPhone"))
@@ -3222,6 +3294,14 @@ if PAGE == 0:   # workspace
         if tg_on and not cached_ws.get("loading"):
             from modules import telegram_alerts as _tga
             _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))
+            try:   # day plan (timeframe confluence): the best new plans, one message each (not repeated for 4 hours)
+                from modules import day_plan as _DP
+                _tga_n2, _tga_e2 = _DP.dispatch(_dayplan_events(), _tg_sent(), _tga.send, top_n=int(tg_top))
+                if _tga_e2:
+                    st.sidebar.warning("Telegram day plan: " + _tga_e2)
+                _DP.dispatch(_dayplan_watch(), _tg_sent(), _tga.send, top_n=2, resend_after_s=2 * 3600, fmt=lambda it_: _DP.format_watch(it_))   # heads-ups: context setups that agree with the 1D + 4H bias
+            except Exception:
+                pass
             if _err:
                 st.sidebar.warning("Telegram: " + _err)
             elif _n:
@@ -3247,7 +3327,7 @@ if PAGE == 0:   # workspace
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
+                         ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
                          ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         _ws_stat.empty()
         try:
@@ -3267,10 +3347,75 @@ if PAGE == 0:   # workspace
 
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
+def render_day_plan(scan_symbols):
+    """Radar > Day plan: today's trades by session and timeframe confluence (modules/day_plan.py). Standard = confluence; option = scalp on one timeframe."""
+    from modules import day_plan as _DP, day_plan_ui as _DPU
+    ar = _ui_lang() == "ar"
+    st.markdown(_DPU.timeline_html(_DP.session_clock(), ar=ar), unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns([1.3, 1, 1.4, 1])
+    mode_lbl = c1.radio(L("Mode"), ["Timeframe confluence (standard)", "Scalp (one timeframe)"], key="dp_mode")
+    mode = "conf" if mode_lbl.startswith("Timeframe") else "scalp"
+    trig = None
+    if mode == "scalp":
+        trig = (c2.selectbox(L("Trigger timeframe"), ["5m", "15m", "1h"], key="dp_tf"),)
+    mv = c3.selectbox(L("Minimum possible move (points)"), ["Any", 100, 150, 200, 300, 1000], key="dp_pts")
+    stars = c4.slider(L("Min stars"), 1, 4, 2, key="dp_stars")
+    schools = st.multiselect(L("Only these schools (empty = all)"), ["SMC / ICT", "Elliott wave", "Fibonacci", "Liquidity", "Trend (MA)", "Levels / breakouts", "Time (sessions)", "Price action", "Chart patterns (range)", "Wyckoff", "Momentum / divergence", "Harmonic"], key="dp_sch")
+    uni = st.radio(L("Universe"), ["Day-plan list", "Current Radar universe"], horizontal=True, key="dp_uni")
+    tr = st.number_input(L("Stop starts moving after (points)"), 10, 5000, 100, 10, key="dp_trail", help=L("Standard mode: once a trade is this many points in profit the stop moves to break-even, then trails."))
+    syms = tuple(DAY_SYMBOLS if uni == "Day-plan list" else (scan_symbols or CRYPTO_SYMBOLS)[:20])
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(syms_t, mode_, trig_, sch_t, mv_, stars_, tr_):
+        return _DP.scan(list(syms_t), lambda s_, t_: get_klines(s_, t_, 300), mode=mode_, trigger_tfs=trig_, schools=list(sch_t) or None,
+                        min_points=(0 if mv_ == "Any" else float(mv_)), min_stars=stars_, trail_start_points=float(tr_))
+
+    with st.spinner(L("Building the day plan...")):
+        plans = _run(syms, mode, trig, tuple(schools), mv, int(stars), float(tr))
+    st.caption(L("Higher timeframes (1D + 4H) set the bias, the trigger timeframes give the entry; a plan is listed only when enough timeframes agree. Stars = the scanner's evidence count, not a win rate; new schools are context until the lab measures them. Not financial advice."))
+    if not plans:
+        st.info(L("No plan matches right now. Loosen the filters or wait for the next session."))
+        return
+    for p in plans[:30]:
+        st.markdown(_DPU.card_html(p, ar=ar), unsafe_allow_html=True)
+    if st.button(L("Send the top plans to Telegram"), key="dp_send"):
+        from modules import telegram_alerts as _tga
+        _n, _e = _DP.dispatch(plans, {}, _tga.send, top_n=3)
+        st.success(f"Telegram: {_n} sent") if not _e else st.warning(_e)
+
+
+def render_smt_board():
+    """Radar > SMT pairs: every correlated pair on the chosen timeframes; each event shows BOTH markets side by side."""
+    from modules import intermarket as _IM, intermarket_ui as _IMU
+    ar = _ui_lang() == "ar"
+    c1, c2 = st.columns([3, 1])
+    tfs = c1.multiselect(L("Timeframes"), list(_IM.TF_ORDER[:7])[::-1], default=[t for t in ("15m", "1h", "4h", "1d")], key="smt_tfs")
+    if c2.button(L("Rescan now"), key="smt_rescan"):
+        st.cache_data.clear()
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(tfs_t):
+        return _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=tfs_t)
+
+    with st.spinner(L("Comparing the correlated pairs...")):
+        ev = _run(tuple(tfs or ("1h",)))
+    st.caption(L("SMT = two correlated markets disagree at a swing (one makes a new low / high, the other refuses). A hint of reversal, not a trade by itself; no win rate is claimed here. Pairs that stopped moving together are skipped."))
+    if not ev:
+        st.info(L("No SMT between the correlated pairs on these timeframes right now."))
+        return
+    for e in ev[:40]:
+        st.markdown(_IMU.event_card(e, ar=ar), unsafe_allow_html=True)
+
+
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
-        if _rv != "Heat map":   # the market map has its own filters; the universe / timeframe controls do not apply to it
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
+            from modules import intermarket_ui as _IMU
+            st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
+        except Exception:
+            pass
+        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
             render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
@@ -3278,8 +3423,12 @@ if PAGE == 1:   # cscan
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv)
-        if _rv == "Heat map":
+        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
+        if _rv == "SMT pairs":
+            render_smt_board()
+        elif _rv == "Day plan":
+            render_day_plan(SCAN_SYMBOLS)
+        elif _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":
             render_radar_similar(_rf)
@@ -3503,4 +3652,12 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
         render_prop_firms()
     except Exception as _pf_exc:
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
+    st.stop()
+
+if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
+    try:
+        from modules.spot_page import render as _spot_render
+        _spot_render()
+    except Exception as _sp_exc:
+        st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
     st.stop()

@@ -56,6 +56,7 @@ SCHOOL = {
     "harm_gartley_tight": "Harmonic: Gartley", "harm_bat_tight": "Harmonic: Bat", "harm_butterfly_tight": "Harmonic: Butterfly", "harm_crab_tight": "Harmonic: Crab", "harm_cypher_tight": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
+    "pa_engulf": "Price action", "pa_pin": "Price action", "pa_inside": "Price action", "pa_star": "Price action", "rect": "Chart patterns (range)", "dbl": "Chart patterns (range)", "wyck": "Wyckoff",
 }
 for _n in ("gartley", "bat", "butterfly", "crab", "cypher"):   # harmonic on volatility-scaled swings (added 2026-10-19)
     SCHOOL.update({f"harm_vol_{_n}": f"Harmonic: {_n.title()} (vol swings)", f"harm_vol_{_n}_tight": f"Harmonic: {_n.title()} (vol swings)"})
@@ -119,7 +120,26 @@ def stop_study(hi, lo, cl, i, d, atr_i, H, rr=None):
 # exit variants tested on the SAME entries: target multiple and break-even stop (the question: which RR / exit gives the best expectancy)
 # (target R, break-even stop, horizon in bars or None = the timeframe's own horizon). "h16" = a 16-bar window: on 15m that is the 4-hour scalp.
 VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True),
-            "rr1.5_h16": (1.5, False, 16), "rr2.0_h16": (2.0, False, 16)}
+            "rr1.5_h16": (1.5, False, 16), "rr2.0_h16": (2.0, False, 16),
+            # Day plan exits (modules/day_plan.py): 50 % off at TP1 (tp1 R), break-even at +be R, a trailing stop 1.5 ATR behind the best price for the runner, final target tp3 R, same horizon.
+            # (4th item = a partial + trailing walk, simulated by day_plan.simulate_arrays; trail_only = no partial, the stop only trails)
+            "pt_1.5_3": (1.5, False, None, {"tp3": 3.0, "be": 1.0, "trail": 1.5}), "pt_1.0_3": (1.0, False, None, {"tp3": 3.0, "be": 1.0, "trail": 1.5}),
+            "pt_1.5_5": (1.5, False, None, {"tp3": 5.0, "be": 1.0, "trail": 1.5}), "trail_only": (99.0, False, None, {"tp3": 5.0, "be": 1.0, "trail": 1.5, "frac": 0.0})}
+
+
+def _outcome_pt(hi, lo, cl, i, d, stop_d, atr_i, H, v):
+    """R of a trade opened at close i under a partial + trailing exit (the Day plan standard): same entry, stop and horizon as _outcome; one COST_R per trade is charged later."""
+    from modules.day_plan import simulate_arrays
+    cfg = v[3]
+    e = cl[i]
+    end = min(len(cl), i + 1 + H)
+    if end <= i + 1:
+        return 0.0
+    frac = cfg.get("frac", 0.5)
+    tp1 = e + d * v[0] * stop_d
+    ex = {"targets": [tp1, e + d * cfg["tp3"] * stop_d], "partial": ({"at": tp1, "fraction": frac} if frac > 0 else None), "be_at": cfg["be"] * stop_d, "trail_atr": cfg["trail"]}
+    r = simulate_arrays(hi[i + 1:end], lo[i + 1:end], cl[i + 1:end], d, e, e - d * stop_d, ex, atr_i)["r"]
+    return float(np.clip(r, -1.0, cfg["tp3"]))
 
 
 LOC_N, VOL_N, REG_N = 50, 20, 100
@@ -206,7 +226,7 @@ def walk(df, tf, stride=4, seed=0, peers=()):
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
-                           "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
+                           "var": {n: (_outcome_pt(hi, lo, cl, i, d, STOP_ATR * atr[i], atr[i], H, v) if len(v) > 3 else _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1])) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
                            "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2, "ts": int(ts.value // 10**6),
                            "stop": stop_study(hi, lo, cl, i, d, atr[i], H), "mirror": stop_study(hi, lo, cl, i, -d, atr[i], H)})   # ts = signal bar time in ms (the pre-registered tests slice by date)

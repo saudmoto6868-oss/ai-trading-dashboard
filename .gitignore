@@ -13,3 +13,7 @@ data/tf_stats.json
 
 # Research Hub snapshots are regenerated when the tab renders (docs/RESEARCH_HUB.md)
 data/hub/
+
+# Spot desk ledger / invoices: private financial records (modules/spot_page.py)
+data/spot/
+.tc_sent.json

@@ -172,14 +172,14 @@ class Panel {
     const dl = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); };
     const shotB = el("button",null,"📷"); shotB.title = Lg("Screenshot of the chart (PNG, download)","لقطة شاشة للشارت (PNG، تتحمل)");
     shotB.onclick = () => dl(this.chart.cv.toDataURL("image/png"), fname("png"));
-    const recB = el("button",null,"🎥"); recB.title = Lg("Record the chart as video (WebM, download when stopped)","سجّل فيديو للشارت (WebM، يتحمل لما توقف)"); let rec = null, chunks = [];
+    const recB = el("button",null,"🎥"); recB.title = Lg("Record the chart as video (MP4 / WebM, highest quality, download when stopped)","سجّل فيديو للشارت (WebM، يتحمل لما توقف)"); let rec = null, chunks = [], recExt = "webm";
     recB.onclick = () => {
       if (rec){ rec.stop(); return; }
       if (!window.MediaRecorder || !this.chart.cv.captureStream){ alert(Lg("Video recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return; }
-      const mime = ["video/webm;codecs=vp9","video/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
-      rec = new MediaRecorder(this.chart.cv.captureStream(30), {mimeType: mime, videoBitsPerSecond: 8000000}); chunks = [];
+      const stream = this.chart.cv.captureStream(60), q = Snap.hq(stream, {w:this.chart.cv.width, h:this.chart.cv.height, fps:60}), mime = q.mime; recExt = q.ext;   // best codec + a bitrate that follows the canvas size (was a fixed 8 Mbps VP9)
+      rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: q.bps}, mime ? {mimeType: mime} : {})); chunks = [];
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-      rec.onstop = () => { dl(URL.createObjectURL(new Blob(chunks, {type: "video/webm"})), fname("webm")); rec = null; recB.classList.remove("on"); recB.textContent = "🎥"; };
+      rec.onstop = () => { dl(URL.createObjectURL(new Blob(chunks, {type: recExt === "mp4" ? "video/mp4" : "video/webm"})), fname(recExt)); rec = null; recB.classList.remove("on"); recB.textContent = "🎥"; };
       rec.start(1000); recB.classList.add("on"); recB.textContent = "⏹";
     };
     this.pxEl = el("b","px"); this.pxEl.style.cssText = "margin-inline-start:6px;padding:0 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace";
@@ -995,13 +995,18 @@ class Panel {
         && (!F.q || (e.symbol+" "+(e.tags || []).map(t => t[0]+" "+(TAG_EN[t[0]] || "")).join(" ")).toLowerCase().includes(F.q)));
       const g = val[F.sort] || val.pct; rows = rows.sort((a, b) => { const x = g(a), y = g(b); return (x < y ? -1 : x > y ? 1 : 0)*F.dir || (b._t - a._t); });
       const nl = rows.filter(e => e.direction === "bullish").length; cnt.textContent = rows.length+" "+T("sgCount")+" · ▲"+nl+" ▼"+(rows.length - nl);
-      box.innerHTML = ""; if (!rows.length){ box.innerHTML = '<div class="err" style="color:#848e9c">'+esc(CFG.scanning ? T("scanning") : T("sgNone"))+'</div>'; return; }
+      box.innerHTML = "";
+      { const sm = smtRows(); if (sm.length){ const d = el("div"); d.style.cssText = "padding:4px 6px 6px;border-bottom:1px solid #2b3139";   // SMT between correlated markets (modules/intermarket.py): on top, each line = the pair on two charts
+        d.innerHTML = '<div class="m" style="margin-bottom:3px;font-weight:700;color:#ffd54f">SMT · '+esc(Lg("divergence between correlated markets","دايفرجنس بين أسواق مرتبطة"))+'</div>'+sm.map((e, k) => { const x = e._smt, up = e.direction === "bullish";
+          return '<div data-sm="'+k+'" title="'+esc(x.text)+'" style="cursor:pointer;padding:2px 0;display:flex;gap:6px;align-items:center"><span style="color:'+(up ? "#0ecb81" : "#f6465d")+';font-weight:700">'+(up ? "▲" : "▼")+'</span><b style="color:'+esc(x.a_color)+'">'+esc(e.symbol.split("/")[0])+'</b>/<b style="color:'+esc(x.b_color)+'">'+esc(e.symbol.split("/")[1] || "")+'</b><span class="m">'+esc(x.tf.toUpperCase())+" · "+esc(x.session || "")+" · "+x.bars_ago+esc(lang === "ar" ? " شمعة" : " bars")+'</span></div>'; }).join("");
+        box.append(d); d.querySelectorAll("[data-sm]").forEach(r => r.onclick = () => Ws.showSmt(sm[+r.dataset.sm]._smt)); } }
+      if (!rows.length){ box.insertAdjacentHTML("beforeend", '<div class="err" style="color:#848e9c">'+esc(CFG.scanning ? T("scanning") : T("sgNone"))+'</div>'); return; }
       let h = '<table class="rdt"><tr>'+COLS.map(([k,l]) => '<th data-k="'+k+'" style="cursor:pointer"'+(k === "tm" ? ' title="'+esc(T("sgTimeTip"))+'"' : '')+'>'+esc(l)+(F.sort === k ? (F.dir < 0 ? " ▾" : " ▴") : "")+'</th>').join("")+'</tr>';
       rows.slice(0, 120).forEach((e, i) => { const long_ = e.direction === "bullish", pct = Math.round(100*e.score/Math.max(1,e.max)), col = pct >= 70 ? "#0ecb81" : pct >= 50 ? "#f0b90b" : "#848e9c";
         h += '<tr data-i="'+i+'" style="cursor:pointer"><td><b>'+esc(e.symbol)+'</b>'+(pipSetup(e) ? ' <span title="'+esc(T("sgPipTip"))+' ('+pipSetup(e).st+' / '+pipSetup(e).tp+')" style="background:#f0b90b;color:#000;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">★120</span>' : '')+'</td><td>'+sparkSvg(e)+'</td><td class="m">'+esc(e.tfk || "")+'</td><td style="color:'+(long_ ? "#0ecb81" : "#f6465d")+';font-weight:700">'+esc(long_ ? T("long") : T("short"))+'</td>'
           +'<td style="color:#f0b90b">'+esc(ttTxt(e.ttype))+'</td><td>'+(e.tags || []).slice(0, 4).map(t => '<span class="tg" title="'+esc(tagTip(t))+'" style="margin-inline-end:3px;background:'+esc(t[1])+';color:'+esc(t[2])+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</td>'
           +'<td><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span> '+pct+'%</td><td>'+rr(e).toFixed(1)+'</td><td style="color:'+TMC[planTiming(e, pxOf(e.symbol)).k]+'">'+esc(T(planTiming(e, pxOf(e.symbol)).k))+'</td><td class="m">'+esc(ageTxt(e._t))+'</td><td class="m">'+esc(e._t ? T("sgAlert") : T("sgScan"))+'</td></tr>'; });
-      box.innerHTML = h+"</table>";
+      box.insertAdjacentHTML("beforeend", h+"</table>");
       box.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => { const k = th.dataset.k; if (F.sort === k) F.dir = -F.dir; else { F.sort = k; F.dir = (k === "sym" || k === "tf" || k === "tt") ? 1 : -1; } Ws.save(); draw(); });
       box.querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { const e = rows[+tr.dataset.i]; if (e) Ws.showOnChart(Object.assign({tfc: TFC_ALL[e.tfk] || "1H"}, e)); });
     };

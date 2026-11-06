@@ -67,7 +67,7 @@ def _smt_bull(a: pd.DataFrame, b: pd.DataFrame, label: str, max_age: int = 15, m
             return [_mk("Liquidity", f"SMT divergence vs {label}",
                         "SMT: this market made a new low {p2} (previous low {p1}) but " + label + " did NOT confirm - it held above its own previous low; "
                         "correlated markets disagree, the footprint of a smart-money reversal",
-                        prices={"p1": p1, "p2": p2}, vals={"peer": label})]
+                        prices={"p1": p1, "p2": p2}, vals={"peer": label, "age": n - 1 - i2})]   # age = bars since the second swing (the event time for the board / strip)
     return []
 
 

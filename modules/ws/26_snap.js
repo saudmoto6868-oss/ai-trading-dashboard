@@ -33,7 +33,17 @@ const Snap = {
   async save(blob, name){   // tablets: the share sheet ("Save image / Save to Files"), else a normal download
     try { const f = new File([blob], name, {type: blob.type}); if (TCH && navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
     const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 8000); },
-  mime(){ if (!window.MediaRecorder) return ""; return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || ""; }
+  mime(){ if (!window.MediaRecorder) return ""; return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || ""; },
+  /* HIGH QUALITY video settings for a stream: the best codec this browser can record (H.264 MP4 first: hardware encoder on Mac / Windows and QuickTime / editors open it; then VP9 WebM, VP8),
+     and a bitrate that follows the REAL size and frame rate of the video track (about 0.16 bit per pixel per frame for H.264, 0.10 for VP9), 12 .. 120 Mbps: 4K at 60 fps is ~80 Mbps (it used to be a fixed 6-8 Mbps VP8, which is why recordings looked soft). */
+  hq(stream, fb){
+    const vt = stream && stream.getVideoTracks && stream.getVideoTracks()[0], st = vt && vt.getSettings ? vt.getSettings() : {}, w = st.width || (fb && fb.w) || 1920, h = st.height || (fb && fb.h) || 1080, fps = st.frameRate || (fb && fb.fps) || 30;
+    try { if (vt) vt.contentHint = "detail"; } catch(e){}   // tell the encoder the picture is text / lines (charts), not film: it keeps edges sharp
+    const ok = t => { try { return !!window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch(e){ return false; } };
+    const L = [["video/mp4;codecs=avc1.640034", "mp4", .40], ["video/mp4;codecs=avc1.640033", "mp4", .40], ["video/mp4;codecs=avc1", "mp4", .40], ["video/webm;codecs=vp9", "webm", .25], ["video/webm;codecs=vp8", "webm", .2], ["video/webm", "webm", .2]];
+    const m = L.find(x => ok(x[0])) || ["", "webm", .2];
+    return {mime: m[0], ext: m[1], bps: Math.round(Math.max(24e6, Math.min(300e6, w*h*fps*m[2]))), w, h, fps};
+  }
 };
 function wsShotBtn(){
   const b = el("button", null, "📸"); b.title = Lg("Screenshot of the whole workspace (PNG). Works on tablets too; a TradingView frame shows as a box", "لقطة شاشة لمساحة العمل كلها (PNG). بتشتغل على التابلت كمان؛ فريم تريدنج فيو بيظهر كمربع");
@@ -47,35 +57,79 @@ function wsRecBtn(){
   b.title = Lg("Record the whole workspace as a video. Desktop: the browser asks which tab / screen to share. Tablet / phone: the page is recorded from inside (charts live; other widgets refresh every few seconds). Click again to stop and save",
     "سجّل مساحة العمل كلها فيديو. الكمبيوتر: المتصفح يسألك أي تاب/شاشة. التابلت/الموبايل: الصفحة بتتسجل من جوه (الشارتات لايف والويدجتس التانية بتتحدّث كل كام ثانية). اضغط تاني للإيقاف والحفظ");
   const finish = stream => { try { stream && stream.getTracks().forEach(tr => tr.stop()); } catch(e){} };
-  const attach = (stream, mime, ext) => {
-    chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: 6000000}, mime ? {mimeType: mime} : {})); } catch(e){ finish(stream); rec = null; alert(Lg("Recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return false; }
+  const attach = (stream, q) => {
+    const mime = q.mime, ext = q.ext; chunks = []; try { rec = new MediaRecorder(stream, Object.assign({videoBitsPerSecond: q.bps}, mime ? {mimeType: mime} : {})); } catch(e){ finish(stream); rec = null; alert(Lg("Recording is not supported in this browser","التسجيل مش مدعوم في المتصفح ده")); return false; }
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = () => { finish(stream); clearInterval(timer); if (kill) kill(); const type = (mime || "video/webm").split(";")[0]; if (chunks.length) Snap.save(new Blob(chunks, {type}), "workspace-"+Date.now()+"."+ext); rec = null; b.classList.remove("on"); b.textContent = "🖥"; };
     rec.start(1000); b.classList.add("on"); b.textContent = "⏹"; return true; };
   const inside = async () => {   // no screen share API (tablets / phones): draw the page into a canvas and record that
     const mime = Snap.mime(); if (!mime || !HTMLCanvasElement.prototype.captureStream){ alert(Lg("This browser cannot record video from the page (no MediaRecorder / captureStream). Use the 📸 screenshot, or record the tablet with its own screen recorder","المتصفح ده مش بيسجّل فيديو من الصفحة. استخدم 📸 للقطة، أو سجّل بمسجل شاشة التابلت نفسه")); return; }
-    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = Math.min(1, 1280/vw), out = document.createElement("canvas"); out.width = Math.round(vw*sc); out.height = Math.round(vh*sc);
+    const vw = Math.max(1, document.documentElement.clientWidth), vh = Math.max(1, document.documentElement.clientHeight), sc = Math.min(1.5, 1920/vw), out = document.createElement("canvas"); out.width = Math.round(vw*sc); out.height = Math.round(vh*sc);
     const x = out.getContext("2d"); let base = null, busy = false; const refresh = async () => { if (busy) return; busy = true; try { base = await Snap.shot(sc); } catch(e){} busy = false; };
     await refresh(); const frame = () => { x.fillStyle = "#0b0e11"; x.fillRect(0, 0, out.width, out.height); if (base) x.drawImage(base, 0, 0, out.width, out.height);
       document.querySelectorAll("canvas").forEach(cv => { if (cv === out) return; const r = cv.getBoundingClientRect(); if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > vh) return; try { x.drawImage(cv, r.left*sc, r.top*sc, r.width*sc, r.height*sc); } catch(e){} }); };
-    frame(); const fi = setInterval(frame, 66), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 15 fps, widgets every 4 s, 10 minutes at most
+    frame(); const fi = setInterval(frame, 40), ri = setInterval(refresh, 4000), stopT = setTimeout(() => { if (rec && rec.state !== "inactive") rec.stop(); }, 10*60*1000);   // 25 fps, widgets every 4 s, 10 minutes at most
     kill = () => { clearInterval(fi); clearInterval(ri); clearTimeout(stopT); kill = null; };
-    const stream = out.captureStream(15); const ext = /mp4/.test(mime) ? "mp4" : "webm"; if (!attach(stream, mime, ext)) kill(); };
+    const stream = out.captureStream(25), q = Snap.hq(stream, {w:out.width, h:out.height, fps:25}); if (!attach(stream, q)) kill(); };
+  const G = () => { try { return window.parent && window.parent.__xpixRec; } catch(e){ return null; } };   // the page-wide recorder (modules/screen_recorder.js): it keeps recording when you change page
+  { const sync = () => { const g = G(); if (g){ const st = g.state(); b.classList.toggle("on", st.recording); b.textContent = st.recording ? "⏹" : "🖥"; } }; setInterval(sync, 700); }
   b.onclick = async () => {
+    { const g = G(); if (g){ g.toggle(); return; } }
     if (rec){ rec.stop(); return; }
     const gdm = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia; if (!gdm){ await inside(); return; }
-    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:30, max:30}, width:{ideal:2560, max:2560}, height:{ideal:1440, max:1440}}, audio:false}); }
+    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always", frameRate:{ideal:60, max:60}, width:{ideal:7680}, height:{ideal:4320}}, audio:false}); }
     catch(e){ if (e && /Security|TypeError|NotSupported/i.test(e.name || "")) await inside(); return; }   // blocked inside this frame (permissions policy): record from inside; a cancelled picker just returns
-    const mime = MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : ""; if (!attach(stream, mime, "webm")) return;
+    if (!attach(stream, Snap.hq(stream))) return;
     const vt = stream.getVideoTracks()[0]; if (vt) vt.onended = () => { if (rec && rec.state !== "inactive") rec.stop(); };
   };
+  return b;
+}
+/* widget menu: the native <select> stays (layouts, tests, XCMD use it) but is hidden on desktop; a styled menu opens from the "+ Widget" button:
+   colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
+const WGROUPS = () => [
+  [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
+  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["dom","tape","limits","risk"]],
+  [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
+  [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
+  [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
+  [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
+const WCODE = {tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+  fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
+const WNEW = new Set(["tclass"]);   // gets a small NEW mark in the menu
+function wMenuBtn(sel){
+  if (!document.getElementById("wmCss")){ const st = el("style"); st.id = "wmCss"; st.textContent =
+    "#wmBtn{font-weight:700;padding:2px 10px;border-radius:5px;border:1px solid #f0b90b;color:#f0b90b;background:rgba(240,185,11,.08);cursor:pointer}#wmBtn:hover,#wmBtn.on{background:#f0b90b;color:#000}"
+    +"#wmenu{position:fixed;z-index:99999;background:var(--panel,#161a1e);border:1px solid var(--line,#2b3139);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:10px;max-height:82vh;overflow:auto;width:min(620px,96vw);column-count:2;column-gap:12px;font-family:inherit}"
+    +"@media (max-width:640px){#wmenu{column-count:1}}"
+    +"#wmenu .wg{break-inside:avoid;margin-bottom:10px;border-radius:8px;padding:6px;background:linear-gradient(180deg,color-mix(in srgb,var(--gc) 12%,transparent),transparent 70%);border-top:2px solid var(--gc)}"
+    +"#wmenu .wh{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gc);padding:2px 4px 6px}"
+    +"#wmenu .wi{display:flex;align-items:center;gap:9px;width:100%;padding:6px 6px;border:0;border-radius:6px;background:none;color:var(--txt,#eaecef);font-size:14px;font-weight:600;cursor:pointer;text-align:start}"
+    +"#wmenu .wi:hover,#wmenu .wi:focus{background:color-mix(in srgb,var(--gc) 22%,transparent);outline:none}"
+    +"#wmenu .wb{flex:none;min-width:38px;height:24px;padding:0 5px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font:800 11px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em;color:#0b0e11;background:linear-gradient(135deg,var(--gc),color-mix(in srgb,var(--gc) 60%,#fff));box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}"
+    +"#wmenu .wnew{margin-inline-start:auto;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;background:#f6465d;color:#fff}";
+    document.head.append(st); }
+  const b = el("button", null, esc(T("add"))+" ▾"); b.id = "wmBtn"; b.title = Lg("Add a widget","أضف ويدجت");
+  const close = () => { const m = document.getElementById("wmenu"); if (m) m.remove(); b.classList.remove("on"); document.removeEventListener("pointerdown", out, true); document.removeEventListener("keydown", esc_, true); };
+  const out = e => { const m = document.getElementById("wmenu"); if (m && !m.contains(e.target) && e.target !== b) close(); }, esc_ = e => { if (e.key === "Escape") close(); };
+  const pick = v => { close(); sel.value = v; sel.onchange(); };
+  b.onclick = () => { if (document.getElementById("wmenu")) return close();
+    const m = el("div"); m.id = "wmenu"; m.dir = lang === "ar" ? "rtl" : "ltr";
+    const groups = WGROUPS().concat([[lang === "ar" ? "التخطيط" : "Layout", "#2ec4b6", [...sel.querySelectorAll("option")].map(o => o.value).filter(v => v.startsWith("@"))]]);
+    groups.forEach(([g, col, ts]) => { const box = el("div","wg"); box.style.setProperty("--gc", col); box.append(el("div","wh", esc(g)));
+      ts.forEach(t => { const o = [...sel.options].find(x => x.value === t); if (!o) return; const it = el("button","wi"); it.dataset.v = t;
+        it.innerHTML = '<span class="wb">'+esc(WCODE[t] || t.slice(0,3).toUpperCase())+'</span><span>'+esc(o.textContent)+'</span>'+(WNEW.has(t) ? '<span class="wnew">NEW</span>' : '');
+        it.onclick = () => pick(t); box.append(it); });
+      m.append(box); });
+    document.body.append(m); const r = b.getBoundingClientRect(), w = m.offsetWidth;
+    m.style.top = Math.min(r.bottom + 4, innerHeight - 60)+"px"; m.style.left = Math.max(6, Math.min(lang === "ar" ? r.right - w : r.left, innerWidth - w - 6))+"px";
+    b.classList.add("on"); setTimeout(() => { document.addEventListener("pointerdown", out, true); document.addEventListener("keydown", esc_, true); }, 0); };
   return b;
 }
 function buildBar(){
   const bar = document.getElementById("bar"); bar.innerHTML = "";
   if (CFG.build){ const bld = el("span", "bld", "build "+CFG.build); bld.title = Lg("The commit of the code that is running now (after a merge the app needs a few minutes and a Reboot from Streamlit Cloud)", "رقم الكومت اللي شغال دلوقتي (بعد أي دمج التطبيق بياخد كام دقيقة ومحتاج Reboot من Streamlit Cloud)"); bld.style.cssText = "order:99;margin-left:auto;font:10px ui-monospace,Menlo,Consolas,monospace;color:#6b7684;padding:0 8px;white-space:nowrap;align-self:center"; bar.append(bld); }   // which build is live
   const sel = el("select"); sel.append(Object.assign(el("option"), {textContent:T("add"), value:""}));
-  [[Lg("Decision","القرار"), ["chart","setup","signals","alerts"]], [Lg("Execution / order flow","التنفيذ والأوردر فلو"), ["dom","tape","limits","risk"]], [Lg("Markets","الأسواق"), ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]], [Lg("Context (fundamental)","السياق (الأساسي)"), ["fund","macrof","stockf","cmc","news"]], [Lg("Review","المراجعة"), ["journal","notes"]], [Lg("Settings","الإعدادات"), ["settings"]]]
+  WGROUPS().map(([g, , ts]) => [g, ts])
     .forEach(([g, ts]) => { const og_ = Object.assign(el("optgroup"), {label:g}); ts.forEach(t => og_.append(Object.assign(el("option"), {textContent:T(t), value:t}))); sel.append(og_); });
   const og = Object.assign(el("optgroup"), {label: lang === "ar" ? "التخطيط" : "Layout"}); [["@std",Lg("Standard: 4 charts + order flow","الستاندر: ٤ شارتس + أوردر فلو")],["@save",Lg("Save current layout as my standard","احفظ التخطيط الحالي كستاندر بتاعي")],["@trading",T("trading")],["@blank",T("blank")]].forEach(([v,t]) => og.append(Object.assign(el("option"), {textContent:t, value:v}))); sel.append(og);
   sel.onchange = () => { const v = sel.value; if (v === "@trading" || v === "@std"){ Ws.clear(); Ws.build(Ws.defaults()); Ws.save(); } else if (v === "@save"){ try { store.set(LS+"_std", { v:7, panels: Ws.panels.map(p => ({type:p.type, rect: p.max && p.prev ? p.prev : p.rect, state:p.state})) }); alert(Lg("Saved: this layout is now your standard (it opens first, and \"Standard\" restores it).", "اتحفظ: التخطيط ده بقى الستاندر بتاعك (بيفتح أول حاجة، و«الستاندر» بيرجّعه).")); } catch(e){} } else if (v === "@blank"){ Ws.clear(); Ws.save(); } else if (v) Ws.add(v); sel.value = ""; };
@@ -86,7 +140,8 @@ function buildBar(){
 zSet(+store.get(zKey, zDef));   // the saved size applies from the start, so the charts open at it too
 const gb = el("button", null, '<span class="gbi">'+GUIDE_ICON+'</span><b>Mr X</b>'); gb.id = "guideB"; gb.title = Lg("Your guide: walks to any part of the screen and explains it","المساعد: يروح لأي حتة في الشاشة ويشرحها"); gb.onclick = () => { Guide.init(); Guide.on ? Guide.close() : Guide.open(); };
 if (!CFG.mrxOn) gb.hidden = true;   // Mr X is in development: the button stays hidden until the official launch
-if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el("span","sp")); }
+sel.style.display = "none"; const wmb = wMenuBtn(sel);
+if (!MOB){ bar.append(sel, wmb, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el("span","sp")); }
   else {   // phones: a settings button keeps the bar short - the MT5 layout switch and the interface size live under it
     const gear = el("button", null, "⚙"), menu = el("div"); menu.id = "mset"; gear.title = Lg("Settings","الإعدادات");
     const mt = el("button"), mtLbl = () => { mt.textContent = (MT5 ? "✓ " : "○ ")+Lg("MetaTrader layout","واجهة ميتاتريدر"); };
@@ -97,7 +152,7 @@ if (!MOB){ bar.append(sel, ub, rb, zm, zLbl, zp, gb, wsShotBtn(), wsRecBtn(), el
     const zr = el("div"); zr.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 12px"; zr.append(el("span", null, Lg("Size","الحجم")), zm, zLbl, zp);
     const cap = el("div"); cap.style.cssText = "display:flex;align-items:center;gap:8px;padding:8px 12px"; cap.append(el("span", null, Lg("Capture","التصوير")), wsShotBtn(), wsRecBtn());
     menu.append(mt, zr, cap); gear.onclick = e => { e.stopPropagation(); menu.classList.toggle("on"); }; document.addEventListener("click", e => { if (!menu.contains(e.target)) menu.classList.remove("on"); });
-    bar.append(sel, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
+    bar.append(sel, wmb, ub, rb, gb, el("span","sp"), gear); document.body.append(menu); }
   zSet(+store.get(zKey, zDef)); Ws.histUI();
   const d = el("span"); d.id = "dot"; bar.append(d);
 }

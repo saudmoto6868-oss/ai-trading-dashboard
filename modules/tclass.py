@@ -282,39 +282,256 @@ def candidates(sym, setup_rows, levels, bias_rows, entry_rows, target_pts: float
 
 
 def scan(sym: str, style: str, get_klines, target_pts: float = 0) -> list[dict]:
-    """Live trades for one symbol + style. get_klines(sym, tf, limit) -> DataFrame (modules.market_cache.get_klines)."""
+    """Judged ideas for one symbol + style, best first (same rules as the widget; the server has S/R bounce + breakout / BOS / MSS only:
+    no volume profile, SMT, Elliott, harmonic, scanner, news calendar or browser journal). get_klines(sym, tf, limit) -> DataFrame."""
     S = STYLES[style]
-    setup = rows_of(get_klines(sym, S["setup"], 300))
+    sdf = get_klines(sym, S["setup"], 300)
+    setup = rows_of(sdf)
+    if len(setup) < 60:
+        return []
+    notes = []
     try:
         brows = rows_of(get_klines(sym, S["bias"], 120))
     except Exception:
         brows = []
+    if len(brows) < 60:
+        notes.append(f"no {S['bias']} candles: bias not counted")
+    try:
+        erows = rows_of(get_klines(sym, S["entry"], 80))
+    except Exception:
+        erows = []
+    if len(erows) < 20:
+        erows = setup
+    px, a = setup[-1]["c"], atr(setup, 14)
+    ps = point_size(sym, px)
+    ev = events(setup, hold=S["hold"])
+    auto = max(1, nice_pts((stats(ev, 0).get("median") or a) / ps))
+    t_pts = target_pts if target_pts > 0 else auto
+    T_ = t_pts * ps
     lv = sr_levels(setup)
-    cs = candidates(sym, setup, lv, brows, None, target_pts=target_pts, hold=S["hold"])
-    if cs:
-        try:
-            cs = candidates(sym, setup, lv, brows, rows_of(get_klines(sym, S["entry"], 60)), target_pts=target_pts, hold=S["hold"])
-        except Exception:
-            pass
-    for c in cs:
-        c.update({"symbol": sym, "style": style, "direction": "bullish" if c["side"] > 0 else "bearish", "tfk": S["tfk"],
-                  "stack": f"{TF_LABEL[S['bias']]} → {TF_LABEL[S['setup']]} → {TF_LABEL[S['entry']]}"})
-    return cs
+    ideas = []
+
+    def mk(det, side, entry, stop, now, level, label):
+        if not entry > 0 or not abs(entry - stop) > 0 or (stop >= entry if side > 0 else stop <= entry):
+            return
+        ideas.append({"det": det, "label": label, "side": side, "entry": entry, "stop": stop, "now": now, "level": level, "tps": [entry + side * T_, entry + side * T_ * 1.6]})
+    for c in candidates(sym, setup, lv, brows, erows, target_pts=t_pts, ps=ps, hold=S["hold"]):
+        mk("bounce", c["side"], c["entry"], c["stop"], c["now"], c["level"], f"Bounce from {'support' if c['side'] > 0 else 'resistance'} {_prec(c['level'])} x{c['touches']}")
+    for b in structure(setup, 6):
+        d = b["side"] * (px - b["level"])
+        now = -a * 0.3 <= d <= a * 0.8
+        mk("struct", b["side"], px if now else b["level"] + b["side"] * a * 0.1, b["level"] - b["side"] * a, now, b["level"], f"{b['kind']} {'up' if b['side'] > 0 else 'down'} {_prec(b['level'])}")
+    bias_ = bias(brows) if len(brows) >= 60 else {"available": False}
+    setup_b = bias(setup)
+    try:
+        from modules.regime import classify
+        reg = classify(sdf).get("regime")
+    except Exception:
+        reg = None
+    ent_struct = structure(erows, 3) if erows is not setup else []
+    levels = [{"p": l["p"], "src": "resistance" if l["kind"] == "R" else "support"} for l in lv]
+    tf = {"bias": TF_LABEL[S["bias"]], "setup": TF_LABEL[S["setup"]], "entry": TF_LABEL[S["entry"]]}
+    names = {"bounce": "S/R bounce", "struct": "Breakout / BOS / MSS"}
+    out = []
+    for idea in ideas:
+        s_ = idea["side"]
+        hist = stats([e for e in ev if e["side"] == s_], abs(idea["tps"][0] - idea["entry"]))
+        tS = next((b for b in ent_struct if b["side"] == s_), None)
+        trig = f"{tS['kind']} {tf['entry']}" if tS else "rejection candle" if rejection(erows, s_) else ""
+        confl = sorted({names[o["det"]] for o in ideas if o is not idea and o["side"] == s_ and o["det"] != idea["det"] and abs(o["entry"] - idea["entry"]) <= a})
+        late = max(0.0, s_ * (px - idea["level"])) / max(1e-12, abs(idea["tps"][0] - idea["level"])) if idea["now"] else 0
+        ctx = {"tf": tf, "ps": ps, "atr": a, "levels": levels, "bias": bias_, "setupB": setup_b, "trig": trig, "confl": confl, "vpAt": "", "hist": hist,
+               "late": late if late > 0.4 else 0, "regime": reg, "news": "", "openSame": False, "openOpp": False, "classOpen": 0, "jr": None, "scalp": style == "Scalp", "ses": ""}
+        j = judge(idea, ctx)
+        out.append(dict(idea, j=j, symbol=sym, style=style, direction="bullish" if s_ > 0 else "bearish", tfk=S["tfk"], ps=ps, notes=notes,
+                        stack=f"{tf['bias']} → {tf['setup']} → {tf['entry']}"))
+    order = {"TAKE": 2, "WAIT": 1, "SKIP": 0}
+    out.sort(key=lambda x: (-order[x["j"]["verdict"]], -x["j"]["score"]))
+    return out
 
 
 def fmt(c: dict) -> str:
-    """Telegram message (HTML), Arabic like the Setup Card."""
+    """Telegram message (HTML), Arabic: the decision, the plan, why take it, why not, the second look."""
     import html
-    up = c["direction"] == "bullish"
-    st = c.get("st") or {}
-    ps = c["ps"]
-    lines = [f"🎯 <b>TRADE CLASSES</b> {'🟢' if up else '🔴'} <b>{html.escape(c['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {html.escape(c['style'])} · {c['stack']}",
-             f"ارتداد من {'دعم' if up else 'مقاومة'} {c['level']:.6g} (اتلمس {c['touches']} مرات) · القوة {c['score']}/{c['max']}",
-             f"\n<b>الخطة</b>\nدخول {c['entry']:.6g} · وقف {c['stop']:.6g}\nهدف {c['tps'][0]:.6g} ({c['pts']:g} نقطة) / {c['tps'][1]:.6g} · R:R 1:{c['rr']:.1f}"]
-    if st.get("n"):
-        hp = "–" if st.get("hitPct") is None else f"{_round(st['hitPct'] * 100)}%"
-        lines.append(f"\nتاريخيًا: متوسط الارتداد ~{_round(st['median'] / ps)} نقطة، الهدف اتضرب {hp} من {st['n']} مرة" + (" (أقل من 30 = مش دليل)" if st["n"] < 30 else ""))
-    lines.append("ترابط الفريمات: " + ("متوافق" if c["agree"] > 0 else "عكس الاتجاه (حذر)" if c["agree"] < 0 else "محايد"))
-    lines.append("\n" + html.escape(" · ".join(c["why"])))
-    lines.append("\n<i>معلومة مش نسبة نجاح مثبتة. مش نصيحة مالية.</i>")
+    e = html.escape
+    up, j = c["direction"] == "bullish", c["j"]
+    pl = j["plan"]
+    V = {"TAKE": "ادخل ✅", "WAIT": "استنى ⏳", "SKIP": "ماتدخلش ⛔"}
+    lines = [f"🎯 <b>TRADE CLASSES</b> {'🟢' if up else '🔴'} <b>{e(c['symbol'])}</b> {'شراء ▲' if up else 'بيع ▼'} · {e(c['style'])} · {e(c['stack'])}",
+             f"القرار: <b>{V[j['verdict']]}</b> · {e(c['label'])} · النتيجة {j['score']}",
+             f"\n<b>الخطة</b>\nدخول {_prec(pl['entry'])} · وقف {_prec(pl['stop'])}\nهدف {_prec(pl['tps'][0])} ({j['pts']} نقطة) / {_prec(pl['tps'][1])} · R:R 1:{_fix(j['rr'])}"]
+    if j["pros"]:
+        lines.append("\n<b>ليه أدخل</b>\n" + "\n".join("✔ " + e(p[2]) for p in j["pros"]))
+    if j["cons"]:
+        lines.append("\n<b>ليه ماادخلش</b>\n" + "\n".join("✘ " + e(p[2]) for p in j["cons"]))
+    if j["second"]:
+        lines.append("\n<b>مراجعة تانية</b>\n" + "\n".join("↻ " + e(p[1]) for p in j["second"]))
+    lines.append("\n<i>من السيرفر: ارتداد + كسر هيكل بس (الفوليوم بروفايل / SMT / إليوت / الهارمونيك في الويدجت). معلومة مش نسبة نجاح مثبتة. مش نصيحة مالية.</i>")
     return "\n".join(lines)[:3900]
+
+
+# ---- deliberation (port of TCE.swings / structure / obstacle / judge in modules/ws/24b_tclass.js; tests/test_tclass_parity.py) ----
+def _prec(x: float, p: int = 6) -> str:
+    """JS Number.prototype.toPrecision."""
+    s = f"{x:#.{p}g}"
+    if "e" in s:
+        m, e = s.split("e")
+        s = m + "e" + ("+" if int(e) >= 0 else "-") + str(abs(int(e)))
+    return s
+
+
+def _fix(x: float, d: int = 1) -> str:     # JS toFixed
+    return f"{x:.{d}f}"
+
+
+def _num(x: float) -> str:                 # JS default number -> string for small decimals like a weight 2.5
+    return str(int(x)) if float(x).is_integer() else repr(float(x))
+
+
+def swings(rows, k: int = 3) -> list[dict]:
+    out = []
+    for i in range(k, len(rows) - k):
+        H = L = True
+        for j in range(i - k, i + k + 1):
+            if j == i:
+                continue
+            if rows[j]["h"] >= rows[i]["h"]:
+                H = False
+            if rows[j]["l"] <= rows[i]["l"]:
+                L = False
+        if H:
+            out.append({"i": i, "p": rows[i]["h"], "k": "H"})
+        if L:
+            out.append({"i": i, "p": rows[i]["l"], "k": "L"})
+    return out
+
+
+def structure(rows, fresh: int = 6) -> list[dict]:
+    n, out = len(rows), []
+    if n < 40:
+        return out
+    sw = swings(rows, 3)
+    for k, s in (("H", 1), ("L", -1)):
+        L_ = [x for x in sw if x["k"] == k]
+        if len(L_) < 2:
+            continue
+        q, prev = L_[-1], L_[-2]
+        brk = -1
+        for i in range(q["i"] + 4, n):
+            if (rows[i]["c"] > q["p"]) if s > 0 else (rows[i]["c"] < q["p"]):
+                brk = i
+                break
+        if brk < 0 or n - 1 - brk > fresh:
+            continue
+        was = q["p"] > prev["p"] if s > 0 else q["p"] < prev["p"]
+        out.append({"side": s, "level": q["p"], "i": brk, "kind": "BOS" if was else "MSS"})
+    return out
+
+
+def obstacle(entry, target, side, levels, a):
+    best = None
+    for l in levels or []:
+        d = side * (l["p"] - entry)
+        if d > a * 0.25 and side * (target - l["p"]) > 0 and (best is None or d < side * (best["p"] - entry)):
+            best = l
+    return best
+
+
+def judge(idea: dict, c: dict) -> dict:
+    s = idea["side"]
+    pros, cons, vetoes, second = [], [], [], []
+    P = lambda w, en, ar: pros.append([w, en, ar])
+    C = lambda w, en, ar: cons.append([w, en, ar])
+    entry, stop = idea["entry"], idea["stop"]
+    risk = abs(entry - stop) or 1e-12
+    tps = list(idea["tps"])
+    want = "bull" if s > 0 else "bear"
+    ps = c.get("ps") or 1
+    pt = lambda x: _round(abs(x) / ps)
+    tf = c["tf"]
+    ob = obstacle(entry, tps[0], s, c.get("levels"), c["atr"])
+    blocked = False
+    if ob:
+        cut = ob["p"] - s * c["atr"] * 0.1
+        rr_cut = abs(cut - entry) / risk
+        if rr_cut >= 1.5:
+            second.append([f"Target cut from {pt(tps[0] - entry)} to {pt(cut - entry)} pts: {ob['src']} at {_prec(ob['p'])} stands in the way",
+                           f"الهدف اتقص من {pt(tps[0] - entry)} لـ{pt(cut - entry)} نقطة: فيه {ob['src']} عند {_prec(ob['p'])} في السكة"])
+            tps[0] = cut
+            if s * (tps[1] - cut) <= 0:
+                tps[1] = ob["p"] + s * c["atr"] * 0.3
+        else:
+            blocked = True
+            C(2, f"{ob['src']} at {_prec(ob['p'])} before the target; cutting the target leaves R:R {_fix(rr_cut)}",
+              f"فيه {ob['src']} عند {_prec(ob['p'])} قبل الهدف؛ لو قصيت الهدف الـR:R يبقى {_fix(rr_cut)}")
+    if s * (tps[1] - tps[0]) <= 0:
+        tps[1] = tps[0] + s * abs(tps[0] - entry) * 0.6
+    rr = abs(tps[0] - entry) / risk
+    b, sb, h, jr = c.get("bias") or {}, c.get("setupB") or {}, c.get("hist") or {}, c.get("jr") or {}
+    if b.get("available") and b.get("bias") == want:
+        P(2, f"Bias timeframe {tf['bias']} agrees ({b['bias']})", f"فريم الاتجاه {tf['bias']} موافق ({b['bias']})")
+    if sb.get("available") and sb.get("bias") == want:
+        P(1, f"Setup timeframe {tf['setup']} trend agrees", f"ترند فريم الإعداد {tf['setup']} موافق")
+    if c.get("trig"):
+        P(1.5, f"Entry timeframe {tf['entry']} trigger: {c['trig']}", f"إشارة على فريم الدخول {tf['entry']}: {c['trig']}")
+    if c.get("confl"):
+        P(min(3, len(c["confl"])), "Other schools at the same zone: " + ", ".join(c["confl"]), "مدارس تانية في نفس المنطقة: " + "، ".join(c["confl"]))
+    if c.get("vpAt"):
+        P(1, f"Volume-profile node at the entry ({c['vpAt']})", f"نقطة فوليوم بروفايل عند الدخول ({c['vpAt']})")
+    if h.get("n", 0) >= 10 and h["hitPct"] >= 0.55:
+        P(1.5, f"Past bounces here reached this target {_round(h['hitPct'] * 100)}% of {h['n']}", f"الارتدادات اللي فاتت هنا وصلت للهدف ده {_round(h['hitPct'] * 100)}% من {h['n']} مرة")
+    if rr >= 2 and not blocked:
+        P(1, f"R:R {_fix(rr)}", f"R:R {_fix(rr)}")
+    if jr.get("done", 0) >= 10 and (jr.get("avgR") or 0) > 0:
+        P(1, f"This idea type is positive in your journal ({jr['done']} trades, {_fix(jr['avgR'], 2)}R)", f"النوع ده كسبان في الجورنال بتاعك ({jr['done']} صفقة، {_fix(jr['avgR'], 2)}R)")
+    ses = c.get("ses") or ""
+    if c.get("scalp") and ses and ses != "off-KZ" and "KZ" in ses:
+        P(0.5, f"Inside a kill zone ({ses})", f"جوه كيل زون ({ses})")
+    if b.get("available") and b.get("bias") not in (want, "neutral"):
+        C(2.5, f"Bias timeframe {tf['bias']} is against ({b['bias']})", f"فريم الاتجاه {tf['bias']} ضدك ({b['bias']})")
+    if not b.get("available"):
+        C(0.5, f"No bias timeframe data ({tf['bias']})", f"مفيش بيانات لفريم الاتجاه ({tf['bias']})")
+    if sb.get("available") and sb.get("bias") not in (want, "neutral"):
+        C(1, "Setup timeframe trend is against", "ترند فريم الإعداد ضدك")
+    if not c.get("trig"):
+        C(0.5, f"No trigger yet on the entry timeframe {tf['entry']}", f"لسه مفيش إشارة على فريم الدخول {tf['entry']}")
+    if rr < 1.5:
+        C(1.5, f"R:R only {_fix(rr)}", f"الـR:R {_fix(rr)} بس")
+    if c.get("late"):
+        C(1.5, f"Late: price already went {_round(c['late'] * 100)}% of the way to the target", f"متأخر: السعر مشي {_round(c['late'] * 100)}% من المسافة للهدف")
+    if h.get("n", 0) >= 10 and h["hitPct"] < 0.4:
+        C(1.5, f"Past bounces reached this target only {_round(h['hitPct'] * 100)}% of {h['n']}", f"الارتدادات اللي فاتت وصلت للهدف ده {_round(h['hitPct'] * 100)}% بس من {h['n']}")
+    if h.get("n", 0) >= 10 and (h.get("p75") or 0) > 0 and abs(tps[0] - entry) > h["p75"]:
+        C(1, f"Target is bigger than 3 of 4 past moves on {tf['setup']} ({pt(h['p75'])} pts)", f"الهدف أكبر من 3 من كل 4 حركات فاتت على {tf['setup']} ({pt(h['p75'])} نقطة)")
+    if not h or h.get("n", 0) < 10:
+        hn = h.get("n", 0) or 0
+        C(0.5, f"Too little history to measure ({hn} past cases)", f"تاريخ قليل للقياس ({hn} حالة)")
+    if c.get("regime") == "chop":
+        C(1, "Market regime: chop (moves die quickly)", "حالة السوق: تذبذب (الحركات بتموت بسرعة)")
+    if c.get("regime") in ("hivol", "crash"):
+        C(1, f"Market regime: {c['regime']} (stops get hit by noise)", f"حالة السوق: {c['regime']} (الستوب بيتضرب من الضوضاء)")
+    if (c.get("classOpen") or 0) >= 2:
+        C(1, f"{c['classOpen']} open trades already in the same class and direction", f"فيه {c['classOpen']} صفقات مفتوحة في نفس الفئة والاتجاه")
+    if jr.get("done", 0) >= 10 and (jr.get("avgR") or 0) < 0:
+        C(1.5, f"This idea type loses in your journal ({jr['done']} trades, {_fix(jr['avgR'], 2)}R)", f"النوع ده خسران في الجورنال بتاعك ({jr['done']} صفقة، {_fix(jr['avgR'], 2)}R)")
+    if c.get("scalp") and ses == "off-KZ":
+        C(0.5, "Scalp outside the kill zones", "سكالب برة الكيل زون")
+    if c.get("news"):
+        vetoes.append([f"High-impact news within the hour: {c['news']}", f"خبر قوي خلال ساعة: {c['news']}"])
+    if c.get("openSame"):
+        vetoes.append(["You already have this trade open (journal)", "الصفقة دي مفتوحة عندك أصلًا (الجورنال)"])
+    if c.get("openOpp"):
+        vetoes.append(["An OPPOSITE trade on this symbol is open", "فيه صفقة عكسها مفتوحة على نفس الرمز"])
+    if rr < 1:
+        vetoes.append(["R:R below 1", "R:R أقل من 1"])
+    score = _round((sum(x[0] for x in pros) - sum(x[0] for x in cons)) * 10) / 10
+    verdict = "SKIP" if vetoes else ("TAKE" if idea["now"] else "WAIT") if score >= 3 and rr >= 1.5 else "WAIT" if score >= 1 else "SKIP"
+    worst = sorted(cons, key=lambda x: -x[0])[0] if cons else None
+    if verdict == "TAKE" and worst and worst[0] >= 2:
+        verdict = "WAIT"
+        second.append([f"Downgraded to WAIT: the strongest objection is heavy ({worst[1]})", f"نزلت لـ«استنى»: أقوى اعتراض تقيل ({worst[2]})"])
+    if verdict == "WAIT" and not idea["now"]:
+        second.append([f"Limit order at {_prec(entry)}: price has not reached the zone", f"أمر معلّق عند {_prec(entry)}: السعر لسه ماوصلش للمنطقة"])
+    pct = max(0, min(100, _round((score + 4) / 12 * 100)))
+    return {"pros": pros, "cons": cons, "vetoes": vetoes, "second": second, "score": score, "pct": pct, "verdict": verdict,
+            "plan": {"entry": entry, "stop": stop, "tps": tps}, "rr": rr, "pts": pt(tps[0] - entry), "blocked": ob if blocked else None}

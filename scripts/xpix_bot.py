@@ -199,7 +199,7 @@ def ask_claude(text, deep=False):
 HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر تداول):
 • اكتب عادي بالعربي: «ابعتلي صورة الدهب على الأسبوعي مع اليوت» · «افتح التايم اند سيلز للبيتكوين» · «الدهب هيطلع الأسبوع الجاي؟» · «وريني المحلل للفضة» · «هات فاتورة INV-12»
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
-• /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
+• /ideas أو «أفكار السبوت» (مكتب الأفكار: صورة + الصفقات) · /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
 • /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة
 • /signals · /alerts · /today BTC · /deep سؤال"""
@@ -222,6 +222,15 @@ def spot_image(p, asset, outlook=False):
         say(msg)
 
 
+def spot_ideas_msg(p):
+    """Today's ideas desk: board picture + Arabic text."""
+    from modules import spot_board, spot_dash, spot_ideas
+    r = spot_ideas.desk()
+    png = spot_dash.to_png(spot_board.render(r), "/tmp/xpix_spot_ideas.png", ctx=p.ctx)
+    send_photo(png, "🧠 مكتب أفكار السبوت")
+    say(spot_ideas.telegram_text(r))
+
+
 def run_actions(p, acts):
     """Execute router actions (whitelisted) and answer with one screenshot + an Arabic line of what was done."""
     from modules import bot_router
@@ -237,6 +246,8 @@ def run_actions(p, acts):
             return
         if c in ("outlook", "spotchart"):
             return spot_image(p, a["asset"], outlook=(c == "outlook"))
+        if c == "ideas":
+            return spot_ideas_msg(p)
         if c == "panel":
             r = p.panel(a["type"])
             done.append(("فتحت " if r.get("ok") else "مقدرتش أفتح ") + PANEL_AR.get(a["type"], a["type"]))
@@ -279,6 +290,8 @@ def handle(p, text):
     c = a[0].lower().split("@")[0] if a else ""
     if c in ("/help", "/start", "مساعدة"):
         return say(HELP_AR)
+    if c == "/ideas":
+        return spot_ideas_msg(p)
     if c in ("/spotchart", "/outlook"):
         return spot_image(p, (a[1] if len(a) > 1 else "GOLD").upper(), outlook=(c == "/outlook"))
     if c == "/panel" and len(a) > 1:

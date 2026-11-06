@@ -336,8 +336,12 @@ def render(b: dict, ar: bool = True) -> str:
 
 
 # ---------------------------------------------------------------- data
-PEER = {"BTC": ("ETH-USDT", False), "GOLD": ("Y:SI=F", False), "SILVER": ("Y:GC=F", False), "PLATINUM": ("Y:GC=F", False),
+PEER = {"OIL": ("Y:BZ=F", False), "EURUSD": ("Y:DX-Y.NYB", True), "GBPUSD": ("Y:EURUSD=X", False), "BTC": ("ETH-USDT", False), "GOLD": ("Y:SI=F", False), "SILVER": ("Y:GC=F", False), "PLATINUM": ("Y:GC=F", False),
         "PALLADIUM": ("Y:PL=F", False), "COPPER": ("Y:GC=F", False)}
+
+
+EXTRA_Y = {"OIL": "Y:CL=F", "BRENT": "Y:BZ=F", "EURUSD": "Y:EURUSD=X", "GBPUSD": "Y:GBPUSD=X", "USDJPY": "Y:JPY=X", "DXY": "Y:DX-Y.NYB",
+           "SP500": "Y:^GSPC", "NASDAQ": "Y:^NDX"}   # non-crypto, non-metal markets for the ideas board (Yahoo, delayed)
 
 
 def load_bundle(asset: str, candles=None) -> dict:
@@ -347,7 +351,8 @@ def load_bundle(asset: str, candles=None) -> dict:
     get = candles or spot_data.candles
     a = asset.upper()
     is_metal = a in spot_data.METAL_Y
-    sym = spot_data.METAL_Y[a] if is_metal else (a if "-" in a else f"{a}-USDT")
+    extra = EXTRA_Y.get(a)
+    sym = spot_data.METAL_Y[a] if is_metal else extra if extra else (a if "-" in a else f"{a}-USDT")
     frames, errs = {}, []
     for tf in TFS:
         try:
@@ -379,7 +384,9 @@ def load_bundle(asset: str, candles=None) -> dict:
                 ratios[label] = ((m["close_a"] / m["close_b"]).tolist(), note)
         except Exception:
             pass
-    if is_metal:
+    if extra:
+        pass
+    elif is_metal:
         ratio("Y:GC=F", "Y:SI=F", "Gold / Silver", "high = silver cheap vs gold")
         ratio("Y:HG=F", "Y:GC=F", "Copper / Gold", "rising = growth / risk-on")
     else:
@@ -393,7 +400,7 @@ def load_bundle(asset: str, candles=None) -> dict:
         plan = {}
     d1 = frames.get("1d")
     return {"symbol": a, "sym": sym, "price": float(d1["close"].iloc[-1]) if d1 is not None and len(d1) else None,
-            "asof": str(d1["time"].iloc[-1])[:16] if d1 is not None and len(d1) else "", "source": "Yahoo futures" if is_metal else "OKX spot",
+            "asof": str(d1["time"].iloc[-1])[:16] if d1 is not None and len(d1) else "", "source": "Yahoo (delayed)" if (is_metal or extra) else "OKX spot",
             "reads": reads, "conf": conf, "stats": I.spot_stats(frames.get("1d"), frames.get("1w"), frames.get("1mo")),
             "smt": smt, "smt_text": smt_text, "peer": peer_sym.replace("Y:", ""), "ratios": ratios, "plan": plan, "errors": errs}
 

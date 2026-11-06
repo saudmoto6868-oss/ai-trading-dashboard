@@ -27,6 +27,7 @@ INDS = [(("اليوت", "إليوت", "اليوت ويف", "elliott"), "ew"), ((
 SHOT_W = ("صورة", "صوره", "سكرين", "اسكرين", "سكرينة", "وريني", "ورّيني", "شوفلي", "اعرض", "screenshot", "shot", "show")
 OFF_W = ("شيل", "اقفل", "طفي", "اخفي", "وقف", "off", "hide", "remove")
 OUTLOOK_W = ("توقع", "الأسبوع الجاي", "الاسبوع الجاي", "الاسبوع ده", "الأسبوع ده", "هيطلع", "هينزل", "تقرير", "outlook", "نازل ولا طالع", "طالع ولا نازل")
+IDEAS_W = ("أفكار", "افكار", "فرص", "صفقات سبوت", "افكار السبوت", "ideas", "مكتب الافكار")
 ANALYZER_W = ("المحلل", "تحليل كامل", "كل المدارس", "analyzer", "داشبورد السبوت", "تحليل سبوت")
 LEDGER = [(("مراكزي", "محفظتي", "السبوت بتاعي", "مراكز السبوت", "my spot"), "/spot"), (("فاتورة", "فواتير", "invoice"), "/inv"),
           (("اكسل", "إكسل", "excel"), "/spotxl"), (("تنبيهات السبوت",), "/spotalerts")]
@@ -105,6 +106,8 @@ def route(text: str) -> list[dict]:
                 mm = re.search(r"(?:فاتوره|فواتير|invoice)\s+(\S+)", t)
                 arg = mm.group(1) if mm else ""
             return [{"cmd": "ledger", "text": (cmd + " " + arg).strip()}]
+    if _has(t, IDEAS_W):
+        return [{"cmd": "ideas"}]
     if _has(t, OUTLOOK_W):
         return [{"cmd": "outlook", "asset": asset or "GOLD"}]
     if _has(t, ANALYZER_W):

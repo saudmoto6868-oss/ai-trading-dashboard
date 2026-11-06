@@ -29,7 +29,7 @@ for text, want in cases.items():
     assert R.route(text) == want, (text, R.route(text))
 assert R.route("هات فاتورة INV-12")[0]["cmd"] == "ledger"
 assert R.platform_symbols("GOLD", ["BTC-USDT", "HL:xyz:GOLD"]) == "HL:xyz:GOLD" and R.platform_symbols("XYZ", ["BTC-USDT"]) is None
-assert all(a["cmd"] in ("shot", "panel", "ind", "outlook", "spotchart", "ledger") for t in cases for a in R.route(t))   # whitelist only
+assert all(a["cmd"] in ("shot", "panel", "ind", "outlook", "spotchart", "ledger", "ideas") for t in cases for a in R.route(t))   # whitelist only
 
 # fake candles (gold-like weekly ranges)
 rng = np.random.default_rng(4)

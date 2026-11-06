@@ -214,8 +214,10 @@ def _show_plan(asset: str, hist_sym: str, d: dict, live_px: float | None, fx: fl
             d["alerts"].append(C.new_alert(asset, "sell", p["sells"][0], "T1"))
         if p["invalidation"]:
             d["alerts"].append(C.new_alert(asset, "stop", p["invalidation"], ""))
-        save(d)
-        st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+        if save(d):
+            st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+            _notify(d, T(f"{len(lad) + 2} plan alerts armed for {asset}", f"اتسجلت تنبيهات الخطة لـ {asset}: شراء " + " / ".join(_n(r["price"]) for r in lad)
+                         + (f" · هدف {_n(p['sells'][0])}" if p["sells"] else "") + (f" · إلغاء {_n(p['invalidation'])}" if p["invalidation"] else "")))
 
 
 # ---------------------------------------------------------------- tabs
@@ -250,6 +252,34 @@ def _tab_analyzer(cr, met):
     from modules.i18n import lang
     import streamlit.components.v1 as components
     components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _desk(day: str) -> dict:
+    from modules import spot_ideas
+    return spot_ideas.desk()
+
+
+def _tab_ideas():
+    """Daily ideas desk (modules/spot_ideas.py + spot_board.py), refreshed every 6 h or on Refresh."""
+    a, b = st.columns([4, 1])
+    a.caption(T("Reads 8 markets on 1M / 1W / 1D / 4H with every school + the news, then builds spot ideas. First load ~30 s, then cached 6 h.",
+                "بيقرا 8 أسواق على الشهري والأسبوعي واليومي والـ 4 ساعات بكل المدارس + الأخبار ويطلع أفكار سبوت. أول تحميل حوالي 30 ثانية وبعدها محفوظ 6 ساعات."))
+    if b.button(T("Refresh", "تحديث"), key="sp_id_ref"):
+        _desk.clear()
+    with st.spinner(T("Thinking: reading every market and school ...", "بفكر: بقرا كل سوق وكل مدرسة ...")):
+        try:
+            r = _desk(date.today().isoformat())
+        except Exception as e:
+            st.error(f"{type(e).__name__}: {e}")
+            return
+    from modules import spot_board
+    import streamlit.components.v1 as components
+    components.html(spot_board.render(r), height=3700, scrolling=True)
+    if st.button(T("Send today's ideas to Telegram", "ابعت أفكار النهارده على تليجرام"), key="sp_id_tg"):
+        from modules import spot_ideas, telegram_alerts
+        err = telegram_alerts.send(spot_ideas.telegram_text(r))
+        (st.error if err else st.success)(f"Telegram: {err}" if err else T("Sent.", "اتبعت."))
 
 
 def _tab_crypto(d, cr, fx):
@@ -449,6 +479,8 @@ def _record_form(d: dict, fx, tx: dict | None = None):
         d["txs"].append(rec)
     if save(d, f"spot: {'edit' if tx else 'add'} {rec['side']} {rec['asset']} {rec.get('invoice_no') or rec['id']}"):
         st.success(T("Saved.", "اتسجل."))
+        from modules.spot_query import tx_text
+        _notify(d, ("✏️ " if tx else "") + tx_text(rec))
 
 
 def _table(d: dict, txs: list[dict]):
@@ -632,7 +664,45 @@ def _tab_setup(d, px, fx):
     st.caption(T("Removing a field hides it; values already saved stay inside the records.", "مسح الخانة بيخفيها بس؛ القيم المتسجلة بتفضل جوه التسجيلات."))
 
 
+def _notify(d: dict, text: str) -> None:
+    """Confirmation on Telegram after a record / alert (owner 2026-11-06: 'I record and nothing is sent'). Shows the reason when it fails."""
+    if not d["settings"].get("tg_confirm", True):
+        return
+    from modules import telegram_alerts
+    tok, chat = telegram_alerts.creds()
+    if not tok or not chat:
+        st.warning(T("Not sent to Telegram: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not in this app's Streamlit Secrets.",
+                     "ماتبعتش على تليجرام: TELEGRAM_BOT_TOKEN و TELEGRAM_CHAT_ID مش موجودين في Streamlit Secrets بتاعة التطبيق."))
+        return
+    err = telegram_alerts.send("XPiX Spot · " + text)
+    if err:
+        st.error(T("Telegram refused: ", "تليجرام رفض: ") + err)
+    else:
+        st.toast(T("Sent to Telegram", "اتبعت على تليجرام"))
+
+
+def _tg_box(d: dict) -> None:
+    from modules import telegram_alerts
+    tok, chat = telegram_alerts.creds()
+    with st.container(border=True):
+        st.markdown("**" + T("Telegram", "تليجرام") + "**")
+        st.write(("✅ " if tok else "❌ ") + "TELEGRAM_BOT_TOKEN · " + ("✅ " if chat else "❌ ") + "TELEGRAM_CHAT_ID " +
+                 T("(Streamlit Secrets of this app)", "(في Streamlit Secrets بتاعة التطبيق)"))
+        if not (tok and chat):
+            st.caption(T("Add both in Streamlit Cloud > Manage app > Settings > Secrets (for the page) AND in GitHub > Settings > Secrets > Actions (for the 30-min alerts, the daily ideas and the backtest).",
+                         "ضيفهم في Streamlit Cloud > Manage app > Settings > Secrets (للصفحة) وكمان في GitHub > Settings > Secrets > Actions (للتنبيهات كل 30 دقيقة والأفكار اليومية والباك تيست)."))
+        a, b = st.columns(2)
+        if a.button(T("Send a test message", "ابعت رسالة تجربة"), key="sp_tgtest"):
+            err = telegram_alerts.send("XPiX Spot · " + T("test message - Telegram works", "رسالة تجربة - تليجرام شغال"))
+            (st.error if err else st.success)((T("Failed: ", "فشل: ") + err) if err else T("Sent - check Telegram.", "اتبعت - شوف تليجرام."))
+        on = b.toggle(T("Confirm every record / alert on Telegram", "ابعت تأكيد على تليجرام مع كل تسجيل / تنبيه"), value=bool(d["settings"].get("tg_confirm", True)), key="sp_tgconf")
+        if on != bool(d["settings"].get("tg_confirm", True)):
+            d["settings"]["tg_confirm"] = on
+            save(d)
+
+
 def _tab_alerts(d, px):
+    _tg_box(d)
     with st.form("sp_alf", clear_on_submit=True):
         a, b, c3, d4 = st.columns(4)
         asset = a.text_input(T("Asset (GOLD, SILVER, BTC ...)", "الأصل (GOLD، SILVER، BTC ...)")).strip().upper()
@@ -642,7 +712,8 @@ def _tab_alerts(d, px):
         note = d4.text_input(T("Note", "ملاحظة"))
         if st.form_submit_button(T("Add alert", "ضيف تنبيه")) and asset and lvl > 0:
             d["alerts"].append(C.new_alert(asset, kind, lvl, note))
-            save(d)
+            if save(d):
+                _notify(d, T(f"alert armed: {asset} {kind} at {lvl:,.4g}", f"تنبيه اتسجل: {asset} {'شراء' if kind == 'buy' else 'بيع' if kind == 'sell' else 'إلغاء'} عند {lvl:,.4g}"))
     hits = C.check_alerts(d["alerts"], px)
     ar = T("en", "ar") == "ar"
     for h in hits:
@@ -734,21 +805,23 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
+    tabs = st.tabs([T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
                     T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)")])
     with tabs[0]:
-        _tab_crypto(d, cr, fx)
+        _tab_ideas()
     with tabs[1]:
-        _tab_metals(d, met, fx, fx_src, egp)
+        _tab_crypto(d, cr, fx)
     with tabs[2]:
-        _tab_ledger(d, px, fx, egp)
+        _tab_metals(d, met, fx, fx_src, egp)
     with tabs[3]:
-        _tab_alerts(d, px)
+        _tab_ledger(d, px, fx, egp)
     with tabs[4]:
-        _tab_news(d)
+        _tab_alerts(d, px)
     with tabs[5]:
+        _tab_news(d)
+    with tabs[6]:
         _tab_setup(d, px, fx)
-    with tabs[6]:   # owner 2026-11-06: an option on the side, loaded only on request
+    with tabs[7]:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)

@@ -7,6 +7,7 @@ Read + view + draw only. No orders, no trading, no broker/TradingView logins, no
   XPIX_PROFILE        Chromium profile dir (default ~/.xpix_bot_profile) - keeps the layout/drawings between runs
 Run: python scripts/xpix_bot.py
 Commands: /shot SYMBOL TF | /today SYMBOL | /signals | /alerts | /deep <text> (Opus) | any other text -> Claude Code (Sonnet, read-only tools).
+Spot desk (modules/spot_query.py, needs SPOT_GH_TOKEN + SPOT_GH_REPO in the env): /spot | /inv <no / shop / date> | /find <text> | /spotalerts | /spotxl
 HONESTY: nothing here has been run against Telegram unless the owner says so; the XCMD part was tested live (tests/browser/xcmd_live.py)."""
 import os, subprocess, sys, time, json, pathlib
 import requests
@@ -33,6 +34,10 @@ def tg(method, **kw):
 
 def say(text):
     tg("sendMessage", data={"chat_id": OWNER, "text": text[:4000]})
+
+
+def send_doc(name, data, caption=""):
+    tg("sendDocument", data={"chat_id": OWNER, "caption": caption[:900]}, files={"document": (name, data)})
 
 
 def send_photo(path, caption=""):
@@ -137,6 +142,13 @@ def ask_claude(text, deep=False):
 def handle(p, text):
     a = text.strip().split()
     c = a[0].lower().split("@")[0] if a else ""
+    if c in ("/spot", "/inv", "/find", "/spotalerts", "/spotxl"):   # spot desk ledger (read-only)
+        from modules import spot_query
+        reply, files = spot_query.handle(text)
+        say(reply)
+        for name, data in files:
+            send_doc(name, data)
+        return None
     if c == "/shot":
         sym = p.sym(a[1]) if len(a) > 1 else None
         if len(a) > 1 and not sym:

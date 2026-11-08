@@ -29,6 +29,7 @@ def test_tradingview_tool_set():
 def test_chart_is_free_by_default():
     assert "autoCenter" not in H and "followLatest" not in H                        # 2026-11-08: no auto-centre mode (it undid every zoom / pan on each tick / poll); toolbar Fit = one-shot centerNow()
     assert "follow(added, nOld){" in H and "centerNow(){" in H                       # new candle: the latest candle keeps its place on screen
+    assert "if (!isFinite(lo)) return [0,1];" not in H                              # no candle on screen must not give a 0..1 price scale (it blew the scale to -94 million, chart blank)
     assert "freezeY(){" in H                                                        # vertical drag / Shift+wheel switches the price scale to manual
 
 

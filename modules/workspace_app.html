@@ -1779,7 +1779,7 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
-    if (!isFinite(lo)) return [0,1];
+    if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a Manual lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
     return [mid-span/2, mid+span/2];

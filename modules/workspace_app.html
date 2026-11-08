@@ -1660,6 +1660,7 @@ class CandleChart {
   centerNow(){ this.fit(); }   // toolbar Fit: one click = latest candle back to the middle, price scale back to auto
   fit(){
     const n = this.data.length; this.lockR = null; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    if ((TFSEC[this.tf] || 0) >= 3600 && this.PR > 0) this.bw = Math.max(4, Math.min(9, 0.5*this.PR/60));   // 1H and bigger: about 60 candles in the left half (bw 9 showed only ~24 candles, one big candle squashed the rest)
     this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.onFree) this.onFree(); else this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   zoomY(f, ay){   // price-scale zoom by factor f, anchored at the price under y = ay (px from the top of the plot): that price stays put, so the candles do not fly away. One call changes the scale by at most 25 %, and the scale stays between 0.05x and 8x of the auto range (the old limits were 0.02x .. 60x: a few wheel clicks flattened the candles into a line)
@@ -1815,12 +1816,12 @@ class CandleChart {
     c.strokeStyle = TH.grid; c.fillStyle = TH.mut; c.lineWidth = 1; c.textAlign = "left";
     nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), (this.W-this.axw)+5, y); });
     // time axis
-    const stepBars = Math.max(1, Math.ceil(90/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
-    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 5 ? 5 : 10)*mag;
+    const stepBars = Math.max(1, Math.ceil(70/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
+    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 3 ? 3 : nb <= 5 ? 5 : 10)*mag;   // the 3 step: with narrow candles (4H / 1D) a jump from 20 to 50 bars left one label on the axis
     c.textAlign = "center";
     for (let i = Math.ceil(i0/st)*st; i <= i1; i += st){
       const x = Math.round(this.x(i))+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,PB); c.stroke();
-      c.fillText(this.fmtTime(this.data[i].t), x, H-10);
+      if (x > 22) c.fillText(this.fmtTime(this.data[i].t), x, H-10);
     }
     c.strokeStyle = TH.line; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(0,H-19.5); c.lineTo(W,H-19.5); c.moveTo((this.W-this.axw)+.5,0); c.lineTo((this.W-this.axw)+.5,H); c.stroke();
     // clip plot

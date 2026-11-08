@@ -181,13 +181,9 @@ class Panel {
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
     const kzb = el("button",null,"KZ"); kzb.title = T("kzTip"); kzb.onclick = () => { this.chart.kz = !this.chart.kz; this.state.kz = this.chart.kz; kzb.classList.toggle("on", this.chart.kz); this.chart.draw(); Ws.save(); };
         this.indBtn = this.buildIndMenu();
-    const lockBtn = el("button"); lockBtn.title = T("lockTip");
-    const lockSync = () => { lockBtn.textContent = this.chart.lockR ? "🔒 "+T("manual") : "⇅ "+T("auto"); lockBtn.classList.toggle("on", !!this.chart.lockR); };
-    lockBtn.onclick = () => { const c_ = this.chart; if (c_.lockR) c_.autoY(); else c_.freezeY(); c_.draw(); };   // Manual = lock exactly what is on screen (no jump); Auto = price scale re-fits the candles. Kept per tab with the chart view (sessionStorage), not in the shared layout
-    this.lockSync = lockSync;
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -195,7 +191,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    delete this.state.locks; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { this.lockSync(); this.chart.saveView(); }; this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    delete this.state.locks; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => this.chart.saveView(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
@@ -499,7 +495,7 @@ class Panel {
   liveTick(row){
     const ch = this.chart; if (!ch.data.length) return;
     const last = ch.data[ch.data.length-1];
-    const n0 = ch.data.length; if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t){ ch.data.push(row); ch.follow(1, n0); } else return;
+    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
     ch.calcEma(); ch.drawSoon(); this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }

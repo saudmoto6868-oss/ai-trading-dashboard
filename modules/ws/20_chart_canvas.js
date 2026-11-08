@@ -56,7 +56,7 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    if (fit){ const sv = this.autoCenter ? null : this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else { if (this.autoCenter) this.followLatest(); this.draw(); }
   }
   restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
@@ -186,8 +186,10 @@ class CandleChart {
   }
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
-  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
-  restoreView(){ try { if (this.autoCenter) return false; const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  // per-tab view: sessionStorage is this tab's own copy (wins on reload); localStorage only seeds a brand-new tab. One shared key let a reloading tab (pagehide flush) overwrite the view of another tab, which then snapped back on its next refresh
+  viewGet(){ const k = this.viewKey(); try { const v = sessionStorage.getItem(k); if (v) return JSON.parse(v); } catch(e){} return store.get(k, null); }
+  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; const k = this.viewKey(), v = {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}; try { sessionStorage.setItem(k, JSON.stringify(v)); } catch(e){} try { store.set(k, v); } catch(e){} }
+  restoreView(){ try { if (this.autoCenter) return false; const v = this.viewGet(); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }

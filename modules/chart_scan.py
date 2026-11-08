@@ -79,6 +79,9 @@ STRATEGY_FILTERS = {
     "st_bvd": ("Breakout + volume delta (strong close through a swing)", ("extra", "bvd")),
     "st_smt": ("SMT divergence (correlated pairs, e.g. BTC / ETH / SOL)", ("key", "smt")),
     "st_crt": ("CRT - Candle Range Theory (HTF range sweep + reclaim)", ("key", "crt")),
+    "st_pa_engulf": ("Price action · engulfing at support / resistance", ("key", "pa_engulf")), "st_pa_pin": ("Price action · hammer / pin bar at a level", ("key", "pa_pin")),
+    "st_pa_inside": ("Price action · inside-bar breakout", ("key", "pa_inside")), "st_pa_star": ("Price action · morning / evening star at a swing", ("key", "pa_star")),
+    "st_rect": ("Rectangle (range) breakout + retest", ("key", "rect")), "st_dbl": ("Double top / bottom neckline break", ("key", "dbl")), "st_wyck": ("Wyckoff spring / upthrust (range sweep)", ("key", "wyck")),
     "st_sessamd": ("ICT session AMD: Asian range swept in London, back inside (intraday)", ("key", "sess_amd")),
     "st_orb": ("Session opening-range breakout (first 15 min of London / New York)", ("key", "orb")),
     "st_kzs": ("Kill Zone Sniper (sweep + displacement inside London / NY kill zone, volume-confirmed)", ("key", "kzs")),
@@ -89,6 +92,34 @@ STRATEGY_FILTERS = {
     "st_rsidiv": ("RSI regular divergence", ("key", "rsi_div")), "st_macddiv": ("MACD regular divergence", ("key", "macd_div")),
     "st_fib": ("Fibonacci", ("family", "Fib")), "st_vwap": ("VWAP", ("family", "VWAP")), "st_ma": ("Moving averages", ("family", "MA")), "st_m2022": ("ICT Model 2022 (raid + MSS + FVG, in a NY killzone)", ("key", "m2022")), "st_cisd": ("Sweep + CISD (liquidity grab, body close through the open of the down-candle run, before the structure break)", ("key", "cisd")), "st_tl": ("Trendline break (close through a swing-high/low line, volume / retest confirmed)", ("key", "tlbreak")),
 }
+# Item 25 step 3: wire pipeline winners (gate-passed lab keys) as scanner filters.
+# Safe to import even before a real lab run — returns {} when no data or no winners.
+try:
+    from modules.pipeline_wire import pipeline_filters as _pipeline_filters
+    _pip = _pipeline_filters()
+    STRATEGY_FILTERS.update(_pip)
+except Exception:
+    _pip = {}
+
+# School / tool-group filters — one entry per trading school; matcher = ("school", school_name)
+# The scanner evaluates these by checking signals whose 'school' field matches.
+SCHOOL_FILTERS = {
+    "sch_ict":      ("School · SMC / ICT",                ("school", "SMC / ICT")),
+    "sch_elliott":  ("School · Elliott wave",             ("school", "Elliott wave")),
+    "sch_harmonic": ("School · Harmonic (all patterns)",  ("school", "Harmonic")),
+    "sch_trend":    ("School · Trend (MA + hedge-fund)",  ("school", "Trend")),
+    "sch_liq":      ("School · Liquidity / sweeps",       ("school", "Liquidity")),
+    "sch_session":  ("School · Time / sessions (ICT)",    ("school", "Time (sessions)")),
+    "sch_fib":      ("School · Fibonacci / OTE",          ("school", "Fibonacci")),
+    "sch_mom":      ("School · Momentum / divergence",    ("school", "Momentum / divergence")),
+    "sch_level":    ("School · Levels / breakouts",       ("school", "Levels / breakouts")),
+    "sch_smt":      ("School · Intermarket / SMT",        ("school", "Intermarket (SMT)")),
+    "sch_pa":       ("School · Price action (candles at levels)", ("school", "Price action")),
+    "sch_rect":     ("School · Chart patterns (rectangle / double top-bottom)", ("school", "Chart patterns (range)")),
+    "sch_wyck":     ("School · Wyckoff (spring / upthrust)", ("school", "Wyckoff")),
+}
+STRATEGY_FILTERS.update(SCHOOL_FILTERS)
+
 ALL_FILTERS = {**RSI_FILTERS, **EMA_FILTERS, **PATTERN_FILTERS, **MOVE_FILTERS, **{k: v[0] for k, v in STRATEGY_FILTERS.items()}}
 
 
@@ -244,9 +275,14 @@ def strategy_flags(df: pd.DataFrame, peers: dict | None = None):
                 sigs = list(sigs) + smt_signals(df, pdf, psym, inv)
             except Exception:
                 pass
+    try:
+        from modules.strategy_lab import SCHOOL as _SCHOOL   # detector key -> school name (the weekly lab's grouping)
+    except Exception:
+        _SCHOOL = {}
     for sg in sigs:
+        sch = _SCHOOL.get(sg.get("key")) or ("Elliott wave" if sg.get("family") == "Elliott" else None)   # the signals themselves carry no 'school': the "School ·" filters never fired before (found 2026-11-06)
         for fid, (_lab, (kind, val)) in STRATEGY_FILTERS.items():
-            if sg.get(kind) == val:
+            if sg.get(kind) == val or (kind == "school" and sch and sch.startswith(val)):
                 flags.add(fid)
                 sides.setdefault(fid, set()).add("buy" if sg.get("direction") == "bullish" else "sell")
     try:
@@ -269,7 +305,8 @@ def strategy_flags(df: pd.DataFrame, peers: dict | None = None):
             if sd:
                 flags.add(fid); sides.setdefault(fid, set()).add(sd)
         for hp in find_harmonics(d):
-            flags.add("st_harm"); sides.setdefault("st_harm", set()).add("buy" if hp["dir"] == "bull" else "sell")
+            for fid in ("st_harm", "sch_harmonic"):
+                flags.add(fid); sides.setdefault(fid, set()).add("buy" if hp["dir"] == "bull" else "sell")
     except Exception:
         pass
     return flags, sides
@@ -401,7 +438,12 @@ def features(df: pd.DataFrame, look: int = CROSS_LOOKBACK) -> dict:
     except Exception:   # a pattern-maths problem must never break the screener
         pl = {}
     f |= set(pl)
-    return {"rsi": r, "flags": f, "lines": [ln for v in pl.values() for ln in v]}
+    try:
+        from modules.regime import classify as _regime
+        rg = _regime(df)["regime"]
+    except Exception:   # the regime label is extra information: never let it break the screener
+        rg = None
+    return {"rsi": r, "flags": f, "lines": [ln for v in pl.values() for ln in v], "regime": rg}
 
 
 def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150, lines=None) -> str:

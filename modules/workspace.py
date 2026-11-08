@@ -14,6 +14,7 @@ stored on a server (layout is kept in the browser's localStorage).
 from __future__ import annotations
 import functools
 import os
+import time
 
 import json
 from pathlib import Path
@@ -57,7 +58,7 @@ _OOS_CACHE: dict = {}
 UI_THEMES = [("classic", "Classic"), ("lux", "1 · Less is More"), ("hud", "2 · Orbit HUD"), ("ember", "3 · Ember"), ("sunset", "4 · Sunset"),
              ("emerald", "5 · Emerald"), ("neon", "6 · Neon"), ("mono", "7 · Mono Data"), ("grafana", "8 · Grafana"), ("blueprint", "9 · Blueprint"),
              ("slate", "10 · Slate Mint"), ("frost", "11 · Frost Glass"), ("gold", "12 · Black Gold"), ("amber", "13 · Amber Cockpit"), ("dusk", "14 · Dusk"),
-             ("cyber", "15 · Cyber"), ("nogray", "16 · No Gray")]
+             ("cyber", "15 · Cyber"), ("nogray", "16 · No Gray"), ("deerflow", "17 · DeerFlow Dot Matrix")]
 # themes 3-9 (owner pictures 2026-10-18) share one engine: a palette -> CSS variables for the page, the top bar and the Workspace (+ chart colours).
 # keys: bg page, panel/panel2 cards (see-through over the blurred picture), solid = card in front, line, txt, mut, acc accent, ink text on accent,
 # up/dn candles, rad corner radius px, font, tt text-transform of titles, ls letter-spacing, glow card shadow
@@ -89,6 +90,23 @@ UI_PALETTES = {
                       acc="#f4a07a", ink="#2a1208", up="#ffc29a", dn="#b97cff", rad=16, font="", tt="none", ls="0", glow="0 12px 32px rgba(0,0,0,.4)"),
     "cyber":     dict(bg="#071216", panel="rgba(8,22,27,.88)", panel2="rgba(12,32,38,.9)", solid="rgba(6,16,20,.98)", line="rgba(0,229,255,.16)", txt="#dff9ff", mut="#6f9aa4",
                       acc="#00e5ff", ink="#001a20", up="#00e5ff", dn="#ff9f1c", rad=2, font="", tt="uppercase", ls=".1em", glow="0 0 20px rgba(0,229,255,.10)"),
+    # theme 17 (owner picture 2026-10-24, "DeerFlow AIoT dashboard"): warm peach-to-charcoal page, near-black rounded cards, off-white text, ONE vivid orange-red accent, mono labels with dot-matrix numbers.
+    # `extra` = raw CSS appended after the palette stylesheet (Streamlit page + Workspace): the dot-matrix display font for big numbers / titles, numbered small caps labels, a glowing status dot.
+    "deerflow":  dict(bg="#1c1a18", panel="rgba(20,19,18,.93)", panel2="rgba(32,30,28,.95)", solid="rgba(15,14,13,.98)", line="rgba(255,255,255,.07)", txt="#ededed", mut="#8d8a86",
+                      acc="#ff4a1c", ink="#1a0600", up="#e9e9e9", dn="#ff4a1c", rad=18, font="'JetBrains Mono','Space Mono','DotGothic16',ui-monospace,Menlo,Consolas,monospace", tt="uppercase", ls=".07em",
+                      glow="0 16px 36px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)",
+                      extra="@import url('https://fonts.googleapis.com/css2?family=Doto:wght@500;800&family=JetBrains+Mono:wght@400;600&display=swap');"
+                            ".uk-val,.uk-sv,[data-testid='stMetricValue'],.stApp h1{font-family:'Doto','DotGothic16',ui-monospace,monospace!important;font-weight:800!important;letter-spacing:.04em}"
+                            ".uk-card,.uk-strip,.uk-panel{border-radius:18px!important}.uk-lbl,.uk-sl{color:#8d8a86!important}"
+                            ".uk-card.up,.uk-card.down,.uk-card.warn{box-shadow:0 14px 30px rgba(0,0,0,.5)!important}"
+                            ".uk-sv[style*='0ecb81'],.uk-val[style*='0ecb81']{color:#ededed!important}"
+                            "button[data-variant='pills'],button[data-variant='segmented_control']{background:#1a1918!important;border:1px solid rgba(255,255,255,.12)!important}"
+                            "button[data-variant='pills'] p,button[data-variant='pills'] span,button[data-variant='segmented_control'] p,button[data-variant='segmented_control'] span{color:#ededed!important}"
+                            "button[data-variant='pills'][aria-checked='true'],button[data-variant='segmented_control'][aria-checked='true']{background:rgba(255,74,28,.14)!important;border-color:#ff4a1c!important}"
+                            "button[data-variant='pills'][aria-checked='true'] p,button[data-variant='segmented_control'][aria-checked='true'] p{color:#ff4a1c!important}"
+                            "[data-testid='stSelectbox'] [role='group'],[data-testid='stNumberInputContainer']{background:#1a1918!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important}"
+                            "[data-testid='stSelectbox'] [role='group'] *,[data-testid='stNumberInputContainer'] *{color:#ededed!important}"
+                            "body.ui-deerflow .logo,body.ui-deerflow .chip{font-family:'Doto','DotGothic16',ui-monospace,monospace}"),
     "nogray":    dict(bg="#000000", panel="rgba(10,10,10,.92)", panel2="rgba(20,20,20,.94)", solid="rgba(5,5,5,.98)", line="rgba(255,255,255,.14)", txt="#ffffff", mut="#9a9a9a",
                       acc="#19e6c1", ink="#00231d", up="#19e6c1", dn="#f2f2f2", rad=0, font="", tt="uppercase", ls=".08em", glow="0 14px 30px rgba(0,0,0,.6)"),
 }
@@ -100,7 +118,7 @@ def ui_vars(theme: str) -> dict:
 
 
 _UI_BG = {"lux": "lux_bg.jpg", "hud": "hud_bg.jpg", **{k: k + "_bg.jpg" for k in ("ember", "sunset", "emerald", "neon", "mono", "grafana", "blueprint",
-                                                                                     "slate", "frost", "gold", "amber", "dusk", "cyber", "nogray")}}
+                                                                                     "slate", "frost", "gold", "amber", "dusk", "cyber", "nogray", "deerflow")}}
 
 
 @functools.lru_cache(maxsize=1)
@@ -143,8 +161,8 @@ MRX_LIVE = os.environ.get("MRX_LIVE", "").strip() == "1"
 
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
-                         ws_base: str = "wss://ws.okx.com:8443/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
-                         filters: dict | None = None, ready: list | None = None, scanning: bool = False,
+                         ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
+                         filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
                          fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "") -> str:
     news = list(news or [])
@@ -173,6 +191,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "links": links or [],
         "filters": filters or {},
         "ready": list(ready or []),
+        "smtx": list(smt or []),   # intermarket SMT events (the existing "smt" key holds the pair list for the chart indicator) (modules/intermarket.chips): shown on the strip / ribbon as their own chips
         "scanning": bool(scanning),
         "cls": asset_cls,
         "tfstats": tfstats or {},
@@ -184,7 +203,9 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "stockf": stockf or {},
         "yf": yf or {},
         "fhToken": str(fh_token or ""),
+        "fpServer": _fp_server(),
         "gannoos": _gann_oos(),
+        "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
     }
@@ -205,6 +226,44 @@ def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
         return None
 
 
+def _build_id() -> str:
+    """Short git commit of the running code ('' when it cannot be read): shown in the Workspace bar so the owner can see at once which build is live (after a merge the app needs a few minutes + a Reboot)."""
+    import re
+    try:
+        import subprocess
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(Path(__file__).resolve().parent.parent), capture_output=True, text=True, timeout=3)
+        v = r.stdout.strip()
+        if r.returncode == 0 and re.fullmatch(r"[0-9a-f]{6,40}", v):
+            return v
+    except Exception:
+        pass
+    try:   # no git binary: read .git/HEAD (and the ref file it points to)
+        g = Path(__file__).resolve().parent.parent / ".git"
+        h = (g / "HEAD").read_text().strip()
+        if h.startswith("ref:"):
+            h = (g / h.split(" ", 1)[1].strip()).read_text().strip()
+        if re.fullmatch(r"[0-9a-f]{40}", h):
+            return h[:7]
+    except Exception:
+        pass
+    return ""
+
+
+def _fp_server() -> str:
+    """FOOTPRINT_SERVER_URL (env or Streamlit Secrets): the base URL of the always-on footprint recorder (recorder/footprint_recorder.py). Empty = the page keeps its own browser store only.
+    A URL is not a secret; only https (or localhost for tests) is accepted, a trailing slash is dropped."""
+    import os
+    v = os.environ.get("FOOTPRINT_SERVER_URL", "")
+    if not v:
+        try:
+            import streamlit as st
+            v = str(st.secrets.get("FOOTPRINT_SERVER_URL", "") or "")
+        except Exception:
+            v = ""
+    v = v.strip().rstrip("/")
+    return v if v.startswith("https://") or v.startswith("http://localhost") or v.startswith("http://127.0.0.1") else ""
+
+
 def _fh_token() -> str:
     """FINNHUB_WS_TOKEN (env or Streamlit Secrets): a key the BROWSER uses for the live CFD websocket, so it is visible in the
     page source. Kept separate from FINNHUB_API_KEY on purpose - the server key is never sent to the browser."""
@@ -221,8 +280,32 @@ def _fh_token() -> str:
 
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
-                     filters: dict | None = None, ready: list | None = None, scanning: bool = False,
+                     filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
     import streamlit.components.v1 as components
 
-    components.html(build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat), height=height, scrolling=False)
+    # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
+    # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
+    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
+    doc = _ws_html_reuse(fp, scanning)
+    if doc is None:
+        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
+        import streamlit as st
+        st.session_state["ws_html_sent"] = (fp, doc, time.time())
+    components.html(doc, height=height, scrolling=False)
+
+
+WS_HTML_REFRESH_SECS = 180   # send new page data at most this often (when the scan is idle)
+WS_HTML_MAX_SECS = 600       # ...and never keep data older than this, even while a scan is still running
+
+
+def _ws_html_reuse(fp, scanning: bool):
+    """Last iframe HTML if it is still good to show, else None (= build a fresh one). Same string = no iframe reload."""
+    import streamlit as st
+    last = st.session_state.get("ws_html_sent")
+    if not last or last[0] != fp:
+        return None
+    age = time.time() - last[2]
+    if age < WS_HTML_REFRESH_SECS or (scanning and age < WS_HTML_MAX_SECS):
+        return last[1]
+    return None

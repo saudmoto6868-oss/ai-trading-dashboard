@@ -35,7 +35,7 @@ from modules.arabic import (
 )
 from modules.risk_engine import build_trade_plan
 from modules.signals import FAMILY_ICONS
-from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
+from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
 from modules.tv_widget import render_tv_chart
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
@@ -82,6 +82,7 @@ if "ws_lang" not in st.session_state and _url_pref("lang", ("en", "ar"), None): 
 st.markdown("""
 <style>
     .stApp { background-color: #0b0e11; color: #eaecef; }
+    html, body, .stApp, [data-testid="stAppViewContainer"], section.main { overscroll-behavior-y: none; }   /* touch screens: pulling down at the top must not reload the whole app */
     .stTabs [data-baseweb="tab"] { color: #eaecef; }
     .stTabs [aria-selected="true"] { color: #f0b90b; border-bottom-color: #f0b90b; }
     div[data-testid="stMetricValue"] { color: #f0b90b; }
@@ -95,6 +96,36 @@ st.markdown("""
 from modules.auth import gate as _auth_gate
 if not _auth_gate(L):
     st.stop()
+
+# ---- Research Labs (sidebar) -------------------------------------------------
+# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
+with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
+    st.caption(L("Standalone studies — open in full page"))
+    _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
+    if _lab_choice == "⬡ Micro · Foundations":
+        from modules.micro_foundations import render as _mf_render
+        _mf_render()
+        st.stop()
+
+# ---- Build stamp: which commit this running app was built from (so a stale deploy is visible at a glance) ----
+@st.cache_resource
+def _build_stamp() -> str:
+    import subprocess
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%h · %cd", "--date=format:%Y-%m-%d %H:%M"], capture_output=True, text=True, timeout=5,
+                             cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        head = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "HEAD")).read().strip()
+        return head[:7] if len(head) >= 40 or not head.startswith("ref:") else "unknown"
+    except Exception:
+        return "unknown"
+
+
+st.sidebar.caption(L("Build") + ": " + _build_stamp())
 
 # ---- Settings (sidebar) -----------------------------------------------------
 st.sidebar.header(L("Settings"))
@@ -160,7 +191,7 @@ UI_BG = _ui_theme_bg(UI_THEME)
 # material layer (owner 2026-10-18: "use the material in the theme picture - steel, paper, wood, fabric"): textures on panels, bars and buttons
 _MATS = ["auto", "none", "steel", "paper", "wood", "fabric", "glass", "carbon"]
 _MAT_AUTO = {"classic": "none", "lux": "glass", "hud": "carbon", "ember": "steel", "sunset": "wood", "emerald": "fabric", "neon": "glass", "mono": "steel", "grafana": "carbon", "blueprint": "paper",
-             "slate": "none", "frost": "glass", "gold": "steel", "amber": "carbon", "dusk": "fabric", "cyber": "carbon", "nogray": "steel"}
+             "slate": "none", "frost": "glass", "gold": "steel", "amber": "carbon", "dusk": "fabric", "cyber": "carbon", "nogray": "steel", "deerflow": "none"}
 if "ui_mat" not in st.session_state:
     st.session_state["ui_mat"] = _url_pref("mat", _MATS, "auto")
 UI_MAT = _MAT_AUTO.get(UI_THEME, "none") if st.session_state["ui_mat"] == "auto" else st.session_state["ui_mat"]
@@ -192,7 +223,7 @@ elif _ui_vars(UI_THEME):   # themes 3-16: one stylesheet from the palette
 .stApp p,.stApp label,.stApp span:not([data-testid="stIconMaterial"]){{color:{_V['txt']}}} .stApp p,.stApp label,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp td,.stApp th{{{("font-family:" + _V['font']) if _V['font'] else ""}}} h1,h2,h3{{text-transform:{_V['tt']};letter-spacing:{_V['ls']}}}
 [data-testid="stSidebar"]>div{{background:{_V['solid']}}} .st-key-page label:has(input:checked){{border-bottom-color:{_V['acc']}!important}} .st-key-page label:has(input:checked) p{{color:{_V['acc']}!important}}
 [data-testid="stExpander"],[data-testid="stVerticalBlockBorderWrapper"]{{background:{_V['panel']};border-radius:{_V['rad']}px;border:1px solid {_V['line']}}}
-.stButton button{{border-radius:{max(0, _V['rad'] // 2)}px}} .st-key-hdr{{--hdr-bg:{_V['panel']};--hdr-line:{_V['line']};--hdr-r:{_V['rad']}px}} .xpix-mini i{{color:{_V['acc']}!important}}</style>""", unsafe_allow_html=True)
+.stButton button{{border-radius:{max(0, _V['rad'] // 2)}px}} .st-key-hdr{{--hdr-bg:{_V['panel']};--hdr-line:{_V['line']};--hdr-r:{_V['rad']}px}} .xpix-mini i{{color:{_V['acc']}!important}}{_V.get('extra', '')}</style>""", unsafe_allow_html=True)
 elif UI_THEME == "hud":   # theme 2 "Orbit HUD": misty sky behind the page, square frames, orange accent, wide uppercase lettering
     st.markdown(f"""<style>.stApp{{background:#141c22 url({UI_BG}) center/cover fixed no-repeat!important}}
 .stApp p,.stApp label,.stApp span:not([data-testid="stIconMaterial"]){{color:#e6ecef}} .stApp p,.stApp label,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp td,.stApp th{{font-family:Rajdhani,'Barlow Condensed','Segoe UI',sans-serif}} h1,h2,h3{{text-transform:uppercase;letter-spacing:.12em;font-weight:500}}
@@ -617,7 +648,8 @@ def _scan_worker(store, ws_tf, ws_key):
                 if not e_:
                     continue
                 if e_.get("plan"):
-                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")})
+                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
+                                   | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
                 # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
@@ -691,13 +723,81 @@ def _ws_universe(active):
     (before, only the class picked in the Radar was scanned and everything else stayed empty)."""
     out = list(active)
     try:
-        for cls, n in (("Metals", 3), ("Indices", 2), ("Forex", 3)):
+        from modules.asset_classes import WS_EXTRA
+        for cls, n in WS_EXTRA:
             syms, _m = class_symbols(cls, CRYPTO_SYMBOLS)
             out += [x for x in syms if x.startswith("HL:")][:n]
     except Exception:
         pass
     seen = set()
     return tuple(x for x in out if not (x in seen or seen.add(x)))
+
+
+SMT_TFS = tuple(x.strip() for x in os.environ.get("SMT_TFS", "5m,15m,1h,4h,1d").split(",") if x.strip())
+
+
+def _smt_worker(store):
+    """SMT between correlated pairs on several timeframes (modules/intermarket.py), in its own thread: never holds the page or the main scan up."""
+    try:
+        from modules import intermarket as _IM
+        store["smt"] = _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=SMT_TFS)
+        store["smt_t"] = time.time()
+        store.pop("smt_err", None)
+    except Exception as e_:
+        store["smt_err"] = f"{type(e_).__name__}: {e_}"
+        store["smt_t"] = time.time() - 600   # retry in about 5 minutes
+    finally:
+        store["smt_running"] = False
+
+
+DAY_SYMBOLS = tuple(x.strip() for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x.strip())
+
+
+def _dayplan_worker(store):
+    """Standard day plan (timeframe confluence) for the day-plan universe, in its own thread; feeds the Telegram alerts."""
+    try:
+        from modules import day_plan as _DP
+        store["dayplan"] = _DP.scan(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300), mode="conf")
+        store["dayplan_watch"] = _DP.scan_watch(list(DAY_SYMBOLS), lambda s_, t_: get_klines(s_, t_, 300))
+        store["dayplan_t"] = time.time()
+        store.pop("dayplan_err", None)
+    except Exception as e_:
+        store["dayplan_err"] = f"{type(e_).__name__}: {e_}"
+        store["dayplan_t"] = time.time() - 600
+    finally:
+        store["dayplan_running"] = False
+
+
+def _dayplan_watch():
+    _dayplan_events()
+    return _scan_store().get("dayplan_watch", [])
+
+
+def _dayplan_events():
+    import threading
+    store = _scan_store()
+    if not store.get("dayplan_running") and time.time() - store.get("dayplan_t", 0) > 900 and time.time() - store.get("t0", 0) > 45:
+        store["dayplan_running"] = True
+        threading.Thread(target=_dayplan_worker, args=(store,), daemon=True).start()
+    return store.get("dayplan", [])
+
+
+def _smt_chips(lang):
+    try:
+        from modules import intermarket as _IM
+        return _IM.chips(_smt_events(), ar=(lang == "ar"))
+    except Exception:
+        return []
+
+
+def _smt_events():
+    """The latest intermarket events (starts / refreshes the background scan when it is older than 15 minutes)."""
+    import threading
+    store = _scan_store()
+    if not store.get("smt_running") and time.time() - store.get("smt_t", 0) > 900 and time.time() - store.get("t0", 0) > 30:
+        store["smt_running"] = True
+        threading.Thread(target=_smt_worker, args=(store,), daemon=True).start()
+    return store.get("smt", [])
 
 
 def build_ws_payload(symbols=None):
@@ -1015,7 +1115,7 @@ def render_universe_controls():
 # ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
 # that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
 _KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
-_BUTTON_KEYS = {"ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
+_BUTTON_KEYS = {"cs_preset_save", "cs_preset_del", "ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
 for _k in list(st.session_state.keys()):
     if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
         try:
@@ -1029,8 +1129,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy"]   # Academy is index 7 (the Workspace guide uses fixed indexes) but is shown right after Technical Office
-_PAGE_ORDER = [0, 1, 2, 7, 3, 4, 5, 6]   # the last two = planned (their pages say so)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_PAGE_ORDER = [0, 1, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
 if "page" not in st.session_state:
     try:
         st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
@@ -1040,6 +1140,11 @@ with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
+try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
+    from modules.screen_recorder import render as _render_rec
+    _render_rec()
+except Exception:
+    pass
 _focus = bool(st.session_state.get("focus_ws"))
 try:   # phones: the Workspace frame = about one screen (its widgets scroll inside it); header row wraps into two lines
     _IS_MOBILE = any(k in (st.context.headers.get("User-Agent", "") or "") for k in ("Mobi", "Android", "iPhone"))
@@ -1974,7 +2079,7 @@ def render_alerts_page():
     """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
     and the plan for Radar alerts (task 17). Nothing here sends an order."""
     from modules import office_ui as U
-    from modules.alerts import ALERT_SCORE_THRESHOLD
+    from modules.alerts import ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
     st.markdown(U.CSS, unsafe_allow_html=True)
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
@@ -1986,7 +2091,7 @@ def render_alerts_page():
                              (L("Dashboard banners"), L("on"), "ok"),
                              (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
         st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
-            (L("Scanner alerts (Workspace)"), L("strong setups ranked by evidence score") + f" · ≥ {ALERT_SCORE_THRESHOLD}", L("on: banners + sound"), "ok"),
+            (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
             (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
             (L("Telegram (GitHub Actions)"), L("runs without the dashboard open"), (L("every 30 min") if tgw else L("missing")), "ok" if tgw else "bad"),
             (L("1m alerts"), L("switched off: -147R of -150R in the journal"), L("off"), "warn"),
@@ -2063,12 +2168,23 @@ def _last_ts(df):
         return ""
 
 
+def _fv_with_ref(df, sym, ref_sym, ref_df):
+    """Finviz-style metrics + beta / correlation against the reference symbol (none for the reference itself or when no reference is in the universe)."""
+    from modules import fv_screen as _FV
+    m = _FV.metrics(df)
+    if m is not None and ref_df is not None and sym != ref_sym:
+        m.update(_FV.relation(df, ref_df))
+    return m
+
+
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260, workers=8)
     pfr = _peer_frames(symbols, tf)
     out = {}
+    _ref_sym = next((x for x in ("BTC-USDT", "BTC-USDT-SWAP", "HL:xyz:SP500", "Y:^GSPC", "HL:BTC") if (frames.get(x) or {}).get(tf) is not None), None)   # beta / correlation reference: BTC for crypto, the S&P 500 for TradFi
+    _ref_df = (frames.get(_ref_sym) or {}).get(tf) if _ref_sym else None
     for sym in symbols:
         df = (frames.get(sym) or {}).get(tf)
         if df is None or len(df) < 60:
@@ -2080,8 +2196,8 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
-        out[sym] = {"rsi": f["rsi"], "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
-                    "t": time.time(), "ts": _last_ts(df), "fv": _FV.metrics(df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
+        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+                    "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
 
@@ -2152,8 +2268,9 @@ def render_market_map():
 def _clear_cs_filters():
     """Callback of 'Clear all filters': reset the Radar filter widgets, the Scanner-control preset and the saved URL filter (runs before the rerun)."""
     ss = st.session_state
-    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom", "cs_quick"):
+    for k in ("cs_strat", "cs_rsi", "cs_pat", "cs_mom", "cs_mom_a", "cs_mom_v", "cs_quick"):
         ss[k] = []
+    ss["cs_preset"] = "— none —"
     for k in ("cs_px_rel", "cs_ma_rel", "cs_stack"):
         ss[k] = "—"
     for k in list(ss.keys()):
@@ -2491,6 +2608,10 @@ def render_radar_signals(f):
     k = st.columns(3)
     k[0].metric(L("Signals live"), len(df)); k[1].metric(L("Symbols scanned"), len(data))
     k[2].metric(L("With positive lab net R"), int((df["Lab net R"].fillna(-1) > 0).sum()))
+    from collections import Counter as _Cnt
+    _rc = _Cnt(d_.get("regime") for d_ in data.values() if d_.get("regime"))
+    if _rc:
+        st.caption(L("Market regime of the scanned symbols now") + ": " + " · ".join(f"{r_} {n_}" for r_, n_ in _rc.most_common()))
     df["Kind"] = df["Kind"].map(L); df["Lab"] = df["Lab"].map(L)
     st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, use_container_width=True,
                  column_config={L("Lab net R"): st.column_config.NumberColumn(format="%+.3f")})
@@ -2552,6 +2673,8 @@ def _radar_filters(view):
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
 .st-key-csf [data-baseweb="select"]>div{max-height:56px;overflow-y:auto}
+.st-key-csf [data-testid="stPopover"]{width:100%}.st-key-csf [data-testid="stPopover"] button{width:100%;min-height:30px;background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;color:#eaecef!important;font-size:11px!important;padding:0 6px!important}.st-key-csf [data-testid="stPopover"] button:hover{border-color:#4a5568!important}
+.st-key-cs_clear_top button{background:#161a1e!important;color:#eaecef!important;border:1px solid #2b3139!important;min-height:30px!important;font-size:11px!important}
 </style>""", unsafe_allow_html=True)
     qp = st.query_params
     if "cs_strat" not in st.session_state and qp.get("strat"):   # remembered selection (URL param survives reloads / bookmarks)
@@ -2561,44 +2684,126 @@ def _radar_filters(view):
     fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
+    from modules import fv_screen as _FV
+    from modules import radar_presets as _RP
+    _ar = _ui_lang() == "ar"
+    _mom_k, _vol_k = _RP.split_moves(MOVE_FILTERS)
+    _FVL = {f_[0]: f_ for f_ in _FV.FILTERS}
+    ss = st.session_state
+
+    def _n(*keys):   # active choices of a group, shown in its button: "Trend (2)"
+        c = 0
+        for k_ in keys:
+            v_ = ss.get(k_)
+            c += len(v_) if isinstance(v_, list) else (1 if v_ not in (None, "—", "Any", "Both", "All selected") else 0)
+        return f" ({c})" if c else ""
+
+    import uuid as _uuid
+    from streamlit.components.v1 import declare_component as _decl
+    _store = _decl("xpix_preset_store", path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "preset_store"))
+    _bv = _store(cmd=ss.get("rp_last_cmd"), key="rp_store", default=None)   # the user's own presets live in THIS browser (localStorage); {presets, ok} comes back
+    _browser = (_bv or {}).get("presets") if isinstance(_bv, dict) else None
+
+    def _on_preset():
+        nm = ss.get("cs_preset")
+        if nm and nm != _RP.NONE:
+            _RP.apply(ss, nm, _RP.all_presets(extra=ss.get("rp_browser")))
+
+    def _cmd(action, name, data=None):   # one command per click (new id), picked up by the store component on the next render
+        ss["rp_last_cmd"] = {"id": _uuid.uuid4().hex, "action": action, "name": name, "data": data}
+
+    def _on_save():
+        nm = (ss.get("cs_preset_name") or "").strip()[:40]
+        snap = _RP.snapshot(ss)
+        ss["rp_msg"] = ("warn", "Give the preset a name") if not nm else ("warn", "Nothing selected to save") if not snap else ("ok", "Saved in this browser")
+        if nm and snap:
+            _cmd("save", nm, snap)
+
+    def _on_del():
+        cur = ss.get("cs_preset", "")
+        if isinstance(cur, str) and cur.startswith("★"):
+            _cmd("delete", cur[1:].strip())
+            _RP.delete_user(cur)
+
+    def _fvbox(container, key):
+        f_ = _FVL.get(key)
+        if not f_:
+            return None
+        _key, _g, _en, _arn, _opts = f_
+        _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
+        pk = container.selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
+        return (_key, pk) if pk != "Any" else None
+
+    fv = {}
     with st.container(key="csfw"), st.container(key="csf"):
-        rd = st.session_state.get("radar_def", {})   # set from Technical Office > Scanner control
+        rd = ss.get("radar_def", {})   # set from Technical Office > Scanner control
         _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
         tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
-        r1 = st.columns([0.7, 0.8, 1, 1, 1.4])
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
-        n_show = r1[0].number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
-        ncols = int(r1[1].selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
-        side_pick = r1[2].selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
-        mode = r1[3].selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
-        r1[4].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
-        quick = st.pills(L("Quick filters"), [k_ for k_, _i, _n in _QUICK_CHIPS], selection_mode="multi", format_func=_quick_lbl, key="cs_quick", label_visibility="collapsed")
-        with st.expander(L("More filters (EMA, RSI, patterns, strategies, technical lists)"), expanded=False):
-            r1 = st.columns([1.3, 1.1])
-            look = r1[0].selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
-            stack = r1[1].selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
-            r2 = st.columns([1.1, 0.6, 1.1, 0.8, 1.3, 1.3])
-            rel_px = r2[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
-            len_px = r2[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
-            rel_ma = r2[2].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
-            pair = r2[3].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
-            sel_rsi = r2[4].multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
-            sel_pat = r2[5].multiselect(L("Patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
-            sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS),
-                                       format_func=_strat_name, key="cs_strat")
-            sel_mom = st.multiselect(L("Move & volume (last candle)"), list(MOVE_FILTERS), format_func=MOVE_FILTERS.get, key="cs_mom")
-            from modules import fv_screen as _FV
-            _ar = _ui_lang() == "ar"
-            fv = {}
-            st.markdown("**" + L("Technical lists (performance, moving averages, highs / lows, gap, ATR, volume, candlesticks)") + "**")
-            if True:
-                _fc = st.columns(5)
-                _fk = [f_ for f_ in _FV.FILTERS if f_[0] not in ("pattern", "rsi")]   # patterns and RSI already live in the rows above: one place for each option
-                for _i, (_key, _g, _en, _arn, _opts) in enumerate(_fk):
-                    _lab = {c_: (a_ if _ar else e_) for c_, e_, a_ in _opts}
-                    _pk = _fc[_i % 5].selectbox(_arn if _ar else _en, ["Any"] + [o[0] for o in _opts], format_func=lambda x, _lab=_lab: L("Any") if x == "Any" else _lab.get(x, x), key="fv_f_" + _key)
-                    if _pk != "Any":
-                        fv[_key] = _pk
+        # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
+        if _browser is not None:
+            ss["rp_browser"] = _browser
+        _pres = _RP.all_presets(extra=ss.get("rp_browser"))
+        top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
+        top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[1].popover(L("Save")):
+            _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
+            st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
+            _m = ss.pop("rp_msg", None)
+            if _m:
+                (st.success if _m[0] == "ok" else st.warning)(L(_m[1]))
+            _cur = ss.get("cs_preset", "")
+            if isinstance(_cur, str) and _cur.startswith("★"):
+                st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
+            st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
+        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
+            look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
+            stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
+            c_ = st.columns([1.3, 0.7])
+            rel_px = c_[0].selectbox(L("Price vs EMA"), rels, key="cs_px_rel", format_func=L)
+            len_px = c_[1].selectbox("EMA", [9, 20, 50, 200], index=1, key="cs_px_len")
+            c_ = st.columns([1.3, 0.7])
+            rel_ma = c_[0].selectbox(L("EMA vs EMA"), rels, key="cs_ma_rel", format_func=L)
+            pair = c_[1].selectbox(L("Pair"), ["9/20", "20/50", "50/200"], index=1, key="cs_ma_pair")
+            for k_ in ("sma20", "sma50", "sma200", "adx", "sar", "dist20", "ichi"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
+            sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
+            sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
+            for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
+            sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
+            for k_ in ("vol", "relvol", "turnover", "obv"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
+            sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
+            sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
+            for k_ in ("candle", "range"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+            for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
+                r_ = _fvbox(st, k_)
+                if r_:
+                    fv[r_[0]] = r_[1]
+        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
+            n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
+            ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
+            side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
+            mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
+            from modules.regime import REGIMES as _RG
+            sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
+        top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+    sel_mom = list(sel_mom_a) + list(sel_mom_v)
+    quick = []
 
     if sel_strat:
         qp["strat"] = ",".join(sel_strat)
@@ -2613,7 +2818,7 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime)}
 
 
 def _radar_hits(d, f):
@@ -2627,6 +2832,8 @@ def _radar_hits(d, f):
 
 
 def _radar_pass(d, f):
+    if f.get("regime") and d.get("regime") not in f["regime"]:   # market-regime filter (Radar panel): symbols in another regime drop out
+        return False
     h, n = _radar_hits(d, f)
     if not n:
         return match_filters(d, [], f["want"], False)
@@ -2683,24 +2890,17 @@ def render_chart_scanner(f):
     from modules import ui_kit as _UK
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
-    st.markdown(_UK.row([
-        _UK.kpi("🎯", L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", pct=100.0 * len(shown) / _n_all),
-        _UK.kpi("✅", L("Confirmed"), n_conf if nsel else "-", L("Every chosen condition holds on this chart"), tone="up" if n_conf else "", pct=(100.0 * n_conf / _n_all) if nsel else None),
-        _UK.kpi("🟡", L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("Some chosen conditions hold"), tone="warn" if nsel and len(shown) - n_conf else ""),
-        _UK.kpi("🧭", L("Market state (daily)"), L(_rs["regime"]), _rs["regime_sub"], tone="up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
-                title=L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
-        _UK.kpi("📰", L("Strong news within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", tone="warn" if _rs["news"] else "",
-                title=L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
-        _UK.kpi("⏱️", L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}"),
+    _dn = _rs.get("dn", 0)
+    st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+        (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
+        (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
+        (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
+        (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+         L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+        (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
+         L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+        (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
     ]), unsafe_allow_html=True)
-    _cnt = [(i_, sum(1 for d_ in data.values() if k_ in d_["flags"])) for k_, i_, n_ in _QUICK_CHIPS]   # icon as the bar label (full names are on the chips)
-    _cnt = sorted([c_ for c_ in _cnt if c_[1]], key=lambda c_: -c_[1])[:10]
-    _tr = [_htf_trend(tuple(SCAN_SYMBOLS), "1d").get(s_) for s_ in data]
-    _mix = sum(1 for t_ in _tr if t_ == "mixed")
-    st.markdown(_UK.panel(L("Radar picture"), "<div class='uk-flex' style='gap:26px'>"
-        + _UK.donut([(L("up"), _rs.get("up", 0), _UK.UP), (L("down"), _rs.get("dn", 0), _UK.DOWN), (L("mixed"), _mix, _UK.WARN)], center=f"{_rs.get('n', 0)}")
-        + _UK.gauge(_up_pct, L("symbols in a daily up-trend"))
-        + (_UK.bars(_cnt) if _cnt else "") + "</div>"), unsafe_allow_html=True)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -2786,6 +2986,21 @@ def _ac_go(lesson_id: str, level: int):
     """Callback: jump to a lesson (sets the level pills and that level's lesson pills before the widgets are drawn)."""
     st.session_state["ac_level"] = level
     st.session_state[f"ac_les_{level}"] = lesson_id
+
+
+def _academy_lab_tools():
+    """Four short lessons on the Lab Summary sections (docs/academy/lab_tools/): what each section shows, from the code; lazy read, a missing file degrades to a message."""
+    from modules.lab_shared import t as _t
+    lessons = [("10-validation-lab", _t("جدول المعمل الكامل", "Full lab table")), ("11-calibration", _t("المعايرة: داخل/خارج العينة", "Calibration: in / out of sample")),
+               ("12-rotation", _t("دوران الفئات", "Class rotation")), ("13-evidence-summary", _t("ملخص الأدلة لكل Setup", "Evidence per setup"))]
+    names = dict(lessons)
+    pick = st.radio(L("Lesson"), [k for k, _n in lessons], format_func=lambda k: names[k], key="ac_lab_pick", horizontal=True, label_visibility="collapsed")
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "academy", "lab_tools", pick + ".md")
+    try:
+        st.markdown(open(p, encoding="utf-8").read())
+    except OSError:
+        st.info(_t("الدرس مش موجود لسه: ", "Lesson not available yet: ") + pick)
+    st.caption(_t("الصفحة اللي بتشرحها: Lab Summary.", "The page these lessons explain: Lab Summary."))
 
 
 def _academy_path():
@@ -3039,11 +3254,13 @@ def render_academy_page():
     and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
     from modules import academy as AC, ui_kit as UK
     st.markdown(kit_css(), unsafe_allow_html=True)
-    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
+    view = st.segmented_control(L("Academy"), ["Path", "Schools", "References", "Lab tools"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
         _academy_path()
     elif view == "Schools":
         _academy_schools()
+    elif view == "Lab tools":
+        _academy_lab_tools()
     else:
         _academy_refs()
 
@@ -3059,7 +3276,7 @@ def render_info_strip():
     dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
     items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
     items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
-    items.append(f"{html.escape(L('Last lab run'))} {built}")
+    items.append(f"{html.escape(L('Last lab run'))} {html.escape(str(built))}")
     items.append(html.escape(L("No automatic orders")))
     st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"
                 "border:1px solid #2b3139;border-radius:6px;padding:3px 10px;margin:0 0 6px'>" + "".join(f"<span>{x}</span>" for x in items) + "</div>",
@@ -3077,6 +3294,14 @@ if PAGE == 0:   # workspace
         if tg_on and not cached_ws.get("loading"):
             from modules import telegram_alerts as _tga
             _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))
+            try:   # day plan (timeframe confluence): the best new plans, one message each (not repeated for 4 hours)
+                from modules import day_plan as _DP
+                _tga_n2, _tga_e2 = _DP.dispatch(_dayplan_events(), _tg_sent(), _tga.send, top_n=int(tg_top))
+                if _tga_e2:
+                    st.sidebar.warning("Telegram day plan: " + _tga_e2)
+                _DP.dispatch(_dayplan_watch(), _tg_sent(), _tga.send, top_n=2, resend_after_s=2 * 3600, fmt=lambda it_: _DP.format_watch(it_))   # heads-ups: context setups that agree with the 1D + 4H bias
+            except Exception:
+                pass
             if _err:
                 st.sidebar.warning("Telegram: " + _err)
             elif _n:
@@ -3102,7 +3327,7 @@ if PAGE == 0:   # workspace
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
-                         ready=cached_ws.get("mini", []), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
+                         ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
                          ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         _ws_stat.empty()
         try:
@@ -3122,10 +3347,75 @@ if PAGE == 0:   # workspace
 
 # the Chart Scanner scans the whole universe synchronously (can take minutes on a cold server): it runs AFTER the Workspace,
 # otherwise the first tab stays blank until the scan finishes (Streamlit renders in code order, not tab order)
+def render_day_plan(scan_symbols):
+    """Radar > Day plan: today's trades by session and timeframe confluence (modules/day_plan.py). Standard = confluence; option = scalp on one timeframe."""
+    from modules import day_plan as _DP, day_plan_ui as _DPU
+    ar = _ui_lang() == "ar"
+    st.markdown(_DPU.timeline_html(_DP.session_clock(), ar=ar), unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns([1.3, 1, 1.4, 1])
+    mode_lbl = c1.radio(L("Mode"), ["Timeframe confluence (standard)", "Scalp (one timeframe)"], key="dp_mode")
+    mode = "conf" if mode_lbl.startswith("Timeframe") else "scalp"
+    trig = None
+    if mode == "scalp":
+        trig = (c2.selectbox(L("Trigger timeframe"), ["5m", "15m", "1h"], key="dp_tf"),)
+    mv = c3.selectbox(L("Minimum possible move (points)"), ["Any", 100, 150, 200, 300, 1000], key="dp_pts")
+    stars = c4.slider(L("Min stars"), 1, 4, 2, key="dp_stars")
+    schools = st.multiselect(L("Only these schools (empty = all)"), ["SMC / ICT", "Elliott wave", "Fibonacci", "Liquidity", "Trend (MA)", "Levels / breakouts", "Time (sessions)", "Price action", "Chart patterns (range)", "Wyckoff", "Momentum / divergence", "Harmonic"], key="dp_sch")
+    uni = st.radio(L("Universe"), ["Day-plan list", "Current Radar universe"], horizontal=True, key="dp_uni")
+    tr = st.number_input(L("Stop starts moving after (points)"), 10, 5000, 100, 10, key="dp_trail", help=L("Standard mode: once a trade is this many points in profit the stop moves to break-even, then trails."))
+    syms = tuple(DAY_SYMBOLS if uni == "Day-plan list" else (scan_symbols or CRYPTO_SYMBOLS)[:20])
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(syms_t, mode_, trig_, sch_t, mv_, stars_, tr_):
+        return _DP.scan(list(syms_t), lambda s_, t_: get_klines(s_, t_, 300), mode=mode_, trigger_tfs=trig_, schools=list(sch_t) or None,
+                        min_points=(0 if mv_ == "Any" else float(mv_)), min_stars=stars_, trail_start_points=float(tr_))
+
+    with st.spinner(L("Building the day plan...")):
+        plans = _run(syms, mode, trig, tuple(schools), mv, int(stars), float(tr))
+    st.caption(L("Higher timeframes (1D + 4H) set the bias, the trigger timeframes give the entry; a plan is listed only when enough timeframes agree. Stars = the scanner's evidence count, not a win rate; new schools are context until the lab measures them. Not financial advice."))
+    if not plans:
+        st.info(L("No plan matches right now. Loosen the filters or wait for the next session."))
+        return
+    for p in plans[:30]:
+        st.markdown(_DPU.card_html(p, ar=ar), unsafe_allow_html=True)
+    if st.button(L("Send the top plans to Telegram"), key="dp_send"):
+        from modules import telegram_alerts as _tga
+        _n, _e = _DP.dispatch(plans, {}, _tga.send, top_n=3)
+        st.success(f"Telegram: {_n} sent") if not _e else st.warning(_e)
+
+
+def render_smt_board():
+    """Radar > SMT pairs: every correlated pair on the chosen timeframes; each event shows BOTH markets side by side."""
+    from modules import intermarket as _IM, intermarket_ui as _IMU
+    ar = _ui_lang() == "ar"
+    c1, c2 = st.columns([3, 1])
+    tfs = c1.multiselect(L("Timeframes"), list(_IM.TF_ORDER[:7])[::-1], default=[t for t in ("15m", "1h", "4h", "1d")], key="smt_tfs")
+    if c2.button(L("Rescan now"), key="smt_rescan"):
+        st.cache_data.clear()
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _run(tfs_t):
+        return _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=tfs_t)
+
+    with st.spinner(L("Comparing the correlated pairs...")):
+        ev = _run(tuple(tfs or ("1h",)))
+    st.caption(L("SMT = two correlated markets disagree at a swing (one makes a new low / high, the other refuses). A hint of reversal, not a trade by itself; no win rate is claimed here. Pairs that stopped moving together are skipped."))
+    if not ev:
+        st.info(L("No SMT between the correlated pairs on these timeframes right now."))
+        return
+    for e in ev[:40]:
+        st.markdown(_IMU.event_card(e, ar=ar), unsafe_allow_html=True)
+
+
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
-        if _rv != "Heat map":   # the market map has its own filters; the universe / timeframe controls do not apply to it
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
+            from modules import intermarket_ui as _IMU
+            st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
+        except Exception:
+            pass
+        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
             render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
@@ -3133,8 +3423,12 @@ if PAGE == 1:   # cscan
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv)
-        if _rv == "Heat map":
+        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
+        if _rv == "SMT pairs":
+            render_smt_board()
+        elif _rv == "Day plan":
+            render_day_plan(SCAN_SYMBOLS)
+        elif _rv == "Heat map":
             render_market_map()
         elif _rv == "Similar charts":
             render_radar_similar(_rf)
@@ -3261,8 +3555,45 @@ def _stats_journal_kpis(jdf):
         st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
 
 
+if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
+    try:
+        from modules.lab_summary import render_lab_summary
+        render_lab_summary(_scan_store().get("payload") or {})
+    except Exception as _lab_exc:
+        st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
+    st.stop()
+if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
+    try:
+        import importlib as _il_hub
+        from modules import hub_ui as _hub_ui
+        _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
+        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
+                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
+                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
+        _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
+        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
+        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
+    except Exception as _hub_exc:
+        st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
+    st.stop()
 if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+    if _stab == "Monte Carlo":
+        from modules.quant_montecarlo import render as _mc_render
+        _mc_render()
+        st.stop()
+    if _stab == "Edge Map":
+        from modules.quant_edgemap import render as _em_render
+        _em_render()
+        st.stop()
+    if _stab == "Robustness":
+        from modules.quant_robustness import render as _rb_render
+        _rb_render()
+        st.stop()
+    if _stab == "Execution":
+        from modules.quant_execution import render as _ex_render
+        _ex_render()
+        st.stop()
     if _stab == "Lab evidence":
         _stats_lab()
         st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
@@ -3290,6 +3621,22 @@ if PAGE == 4:   # perf
                 _c = st.columns(3)
                 _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric(L("Stats source"), _st["source"])
                 st.line_chart((1 + _ret).cumprod().rename("equity"))
+                from modules.mc_journal import mc_summary as _mc_summary
+                with st.expander(_xl("فحص الحظ — Monte Carlo على صفقاتك الحقيقية", "Luck check - Monte Carlo on your real trades"), expanded=False):
+                    _dd = st.slider(_xl("حد الخسارة الكاملة (هبوط من القمة %)", "Ruin threshold (drop from peak %)"), 10, 50, 20, 5, key="mc_ruin") / 100
+                    _mc = _mc_summary(_ret.values, ruin_dd=_dd, seed=7)
+                    if _mc.get("ok"):
+                        _m = st.columns(4)
+                        _m[0].metric(_xl("P-value (المتوسط > 0)", "P-value (mean > 0)"), f"{_mc['p_value']:.3f}")
+                        _m[1].metric(_xl("احتمال الخسارة الكاملة", "Ruin probability"), f"{_mc['ruin']*100:.1f}%")
+                        _m[2].metric(_xl("نطاق النهاية 5% / 95%", "Final range 5% / 95%"), f"{_mc['final_p5']:.2f}x / {_mc['final_p95']:.2f}x")
+                        _m[3].metric(_xl("عدد الصفقات", "Trades"), _mc["n"])
+                        _msg = {"not_evidence": _xl("أقل من 30 صفقة = مش دليل.", "Under 30 trades = NOT evidence."),
+                                "could_be_luck": _xl("النتيجة ممكن تكون حظ (P-value مش صغير).", "The result could be luck (p-value is not small)."),
+                                "unlikely_luck": _xl("المتوسط مش غالبًا حظ على العينة دي، بس ده مش إثبات حافة مستقبلية.", "The average is unlikely to be luck in this sample, but it does not prove a future edge.")}[_mc["verdict"]]
+                        (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
+                        st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
+                                       "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
                 import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
@@ -3298,3 +3645,19 @@ if PAGE == 4:   # perf
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:
             st.error(f"Could not read the file: {type(_e).__name__}: {_e}")
+
+if PAGE == 10:   # prop firms (added 2026-11-04)
+    try:
+        from modules.prop_firms import render_prop_firms
+        render_prop_firms()
+    except Exception as _pf_exc:
+        st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
+    st.stop()
+
+if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
+    try:
+        from modules.spot_page import render as _spot_render
+        _spot_render()
+    except Exception as _sp_exc:
+        st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
+    st.stop()

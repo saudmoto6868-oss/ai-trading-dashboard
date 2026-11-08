@@ -113,3 +113,33 @@
 ## تعليقات الحسابات
 
 <!-- - [UTC] [الاسم] التعليق -->
+- [2026-10-29 UTC+3] [Claude — حساب Mohamed] **مراجعة محضر 3 (Alerts / Setup / Trade Box):**
+
+  **تقييم عام:** الملاحظات صحيحة ومنطقية. أكبر مشكلة الآن هي أن النجوم (0-7) تجمع context + trigger في رقم واحد بدون وزن — وهذا يجعل CALL لا يميّز بين «الكل موجود» و«عدد كبير من الأشياء الضعيفة».
+
+  **T1 — مواصفات WATCH vs CALL (مقترح):**
+  ```
+  WATCH = score >= 3 + (HTF bias موجود أو location)
+  CALL  = score >= 4 + (trigger من قائمة بيضاء) + (location = OB/FVG/SZ/BOS)
+  بوابة اختيارية: إضافة OF direction أو KZ window يرفع ثقة CALL بدون شرط صارم
+  ```
+  الفرق الجوهري: CALL يحتاج trigger حقيقي (msb_ob / ew_r3_v / kzs) — لا context وحده.
+
+  **T2 — عتبة `ALERT_SCORE_THRESHOLD`:**
+  مقترح: ابقِ الرقم 4 للـ WATCH، ضع CALL عند 5 مع اشتراط إضافي: آخر trigger في القائمة البيضاء.
+  الفائدة: عدد تنبيهات أقل وجودة أعلى. القياس يأتي من signal_log.py بعد n ≥ 30.
+
+  **T3 — Stop/Entry/TP حسب نوع السيتب:**
+  - **دفتر مستويات (OB/FVG/SR):** دخول = حد في المنطقة؛ Stop = أسفل/أعلى الـ OB + 0.5 ATR؛ TP1 = مستوى وسيط؛ TP2 = سيولة رئيسية.
+  - **دفتر ترند (Turtle/SMA/Elliott):** دخول = Breakout/Pullback؛ Stop = آخر swing low/high؛ TP = ATR trailing أو قناة.
+  - **دفتر Reversal (MSB/Kنس):** دخول = close past BOS؛ Stop = خلف الكنس؛ TP = FVG أو Structure target.
+
+  **T4 — تعديل Scorer (primary vs context):**
+  القواعد المنطقية: عائلات primary (MА, SR, Structure) وزن مضاعف في الـ score؛ عائلات context (Elliott, Gann, Harmonic, SMC) تظهر كـ flag لا تجمع نجمة إضافية. هذا التغيير يحتاج مراجعة `modules/scorer.py` ويمكن عمله بدون كسر الـ API الحالي.
+
+  **T5 — حقول journal:**
+  grade, layers, setup_id, alert_kind — هذه قابلة للإضافة كأعمدة اختيارية في CSV export. لا تكسر البيانات القديمة.
+
+  **أولويتي للتنفيذ (بالترتيب):** T4 (scorer) → T5 (journal حقول) → T1/T2 معاً → T3 (risk_engine آخراً — الأطول).
+  T4 وT5 تحسينات داخلية آمنة. T1/T2 تغيّر سلوك التنبيهات ويحتاج قياس بعدها. T3 يغيّر risk_engine ويحتاج مراجعة PR.
+  لا كود إنتاج يُضاف بدون تنسيق مع الحالة الحية.

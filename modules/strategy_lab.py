@@ -45,6 +45,7 @@ TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series
 SYMBOLS = ("HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:CL", "HL:xyz:BRENTOIL", "HL:xyz:EUR", "HL:xyz:JPY", "HL:xyz:GBP",
            "HL:xyz:SP500", "HL:xyz:XYZ100", "BTC-USDT", "ETH-USDT", "SOL-USDT")
 # analysis school of each detector key (fundamental / macro is a context filter here, not a signal)
+HARM_AGE = 5   # bars after the D pivot: a pivot needs 3 bars after it to be CONFIRMED (harmonic.zigzag n=3), so a completed pattern is first visible 3 bars after D; max_age=2 (the old value) could never match: the lab had ZERO harmonic rows (found 2026-11-04)
 HARM_FIT = 0.7   # harmonic "tight" key: mean ratio fit >= 0.7 (harmonic.py _fit)
 SCHOOL = {
     "ma_cross": "Trend (MA)", "ema_stack": "Trend (MA)", "vwap": "Trend (MA)", "donch": "Trend (hedge fund)", "sma1040": "Trend (hedge fund)",
@@ -55,6 +56,7 @@ SCHOOL = {
     "harm_gartley_tight": "Harmonic: Gartley", "harm_bat_tight": "Harmonic: Bat", "harm_butterfly_tight": "Harmonic: Butterfly", "harm_crab_tight": "Harmonic: Crab", "harm_cypher_tight": "Harmonic: Cypher", "ew3": "Elliott wave", "ew5": "Elliott wave", "abc": "Elliott wave", "wavec": "Elliott wave", "rsi_div": "Momentum / divergence",
     "macd_div": "Momentum / divergence", "level": "Levels / breakouts", "breakout": "Levels / breakouts", "ohl_open": "Levels / breakouts",
     "ohl_break": "Levels / breakouts", "tlbreak": "Levels / breakouts", "smt": "Intermarket (SMT)",
+    "pa_engulf": "Price action", "pa_pin": "Price action", "pa_inside": "Price action", "pa_star": "Price action", "rect": "Chart patterns (range)", "dbl": "Chart patterns (range)", "wyck": "Wyckoff",
 }
 for _n in ("gartley", "bat", "butterfly", "crab", "cypher"):   # harmonic on volatility-scaled swings (added 2026-10-19)
     SCHOOL.update({f"harm_vol_{_n}": f"Harmonic: {_n.title()} (vol swings)", f"harm_vol_{_n}_tight": f"Harmonic: {_n.title()} (vol swings)"})
@@ -87,10 +89,57 @@ def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):
     return float(np.clip(d * (cl[j] - e) / stop_d, -1.0, rr))
 
 
+# STOP STUDY (owner 2026-11-03: "most trades hit the stop and then go on to the target - where could the stop sit so it is not reached?").
+# Same entries, the target price fixed (RR x STOP_ATR x ATR = 2.25 ATR), only the stop distance changes (in ATR). Every result is in ATR units, so different stops compare fairly.
+STOP_K = (1.0, 1.5, 2.0, 2.5, 3.0)
+
+
+def stop_study(hi, lo, cl, i, d, atr_i, H, rr=None):
+    """-> {'stp': {k: pnl in ATR for stop k*ATR}, 'rec': 1 / 0 / None, 'mae': ATR or None}.
+    stp: +target distance if the target is hit first, -k if the stop is hit first (a bar touching both counts as the stop), else the close at the horizon clipped to [-k, target].
+    rec (stop 1.5 ATR, the lab's base): 1 = the stop was hit and the target was reached LATER inside the same horizon (the owner's case), 0 = stopped and the target never came,
+    None = not stopped.  mae: how far (ATR) price went against the trade before the target, for trades that reach the target inside the horizon (None otherwise)."""
+    T = (RR if rr is None else rr) * STOP_ATR; e = cl[i]; end = min(len(cl), i + 1 + H); a = atr_i if atr_i > 0 else 1e-12
+    adv = np.maximum(0.0, (e - lo[i + 1:end]) / a if d > 0 else (hi[i + 1:end] - e) / a)                    # adverse excursion of each bar (ATR)
+    fav = (hi[i + 1:end] - e) / a if d > 0 else (e - lo[i + 1:end]) / a
+    hit = np.nonzero(fav >= T)[0]; jt = int(hit[0]) if len(hit) else None                                      # first bar that reaches the target
+    out = {}
+    for k in STOP_K:
+        st = np.nonzero(adv >= k)[0]; js = int(st[0]) if len(st) else None
+        if js is not None and (jt is None or js <= jt): out[k] = -k
+        elif jt is not None: out[k] = T
+        else:
+            j = end - 1; out[k] = float(np.clip(d * (cl[j] - e) / a, -k, T)) if j > i else 0.0
+    js15 = np.nonzero(adv >= STOP_ATR)[0]; rec = None
+    if len(js15):
+        rec = 1 if (jt is not None and jt > int(js15[0])) else 0
+    mae = float(adv[:jt + 1].max()) if jt is not None and len(adv[:jt + 1]) else None
+    return {"stp": out, "rec": rec, "mae": mae}
+
+
 # exit variants tested on the SAME entries: target multiple and break-even stop (the question: which RR / exit gives the best expectancy)
 # (target R, break-even stop, horizon in bars or None = the timeframe's own horizon). "h16" = a 16-bar window: on 15m that is the 4-hour scalp.
 VARIANTS = {"rr1.0": (1.0, False), "rr1.5": (1.5, False), "rr2.0": (2.0, False), "rr3.0": (3.0, False), "rr1.5_be": (1.5, True), "rr2.0_be": (2.0, True),
-            "rr1.5_h16": (1.5, False, 16), "rr2.0_h16": (2.0, False, 16)}
+            "rr1.5_h16": (1.5, False, 16), "rr2.0_h16": (2.0, False, 16),
+            # Day plan exits (modules/day_plan.py): 50 % off at TP1 (tp1 R), break-even at +be R, a trailing stop 1.5 ATR behind the best price for the runner, final target tp3 R, same horizon.
+            # (4th item = a partial + trailing walk, simulated by day_plan.simulate_arrays; trail_only = no partial, the stop only trails)
+            "pt_1.5_3": (1.5, False, None, {"tp3": 3.0, "be": 1.0, "trail": 1.5}), "pt_1.0_3": (1.0, False, None, {"tp3": 3.0, "be": 1.0, "trail": 1.5}),
+            "pt_1.5_5": (1.5, False, None, {"tp3": 5.0, "be": 1.0, "trail": 1.5}), "trail_only": (99.0, False, None, {"tp3": 5.0, "be": 1.0, "trail": 1.5, "frac": 0.0})}
+
+
+def _outcome_pt(hi, lo, cl, i, d, stop_d, atr_i, H, v):
+    """R of a trade opened at close i under a partial + trailing exit (the Day plan standard): same entry, stop and horizon as _outcome; one COST_R per trade is charged later."""
+    from modules.day_plan import simulate_arrays
+    cfg = v[3]
+    e = cl[i]
+    end = min(len(cl), i + 1 + H)
+    if end <= i + 1:
+        return 0.0
+    frac = cfg.get("frac", 0.5)
+    tp1 = e + d * v[0] * stop_d
+    ex = {"targets": [tp1, e + d * cfg["tp3"] * stop_d], "partial": ({"at": tp1, "fraction": frac} if frac > 0 else None), "be_at": cfg["be"] * stop_d, "trail_atr": cfg["trail"]}
+    r = simulate_arrays(hi[i + 1:end], lo[i + 1:end], cl[i + 1:end], d, e, e - d * stop_d, ex, atr_i)["r"]
+    return float(np.clip(r, -1.0, cfg["tp3"]))
 
 
 LOC_N, VOL_N, REG_N = 50, 20, 100
@@ -140,14 +189,14 @@ def walk(df, tf, stride=4, seed=0, peers=()):
     for i in range(150, len(df) - 2, stride):
         win = df.iloc[max(0, i + 1 - WIN):i + 1].reset_index(drop=True)
         sigs, _ = detect_all(win)
-        for p in find_harmonics(win, max_age=2):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
+        for p in find_harmonics(win, max_age=HARM_AGE):   # XABCD harmonic: completed pattern whose D point is at this bar (school added 2026-10-18)
             if not p.get("forming"):
                 hk = "harm_" + str(p.get("name", "?")).lower()
                 d = BULL if p["dir"] == "bull" else BEAR
                 sigs.append({"key": hk, "family": "Harmonic", "direction": d})
                 if p.get("fit", 0) >= HARM_FIT:   # tight-fit subset: every ratio near its Fibonacci level
                     sigs.append({"key": hk + "_tight", "family": "Harmonic", "direction": d})
-        for p in find_harmonics(win, max_age=2, vol=True):   # same patterns with volatility-scaled swings (key harm_vol_*; added 2026-10-19)
+        for p in find_harmonics(win, max_age=HARM_AGE, vol=True):   # same patterns with volatility-scaled swings (key harm_vol_*; added 2026-10-19)
             if not p.get("forming"):
                 hk = "harm_vol_" + str(p.get("name", "?")).lower()
                 d = BULL if p["dir"] == "bull" else BEAR
@@ -177,9 +226,10 @@ def walk(df, tf, stride=4, seed=0, peers=()):
                 continue
             last[k] = i
             events.append({"key": k, "fam": fam, "d": d, "r": _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], H), "base": rb,
-                           "var": {n: _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1]) for n, v in VARIANTS.items()},
+                           "var": {n: (_outcome_pt(hi, lo, cl, i, d, STOP_ATR * atr[i], atr[i], H, v) if len(v) > 3 else _outcome(hi, lo, cl, i, d, STOP_ATR * atr[i], v[2] if len(v) > 2 else H, rr=v[0], be=v[1])) for n, v in VARIANTS.items()},
                            "trend": "with" if tr == d else "against" if tr else "flat", "ses": ses, "dow": dow,
-                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2})
+                           "chain": chain_layers(ctx, d, tr, ses), "oos": i >= len(df) // 2, "ts": int(ts.value // 10**6),
+                           "stop": stop_study(hi, lo, cl, i, d, atr[i], H), "mirror": stop_study(hi, lo, cl, i, -d, atr[i], H)})   # ts = signal bar time in ms (the pre-registered tests slice by date)
     return events, bars
 
 
@@ -197,7 +247,60 @@ def chain_row(name, rs, base, ins, oos):
     t = float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 2 and d.std() > 0 else 0.0
     return {"key": "*CHAIN*", "school": "Chain", "tf": "all", "side": name, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
             "t": round(t, 2), "is_n": len(ins), "is_avgR": _stat(ins).get("avgR"), "oos_n": len(oos), "oos_avgR": _stat(oos).get("avgR"),
-            "edge": bool(s["n"] >= 100 and t > 3 and (_stat(oos).get("avgR") or 0) > 0 and (_stat(ins).get("avgR") or 0) > 0)}
+            "edge": bool(s["n"] >= 100 and t > 3 and (_stat(oos).get("avgR") or 0) > 0 and (_stat(ins).get("avgR") or 0) > 0),
+            "net": round(s["avgR"] - COST_R, 3) if s.get("avgR") is not None else None}   # net = avgR minus the planning cost per trade (COST_R)
+
+
+# PRE-REGISTERED hypotheses (frozen 2026-11-01 from the lab run built 2026-11-01 05:05 UTC; docs/PREREG_2026-11-01.md). They were picked from ~1,257 rows of that run,
+# so that run's numbers are biased upward: only signals AFTER the cutoff count. Two hypotheses only, parameters never re-tuned on these data.
+PREREG_CUTOFF_MS = 1793509500000
+PREREG = {"H1 sess_amd + loc": lambda e: e["key"] == "sess_amd" and bool(e["chain"]["loc"]),
+          "H2 ohl_open + Late 20-24": lambda e: e["key"] == "ohl_open" and e.get("ses") == "Late 20-24"}
+PREREG_GATE = {"n": 100, "t": 3.0}   # pass = n >= 100, t vs random direction > 3, net (after COST_R) > 0 in the whole sample AND in both time halves
+
+
+def prereg_rows(all_events):
+    out = []
+    for name, f in PREREG.items():
+        ev = [e for _tf, _sym, evs in all_events for e in evs if e.get("ts", 0) > PREREG_CUTOFF_MS and "chain" in e and f(e)]
+        ev.sort(key=lambda e: e["ts"]); h = len(ev) // 2
+        r = np.array([e["r"] for e in ev], float); b = np.array([e["base"] for e in ev], float)
+        net = lambda a: round(float(a.mean()) - COST_R, 3) if len(a) else None
+        t = float((r - b).mean() / ((r - b).std(ddof=1) / np.sqrt(len(r)))) if len(r) > 2 and (r - b).std() > 0 else 0.0
+        n1, n2 = net(r[:h]), net(r[h:])
+        ok = bool(len(r) >= PREREG_GATE["n"] and t > PREREG_GATE["t"] and (net(r) or -1) > 0 and (n1 or -1) > 0 and (n2 or -1) > 0)
+        out.append({"key": "*PREREG*", "school": "Pre-registered", "tf": "all", "side": name, "n": len(r), "win": round(100 * float((r >= RR - 1e-9).mean()), 1) if len(r) else None,
+                    "avgR": round(float(r.mean()), 3) if len(r) else None, "net": net(r), "t": round(t, 2), "is_n": h, "is_avgR": net(r[:h]), "oos_n": len(r) - h, "oos_avgR": net(r[h:]),
+                    "edge": ok, "since": PREREG_CUTOFF_MS})
+    return out
+
+
+
+def stop_rows(all_events):
+    """Rows '*STOP*': per stop distance (and per timeframe) the average result in ATR; the share of stopped trades that reached the target later (and the same for the mirror = opposite direction,
+    the yardstick: a random-looking market 'recovers' too); how far winners went against us first (MAE quantiles)."""
+    out = []; groups = defaultdict(list)
+    for tf, _sym, evs in all_events:
+        for e in evs:
+            if "stop" in e:
+                groups["all"].append(e); groups[tf].append(e)
+    for g, evs in groups.items():
+        T = RR * STOP_ATR; cost = COST_R * STOP_ATR
+        for k in STOP_K:
+            x = np.array([e["stop"]["stp"][k] for e in evs], float); m = np.array([e["mirror"]["stp"][k] for e in evs], float); n = len(x)
+            net = x - cost; t = float(net.mean() / (net.std(ddof=1) / np.sqrt(n))) if n > 2 and net.std() > 0 else 0.0
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": f"stop {k} ATR", "n": n, "win": round(100 * float((x >= T - 1e-9).mean()), 1), "stop_pct": round(100 * float((x <= -k + 1e-9).mean()), 1),
+                        "avg_atr": round(float(x.mean()), 3), "net_atr": round(float(net.mean()), 3), "mirror_atr": round(float(m.mean()), 3), "avgR": round(float(x.mean()) / STOP_ATR, 3),
+                        "net": round(float(net.mean()) / STOP_ATR, 3), "t": round(t, 2), "edge": False})
+        sr = [e["stop"]["rec"] for e in evs if e["stop"]["rec"] is not None]; mr = [e["mirror"]["rec"] for e in evs if e["mirror"]["rec"] is not None]
+        if sr:
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": "stopped at 1.5 ATR, target reached later", "n": len(sr), "win": round(100 * float(np.mean(sr)), 1),
+                        "mirror_win": round(100 * float(np.mean(mr)), 1) if mr else None, "stopped_share": round(100 * len(sr) / len(evs), 1), "edge": False})
+        ma = np.array([e["stop"]["mae"] for e in evs if e["stop"]["mae"] is not None], float)
+        if len(ma) >= 10:
+            out.append({"key": "*STOP*", "school": "stop-study", "tf": g, "side": "MAE of trades that reached the target (ATR)", "n": len(ma), "p50": round(float(np.percentile(ma, 50)), 2),
+                        "p75": round(float(np.percentile(ma, 75)), 2), "p90": round(float(np.percentile(ma, 90)), 2), "edge": False})
+    return out
 
 
 def summarize(all_events, all_bars):
@@ -215,9 +318,12 @@ def summarize(all_events, all_bars):
                 continue
             g = grade(e["chain"]); gs = ["grade " + g] + ["layer " + k for k in CHAIN if e["chain"][k]] + ["no " + k for k in CHAIN if not e["chain"][k]]
             gs += ["grade " + g + " / " + e["key"]]
+            gs += [("loc / " if e["chain"]["loc"] else "no loc / ") + e["key"]]   # docs/PIPELINE.md step 2: does the location layer help THIS detector? (IS/OOS + net of costs in the same row)
             for name in gs + ["all signals"]:
                 c = chain[name]; c[0].append(e["r"]); c[1].append(e["base"]); c[3 if e.get("oos") else 2].append(e["r"])
     rows = [chain_row(k, *v) for k, v in chain.items()]
+    rows += prereg_rows(all_events)
+    rows += stop_rows(all_events)
     var = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
@@ -227,11 +333,25 @@ def summarize(all_events, all_bars):
         x = np.asarray(rs, float); se = 1.0 / np.sqrt(max(len(x), 1))
         rows.append({"key": "*VAR*" if k == "all" else k, "school": "exit", "tf": "all", "side": n, "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
                      "avgR": round(float(x.mean()), 3), "net": round(float(x.mean()) - COST_R, 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
+    # Build IS/OOS split per (key, tf, side) using the oos flag stored in each event
+    per_is = defaultdict(list); per_oos = defaultdict(list)
+    for tf, sym, ev in all_events:
+        for e in ev:
+            for g in (((e["key"], "all", "all"), (e["key"], tf, "all"), (e["key"], "all", "long" if e["d"] > 0 else "short"), (e["key"], "all", "trend-" + e["trend"]),
+                      ("*ALL*", tf, "trend-" + e["trend"]), ("*ALL*", "all", "trend-" + e["trend"]))
+                      + ((("*ALL*", "all", "ses-" + e["ses"]), (e["key"], "all", "ses-" + e["ses"])) if e.get("ses") else ()) + ((("*ALL*", "all", "dow-" + e["dow"]),) if e.get("dow") else ())):
+                (per_oos if e.get("oos") else per_is)[g].append(e["r"])
     for (k, tf, side), rs in per.items():
         s = _stat(rs); b = _stat(base[(k, tf, side)])
+        x = np.asarray(rs, float); bx = np.asarray(base[(k, tf, side)], float)
+        d = x - bx
+        t = round(float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 2 and d.std() > 0 else 0.0, 2)
+        ins = per_is.get((k, tf, side), []); oos_rs = per_oos.get((k, tf, side), [])
+        is_stat = _stat(ins); oos_stat = _stat(oos_rs)
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
         rows.append({"key": k, "school": SCHOOL.get(k, "Other"), "tf": tf, "side": side, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
-                     "edge": bool(s["n"] >= MIN_N and s["avgR"] - b["avgR"] > 3.6 * se and s["avgR"] > 0)})   # ~3 sigma: ~35 detectors are tested at once, a 2-sigma bar would flag one by luck
+                     "t": t, "is_n": len(ins), "is_avgR": is_stat.get("avgR"), "oos_n": len(oos_rs), "oos_avgR": oos_stat.get("avgR"),
+                     "edge": bool(s["n"] >= MIN_N and t > 3 and (oos_stat.get("avgR") or 0) > 0 and (is_stat.get("avgR") or 0) > 0)})   # t>3: ~35 detectors tested at once
     # conflicts: detectors pointing opposite ways on the same bar
     conf, co = defaultdict(int), defaultdict(int)
     for tf, sym, bars in all_bars:
@@ -315,8 +435,8 @@ def lunar_split(times, closes):
 
 
 def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
-    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]
-    rows = [r for r in rows if r["key"] != "*CHAIN*" and r["school"] != "exit"]
+    ch = [r for r in rows if r["key"] == "*CHAIN*"]; vr = [r for r in rows if r["school"] == "exit"]; pr = [r for r in rows if r["key"] == "*PREREG*"]; sp = [r for r in rows if r["key"] == "*STOP*"]
+    rows = [r for r in rows if r["key"] not in ("*CHAIN*", "*PREREG*", "*STOP*") and r["school"] != "exit"]
     ok = [r for r in rows if r["tf"] == "all" and r["side"] == "all" and r["key"] != "*ALL*"]
     ok.sort(key=lambda r: (r["n"] >= MIN_N, r.get("avgR", -9)), reverse=True)
     _net = lambda a: "" if a is None else round(a - COST_R, 3)   # owner rule: judge after 0.1R costs
@@ -326,6 +446,22 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
          "## Every detector on its own (all timeframes)", "", "| rank | key | school | n | win % | avg R | net avg R | random win % | random avg R | edge |", "|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ok, 1):
         L.append(f"| {i} | {r['key']} | {r['school']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {_net(r.get('avgR'))} | {r.get('base_win')} | {r.get('base_avgR')} | {'YES' if r['edge'] else ''} |")
+    if sp:
+        L += ["", "## Stop study: where should the stop sit? (same entries, target fixed at %.2f ATR, results in ATR, cost %.2f ATR)" % (RR * STOP_ATR, COST_R * STOP_ATR), "",
+              "| group | stop | n | target hit % | stopped % | avg ATR | net ATR | mirror avg ATR | t (net vs 0) |", "|---|---|---|---|---|---|---|---|---|"]
+        for r in [r for r in sp if r["side"].startswith("stop ") and r["tf"] in ("all", "1h", "4h", "15m", "1d", "1m")]:
+            L.append(f"| {r['tf']} | {r['side'][5:]} | {r['n']} | {r['win']} | {r['stop_pct']} | {r['avg_atr']} | {r['net_atr']} | {r['mirror_atr']} | {r['t']:+.2f} |")
+        L += ["", "| group | question | n | value |", "|---|---|---|---|"]
+        for r in [r for r in sp if not r["side"].startswith("stop ")]:
+            v = (f"{r['win']} % reached it later (mirror direction {r.get('mirror_win')} %); {r['stopped_share']} % of all trades were stopped" if "win" in r else f"p50 {r['p50']} · p75 {r['p75']} · p90 {r['p90']}")
+            L.append(f"| {r['tf']} | {r['side']} | {r['n']} | {v} |")
+        L += ["", "Reading: a stop that is never reached only helps if the AVERAGE (net ATR) goes up, not just the target-hit share; compare with the mirror column (the opposite direction on the same bars).", ""]
+    if pr:
+        L += ["", "## Pre-registered tests (signals after the freeze date only; docs/PREREG_2026-11-01.md)", "",
+              "| hypothesis | n | win % | avg R | net avg R | t vs random | net 1st half (n) | net 2nd half (n) | PASS |", "|---|---|---|---|---|---|---|---|---|"]
+        for r in pr:
+            L.append(f"| {r['side']} | {r['n']} | {r.get('win')} | {r.get('avgR')} | {r.get('net')} | {r['t']:+.2f} | {r.get('is_avgR')} ({r['is_n']}) | {r.get('oos_avgR')} ({r['oos_n']}) | {'YES' if r['edge'] else ''} |")
+        L += ["", f"Gate: n >= {PREREG_GATE['n']}, t > {PREREG_GATE['t']}, net > 0 overall and in both time halves. Under n = {PREREG_GATE['n']} it is not evidence, whatever the numbers say.", ""]
     sch = {}
     for r in ok:
         a = sch.setdefault(r["school"], [0, 0.0]); a[0] += r["n"]; a[1] += r["n"] * (r.get("avgR") or 0)
@@ -455,6 +591,11 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
                     lunar[k] = [lunar[k][j] + lu[k][j] for j in range(3)]
             log(f"{sym} {tf}: {len(df)} bars, {len(ev)} signals, {time.time() - t0:.0f}s")
     rows, conflicts, cfl = summarize(evs, brs)
+    # safety: edge=True requires a computed t-stat; any row without one is labelled as no-edge
+    # (happens when JSON is loaded from a previous run that pre-dates t-stat computation)
+    for _r in rows:
+        if _r.get("edge") and _r.get("t") is None:
+            _r["edge"] = False
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
     return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone}
 

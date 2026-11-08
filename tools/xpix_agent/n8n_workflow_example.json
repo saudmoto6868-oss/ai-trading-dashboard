@@ -1,0 +1,13 @@
+{
+  "name": "XPiX Agent: gold 15m screenshot (sketch)",
+  "nodes": [
+    { "parameters": {}, "id": "1", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0] },
+    { "parameters": { "method": "POST", "url": "http://127.0.0.1:8765/batch", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json",
+        "jsonBody": "[{\"cmd\":\"page\",\"args\":[\"workspace\"]},{\"cmd\":\"symbol\",\"args\":[\"HL:xyz:GOLD\"]},{\"cmd\":\"tf\",\"args\":[\"15m\"]},{\"cmd\":\"shot\",\"opts\":{\"out\":\"gold15.png\"}}]" },
+      "id": "2", "name": "XPiX batch", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [260, 0] },
+    { "parameters": { "url": "http://127.0.0.1:8765/files/gold15.png", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "options": { "response": { "response": { "responseFormat": "file" } } } },
+      "id": "3", "name": "Download PNG", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [520, 0] }
+  ],
+  "connections": { "Manual Trigger": { "main": [[{ "node": "XPiX batch", "type": "main", "index": 0 }]] }, "XPiX batch": { "main": [[{ "node": "Download PNG", "type": "main", "index": 0 }]] } },
+  "meta": { "note": "SKETCH, not tested in a real n8n: import it, create a Header Auth credential (name Authorization, value 'Bearer <your token>'), attach it to both HTTP nodes, then add a Telegram 'Send Photo' node (your chat id only)." }
+}

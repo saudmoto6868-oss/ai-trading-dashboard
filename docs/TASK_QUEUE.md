@@ -32,3 +32,15 @@ Done 2026-10-19: when drawings are hidden, a chip shows "◌ N hidden: show all"
 Done 2026-10-19: brush tool (hold and drag). One stroke per drag, points added every 2 px, selectable by clicking on it; options bar colour, width and dash apply. Browser-tested with a real mouse drag (one stroke, 21 points, tool returns to the cursor, no page errors). Not done: moving or editing a stroke after it is drawn; object tree; deep linkage.
 
 Done 2026-10-19: object tree (≣ button in the drawing bar): lists this chart's drawings, newest first; click a row to select it, the eye hides or shows it, ✕ deletes it. Browser-tested: rows listed (2), eye toggle hides a drawing. Not done: drag to reorder; drawings of other symbols.
+
+
+## Order Flow audit — 2026-10-22 (ChatGPT, branch `fix/orderflow-history-coverage-review`)
+
+- **Evidence:** `Hub.start` polls `/market/books-full` (fallback `/market/books`) on a 1.5-second timer; `okx(path)` uses a 10-second cache for non-Rubik paths. Repeated callbacks can therefore be stale snapshots rather than genuine depth changes. Keep the existing path unchanged in this focused fix; a separate historical mode should use an official public WebSocket feed and track snapshot/update sequence continuity.
+- **Code fixes on PR #63:** retention filter now allows up to seven days (subject to storage pruning); the persistence cutoff now retains minute buckets up to the three-hour compaction boundary; saved history is initialized before long-window rendering; empty time/price windows show an explicit status; palette/brightness apply to saved history; candle-volume profile is explicitly opt-in and labelled estimated.
+- **Checks actually run:** both inline JavaScript script blocks compile via `new Function`; isolated harnesses executed the extracted `hmSave` and `hmInit` methods with synthetic localStorage and passed retention/compaction/bootstrap assertions.
+- **Not done:** no live browser visual check across 30s/1m/5m/15m/1H, no real-feed reconnect test, no test of chart zoom or mobile rendering. No merge/deploy.
+- **Next:** build a separate Historical Liquidity Heatmap mode using public WebSocket depth, explicit source/symbol/connection state, sequence-gap resync, independent storage and rendering, and tests for missing data and all supported display timeframes. Do not infer historical depth from candle timeframe aggregation.
+
+
+- **Compatibility follow-up (2026-10-22):** Changed the default OKX WebSocket base from port `8443` to the default TLS port `443` because OKX's official changelog says port 8443 will stop accepting connections on 2026-10-31 and port 443 already works. Any deployment-specific `CFG.wsBase` override still needs checking. No live connection test performed.

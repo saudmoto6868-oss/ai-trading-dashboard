@@ -35,3 +35,39 @@ A grade or a "grade / detector" combo counts only if: **n >= 100, t > 3 vs rando
    and the 5 layers; signals in failing combos get demoted.
 4. Journal: store the grade + layers with every trade; Performance shows win % / avg R per grade, so live trades check the lab.
 5. Repeat weekly (lab cron); keep only what still passes out-of-sample. Drop layers that do not help.
+
+## Result of the first real lab run (data/strategy_lab.json, built 2026-10-31, 12 symbols x 5 TFs, 1.5 ATR stop, no costs)
+Read honestly - **the chain did NOT raise quality yet**:
+- All 62,719 signals: avg R -0.019 (t -0.79). No row passes the gate (`edge` = 0 rows).
+- **Grade does not rank trades**: A+++ n 485 -0.040R, A+ n 9,671 -0.016R, A n 21,849 -0.031R, B -0.013R, C -0.008R.
+  More agreeing layers did not mean better trades. Do **not** wire "grade" into the scanner ranking as a quality score.
+- Layers one by one (avg R with the layer vs. without): `loc` (location) +0.023R with t 2.25 and positive in BOTH halves
+  (IS +0.020 / OOS +0.026) vs -0.031R without it (t -2.10): the only layer that is consistent in both halves - keep testing it.
+  `htf` with the layer -0.026R (t -2.45) is worse than without (-0.009R); `vol` has t +2.93 but both halves negative;
+  `reg` (volatility) and `time` show nothing.
+- Best detectors (n >= 100): `sess_amd` n 663, +0.117R at RR 1.5 (+0.22R at RR 3, t 3.2); in the chain "A+ / sess_amd" n 122 +0.204R
+  (IS +0.245 / OOS +0.163, t 2.47). Promising but it does NOT pass the gate (t < 3 at RR 1.5, ~50 detectors x several RRs were tested, so a
+  t of 3 is partly luck, and the per-detector rows carry no IS/OOS split yet). `sma1040` +0.5R but n 49 = not evidence.
+- **Earlier claim withdrawn**: `level` "passes the edge gate" (+0.08R, n 3,150) - on the larger run it is -0.003R at RR 1.5 (n 5,098, t -0.15).
+- Not tested: trading costs / slippage, other stop sizes per layer, the lab's 1m series are shortest history, no live data.
+
+## Next (measured, not guessed)
+0. **Done (code, awaiting the next weekly lab run):** chain table now has `loc / <detector>` and `no loc / <detector>` rows (n, t vs random, IS/OOS halves, `net` = avgR - 0.10R cost). Per-detector rows already compute IS/OOS in code; the committed JSON rows predate that (they show no t / IS / OOS), the next run fills them. Mock-tested on synthetic candles only.
+1. Add IS/OOS halves to the per-detector rows (needed to judge `sess_amd`).
+2. Test `loc` as a hard filter on the 2-3 best detectors (only `sess_amd` first), with a cost model (0.05R/trade) and a fresh out-of-sample window.
+3. **Done (code):** every new journal trade stores the 5 layers + grade (`Chain` in `workspace_app.html`, same definitions as the lab; parity test `tests/test_journal_chain_parity.py`, 40 candle sets). Journal stats show win % / avg R per grade and per location layer; CSV has `grade,htf,loc,vol,reg,time`. Info only - nothing is filtered by it. Old trades show "not recorded". Mock-tested only (no live data); the layers are read from the last candle at log time (not necessarily a closed bar).
+Nothing is promoted to "A+++" until it passes: n >= 100, t > 3, positive in both halves, after costs.
+
+## Second real lab run (data/strategy_lab.json, built 2026-11-01 05:05 UTC, 1,257 rows, 61,385 signals; "net" = avgR - 0.10R cost)
+- **Net of costs everything loses**: all signals -0.016R gross / -0.116R net (t -5.3 vs random direction). Only 1 row carries `edge`
+  (`ohl_open` in the 20-24 session, n 437, +0.196R, t 3.83, IS +0.176 / OOS +0.205), but ~1,257 rows were tested: a Bonferroni bar is |t| > ~4.1, so
+  it is a **hypothesis to re-test on fresh candles, not an edge**.
+- **`loc` helps but is not enough**: with loc +0.020R vs without -0.026R; per detector it improves most (`level` +0.075R n 1,524 t 2.55, IS +0.090 / OOS +0.062;
+  `fvg` +0.102R n 605 t 2.01; `ob` +0.094R; `crt` +0.079R). Net of cost all are still ~0 or negative. The layer weakened vs run 1 (t 2.25 -> 1.12; OOS +0.004).
+- **`sess_amd` + loc**: n 157, +0.187R gross, **+0.087R net**, IS +0.231 / OOS +0.140 - the only combo that stays positive net, but n 157 and t vs random-direction 0.13: the random-direction baseline earns about the same here, so it is not proof of direction skill. Needs a pre-registered re-test.
+- **`htf` (trade WITH the 100-bar trend) is robustly worse than random direction**: -0.030R, t -6.39, negative in both halves (n 36,512); "no htf" +0.003R. In this lab, counter/flat-trend entries do better. Do not present "with the higher-timeframe trend" as a quality point on its own.
+- **Grades are unstable**: A+++ was -0.040R (n 485) in run 1 and is +0.151R (n 494, t 0.67, IS +0.159 / OOS +0.142) in run 2 - a few days of new candles flipped it. Treat any n < ~1,000 grade result as noise; do not rank trades by grade yet.
+- Not tested: real fills / slippage, other stop sizes, the 10 costs-per-trade assumption itself.
+
+### Decision
+Nothing is wired into the scanner. Next (measured): (1) pre-register `sess_amd`+loc and `ohl_open`/Late and re-test on candles after 2026-11-01 only; (2) test why `htf`-with underperforms (is it the 1.5 ATR / RR 1.5 exit, or mean reversion in these symbols); (3) journal keeps collecting grade + layers.

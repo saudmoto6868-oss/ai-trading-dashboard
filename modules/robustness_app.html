@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Robustness Matrix</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#090910;color:#ddd;font-family:'Courier New',monospace;font-size:11px}
+#header{padding:8px 14px;background:#0c0c1a;border-bottom:1px solid #1a1a30;display:flex;align-items:center;gap:16px}
+#header .title{color:#7cf;font-size:13px;letter-spacing:2px}
+.note{color:#555;font-size:9px;margin-left:auto}
+#layout{display:grid;grid-template-columns:1fr 340px;gap:0;height:calc(100vh - 36px);overflow:hidden}
+#left{overflow-y:auto;padding:12px}
+#right{border-left:1px solid #1a1a30;overflow-y:auto;padding:12px}
+
+/* ── ROBUSTNESS MATRIX ── */
+.section-title{color:#7cf;font-size:10px;letter-spacing:2px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #1a1a30}
+.matrix-wrap{overflow-x:auto;margin-bottom:20px}
+table.matrix{border-collapse:collapse;width:100%}
+table.matrix th{padding:4px 8px;background:#0d0d1e;color:#7cf;font-size:9px;letter-spacing:1px;text-align:center;border:1px solid #1a1a30;white-space:nowrap}
+table.matrix td{padding:4px 8px;border:1px solid #111120;text-align:center;font-size:10px;cursor:pointer;transition:filter 0.15s}
+table.matrix td:hover{filter:brightness(1.5)}
+table.matrix td.strat-name{text-align:left;background:#0d0d1e;color:#aaa;font-size:9px;white-space:nowrap;padding:4px 10px}
+.cell-pos{background:#0d2a0d;color:#4f4}
+.cell-neg{background:#2a0d0d;color:#f66}
+.cell-neu{background:#141424;color:#666}
+.cell-na {background:#0a0a14;color:#333}
+.cell-warn{background:#2a1a00;color:#fa4}
+
+/* ── MARKOUT DECAY ── */
+#decay-chart{width:100%;height:160px;margin-bottom:20px}
+
+/* ── WHO PAYS US ── */
+table.who{border-collapse:collapse;width:100%;margin-bottom:16px}
+table.who th{padding:4px 8px;background:#0d0d1e;color:#7cf;font-size:9px;letter-spacing:1px;text-align:left;border-bottom:1px solid #1a1a30}
+table.who td{padding:5px 8px;border-bottom:1px solid #0e0e1e;font-size:10px}
+table.who td.val-pos{color:#4f4}
+table.who td.val-neg{color:#f66}
+table.who td.fam{color:#7cf}
+.bar-bg{background:#0d0d1e;border-radius:1px;height:6px;width:80px;display:inline-block;vertical-align:middle}
+.bar-fill{background:#4f4;height:6px;border-radius:1px;display:block}
+.bar-fill.neg{background:#f66}
+
+/* ── RIGHT PANEL ── */
+.cell-detail{display:none;padding:10px;background:#0f0f1e;border:1px solid #1a1a30;border-radius:3px;margin-bottom:10px}
+.cell-detail.active{display:block}
+.cd-row{display:flex;justify-content:space-between;margin:4px 0;font-size:10px}
+.cd-val{color:#7cf}
+.regime-tag{display:inline-block;padding:2px 6px;border-radius:2px;font-size:9px;margin:2px;letter-spacing:1px}
+.tag-trend{background:#0a2a1a;color:#4fa;border:1px solid #1a4a2a}
+.tag-chop {background:#1a1a0a;color:#aa4;border:1px solid #3a3a1a}
+.tag-hivol{background:#1a0a2a;color:#a4f;border:1px solid #3a1a4a}
+.tag-crash{background:#2a0a0a;color:#f44;border:1px solid #4a1a1a}
+.tag-sqz  {background:#0a1a2a;color:#4af;border:1px solid #1a3a4a}
+.tag-thin {background:#1a1a1a;color:#888;border:1px solid #333}
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="title">⬢ ROBUSTNESS MATRIX + EDGE DECAY + WHO PAYS</span>
+  <span class="note">data/strategy_lab.json · n&lt;30 = not evidence · mock-tested only</span>
+</div>
+<div id="layout">
+  <div id="left">
+    <!-- MATRIX -->
+    <div class="section-title">STRATEGY × REGIME ROBUSTNESS MATRIX</div>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix"></table>
+    </div>
+
+    <!-- MARKOUT DECAY -->
+    <div class="section-title">MARKOUT DECAY — EDGE (bps/trade) AFTER FILL</div>
+    <canvas id="decay-chart"></canvas>
+
+    <!-- WHO PAYS -->
+    <div class="section-title">WHO PAYS US — BPS/TRADE BY STRATEGY FAMILY</div>
+    <table class="who" id="who"></table>
+  </div>
+
+  <div id="right">
+    <div class="section-title">CELL DETAIL</div>
+    <div class="cell-detail" id="cellDetail">
+      <div class="cd-row"><span>Strategy</span><span class="cd-val" id="cd-strat">—</span></div>
+      <div class="cd-row"><span>Regime</span><span class="cd-val" id="cd-regime">—</span></div>
+      <div class="cd-row"><span>Win Rate</span><span class="cd-val" id="cd-wr">—</span></div>
+      <div class="cd-row"><span>Avg R</span><span class="cd-val" id="cd-r">—</span></div>
+      <div class="cd-row"><span>n trades</span><span class="cd-val" id="cd-n">—</span></div>
+      <div class="cd-row"><span>t-stat</span><span class="cd-val" id="cd-t">—</span></div>
+      <div class="cd-row"><span>Status</span><span class="cd-val" id="cd-status">—</span></div>
+    </div>
+
+    <div class="section-title" style="margin-top:12px">REGIMES</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
+      <span class="regime-tag tag-trend">TREND</span>
+      <span class="regime-tag tag-chop">CHOP</span>
+      <span class="regime-tag tag-hivol">HI-VOL</span>
+      <span class="regime-tag tag-crash">CRASH</span>
+      <span class="regime-tag tag-sqz">SQUEEZE</span>
+      <span class="regime-tag tag-thin">THIN</span>
+    </div>
+
+    <div class="section-title">COLOR KEY</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:10px">
+      <div><span style="color:#4f4">■</span> Positive edge (WR ≥ 55% + R ≥ 1.2)</div>
+      <div><span style="color:#f66">■</span> Negative edge</div>
+      <div><span style="color:#fa4">■</span> Marginal / n &lt; 30</div>
+      <div><span style="color:#666">■</span> Neutral / inconclusive</div>
+      <div><span style="color:#333">■</span> No data</div>
+    </div>
+
+    <div class="section-title">DECAY KEY</div>
+    <div style="font-size:10px;line-height:1.8;color:#888">
+      <div>1s → immediate fill value</div>
+      <div>10s → early exit window</div>
+      <div>60s → 1-min bar edge</div>
+      <div>5m → HTF confirmation hold</div>
+      <div>Decay &gt; 50% in 10s = timing-sensitive</div>
+    </div>
+
+    <div style="margin-top:16px;padding:8px;background:#0d0d1e;border:1px solid #1a1a30;border-radius:2px">
+      <div style="color:#555;font-size:9px;line-height:1.7">
+        Mock data — real values from<br>
+        GitHub Actions lab run<br>
+        (GEMINI_API_KEY set ✓)<br>
+        n &lt; 30 = "not evidence"
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const REGIMES = ['TREND','CHOP','HI-VOL','CRASH','SQUEEZE','THIN'];
+const STRATEGIES = [
+  { id:'harm_gartley', label:'Gartley', family:'Harmonic' },
+  { id:'harm_bat',     label:'Bat',     family:'Harmonic' },
+  { id:'harm_cypher',  label:'Cypher',  family:'Harmonic' },
+  { id:'elliott_w3',   label:'Elliott W3', family:'Elliott' },
+  { id:'elliott_wc',   label:'Elliott Wc', family:'Elliott' },
+  { id:'ict_ob',       label:'OB',      family:'ICT/Liq' },
+  { id:'ict_fvg',      label:'FVG',     family:'ICT/Liq' },
+  { id:'ict_bos',      label:'BOS',     family:'ICT/Liq' },
+  { id:'trend_break',  label:'Break',   family:'Trend' },
+  { id:'trend_pull',   label:'Pullback',family:'Trend' },
+  { id:'session_lon',  label:'London',  family:'Session' },
+  { id:'session_ny',   label:'NY',      family:'Session' },
+];
+
+function mockCell(strat, regime) {
+  // Some strategies are better in some regimes
+  const bias = {
+    harm_gartley:  { TREND:0.6,CHOP:0.3,HI_VOL:-0.2,CRASH:-0.4,SQUEEZE:0.1,THIN:0   },
+    harm_bat:      { TREND:0.5,CHOP:0.4,HI_VOL:-0.1,CRASH:-0.3,SQUEEZE:0.2,THIN:0   },
+    harm_cypher:   { TREND:0.3,CHOP:0.5,HI_VOL:0.1, CRASH:-0.2,SQUEEZE:0.3,THIN:0   },
+    elliott_w3:    { TREND:0.7,CHOP:-0.2,HI_VOL:0.1,CRASH:-0.5,SQUEEZE:-0.1,THIN:0  },
+    elliott_wc:    { TREND:0.5,CHOP:-0.1,HI_VOL:0.2,CRASH:-0.3,SQUEEZE:0, THIN:0    },
+    ict_ob:        { TREND:0.5,CHOP:0.2, HI_VOL:0.3, CRASH:-0.1,SQUEEZE:0.4,THIN:0.1},
+    ict_fvg:       { TREND:0.4,CHOP:0.3, HI_VOL:0.2, CRASH:-0.2,SQUEEZE:0.3,THIN:0.1},
+    ict_bos:       { TREND:0.6,CHOP:-0.1,HI_VOL:0.4, CRASH:-0.2,SQUEEZE:0.2,THIN:0  },
+    trend_break:   { TREND:0.8,CHOP:-0.5,HI_VOL:0.2, CRASH:-0.3,SQUEEZE:-0.3,THIN:0 },
+    trend_pull:    { TREND:0.6,CHOP:-0.2,HI_VOL:0.1, CRASH:-0.2,SQUEEZE:0, THIN:0   },
+    session_lon:   { TREND:0.4,CHOP:0.1, HI_VOL:0.2, CRASH:0,   SQUEEZE:0.1,THIN:0.3},
+    session_ny:    { TREND:0.4,CHOP:0.1, HI_VOL:0.3, CRASH:0,   SQUEEZE:0.1,THIN:0.3},
+  }[strat.id] || {};
+  const key = regime.replace('-','_');
+  const b = bias[key] ?? 0;
+  const n = Math.floor(8 + Math.random()*35);
+  const wr = Math.max(30, Math.min(80, 52 + b*25 + (Math.random()-0.5)*10));
+  const r  = Math.max(0.5, Math.min(2.5, 1.2 + b*0.8 + (Math.random()-0.5)*0.4));
+  const tstat = (n >= 30) ? ((wr/100 - 0.5) * Math.sqrt(n) / 0.15).toFixed(1) : null;
+  return { wr: wr.toFixed(0), r: r.toFixed(2), n, tstat };
+}
+
+const MATRIX_DATA = {};
+STRATEGIES.forEach(s => {
+  MATRIX_DATA[s.id] = {};
+  REGIMES.forEach(r => { MATRIX_DATA[s.id][r] = mockCell(s, r); });
+});
+
+function cellClass(d) {
+  if (!d || d.n === 0) return 'cell-na';
+  if (d.n < 30) return 'cell-warn';
+  const wr = parseFloat(d.wr), r = parseFloat(d.r);
+  if (wr >= 55 && r >= 1.2) return 'cell-pos';
+  if (wr < 45 || r < 0.8)  return 'cell-neg';
+  return 'cell-neu';
+}
+
+// Build matrix
+const tbl = document.getElementById('matrix');
+// Header row
+let hRow = '<tr><th style="text-align:left">STRATEGY</th>';
+REGIMES.forEach(r => {
+  const cls = r==='TREND'?'tag-trend':r==='CHOP'?'tag-chop':r==='HI-VOL'?'tag-hivol':r==='CRASH'?'tag-crash':r==='SQUEEZE'?'tag-sqz':'tag-thin';
+  hRow += `<th class="${cls}" style="min-width:60px">${r}</th>`;
+});
+hRow += '</tr>';
+tbl.innerHTML = hRow;
+
+// Rows
+let lastFamily = null;
+STRATEGIES.forEach(s => {
+  const row = document.createElement('tr');
+  // Family separator
+  if (s.family !== lastFamily) {
+    lastFamily = s.family;
+    const sepRow = document.createElement('tr');
+    sepRow.innerHTML = `<td colspan="${REGIMES.length+1}" style="background:#0a0a18;color:#4af;font-size:9px;padding:3px 10px;letter-spacing:2px">${s.family}</td>`;
+    tbl.appendChild(sepRow);
+  }
+  let html = `<td class="strat-name">${s.label}</td>`;
+  REGIMES.forEach(r => {
+    const d = MATRIX_DATA[s.id][r];
+    const cls = cellClass(d);
+    const txt = d.n < 30 ? `${d.wr}%<br><span style="font-size:8px;color:#fa4">n=${d.n}</span>` : `${d.wr}%<br><span style="font-size:8px;color:#666">${d.r}R</span>`;
+    html += `<td class="${cls}" data-s="${s.id}" data-r="${r}">${txt}</td>`;
+  });
+  row.innerHTML = html;
+  tbl.appendChild(row);
+});
+
+// Cell click
+tbl.querySelectorAll('td[data-s]').forEach(td => {
+  td.addEventListener('click', () => {
+    const sid = td.dataset.s, regime = td.dataset.r;
+    const strat = STRATEGIES.find(x=>x.id===sid);
+    const d = MATRIX_DATA[sid][regime];
+    const el = document.getElementById('cellDetail');
+    el.classList.add('active');
+    document.getElementById('cd-strat').textContent = strat.label;
+    document.getElementById('cd-regime').textContent = regime;
+    document.getElementById('cd-wr').textContent = d.wr + '%';
+    document.getElementById('cd-r').textContent = d.r + ' R';
+    document.getElementById('cd-n').textContent = d.n + (d.n<30?' ⚠ not evidence':'');
+    document.getElementById('cd-t').textContent = d.tstat ? d.tstat : 'n<30';
+    const cls = cellClass(d);
+    document.getElementById('cd-status').textContent =
+      cls==='cell-pos'?'✓ Positive edge':cls==='cell-neg'?'✗ Negative':cls==='cell-warn'?'⚠ Insufficient data':'— Neutral';
+  });
+});
+
+// ── MARKOUT DECAY CHART ───────────────────────────────────────────────────────
+const canvas = document.getElementById('decay-chart');
+canvas.width = canvas.offsetWidth || 600;
+canvas.height = 160;
+const ctx = canvas.getContext('2d');
+
+const DECAY_SERIES = [
+  { label:'Harmonic', color:'#4af', values:[8.2, 6.1, 4.3, 2.8] },
+  { label:'Elliott',  color:'#fa4', values:[7.5, 5.8, 4.0, 2.2] },
+  { label:'ICT/Liq',  color:'#a4f', values:[6.8, 5.5, 4.8, 3.5] },
+  { label:'Trend',    color:'#4f4', values:[9.0, 7.2, 5.5, 3.8] },
+  { label:'Session',  color:'#f4a', values:[5.5, 4.8, 4.2, 3.8] },
+];
+const X_LABELS = ['1s','10s','60s','5m'];
+const W = canvas.width, H = canvas.height;
+const PAD = { l:40, r:110, t:10, b:24 };
+const CW = W - PAD.l - PAD.r, CH = H - PAD.t - PAD.b;
+
+// Grid
+ctx.fillStyle = '#090910';
+ctx.fillRect(0,0,W,H);
+ctx.strokeStyle = '#1a1a30';
+for(let i=0;i<=4;i++){
+  const y = PAD.t + (CH/4)*i;
+  ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
+  ctx.fillStyle='#444'; ctx.font='9px Courier New'; ctx.textAlign='right';
+  ctx.fillText((10-i*2.5).toFixed(1)+' bps', PAD.l-4, y+3);
+}
+X_LABELS.forEach((lbl,i) => {
+  const x = PAD.l + (CW/(X_LABELS.length-1))*i;
+  ctx.fillStyle='#555'; ctx.font='9px Courier New'; ctx.textAlign='center';
+  ctx.fillText(lbl, x, H-6);
+});
+
+// Series
+const maxVal = 10;
+DECAY_SERIES.forEach(s => {
+  ctx.beginPath();
+  s.values.forEach((v,i) => {
+    const x = PAD.l + (CW/(X_LABELS.length-1))*i;
+    const y = PAD.t + CH - (v/maxVal)*CH;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = s.color; ctx.lineWidth = 1.5; ctx.stroke();
+  // Dots
+  s.values.forEach((v,i) => {
+    const x = PAD.l + (CW/(X_LABELS.length-1))*i;
+    const y = PAD.t + CH - (v/maxVal)*CH;
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle = s.color; ctx.fill();
+  });
+  // Legend
+  const ly = PAD.t + DECAY_SERIES.indexOf(s)*16;
+  ctx.fillStyle = s.color; ctx.fillRect(W-PAD.r+8, ly, 10, 2);
+  ctx.fillStyle = '#999'; ctx.font='9px Courier New'; ctx.textAlign='left';
+  ctx.fillText(s.label, W-PAD.r+22, ly+4);
+});
+
+// Axis label
+ctx.fillStyle='#4af'; ctx.font='9px Courier New'; ctx.textAlign='center';
+ctx.fillText('Edge decay after fill — bps per trade', W/2, PAD.t+10);
+
+// ── WHO PAYS US ──────────────────────────────────────────────────────────────
+const WHO_DATA = [
+  { family:'Harmonic',  bps:8.2,  trades_pct:22, payer:'Market makers at pattern completion zones' },
+  { family:'Elliott W3',bps:9.0,  trades_pct:18, payer:'Late trend-followers chasing momentum' },
+  { family:'ICT/OB',    bps:7.5,  trades_pct:25, payer:'Retail stops below obvious swing lows' },
+  { family:'ICT/BOS',   bps:6.8,  trades_pct:20, payer:'Breakout traders faded at structure' },
+  { family:'Session',   bps:5.5,  trades_pct:15, payer:'London open gap fillers' },
+];
+const maxBps = Math.max(...WHO_DATA.map(d=>d.bps));
+
+const wTbl = document.getElementById('who');
+wTbl.innerHTML = `<tr><th>FAMILY</th><th>BPS/TRADE</th><th>EDGE BAR</th><th>% TRADES</th><th>WHO PAYS</th></tr>`;
+WHO_DATA.forEach(d => {
+  const pct = (d.bps/maxBps*100).toFixed(0);
+  wTbl.innerHTML += `<tr>
+    <td class="fam">${d.family}</td>
+    <td class="val-pos">+${d.bps}</td>
+    <td><span class="bar-bg"><span class="bar-fill" style="width:${pct}%"></span></span></td>
+    <td>${d.trades_pct}%</td>
+    <td style="color:#888;font-size:9px">${d.payer}</td>
+  </tr>`;
+});
+</script>
+</body>
+</html>

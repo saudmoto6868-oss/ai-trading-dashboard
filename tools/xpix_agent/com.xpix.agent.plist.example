@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Optional: start the Agent server at login on macOS. Copy to ~/Library/LaunchAgents/com.xpix.agent.plist, set the path below, then: launchctl load ~/Library/LaunchAgents/com.xpix.agent.plist
+     The token is read from ~/.xpix_agent_token by start_mac.sh (not stored here). Streamlit must be running too (start it the same way or by hand). -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.xpix.agent</string>
+  <key>ProgramArguments</key><array><string>/bin/sh</string><string>/PATH/TO/ai-trading-dashboard/tools/xpix_agent/start_mac.sh</string></array>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/tmp/xpix_agent.log</string><key>StandardErrorPath</key><string>/tmp/xpix_agent.log</string>
+</dict></plist>

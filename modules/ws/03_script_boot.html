@@ -1,0 +1,30 @@
+<script>
+/* any uncaught error is shown on screen (a dark frame with no toolbar otherwise looks like "the page does not open") */
+/* safe boot: a flag is set now and cleared 5 s after start-up (a freeze blocks that timer). If it is still there on the next load, the last load hung or crashed
+   (usually on old saved data) -> the saved Workspace (layout, widget settings, heat-map history, drawings) is cleared before anything reads it; the journal is kept. */
+/* The flag used to stay behind whenever Streamlit replaced this frame within 5 s (any rerun), and the next load wiped every setting
+   (owner: "refresh resets everything"). Now the flag is removed when the frame unloads normally, and the wipe needs TWO stuck loads in a row. */
+(function(){ try { const P = "ai_ws_v5", BOOT = P + "_boot", BAD = P + "_bootbad", SS = sessionStorage, prev = SS.getItem(BOOT), now = Date.now(), mine = String(now);   // per tab (sessionStorage): a second open tab must not look like a stuck first tab
+  const stuck = prev && now - +prev > 8000 && now - +prev < 6 * 3600e3, strikes = stuck ? (+localStorage.getItem(BAD) || 0) + 1 : 0;
+  if (strikes >= 2){
+    Object.keys(localStorage).filter(k => k.startsWith(P) && !/journal|_jset/i.test(k)).forEach(k => localStorage.removeItem(k));
+    window.__wsSafeBoot = true; }
+  else if (strikes) SS.setItem(BAD, String(strikes)); else SS.removeItem(BAD);
+  SS.setItem(BOOT, mine);
+  addEventListener("pagehide", () => { try { if (SS.getItem(BOOT) === mine) SS.removeItem(BOOT); } catch(e){} });   // a normal unload is not a hang
+} catch(e){} })();
+/* Theme / material / language live in the page link (?theme=...), so opening the bare link fell back to Classic. The current choice is
+   also kept in cookies (xpix_theme / xpix_mat / xpix_lang); main.py reads them when the link has no choice. While the app runs,
+   a link without ?theme means Classic and without ?mat means Auto (main.py removes the default from the link). */
+(function(){ try { const W = window.parent;
+  const save = () => { try { const u = new URLSearchParams(W.location.search);
+    [["theme", "classic"], ["mat", "auto"], ["lang", ""]].forEach(([k, d]) => { const v = u.get(k) || d; if (v) document.cookie = "xpix_"+k+"="+encodeURIComponent(v)+"; path=/; max-age=31536000; SameSite=Lax"; }); } catch(e){} };
+  save(); setInterval(save, 10000); } catch(e){} })();
+(function(){ const show = m => { try { let b = document.getElementById("wsErrBox"); if (!b){ b = document.createElement("div"); b.id = "wsErrBox";
+  b.style.cssText = "position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#3a0d12;color:#ffd7dc;border:1px solid #f6465d;border-radius:6px;padding:8px 10px;font:12px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto";
+  (document.body || document.documentElement).appendChild(b); } b.textContent += (b.textContent ? "\n" : "Workspace error (send a screenshot of this box):\n") + m; } catch(_){} };
+  window.addEventListener("error", e => show((e.message || "error") + (e.filename ? " @ line " + e.lineno + ":" + e.colno : "") + (e.error && e.error.stack ? "\n" + String(e.error.stack).split("\n").slice(0, 4).join("\n") : "")));
+  window.addEventListener("unhandledrejection", e => { const r = e.reason; if (r && /fetch|network|HTTP|Failed|abort/i.test(String(r.message || r))) return; show("promise: " + String((r && (r.stack || r.message)) || r).slice(0, 500)); });
+})();
+</script>
+<script>

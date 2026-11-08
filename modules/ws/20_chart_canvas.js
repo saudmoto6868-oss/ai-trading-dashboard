@@ -60,7 +60,7 @@ class CandleChart {
     if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else { if (oLast != null){ let k = 0; for (let i = arr.length-1; i >= 0 && arr[i].t > oLast; i--) k++; this.follow(k, o.length); } this.draw(); }
   }
-  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
+  restoreFrom(v){ this.lockR = v.lock || null; this.onFree && this.onFree(); this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -88,10 +88,10 @@ class CandleChart {
   }
   // new candle(s) appended: if the latest candle was on screen, shift the view by the same count so the latest candle keeps its place (zoom and price scale untouched); scrolled back into history = the view stays put
   follow(added, nOld){ if (added > 0 && this.r >= nOld - 1.5) this.r += added; }
-  centerNow(){ this.lockR = null; this.fit(); this.onFree && this.onFree(); }   // toolbar Fit: one click = latest candle back to the middle, price scale back to auto
+  centerNow(){ this.fit(); }   // toolbar Fit: one click = latest candle back to the middle, price scale back to auto
   fit(){
-    const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
+    const n = this.data.length; this.lockR = null; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.onFree) this.onFree(); else this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   freezeY(){   // price scale -> manual at the range on screen right now (TradingView: dragging the chart vertically switches auto-scale off); the ⇅ / 🔒 button switches it back
     if (this.lockR || this._lo == null || !isFinite(this._lo) || !isFinite(this._hi) || this._hi <= this._lo) return;
@@ -184,8 +184,8 @@ class CandleChart {
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
   // per-tab view in sessionStorage only: a reload (Streamlit refresh) reopens this tab exactly where it was; a new tab opens centred. A shared localStorage key let one tab's reload overwrite another tab's view, which then snapped back
   viewGet(){ try { return JSON.parse(sessionStorage.getItem(this.viewKey()) || "null"); } catch(e){ return null; } }
-  saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift})); } catch(e){} }
-  restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lock: this.lockR})); } catch(e){} }
+  restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lock || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }

@@ -43,7 +43,7 @@ def send_photo(path, caption=""):
 class Platform:
     """Chromium + the platform iframe that exposes window.XCMD."""
     def __init__(self, pw):
-        self.ctx = pw.chromium.launch_persistent_context(PROFILE, headless=True, viewport={"width": 1600, "height": 950})
+        self.ctx = pw.chromium.launch_persistent_context(PROFILE, headless=True, viewport={"width": 2000, "height": 1250})
         self.page = self.ctx.pages[0] if self.ctx.pages else self.ctx.new_page()
         self.page.goto(URL, wait_until="domcontentloaded")
         self.frame = self._find(90)

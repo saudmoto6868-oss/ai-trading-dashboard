@@ -289,17 +289,20 @@ document.addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey) || e.a
   const k = e.key.toLowerCase(); if (k === "z" && !e.shiftKey){ e.preventDefault(); Ws.undo(); } else if ((k === "z" && e.shiftKey) || k === "y"){ e.preventDefault(); Ws.redo(); } });
 Ws.clear = () => { Ws.panels.slice().forEach(p => { p.clearSubs(); p.destroy && p.destroy(); p.root.remove(); }); Ws.panels = []; };
 Ws.defaults = () => {
-  const W = Ws.el.clientWidth || 1200, H0 = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10, rh = 150, oy = rh + 10, H = H0 - oy;
-  const lw = r(W*0.22), x1 = lw+10, cw = r(W*0.36), x2 = x1+cw+10, dw = r(W*0.18), x3 = x2+dw+10, tw = W-x3;
-  const top = r(H*0.7), wh = r(H*0.62), sh = 0;
-  return [["signals", {x:0,y:0,w:W,h:rh}, {}]].concat([
-    ["watch", {x:0,y:0,w:lw,h:wh}, {group:1}],
-    ["alerts", {x:0,y:wh+10,w:lw,h:H-wh-10}, {}],
-    ["chart", {x:x1,y:sh,w:cw,h:r((top-sh)/2)}, {sym:SYMS[0], group:1, tf:"15s", ema:{9:true,21:false,50:false}}],
-    ["chart", {x:x1,y:sh+r((top-sh)/2)+10,w:cw,h:top-sh-r((top-sh)/2)-10}, {sym:SYMS[0], group:1, tf:"5m", ema:{9:true,21:true,50:false}}],
-    ["dom", {x:x2,y:sh,w:dw,h:top-sh}, {sym:SYMS[0], group:1}],
-    ["tape", {x:x3,y:sh,w:tw,h:top-sh}, {sym:SYMS[0], group:1}],
-    ["limits", {x:x1,y:top+10,w:cw,h:H-top-10}, {sym:SYMS[0], group:1}],
-    ["scanner", {x:x2,y:top+10,w:dw+10+tw,h:H-top-10}, {}],
-  ].map(([t,rc,st]) => [t, Object.assign({}, rc, {y:rc.y+oy}), st]));
+  // XPiX standard layout (owner's screenshot 2026-11-05): watchlist + signals on the left, 2x2 charts (5m 15m / 1H 4H), order book + time & sales, limit tracking under them. Fractions of the workspace area.
+  let vh = window.innerHeight; try { vh = Math.min(vh, parent.innerHeight - (window.frameElement ? window.frameElement.getBoundingClientRect().top : 0)); } catch(e){}   // the page may be embedded in a taller frame: fit what the person can actually see
+  const W = Ws.el.clientWidth || 1200, H = Math.max(600, Math.min(Ws.el.clientHeight || 700, Math.round(vh - Ws.el.getBoundingClientRect().top))), X = f => Math.round(W*f), Y = f => Math.round(H*f), g = 4;
+  const c0 = X(0.1575), c1 = X(0.459), c2 = X(0.756), c3 = X(0.876), rm = Y(0.56), lm = Y(0.551), dm = Y(0.597);
+  const ch = tf => ({sym:SYMS[0], group:1, tf, ema:{9:true,21:true,50:false}});
+  return [
+    ["watch", {x:0,y:0,w:c0-g,h:lm-g}, {group:1}],
+    ["signals", {x:0,y:lm,w:c0-g,h:H-lm}, {}],
+    ["chart", {x:c0,y:0,w:c1-c0-g,h:rm-g}, ch("5m")],
+    ["chart", {x:c1,y:0,w:c2-c1-g,h:rm-g}, ch("15m")],
+    ["chart", {x:c0,y:rm,w:c1-c0-g,h:H-rm}, ch("1H")],
+    ["chart", {x:c1,y:rm,w:c2-c1-g,h:H-rm}, ch("4H")],
+    ["dom", {x:c2,y:0,w:c3-c2-g,h:dm-g}, {sym:SYMS[0], group:1}],
+    ["tape", {x:c3,y:0,w:W-c3,h:dm-g}, {sym:SYMS[0], group:1}],
+    ["limits", {x:c2,y:dm,w:W-c2,h:H-dm}, {sym:SYMS[0], group:1}],
+  ];
 };

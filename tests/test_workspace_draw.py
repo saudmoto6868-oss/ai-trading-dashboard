@@ -27,7 +27,8 @@ def test_tradingview_tool_set():
 
 
 def test_chart_is_free_by_default():
-    assert 'getItem("ai_ac") === "1"' in H                                          # 2026-10-24: auto-centre is OFF unless the user turned it on (it undid every zoom / pan on each live tick)
+    assert "autoCenter" not in H and "followLatest" not in H                        # 2026-11-08: no auto-centre mode (it undid every zoom / pan on each tick / poll); toolbar Fit = one-shot centerNow()
+    assert "follow(added, nOld){" in H and "centerNow(){" in H                       # new candle: the latest candle keeps its place on screen
     assert "freezeY(){" in H                                                        # vertical drag / Shift+wheel switches the price scale to manual
 
 

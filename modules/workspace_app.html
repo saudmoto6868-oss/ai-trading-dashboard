@@ -1774,11 +1774,15 @@ class CandleChart {
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
     return [mid-span/2, mid+span/2];
   }
-  fmtTime(ms){
+  fmtTime(ms, full){
     const d = new Date(ms), day = d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
     if (TFSEC[this.tf] < 60) return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds());
-    if (this.tf === "1D" || this.tf === "1W") return day;
-    return d.getHours() === 0 && d.getMinutes() === 0 ? day : pad2(d.getHours())+":"+pad2(d.getMinutes());
+    const sec = TFSEC[this.tf] || 0, hm = pad2(d.getHours())+":"+pad2(d.getMinutes());
+    if (sec >= 604800) return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+" '"+String(d.getFullYear()).slice(2);   // 1W / 1M span years: month + year
+    if (sec >= 86400) return day;
+    if (full) return day+" "+hm;   // crosshair label: date and hour
+    if (sec >= 14400) return day;   // 4H..12H: axis steps are days apart, an hour alone repeated ("03:00 03:00" on 3D / 12H)
+    return d.getHours() === 0 && d.getMinutes() === 0 ? day : hm;
   }
   drawData(){   // redraw asked by streaming data (book polls, trades): at most ~7 per second per chart; mouse / touch still use draw() at full speed
     const now = performance.now(); if (now - (this._dd || 0) >= 140){ this._dd = now; this.draw(); return; }
@@ -1957,7 +1961,7 @@ class CandleChart {
       const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last; const inMain = m.y < PB;
       c.strokeStyle = "#5a636e"; c.setLineDash([2,3]); c.beginPath(); c.moveTo(m.x+.5,0); c.lineTo(m.x+.5,H-20); c.moveTo(0,m.y+.5); c.lineTo(PR,m.y+.5); c.stroke(); c.setLineDash([]);
       if (inMain){ c.fillStyle = "#2b3139"; c.fillRect((this.W-this.axw)+1, m.y-8, this.axw-2, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), (this.W-this.axw)+5, m.y); }
-      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t); const tw = c.measureText(label).width + 10;
+      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t, true); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, H-19, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, H-10);
     }
     const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? TH.up : TH.dn;

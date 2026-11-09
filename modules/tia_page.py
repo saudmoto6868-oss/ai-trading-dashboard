@@ -16,6 +16,10 @@ def render_tia():
     <div class="tia-s">UNIFIED MARKETS · MULTI-SOURCE INTELLIGENCE · HUMAN-CONTROLLED DECISIONS</div></div>
     """,unsafe_allow_html=True)
 
+    from modules.tia_agent_admin import render_agent_admin
+    render_agent_admin()
+    st.divider()
+
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
     market = st.selectbox("Market tab", CLASSES, index=0, key="tia_market_class")
@@ -62,6 +66,3 @@ def render_tia():
     from modules.tia_workspace import render_tia_workspace
     render_tia_workspace(height=1040, universe=market, symbols=symbols)
 
-    st.divider()
-    from modules.tia_agent_admin import render_agent_admin
-    render_agent_admin()

@@ -95,10 +95,8 @@ def render_agent_admin():
                     if history:
                         st.json([{ "event": e["event_type"], "from": e["from_state"], "to": e["to_state"], "at": e["created_at"], "payload": e["payload"] } for e in history])
                     if task["status"] in ("queued", "blocked"):
-                        a, b = st.columns(2)
-                        if a.button("بدء المهمة يدوياً", key=f'tia_task_start_{task["task_id"]}'):
-                            st.warning("لا يمكن بدء التنفيذ: لا يوجد worker متصل. حالة المهمة تظل كما هي.")
-                        if b.button("إلغاء المهمة", key=f'tia_task_cancel_{task["task_id"]}'):
+                        st.caption("المهمة محفوظة في الانتظار؛ التنفيذ التلقائي غير متصل بعد.")
+                        if st.button("إلغاء المهمة", key=f'tia_task_cancel_{task["task_id"]}'):
                             store.transition_task(task["task_id"], "cancelled", actor="owner", payload={"reason":"owner_cancelled"})
                             st.rerun()
         else:

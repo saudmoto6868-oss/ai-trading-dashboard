@@ -106,3 +106,11 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - The original proposal is never edited. The UI derives its current review state from the latest review event in the loaded journal window.
 - Approval means permission for a human to enter the item in the official board; it does not write or assign a Technical Office task.
 - Added a regression test covering proposal metadata, review linkage and the no-board-write invariant. Test execution is still pending because this GitLab project has no CI configuration file.
+
+## 2026-11-09 · Knowledge intake and proposal lifecycle hardening
+- Fixed the duplicate else branch in the Center Meeting Room view; proposal rendering now has one valid empty-state branch.
+- Research Hub cards disclose provenance: Truth Court / Consensus / Funnel are lab-derived with documented scope caveats; Plateau and Regime are real-market-data probes/descriptive outputs; Decision Trail and Decay Watch remain mock-only until a real signal log is supplied.
+- Task proposals and their latest reviews are now queried independently from the 500-entry journal display limit. The original proposal remains immutable; the latest review event is shown separately.
+- Added a Knowledge intake form. New entries are forced to inbox + unreviewed; empirical-validation claim type is not offered. Source URLs are restricted to HTTP(S) in both UI and shared data-layer validation.
+- Added regression coverage for proposals beyond the journal limit, review linkage, unsafe source URLs, and test environment variable restoration.
+- Not yet executed: Python tests or Streamlit runtime preview. GitLab pipeline creation previously failed because the repository has no CI config file. No merge/deploy; main remains untouched.

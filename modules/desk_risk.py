@@ -1,10 +1,8 @@
 """Order Flow Desk - agent 5 (risk manager): position size + daily guard.
 
-Rules come from the owner's Order Flow Desk minutes (docs/MEETING_ROOM.md, 2026-11-08):
-risk per trade 0.25 %, max daily loss 2 %, stop trading after 3 stops in a day, reward:risk at least 1:2.
-OPEN QUESTION (docs/XPIX_UPDATE_2026-11-08.md): older DESK settings say 0.5 % per trade. The default here
-follows the newest minutes (the stricter number); change RULES.risk_pct / pass your own DeskRules once the
-owner decides. Nothing here places orders - it only says "allowed / blocked, and why".
+Rules: risk per trade 0.5 % (owner decision 2026-11-09; the 2026-11-08 minutes said 0.25 %), max daily loss 2 %,
+stop trading after 3 stops in a day, reward:risk at least 1:2 (docs/MEETING_ROOM.md, 2026-11-08).
+Nothing here places orders - it only says "allowed / blocked, and why".
 
 Pure functions, no Streamlit, no network -> unit-tested in tests/test_desk_risk.py.
 """
@@ -16,7 +14,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class DeskRules:
-    risk_pct: float = 0.25          # % of equity risked per trade (owner minutes 2026-11-08; 0.5 pending decision)
+    risk_pct: float = 0.5           # % of equity risked per trade (owner decision 2026-11-09)
     daily_max_loss_pct: float = 2.0  # % of start-of-day equity; reaching it locks the day
     max_stops: int = 3               # stops (losing trades) per day before the day locks
     min_rr: float = 2.0              # first target must be >= min_rr x risk

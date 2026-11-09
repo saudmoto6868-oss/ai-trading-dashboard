@@ -1130,14 +1130,35 @@ for _k in list(st.session_state.keys()):
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
 _PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro"]   # 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [1, 12, 0, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
+_HUBS = {13: [11, 10, 16, 4, 6], 14: [2, 9, 8, 3], 15: [5, 12, 7]}   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
+_PAGE_ORDER = [0, 1, 13, 14, 15]   # the top bar: Workspace, Radar, Trading, Lab, Learn & AI
+
+
+def _nav_to(i):
+    """Open page i (an old page index opens its hub with that sub-page selected)."""
+    h = _HUB_OF.get(i)
+    st.session_state["page"] = h if h is not None else (i if i in _PAGE_ORDER else 0)
+    if h is not None:
+        st.session_state[f"hub_{h}"] = i
+
+
 if "page" not in st.session_state:
     try:
-        st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
+        _nav_to(int(st.query_params.get("page", 0)))
     except (TypeError, ValueError):
-        st.session_state["page"] = 0
+        _nav_to(0)
+elif st.session_state["page"] not in _PAGE_ORDER:   # a session opened before the hubs existed
+    _nav_to(st.session_state["page"])
 with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+if PAGE in _HUBS:   # one compact row of sub-tabs; PAGE becomes the old page index, so every `if PAGE == N` block below is unchanged
+    _hk = f"hub_{PAGE}"
+    if st.session_state.get(_hk) not in _HUBS[PAGE]:   # Streamlit drops an undrawn widget's value: come back to the last sub-page used
+        st.session_state[_hk] = st.session_state.get("last_" + _hk) if st.session_state.get("last_" + _hk) in _HUBS[PAGE] else _HUBS[PAGE][0]
+    with st.container(key="hubnav"):
+        PAGE = st.radio(L(_PAGES[PAGE]), _HUBS[PAGE], format_func=lambda i: L(_PAGES[i]), horizontal=True, key=_hk, label_visibility="collapsed")
+    st.session_state["last_" + _hk] = PAGE
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)

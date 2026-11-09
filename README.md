@@ -15,6 +15,8 @@ with sound plus a full trade plan (entry, stop loss, 3 staged take profits)
 when a signal is strong.
 
 ## Academy (project knowledge base)
+
+The platform-wide **Academy Intelligence** widget is available from Workspace `+ Widget`. Its shared record contract and evidence rules are documented in `docs/academy/INTELLIGENCE_HUB_SPEC.md`.
 Dual-track reference for every trading school used in the product:
 
 | Track | Path | Audience |

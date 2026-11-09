@@ -92,3 +92,5 @@
 - 2026-11-09: Fixed silent retention of stale OKX book/tape snapshots. Hub now emits explicit stale metadata and callbacks on poll failures; XPIX distinguishes stale last-known data from actively receiving data. Regenerated workspace bundle from all 23 sorted source parts. Static consistency checks only; runtime tests not run.
 
 - 2026-11-09: OFM now ignores stale book callbacks; otherwise its local snapshot timestamp could make a retained old book look newly received. The generated bundle received the matching one-line guard.
+
+- 2026-11-09: Fixed OFM trade dedupe rollover. Instead of clearing all 6,000 seen trade IDs (which could replay the overlapping REST batch as duplicate bubbles), it now prunes the oldest 2,000 IDs while retaining recent overlap IDs. Added a regression guard to `tests/browser/xpix_evidence_contract_mock.js`; static review only, not executed.

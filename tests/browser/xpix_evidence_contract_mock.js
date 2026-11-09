@@ -2,6 +2,9 @@
 // Verifies shared Hub payload metadata, exchange-vs-received timestamps, and explicit Yahoo unsupported capability.
 // Run: NODE_PATH=$(npm root -g) node tests/browser/xpix_evidence_contract_mock.js /tmp/ws.html
 const { chromium } = require('playwright');
+const fs = require('fs');
+const bundle = fs.readFileSync(process.argv[2], 'utf8');
+const tradeDedupeGuard = bundle.includes('if (seen.size > 6000){ const it=seen.values(); for(let i=0;i<2000;i++){const v=it.next();if(v.done)break;seen.delete(v.value);} }') && !bundle.includes('if (seen.size > 6000){ seen.clear(); }');
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
   const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
@@ -106,7 +109,8 @@ const { chromium } = require('playwright');
   Object.assign(out, downstream);
   await p.evaluate(() => { [window.__xpixBook, window.__xpixTape, window.__xpixYahoo].forEach(f => f && f()); });
   await b.close();
-  const pass = out.book && out.tape && out.unsupported && out.tabContract && out.footprintLink &&
+  out.tradeDedupeGuard = tradeDedupeGuard;
+  const pass = tradeDedupeGuard && out.book && out.tape && out.unsupported && out.tabContract && out.footprintLink &&
     out.liquidityPreview && out.auction && out.indicators && out.waitState && !errs.length;
   console.log(JSON.stringify({out, errors: errs}), pass ? 'PASS' : 'FAIL');
   process.exit(pass ? 0 : 1);

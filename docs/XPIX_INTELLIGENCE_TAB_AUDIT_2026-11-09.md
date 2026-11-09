@@ -162,3 +162,10 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - XPIX keeps last-known values visible but labels retained snapshots as stale; unsupported feeds remain distinct from stale supported feeds.
 - Recovery replaces the stale snapshot with a fresh supported payload.
 - OFM ignores stale book callbacks so it cannot stamp an old book as a newly received heatmap snapshot. Runtime/browser tests remain pending.
+
+
+## Time & Sales deduplication review — 2026-11-09
+
+- Found OFM cleared its entire 6,000-ID seen set at once. The next overlapping REST poll could reinsert already-rendered prints and duplicate heatmap bubbles.
+- Replaced full clear with FIFO-style pruning of the oldest 2,000 IDs, retaining a rolling overlap window. Added a static regression assertion to the browser contract test.
+- Hub's 100-print response is reversed into ascending exchange timestamp order; the Footprint recorder and FPS tests explicitly cover duplicate IDs and coverage holes. Browser/runtime tests remain unexecuted.

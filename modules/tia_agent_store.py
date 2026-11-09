@@ -18,7 +18,7 @@ from typing import Any
 
 from modules.tia_agent_charter import default_roster, validate_profile
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 TASK_STATES = {
     "draft": {"queued", "cancelled"},
     "queued": {"running", "cancelled", "blocked"},
@@ -176,6 +176,17 @@ class TIAStore:
                 actor TEXT NOT NULL, created_at TEXT NOT NULL, payload_json TEXT NOT NULL,
                 FOREIGN KEY(job_id) REFERENCES scheduled_jobs(job_id)
             );
+            CREATE TABLE IF NOT EXISTS agent_messages (
+                message_id TEXT PRIMARY KEY, sender_agent_id TEXT NOT NULL,
+                receiver_agent_id TEXT NOT NULL, message_type TEXT NOT NULL,
+                subject TEXT NOT NULL, body TEXT NOT NULL, payload_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'sent', created_at TEXT NOT NULL,
+                acknowledged_at TEXT, correlation_id TEXT NOT NULL,
+                FOREIGN KEY(sender_agent_id) REFERENCES agent_profiles(agent_id),
+                FOREIGN KEY(receiver_agent_id) REFERENCES agent_profiles(agent_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_messages_inbox ON agent_messages(receiver_agent_id,status,created_at);
+            CREATE INDEX IF NOT EXISTS idx_agent_messages_outbox ON agent_messages(sender_agent_id,created_at);
             """)
             db.execute("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(?,?)", (SCHEMA_VERSION, utc_now()))
         self.seed_roster()
@@ -429,6 +440,60 @@ class TIAStore:
             rows = db.execute("SELECT * FROM audit_events" + where +
                               " ORDER BY created_at DESC LIMIT ?", (*params, limit)).fetchall()
         return [{**dict(r), "payload": json.loads(r["payload_json"])} for r in rows]
+
+    def create_agent_message(self, sender_agent_id, receiver_agent_id, message_type, subject, body, payload=None, correlation_id=None):
+        allowed = {"analysis", "alert", "question", "decision", "task_handoff", "status"}
+        if message_type not in allowed: raise ValueError("unsupported agent message type")
+        subject = _safe_text(subject, "message subject")
+        body = _safe_text(body, "message body")
+        if not subject or len(subject) > 160 or not body or len(body) > 12000:
+            raise ValueError("message subject/body length is invalid")
+        safe = _redact(payload or {})
+        message_id, now = str(uuid.uuid4()), utc_now()
+        correlation = correlation_id or str(uuid.uuid4())
+        with self._connect() as db:
+            for agent_id in (sender_agent_id, receiver_agent_id):
+                if not db.execute("SELECT 1 FROM agent_profiles WHERE agent_id=?", (agent_id,)).fetchone(): raise KeyError(agent_id)
+            db.execute("INSERT INTO agent_messages VALUES(?,?,?,?,?,?,?,'sent',?,NULL,?)",
+                       (message_id, sender_agent_id, receiver_agent_id, message_type, subject, body, _json(safe), now, correlation))
+            self._audit(db, "agent_message", message_id, sender_agent_id, "message.sent",
+                        {"receiver_agent_id": receiver_agent_id, "message_type": message_type}, correlation)
+        return message_id
+
+    def list_agent_messages(self, agent_id, mailbox="inbox", status=None, limit=100):
+        if mailbox not in {"inbox", "outbox", "all"}: raise ValueError("mailbox must be inbox, outbox or all")
+        limit = max(1, min(int(limit), 500))
+        if mailbox == "inbox": clauses, params = ["receiver_agent_id=?"], [agent_id]
+        elif mailbox == "outbox": clauses, params = ["sender_agent_id=?"], [agent_id]
+        else: clauses, params = ["(sender_agent_id=? OR receiver_agent_id=?)"], [agent_id, agent_id]
+        if status: clauses.append("status=?"); params.append(status)
+        params.append(limit)
+        with self._connect() as db:
+            rows = db.execute("SELECT * FROM agent_messages WHERE " + " AND ".join(clauses) + " ORDER BY created_at DESC LIMIT ?", params).fetchall()
+        return [{**dict(row), "payload": json.loads(row["payload_json"])} for row in rows]
+
+    def acknowledge_agent_message(self, message_id, actor_agent_id):
+        with self._connect() as db:
+            row = db.execute("SELECT receiver_agent_id,status FROM agent_messages WHERE message_id=?", (message_id,)).fetchone()
+            if not row: raise KeyError(message_id)
+            if row["receiver_agent_id"] != actor_agent_id: raise PermissionError("only the receiving agent may acknowledge")
+            if row["status"] == "acknowledged": return
+            now = utc_now()
+            db.execute("UPDATE agent_messages SET status='acknowledged',acknowledged_at=? WHERE message_id=?", (now, message_id))
+            self._audit(db, "agent_message", message_id, actor_agent_id, "message.acknowledged", {})
+
+    def search_memory(self, agent_id, query, memory_type=None, limit=50):
+        query = _safe_text(query, "memory search query")
+        if not query: raise ValueError("memory search query is required")
+        terms = [term for term in re.findall(r"[\\w-]+", query) if len(term) > 1][:8]
+        if not terms: return []
+        clauses, params = ["agent_id=?"], [agent_id]
+        if memory_type: clauses.append("memory_type=?"); params.append(memory_type)
+        for term in terms: clauses.append("content LIKE ? ESCAPE '\\\\'"); params.append("%" + term.replace("\\\\", "\\\\\\\\").replace("%", "\\\\%").replace("_", "\\\\_") + "%")
+        params.append(max(1, min(int(limit), 200)))
+        with self._connect() as db:
+            rows = db.execute("SELECT * FROM memory_items WHERE " + " AND ".join(clauses) + " ORDER BY created_at DESC LIMIT ?", params).fetchall()
+        return [{**dict(row), "provenance": json.loads(row["provenance_json"])} for row in rows]
 
     def create_scheduled_job(self, title, owner_agent_id, schedule, timezone_name, next_run_at, idempotency_key=None, actor="owner"):
         from zoneinfo import ZoneInfo, ZoneInfoNotFoundError

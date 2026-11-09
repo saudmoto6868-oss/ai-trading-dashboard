@@ -1,6 +1,6 @@
 # TIA Agent Persistence Layer — Phase B
 Date: 2026-11-09
-Status: SQLite repository and basic Streamlit profile/task controls integrated; worker runtime not connected.
+Status: SQLite repository, profile/task controls and scheduler configuration/claim foundation integrated; worker runtime not connected.
 
 ## Added
 `modules/tia_agent_store.py` provides:
@@ -29,3 +29,12 @@ This is a persistence layer, not a permission broker. It does not retrieve secre
 - No worker, scheduler, message bus, secret manager, approval token service or broker adapter.
 - No migration runner beyond schema version 1; future schema changes require numbered migrations.
 - GitLab pipeline for the current branch reports failed with zero jobs; no test job ran. No local compile/unit/UI test is claimed. Do not treat persistence as production-ready.
+
+
+## Scheduler foundation — schema v2
+- `modules/tia_session_scheduler.py` validates weekly local-wall-clock rules and calculates future occurrences with IANA `zoneinfo`; each occurrence is converted to UTC. No Cairo or exchange hours are assumed.
+- `scheduled_jobs` and `scheduler_events` are additive SQLite tables. Existing records are preserved.
+- `claim_due_jobs` uses an immediate SQLite transaction and expiring leases to prevent concurrent duplicate claims.
+- DST policy: ambiguous wall times use the first fold; nonexistent spring-forward wall times are skipped by the preview calculator. Operators must verify exchange calendars and instrument-specific hours before enabling a real schedule.
+- A claim only leases a schedule. There is no background process, recurring task materialization, alert delivery or agent execution yet.
+- Next: implement a supervised worker that converts claimed schedule occurrences into idempotent tasks, calculates and persists the next occurrence, supports retries/dead letters, and exposes health/heartbeat. Then add typed agent messaging and durable memory retrieval.

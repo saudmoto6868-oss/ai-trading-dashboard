@@ -69,3 +69,7 @@ Delivery order: declarative charter; persistent schema and migrations; session s
 
 ## Implementation truth
 modules/tia_agent_charter.py is declarative configuration only. It does not start workers, persist user changes, schedule daily research, store memory, manage secrets, connect live DOM, or execute orders. The existing Radar task desk remains session-state intake only. Do not call the team autonomous until persistence, worker execution and audit have passed end-to-end verification.
+
+
+## Scheduler implementation note (2026-11-09)
+The TIA scheduler foundation stores recurring weekly rules in local wall-clock time with an explicit IANA timezone, calculates UTC occurrences through zoneinfo, and records atomic expiring claims. It deliberately has no assumed exchange session hours. Configure schedules only from verified exchange/instrument calendars. Claims are not execution; worker runtime, idempotent task materialization, retries and heartbeat remain pending.

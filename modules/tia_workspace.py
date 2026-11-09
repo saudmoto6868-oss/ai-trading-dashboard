@@ -7,6 +7,8 @@ from __future__ import annotations
 import streamlit.components.v1 as components
 from modules.workspace import build_workspace_html
 
+_OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
+
 
 def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
@@ -14,7 +16,36 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
                                ui_theme="gold", ui_mat="steel")
 
-    # (the Options Desk lives in Trading > Options & macro; it is not duplicated here: removed 2026-11-09)
+    # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.
+    import json
+    import time as _time
+    _hit = _OPT_CACHE.get("v")
+    if _hit and _time.time() - _hit[0] < 180:
+        options_payload, options_errors = _hit[1], _hit[2]
+    else:
+        options_payload = {}
+        options_errors = {}
+        try:
+            from modules import options_desk as _od
+            from datetime import datetime, timezone
+            for _ccy in ("BTC", "ETH"):
+                try:
+                    _rows = _od.fetch(_ccy, ttl=120, timeout=8)
+                    _summary = _od.summarize(_rows)
+                    _expiries = []
+                    for _e in _summary.get("expiries", [])[:8]:
+                        _levels = _od.strikes(_rows, _e["exp"], _summary.get("spot") or 0, span=0.15)
+                        _expiries.append({**_e, "exp": _e["exp"].isoformat(), "levels": _levels[:80]})
+                    _dvol = _od.dvol(_ccy, days=365, ttl=1800, timeout=8)
+                    _rank = _od.iv_rank([x[1] for x in _dvol])
+                    options_payload[_ccy] = {"summary": _summary, "expiries": _expiries, "dvol": _rank,
+                                             "asof": datetime.now(timezone.utc).isoformat(), "source": "Deribit public API"}
+                except Exception as _e:
+                    options_errors[_ccy] = str(_e)[:180]
+        except Exception as _e:
+            options_errors["provider"] = str(_e)[:180]
+        _OPT_CACHE["v"] = (_time.time(), options_payload, options_errors)
+    doc = doc.replace("</head>", "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
     tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";
@@ -28,6 +59,28 @@ Panel.prototype.build_tiaheat = function(){
     const state=el("div","m",q?(q.stale?"STALE":"LIVE"):"NO FEED");state.style.fontSize="9px";tile.append(name,val,state);grid.append(tile);
   });};
   const off=Hub.sub("tickers","TIA_HEAT",draw);this.unsubs.push(off);
+};
+Panel.prototype.build_tiaoptions = function(){
+  const wrap=el("div");wrap.style.cssText="padding:9px;overflow:auto;height:100%;font-size:12px";
+  const bar=el("div","tb");const cur=el("select");["BTC","ETH"].forEach(x=>cur.append(Object.assign(el("option"),{value:x,textContent:x})));bar.append(cur);
+  const exp=el("select");bar.append(exp);const content=el("div");wrap.append(bar,content);this.body.append(wrap);
+  const fmt=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+  const render=()=>{const d=TIA_OPTIONS[cur.value];content.replaceChildren();exp.replaceChildren();
+    if(!d){const msg=el("div","m","Options snapshot unavailable: "+(TIA_OPTIONS_ERRORS[cur.value]||"no provider data"));content.append(msg);return;}
+    d.expiries.forEach((x,i)=>exp.append(Object.assign(el("option"),{value:String(i),textContent:x.exp+" · "+x.days+"d"})));
+    const metrics=el("div");metrics.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin:9px 0";
+    const cards=[["UNDERLYING PROXY",d.summary.spot],["TOTAL OI",d.summary.totals.oi],["PUT/CALL OI",d.summary.totals.pc_oi],["DVOL IV RANK",d.dvol&&d.dvol.rank!=null?d.dvol.rank+"%":null]];
+    cards.forEach(([k,v])=>{const c=el("div");c.style.cssText="padding:8px;border:1px solid var(--line)";const a=el("div","m",k);a.style.fontSize="9px";const b=el("div",null,fmt(v));b.style.cssText="font:700 15px ui-monospace,Menlo,monospace;margin-top:5px";c.append(a,b);metrics.append(c);});content.append(metrics);
+    const detail=el("div","m","Deribit public option book · snapshot "+d.asof+" · underlying is the nearest-expiry forward proxy, not a spot quote.");detail.style.cssText="font-size:10px;margin:5px 0 10px";content.append(detail);
+    const draw=()=>{const x=d.expiries[Number(exp.value)||0];if(!x)return;const stats=el("div");stats.style.cssText="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0";
+      [["PCR VOL",x.pc_vol],["ATM IV",x.iv],["10% SKEW",x.skew10],["MAX PAIN",x.max_pain]].forEach(([k,v])=>{const z=el("span",null,k+": "+fmt(v));stats.append(z);});content.append(stats);
+      const cv=el("canvas");cv.width=640;cv.height=220;cv.style.cssText="width:100%;height:220px;background:var(--panel0);border:1px solid var(--line)";content.append(cv);
+      const ctx=cv.getContext("2d"),ls=x.levels||[],mx=Math.max(1,...ls.flatMap(a=>[a[1],a[2]]));ctx.font="10px ui-monospace";ctx.fillStyle="#d6ad62";ctx.fillText("CALL OI",12,14);ctx.fillStyle="#78a9d1";ctx.fillText("PUT OI",90,14);
+      const w=(cv.width-36)/Math.max(1,ls.length);ls.forEach((a,i)=>{const xx=18+i*w,bh=(a[1]/mx)*160,ph=(a[2]/mx)*160;ctx.fillStyle="#d6ad62";ctx.fillRect(xx,190-bh,Math.max(1,w*.42),bh);ctx.fillStyle="#78a9d1";ctx.fillRect(xx+w*.46,190-ph,Math.max(1,w*.42),ph);});
+      const foot=el("div","m","Open interest is not directional positioning; it does not reveal opening/closing flow or dealer inventory. Max pain is descriptive, not a forecast.");foot.style.cssText="font-size:10px;margin-top:7px";content.append(foot);
+    };draw();};
+  cur.onchange=render;exp.onchange=()=>{const old=content.querySelector("canvas");if(old){const idx=Number(exp.value)||0;const x=TIA_OPTIONS[cur.value].expiries[idx];const ctx=old.getContext("2d");ctx.clearRect(0,0,old.width,old.height);const ls=x.levels||[],mx=Math.max(1,...ls.flatMap(a=>[a[1],a[2]])),w=(old.width-36)/Math.max(1,ls.length);ctx.font="10px ui-monospace";ctx.fillStyle="#d6ad62";ctx.fillText("CALL OI",12,14);ctx.fillStyle="#78a9d1";ctx.fillText("PUT OI",90,14);ls.forEach((a,i)=>{const xx=18+i*w;ctx.fillStyle="#d6ad62";ctx.fillRect(xx,190-a[1]/mx*160,Math.max(1,w*.42),a[1]/mx*160);ctx.fillStyle="#78a9d1";ctx.fillRect(xx+w*.46,190-a[2]/mx*160,Math.max(1,w*.42),a[2]/mx*160);});const stats=content.querySelector("div[style*='display: flex']");if(stats){stats.replaceChildren();[["PCR VOL",x.pc_vol],["ATM IV",x.iv],["10% SKEW",x.skew10],["MAX PAIN",x.max_pain]].forEach(([k,v])=>stats.append(el("span",null,k+": "+fmt(v)));}}};
+  render();
 };
 '''
 
@@ -74,8 +127,8 @@ Panel.prototype.build_tiasources = function(){
 };
 ''';
     doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", "@std"');
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     doc = doc.replace("ai_ws_v5", "tia_ws_v1")
     doc = doc.replace("<title>6868 X</title>", "<title>TIA Command Workspace</title>")

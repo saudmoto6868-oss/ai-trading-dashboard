@@ -10,12 +10,12 @@ const { chromium } = require('playwright');
   await p.route('**/*', r => {
     const u = r.request().url();
     if (u.startsWith('file:')) return r.continue();
-    if (!/okx\\.com\\/api\\/v5/.test(u)) return r.abort();
-    if (/market\\/books-full/.test(u) || /market\\/books\\?/.test(u)) {
+    if (!u.includes("okx.com/api/v5")) return r.abort();
+    if (u.includes("/market/books-full") || u.includes("/market/books?")) {
       const lv = (px, step) => Array.from({length: 60}, (_, i) => [String(px + i * step), String(2 + i % 4), '0', '1']);
       return r.fulfill(J([{ bids: lv(60000, -1), asks: lv(60001, 1), ts: String(Date.now() - 250) }]));
     }
-    if (/market\\/trades/.test(u)) return r.fulfill(J(Array.from({length: 12}, (_, i) => ({
+    if (u.includes("/market/trades")) return r.fulfill(J(Array.from({length: 12}, (_, i) => ({
       tradeId: String(9000 + i), ts: String(Date.now() - i * 500), px: String(60000 + i),
       sz: '0.25', side: i % 2 ? 'buy' : 'sell'
     }))));

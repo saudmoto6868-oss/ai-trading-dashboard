@@ -33,6 +33,8 @@ class ConversionQuote:
             raise ValueError("FX conversion source is required")
         if self.observed_at.tzinfo is None or now.tzinfo is None:
             raise ValueError("FX quote and now must be timezone-aware")
+        if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, int) or max_age_seconds < 0:
+            raise ValueError("max_fx_age_seconds must be a non-negative integer")
         rate = _finite("FX rate", self.rate, positive=True)
         age = (now - self.observed_at).total_seconds()
         if age < -5:

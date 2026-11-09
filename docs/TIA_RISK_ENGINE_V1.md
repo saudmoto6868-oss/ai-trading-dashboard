@@ -67,3 +67,13 @@ The bridge preserves each feed's `ok/why` state and does not turn a failed feed 
 
 ### Account data still unavailable
 The current public market adapters cannot prove account balance, equity, used/free margin, pending orders, broker-confirmed fills, commissions or funding debits/credits for the user's account. `account_data_capabilities()` exposes these as `UNAVAILABLE_NO_AUTHENTICATED_BROKER_ACCOUNT_ADAPTER`. No market price, funding rate, OI, journal row or public order-book snapshot may be substituted for those account facts.
+
+
+## Market risk context from existing dashboard feeds
+- `modules/tia_market_risk_context.py` turns the existing OKX/Hyperliquid `spot_flow.fetch` result into a typed, descriptive risk context. It does not open a second network client or duplicate provider logic.
+- It reports directional evidence separately from execution/crowding flags: tape aggressor share, taker-volume slope and displayed-book imbalance contribute only to a consensus label (buy pressure, sell pressure, mixed, or insufficient).
+- Review flags include displayed-book imbalance, configurable thin-book threshold (disabled unless explicitly set), positive-funding crowding, long-account crowding, OI context, unavailable order flow and unverified provider timestamps.
+- Thresholds are configurable review heuristics, not validated predictive limits and not owner-approved policy. They do not alter risk budget, quantity, leverage, stops or order permission.
+- Missing feeds remain unavailable; they are not treated as zero or as neutral evidence. Local collection time is not misrepresented as provider event time.
+- The existing `volume_profile` / VP calculation is explicitly described as a volume-profile approximation, not exchange-level bid/ask footprint delta.
+- Public order-book snapshots are venue-specific and cancellable; they do not establish global liquidity or historical depth.

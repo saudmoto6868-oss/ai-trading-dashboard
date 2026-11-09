@@ -207,7 +207,12 @@ def import_legacy_lessons(path: str | Path | None = None,
                         "points": lesson.get("points", []), "caveats": lesson.get("caveats", []),
                         "uses": lesson.get("uses", [])},
         }
-        upsert_record(record, path)
+        # Imported rows are insert-once: a later owner review must not be
+        # overwritten by re-reading the legacy JSON on every workspace render.
+        with connect(path) as db:
+            exists = _execute(db, "SELECT id FROM knowledge_records WHERE id = ?", (record["id"],)).fetchone()
+        if not exists:
+            upsert_record(record, path)
         imported += 1
     return imported
 

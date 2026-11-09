@@ -88,3 +88,5 @@
 | 2026-11-09 | ChatGPT | إصلاح assertions في XPIX browser mock بعد مراجعة ذاتية | `tests/browser/xpix_evidence_contract_mock.js` | الضغط على Order Flow قبل اختبار زر Footprint؛ دعم ترتيب التابات بالإنجليزية والعربية | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل | إصلاح static لتجنب false failure؛ لا browser pass مدّعى. |
 
 | 2026-11-09 | ChatGPT | منع التفعيل الوهمي لـFootprint | `modules/ws/22x_intelligence.js`, `modules/workspace_app.html` | تفعيل Footprint عبر setter الأصلي فقط؛ إزالة تعديل state المباشر كـfallback؛ إعادة توليد bundle | — | commit `a3dfe650` على `feat/xpix-intelligence-workspace` | لم يُشغّل build/browser | تحقق static من العلامات ونهاية bundle؛ الاختبارات التنفيذية ما زالت معلقة. |
+
+- 2026-11-09: Fixed silent retention of stale OKX book/tape snapshots. Hub now emits explicit stale metadata and callbacks on poll failures; XPIX distinguishes stale last-known data from actively receiving data. Regenerated workspace bundle from all 23 sorted source parts. Static consistency checks only; runtime tests not run.

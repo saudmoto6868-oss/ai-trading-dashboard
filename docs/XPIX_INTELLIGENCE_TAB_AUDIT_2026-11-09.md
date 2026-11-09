@@ -154,3 +154,10 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - تم حذف fallback غير الآمن: زر XPIX الآن لا يفعّل Footprint إلا عبر setter الأصلي `id=fp`؛ إذا لم يكن متاحاً يتوقف بدلاً من تزوير حالة ON.
 - أُعيد توليد `modules/workspace_app.html` من أجزاء المصدر بعد التعديل، وحُذفت ملفات التجميع المؤقتة.
 - تم التحقق نصياً من وجود الحارس الجديد واختفاء fallback القديم ومن تطابق نهاية bundle مع `99_tail.html`. لم يُشغّل build --check أو browser tests بعد.
+
+
+## Data freshness correction — 2026-11-09
+
+- The shared Hub now republishes the last supported book/tape snapshot with `stale`, `staleSince`, `staleAt`, `failureCount`, and `lastError` metadata on each failed poll.
+- XPIX keeps last-known values visible but labels retained snapshots as stale; unsupported feeds remain distinct from stale supported feeds.
+- Recovery replaces the stale snapshot with a fresh supported payload. Runtime/browser tests remain pending.

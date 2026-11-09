@@ -56,3 +56,10 @@
 - [ ] تشغيل الاختبار في بيئة Playwright.
 - [ ] اختبار تبديل الرمز وتصفية الاشتراكات أثناء إعادة البناء (سيُضاف إذا لم تغطه اختبارات موجودة).
 - CI GitLab الحالي لا يعمل على push: workflow rules تسمح فقط بـschedule/web.
+
+
+## XPIX Intelligence — المرحلة 3
+- [x] ربط تبويب Order Flow بزر تفعيل Footprint على الشارت المرتبط باستخدام chart.fpOn / state.fp وresub الحالية.
+- [x] إضافة assertion للتحقق من handoff داخل browser mock.
+- [ ] تشغيل browser mock ومقارنة بيانات Footprint مع العرض الحالي.
+- [ ] بعد التحقق ننتقل إلى دمج Liquidity في التاب نفسه.

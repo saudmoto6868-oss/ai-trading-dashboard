@@ -295,3 +295,8 @@
 ## 2026-11-09 — المرحلة 2: إضافة اختبار عقد البيانات
 - أُضيف `tests/browser/xpix_evidence_contract_mock.js` لاختبار payload book/trades وtimestamps وYahoo unsupported. سيدخل ضمن `run_all.sh` تلقائياً.
 - لم يتم تشغيل الاختبار بعد؛ CI في GitLab مقيد بمصدر schedule/web، وpush pipeline السابق لم ينتج jobs، فلا نعتبره فشل كود ولا نجاح اختبار.
+
+
+## 2026-11-09 — المرحلة 3: Footprint handoff
+- أُضيف زر في XPIX Intelligence > Order Flow لتفعيل Footprint على الشارت المرتبط باستخدام المحرك الحالي فقط؛ لا duplicate engine/polling.
+- أُضيف assertion لاختبار browser mock. لم يُشغّل الاختبار بعد؛ لا ندّعي runtime pass.

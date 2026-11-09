@@ -73,3 +73,12 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - الاختبار يدخل تلقائياً ضمن `tests/browser/run_all.sh` لأنه يلتقط كل `*_mock.js`.
 - لم يُشغّل محلياً أو على CI بعد؛ الإضافة موجودة على الفرع فقط، ولا تُسجل كاختبار ناجح.
 - توضيح CI: `.gitlab-ci.yml` يقيّد GitLab pipeline إلى `schedule` أو `web` فقط؛ لذلك push pipeline الذي ظهر Failed بلا jobs لا يثبت فشل كود XPIX، لكنه أيضاً لا يقدم أي تحقق ناجح.
+
+
+## تحديث المرحلة 3 — ربط Footprint الحالي
+
+- أُضيف زر داخل تبويب Order Flow باسم Enable Footprint on linked chart.
+- الزر يعيد استخدام Footprint الموجود على الشارت (`chart.fpOn` / `state.fp`) ويمر عبر `resub()` الحالية؛ لا يوجد محرك Footprint مكرر ولا polling مستقل جديد.
+- يضبط رمز الشارت والفريم من XPIX Intelligence ثم يفعّل الـFootprint على الشارت المرتبط.
+- أُضيف تحقق للزر إلى `tests/browser/xpix_evidence_contract_mock.js`.
+- لم يُشغّل الاختبار بعد، ولم تُثبت بعد مطابقة بيانات Footprint الحية أو عرضها على جهاز فعلي. المرحلة 3: ربط الواجهة مبدئياً، والتحقق ما زال مفتوحاً.

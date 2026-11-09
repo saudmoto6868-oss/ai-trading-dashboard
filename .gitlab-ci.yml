@@ -1,15 +1,10 @@
-# Telegram alerts on GitLab (port of .github/workflows/telegram-alerts.yml).
-# Runs ONLY from a pipeline schedule or the "Run pipeline" button, never on push (saves free CI minutes).
-# Needed once, in the GitLab UI (nothing secret is in this file):
-#   Settings > CI/CD > Variables: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  (Masked, Protected)
-#   Build > Pipeline schedules > New schedule, branch main (the interval GitLab.com allows may be longer than 30 minutes: check)
-# State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache. A cache miss means the dedupe memory is lost and
-# some alerts can repeat once; this is best effort, not a guarantee.
-
+# Scheduled Telegram jobs stay restricted to schedules/manual runs.
+# The integration branch also runs isolated unit tests on push.
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "integration/tia-knowledge-center-2026-11-09"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 default:
   image: python:3.12-slim
@@ -21,7 +16,10 @@ variables:
 telegram_alerts:
   stage: test
   timeout: 15m
-  resource_group: telegram-alerts        # one run at a time
+  resource_group: telegram-alerts
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   cache:
     - key: pip-312
       paths:
@@ -50,3 +48,14 @@ telegram_alerts:
     expire_in: 90 days
     exclude:
       - .cache/**/*
+
+intelligence_unit_tests:
+  stage: test
+  timeout: 10m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "integration/tia-knowledge-center-2026-11-09"'
+  before_script:
+    - python -m pip install --quiet --upgrade pip
+    - python -m pip install --quiet pytest
+  script:
+    - python -m pytest -q tests/test_academy_intelligence.py tests/test_intelligence_meeting.py

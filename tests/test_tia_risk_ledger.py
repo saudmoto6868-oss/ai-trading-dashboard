@@ -180,3 +180,13 @@ def test_cashflow_currency_must_be_consistent_within_session(tmp_path):
                      "source":"statement","external_reference":event_id}, created_at=now)
     with pytest.raises(ValueError, match="currency differs"):
         ledger.project_session(sid)
+
+
+def test_ledger_rejects_non_object_event_payload(tmp_path):
+    ledger = RiskLedger(str(tmp_path / "bad-payload.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    with pytest.raises(ValueError, match="JSON object"):
+        ledger.append_event(session_id=sid, event_id="bad", event_type="position_mark",
+                            payload=["not", "an", "object"], created_at=now)

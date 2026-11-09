@@ -1,5 +1,5 @@
-# Telegram alerts run only from schedules / the manual Run pipeline button.
-# Merge requests get a separate, deterministic risk-policy test job.
+# Telegram alerts run only from schedules / the manual Run pipeline button on main.
+# Merge requests and manual feature-branch runs execute deterministic risk-policy tests only.
 # State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache.
 # A cache miss can cause duplicate alerts once; this is best effort, not a guarantee.
 
@@ -19,8 +19,8 @@ variables:
 telegram_alerts:
   stage: test
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   timeout: 15m
   resource_group: telegram-alerts
   cache:
@@ -55,7 +55,8 @@ telegram_alerts:
 risk_policy_tests:
   stage: test
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
   timeout: 10m
   before_script:
     - apt-get update -qq

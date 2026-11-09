@@ -18,7 +18,7 @@ import math
 import numpy as np
 import pandas as pd
 
-MULT = 100          # US equity / index options: 100 shares per contract
+MULT = 100          # US equity / index options: 100 shares per contract (Deribit crypto options: 1 coin -> pass mult=1)
 MIN_T = 1.0 / 365   # floor time to expiry at one day so 0DTE gamma does not blow up
 
 
@@ -40,29 +40,29 @@ def _prep(chain: pd.DataFrame, today, max_days: int | None) -> pd.DataFrame:
     if max_days is not None:
         df = df[df["T"] <= max_days / 365.0 + 1e-12]
     df["oi"] = pd.to_numeric(df["oi"], errors="coerce").fillna(0.0)
-    df["iv"] = pd.to_numeric(df.get("iv"), errors="coerce")
+    df["iv"] = pd.to_numeric(df.get("iv"), errors="coerce").astype(float)   # float: whole-number IVs (Deribit sends 50) would make an int column
     # Cboe sometimes sends iv as a percent (25) instead of a fraction (0.25)
     df.loc[df["iv"] > 3, "iv"] = df.loc[df["iv"] > 3, "iv"] / 100.0
     df["sign"] = np.where(df["type"].astype(str).str.upper().str.startswith("C"), 1.0, -1.0)
     return df[df["oi"] > 0]
 
 
-def _gex_at(df: pd.DataFrame, S: float, use_feed_gamma: bool) -> np.ndarray:
+def _gex_at(df: pd.DataFrame, S: float, use_feed_gamma: bool, mult: float = MULT) -> np.ndarray:
     if use_feed_gamma and "gamma" in df and df["gamma"].notna().any():
         g = pd.to_numeric(df["gamma"], errors="coerce").to_numpy()
         fill = bs_gamma(S, df["strike"], df["T"], df["iv"].fillna(0))
         g = np.where(np.isfinite(g), g, fill)
     else:
         g = bs_gamma(S, df["strike"], df["T"], df["iv"].fillna(0))
-    return g * df["oi"].to_numpy() * MULT * S * S * 0.01 * df["sign"].to_numpy()
+    return g * df["oi"].to_numpy() * mult * S * S * 0.01 * df["sign"].to_numpy()
 
 
-def by_strike(chain: pd.DataFrame, spot: float, today, max_days: int | None = None) -> pd.DataFrame:
+def by_strike(chain: pd.DataFrame, spot: float, today, max_days: int | None = None, mult: float = MULT) -> pd.DataFrame:
     """-> frame indexed by strike: call_gex (+), put_gex (-), net_gex. Uses the feed's gamma at the current spot."""
     df = _prep(chain, today, max_days)
     if df.empty:
         return pd.DataFrame(columns=["call_gex", "put_gex", "net_gex"])
-    df = df.assign(gex=_gex_at(df, float(spot), use_feed_gamma=True))
+    df = df.assign(gex=_gex_at(df, float(spot), use_feed_gamma=True, mult=mult))
     calls = df[df.sign > 0].groupby("strike")["gex"].sum()
     puts = df[df.sign < 0].groupby("strike")["gex"].sum()
     out = pd.DataFrame({"call_gex": calls, "put_gex": puts}).fillna(0.0).sort_index()
@@ -71,7 +71,7 @@ def by_strike(chain: pd.DataFrame, spot: float, today, max_days: int | None = No
 
 
 def gamma_flip(chain: pd.DataFrame, spot: float, today, max_days: int | None = None,
-               width: float = 0.15, steps: int = 121) -> float | None:
+               width: float = 0.15, steps: int = 121, mult: float = MULT) -> float | None:
     """Spot level where total GEX changes sign, nearest to the current spot.
 
     Re-prices every contract's gamma (Black-Scholes, its own iv) on a grid spot*(1 +/- width).
@@ -82,7 +82,7 @@ def gamma_flip(chain: pd.DataFrame, spot: float, today, max_days: int | None = N
     if df.empty:
         return None
     grid = np.linspace(spot * (1 - width), spot * (1 + width), steps)
-    tot = np.array([_gex_at(df, s, use_feed_gamma=False).sum() for s in grid])
+    tot = np.array([_gex_at(df, s, use_feed_gamma=False, mult=mult).sum() for s in grid])
     flips = []
     for i in range(len(grid) - 1):
         a, b = tot[i], tot[i + 1]
@@ -95,13 +95,13 @@ def gamma_flip(chain: pd.DataFrame, spot: float, today, max_days: int | None = N
     return float(min(flips, key=lambda x: abs(x - spot)))
 
 
-def levels(chain: pd.DataFrame, spot: float, today, max_days: int | None = None) -> dict:
+def levels(chain: pd.DataFrame, spot: float, today, max_days: int | None = None, mult: float = MULT) -> dict:
     """-> {call_wall, put_wall, gamma_flip, net_gex, regime, n_contracts}.
 
     call_wall = strike with the largest call GEX, put_wall = strike with the largest (absolute) put GEX.
     regime: 'positive' (dealers dampen moves, ranges more likely) / 'negative' (moves can extend) - context only.
     """
-    tbl = by_strike(chain, spot, today, max_days)
+    tbl = by_strike(chain, spot, today, max_days, mult)
     if tbl.empty:
         return {"call_wall": None, "put_wall": None, "gamma_flip": None, "net_gex": 0.0,
                 "regime": None, "n_contracts": 0}
@@ -109,7 +109,7 @@ def levels(chain: pd.DataFrame, spot: float, today, max_days: int | None = None)
     return {
         "call_wall": float(tbl.call_gex.idxmax()) if (tbl.call_gex > 0).any() else None,
         "put_wall": float(tbl.put_gex.idxmin()) if (tbl.put_gex < 0).any() else None,
-        "gamma_flip": gamma_flip(chain, spot, today, max_days),
+        "gamma_flip": gamma_flip(chain, spot, today, max_days, mult=mult),
         "net_gex": net,
         "regime": "positive" if net > 0 else "negative" if net < 0 else None,
         "n_contracts": int(len(_prep(chain, today, max_days))),

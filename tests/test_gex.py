@@ -81,6 +81,21 @@ def test_empty_chain():
     print("ok test_empty_chain")
 
 
+def test_mult_scales_linearly():
+    ch = _chain([("C", 100, 100, 0.2), ("P", 95, 50, 0.2)])
+    a, b = gex.by_strike(ch, 100, TODAY).net_gex.sum(), gex.by_strike(ch, 100, TODAY, mult=1).net_gex.sum()
+    assert abs(a - 100 * b) < 1e-6 * abs(a)
+    assert gex.levels(ch, 100, TODAY, mult=1)["call_wall"] == gex.levels(ch, 100, TODAY)["call_wall"]
+    print("ok test_mult_scales_linearly")
+
+
+def test_whole_number_iv_percent():
+    ch = _chain([("C", 105, 100, 50), ("P", 95, 100, 50)])   # Deribit sends mark_iv as 50 (percent, int)
+    lv = gex.levels(ch, 100, TODAY, mult=1)
+    assert lv["call_wall"] == 105.0 and lv["put_wall"] == 95.0
+    print("ok test_whole_number_iv_percent")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

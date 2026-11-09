@@ -48,7 +48,11 @@ The implementation must remain original and must not reproduce another creator's
 **Related Threads post:** https://www.threads.com/@alvarodiazds_/post/DfcYGnQTRVW  
 The screen recording is an external reference asset, not copied into this Git repository.
 
-## 4. Reference image inventory
+## 4. Locked master asset and reference image inventory
+
+The visually inspected `tia_trade_intelligence_agency_logo.png` is recorded as the owner-approved locked master reference. Its exact SHA-256 and inspection notes are maintained in [docs/TIA_ASSET_MANIFEST.md](TIA_ASSET_MANIFEST.md). The Library original has been identified and hashed; its binary is **not yet committed** to this repository. Do not treat this manifest entry as proof of repository storage.
+
+
 
 The following files were discoverable in the conversation/library asset store during archive preparation. Their presence in this inventory records provenance; it does not designate them as approved logo masters.
 
@@ -105,7 +109,7 @@ The following files were discoverable in the conversation/library asset store du
 
 ## 7. Open archive tasks
 
-1. Upload the approved master logo as a binary repository asset and mark its exact filename/hash as the locked master.
+1. Commit the inspected locked master logo binary and re-hash the repository copy against the Library original.
 2. Upload the selected reference images as binary repository assets, with provenance and approval status.
 3. Add a chronological conversation export where available; preserve original user wording and distinguish it from assistant summaries.
 4. Add design review comments and approvals from the team as they arrive.

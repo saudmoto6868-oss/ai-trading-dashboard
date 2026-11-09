@@ -61,3 +61,7 @@ def render_tia():
     st.caption("All existing movable workspace panels remain available. The selected market tab supplies its discovered symbol universe to the watchlist and charts.")
     from modules.tia_workspace import render_tia_workspace
     render_tia_workspace(height=1040, universe=market, symbols=symbols)
+
+    st.divider()
+    from modules.tia_agent_admin import render_agent_admin
+    render_agent_admin()

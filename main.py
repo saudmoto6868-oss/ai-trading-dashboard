@@ -3023,6 +3023,12 @@ def render_chart_scanner(f):
     data = _radar_data(f)
     if data is None:
         return
+    # Owner-approved optional agent room: transparent specialist passes over this exact Radar scan.
+    try:
+        from modules import radar_agents as _RA
+        _RA.render(data, tf=tf, news_items=st.session_state.get("rac_news_cache"))
+    except Exception as _agent_error:
+        st.caption(f"Agent room unavailable: {type(_agent_error).__name__}")
     nsel = len(sel) + len(f["fv"])
     shown = [(sym, d) for sym, d in data.items() if _radar_pass(d, f)]
     if not shown and data and nsel:   # filters must really filter: say 0 matched, and offer the nearest charts (some conditions met) instead of everything

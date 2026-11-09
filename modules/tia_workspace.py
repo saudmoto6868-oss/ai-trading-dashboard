@@ -61,7 +61,7 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + "\\nconst WGROUPS = () => [");
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + "\nconst WGROUPS = () => [");
     doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.

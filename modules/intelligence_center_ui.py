@@ -214,12 +214,8 @@ def render() -> None:
                 st.error(f"Could not save entry: {type(exc).__name__}: {exc}")
 
         entries = meeting.list_entries(limit=500)
-        proposals = [e for e in entries if (e.get("metadata") or {}).get("kind") == "task_proposal"]
-        reviews = {}
-        for event in entries:
-            event_meta = event.get("metadata") or {}
-            if event_meta.get("kind") == "task_proposal_review" and event_meta.get("proposal_id"):
-                reviews.setdefault(event_meta["proposal_id"], event)
+        # Proposal lifecycle is queried independently of the 500-entry history view.
+        proposals, reviews = meeting.list_task_proposals()
         pending = [p for p in proposals if p.get("id") not in reviews]
         st.markdown(f"#### Task proposals awaiting review · {len(pending)}")
         if proposals:

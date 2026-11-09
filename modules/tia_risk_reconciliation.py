@@ -42,6 +42,10 @@ class BrokerPositionSnapshot:
             raise ValueError("broker account and source are required")
         if self.observed_at.tzinfo is None:
             raise ValueError("broker snapshot timestamp must be timezone-aware")
+        if not isinstance(self.complete, bool):
+            raise ValueError("broker snapshot complete must be an explicit boolean")
+        if not isinstance(self.positions, tuple) or any(not isinstance(p, BrokerPosition) for p in self.positions):
+            raise ValueError("broker positions must be a tuple of validated BrokerPosition objects")
         ids = [p.position_id for p in self.positions]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate broker position_id")

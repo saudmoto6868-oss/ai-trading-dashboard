@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -119,7 +120,7 @@ class RiskLedger:
         return con
 
     def _initialize(self):
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             con.executescript("""
             CREATE TABLE IF NOT EXISTS risk_sessions (
                 session_id TEXT PRIMARY KEY,

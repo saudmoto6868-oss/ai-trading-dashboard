@@ -51,3 +51,19 @@ The ledger accepts only the documented projection event types: `position_open`, 
 
 ## Portfolio concentration extension
 RiskPolicy may optionally define `max_asset_class_open_risk_pct`. When supplied, the engine sums reserved stop risk for existing positions in the proposed trade's asset class and adds proposed risk before checking the class cap. The class cap cannot exceed the total portfolio open-risk cap. Leaving it unset means no class-specific cap is asserted; it does not imply unlimited account leverage or margin safety.
+
+
+## Existing AI Trading Dashboard feed bridge
+- `modules/tia_market_evidence.py` catalogs and reuses the providers already present in this repository. It calls the existing `modules.spot_flow.fetch` adapter rather than creating a duplicate market-data client.
+- **OKX public REST:** candles, recent trades, order-book snapshots, taker-volume history, perpetual open interest, funding and long/short account ratio. This is single-venue market evidence; it is not the user's OKX account.
+- **Hyperliquid public info API:** xyz perpetual market list/prices/candles, order-book and trade context, funding and open interest where available. Metals and other TradFi symbols are perpetual/oracle-linked instruments, not the underlying cash-market feed; coverage is thinner than OKX.
+- **Deribit public API:** BTC/ETH option book summaries and DVOL history. Useful for options regime/context, not user account state.
+- **Cboe delayed quotes:** US equity/index option chains through the existing adapter; approximately 15-minute delay and endpoint/reuse limitations remain.
+- **News:** Finnhub when a key is configured, with existing Alpha Vantage/RSS fallback paths. A headline is a catalyst candidate, not proof of impact.
+- **Workspace evidence:** existing chart candles, Footprint/order-flow confluence, levels, journal and news context remain the source of those in-app observations. Journal records are not broker-confirmed fills.
+
+### Evidence semantics
+The bridge preserves each feed's `ok/why` state and does not turn a failed feed into zero. It records local collection time separately from provider event time. Since the existing order-flow adapter does not normalize provider event timestamps across all subfeeds, the snapshot is explicitly labeled `UNVERIFIED_PROVIDER_TIMESTAMP`; it must not pass a strict live freshness gate until source timestamps are exposed and validated.
+
+### Account data still unavailable
+The current public market adapters cannot prove account balance, equity, used/free margin, pending orders, broker-confirmed fills, commissions or funding debits/credits for the user's account. `account_data_capabilities()` exposes these as `UNAVAILABLE_NO_AUTHENTICATED_BROKER_ACCOUNT_ADAPTER`. No market price, funding rate, OI, journal row or public order-book snapshot may be substituted for those account facts.

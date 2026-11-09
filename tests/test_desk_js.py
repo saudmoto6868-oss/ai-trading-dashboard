@@ -86,7 +86,7 @@ def test_day_and_check_match_python():
 def test_widget_is_registered():
     assert "Panel.prototype.build_ofdesk = function()" in SRC
     snap = open(os.path.join(ROOT, "modules", "ws", "26_snap.js"), encoding="utf-8").read()
-    assert '"ofdesk","dom"' in snap and 'ofdesk:"OFD"' in snap
+    assert '"ofdesk","ofm","dom"' in snap and 'ofdesk:"OFD"' in snap and 'ofm:"MAP"' in snap   # the Bookmap-style map is in the menu too
     i18n = open(os.path.join(ROOT, "modules", "ws", "11_i18n_helpers_themes.js"), encoding="utf-8").read()
     assert i18n.count("ofdesk:") == 2                  # English + Arabic menu label
     print("ok test_widget_is_registered")

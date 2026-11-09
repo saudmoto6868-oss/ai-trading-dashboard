@@ -9,6 +9,8 @@ GRADE (a count of agreeing evidence, never a probability): A+ = >= 4 distinct sc
 Honest limits: untested as a whole (n = 0 graded); the grade is evidence counting; the 1W chain depends on the data source returning weekly candles (a missing frame just drops that symbol)."""
 from __future__ import annotations
 
+import os
+
 HORIZONS = {
     "scalp":    {"bias": ("4h", "1h"), "triggers": ("15m", "5m"), "chain": ("4h", "1h", "15m", "5m"), "style": "fixed",   "trail": None, "min_agree": 3},
     "swing":    {"bias": ("1w", "1d"), "triggers": ("4h", "1d"),  "chain": ("1w", "1d", "4h"),          "style": "trail",   "trail": 2.5, "min_agree": 3},
@@ -108,6 +110,19 @@ def scan(symbols, fetch, horizons=ALL, min_grade: str = "A", calm: dict | None =
     return res
 
 
+def sizing(p: dict, equity: float | None = None) -> dict | None:
+    """Position size for a plan with the desk's risk rule (modules/desk_risk.py: 0.5 % of equity per trade, owner 2026-11-09).
+    Equity = env / secret DESK_EQUITY (default 10 000). Units = the instrument's price units (spot coins, perp contracts in USD);
+    futures with a point value other than 1 need their own multiplier. None when the plan has no usable stop."""
+    from modules import desk_risk as DR
+    try:
+        eq = float(equity if equity is not None else os.environ.get("DESK_EQUITY") or 10000)
+        s = DR.position_size(eq, float(p["entry"]), float(p["stop"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"equity": eq, "risk_pct": DR.RULES.risk_pct, "qty": s["qty"], "risk_amount": s["risk_amount"]}
+
+
 HNAME = {"scalp": ("scalp", "سكالب"), "day": ("day trade", "دي تريد"), "swing": ("swing", "سوينج"), "position": ("position", "بوزيشن")}
 
 
@@ -117,9 +132,12 @@ def format_plan(p: dict, ar: bool = True) -> str:
     up = p["direction"] == "bullish"
     h = HNAME[p["horizon"]][1 if ar else 0]
     ex = p["exit"]
+    sz = sizing(p)
+    szl = (f"{'الحجم' if ar else 'Size'} {sz['qty']:.4g} · {'مخاطرة' if ar else 'risk'} {sz['risk_amount']:,.0f}$ = {sz['risk_pct']}% {'من' if ar else 'of'} {sz['equity']:,.0f}$\n") if sz and sz["qty"] > 0 else ""
     return (f"{'⭐' if p['grade'] == 'A+' else '✅'} <b>{p['grade']} · {h}</b> {'🟢' if up else '🔴'} <b>{esc(p['symbol'])}</b> {('شراء' if up else 'بيع') if ar else ('BUY' if up else 'SELL')} · {p['tf'].upper()}\n"
             f"{'دخول' if ar else 'Entry'} {p['entry']} · {'وقف' if ar else 'Stop'} {p['stop']} · {'أهداف' if ar else 'Targets'} {' / '.join(str(x) for x in p['tps'])} · {'حركة' if ar else 'move'} {p['move_points']} {'نقطة' if ar else 'pts'} · R:R 1:{p['rr1']}\n"
             f"{len(p['schools'])} {'مدارس' if ar else 'schools'}: {esc(', '.join(p['schools'][:5]))} · {p['confluence']['n']}/{p['confluence']['of']} {'فريمات متفقة' if ar else 'timeframes agree'}\n"
+            + szl +
             f"<i>{esc(ex['text_ar'] if ar else ex['text_en'])}</i>")
 
 

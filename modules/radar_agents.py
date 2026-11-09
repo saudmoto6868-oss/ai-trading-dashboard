@@ -206,6 +206,9 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
     if show_news:
         _render_news(st, news_items)
 
+    with st.expander("إدارة المهام وتوجيه الأوامر للوكلاء", expanded=False):
+        render_task_command_center(st)
+
 
 def _render_news(st, news_items):
     with st.expander("رادار الأخبار والتأثير المحتمل على الأسواق", expanded=False):
@@ -241,3 +244,87 @@ def _render_news(st, news_items):
             dead = st.session_state.get("rac_news_dead", [])
             if dead:
                 st.caption("مصادر لم تستجب في آخر تحديث: " + "، ".join(dead[:8]))
+
+
+def _task_requires_approval(text: str) -> bool:
+    """Detect high-impact external actions; this is a conservative UI guard, not an execution engine."""
+    t = (text or "").lower()
+    terms = (
+        "place order", "execute trade", "buy now", "sell now", "close position", "withdraw",
+        "transfer", "send telegram", "send email", "deploy", "merge", "delete", "حط اوردر",
+        "نفذ صفقة", "اشتري", "بيع", "اقفل الصفقة", "اسحب", "حوّل فلوس", "ابعت تيليجرام",
+        "ابعت ايميل", "انشر", "ادمج", "احذف", "الغاء حساب",
+    )
+    return any(x in t for x in terms)
+
+
+def render_task_command_center(st):
+    """A transparent task inbox. Tasks are recorded only; no hidden execution."""
+    st.markdown("### مركز أوامر الوكلاء · Agent Task Desk")
+    st.caption("اكتب المهمة بطريقتك، عيّنها لوكيل محدد أو اتركها للمنسّق. كل مهمة لها مالك وحالة وسجل. هذه النسخة تسجل وتوجّه المهام فقط؛ التنفيذ الآلي يحتاج ربط محرك الأدوات والصلاحيات.")
+    agent_options = ["auto"] + [a[0] for a in AGENTS]
+    agent_labels = {"auto": "المنسّق · يختار الوكيل المناسب", **{a[0]: f"{a[2]} · {a[1]}" for a in AGENTS}}
+    c1, c2 = st.columns([3, 1.5])
+    with c1:
+        command = st.text_input("اكتب أمر الوكيل", placeholder="مثال: راقب الذهب على 5 دقائق، ونبّهني لو ظهر sweep ثم MSS مع تأكيد تدفق الأوامر", key="rac_task_command")
+    with c2:
+        owner = st.selectbox("إسناد المهمة إلى", agent_options, format_func=lambda k: agent_labels[k], key="rac_task_owner")
+    c3, c4 = st.columns([1, 1])
+    with c3:
+        task_kind = st.selectbox("نوع المهمة", ["تحليل ومراجعة", "مراقبة وتنبيه", "بحث وجمع معلومات", "تقرير", "تطوير / كود", "إجراء خارجي / تداول"], key="rac_task_kind")
+    with c4:
+        persistent = st.toggle("مهمة مستمرة", value=False, key="rac_task_persistent")
+    if st.button("إرسال إلى قائمة مهام الوكلاء", key="rac_task_submit", type="primary", disabled=not command.strip()):
+        tasks = st.session_state.setdefault("rac_tasks", [])
+        high_impact = task_kind == "إجراء خارجي / تداول" or _task_requires_approval(command)
+        chosen = owner
+        if chosen == "auto":
+            low = command.lower()
+            if any(x in low for x in ("order flow", "cvd", "dom", "دفتر الأوامر", "تدفق الأوامر")):
+                chosen = "flow_analyst"
+            elif any(x in low for x in ("خبر", "news", "خبر", "اقتصاد", "fed", "cpi")):
+                chosen = "research_tutor"
+            elif any(x in low for x in ("مخاطر", "risk", "stop loss", "حجم العقد")):
+                chosen = "risk_guardian"
+            elif any(x in low for x in ("سيولة", "liquidity", "sweep", "امتصاص")):
+                chosen = "liquidity_sentinel"
+            elif any(x in low for x in ("شارت", "chart", "تحليل", "فريم", "مستوى")):
+                chosen = "chart_reader"
+            else:
+                chosen = "market_scout"
+        agent_name = agent_labels.get(chosen, chosen)
+        task = {
+            "id": f"T{len(tasks)+1:04d}", "command": command.strip(), "owner": chosen,
+            "owner_label": agent_name, "kind": task_kind, "persistent": persistent,
+            "status": "approval_required" if high_impact else "queued",
+            "status_ar": "يتطلب موافقتك قبل أي إجراء خارجي" if high_impact else "في قائمة الانتظار · لم يبدأ التنفيذ",
+            "created": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "log": ["تم استلام الأمر وتسجيله.", f"المسؤول: {agent_name}."],
+        }
+        tasks.insert(0, task)
+        st.session_state["rac_task_command"] = ""
+        st.rerun()
+
+    tasks = st.session_state.get("rac_tasks", [])
+    if not tasks:
+        st.info("لا توجد مهام حتى الآن. اكتب أول أمر لإضافته إلى قائمة الوكلاء.")
+        return
+    st.markdown("**قائمة المهام وسجلها**")
+    for task in tasks[:12]:
+        status_color = "rac-warn" if task["status"] == "approval_required" else "rac-ok" if task["status"] == "completed" else "rac-bad" if task["status"] == "failed" else ""
+        with st.container(border=True):
+            left, right = st.columns([4, 1])
+            with left:
+                st.markdown(f"**{task['id']} · {html.escape(task['owner_label'])}**")
+                st.write(task["command"])
+                st.caption(f"{task['kind']} · {task['created']} · {'مستمرة' if task['persistent'] else 'مرة واحدة'}")
+                st.markdown(f"<span class='{status_color}'>{html.escape(task['status_ar'])}</span>", unsafe_allow_html=True)
+                with st.expander("سجل المهمة"):
+                    for line in task["log"]:
+                        st.write("• " + line)
+            with right:
+                st.caption("الحالة")
+                st.write("موافقة مطلوبة" if task["status"] == "approval_required" else "انتظار" if task["status"] == "queued" else task["status"])
+    st.warning("مهم: ظهور المهمة في القائمة لا يعني أن الوكيل نفّذها. لا يوجد في هذه النسخة مشغّل خلفي أو ربط تنفيذ للأوامر. لن يتم إرسال أوامر تداول أو رسائل أو تغييرات خارجية من هذا النموذج.")
+
+

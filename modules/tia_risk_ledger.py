@@ -172,7 +172,7 @@ class RiskLedger:
         day = self.session_date(now, timezone_name)
         sid = hashlib.sha256(f"{account_id}|{timezone_name}|{day}".encode()).hexdigest()
         stamp = now.astimezone(timezone.utc).isoformat()
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             con.execute("BEGIN IMMEDIATE")
             row = con.execute("SELECT * FROM risk_sessions WHERE session_id=?", (sid,)).fetchone()
             if row:
@@ -199,7 +199,7 @@ class RiskLedger:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
         digest = hashlib.sha256(canonical.encode()).hexdigest()
         stamp = created_at.astimezone(timezone.utc).isoformat()
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             con.execute("BEGIN IMMEDIATE")
             if not con.execute("SELECT 1 FROM risk_sessions WHERE session_id=?", (session_id,)).fetchone():
                 con.rollback()
@@ -218,13 +218,13 @@ class RiskLedger:
         return True
 
     def events(self, session_id: str) -> list[dict]:
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             rows = con.execute("""SELECT event_id,event_type,payload_json,payload_sha256,created_at
                                   FROM risk_events WHERE session_id=? ORDER BY created_at,event_id""",
                                (session_id,)).fetchall()
         return [{**dict(row), "payload": json.loads(row["payload_json"])} for row in rows]
 
     def session(self, session_id: str) -> dict | None:
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             row = con.execute("SELECT * FROM risk_sessions WHERE session_id=?", (session_id,)).fetchone()
         return dict(row) if row else None

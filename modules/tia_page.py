@@ -71,47 +71,13 @@ def _agents():
         _card(name,detail)
     st.warning("Seven organizational responsibilities, not a requirement for seven isolated model instances.")
 
-def _meeting_room():
-    st.subheader("TIA Meeting Room")
-    st.caption("Dedicated identity archive, source references, decisions, review notes and project files.")
-    st.markdown("### Locked identity rules")
-    for item in [
-      "Use the last owner-approved TIA logo exactly; do not redraw, distort or convert it into a 77 motif.",
-      "TIA dominates; descriptor remains subordinate and no wider than the TIA mark.",
-      "6868 remains contiguous, centered and on the same background.",
-      "Charcoal/black foundation; champagne, brass and warm gold primary; orange/amber restrained.",
-      "Create original patterns inspired by references, never copies of reference artwork.",
-      "Motion transforms particles and surrounding fields, not the approved letter geometry."]:
-        st.markdown("- "+item)
-    st.divider()
-    st.markdown("### Archive record")
-    for title,desc in [
-      ("01 · Approved identity","Locked logo, wordmark proportions, 6868 signature and usage rules."),
-      ("02 · Explorations","Historical logo generations, dark/gold posters, minimal variants and alternate lockups."),
-      ("03 · Moodboards","M7 / 77 boards, gold-first boards, orange/cream boards and dark UI compositions."),
-      ("04 · Motion references","Particle assembly, Morphiq-inspired transitions, topographic contours, dotted meshes and final logo hold."),
-      ("05 · Meeting record","Chronological owner decisions, handoffs, reviews and unresolved approvals."),
-      ("06 · Project files","TIA page shell, foundation charter, meeting archive, meeting notes and whiteboard item.")]:
-        _card(title,desc)
-    st.markdown("### Reference links")
-    st.markdown("- [TIA identity and motion reference folder](https://drive.google.com/drive/folders/1L1QNx2ZNAGk5kBKfQf2sBUJzvcDUdDAz)")
-    st.markdown("- [Threads motion reference — Morphiq](https://www.threads.com/@alvarodiazds_/post/DfcYGnQTRVW)")
-    st.markdown("- Repository archive: docs/TIA_MEETING_ROOM.md")
-    st.markdown("### Image inventory")
-    st.caption("The repository archive records filenames and provenance. Binary copies of every original image are not yet verified in this branch.")
-    st.markdown("Identity boards: a_detailed_polished_branding_identity_system_bo.png; a_cohesive_brand_identity_moodboard_in_a_dark_char.png; a_sleek_high_end_dark_ui_moodboard_composition_wi.png.")
-    st.markdown("M7 boards: M7 Market Intelligence Brand Board.png; M7 Market Intelligence Brand Board(1).png; M7 Market Intelligence Brand System.png; 77% Market Intelligence Brand Board.png.")
-    st.markdown("Logo explorations: tia_trade_intelligence_agency_logo.png; trade_intelligence_agency_global_logo.png; glossy_tia_logo_with_golden_wave.png; luxury_tia_logo_with_golden_wave.png; futuristic_tia_golden_wave_logo.png; futuristic_tia_logo_with_golden_wave.png; futuristic_tia_logo_with_golden_mesh.png; luxury_tia_trade_intelligence_logo.png; luxury_gold_wave_tia_logo_poster.png; minimalist_tia_6868_gold_logo.png.")
-    st.info("The 171 MB screen recording is referenced from its Drive folder; it has not been copied into Git.")
-
 def render_tia():
     _header()
-    selected=st.segmented_control("TIA sections",["Command Center","Geometric Intelligence","Trading Interface","Seven Agents","TIA Meeting Room","Roadmap"],default="Command Center",key="tia_section",label_visibility="collapsed")
+    selected=st.segmented_control("TIA sections",["Command Center","Geometric Intelligence","Trading Interface","Seven Agents","Roadmap"],default="Command Center",key="tia_section",label_visibility="collapsed")
     if selected=="Command Center": _overview()
     elif selected=="Geometric Intelligence": _geometry()
     elif selected=="Trading Interface": _market()
     elif selected=="Seven Agents": _agents()
-    elif selected=="TIA Meeting Room": _meeting_room()
     else:
         st.subheader("TIA implementation roadmap")
         for i,step in enumerate(["Lock approved brand asset and charter.","Preserve navigation and existing page IDs.","Define source/time/unit/coverage data contracts.","Build five geometry systems.","Integrate chart, order-flow, heatmap and portfolio modules.","Add orchestration and decision trail.","Validate tests and desktop/mobile rendering."],1):

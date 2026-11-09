@@ -19,4 +19,4 @@ delete branch `fix/manual-price-scale-lock` (UI only); risk policy was resolved 
 
 
 ## Owner correction — 2026-11-09 (later than the original session decision)
-The earlier flat 0.5% note above is superseded. The current policy is 0.25% base risk; 0.50% only automatically for grade exactly A+ with explicit validation passed and >=30 closed out-of-sample trades for the same setup/rule version. Missing or malformed evidence stays at 0.25%. No manual selector. Daily cap 2%, lock after 3 stops, minimum R:R 1:2. See `modules/risk_policy.py` and MR !47.
+The earlier flat 0.5% note above is superseded. The current policy is 0.25% base risk; 0.50% only automatically for grade exactly A+ with literal boolean validation_passed=true and integer validation_n >=30 closed out-of-sample trades for the same setup/rule version. Missing or malformed evidence stays at 0.25%. No manual selector. Daily cap 2%, lock after 3 stops, minimum R:R 1:2. See `modules/risk_policy.py` and MR !47.

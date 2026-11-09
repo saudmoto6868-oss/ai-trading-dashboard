@@ -97,3 +97,7 @@ The widget is primarily a standalone market-analysis cockpit beside the user's c
 6. Every panel, metric, signal and setup must have a concise Arabic explanation available inline/on hover; voice explanation is a later optional enhancement.
 
 Do not imply an actionable trade when the current feed cannot support it. Separate venue-specific resting liquidity from executed trades; never label an OKX book as the global gold book or as a broker XAUUSD CFD book. New setup families must be versioned and measured with replay/forward tests and realistic spread, fees and slippage before being promoted.
+
+
+## Canonical agent handoff
+All agents must begin with `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md`. It maps the widget to the wider product architecture and links the canonical Academy, Playbook, Research Hub, Strategy Lab, Workspace, Spot, Radar and Technical Office references. Do not create a second copy of those rulebooks.

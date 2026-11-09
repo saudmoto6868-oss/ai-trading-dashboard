@@ -38,7 +38,7 @@ Keep this contract isolated until the owner approves the policy and the missing 
 
 
 ## Event replay contract
-The ledger accepts only the documented projection event types: `position_open`, `position_mark`, and `position_close`. Close events must carry an explicit boolean `stopped`; negative realized P&L alone does not increment the stop counter. Replay rejects duplicate active position IDs, marks/closes of unknown positions, malformed instrument specs, and unsupported event types. This projection is a deterministic rebuild from the append-only journal, not broker reconciliation.
+The ledger projection accepts the documented event types: `position_open`, `position_mark`, `position_close`, and `account_cashflow`. Close events must carry an explicit boolean `stopped`; negative realized P&L alone does not increment the stop counter. Replay rejects duplicate active position IDs, marks/closes of unknown positions, malformed instrument specs, and unsupported event types. Cashflow events require an explicit deposit/withdrawal type, positive amount, account currency, source and external reference; they are projected separately from trading P&L. This projection is a deterministic rebuild from the append-only journal, not broker reconciliation.
 
 
 ## Broker position reconciliation boundary

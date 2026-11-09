@@ -1,13 +1,11 @@
-# Telegram alerts on GitLab (port of .github/workflows/telegram-alerts.yml).
-# Runs ONLY from a pipeline schedule or the "Run pipeline" button, never on push (saves free CI minutes).
-# Needed once, in the GitLab UI (nothing secret is in this file):
-#   Settings > CI/CD > Variables: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  (Masked, Protected)
-#   Build > Pipeline schedules > New schedule, branch main (the interval GitLab.com allows may be longer than 30 minutes: check)
-# State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache. A cache miss means the dedupe memory is lost and
-# some alerts can repeat once; this is best effort, not a guarantee.
+# Telegram alerts run only from schedules / the manual Run pipeline button.
+# Merge requests get a separate, deterministic risk-policy test job.
+# State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache.
+# A cache miss can cause duplicate alerts once; this is best effort, not a guarantee.
 
 workflow:
   rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
@@ -20,8 +18,11 @@ variables:
 
 telegram_alerts:
   stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
   timeout: 15m
-  resource_group: telegram-alerts        # one run at a time
+  resource_group: telegram-alerts
   cache:
     - key: pip-312
       paths:
@@ -50,3 +51,18 @@ telegram_alerts:
     expire_in: 90 days
     exclude:
       - .cache/**/*
+
+risk_policy_tests:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10m
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends nodejs
+    - rm -rf /var/lib/apt/lists/*
+  script:
+    - python tests/test_desk_risk.py
+    - python tests/test_horizons_sizing.py
+    - python tests/test_desk_js.py
+    - python tests/test_workspace_parts_sync.py

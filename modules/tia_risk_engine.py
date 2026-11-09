@@ -43,8 +43,8 @@ class RiskPolicy:
             _finite(name, getattr(self, name), positive=True)
         if self.risk_per_trade_pct > self.daily_loss_limit_pct:
             raise ValueError("per-trade risk cannot exceed daily loss limit")
-        if self.max_stops < 1:
-            raise ValueError("max_stops must be >= 1")
+        if isinstance(self.max_stops, bool) or not isinstance(self.max_stops, int) or self.max_stops < 1:
+            raise ValueError("max_stops must be an integer >= 1")
 
 
 @dataclass(frozen=True)
@@ -92,6 +92,8 @@ class Position:
         _finite("mark", self.mark, positive=True)
         if self.symbol.upper() != self.spec.symbol.upper():
             raise ValueError("position symbol does not match instrument spec")
+        if self.asset_class.strip().lower() != self.spec.asset_class.strip().lower():
+            raise ValueError("position asset class does not match instrument spec")
         if self.side == "long" and self.stop >= self.entry:
             raise ValueError("long stop must be below entry")
         if self.side == "short" and self.stop <= self.entry:
@@ -157,6 +159,8 @@ def assess_new_trade(
     proposed_asset_class: str,
 ) -> RiskAssessment:
     """Evaluate a proposed trade against realized + marked-to-market portfolio risk."""
+    if not symbol.strip() or not proposed_asset_class.strip():
+        raise ValueError("symbol and proposed_asset_class are required")
     entry = _finite("entry", entry, positive=True)
     stop = _finite("stop", stop, positive=True)
     target = _finite("target", target, positive=True)

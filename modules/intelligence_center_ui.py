@@ -96,6 +96,38 @@ def render() -> None:
             grade = st.selectbox("Evidence grade", ["All", "unreviewed", "source_only", "corroborated",
                                                     "backtest_candidate", "validated"],
                                  key="tic_knowledge_grade")
+        st.markdown("#### Add a source or research claim")
+        st.caption("كل مدخل جديد يبدأ Inbox / Unreviewed؛ الاعتماد التجريبي يظل من Lab فقط.")
+        with st.form("tic_knowledge_intake_form", clear_on_submit=True):
+            intake_title = st.text_input("Claim / source title")
+            intake_summary = st.text_area("Summary of the claim", height=90)
+            intake_topic = st.text_input("Topic / concept")
+            intake_school = st.text_input("School (optional)")
+            intake_claim = st.selectbox("Claim type", ["hypothesis", "interpretation", "fact", "disputed"])
+            intake_asset = st.text_input("Asset (optional)")
+            intake_tf = st.text_input("Timeframe (optional)")
+            intake_url = st.text_input("Source URL (optional)")
+            intake_submitted = st.form_submit_button("Save to inbox for review")
+        if intake_submitted:
+            try:
+                if not intake_title.strip() or not intake_summary.strip() or not intake_topic.strip():
+                    raise ValueError("Title, summary and topic are required.")
+                if intake_url.strip() and not intake_url.strip().startswith(("https://", "http://")):
+                    raise ValueError("Source URL must start with http:// or https://.")
+                knowledge.upsert_record({
+                    "title": intake_title.strip(), "summary": intake_summary.strip(),
+                    "topic": intake_topic.strip(), "school": intake_school.strip(),
+                    "claim_type": intake_claim, "status": "inbox", "evidence_grade": "unreviewed",
+                    "asset": intake_asset.strip(), "timeframe": intake_tf.strip(),
+                    "source_url": intake_url.strip(), "language": "en",
+                    "provenance": [{"kind": "owner_submitted_source" if intake_url.strip() else "owner_submitted_claim",
+                                   "url": intake_url.strip()}] if intake_url.strip() else [{"kind": "owner_submitted_claim"}],
+                })
+                st.success("Saved to Knowledge Inbox as unreviewed; no empirical validation was granted.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not save knowledge record: {type(exc).__name__}: {exc}")
+
         rows = knowledge.search_records(query=q, status="" if status == "All" else status, limit=100)
         if grade != "All":
             rows = [r for r in rows if r.get("evidence_grade") == grade]

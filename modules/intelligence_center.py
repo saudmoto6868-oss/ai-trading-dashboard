@@ -39,10 +39,10 @@ def build_command_snapshot() -> dict:
 
 
     def _academy_count() -> int:
+        # Rendering the dashboard must be read-only: legacy imports are explicit
+        # migration actions, not side effects of a Streamlit rerun.
         ai = __import__("modules.academy_intelligence", fromlist=["initialize", "search_records"])
         ai.initialize()
-        ai.import_legacy_lessons()
-        ai.import_legacy_references()
         return len(ai.search_records(limit=200))
 
     academy_count = _safe(_academy_count, 0)

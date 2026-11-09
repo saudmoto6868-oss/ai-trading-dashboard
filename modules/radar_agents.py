@@ -55,8 +55,8 @@ def analyse(data: dict, tf: str = "1h") -> dict:
              "detail": (f"تمت قراءة سجل Flow Collector لعدد {len(flow_by_symbol)} رمز. هذه لقطات مسجلة وليست بالضرورة بثاً حياً؛ راجع التوقيت والمصدر قبل استخدامها." if flow_by_symbol else "بيانات Order Flow الحية غير مرفقة بنتيجة Radar الحالية، ولا يوجد سجل Collector محفوظ. لم يتم اختلاق CVD أو Delta؛ يلزم ربط مصدر Workspace/Exchange قبل إصدار تأكيد.")},
             {"agent": "liquidity_sentinel", "title": "٤. فحص دفتر الأوامر والسيولة", "state": "done" if book_ready else "limited",
              "detail": "بيانات دفتر الأوامر موجودة في سياق الفحص." if book_ready else "لا توجد لقطة DOM صالحة في سياق الرادار الحالي. لا يمكن تأكيد جدار سيولة أو امتصاص من الشموع وحدها."},
-            {"agent": "risk_guardian", "title": "٥. مراجعة المخاطر وجودة البيانات", "state": "done" if valid else "blocked",
-             "detail": f"تم فحص وجود {len(valid)} نتيجة؛ {stale} نتيجة لا تحمل توقيت شمعة واضحاً. أي نقص بيانات يمنع التأكيد النهائي."},
+            {"agent": "risk_guardian", "title": "٥. المراجع المستقل: تأكيد أم انتظار؟", "state": "done" if valid and flow_ready and book_ready else "limited" if valid else "blocked",
+             "detail": (f"تمت مراجعة {len(valid)} نتيجة ووجود Flow وDOM. المراجعة لا تعني اعتماد صفقة؛ يلزم فحص شروط الدخول والإبطال والتكلفة." if valid and flow_ready and book_ready else f"قرار المراجع: انتظار / غير مؤكد. نتائج الشارت وحدها لا تكفي؛ Flow={'متاح' if flow_ready else 'غير متاح'}، DOM={'متاح' if book_ready else 'غير متاح'}، و{stale} نتيجة لا تحمل توقيتاً واضحاً.")},
             {"agent": "research_tutor", "title": "٦. ربط النتيجة بالدليل والأكاديمية", "state": "done",
              "detail": "النتائج تُعرض كمرشحات من الرادار؛ لا تُرفع إلى دليل إحصائي قبل مراجعة Lab وشرط العينة والتكاليف."},
         ],
@@ -111,7 +111,7 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
     result = analyse(data, tf)
     news_items = news_items if news_items is not None else st.session_state.get("rac_news_cache")
     st.markdown(_css(), unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns([2.0, 1, 1, 1])
+    c1, c2, c3, c4, c5 = st.columns([2.0, 1, 1, 1, 1.1])
     with c1:
         st.markdown("**◉ RADAR AGENT CONTROL ROOM**  <span style='color:#93a1aa;font-size:10px'>فريق التحليل والمراجعة</span>", unsafe_allow_html=True)
     with c2:
@@ -120,12 +120,18 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
         show_news = st.toggle("الأخبار", value=True, key="rac_news")
     with c4:
         show_agents = st.toggle("فريق الوكلاء", value=True, key="rac_agents")
+    with c5:
+        rerun_round = st.button("إعادة الجولة", key="rac_run_round", use_container_width=True)
+    if rerun_round:
+        st.session_state["rac_round_id"] = int(st.session_state.get("rac_round_id", 0)) + 1
+        st.rerun()
     if not show_agents:
         st.caption("تم إخفاء غرفة الوكلاء. فعّل الخيار لإظهار فريق التحليل وسجل خطواته.")
         if show_news:
             _render_news(st, news_items)
         return
 
+    st.caption(f"جولة التحليل رقم {int(st.session_state.get('rac_round_id', 1))} · نتائج مبنية على بيانات Radar الحالية، وليست أوامر تداول.")
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("الرموز المفحوصة", result["count"])
     k2.metric("صاعد", result["up"])

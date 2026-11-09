@@ -39,7 +39,7 @@ def test_tick_and_quantity_steps_enforced(spec):
 
 def test_ledger_idempotency_conflict_and_timezone_rollover(tmp_path):
     ledger = RiskLedger(str(tmp_path / "risk.sqlite"))
-    now = datetime(2026, 11, 9, 23, 30, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 9, 21, 30, tzinfo=timezone.utc)
     sid = ledger.open_session(account_id="acct-1", now=now, timezone_name="Africa/Cairo",
                               start_equity=10000, policy_id="p", policy_version="1")
     assert ledger.append_event(session_id=sid, event_id="evt-1", event_type="close",

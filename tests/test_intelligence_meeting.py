@@ -26,6 +26,32 @@ class MeetingJournalTests(unittest.TestCase):
         self.assertEqual(rows[1]["id"], first)
         self.assertEqual(meeting_summary()["by_type"]["decision"], 1)
 
+    def test_task_proposal_and_review_are_append_only(self):
+        from modules.intelligence_meeting import append_entry, list_entries
+        proposal_id = append_entry(
+            entry_type="recommendation",
+            title="Add regime classifier",
+            body="Calculate regime from historical candles.",
+            status="awaiting_owner_review",
+            metadata={"kind": "task_proposal", "priority": "P1", "official_board_written": False},
+        )
+        append_entry(
+            entry_type="decision",
+            title="Task proposal approved: Add regime classifier",
+            body="Approved for manual entry only.",
+            status="approved_for_board_entry",
+            metadata={"kind": "task_proposal_review", "proposal_id": proposal_id,
+                      "official_board_written": False},
+        )
+        rows = list_entries(limit=10)
+        review = next(row for row in rows if row["entry_type"] == "decision")
+        proposal = next(row for row in rows if row["id"] == proposal_id)
+        self.assertEqual(review["metadata"]["proposal_id"], proposal_id)
+        self.assertEqual(review["status"], "approved_for_board_entry")
+        self.assertFalse(review["metadata"]["official_board_written"])
+        self.assertEqual(proposal["status"], "awaiting_owner_review")
+        self.assertEqual(proposal["metadata"]["kind"], "task_proposal")
+
     def test_rejects_invalid_type_and_empty_content(self):
         from modules.intelligence_meeting import append_entry
         with self.assertRaises(ValueError):

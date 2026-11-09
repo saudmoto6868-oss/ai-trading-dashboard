@@ -207,3 +207,14 @@ This is a proposed contract until implemented/tested. AI may explain it but cann
 ## 14. End-of-task handoff required
 Every agent updates docs/MEETING_ROOM.md, docs/WHITEBOARD.md, docs/ACTIVITY_LOG.md and docs/sessions/<agent>-YYYY-MM-DD.md. Update this file/spec when durable decisions/contracts change.
 Final report: **Done / Tested / Not tested / Next owner action**. Never claim a test passed unless it was run.
+
+
+## 15. Independent AI Market Reasoning core (separate from the widget UI)
+The owner previously directed that AI Market Reasoning be an independent core engine, not logic embedded inside a single panel. XPIX Intelligence is one consumer/presentation surface for this engine.
+- Support both directions: **chart → news/context** (explain observed move using relevant known events) and **news/context → chart** (map a known catalyst to affected assets, levels, scenarios and confirmation requirements).
+- For each asset, return scenario, catalyst, event timeline, options/derivatives context where available, evidence alignment, conflicting evidence, and WAIT / CONFIRM / INVALID status.
+- Distinguish verified known events from hypotheses, market narratives and AI inference. A plausible explanation is not a causal fact.
+- Include institutional/whale intelligence where the feed supports it: large orders and prints, block trades, DOM/Tape, absorption, iceberg candidates, liquidity sweeps, futures/options positioning, OI, funding, liquidations, options flow and GEX. Label each as observed, inferred or unavailable.
+- Research intake should accept videos/transcripts, URLs, PDFs, images, Pine Script and research notes. Extract claims/rules/sources into a review queue; normalize to Academy schema; propose tests; backtest/replay; then promote only through the approved lab gate. Never auto-promote a research claim into a live setup.
+- Maintain a shared, durable store for source documents, extracted claims, strategy definitions, validation results and decision logs. Keep provenance (source, author, timestamp, exact excerpt/page/line when possible), version history and reviewer status.
+- Do not make the widget call a large LLM with raw tick streams. Send compact, normalized, stored evidence packets; cache explanation by setup/event id, throttle repeated updates and retain a strict budget.

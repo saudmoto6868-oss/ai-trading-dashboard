@@ -265,4 +265,4 @@ Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after de
 
 
 ## 2026-11-09 — Unified risk tiers
-Owner-approved deterministic policy: 0.25% base for every engine; automatic 0.50% only for A+ with explicit validation pass and n >= 30 closed out-of-sample trades for that setup/rule version. No user-selectable risk percentage. Daily cap 2%, three-stop lock, and R:R >= 1:2 unchanged. Implemented on branch `feat/unified-risk-policy-2026-11-09`; awaiting Claude review and test execution.
+Owner-approved deterministic policy: 0.25% base for every engine; automatic 0.50% only for A+ with literal validation_passed=true and integer validation_n >= 30 closed out-of-sample trades for that setup/rule version. No user-selectable risk percentage. Daily cap 2%, three-stop lock, and R:R >= 1:2 unchanged. Implemented on branch `feat/unified-risk-policy-2026-11-09`; awaiting Claude review and test execution.

@@ -80,6 +80,13 @@ def initialize(path: str | Path | None = None) -> None:
         "CREATE INDEX IF NOT EXISTS idx_knowledge_school ON knowledge_records(school)",
         "CREATE INDEX IF NOT EXISTS idx_knowledge_status ON knowledge_records(status)",
         "CREATE INDEX IF NOT EXISTS idx_knowledge_asset_tf ON knowledge_records(asset, timeframe)",
+        """CREATE TABLE IF NOT EXISTS knowledge_review_events (
+            id TEXT PRIMARY KEY, record_id TEXT NOT NULL, created_at TEXT NOT NULL,
+            actor TEXT NOT NULL, decision TEXT NOT NULL, reason TEXT NOT NULL,
+            source_class TEXT NOT NULL,
+            FOREIGN KEY(record_id) REFERENCES knowledge_records(id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_review_record ON knowledge_review_events(record_id, created_at)",
     ]
     with db_session(path) as db:
         for statement in statements:
@@ -135,6 +142,44 @@ def upsert_record(record: dict[str, Any], path: str | Path | None = None) -> str
             values + [now, now],
         )
     return item["id"]
+
+
+SOURCE_CLASSES = {"primary", "secondary", "marketing", "community", "internal", "unknown"}
+REVIEW_DECISIONS = {"accept": "accepted", "reject": "rejected", "return_to_review": "review", "archive": "archived"}
+
+
+def review_record(record_id: str, decision: str, reason: str, *,
+                  source_class: str = "unknown", actor: str = "owner",
+                  path: str | Path | None = None) -> str:
+    """Append an immutable curation decision; never upgrades empirical evidence."""
+    record_id, reason, actor = str(record_id).strip(), str(reason).strip(), str(actor).strip()
+    if decision not in REVIEW_DECISIONS:
+        raise ValueError("Invalid review decision")
+    if source_class not in SOURCE_CLASSES:
+        raise ValueError("Invalid source classification")
+    if not record_id or not reason or not actor:
+        raise ValueError("record_id, actor and review reason are required")
+    if len(reason) > 2000 or len(actor) > 120:
+        raise ValueError("Review reason or actor exceeds the allowed length")
+    event_id, now = str(uuid.uuid4()), _now()
+    with db_session(path) as db:
+        row = _execute(db, "SELECT details FROM knowledge_records WHERE id = ?", (record_id,)).fetchone()
+        if not row:
+            raise ValueError("Knowledge record not found")
+        details = json.loads(row["details"] if isinstance(row, dict) else row[0])
+        details["source_class"] = source_class
+        _execute(db, "UPDATE knowledge_records SET status = ?, details = ?, updated_at = ? WHERE id = ?",
+                 (REVIEW_DECISIONS[decision], json.dumps(details, ensure_ascii=False, sort_keys=True), now, record_id))
+        _execute(db, "INSERT INTO knowledge_review_events (id, record_id, created_at, actor, decision, reason, source_class) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 (event_id, record_id, now, actor, decision, reason, source_class))
+    return event_id
+
+
+def list_review_events(record_id: str, *, path: str | Path | None = None) -> list[dict[str, Any]]:
+    with connect(path) as db:
+        rows = _execute(db, "SELECT id, record_id, created_at, actor, decision, reason, source_class FROM knowledge_review_events WHERE record_id = ? ORDER BY created_at ASC, id ASC",
+                        (str(record_id),)).fetchall()
+    return [dict(row) for row in rows]
 
 
 def search_records(query: str = "", *, topic: str = "", school: str = "",

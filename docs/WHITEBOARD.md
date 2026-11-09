@@ -71,3 +71,10 @@
 - [x] إبقاء روابط OFM / DOM / Limit Tracker للأدوات الأصلية.
 - [ ] تشغيل اختبار المتصفح والتحقق من عدم وجود regressions.
 - [ ] بعد ذلك المرحلة 5: Auction / Volume Profile.
+
+
+## XPIX Intelligence — المرحلة 5
+- [x] عرض POC / VAH / VAL وموضع السعر مقابل القيمة من لوحة Value Levels الحالية.
+- [x] عدم تكرار حساب VP أو طلبات الشموع.
+- [ ] اختبار العرض عند وجود بيانات فعلية على عدة فريمات.
+- [ ] المرحلة 6: Indicator registry/settings.

@@ -70,3 +70,5 @@
 | 2026-11-09 | ChatGPT | ربط Order Flow بميزة Footprint الحالية | `modules/ws/22x_intelligence.js`, `tests/browser/xpix_evidence_contract_mock.js` | زر يفعّل Footprint على الشارت المرتبط ويعيد استخدام محركه/اشتراكاته | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل الاختبار بعد | ربط واجهة فقط؛ لا محرك مكرر ولا ادعاء تحقق حي. |
 
 | 2026-11-09 | ChatGPT | دمج معاينة Liquidity في XPIX | `modules/ws/22x_intelligence.js`, `tests/browser/xpix_evidence_contract_mock.js` | Top-5 bid/ask ladder + top-10 imbalance من Hub المشترك؛ روابط OFM/DOM باقية | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل browser mock | بيانات venue واحد؛ لا duplicate polling؛ لا إشارة تداول. |
+
+| 2026-11-09 | ChatGPT | دمج مخرجات Value Levels في Auction tab | `modules/ws/22x_intelligence.js` | جدول POC/VAH/VAL والسعر مقابل القيمة من لوحة valuelv القائمة | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | قراءة من المصدر الحالي فقط؛ لا حساب أو polling مكرر. |

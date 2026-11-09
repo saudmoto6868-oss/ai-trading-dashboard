@@ -305,3 +305,8 @@
 ## 2026-11-09 — المرحلة 4: Liquidity preview
 - أُضيفت معاينة أفضل 5 مستويات bid/ask + Book Imbalance من Hub المشترك داخل تبويب Liquidity، مع تسمية OKX public venue snapshot والتنبيه أنه ليس إشارة.
 - أُضيف اختبار للمعاينة إلى XPIX browser mock؛ لم يُشغّل بعد.
+
+
+## 2026-11-09 — المرحلة 5: Auction
+- أُضيف عرض POC/VAH/VAL من `valuelv` الحالية داخل تبويب Auction / Volume، مع إظهار Above/Below/Inside Value.
+- لا يوجد حساب جديد أو polling مكرر؛ زر فتح/تحديث اللوحة الأصلية موجود.

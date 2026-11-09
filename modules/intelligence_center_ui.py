@@ -197,17 +197,54 @@ def render() -> None:
             except Exception as exc:
                 st.error(f"Could not save entry: {type(exc).__name__}: {exc}")
 
-        entries = meeting.list_entries(limit=200)
+        entries = meeting.list_entries(limit=500)
         proposals = [e for e in entries if (e.get("metadata") or {}).get("kind") == "task_proposal"]
-        st.markdown(f"#### Task proposals awaiting review · {sum(e.get('status') == 'awaiting_owner_review' for e in proposals)}")
+        reviews = {}
+        for event in entries:
+            event_meta = event.get("metadata") or {}
+            if event_meta.get("kind") == "task_proposal_review" and event_meta.get("proposal_id"):
+                reviews.setdefault(event_meta["proposal_id"], event)
+        pending = [p for p in proposals if p.get("id") not in reviews]
+        st.markdown(f"#### Task proposals awaiting review · {len(pending)}")
         if proposals:
             for proposal in proposals:
                 meta = proposal.get("metadata") or {}
-                with st.expander(f"{meta.get('priority', 'P2')} · {proposal.get('title', 'Untitled')} · {proposal.get('status', 'recorded')}"):
+                review = reviews.get(proposal.get("id"))
+                state = review.get("status") if review else "awaiting_owner_review"
+                with st.expander(f"{meta.get('priority', 'P2')} · {proposal.get('title', 'Untitled')} · {state}"):
                     st.write(proposal.get("body", ""))
                     st.caption(f"Area: {meta.get('area') or '—'} · Suggested owner: {meta.get('suggested_owner') or '—'}")
                     st.caption(f"Next action: {meta.get('next_action') or '—'}")
-                    st.caption("Official Technical Office board unchanged; owner review is required.")
+                    if review:
+                        st.caption(f"Review note: {review.get('body', '')}")
+                    elif proposal.get("id"):
+                        st.caption("Official Technical Office board unchanged; review decision is recorded separately.")
+                        b1, b2 = st.columns(2)
+                        with b1:
+                            if st.button("Approve for manual board entry", key=f"tic_approve_{proposal['id']}"):
+                                meeting.append_entry(
+                                    entry_type="decision",
+                                    title=f"Task proposal approved: {proposal.get('title', '')}",
+                                    body="Approved for manual entry by the owner. This action does not write to data/office_tasks.json.",
+                                    status="approved_for_board_entry",
+                                    owner=proposal.get("owner", ""),
+                                    metadata={"kind": "task_proposal_review", "proposal_id": proposal["id"],
+                                              "official_board_written": False},
+                                )
+                                st.rerun()
+                        with b2:
+                            if st.button("Decline proposal", key=f"tic_decline_{proposal['id']}"):
+                                meeting.append_entry(
+                                    entry_type="decision",
+                                    title=f"Task proposal declined: {proposal.get('title', '')}",
+                                    body="Declined by the owner.",
+                                    status="declined",
+                                    metadata={"kind": "task_proposal_review", "proposal_id": proposal["id"],
+                                              "official_board_written": False},
+                                )
+                                st.rerun()
+        else:
+            st.caption("No task proposals yet.")
         else:
             st.caption("No task proposals yet.")
         st.markdown(f"#### History · {len(entries)} latest entries")

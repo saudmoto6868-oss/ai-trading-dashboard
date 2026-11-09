@@ -47,11 +47,16 @@ const { chromium } = require('playwright');
   out.tabContract = await p.evaluate(() => {
     const intel = Ws.panels.find(x => x.type === "intel");
     const labels = intel ? [...intel.root.querySelectorAll(".seg button")].map(x => x.textContent.trim()) : [];
-    return JSON.stringify(labels) === JSON.stringify(["Overview", "Order Flow", "Liquidity", "Auction / Volume", "Setups", "Indicators"]);
+    const en = ["Overview", "Order Flow", "Liquidity", "Auction / Volume", "Setups", "Indicators"];
+    const ar = ["نظرة عامة", "الأوردر فلو", "السيولة", "المزاد والحجم", "الفرص", "المؤشرات"];
+    return JSON.stringify(labels) === JSON.stringify(en) || JSON.stringify(labels) === JSON.stringify(ar);
   });
   const fpLink = await p.evaluate(() => {
     const intel = Ws.panels.find(x => x.type === "intel");
-    const button = intel && intel.root.querySelector("[data-enable-footprint]");
+    const flowTab = intel && [...intel.root.querySelectorAll(".seg button")].find(x => /Order Flow|الأوردر فلو/.test(x.textContent));
+    if (!flowTab) return false;
+    flowTab.click();
+    const button = intel.root.querySelector("[data-enable-footprint]");
     if (!button) return false;
     button.click();
     const chart = Ws.panels.find(x => x.type === "chart" && x.state.sym === intel.state.sym);

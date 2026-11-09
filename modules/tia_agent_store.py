@@ -40,6 +40,13 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
+def _safe_text(value: str, field: str) -> str:
+    text = str(value or "").strip()
+    if re.search(r"(?i)(bearer\\s+[A-Za-z0-9._~+/-]{12,}|(?:api[_-]?key|password|secret|access[_-]?token)\\s*[:=]\\s*[^\\s,;]{8,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)", text):
+        raise ValueError(f"raw credentials are forbidden in {field}; use a secret reference")
+    return text
+
+
 def _redact(value: Any, key: str = "") -> Any:
     """Reject raw secret-like fields; redact likely credential strings in payloads."""
     if SECRET_KEY_RE.search(key):
@@ -231,6 +238,8 @@ class TIAStore:
         do, dont = list(do or []), list(dont or [])
         if any(not isinstance(x, str) or not x.strip() or len(x) > 1000 for x in do + dont):
             raise ValueError("instructions must be non-empty strings up to 1000 characters")
+        do = [_safe_text(x, "agent instructions") for x in do]
+        dont = [_safe_text(x, "agent instructions") for x in dont]
         if len(do) > 50 or len(dont) > 50:
             raise ValueError("maximum 50 Do and 50 Don't instructions")
         with self._connect() as db:
@@ -259,7 +268,9 @@ class TIAStore:
                     due_at: str | None = None, expires_at: str | None = None,
                     ongoing: bool = False, payload: dict | None = None,
                     idempotency_key: str | None = None, actor: str = "owner") -> str:
-        if not title.strip() or len(title) > 160:
+        title = _safe_text(title, "task title")
+        description = _safe_text(description, "task description")
+        if not title or len(title) > 160:
             raise ValueError("task title must contain 1..160 characters")
         safe_payload = _redact(payload or {})
         task_id = str(uuid.uuid4())
@@ -335,10 +346,9 @@ class TIAStore:
         allowed = {"episodic", "research", "evaluation", "standing_instruction"}
         if memory_type not in allowed:
             raise ValueError("unsupported memory type")
-        if not content.strip() or len(content) > 12000:
+        content = _safe_text(content, "agent memory")
+        if not content or len(content) > 12000:
             raise ValueError("memory content must contain 1..12000 characters")
-        if re.search(r"(?i)(bearer\\s+[A-Za-z0-9._~+/-]{12,}|(?:api[_-]?key|password|secret|access[_-]?token)\\s*[:=]\\s*[^\\s,;]{8,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)", content):
-            raise ValueError("raw credentials are forbidden in agent memory; store a secret reference instead")
         memory_id = str(uuid.uuid4())
         with self._connect() as db:
             if not db.execute("SELECT 1 FROM agent_profiles WHERE agent_id=?", (agent_id,)).fetchone():

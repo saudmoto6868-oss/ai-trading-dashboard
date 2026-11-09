@@ -2022,12 +2022,48 @@ def _office_strategy_map():
     st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
 
 
+def _office_regime():
+    """Technical Office > Macro regime: risk-on / neutral / risk-off from five FRED series (modules/fred_regime.py), walk-forward with
+    publication delays (no look-ahead). A description of financial conditions, not a trade signal."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_ui as U, fred_regime as FR
+    st.markdown(U.CSS, unsafe_allow_html=True)
+
+    @st.cache_data(ttl=6 * 3600, show_spinner=False)
+    def _load():
+        return FR.load_all()
+    frames, errs = _load()
+    if errs:
+        st.caption(L("Not loaded: ") + ", ".join(errs))
+    if not frames:
+        st.warning(L("FRED did not answer; try again later."))
+        return
+    now = _pd.Timestamp.now(tz="UTC").tz_localize(None)
+    r = FR.regime_at(frames, now)
+    if r["score"] is None:
+        st.info(L("Not enough FRED history yet."))
+        return
+    names = {"risk-on": L("Risk on"), "neutral": L("Neutral"), "risk-off": L("Risk off")}
+    items = [(L("Regime now"), names[r["regime"]], L("score") + f" {r['score']:+.2f} · {r['n']}/5 " + L("series"), "warn" if r["regime"] == "risk-off" else None)]
+    items += [(L(p["label"]), f"{p['value']:.2f}", f"z {p['z']:+.2f} · " + L("known since") + f" {p['known_since'].date()}", "warn" if p["contrib"] > 1 else None) for p in r["parts"]]
+    st.markdown("<div class='xo-row'>" + U.indicators(L("Macro regime (FRED)"), items) + "</div>", unsafe_allow_html=True)
+    h = FR.history(frames, start=now - _pd.DateOffset(years=3), end=now)
+    if len(h):
+        line = alt.Chart(h).mark_line(color="#e3a857").encode(x=alt.X("date:T", title=None), y=alt.Y("score:Q", title=L("Stress score")), tooltip=["date:T", "score:Q", "regime:N"])
+        rules = alt.Chart(_pd.DataFrame({"y": [FR.TH, -FR.TH]})).mark_rule(color="#8f877a", strokeDash=[4, 4]).encode(y="y:Q")
+        st.altair_chart((line + rules).properties(height=240), use_container_width=True)
+        cnt = h["regime"].value_counts()
+        st.caption(L("Last 3 years, weekly: ") + " · ".join(f"{names.get(k, k)} {int(v)}" for k, v in cnt.items()))
+    st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
+
+
 def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
     analysis, backtest, operations, lab results)."""
     tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
             "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
-            "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
+            "Options desk": _office_options, "Macro regime": _office_regime, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:

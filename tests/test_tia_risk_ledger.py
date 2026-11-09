@@ -167,3 +167,16 @@ def test_cashflow_requires_valid_auditable_fields(tmp_path, payload):
                         payload=payload, created_at=now)
     with pytest.raises(ValueError):
         ledger.project_session(sid)
+
+
+def test_cashflow_currency_must_be_consistent_within_session(tmp_path):
+    ledger = RiskLedger(str(tmp_path / "cashflow-currency.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    for event_id, currency in (("usd", "USD"), ("eur", "EUR")):
+        ledger.append_event(session_id=sid, event_id=event_id, event_type="account_cashflow",
+            payload={"flow_type":"deposit","amount":100,"account_currency":currency,
+                     "source":"statement","external_reference":event_id}, created_at=now)
+    with pytest.raises(ValueError, match="currency differs"):
+        ledger.project_session(sid)

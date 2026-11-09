@@ -38,7 +38,7 @@ def render() -> None:
         mtg = snap.get("meeting_room") or {}
         c = st.columns(4)
         with c[0]:
-            _metric("Active project tasks", len(tasks.get("open") or []))
+            _metric("Tasks not closed", len(tasks.get("open") or []))
         with c[1]:
             _metric("Knowledge records", academy.get("indexed_records", 0))
         with c[2]:

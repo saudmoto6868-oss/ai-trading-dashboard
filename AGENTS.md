@@ -8,3 +8,7 @@
 3. ماتعملش merge على `main` ولا تشغّل workflows من غير إذن المالك.
 4. ماتعتبرش نتيجة اختبار على بيانات وهمية دليل ربح.
 5. كل شغل تسجله في `docs/ACTIVITY_LOG.md`، وفي آخر جلسة اكتب ملخص في `docs/sessions/`.
+
+
+## XPIX Intelligence workstream
+If the task touches the XPIX Intelligence widget, its strategy logic, data contracts, chart alerts, or its tests, read `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md` immediately after the general agent instructions and before editing any code. It is the canonical cross-agent handoff and maps the Workspace, TIA, Technical Office, Academy, Radar, Spot, Playbook and Research Hub responsibilities.

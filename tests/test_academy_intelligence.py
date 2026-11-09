@@ -5,6 +5,7 @@ from pathlib import Path
 
 from modules.academy_intelligence import (
     initialize, upsert_record, search_records, promotion_gate, import_legacy_lessons,
+    review_record, list_review_events,
 )
 
 
@@ -21,6 +22,29 @@ def run():
         rows = search_records("sweep", asset="XAUUSD", path=db)
         assert len(rows) == 1 and rows[0]["id"] == rid
         assert rows[0]["provenance"][0]["url"] == "https://example.org"
+        # Curation decisions are append-only and never upgrade empirical evidence.
+        review_record(rid, "accept", "Source is useful context, not a tested edge.",
+                      source_class="secondary", actor="owner", path=db)
+        accepted = search_records("sweep", path=db)[0]
+        assert accepted["status"] == "accepted"
+        assert accepted["evidence_grade"] == "unreviewed"
+        assert accepted["details"]["source_class"] == "secondary"
+        review_record(rid, "return_to_review", "Need independent replication.",
+                      source_class="primary", path=db)
+        events = list_review_events(rid, path=db)
+        assert [event["decision"] for event in events] == ["accept", "return_to_review"]
+        assert events[0]["reason"] == "Source is useful context, not a tested edge."
+        assert search_records("sweep", path=db)[0]["evidence_grade"] == "unreviewed"
+        for kwargs in (
+            {"decision": "approve", "reason": "x"},
+            {"decision": "reject", "reason": ""},
+            {"decision": "reject", "reason": "x", "source_class": "endorsement"},
+        ):
+            try:
+                review_record(rid, kwargs.pop("decision"), kwargs.pop("reason"), path=db, **kwargs)
+                raise AssertionError("invalid review input should be rejected")
+            except ValueError:
+                pass
         try:
             upsert_record({
                 "title": "Unsafe source", "summary": "Should be rejected.",

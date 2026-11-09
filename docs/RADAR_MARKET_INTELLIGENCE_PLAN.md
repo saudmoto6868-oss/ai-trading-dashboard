@@ -150,3 +150,21 @@ Each agent must expose status (idle/working/attention/error), exact inputs, time
 - No continuous decorative animation. Use short purposeful state transitions; honor reduced motion.
 - Lazy-load secondary visualizations; reuse cached normalized data and shared filters to avoid duplicate API requests.
 - Each panel must expose a compact/expanded mode and a last-updated/source marker.
+
+
+## First implementation increment — Radar Agent Control Room (2026-11-09)
+Implemented on `feat/radar-market-intelligence-foundation`:
+- Added `modules/radar_agents.py` and embedded it in the existing Radar chart-grid render path in `main.py`.
+- Six specialist roles: Market Scout, Chart Reader, Flow Analyst, Liquidity Sentinel, Risk Guardian, Research Tutor.
+- Agent cards, active specialist selection, six numbered Arabic workflow steps, optional terminal, optional news panel, optional agent-room visibility, and rerunnable review round.
+- Chart Reader displays the existing Radar mini charts for the highest-ranked symbols.
+- Flow Analyst reads the existing `.flow_log.jsonl` through `modules.flow_log.load()` if present and displays its recorded CVD/OFI/imbalance/spread fields as saved collector evidence; it explicitly labels this as recorded data, not necessarily live.
+- News panel uses the existing `modules.news_watch` public RSS sources and classifier only after the user presses refresh. Headlines describe potentially affected assets in either direction; a keyword-derived hawkish/dovish lean is explicitly not a price forecast.
+- Risk Guardian refuses to call a setup confirmed when Flow or DOM evidence is missing. DOM/real-time order book is not yet wired into this Radar context.
+- Agents in this increment are deterministic specialist passes over available scan data, not autonomous LLM agents. Their trace is auditable and does not place orders. A future increment may connect LLM reasoning via the existing agent contract only after tool/data permissions and evidence validation are defined.
+- Visual motion is CSS state feedback with reduced-motion support; it is not a random moving mascot. Agent pointers must be tied to a real chart/alert before adding animated navigation.
+
+Validation status:
+- GitLab CI pipeline creation was blocked by GitLab identity verification requirement; no successful pipeline is claimed.
+- The branch is not merged into main.
+- Before merge: run compile/import checks, existing test suite, Radar smoke test, news feed fetch test, and verify agent room does not add duplicate market data requests.

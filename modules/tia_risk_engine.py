@@ -35,6 +35,7 @@ class RiskPolicy:
     max_stops: int
     min_reward_risk: float = 2.0
     allow_hedged_sides: bool = False
+    max_asset_class_open_risk_pct: float | None = None
 
     def __post_init__(self):
         if not self.policy_id.strip() or not self.version.strip():
@@ -43,6 +44,10 @@ class RiskPolicy:
             _finite(name, getattr(self, name), positive=True)
         if self.risk_per_trade_pct > self.daily_loss_limit_pct:
             raise ValueError("per-trade risk cannot exceed daily loss limit")
+        if self.max_asset_class_open_risk_pct is not None:
+            _finite("max_asset_class_open_risk_pct", self.max_asset_class_open_risk_pct, positive=True)
+            if self.max_asset_class_open_risk_pct > self.max_open_risk_pct:
+                raise ValueError("asset-class open-risk cap cannot exceed portfolio open-risk cap")
         if isinstance(self.max_stops, bool) or not isinstance(self.max_stops, int) or self.max_stops < 1:
             raise ValueError("max_stops must be an integer >= 1")
 
@@ -179,6 +184,9 @@ def assess_new_trade(
     daily_loss = max(0.0, -daily_net) / snapshot.start_equity * 100.0
     open_risk = sum(p.stop_risk for p in positions)
     aggregate = open_risk + proposed_risk
+    asset_class_risk = sum(p.stop_risk for p in positions
+                           if p.asset_class.strip().lower() == proposed_asset_class.strip().lower())
+    aggregate_asset_class_risk = asset_class_risk + proposed_risk
     daily_cap = snapshot.start_equity * policy.daily_loss_limit_pct / 100.0
     remaining = max(0.0, daily_cap + daily_net)
     reasons: list[str] = []
@@ -191,6 +199,9 @@ def assess_new_trade(
         reasons.append("proposed risk exceeds per-trade policy cap")
     if aggregate > snapshot.start_equity * policy.max_open_risk_pct / 100.0 + 1e-9:
         reasons.append("aggregate open stop risk exceeds portfolio cap")
+    if (policy.max_asset_class_open_risk_pct is not None
+            and aggregate_asset_class_risk > snapshot.start_equity * policy.max_asset_class_open_risk_pct / 100.0 + 1e-9):
+        reasons.append("aggregate open stop risk exceeds asset-class cap")
     if proposed_risk > remaining + 1e-9:
         reasons.append("proposed risk exceeds remaining daily loss budget")
 

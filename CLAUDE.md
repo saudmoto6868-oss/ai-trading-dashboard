@@ -34,3 +34,7 @@ Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, n
 ## After launch (owner rule): token budget for the app's own AI features
 - When an LLM / voice agent is added (item 23 phase 2): cache answers per setup id, send the stored short analysis (not raw candles),
   smallest model that works, hard per-day cap, summarise long chats instead of resending them.
+
+
+## XPIX Intelligence (owner-approved)
+Canonical agent entry point: `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md`. Read it before working on `intel` or any connected strategy/data/chart-alert code. Runtime home is Workspace; Academy owns school rules; Technical Office/Research Hub validate; Radar discovers candidates; Spot remains separate; TIA is the institutional parent, not a duplicate cockpit.

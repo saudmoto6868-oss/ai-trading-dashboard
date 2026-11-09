@@ -18,7 +18,7 @@ from typing import Any
 
 from modules.tia_agent_charter import default_roster, validate_profile
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 TASK_STATES = {
     "draft": {"queued", "cancelled"},
     "queued": {"running", "cancelled", "blocked"},
@@ -432,13 +432,14 @@ class TIAStore:
 
     def create_scheduled_job(self, title, owner_agent_id, schedule, timezone_name, next_run_at, idempotency_key=None, actor="owner"):
         from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        from modules.tia_session_scheduler import validate_weekly_rule
         title = _safe_text(title, "scheduled job title")
         if not title or len(title) > 160 or not next_run_at.endswith("Z"):
             raise ValueError("valid title and UTC next_run_at are required")
         try: ZoneInfo(timezone_name)
         except ZoneInfoNotFoundError as exc: raise ValueError("unknown IANA timezone") from exc
+        safe = validate_weekly_rule(schedule)
         job_id, now = str(uuid.uuid4()), utc_now()
-        safe = _redact(schedule)
         with self._connect() as db:
             if not db.execute("SELECT 1 FROM agent_profiles WHERE agent_id=? AND enabled=1", (owner_agent_id,)).fetchone():
                 raise ValueError("owner agent is missing or disabled")

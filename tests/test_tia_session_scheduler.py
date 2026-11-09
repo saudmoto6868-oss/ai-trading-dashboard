@@ -61,8 +61,12 @@ class TiaScheduledJobStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.create_scheduled_job("Bad zone", self.agent_id, {}, "Mars/Phobos",
                                             "2026-11-09T18:00:00Z")
-        job_id = self.store.create_scheduled_job("Paused", self.agent_id, {}, "UTC",
-                                                 "2020-01-01T00:00:00Z")
+        with self.assertRaises(ValueError):
+            self.store.create_scheduled_job("Malformed", self.agent_id, {}, "UTC",
+                                            "2020-01-01T00:00:00Z")
+        job_id = self.store.create_scheduled_job(
+            "Paused", self.agent_id, {"weekdays": [0], "local_time": "08:00"},
+            "UTC", "2020-01-01T00:00:00Z")
         self.store.set_scheduled_job_enabled(job_id, False)
         self.assertEqual(self.store.claim_due_jobs("2026-11-09T18:00:00Z"), [])
 

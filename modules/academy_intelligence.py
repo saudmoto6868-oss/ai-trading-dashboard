@@ -27,7 +27,16 @@ def database_path() -> Path:
     return Path(os.getenv("ACADEMY_DB_PATH", "data/academy_hub.sqlite3"))
 
 
-def connect(path: str | Path | None = None) -> sqlite3.Connection:
+def connect(path: str | Path | None = None):
+    # DATABASE_URL selects shared persistent PostgreSQL. Explicit paths stay SQLite for tests.
+    url = os.getenv("DATABASE_URL", "").strip() if path is None else ""
+    if url:
+        try:
+            import psycopg
+            from psycopg.rows import dict_row
+        except ImportError as exc:
+            raise RuntimeError("DATABASE_URL is set but psycopg is not installed") from exc
+        return psycopg.connect(url, row_factory=dict_row, connect_timeout=10)
     target = Path(path) if path else database_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(target), timeout=15)
@@ -37,10 +46,15 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return db
 
 
+def _execute(db, sql: str, args=()):
+    if isinstance(db, sqlite3.Connection):
+        return db.execute(sql, args)
+    return db.execute(sql.replace("?", "%s"), args)
+
+
 def initialize(path: str | Path | None = None) -> None:
-    with connect(path) as db:
-        db.executescript("""
-        CREATE TABLE IF NOT EXISTS knowledge_records (
+    statements = [
+        """CREATE TABLE IF NOT EXISTS knowledge_records (
             id TEXT PRIMARY KEY, title TEXT NOT NULL, summary TEXT NOT NULL,
             topic TEXT NOT NULL, school TEXT NOT NULL DEFAULT '',
             claim_type TEXT NOT NULL, status TEXT NOT NULL, evidence_grade TEXT NOT NULL,
@@ -50,12 +64,15 @@ def initialize(path: str | Path | None = None) -> None:
             source_published_at TEXT NOT NULL DEFAULT '', captured_at TEXT NOT NULL,
             provenance TEXT NOT NULL DEFAULT '[]', details TEXT NOT NULL DEFAULT '{}',
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_knowledge_topic ON knowledge_records(topic);
-        CREATE INDEX IF NOT EXISTS idx_knowledge_school ON knowledge_records(school);
-        CREATE INDEX IF NOT EXISTS idx_knowledge_status ON knowledge_records(status);
-        CREATE INDEX IF NOT EXISTS idx_knowledge_asset_tf ON knowledge_records(asset, timeframe);
-        """)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_topic ON knowledge_records(topic)",
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_school ON knowledge_records(school)",
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_status ON knowledge_records(status)",
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_asset_tf ON knowledge_records(asset, timeframe)",
+    ]
+    with connect(path) as db:
+        for statement in statements:
+            _execute(db, statement)
 
 
 def validate_record(record: dict[str, Any]) -> dict[str, Any]:
@@ -94,7 +111,7 @@ def upsert_record(record: dict[str, Any], path: str | Path | None = None) -> str
             value = json.dumps(value, ensure_ascii=False, sort_keys=True)
         values.append(value)
     with connect(path) as db:
-        db.execute(
+        _execute(db,
             f"INSERT INTO knowledge_records ({','.join(columns)}, created_at, updated_at) "
             f"VALUES ({','.join('?' for _ in range(len(columns)+2))}) "
             f"ON CONFLICT(id) DO UPDATE SET "
@@ -120,8 +137,8 @@ def search_records(query: str = "", *, topic: str = "", school: str = "",
         args.extend([needle, needle, needle])
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     with connect(path) as db:
-        rows = db.execute(f"SELECT * FROM knowledge_records{where} ORDER BY updated_at DESC LIMIT ?",
-                          args + [max(1, min(int(limit), 200))]).fetchall()
+        rows = _execute(db, f"SELECT * FROM knowledge_records{where} ORDER BY updated_at DESC LIMIT ?",
+                        args + [max(1, min(int(limit), 200))]).fetchall()
     result = []
     for row in rows:
         item = dict(row)

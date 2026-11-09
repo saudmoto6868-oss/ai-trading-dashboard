@@ -1380,15 +1380,6 @@ def _office_overview():
          (L("Backtest"), L("rules + engine, verdict on out-of-sample"), "info"), (L("Strategy import"), L("text / video link -> rules"), "off")],
         [(L("Alerts · Telegram"), L("confirmed only, never orders"), "ok" if tg else "off"), (L("Journal"), L("in the browser · CSV export"), "info"),
          (L("Model inventory"), L("gate verdict per strategy"), "info")]]), unsafe_allow_html=True)
-    st.markdown(U.tools(L("Tools"), [
-        (L("Backtest"), L("strategy + symbol + timeframe, verdict on out-of-sample"), L("tab: Backtest"), "ok"),
-        (L("Strategy builder"), L("indicator + condition + value, AND / OR, JSON"), L("tab: Backtest"), "ok"),
-        (L("Strategy import"), L("text or link -> rules + assumptions"), L("waiting: ChatGPT template"), "warn"),
-        (L("Scanner control"), L("filters, timeframe, confirmed / candidate"), L("Radar page"), "ok"),
-        (L("Trade card"), L("entry, stop, target and the detector's evidence"), L("task 17, after the ranking"), "off"),
-        (L("Telegram"), L("alerts for confirmed setups only"), L("workflow every 30 min") + (" · " + L("key set") if tg else " · " + L("no key")), "ok" if tg else "warn"),
-        (L("Recording"), L("snapshot / record the chart and the workspace"), L("Workspace toolbar"), "ok"),
-        (L("KPIs"), L("net R, profit factor, drawdown, t"), L("Stats page"), "ok")]), unsafe_allow_html=True)
     st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
 
 
@@ -1563,7 +1554,6 @@ def _office_ops():
 
 
 def _office_lab():
-    _office_control_room()
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
                  "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
     lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
@@ -2087,6 +2077,37 @@ def _office_regime():
     st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
 
 
+def _office_control():
+    """Technical Office > Control room: status, gauge, alerts, charts, system map; under it the work board (left) and the GitHub workflows (right)."""
+    _office_overview()
+    a, b = st.columns([2, 1])
+    with a:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Work board'))}</div>", unsafe_allow_html=True)
+        _office_board()
+    with b:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Operations'))}</div>", unsafe_allow_html=True)
+        _office_ops()
+
+
+def _office_lab_all():
+    """Technical Office > Lab results: one detector's card (left) next to the weekly lab tables (right)."""
+    a, b = st.columns(2)
+    with a:
+        _office_detector()
+    with b:
+        _office_lab()
+
+
+def _office_strategies():
+    """Technical Office > Strategies: scanner presets for the Radar (folded), the strategy map, then the rule builder / backtest."""
+    with st.expander(L("Scanner presets -> Radar"), expanded=False):
+        _office_scanner()
+    _office_strategy_map()
+    st.divider()
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Backtest your own rules'))}</div>", unsafe_allow_html=True)
+    _office_backtest()
+
+
 def _office_flow():
     """Technical Office > Order flow: the forward-test judge on top, the manual (methods, tools, routine) under it - one tab (2026-11-09)."""
     _office_flow_lab()
@@ -2096,9 +2117,7 @@ def _office_flow():
 
 def render_lab_page():
     """Technical Office v2: one tab bar, only the open tab runs. Options desk + Macro regime live in Trading > Options & macro (2026-11-09)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
-            "Order flow": _office_flow, "Operations": _office_ops}
+    tabs = {"Control room": _office_control, "Lab results": _office_lab_all, "Strategies": _office_strategies, "Order flow": _office_flow}   # 2026-11-09: 9 tabs -> 4
     if st.session_state.get("to_tab") not in tabs:   # a tab that moved (Options desk, Macro regime, Flow manual / lab) must not break an open session
         st.session_state.pop("to_tab", None)
     st.markdown(kit_css(), unsafe_allow_html=True)

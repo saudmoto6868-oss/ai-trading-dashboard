@@ -845,33 +845,30 @@ def _tab_news(d):
 
 def render() -> None:
     d = load()
+    st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
-    # 2026-11-09 (owner: few tabs): 9 st.tabs (all ran on every run) -> 4 groups, only the open one runs
-    views = {"Overview": T("Overview", "نظرة عامة"), "Holdings": T("Crypto + metals", "كريبتو + معادن"),
-             "Ledger": T("Ledger & price alerts", "السجل وتنبيهات السعر"), "Setup": T("News, sources & setup", "الأخبار والمصادر والإعداد")}
-    if st.session_state.get("sp_view") not in views:
-        st.session_state.pop("sp_view", None)
-    c1, c2 = st.columns([5, 1])
-    view = c1.segmented_control(" ", list(views), default="Overview", format_func=views.get, key="sp_view", label_visibility="collapsed") or "Overview"
-    egp = c2.toggle(T("EGP", "بالجنيه"), key="sp_egp", value=True, help=T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"))
-    if view == "Overview":
+    egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
+    # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
+    tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
+                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)")])
+    with tabs[0]:
         _tab_brain(d, px, met, cr, fx)
-        st.divider()
+    with tabs[1]:
         _tab_ideas()
-    elif view == "Holdings":
+    with tabs[2]:
         _tab_crypto(d, cr, fx)
-        st.divider()
+    with tabs[3]:
         _tab_metals(d, met, fx, fx_src, egp)
-    elif view == "Ledger":
+    with tabs[4]:
         _tab_ledger(d, px, fx, egp)
-        st.divider()
+    with tabs[5]:
         _tab_alerts(d, px)
-    else:
+    with tabs[6]:
         _tab_news(d)
-        st.divider()
+    with tabs[7]:
         _tab_setup(d, px, fx)
-        st.divider()   # owner 2026-11-06: the analyzer is an option on the side, loaded only on request
+    with tabs[8]:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)

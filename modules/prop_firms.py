@@ -502,18 +502,13 @@ def _render_detail(acc: dict, accounts: list[dict]) -> None:
     st.divider()
 
     # Tabs
-    t_overview, t_live, t_rules, t_cal, t_equity = st.tabs([
-        _xl("نظرة عامة","Overview"),
-        _xl("🔗 الحساب","🔗 Live"),
-        _xl("القواعد","Rules"),
-        _xl("التقويم","Calendar"),
-        _xl("منحنى الأسهم","Equity"),
-    ])
-    with t_overview: _detail_overview(acc)
-    with t_live:     _detail_live(acc)
-    with t_rules:    _detail_rules(acc)
-    with t_cal:      _detail_calendar(acc)
-    with t_equity:   _detail_equity(acc)
+    # 2026-11-09 (owner: few tabs, side by side): Calendar / Equity tabs only said "needs the firm's API" -> removed
+    c_left, c_right = st.columns(2)
+    with c_left:
+        _detail_overview(acc)
+        _detail_rules(acc)
+    with c_right:
+        _detail_live(acc)
 
     st.divider()
 
@@ -733,9 +728,9 @@ def render_prop_firms() -> None:
         st.info(_xl("لا توجد حسابات","No accounts found"))
     else:
         # render in rows of 3
-        rows = [filtered[i:i+3] for i in range(0, len(filtered), 3)]
+        rows = [filtered[i:i+4] for i in range(0, len(filtered), 4)]
         for row in rows:
-            cols = st.columns(len(row))
+            cols = st.columns(4)
             for col, acc in zip(cols, row):
                 with col:
                     card_html = (

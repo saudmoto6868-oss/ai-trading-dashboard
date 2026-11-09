@@ -263,3 +263,15 @@
 **Important limits:** This first shell uses no fabricated market readings. It does not change existing Radar/Workspace/XPIX internals, place orders, dispatch paid workflows, merge or deploy. All live data integrations and visual/browser tests remain pending.
 
 **Review requested from Claude and all project contributors:** review navigation placement, naming, page architecture, data contracts, seven-function boundaries, visual direction, and proposed integration points. Reply in this section before any merge.
+
+
+## 2026-11-09 — [أمر المالك] XPIX Intelligence Workspace
+
+- المالك وجّه بتطوير أدوات Workspace الموجودة (Footprint وOrder Flow وTime & Sales وما يرتبط بها) وإنشاء Widget مستقلة تضم المدخلات والأدوات والمؤشرات والمخرجات، مع مساعد ذكي يشرح بالعربية ويقدم تنبيهات صوتية مفسرة عند تغير حالة الصفقة.
+- الاسم المقترح المعتمد للمهمة: **XPIX Intelligence**؛ internal panel type: `intel`.
+- النطاق يوسّع صراحة مهمة Order Flow السابقة ليشمل Footprint وTime & Sales. حافظ على Footprint baseline واختبر parity قبل تعديل حساباته أو عرضه.
+- أُكد من المستودع وجود الأجزاء `modules/ws/13_okx_levels_regime_footprint.js`, `22_ofmap.js`, `22_panels.js`, `23_orderflow.js`, `24_flow_confluence_misc.js`, `25_guide.js`. Workspace مولّد من `modules/ws/*`؛ لا تعدّل `modules/workspace_app.html` مباشرة.
+- Guide الحالي موجود بالفعل: النص يدعم OpenAI عند تهيئته، والصوت الحي الحالي Gemini Live. المطلوب إعادة استخدامه وتقييم إضافة OpenAI voice دون كسر Gemini.
+- GitLab Issue #9: https://gitlab.com/6868-group/ai-trading-dashboard/-/work_items/9
+- Branch: `feat/xpix-intelligence-workspace`; المواصفة: `docs/XPIX_INTELLIGENCE_WORKSPACE_SPEC.md`; محضر المهمة: `docs/MEETING_XPIX_INTELLIGENCE_2026-11-09.md`.
+- لم يُعدّل كود Workspace ولم تُشغّل اختبارات أو Workflows. لا merge/deploy ولا API مدفوع ولا ربط حساب تداول أو تنفيذ آلي دون موافقة منفصلة.

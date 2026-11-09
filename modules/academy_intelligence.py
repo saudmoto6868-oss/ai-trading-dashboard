@@ -105,6 +105,10 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Invalid claim_type")
     if not isinstance(out["provenance"], list) or not isinstance(out["details"], dict):
         raise ValueError("provenance must be a list and details must be an object")
+    source_url = str(out.get("source_url", "") or "").strip()
+    if source_url and not source_url.startswith(("https://", "http://")):
+        raise ValueError("source_url must be HTTP(S)")
+    out["source_url"] = source_url
     return out
 
 

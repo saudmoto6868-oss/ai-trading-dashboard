@@ -31,7 +31,11 @@ Keep this contract isolated until the owner approves the policy and the missing 
 
 ### Remaining persistence and sizing limits
 - SQLite is appropriate only as a local/single-host interim ledger on a reliable local filesystem. It is not a distributed lock or multi-host production database. Use a transactional server database for horizontally scaled deployments.
-- The event journal is append-only; a materialized state reducer (open/close position projection, stop counter, realized P&L, fee/funding totals) and recovery/reconciliation process are still required before the ledger can drive live enforcement.
+- The event journal now has a deterministic replay projection for position open/mark/close, realized P&L, fees, funding and explicitly classified stops. It validates reconstructed positions against instrument specs. Recovery/reconciliation against broker statements and a durable projection cache are still required before live enforcement.
 - The sizing function returns an auditable proposed quantity but has not yet been wired into Order Flow Desk's UI/decision path. Existing callers must not continue supplying arbitrary risk amounts as if verified.
 - Broker-specific contract semantics (inverse contracts, quanto, options Greeks, FX pip value, CFD lot conventions, exchange fee tiers, maker/taker and funding schedules) need provider/instrument adapters and verified specs. The generic linear point-value model must not be applied to them without an adapter.
 - No automatic stop movement, partial fill, slippage or gap-through-stop simulation is included.
+
+
+## Event replay contract
+The ledger accepts only the documented projection event types: `position_open`, `position_mark`, and `position_close`. Close events must carry an explicit boolean `stopped`; negative realized P&L alone does not increment the stop counter. Replay rejects duplicate active position IDs, marks/closes of unknown positions, malformed instrument specs, and unsupported event types. This projection is a deterministic rebuild from the append-only journal, not broker reconciliation.

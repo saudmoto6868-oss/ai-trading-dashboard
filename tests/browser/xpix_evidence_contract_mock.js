@@ -63,9 +63,41 @@ const { chromium } = require('playwright');
       /OKX public venue snapshot|لقطة دفتر OKX العامة/.test(intel.root.textContent);
   });
   out.liquidityPreview = liquidityPreview;
+  const downstream = await p.evaluate(() => {
+    const intel = Ws.panels.find(x => x.type === "intel");
+    if (!intel) return { auction: false, indicators: false, waitState: false };
+    // Inject deterministic source-panel fixtures; the UI still renders through its real panel readers.
+    Ws.panels.push({
+      type: "valuelv", state: { sym: intel.state.sym },
+      levelsData: { "5m": { vp: { vah: 60200, poc: 60000, val: 59800 }, px: 60100 } }
+    });
+    const chart = Ws.panels.find(x => x.type === "chart" && x.state.sym === intel.state.sym);
+    if (chart) chart.indItems = [
+      { id: "fixture", label: "Contract Fixture <safe>", get: () => true, set: () => {} }
+    ];
+    const clickTab = re => {
+      const btn = [...intel.root.querySelectorAll(".seg button")].find(x => re.test(x.textContent));
+      if (!btn) return false;
+      btn.click();
+      return true;
+    };
+    const auctionTab = clickTab(/Auction|المزاد/);
+    const auction = auctionTab && /60000/.test(intel.root.textContent) &&
+      /Above value|فوق القيمة/.test(intel.root.textContent);
+    const indicatorsTab = clickTab(/Indicators|المؤشرات/);
+    const indicators = indicatorsTab && /Contract Fixture/.test(intel.root.textContent) &&
+      /ON|مفعّل/.test(intel.root.textContent) && !intel.root.innerHTML.includes("<safe>");
+    const setupsTab = clickTab(/Setups|الفرص/);
+    const waitState = setupsTab && /WAIT|انتظار/.test(intel.root.textContent) &&
+      !/BUY|SELL/.test(intel.root.textContent);
+    Ws.panels = Ws.panels.filter(x => x.type !== "valuelv");
+    return { auction, indicators, waitState };
+  });
+  Object.assign(out, downstream);
   await p.evaluate(() => { [window.__xpixBook, window.__xpixTape, window.__xpixYahoo].forEach(f => f && f()); });
   await b.close();
-  const pass = out.book && out.tape && out.unsupported && out.footprintLink && out.liquidityPreview && !errs.length;
+  const pass = out.book && out.tape && out.unsupported && out.footprintLink &&
+    out.liquidityPreview && out.auction && out.indicators && out.waitState && !errs.length;
   console.log(JSON.stringify({out, errors: errs}), pass ? 'PASS' : 'FAIL');
   process.exit(pass ? 0 : 1);
 })();

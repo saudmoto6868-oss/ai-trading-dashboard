@@ -130,3 +130,40 @@ def test_projection_preserves_append_order_when_event_timestamps_tie(tmp_path):
         payload={"position_id":"p1","realized_pnl":1,"fees_paid":0,"funding_paid":0,"stopped":False},created_at=now)
     assert [e["event_id"] for e in ledger.events(sid)] == ["z-open","a-mark","m-close"]
     assert ledger.project_session(sid)["open_position_count"] == 0
+
+
+def test_cashflows_are_audited_but_excluded_from_trading_pnl(tmp_path):
+    ledger = RiskLedger(str(tmp_path / "cashflows.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    ledger.append_event(session_id=sid, event_id="deposit-1", event_type="account_cashflow",
+        payload={"flow_type":"deposit","amount":1000,"account_currency":"USD",
+                 "source":"broker-statement","external_reference":"dep-001"}, created_at=now)
+    ledger.append_event(session_id=sid, event_id="withdrawal-1", event_type="account_cashflow",
+        payload={"flow_type":"withdrawal","amount":250,"account_currency":"USD",
+                 "source":"broker-statement","external_reference":"wd-001"}, created_at=now)
+    state = ledger.project_session(sid)
+    assert state["start_equity"] == 5000
+    assert state["realized_pnl"] == 0
+    assert state["deposits_account_ccy"] == 1000
+    assert state["withdrawals_account_ccy"] == 250
+    assert state["net_cashflow_account_ccy"] == 750
+    assert state["cashflow_count"] == 2
+
+
+@pytest.mark.parametrize("payload", [
+    {"flow_type":"deposit","amount":0,"account_currency":"USD","source":"broker","external_reference":"x"},
+    {"flow_type":"transfer","amount":10,"account_currency":"USD","source":"broker","external_reference":"x"},
+    {"flow_type":"deposit","amount":10,"account_currency":"USD","source":"","external_reference":"x"},
+    {"flow_type":"withdrawal","amount":10,"account_currency":"USD","source":"broker","external_reference":""},
+])
+def test_cashflow_requires_valid_auditable_fields(tmp_path, payload):
+    ledger = RiskLedger(str(tmp_path / "bad-cashflow.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    ledger.append_event(session_id=sid, event_id="cashflow", event_type="account_cashflow",
+                        payload=payload, created_at=now)
+    with pytest.raises(ValueError):
+        ledger.project_session(sid)

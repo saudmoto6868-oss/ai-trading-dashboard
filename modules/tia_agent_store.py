@@ -63,17 +63,23 @@ class TIAStore:
     def __init__(self, db_path: str | os.PathLike | None = None):
         default = os.environ.get("TIA_AGENT_DB", "data/tia_agents.sqlite3")
         self.db_path = str(db_path or default)
-        if self.db_path != ":memory:":
+        self._memory_uri = None
+        self._memory_keeper = None
+        if self.db_path == ":memory:":
+            self._memory_uri = "file:tia_agents_" + uuid.uuid4().hex + "?mode=memory&cache=shared"
+            self._memory_keeper = sqlite3.connect(self._memory_uri, uri=True, timeout=15)
+        else:
             Path(self.db_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
         self.initialize()
 
     @contextmanager
     def _connect(self):
-        conn = sqlite3.connect(self.db_path, timeout=15)
+        conn = (sqlite3.connect(self._memory_uri, uri=True, timeout=15)
+                if self._memory_uri else sqlite3.connect(self.db_path, timeout=15))
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA busy_timeout=15000")
-        if self.db_path != ":memory:":
+        if not self._memory_uri:
             conn.execute("PRAGMA journal_mode=WAL")
         try:
             yield conn
@@ -331,6 +337,8 @@ class TIAStore:
             raise ValueError("unsupported memory type")
         if not content.strip() or len(content) > 12000:
             raise ValueError("memory content must contain 1..12000 characters")
+        if re.search(r"(?i)(bearer\\s+[A-Za-z0-9._~+/-]{12,}|(?:api[_-]?key|password|secret|access[_-]?token)\\s*[:=]\\s*[^\\s,;]{8,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)", content):
+            raise ValueError("raw credentials are forbidden in agent memory; store a secret reference instead")
         memory_id = str(uuid.uuid4())
         with self._connect() as db:
             if not db.execute("SELECT 1 FROM agent_profiles WHERE agent_id=?", (agent_id,)).fetchone():

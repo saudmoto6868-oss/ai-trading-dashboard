@@ -160,4 +160,5 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 
 - The shared Hub now republishes the last supported book/tape snapshot with `stale`, `staleSince`, `staleAt`, `failureCount`, and `lastError` metadata on each failed poll.
 - XPIX keeps last-known values visible but labels retained snapshots as stale; unsupported feeds remain distinct from stale supported feeds.
-- Recovery replaces the stale snapshot with a fresh supported payload. Runtime/browser tests remain pending.
+- Recovery replaces the stale snapshot with a fresh supported payload.
+- OFM ignores stale book callbacks so it cannot stamp an old book as a newly received heatmap snapshot. Runtime/browser tests remain pending.

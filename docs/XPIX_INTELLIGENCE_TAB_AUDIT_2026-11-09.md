@@ -131,3 +131,10 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - تمت إزالة ملفات التجميع المؤقتة من الفرع في نفس commit الخاص بتحديث الـbundle.
 - تحققنا من وجود علامات XPIX الجديدة داخل الـbundle الناتج: Footprint handoff، unsupported feed capability، وAuction / Volume.
 - لم يتم تشغيل `scripts/build_workspace.py --check` محلياً ولا browser tests؛ المطابقة الكاملة للتوليد الآلي ما زالت تحتاج تحقق CI أو build فعلي.
+
+
+## Navigation contract regression — 2026-11-09
+
+- أضيف اختبار صريح يثبت أن تبويبات XPIX الستة تظهر بالترتيب المعتمد: Overview، Order Flow، Liquidity، Auction / Volume، Setups، Indicators.
+- الاختبار يرفض أي تغيير في العدد أو الأسماء أو الترتيب؛ لم يتم تغيير واجهة التبويبات نفسها.
+- لم يتم تشغيل Browser test بسبب حاجز هوية GitLab CI؛ التعديل أضيف إلى الاختبار فقط.

@@ -28,15 +28,17 @@ def test_matching_simple_case_is_shadow_match():
 
 def test_tia_blocks_unrealized_loss_that_legacy_does_not_see():
     spec = InstrumentSpec("BTC", "crypto", "USD", 1, 0.001, 1)
-    position = Position("p1", "BTC", "crypto", "long", 1, 100, 90, 70, spec)
+    position = Position("p1", "BTC", "crypto", "long", 10, 100, 90, 70, spec)
     result = compare_legacy_and_tia(**args(
         symbol="ETH",
+        tia_policy=RiskPolicy("test", "v1", 0.5, 2.0, 20.0, 3, 2.0),
         tia_snapshot=RiskSnapshot(10_000, 0, 0, 0, (position,)),
     ))
     assert result.legacy_allowed
     assert not result.tia_allowed
     assert "ALLOW_BLOCK_DISAGREEMENT" in result.differences
     assert "TIA_INCLUDES_OPEN_PNL_OR_COSTS_NOT_IN_LEGACY" in result.differences
+    assert "daily net loss limit reached" in result.tia_reasons
 
 
 def test_caller_risk_amount_mismatch_is_reported():

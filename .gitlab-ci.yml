@@ -20,6 +20,8 @@ variables:
 
 telegram_alerts:
   stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   timeout: 15m
   resource_group: telegram-alerts        # one run at a time
   cache:
@@ -50,3 +52,17 @@ telegram_alerts:
     expire_in: 90 days
     exclude:
       - .cache/**/*
+
+
+# Isolated browser contract test. Manual "Run pipeline" runs this job only;
+# Telegram / Brain jobs remain schedule-only and cannot send side-effecting alerts.
+xpix_evidence_contract:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.56.1-noble
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  timeout: 10m
+  script:
+    - npm install --no-save playwright@1.56.1
+    - python3 scripts/build_workspace.py
+    - node tests/browser/xpix_evidence_contract_mock.js modules/workspace_app.html

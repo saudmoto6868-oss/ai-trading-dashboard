@@ -38,3 +38,10 @@ This is a persistence layer, not a permission broker. It does not retrieve secre
 - DST policy: ambiguous wall times use the first fold; nonexistent spring-forward wall times are skipped by the preview calculator. Operators must verify exchange calendars and instrument-specific hours before enabling a real schedule.
 - A claim only leases a schedule. There is no background process, recurring task materialization, alert delivery or agent execution yet.
 - Next: implement a supervised worker that converts claimed schedule occurrences into idempotent tasks, calculates and persists the next occurrence, supports retries/dead letters, and exposes health/heartbeat. Then add typed agent messaging and durable memory retrieval.
+
+
+## Scheduler dispatch worker
+- `modules/tia_scheduler_worker.py` provides `run_once` and a graceful-stop polling loop intended for an external process supervisor.
+- A due schedule is converted into an idempotently-created `monitoring` task in `queued` state. The worker then calculates and persists the next occurrence. If dispatch fails, it records a bounded retry time; task creation is idempotent across retries.
+- This worker dispatches tasks only. It does not execute agent reasoning, external tools, notifications, or trading. It is not yet installed as a deployed service or connected to a process supervisor/heartbeat monitor.
+- The admin UI now configures weekly schedules, previews five local-time occurrences and enables/pauses saved schedules.

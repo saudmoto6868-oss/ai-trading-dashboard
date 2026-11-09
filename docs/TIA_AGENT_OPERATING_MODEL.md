@@ -73,3 +73,7 @@ modules/tia_agent_charter.py is declarative configuration only. It does not star
 
 ## Scheduler implementation note (2026-11-09)
 The TIA scheduler foundation stores recurring weekly rules in local wall-clock time with an explicit IANA timezone, calculates UTC occurrences through zoneinfo, and records atomic expiring claims. It deliberately has no assumed exchange session hours. Configure schedules only from verified exchange/instrument calendars. Claims are not execution; worker runtime, idempotent task materialization, retries and heartbeat remain pending.
+
+
+## Worker dispatch note (2026-11-09)
+The supervised scheduler dispatcher can atomically claim due schedule rows and materialize each occurrence as one idempotent queued task, then advance the next weekly occurrence. Its polling loop accepts a graceful-stop event for process supervision. It does not execute agents or external actions, and no deployed service/heartbeat is configured yet.

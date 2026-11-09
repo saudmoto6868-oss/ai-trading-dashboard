@@ -33,11 +33,12 @@ class MarketRiskThresholds:
         for name in ("book_imbalance_abs", "crowded_positive_funding_pct", "crowded_long_short_ratio"):
             value = getattr(self, name)
             parsed = _finite(value)
-            if parsed is None or parsed <= 0:
-                raise ValueError(f"{name} must be finite and positive")
-        value = _finite(self.thin_book_usd)
-        if value is None or value < 0:
-            raise ValueError("thin_book_usd must be finite and non-negative")
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or parsed is None or parsed <= 0:
+                raise ValueError(f"{name} must be a finite numeric value and positive")
+        value = self.thin_book_usd
+        parsed = _finite(value)
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or parsed is None or parsed < 0:
+            raise ValueError("thin_book_usd must be a finite numeric value and non-negative")
 
 
 @dataclass(frozen=True)

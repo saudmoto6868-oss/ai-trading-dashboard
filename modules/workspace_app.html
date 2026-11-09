@@ -1716,7 +1716,7 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
   }
   restoreFrom(v){ this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }

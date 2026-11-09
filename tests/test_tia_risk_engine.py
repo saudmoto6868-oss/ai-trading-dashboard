@@ -97,3 +97,20 @@ def test_asset_class_cap_cannot_exceed_portfolio_cap():
     with pytest.raises(ValueError, match="cannot exceed portfolio"):
         RiskPolicy("test", "1", 0.25, 2.0, 1.0, 3, 2.0,
                    max_asset_class_open_risk_pct=1.1)
+
+
+@pytest.mark.parametrize("bad", [True, False, "100", "nan"])
+def test_numeric_contract_rejects_booleans_and_numeric_strings(bad):
+    with pytest.raises(ValueError):
+        RiskSnapshot(bad, 0, 0, 0, ())
+
+
+@pytest.mark.parametrize("bad", [True, 1.5, "2"])
+def test_stopped_trade_count_requires_nonnegative_integer(bad):
+    with pytest.raises(ValueError, match="integer"):
+        RiskSnapshot(1000, 0, 0, 0, (), stopped_trades=bad)
+
+
+def test_risk_policy_rejects_boolean_percentages():
+    with pytest.raises(ValueError, match="numeric value"):
+        RiskPolicy("test", "1", True, 2.0, 1.0, 3)

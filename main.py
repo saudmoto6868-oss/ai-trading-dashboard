@@ -1130,13 +1130,16 @@ for _k in list(st.session_state.keys()):
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
 _PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro"]   # 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 8, 3], 15: [5, 7]}   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3], 15: [5, 7]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
 _PAGE_ORDER = [0, 1, 11, 12, 13, 14, 15]   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
 
 def _nav_to(i):
     """Open page i (an old page index opens its hub with that sub-page selected)."""
+    if i == 8:   # Lab Summary now sits on top of Technical Office > Lab results (owner 2026-11-09)
+        i = 2
+        st.session_state["to_tab"] = "Lab results"
     h = _HUB_OF.get(i)
     st.session_state["page"] = h if h is not None else (i if i in _PAGE_ORDER else 0)
     if h is not None:
@@ -2090,7 +2093,13 @@ def _office_control():
 
 
 def _office_lab_all():
-    """Technical Office > Lab results: one detector's card (left) next to the weekly lab tables (right)."""
+    """Technical Office > Lab results: the Lab Summary on top (was its own page), then one detector's card (left) next to the weekly lab tables (right)."""
+    try:
+        from modules.lab_summary import render_lab_summary
+        render_lab_summary(_scan_store().get("payload") or {})
+    except Exception as _ls_exc:
+        st.error(L("Lab Summary") + f": {_ls_exc}")
+    st.divider()
     a, b = st.columns(2)
     with a:
         _office_detector()
@@ -2204,10 +2213,15 @@ def _playbook_rules():
 
 def render_playbook_page():
     """Playbook (owner 2026-10-22): one tab bar - by trading style, schools, rules and timing, the full document."""
-    tabs = {"By trading style": _playbook_styles, "Schools": _playbook_schools, "Rules & timing": _playbook_rules, "Full document": _playbook_doc}
-    pick = st.segmented_control(L("Playbook"), list(tabs), default="By trading style", format_func=L, key="pb_tab", label_visibility="collapsed")
+    tabs = {"Styles & rules": (_playbook_styles, _playbook_rules), "Schools & document": (_playbook_schools, _playbook_doc)}   # 2026-11-09: 4 tabs -> 2 (owner approved)
+    if st.session_state.get("pb_tab") not in tabs:
+        st.session_state.pop("pb_tab", None)
+    pick = st.segmented_control(L("Playbook"), list(tabs), default="Styles & rules", format_func=L, key="pb_tab", label_visibility="collapsed")
     try:
-        tabs.get(pick or "By trading style", _playbook_styles)()
+        for _i, _fn in enumerate(tabs.get(pick or "Styles & rules", tabs["Styles & rules"])):
+            if _i:
+                st.divider()
+            _fn()
     except Exception as e:
         st.error(f"Playbook: {type(e).__name__}: {e}")
 
@@ -3594,22 +3608,24 @@ if PAGE == 3:   # playbook
     render_playbook_page()
 
 if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
-    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent", "Agent desk"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
+    if st.session_state.get("ai_tab") not in ("Mr X", "Backtest agent"):   # 2026-11-09: Agent desk folded under Mr X (owner approved)
+        st.session_state.pop("ai_tab", None)
+    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
     if _ai_tab == "Backtest agent":
         _c = st.columns([1.2, 0.8, 4])
         _bt_agent(_c[0].text_input(L("Symbol"), "BTC-USDT", key="ai_bt_sym"), _c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="ai_bt_tf"))
-    elif _ai_tab == "Agent desk":
-        from modules import office_ui as _U
-        st.markdown(_U.CSS, unsafe_allow_html=True)
-        st.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
-        st.markdown(_U.table([L("Needs"), L("Status")], [
-            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
-            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
-            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
-        st.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
     else:
         from modules.ai_page import render_ai_page
         render_ai_page(ACTIVE_SYMBOLS, L)
+        from modules import office_ui as _U
+        st.markdown(_U.CSS, unsafe_allow_html=True)
+        _adx = st.expander(L("Agent desk"), expanded=False)
+        _adx.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
+        _adx.markdown(_U.table([L("Needs"), L("Status")], [
+            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
+            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
+            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
+        _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
 if PAGE == 6:   # alerts (owner 2026-10-22: built as a real page)
     render_alerts_page()
@@ -3705,12 +3721,17 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         import importlib as _il_hub
         from modules import hub_ui as _hub_ui
         _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
-        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
-                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
-                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
+        _HUB_TABS = {"Command Center": [("hub_ui", "render_overview")],   # 2026-11-09: 8 tabs -> 4 (owner approved); each group runs its parts one under the other
+                     "Truth, funnel & consensus": [("hub_truth", "render"), ("hub_funnel", "render"), ("hub_consensus", "render")],
+                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render")],
+                     "Trail & decay": [("hub_trail", "render"), ("hub_decay", "render")]}   # the trail publishes the live R series the decay watch reads
+        if st.session_state.get("hub_tab") not in _HUB_TABS:
+            st.session_state.pop("hub_tab", None)
         _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
-        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
-        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
+        for _hi, (_hub_mod, _hub_fn) in enumerate(_HUB_TABS[_hub_tab]):   # only the open group is imported and run
+            if _hi:
+                st.divider()
+            getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()

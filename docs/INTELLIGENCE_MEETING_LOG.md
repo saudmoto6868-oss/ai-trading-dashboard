@@ -89,3 +89,12 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 2. Review Research Hub snapshot presentation against actual snapshot payload shapes and add timestamps/empty-state clarity.
 3. Run available automated tests and syntax checks in a real branch checkout/CI environment; report failures honestly.
 4. Design persistent PostgreSQL setup separately; do not silently claim SQLite is production durable.
+
+
+## 2026-11-09 — Meeting Room task proposal handoff
+- Added a dedicated task-proposal form to Trade Intelligence Center → Meeting Room.
+- Proposal fields: title, scope/outcome, priority, area, suggested owner and next action.
+- Proposals are appended to the existing meeting journal as `recommendation` entries with metadata `kind=task_proposal` and status `awaiting_owner_review`; the UI lists pending proposals separately.
+- **Safety boundary:** this does not write to `data/office_tasks.json`. Repository audit found that file is explicitly maintained by the site manager and no official task-write API exists. Formal board integration remains pending an owner-approved write contract.
+- Also hardened optional source/link rendering against null values and corrected the queue metric label to “Active project tasks”.
+- Runtime tests and live Streamlit verification remain outstanding.

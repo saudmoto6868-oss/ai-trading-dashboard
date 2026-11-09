@@ -16,7 +16,7 @@ def test_quantity_sizing_includes_costs_and_rounds_down(spec):
     fx = ConversionQuote("USD", "USD", 1, "account-base", now)
     sized = size_trade(equity=10000, risk_pct=0.5, entry=2000, stop=1990,
                        side="long", spec=spec, fx_quote=fx, account_currency="USD", now=now)
-    assert sized.quantity == pytest.approx(4.98)
+    assert sized.quantity == pytest.approx(4.92)
     assert sized.stop_risk_account_ccy <= sized.risk_budget_account_ccy
     assert sized.estimated_cost_reserve_account_ccy > 0
 

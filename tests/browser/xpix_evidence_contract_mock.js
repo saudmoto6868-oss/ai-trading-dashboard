@@ -89,7 +89,7 @@ const { chromium } = require('playwright');
       /ON|مفعّل/.test(intel.root.textContent) && !intel.root.innerHTML.includes("<safe>");
     const setupsTab = clickTab(/Setups|الفرص/);
     const waitState = setupsTab && /WAIT|انتظار/.test(intel.root.textContent) &&
-      !/\\b(?:BUY|SELL)\\s*[:=]/.test(intel.root.textContent);
+      !/\b(?:BUY|SELL)\s*[:=]/.test(intel.root.textContent);
     Ws.panels = Ws.panels.filter(x => x.type !== "valuelv");
     return { auction, indicators, waitState };
   });

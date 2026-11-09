@@ -275,3 +275,12 @@
 - GitLab Issue #9: https://gitlab.com/6868-group/ai-trading-dashboard/-/work_items/9
 - Branch: `feat/xpix-intelligence-workspace`; المواصفة: `docs/XPIX_INTELLIGENCE_WORKSPACE_SPEC.md`; محضر المهمة: `docs/MEETING_XPIX_INTELLIGENCE_2026-11-09.md`.
 - لم يُعدّل كود Workspace ولم تُشغّل اختبارات أو Workflows. لا merge/deploy ولا API مدفوع ولا ربط حساب تداول أو تنفيذ آلي دون موافقة منفصلة.
+
+
+## 2026-11-09 — [أمر المالك] مرجع دائم لويدجت XPIX Intelligence وتوزيع المسؤوليات
+
+- طلب المالك أن تكون كل قواعد السيت أب والدخول والخروج والمؤشرات والتأكيدات والشروحات والبحث السابق متاحة لأي Agent جديد دون الاعتماد على ذاكرة المحادثة.
+- أُنشئ المرجع المركزي `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md` ويحتوي ترتيب القراءة الإلزامي، خريطة المصادر المرجعية، المدارس والسيت أبس، Flow Confluence v1 المجمد، سلسلة القرار، ضوابط جودة البيانات، عقد Decision Packet المقترح، توزيع مهام Agents، والاختبارات المطلوبة.
+- تم تحديد مكان المنتج: التنفيذ الحي داخل Workspace كـ panel `intel`. Academy هي مصدر قواعد المدارس، Playbook هو مصدر أسلوب التداول، Radar يكتشف المرشحين، Technical Office وResearch Hub/Labs للتحقق والاعتماد، Spot مستقل للسبوت والدفتر، وTIA طبقة مؤسسية عليا لا تنشئ Cockpit مكررًا.
+- تمت إضافة رابط المرجع إلى `AGENTS.md` و`CLAUDE.md` ليظهر لأي Agent يبدأ من تعليمات المستودع.
+- لا تزال قواعد المدارس التفصيلية محفوظة في `docs/academy/ai/` ونتائجها في `STRATEGY_LAB.md` و`docs/PIPELINE.md`؛ المرجع يربطها ولا ينسخ نسخًا متعارضة منها.

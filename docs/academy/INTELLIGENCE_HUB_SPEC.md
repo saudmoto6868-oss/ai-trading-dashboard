@@ -43,7 +43,7 @@ Existing `data/academy.json` lessons can be indexed idempotently by `import_lega
 
 ## Storage and deployment limitation
 
-The initial adapter uses SQLite and supports a configurable `ACADEMY_DB_PATH`. The Workspace now receives a bounded read-only snapshot and exposes it through `+ Widget → Academy Intelligence`; the widget filters records locally and renders source links safely. SQLite is appropriate for local development and isolated tests. Streamlit Cloud's local filesystem may be ephemeral and multiple app instances do not share a local SQLite file. **Do not claim durable cross-instance sharing until a persistent shared database/object store is configured and tested.** Production persistence remains a follow-on task.
+The adapter supports SQLite for local development/tests (`ACADEMY_DB_PATH`) and PostgreSQL when `DATABASE_URL` is configured (driver: `psycopg`). For a production rollout, configure `DATABASE_URL` as a private Streamlit Secret/environment variable pointing to a managed persistent PostgreSQL database; never commit the URL or credentials. The Workspace receives a bounded read-only snapshot and exposes it through `+ Widget → Academy Intelligence`; the widget filters records locally and renders source links safely. **PostgreSQL connection and multi-instance behaviour have not yet been tested in the deployment environment.** Until that test is complete and a database is configured, the running app may fall back to local SQLite and is not durably shared across instances.
 
 ## Research browser safety
 

@@ -65,3 +65,50 @@ def test_ledger_rejects_policy_change_inside_existing_session(tmp_path):
     with pytest.raises(ValueError, match="different policy"):
         ledger.open_session(account_id="a", now=now, timezone_name="UTC",
                             start_equity=1000, policy_id="p", policy_version="2")
+
+
+
+def test_projection_replays_open_mark_close_and_explicit_stop_classification(tmp_path):
+    ledger = RiskLedger(str(tmp_path / "projection.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    spec_payload = {
+        "symbol": "XAUUSD", "asset_class": "metals", "quote_currency": "USD",
+        "tick_size": 0.01, "quantity_step": 0.01, "point_value": 1.0,
+        "contract_multiplier": 1.0, "fee_per_unit_round_trip": 0.1,
+        "funding_reserve_per_unit": 0.05, "account_ccy_per_quote_ccy": 1.0
+    }
+    opened = {"position_id": "pos-1", "symbol": "XAUUSD", "asset_class": "metals",
+              "side": "long", "quantity": 1.0, "entry": 2000.0, "stop": 1990.0,
+              "mark": 2000.0, "spec": spec_payload}
+    ledger.append_event(session_id=sid, event_id="open-1", event_type="position_open",
+                        payload=opened, created_at=now)
+    ledger.append_event(session_id=sid, event_id="mark-1", event_type="position_mark",
+                        payload={"position_id": "pos-1", "mark": 1998.0}, created_at=now + timedelta(seconds=1))
+    ledger.append_event(session_id=sid, event_id="close-1", event_type="position_close",
+                        payload={"position_id": "pos-1", "realized_pnl": -2.0,
+                                 "fees_paid": 0.1, "funding_paid": 0.0, "stopped": False},
+                        created_at=now + timedelta(seconds=2))
+    state = ledger.project_session(sid)
+    assert state["open_position_count"] == 0
+    assert state["realized_pnl"] == -2.0
+    assert state["fees_paid"] == 0.1
+    assert state["stopped_trades"] == 0
+
+
+def test_projection_requires_explicit_stop_classification(tmp_path):
+    ledger = RiskLedger(str(tmp_path / "projection-stop.sqlite"))
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    sid = ledger.open_session(account_id="acct", now=now, timezone_name="UTC",
+                              start_equity=5000, policy_id="p", policy_version="1")
+    spec_payload = {"symbol": "XAUUSD", "asset_class": "metals", "quote_currency": "USD",
+                    "tick_size": 0.01, "quantity_step": 0.01, "point_value": 1.0}
+    ledger.append_event(session_id=sid, event_id="o", event_type="position_open",
+        payload={"position_id":"p1","symbol":"XAUUSD","asset_class":"metals","side":"long",
+                 "quantity":1,"entry":2000,"stop":1990,"mark":2000,"spec":spec_payload},
+        created_at=now)
+    ledger.append_event(session_id=sid, event_id="c", event_type="position_close",
+        payload={"position_id":"p1","realized_pnl":-10}, created_at=now + timedelta(seconds=1))
+    with pytest.raises(ValueError, match="explicit boolean stopped"):
+        ledger.project_session(sid)

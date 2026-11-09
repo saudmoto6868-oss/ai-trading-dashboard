@@ -102,3 +102,32 @@ assert any("سحب" in m for m in m1) and any("Fed holds" in m for m in m1), m1
 m2 = C.run(now + timedelta(minutes=30), fetch, lambda t: None, sent, [], dry=False)
 assert not any("سحب سيولة" in m or "Fed holds" in m for m in m2), m2
 print("test_brain_v2: ok")
+
+# 6) agent results feed the daily review (contract objects from the brain's own jobs + files dropped by other streams)
+import json as _json
+from modules import agent_result as AR
+AF = tmp / "agents.jsonl"
+os.environ["BRAIN_AGENTS"] = str(AF)
+C.AGENTS_FILE = AF
+drop = tmp / "drop"; drop.mkdir()
+C.AGENTS_DIR = str(drop)
+day = "2026-11-06"
+good = AR.make("level_scanner", "grok", "HL:xyz:GOLD", "bullish", [{"what": "swept PDL"}], "Hyperliquid", "delayed", 12, ts=day + "T10:00:00Z")
+badr = {"agent": "x", "stream": "grok", "symbol": "S", "verdict": "buy", "source": "a", "ts": day + "T10:00:00Z", "quality": "live"}
+(drop / "grok.jsonl").write_text(_json.dumps(good) + "\n" + _json.dumps(badr) + "\n" + "not json\n")
+mine = C._agent_results(sweeps=[{"symbol": "X", "direction": "bearish", "level_name": "PWH", "level": 102.0}], news=[{"title": "Fed holds", "source": "Fed", "topics": ["rates"]}],
+                        plans=[{"symbol": "X", "direction": "bullish", "schools": ["Wyckoff"], "horizon": "swing", "tf": "4h", "grade": "A"}])
+assert len(mine) == 3 and all(AR.validate(r) == [] for r in mine), [AR.validate(r) for r in mine]
+for r in mine:
+    r["ts"] = day + "T11:00:00Z"
+assert AR.save(mine, AF) == 3
+res = AR.load(AF, day) + AR.load_dir(drop, day)
+sm = AR.summarize(res)
+assert sm["by_agent"]["level_scanner"] == {"bearish": 1, "bullish": 1} and sm["by_agent"]["context_monitor"] == {"info": 1} and len(sm["invalid"]) == 1, sm
+txt = AR.text(sm)
+assert "level_scanner" in txt and "⚠" in txt
+rv = B.review_text([], {}, agents=txt)
+assert "مفيش أفكار" in rv or "level_scanner" in rv         # empty brain: the plain message; with graded ideas the agents block is appended
+e1 = {"id": "z1", "schools": ["Wyckoff"], "keys": []}
+assert "level_scanner" in B.review_text([e1], {"z1": {"r": 1.0}}, agents=txt)
+print("test_brain_v2 agents: ok")

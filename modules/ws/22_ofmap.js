@@ -38,7 +38,7 @@ const OFM = {
     p.destroy = () => { ro.disconnect(); clearInterval(iv); cancelAnimationFrame(p.om.raf); }; p.resub(); },
   resub(p, sym){
     p.om.snaps = []; p.om.trades = []; p.setTitle();
-    p.unsubs.push(Hub.sub("book", sym, b => { if (!b || b.error) return; const o = p.om, s = OFM.snap(b, o.snaps[o.snaps.length-1]); if (!s) return; OFM.push(o.snaps, s); OFM.later(p); }));
+    p.unsubs.push(Hub.sub("book", sym, b => { if (!b || b.error || b.stale) return; const o = p.om, s = OFM.snap(b, o.snaps[o.snaps.length-1]); if (!s) return; OFM.push(o.snaps, s); OFM.later(p); }));
     p.unsubs.push(Hub.sub("trades", sym, t => { if (!t || t.error || !t.rows) return; const o = p.om, seen = o.seen = o.seen || new Set(); t.rows.forEach(r => { const id = r.id != null ? r.id : r.t+"|"+r.p+"|"+r.q; if (seen.has(id)) return; seen.add(id); o.trades.push({t:r.t, p:r.p, q:r.q, side:r.side}); });
       if (seen.size > 6000){ seen.clear(); } const cut = nowS() - 1900000; while (o.trades.length && (o.trades[0].t < cut || o.trades.length > 3000)) o.trades.shift(); OFM.later(p); })); },
   later(p){ if (p.om.raf) return; p.om.raf = requestAnimationFrame(() => { p.om.raf = 0; OFM.draw(p); }); },

@@ -14,6 +14,7 @@ import re
 import sqlite3
 import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -118,8 +119,20 @@ class TIAKnowledgeStore:
             conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
+    @contextmanager
+    def _session(self):
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def _initialize(self) -> None:
-        with self._connect() as conn:
+        with self._session() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS tia_schema_meta (
                     key TEXT PRIMARY KEY,
@@ -175,7 +188,7 @@ class TIAKnowledgeStore:
 
     def health(self) -> StoreHealth:
         try:
-            with self._connect() as conn:
+            with self._session() as conn:
                 row = conn.execute(
                     "SELECT value FROM tia_schema_meta WHERE key='schema_version'"
                 ).fetchone()
@@ -211,7 +224,7 @@ class TIAKnowledgeStore:
         item_id = _text(item_id or str(uuid.uuid4()), "item_id", 80)
         now = time.time()
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        with self._connect() as conn:
+        with self._session() as conn:
             conn.execute("""
                 INSERT INTO tia_knowledge
                 (id,title,body,category,status,source_url,tags_json,metadata_json,
@@ -232,7 +245,7 @@ class TIAKnowledgeStore:
             "rejected": {"draft", "archived"},
             "archived": set(),
         }
-        with self._connect() as conn:
+        with self._session() as conn:
             row = conn.execute("SELECT status FROM tia_knowledge WHERE id=?", (item_id,)).fetchone()
             if row is None:
                 raise TIAStoreError("knowledge item not found")
@@ -255,7 +268,7 @@ class TIAKnowledgeStore:
         if category is not None:
             clauses.append("category=?"); params.append(_text(category, "category", 80).lower())
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-        with self._connect() as conn:
+        with self._session() as conn:
             rows = conn.execute(
                 "SELECT * FROM tia_knowledge" + where + " ORDER BY updated_at DESC LIMIT ?",
                 (*params, limit),
@@ -286,7 +299,7 @@ class TIAKnowledgeStore:
         metadata_json = _metadata(metadata)
         event_id = _text(event_id or str(uuid.uuid4()), "event_id", 80)
         now = time.time()
-        with self._connect() as conn:
+        with self._session() as conn:
             previous = conn.execute(
                 "SELECT event_hash FROM tia_meeting_events ORDER BY sequence DESC LIMIT 1"
             ).fetchone()
@@ -311,7 +324,7 @@ class TIAKnowledgeStore:
                             limit: int = 100) -> list[dict[str, Any]]:
         if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 500:
             raise ValidationError("limit must be an integer from 1 to 500")
-        with self._connect() as conn:
+        with self._session() as conn:
             if meeting_id is None:
                 rows = conn.execute(
                     "SELECT * FROM tia_meeting_events ORDER BY sequence DESC LIMIT ?",
@@ -331,7 +344,7 @@ class TIAKnowledgeStore:
 
     def verify_meeting_chain(self) -> bool:
         """Verify event hash links and payload integrity without modifying records."""
-        with self._connect() as conn:
+        with self._session() as conn:
             rows = conn.execute(
                 "SELECT * FROM tia_meeting_events ORDER BY sequence ASC"
             ).fetchall()

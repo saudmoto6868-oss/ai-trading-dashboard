@@ -14,30 +14,7 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
                                ui_theme="gold", ui_mat="steel")
 
-    # Snapshot public options context server-side; the iframe receives only the derived, non-sensitive payload.
-    import json
-    options_payload = {}
-    options_errors = {}
-    try:
-        from modules import options_desk as _od
-        from datetime import datetime, timezone
-        for _ccy in ("BTC", "ETH"):
-            try:
-                _rows = _od.fetch(_ccy, ttl=120, timeout=8)
-                _summary = _od.summarize(_rows)
-                _expiries = []
-                for _e in _summary.get("expiries", [])[:8]:
-                    _levels = _od.strikes(_rows, _e["exp"], _summary.get("spot") or 0, span=0.15)
-                    _expiries.append({**_e, "exp": _e["exp"].isoformat(), "levels": _levels[:80]})
-                _dvol = _od.dvol(_ccy, days=365, ttl=1800, timeout=8)
-                _rank = _od.iv_rank([x[1] for x in _dvol])
-                options_payload[_ccy] = {"summary": _summary, "expiries": _expiries, "dvol": _rank,
-                                         "asof": datetime.now(timezone.utc).isoformat(), "source": "Deribit public API"}
-            except Exception as _e:
-                options_errors[_ccy] = str(_e)[:180]
-    except Exception as _e:
-        options_errors["provider"] = str(_e)[:180]
-    doc = doc.replace("</head>", "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
+    # (the Options Desk lives in Trading > Options & macro; it is not duplicated here: removed 2026-11-09)
     tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";
@@ -119,8 +96,8 @@ Panel.prototype.build_tiasources = function(){
 };
 ''';
     doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", "@std"');
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     doc = doc.replace("ai_ws_v5", "tia_ws_v1")
     doc = doc.replace("<title>6868 X</title>", "<title>TIA Command Workspace</title>")

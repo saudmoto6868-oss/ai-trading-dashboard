@@ -25,10 +25,10 @@ def test_a_plus_step_up_requires_validated_30_trade_sample():
 
 
 def test_size_point_value_and_step_rounds_down():
-    s = position_size(50_000, entry=5000, stop=4990, point_value=50, qty_step=1)   # 250 budget / 500 per contract
+    s = position_size(50_000, entry=5000, stop=4990, point_value=50, qty_step=1)   # 125 base budget / 500 per contract
     assert s["qty"] == 0, s                                   # never rounds up past the cap
-    s = position_size(250_000, entry=5000, stop=4990, point_value=50, qty_step=1)  # 1250 / 500 = 2.5 -> 2
-    assert s["qty"] == 2 and s["actual_risk_pct"] <= 0.5
+    s = position_size(250_000, entry=5000, stop=4990, point_value=50, qty_step=1)  # 625 base budget / 500 = 1.25 -> 1
+    assert s["qty"] == 1 and s["actual_risk_pct"] <= 0.25
     print("ok test_size_point_value_and_step_rounds_down")
 
 
@@ -83,15 +83,15 @@ def test_duplicate_rr_and_per_trade_cap():
     print("ok test_duplicate_rr_and_per_trade_cap")
 
 
-def test_custom_rules_quarter_percent():
-    r = DeskRules(risk_pct=0.25)
-    s = position_size(10_000, 100, 99, risk_pct=r.risk_pct)
+def test_default_rules_are_fixed_quarter_percent():
+    r = DeskRules()
+    s = position_size(10_000, 100, 99)
     assert abs(s["qty"] - 25) < 1e-9
     ok, _ = DeskDay(10_000, rules=r).check("BTC", "long", 100, 99, 102, 25)
     assert ok
     ok, _ = DeskDay(10_000, rules=r).check("BTC", "long", 100, 99, 102, 50)
     assert not ok
-    print("ok test_custom_rules_quarter_percent")
+    print("ok test_default_rules_are_fixed_quarter_percent")
 
 
 if __name__ == "__main__":

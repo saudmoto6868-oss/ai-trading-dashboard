@@ -54,10 +54,11 @@ def test_volume_profile_value_area():
 
 
 def test_size_and_rr_match_python():
-    cases = [(10000, 100, 99, 0.5, 1, 0), (50000, 5000, 4990, 0.5, 50, 1), (250000, 5000, 4990, 0.5, 50, 1), (8000, 2000, 2030, 0.25, 1, 0.001)]
-    js = node("console.log(JSON.stringify(%s.map(c => DESK.size(...c))))" % json.dumps(cases))
+    cases = [(10000, 100, 99, None, 0, False, 1, 0), (50000, 5000, 4990, None, 0, False, 50, 1),
+             (250000, 5000, 4990, "A+", 30, True, 50, 1), (8000, 2000, 2030, None, 0, False, 1, 0.001)]
+    js = node("console.log(JSON.stringify(%s.map(c => DESK.size(c[0],c[1],c[2],DESK.riskFor(c[3],c[4],c[5]),c[6],c[7]))))" % json.dumps(cases))
     for c, j in zip(cases, js):
-        p = position_size(c[0], c[1], c[2], risk_pct=c[3], point_value=c[4], qty_step=c[5])
+        p = position_size(c[0], c[1], c[2], point_value=c[6], qty_step=c[7], grade=c[3], validation_n=c[4], validation_passed=c[5])
         assert abs(p["qty"] - j["qty"]) < 1e-9 and abs(p["actual_risk_pct"] - j["pct"]) < 1e-9, (c, p, j)
     rr = node("console.log(JSON.stringify([DESK.rr(100,99,102), DESK.rr(100,101,97), DESK.rr(100,99,98)]))")
     assert rr == [reward_risk(100, 99, 102), reward_risk(100, 101, 97), reward_risk(100, 99, 98)]

@@ -11,12 +11,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from modules.risk_policy import BASE_RISK_PCT, risk_pct_for_setup
+from modules.risk_policy import risk_pct_for_setup
 
 
 @dataclass(frozen=True)
 class DeskRules:
-    risk_pct: float = BASE_RISK_PCT  # automatic tiering requires explicit validation metadata
     daily_max_loss_pct: float = 2.0  # % of start-of-day equity; reaching it locks the day
     max_stops: int = 3               # stops (losing trades) per day before the day locks
     min_rr: float = 2.0              # first target must be >= min_rr x risk
@@ -25,7 +24,7 @@ class DeskRules:
 RULES = DeskRules()
 
 
-def position_size(equity: float, entry: float, stop: float, risk_pct: float | None = None,
+def position_size(equity: float, entry: float, stop: float,
                   point_value: float = 1.0, qty_step: float = 0.0, *, grade=None,
                   validation_n=0, validation_passed=False) -> dict:
     """Size so that hitting the stop loses risk_pct % of equity.
@@ -34,7 +33,7 @@ def position_size(equity: float, entry: float, stop: float, risk_pct: float | No
     qty_step > 0 rounds the quantity DOWN to that step (never up: rounding up would break the risk cap).
     -> {"qty", "risk_amount", "risk_per_unit", "actual_risk_pct"}; qty 0 means the stop is too wide for the step.
     """
-    rp = risk_pct_for_setup(grade, validation_n, validation_passed) if risk_pct is None else float(risk_pct)
+    rp = risk_pct_for_setup(grade, validation_n, validation_passed)
     if equity <= 0 or rp <= 0:
         raise ValueError("equity and risk_pct must be > 0")
     per_unit = abs(float(entry) - float(stop)) * float(point_value)
@@ -116,8 +115,7 @@ class DeskDay:
                 why.append(f"reward:risk {rr:.2f} < {self.rules.min_rr}")
         except ValueError as e:
             why.append(str(e))
-        effective_risk_pct = (self.rules.risk_pct if self.rules.risk_pct != BASE_RISK_PCT else
-                              risk_pct_for_setup(grade, validation_n, validation_passed))
+        effective_risk_pct = risk_pct_for_setup(grade, validation_n, validation_passed)
         per_trade_cap = self.start_equity * effective_risk_pct / 100.0
         if risk_amount > per_trade_cap * 1.0001:
             why.append(f"risk {risk_amount:.2f} > per-trade cap {per_trade_cap:.2f} ({effective_risk_pct}%)")

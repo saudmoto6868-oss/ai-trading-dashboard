@@ -1,5 +1,8 @@
 # Scheduled Telegram jobs stay restricted to schedules/manual runs.
 # Lightweight unit tests run on repository pushes; they never invoke alert jobs.
+stages:
+  - test
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
@@ -61,3 +64,16 @@ intelligence_unit_tests:
     - python -m pip install --quiet pytest
   script:
     - python -m pytest -q tests/test_academy_intelligence.py tests/test_intelligence_meeting.py
+
+# Harmless diagnostic job: confirms whether GitLab creates jobs for this config.
+# It never sends alerts or changes project data.
+ci_config_probe:
+  stage: test
+  image: alpine:3.20
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - echo "CI configuration loaded"
+    - echo "Pipeline source: $CI_PIPELINE_SOURCE"
+    - echo "Commit: $CI_COMMIT_SHA"

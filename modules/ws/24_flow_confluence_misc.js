@@ -81,7 +81,7 @@ document.addEventListener("contextmenu", e => {
       [Lg("Reset colours","رجّع الألوان"), () => { delete P.state.col; delete P.state.bg; P.paint(); Ws.save(); }], null, [Lg("Close widget","إغلاق الويدجت"), () => { if (!P.locked) P.close(); }, true]);
   } else if (!P && !inp){
     items.length && items.push(null);
-    ["chart","setup","signals","dom","tape","limits","ofm","watch","scanner","news","notes"].forEach(k => items.push(["+ "+T(k), () => Ws.add(k)]));
+    ["intel","chart","setup","signals","dom","tape","limits","ofm","watch","scanner","news","notes"].forEach(k => items.push(["+ "+T(k), () => Ws.add(k)]));
     items.push(null, [Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);
   }
   if (!items.length) items.push([Lg("Reload the Workspace","أعد تحميل الورك سبيس"), () => location.reload()]);

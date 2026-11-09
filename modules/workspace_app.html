@@ -1716,12 +1716,10 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
-    else { if (this.autoCenter) this.followLatest(); this.draw(); }
-    if (fit && this.lockR && arr.length){ const lc = arr[arr.length-1].c, lo = this.lockR[0], hi = this.lockR[1], sp = hi - lo;   // a saved manual price lock that the price has left by more than its whole height is a stale leftover (owner 2026-11-05: locked while the PC clock was wrong, gold now 4127 vs lock ~4020-4065): back to automatic
-      if (sp > 0 && (lc < lo - sp || lc > hi + sp)){ this.autoY(); this.draw(); } }
+    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
   }
-  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
+  restoreFrom(v){ this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -1747,19 +1745,11 @@ class CandleChart {
     const sec = TFSEC[this.tf] || 3600; let pv = 0, vv = 0, day = null;
     this.vwV = this.data.map(c => { const d = Math.floor(c.t/86400000); if (sec < 86400 && d !== day){ pv = 0; vv = 0; day = d; } const tp = (c.h+c.l+c.c)/3; pv += tp*c.v; vv += c.v; return vv ? pv/vv : c.c; });
   }
-  followLatest(){
-    const n = this.data.length; if (!this.autoCenter || !n) return;
-    // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
-    if (!isFinite(this.r)) return;   // no layout yet: keep the current view
-    const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
-    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
-    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
-    this.clampR();
-  }
+  centerNow(){ this.fit(); }   // toolbar Fit: one click = latest candle back to the middle, price scale set once, then locked again
   fit(){
-    const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.autoCenter) this.followLatest(); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
+    const n = this.data.length; this.lockR = null; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    if ((TFSEC[this.tf] || 0) >= 3600 && this.PR > 0) this.bw = Math.max(4, Math.min(9, 0.5*this.PR/60));   // 1H and bigger: about 60 candles in the left half (bw 9 showed only ~24 candles, one big candle squashed the rest)
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.onFree) this.onFree(); else this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   freezeY(){   // price scale -> manual at the range on screen right now (TradingView: dragging the chart vertically switches auto-scale off); the ⇅ / 🔒 button switches it back
     if (this.lockR || this._lo == null || !isFinite(this._lo) || !isFinite(this._hi) || this._hi <= this._lo) return;
@@ -1848,9 +1838,7 @@ class CandleChart {
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
       if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
-        const vert = e.pointerType !== "touch" || (this.drag.ty > 28 && this.drag.ty > 1.6*this.drag.tx);   // a finger: only a clearly VERTICAL drag turns the price scale manual; a sideways swipe (even a wobbly one) just moves time and never locks the scale
         if (this.drag.col && this.colOwn === true){ const R2 = this.colWideR || this._wideAutoR || 0.02; this.colWideC = Math.max(-OFM.SPAN, Math.min(OFM.SPAN, (this.colWideC || 0) + dy/Math.max(1, this.PB)*2*R2)); }   // own price scale: drag up / down moves the column's price window
-        else if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
         if (this.drag.col){ const win = this._wideWin || this.flowSpan || 120000, pw = Math.max(60, this.cw() - OFM.CAX - OFM.CDP); this.flowOff = Math.max(0, Math.min(OFM.KEEP - Math.min(win, OFM.KEEP), (this.flowOff || 0) + dx*win/pw)); /* drag right = look further back in time */ }
         else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); } }
     }
@@ -1858,8 +1846,10 @@ class CandleChart {
   }
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
-  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
-  restoreView(){ try { if (this.autoCenter) return false; const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  // per-tab view in sessionStorage only: a reload (Streamlit refresh) reopens this tab exactly where it was (zoom, position AND the price-scale lock); a new tab opens centred. A shared localStorage key let one tab's reload overwrite another tab's view, which then snapped back
+  viewGet(){ try { return JSON.parse(sessionStorage.getItem(this.viewKey()) || "null"); } catch(e){ return null; } }
+  saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lk: this.lockR})); } catch(e){} }
+  restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
@@ -1881,7 +1871,7 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
-    if (!isFinite(lo)) return [0,1];
+    if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
     return [mid-span/2, mid+span/2];
@@ -1900,13 +1890,8 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
-    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
+    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift+"|"+this.lockR; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
-    this._autoChip = null;
-    { const n = this.data.length, lo = this._lo, hi = this._hi;   // the price scale is manual and the newest candle is outside it (a finger drag locked it): a big tap target brings the candles back
-      if (this.lockR && n && lo != null && hi != null && isFinite(lo) && isFinite(hi)){ const lc = this.data[n-1].c; if (lc < lo || lc > hi){ const c = this.ctx, w = TCH ? 112 : 92, h2 = TCH ? 34 : 22, x = Math.max(6, this.PR - w - 10), y = 30;
-        c.save(); c.fillStyle = "rgba(240,185,11,.95)"; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h2, 6) : c.rect(x, y, w, h2); c.fill(); c.fillStyle = "#111"; c.font = "bold "+(TCH ? 14 : 12)+"px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText("⇅ "+(lang === "ar" ? "أوتو" : "Auto"), x + w/2, y + h2/2); c.restore(); this._autoChip = {x, y, w, h:h2}; } } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
   _paint(){
@@ -1922,6 +1907,7 @@ class CandleChart {
         const y0 = this.yZoom, s0 = this.yShift; this.yZoom = 1; this.yShift = 0; const [l0, h0] = this.range(i0, i1), sp0 = (h0 - l0) || 1, tg = Math.max((bh - bl)*1.3, px*(["1m","5m","13m","15m","30m","1H","1h","2H","2h","4H","4h"].includes(this.tf) ? 0.02 : 0.004));   // task 56 batch 1: small timeframes show a wider price band (at least ±1%) so more of the order flow is visible
         if (tg < sp0){ this.yZoom = Math.max(0.02, tg/sp0); this.yShift = (px - (h0 + l0)/2)/(sp0*this.yZoom); } else { this.yZoom = y0; this.yShift = s0; }
         this._bookFit = false; } }
+    if (!this.lockR){ const z = this.yZoom, sh = this.yShift; this.yZoom = 1; this.yShift = 0; const [a, b] = this.range(i0, i1); this.yZoom = z; this.yShift = sh; const m = (a+b)/2, hs = (b-a)/1.12/2; if (isFinite(m) && hs > 0) this.lockR = [m-hs, m+hs]; }   // 2026-11-09 owner: fully manual - the price scale is set once (open / Fit) and never rescales by itself when you pan or a new candle comes; it moves only when you zoom / drag the price axis
     const [lo, hi] = this.range(i0, i1), py = v => PB - (v-lo)/(hi-lo)*PB; this._lo = lo; this._hi = hi;
     // grid + price axis
     const nt = niceTicks(lo, hi, Math.max(3, Math.floor(PB/48))), dec = Math.max(0, Math.min(8, 1 - Math.floor(Math.log10(nt.step))));
@@ -2969,7 +2955,6 @@ Object.assign(CandleChart.prototype, {
   toolDown(e){
     const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
     if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
-    const ac = this._autoChip; if (ac && q.x >= ac.x && q.x <= ac.x+ac.w && q.y >= ac.y && q.y <= ac.y+ac.h){ this.autoY(); this._autoChip = null; this.draw(); return true; }
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
@@ -4040,7 +4025,7 @@ class Panel {
     const rf = el("select"); rf.title = T("rf"); [["1s",1000],["2s",2000],["5s",5000]].forEach(([l,v]) => { const o = el("option"); o.value = v; o.textContent = "↻ "+l; rf.append(o); });
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
-    const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.centerNow();   // latest candle back to the middle, price scale set once (then locked again)
     const palB = el("button",null,"🎨"); palB.title = Lg("Chart colours: candles, background, grid, presets","ألوان الشارت: الشموع، الخلفية، الشبكة، قوالب جاهزة");
     palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid, vu:TH.vu || TH.up, vd:TH.vd || TH.dn, pane:TH.pane}, ch_.pal || {});
       const pop = el("div","stpop"), r_ = palB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-280))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px"; pop.onpointerdown = e => e.stopPropagation();
@@ -4053,8 +4038,6 @@ class Panel {
       const dl = el("label"); dl.style.cssText = "grid-column:1/-1;display:flex;gap:6px;align-items:center;cursor:pointer"; const dc = el("input"); dc.type = "checkbox"; dc.checked = !!ch_.dots; dc.onchange = () => { ch_.dots = dc.checked; this.state.dots = dc.checked; Ws.save(); ch_.draw(); }; dl.append(dc, document.createTextNode(Lg("Dot-matrix candles and lines","شموع وخطوط بنقط (دوت ماتريكس)"))); pop.append(dl);
       const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
       document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
-    const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", this.state.ac !== undefined ? !!this.state.ac : acGet());
-    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); this.state.ac = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
     const masterB = el("button",null,"⏻"); masterB.title = Lg("Master: turn all indicators off, click again to restore them","الماستر: إيقاف كل المؤشرات، والضغطة التانية ترجعهم");
     masterB.onclick = () => {
@@ -4106,13 +4089,10 @@ class Panel {
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
     const kzb = el("button",null,"KZ"); kzb.title = T("kzTip"); kzb.onclick = () => { this.chart.kz = !this.chart.kz; this.state.kz = this.chart.kz; kzb.classList.toggle("on", this.chart.kz); this.chart.draw(); Ws.save(); };
         this.indBtn = this.buildIndMenu();
-    const lockBtn = el("button"); lockBtn.title = T("lockTip");
-    const lockSync = () => { lockBtn.textContent = this.chart.lockR ? "🔒 "+T("manual") : "⇅ "+T("auto"); lockBtn.classList.toggle("on", !!this.chart.lockR); };
-    lockBtn.onclick = () => { const c_ = this.chart, LK = this.state.locks = this.state.locks || {}; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; delete LK[this.state.sym]; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; LK[this.state.sym] = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
-    this.lockSync = lockSync;
+    this.lockSync = () => {};   // 2026-11-09 owner: no Manual / Auto button - the price scale is set on open / Fit and then moves only when you zoom or drag the price axis
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -4120,7 +4100,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = (this.state.locks || {})[this.state.sym] || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { const LK = this.state.locks = this.state.locks || {}; if (this.chart.lockR) LK[this.state.sym] = this.chart.lockR; else delete LK[this.state.sym]; Ws.save(); this.lockSync(); }; this.chart.autoCenter = this.state.ac !== undefined ? !!this.state.ac : acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => this.chart.saveView(); if (this.state.locks || this.state.ac !== undefined){ delete this.state.locks; delete this.state.ac; Ws.save(); }   // old per-symbol price locks and the Auto-Center flag are dropped: the lock lives in each chart's per-tab view now this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
@@ -4459,13 +4439,13 @@ class Panel {
     const ch = this.chart; if (!ch.data.length) return;
     const last = ch.data[ch.data.length-1];
     if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); if (ch.autoCenter) ch.followLatest(); ch.drawSoon(); this.showPx(row.c, "ws");
+    ch.calcEma(); ch.drawSoon(); this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
     if (this.type !== "chart") return;
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
-    { const lk = (this.state.locks || {})[sym] || null; if (lk !== this.chart.lockR){ this.chart.lockR = lk; this.chart.yZoom = 1; this.chart.yShift = 0; } }   // the price-scale lock belongs to its symbol: another symbol starts unlocked (its range is absolute prices)
+    this.chart.lockR = null;   // a symbol / timeframe opens from its own per-tab view (lock included) or fitted - never with another symbol's price range
     this.chart.srData = null;   // S/R levels belong to the symbol: never draw the previous symbol's levels while the new one loads
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
@@ -4587,7 +4567,7 @@ class Panel {
         if (first){
           this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows); this.syncSR && this.syncSR();
           const v = this._refreshView;
-          if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
+          if (v && v.sym === sym && v.tf === tf && this.chart.data.length){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;
         }
         else {
@@ -6284,7 +6264,7 @@ Ws.defaults = () => {
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
   const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
-  const OF = {dcol:true, dom:true, bub:true, ac:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on; ac = Auto-Center (the latest candle in the middle of the chart)
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
   return [
     ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
     ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],

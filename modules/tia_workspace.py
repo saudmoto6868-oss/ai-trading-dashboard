@@ -44,7 +44,7 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto"):
     except Exception as _e:
         options_errors["provider"] = str(_e)[:180]
     doc = doc.replace("</head>", "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
-    tia_panels = r'''
+    tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";
   const note=el("div","m","24h change heatmap · provider-reported ticker snapshots");note.style.cssText="font-size:11px;margin-bottom:8px";
@@ -124,7 +124,7 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + "\nconst WGROUPS = () => [");
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + "\nconst WGROUPS = () => [");
     doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.

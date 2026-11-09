@@ -99,14 +99,22 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
     import pandas as pd
 
     result = analyse(data, tf)
+    news_items = news_items if news_items is not None else st.session_state.get("rac_news_cache")
     st.markdown(_css(), unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([2.2, 1, 1])
+    c1, c2, c3, c4 = st.columns([2.0, 1, 1, 1])
     with c1:
         st.markdown("**◉ RADAR AGENT CONTROL ROOM**  <span style='color:#93a1aa;font-size:10px'>فريق التحليل والمراجعة</span>", unsafe_allow_html=True)
     with c2:
         terminal = st.toggle("إظهار التيرمينال", value=True, key="rac_terminal")
     with c3:
         show_news = st.toggle("الأخبار", value=True, key="rac_news")
+    with c4:
+        show_agents = st.toggle("فريق الوكلاء", value=True, key="rac_agents")
+    if not show_agents:
+        st.caption("تم إخفاء غرفة الوكلاء. فعّل الخيار لإظهار فريق التحليل وسجل خطواته.")
+        if show_news:
+            _render_news(st, news_items)
+        return
 
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("الرموز المفحوصة", result["count"])
@@ -173,36 +181,40 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
             st.markdown("<div class='rac-log'><b>[END]</b> انتهت الجولة · لم يتم إرسال أوامر تداول.</div></div>", unsafe_allow_html=True)
 
     if show_news:
-        with st.expander("رادار الأخبار والتأثير المحتمل على الأسواق", expanded=False):
-            if news_items is None:
-                st.caption("اضغط تحديث الأخبار لجلب العناوين من المصادر العامة.")
-                if st.button("تحديث الأخبار الآن", key="rac_fetch_news"):
-                    try:
-                        from modules import news_watch
-                        with st.spinner("جاري قراءة المصادر وتصنيف العناوين..."):
-                            items, dead = news_watch.fetch_all(news_watch.default_fetch_text)
-                            news_items = news_watch.alerts(items)
-                            st.session_state["rac_news_cache"] = news_items
-                            st.session_state["rac_news_dead"] = dead
-                        st.rerun()
-                    except Exception as e:
-                        st.warning(f"تعذر تحديث الأخبار: {type(e).__name__}")
-            else:
-                if st.button("إعادة تحديث الأخبار", key="rac_refresh_news"):
-                    st.session_state.pop("rac_news_cache", None)
+        _render_news(st, news_items)
+
+
+def _render_news(st, news_items):
+    with st.expander("رادار الأخبار والتأثير المحتمل على الأسواق", expanded=False):
+        if news_items is None:
+            st.caption("اضغط تحديث الأخبار لجلب العناوين من المصادر العامة.")
+            if st.button("تحديث الأخبار الآن", key="rac_fetch_news"):
+                try:
+                    from modules import news_watch
+                    with st.spinner("جاري قراءة المصادر وتصنيف العناوين..."):
+                        items, dead = news_watch.fetch_all(news_watch.default_fetch_text)
+                        news_items = news_watch.alerts(items)
+                        st.session_state["rac_news_cache"] = news_items
+                        st.session_state["rac_news_dead"] = dead
                     st.rerun()
-                if not news_items:
-                    st.info("لا توجد عناوين عالية التأثير حديثة وفق قواعد التصنيف الحالية.")
-                for item in news_items[:6]:
-                    lean = item.get("lean")
-                    lean_ar = "ميل لغوي متشدد" if lean == "hawkish" else "ميل لغوي متساهل" if lean == "dovish" else "لا يوجد ميل لغوي واضح"
-                    st.markdown(
-                        f"<div class='rac-news'><b>{html.escape(item.get('title',''))}</b><br/>"
-                        f"<span style='font-size:10px;color:#93a1aa'>{html.escape(item.get('source',''))} · تأثير محتمل: {item.get('impact','—')}/3 · {lean_ar}</span><br/>"
-                        f"<span style='font-size:10px;color:#d8b46a'>قد يؤثر على: {html.escape(item.get('assets_ar',''))} — في الاتجاهين، وليس توقعاً لاتجاه السعر.</span>"
-                        + (f"<br/><a href='{html.escape(item.get('url',''), quote=True)}' target='_blank'>المصدر</a>" if str(item.get("url","")).startswith(("http://","https://")) else "")
-                        + "</div>", unsafe_allow_html=True,
-                    )
-                dead = st.session_state.get("rac_news_dead", [])
-                if dead:
-                    st.caption("مصادر لم تستجب في آخر تحديث: " + "، ".join(dead[:8]))
+                except Exception as e:
+                    st.warning(f"تعذر تحديث الأخبار: {type(e).__name__}")
+        else:
+            if st.button("إعادة تحديث الأخبار", key="rac_refresh_news"):
+                st.session_state.pop("rac_news_cache", None)
+                st.rerun()
+            if not news_items:
+                st.info("لا توجد عناوين عالية التأثير حديثة وفق قواعد التصنيف الحالية.")
+            for item in news_items[:6]:
+                lean = item.get("lean")
+                lean_ar = "ميل لغوي متشدد" if lean == "hawkish" else "ميل لغوي متساهل" if lean == "dovish" else "لا يوجد ميل لغوي واضح"
+                st.markdown(
+                    f"<div class='rac-news'><b>{html.escape(item.get('title',''))}</b><br/>"
+                    f"<span style='font-size:10px;color:#93a1aa'>{html.escape(item.get('source',''))} · تأثير محتمل: {item.get('impact','—')}/3 · {lean_ar}</span><br/>"
+                    f"<span style='font-size:10px;color:#d8b46a'>قد يؤثر على: {html.escape(item.get('assets_ar',''))} — في الاتجاهين، وليس توقعاً لاتجاه السعر.</span>"
+                    + (f"<br/><a href='{html.escape(item.get('url',''), quote=True)}' target='_blank'>المصدر</a>" if str(item.get("url","")).startswith(("http://","https://")) else "")
+                    + "</div>", unsafe_allow_html=True,
+                )
+            dead = st.session_state.get("rac_news_dead", [])
+            if dead:
+                st.caption("مصادر لم تستجب في آخر تحديث: " + "، ".join(dead[:8]))

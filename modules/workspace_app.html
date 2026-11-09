@@ -6811,7 +6811,7 @@ Panel.prototype.build_tclass = function(){
 /* DESK-BEGIN pure engine (no DOM, no fetch): tests/test_desk_js.py runs it with node on synthetic candles */
 const DESK = {
   RULES: {risk:0.25, day:2, stops:3, rr:2},
-  riskFor(grade, validationN, validationPassed){ return grade === "A+" && validationPassed === true && Number(validationN) >= 30 ? 0.5 : 0.25; },
+  riskFor(grade, validationN, validationPassed){ return grade === "A+" && validationPassed === true && Number.isInteger(validationN) && validationN >= 30 ? 0.5 : 0.25; },
   atr(rows, n){ n = Math.min(n || 14, rows.length - 1); if (n < 1) return 0; let s = 0;
     for (let i = rows.length - n; i < rows.length; i++) s += Math.max(rows[i].h - rows[i].l, Math.abs(rows[i].h - rows[i-1].c), Math.abs(rows[i].l - rows[i-1].c)); return s/n; },
   // high / low of the last COMPLETE period before the current one (UTC day or UTC week starting Monday) + the current period's open

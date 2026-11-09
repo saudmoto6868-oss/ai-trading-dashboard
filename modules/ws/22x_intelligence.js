@@ -70,7 +70,13 @@ Panel.prototype.build_intel = function(){
       h+="<button data-open='chart'>"+L("Open linked chart + Volume Profile","افتح الشارت المرتبط والـVolume Profile")+"</button> <button data-open='valuelv'>"+L("Open / refresh multi-timeframe value levels","افتح / حدّث مستويات القيمة")+"</button>";
     }
     else if(S.tab==="setups"){h+="<div style='padding:10px;border:1px solid #d99b24;border-radius:6px'><b>"+L("WAIT — no verified trade plan from this panel yet","انتظار — مفيش خطة صفقة متحققة من اللوحة دي لسه")+"</b><p class='m'>"+L("A setup must state its evidence, trigger, invalidation, stop, targets, expiry and risk. Missing or stale data blocks the alert.","أي سيت أب لازم يوضح الأدلة والتريجر والإبطال والستوب والأهداف والصلاحية والمخاطرة. البيانات الناقصة أو القديمة توقف التنبيه.")+"</p></div><button data-open='setup'>"+L("Open existing Setup Card","افتح كارت الصفقات الحالي")+"</button>";}
-    else {h+="<button data-open='chart'>"+L("Open chart indicators","افتح مؤشرات الشارت")+"</button><div class='m' style='margin-top:8px'>"+L("Indicator selection will be expanded after the chart indicator registry and saved settings are mapped into this panel.","هنوسع اختيار المؤشرات بعد ربط سجل مؤشرات الشارت وإعداداتها المحفوظة بالويدجت.")+"</div>";}
+    else {
+      const chart=Ws.panels.find(x=>x.type==="chart"&&x.state.sym===S.sym), items=chart&&chart.indItems||[];
+      const indRows=items.filter(it=>it&&it.label&&typeof it.get==="function").map(it=>"<tr><td>"+it.label+"</td><td>"+(it.get()?L("ON","مفعّل"):L("OFF","متوقف"))+"</td></tr>").join("");
+      h+="<div class='m' style='font-size:10px;margin-bottom:6px'>"+L("Live status from the existing linked chart indicator registry. Settings and toggles remain owned by the chart.","حالة مباشرة من سجل مؤشرات الشارت المرتبط. الإعدادات والتفعيل يفضلوا تابعين للشارت الأصلي.")+"</div>";
+      h+="<div style='overflow:auto'><table class='rdt'><tr><th>"+L("Indicator","المؤشر")+"</th><th>"+L("State","الحالة")+"</th></tr>"+(indRows||"<tr><td colspan='2'>"+L("Open the linked chart to load its indicator registry","افتح الشارت المرتبط لتحميل سجل المؤشرات")+"</td></tr>")+"</table></div>";
+      h+="<button data-open='chart'>"+L("Open chart indicator settings","افتح إعدادات مؤشرات الشارت")+"</button>";
+    }
     content.innerHTML=h;
     content.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>open(b.dataset.open));
     content.querySelectorAll("[data-enable-footprint]").forEach(b=>b.onclick=enableFootprint);

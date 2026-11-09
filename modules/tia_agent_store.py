@@ -485,7 +485,7 @@ class TIAStore:
     def search_memory(self, agent_id, query, memory_type=None, limit=50):
         query = _safe_text(query, "memory search query")
         if not query: raise ValueError("memory search query is required")
-        terms = [term for term in re.findall(r"[\\w-]+", query) if len(term) > 1][:8]
+        terms = [term for term in re.findall(r"[\w-]+", query) if len(term) > 1][:8]
         if not terms: return []
         clauses, params = ["agent_id=?"], [agent_id]
         if memory_type: clauses.append("memory_type=?"); params.append(memory_type)

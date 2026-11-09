@@ -95,3 +95,15 @@ Accordingly, no universal XAUUSD, FX, index-CFD, stock-CFD, futures, inverse/qua
 
 ### Policy provenance note
 The legacy `config.py` and `modules/desk_risk.py` currently state a 0.5% per-trade default and describe a 2026-11-09 owner decision, while earlier meeting notes recorded 0.25%. The isolated TIA engine deliberately has no default and requires an explicit versioned policy. The existence of the legacy 0.5% constant is not, by itself, permission to silently select it for TIA or to migrate the live Desk path.
+
+
+## Account cashflow journal — deposits and withdrawals
+
+The daily projection accepts an `account_cashflow` event with:
+- `flow_type`: explicit `deposit` or `withdrawal`;
+- positive `amount` and explicit `account_currency`;
+- `source` provenance and a non-empty `external_reference` for statement/broker traceability.
+
+Cashflows are projected separately as deposits, withdrawals and net cashflow. They do **not** alter realized trading P&L, the day's locked `start_equity`, or stop count. A session rejects mixed cashflow currencies. This prevents a deposit from masking trading losses or a withdrawal from being counted as a trading loss.
+
+This is an audit journal only, not a complete cash/equity reconciliation. Before production use, a broker adapter must provide authenticated, timestamped account balance/equity and cash-transaction statements; reconciliation must account for pending transactions, currency conversion, fees, financing, dividends, corporate actions and broker-specific balance semantics. No current public market-data feed proves those account values.

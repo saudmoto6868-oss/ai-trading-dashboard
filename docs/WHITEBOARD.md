@@ -28,3 +28,9 @@
 
 
 | 30 | Trade Intelligence Center — تجميع المعرفة والبحث وقاعة الاجتماعات | A | ChatGPT | **شغال — UI أولي على فرع منفصل، غير مختبر حيًا** | 2026-11-09 | `feat/academy-intelligence-core`; الصفحة 12 مضافة دون حذف أي صفحة. Command Center + Knowledge + Research snapshots + Meeting Room. المحاضر التاريخية والـ Whiteboard ظاهرة للقراءة دون تعديل. متبقي: مراجعة payloads، اختبار فعلي، وربط task handoff بعد فحص عقد الكتابة. لا merge/deploy. |
+
+
+## 31. Trade Intelligence Center — Meeting Room task handoff
+- Meeting Room can now capture task proposals with priority, area, suggested owner and next action.
+- Proposals are append-only journal entries and appear under “Task proposals awaiting review”.
+- They are **not official Technical Office tasks** and do not modify `data/office_tasks.json`; owner review and an approved write contract are required before formal board integration.

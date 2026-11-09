@@ -76,3 +76,6 @@
 | 2026-11-09 | ChatGPT | ربط Indicators بسجل الشارت | `modules/ws/22x_intelligence.js` | عرض chart.indItems وحالات ON/OFF مع إبقاء الإعدادات في الشارت | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | لا قائمة مؤشرات مصطنعة ولا registry مكرر. |
 
 | 2026-11-09 | ChatGPT | إضافة Decision Readiness Packet الآمن | `modules/ws/22x_intelligence.js` | عرض جاهزية book/tape/footprint وعمر البيانات داخل Setups | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | القرار WAIT؛ لا ranking أو BUY/SELL أو SL/TP حتى اعتماد القواعد والتحقق. |
+
+
+| 2026-11-09 | ChatGPT | توسيع اختبارات XPIX downstream | `tests/browser/xpix_evidence_contract_mock.js`, `docs/XPIX_INTELLIGENCE_TAB_AUDIT_2026-11-09.md` | إضافة assertions لـAuction/Value Levels وIndicators registry وSetups WAIT باستخدام fixtures معزولة | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل؛ GitLab CI لم يبدأ jobs بسبب بوابة التحقق | مراجعة static فقط؛ لا ادعاء نجاح browser أو build. |

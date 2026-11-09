@@ -222,7 +222,7 @@ class RiskLedger:
     def events(self, session_id: str) -> list[dict]:
         with closing(self._connect()) as con:
             rows = con.execute("""SELECT event_id,event_type,payload_json,payload_sha256,created_at
-                                  FROM risk_events WHERE session_id=? ORDER BY created_at,event_id""",
+                                  FROM risk_events WHERE session_id=? ORDER BY rowid""",
                                (session_id,)).fetchall()
         return [{**dict(row), "payload": json.loads(row["payload_json"])} for row in rows]
 

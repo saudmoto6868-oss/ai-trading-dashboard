@@ -76,6 +76,36 @@ def list_entries(*, limit: int = 100, entry_type: str = "") -> list[dict]:
     return out
 
 
+def list_task_proposals() -> tuple[list[dict], dict[str, dict]]:
+    """Return every task proposal and its latest review, independent of journal pagination.
+
+    The original proposal and each review remain immutable append-only entries.
+    """
+    initialize_meeting_store()
+    with db_session() as db:
+        rows = _execute(
+            db,
+            "SELECT * FROM intelligence_meeting_entries "
+            "WHERE entry_type IN (?, ?) ORDER BY created_at DESC",
+            ("recommendation", "decision"),
+        ).fetchall()
+    proposals: list[dict] = []
+    reviews: dict[str, dict] = {}
+    for row in rows:
+        item = dict(row)
+        try:
+            item["metadata"] = json.loads(item.get("metadata") or "{}")
+        except (TypeError, ValueError):
+            item["metadata"] = {}
+        meta = item["metadata"]
+        if meta.get("kind") == "task_proposal":
+            proposals.append(item)
+        elif meta.get("kind") == "task_proposal_review" and meta.get("proposal_id"):
+            # Rows are newest-first, so the first review for an ID is authoritative.
+            reviews.setdefault(meta["proposal_id"], item)
+    return proposals, reviews
+
+
 def meeting_summary(limit: int = 200) -> dict:
     rows = list_entries(limit=limit)
     counts: dict[str, int] = {}

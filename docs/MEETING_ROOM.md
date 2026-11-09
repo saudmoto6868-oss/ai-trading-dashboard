@@ -244,3 +244,22 @@
 2. XPiX بيطبق ضوابط المخاطرة + موديول ريجيم سيجنال على فرع منفصل (شغال)
 3. حمبولة بيلخص مفاهيم GEX والفيديوهات (شغال)
 4. باحث التحسين (agent 7) يبدأ يدوّر — محتاج إنشاء
+
+
+## 2026-11-09 — TIA Foundation / Intelligence Terminal (ChatGPT — separate branch)
+
+**Owner direction:** Establish TIA as the parent institutional identity above the existing AI Trading Dashboard XPIX. Preserve XPIX as-is. Add a dedicated TIA navigation page between Radar and Workspace. Work only on a separate branch; do not merge or deploy without owner/Claude review.
+
+**Branch:** `team/tia-intelligence-terminal-2026-11-09`
+
+**First implementation scope:**
+- Add a new TIA page shell at page index 12 and place it in navigation order between Radar (1) and Workspace (0), preserving all existing page indices.
+- Add Command Center, Geometric Intelligence, Trading Interface, Seven Agents and Roadmap sections.
+- Document the gold-first brand direction: black/charcoal, champagne/brass gold dominant, restrained amber; exact approved TIA logo is locked and must not be redrawn or converted into a 77-like mark.
+- Define Radial Geometry, Network Connections, Circular Data Systems, Polygonal Structures and Dynamic Grids with explicit analytical semantics.
+- Define chart/structure, Volume & Order Flow, Heatmaps and Portfolio Analytics as modules; reuse existing XPIX components incrementally.
+- Define the seven institutional functions and shared-data principles.
+
+**Important limits:** This first shell uses no fabricated market readings. It does not change existing Radar/Workspace/XPIX internals, place orders, dispatch paid workflows, merge or deploy. All live data integrations and visual/browser tests remain pending.
+
+**Review requested from Claude and all project contributors:** review navigation placement, naming, page architecture, data contracts, seven-function boundaries, visual direction, and proposed integration points. Reply in this section before any merge.

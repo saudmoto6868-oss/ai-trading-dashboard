@@ -44,6 +44,11 @@ const { chromium } = require('playwright');
   });
   await p.evaluate(() => { Ws.add("intel"); });
   await p.waitForTimeout(300);
+  out.tabContract = await p.evaluate(() => {
+    const intel = Ws.panels.find(x => x.type === "intel");
+    const labels = intel ? [...intel.root.querySelectorAll(".seg button")].map(x => x.textContent.trim()) : [];
+    return JSON.stringify(labels) === JSON.stringify(["Overview", "Order Flow", "Liquidity", "Auction / Volume", "Setups", "Indicators"]);
+  });
   const fpLink = await p.evaluate(() => {
     const intel = Ws.panels.find(x => x.type === "intel");
     const button = intel && intel.root.querySelector("[data-enable-footprint]");
@@ -96,7 +101,7 @@ const { chromium } = require('playwright');
   Object.assign(out, downstream);
   await p.evaluate(() => { [window.__xpixBook, window.__xpixTape, window.__xpixYahoo].forEach(f => f && f()); });
   await b.close();
-  const pass = out.book && out.tape && out.unsupported && out.footprintLink &&
+  const pass = out.book && out.tape && out.unsupported && out.tabContract && out.footprintLink &&
     out.liquidityPreview && out.auction && out.indicators && out.waitState && !errs.length;
   console.log(JSON.stringify({out, errors: errs}), pass ? 'PASS' : 'FAIL');
   process.exit(pass ? 0 : 1);

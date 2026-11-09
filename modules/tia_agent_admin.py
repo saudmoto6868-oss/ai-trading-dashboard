@@ -82,6 +82,49 @@ def render_agent_admin():
                     st.error(f"تعذر تسجيل المهمة: {type(exc).__name__}: {str(exc)[:180]}")
         st.caption("حفظ المهمة لا يعني بدء تنفيذها؛ لا يوجد worker أو جدولة متصلة حتى الآن.")
 
+    with st.expander("تقويم الورديات والمهام المتكررة · Scheduler", expanded=False):
+        st.caption("اضبط وقتًا محليًا ومنطقة IANA. لا توجد ساعات جلسات مفترضة؛ راجع تقويم البورصة والأداة قبل اعتماد أي موعد. الإعداد لا يعني تشغيلًا تلقائيًا.")
+        from datetime import datetime, timezone, time as dt_time
+        from modules.tia_session_scheduler import validate_weekly_rule, next_occurrence, preview, utc_iso
+        timezone_name = st.text_input("المنطقة الزمنية (IANA)", value="Africa/Cairo", key="tia_sched_timezone")
+        weekdays = st.multiselect("أيام التكرار", list(range(7)), default=[0,1,2,3,4], format_func=lambda d: ["الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"][d], key="tia_sched_days")
+        local_clock = st.time_input("وقت التنفيذ المحلي", value=dt_time(8,30), key="tia_sched_clock")
+        rule = {"frequency":"weekly","weekdays":weekdays,"local_time":local_clock.strftime("%H:%M")}
+        normalized = None
+        try:
+            normalized = validate_weekly_rule(rule)
+            st.caption("المواعيد القادمة حسب المنطقة المختارة:")
+            for occurrence in preview(normalized, timezone_name, datetime.now(timezone.utc), 5):
+                st.write("• " + occurrence)
+        except Exception as exc:
+            st.warning("تعذر حساب المواعيد: {}: {}".format(type(exc).__name__, str(exc)[:140]))
+        schedule_title = st.text_input("اسم المهمة المتكررة", key="tia_sched_title")
+        active_agents = [a for a in agents if a["enabled"]]
+        schedule_owner = None
+        if active_agents:
+            schedule_owner = st.selectbox("العضو المسؤول", [a["agent_id"] for a in active_agents], format_func=lambda key: by_id[key]["display_name"] + " · " + key, key="tia_sched_owner")
+        else:
+            st.warning("فعّل عضوًا واحدًا على الأقل قبل إنشاء جدول.")
+        if st.button("حفظ الجدول", key="tia_sched_save", disabled=not bool(normalized and schedule_title.strip() and schedule_owner)):
+            try:
+                first = next_occurrence(normalized, timezone_name, datetime.now(timezone.utc))
+                job_id = store.create_scheduled_job(schedule_title, schedule_owner, normalized, timezone_name, utc_iso(first))
+                st.success("تم حفظ الجدول {} · أول موعد UTC: {}".format(job_id[:8], utc_iso(first)))
+                st.rerun()
+            except Exception as exc:
+                st.error("تعذر حفظ الجدول: {}: {}".format(type(exc).__name__, str(exc)[:160]))
+        jobs = store.list_scheduled_jobs(limit=50)
+        if jobs:
+            st.markdown("**الجداول المحفوظة**")
+            for job in jobs:
+                cols = st.columns([4,2,1])
+                owner_name = by_id.get(job["owner_agent_id"], {}).get("display_name", job["owner_agent_id"])
+                cols[0].write(job["title"] + " · " + owner_name)
+                cols[1].caption(job["timezone"] + " · " + job["next_run_at"])
+                if cols[2].button("إيقاف" if job["enabled"] else "تفعيل", key="tia_sched_toggle_" + job["job_id"]):
+                    store.set_scheduled_job_enabled(job["job_id"], not job["enabled"])
+                    st.rerun()
+        st.caption("لا يوجد Worker بعد. لن تتحول المواعيد المستحقة إلى مهام أو تنبيهات حتى توصيل عامل خلفية موثوق.")
     st.markdown("#### قائمة المهام المحفوظة")
     try:
         tasks = store.list_tasks(limit=50)

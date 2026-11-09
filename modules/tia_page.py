@@ -90,7 +90,7 @@ def render_tia():
     with left:
         st.subheader("01 · PRICE ACTION & STRUCTURE")
         try:
-            sym=asset if universe=="Crypto" else "HL:xyz:"+asset
+            sym=asset+"-USDT" if universe=="Crypto" else "HL:xyz:"+asset
             df=_candles(sym,tf)
             if df is not None and not df.empty:
                 st.line_chart(df.set_index("time")[["close"]],height=280,use_container_width=True)

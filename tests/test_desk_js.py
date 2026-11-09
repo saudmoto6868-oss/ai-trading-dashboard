@@ -83,6 +83,13 @@ def test_day_and_check_match_python():
     print("ok test_day_and_check_match_python")
 
 
+def test_risk_policy_has_no_manual_input_and_matches_python():
+    out = node("console.log(JSON.stringify([DESK.riskFor('A+',29,true), DESK.riskFor('A+',30,true), DESK.riskFor('A+',50,false), DESK.riskFor('A',50,true)]))")
+    assert out == [0.25, 0.5, 0.25, 0.25], out
+    assert "rkI" not in SRC and 'lab(Lg(\"risk %\"' not in SRC
+    print("ok test_risk_policy_has_no_manual_input_and_matches_python")
+
+
 def test_widget_is_registered():
     assert "Panel.prototype.build_ofdesk = function()" in SRC
     snap = open(os.path.join(ROOT, "modules", "ws", "26_snap.js"), encoding="utf-8").read()

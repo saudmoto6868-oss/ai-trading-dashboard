@@ -7,10 +7,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules.desk_risk import DeskDay, DeskRules, position_size, reward_risk
 
 
-def test_size_half_percent_default():
-    s = position_size(10_000, entry=100, stop=99)          # 0.5 % of 10k = 50, 1.0 per unit
-    assert abs(s["qty"] - 50) < 1e-9 and abs(s["risk_amount"] - 50) < 1e-9
-    print("ok test_size_half_percent_default")
+def test_size_base_quarter_percent_default():
+    s = position_size(10_000, entry=100, stop=99)
+    assert abs(s["qty"] - 25) < 1e-9 and abs(s["risk_amount"] - 25) < 1e-9
+    print("ok test_size_base_quarter_percent_default")
+
+
+def test_a_plus_step_up_requires_validated_30_trade_sample():
+    base = position_size(10000, 100, 99, grade="A+", validation_n=29, validation_passed=True)
+    tier = position_size(10000, 100, 99, grade="A+", validation_n=30, validation_passed=True)
+    bad = position_size(10000, 100, 99, grade="A+", validation_n=50, validation_passed=False)
+    other = position_size(10000, 100, 99, grade="A", validation_n=50, validation_passed=True)
+    assert base["risk_pct"] == 0.25 and base["risk_amount"] == 25
+    assert tier["risk_pct"] == 0.5 and tier["risk_amount"] == 50
+    assert bad["risk_pct"] == other["risk_pct"] == 0.25
+    print("ok test_a_plus_step_up_requires_validated_30_trade_sample")
 
 
 def test_size_point_value_and_step_rounds_down():

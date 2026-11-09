@@ -53,3 +53,7 @@
 3. **عقد واحد للنتايج:** `agent_result`.
 4. **مصدر واحد لكل بيانات:** `spot_flow` و`options_desk` يتعاد استخدامهم.
 5. **أرقام الصفحات الثابتة** (11 Spot و12 TIA و13-15 الهبات) ما تتكررش. #27 لازم يغيّر رقمه.
+
+
+## Owner decision: unified risk policy — 2026-11-09
+Both engines use one deterministic policy; no manual percentage selector. Base 0.25%. Step up to 0.50% only for A+ plus explicit validation_passed=true and at least 30 closed out-of-sample trades for that exact setup/rule version. Raw journal count, A+ grade, school count, mock data or missing metadata cannot qualify. Daily cap 2%, lock after 3 stops, and minimum R:R 1:2 remain unchanged. TIA has no independent sizing engine in main; future TIA sizing must call modules/risk_policy.py.

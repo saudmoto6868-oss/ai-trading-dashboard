@@ -117,10 +117,12 @@ def sizing(p: dict, equity: float | None = None) -> dict | None:
     from modules import desk_risk as DR
     try:
         eq = float(equity if equity is not None else os.environ.get("DESK_EQUITY") or 10000)
-        s = DR.position_size(eq, float(p["entry"]), float(p["stop"]))
+        s = DR.position_size(eq, float(p["entry"]), float(p["stop"]),
+                             grade=p.get("grade"), validation_n=p.get("validation_n", 0),
+                             validation_passed=p.get("validation_passed") is True)
     except (KeyError, TypeError, ValueError):
         return None
-    return {"equity": eq, "risk_pct": DR.RULES.risk_pct, "qty": s["qty"], "risk_amount": s["risk_amount"]}
+    return {"equity": eq, "risk_pct": s["risk_pct"], "qty": s["qty"], "risk_amount": s["risk_amount"]}
 
 
 HNAME = {"scalp": ("scalp", "سكالب"), "day": ("day trade", "دي تريد"), "swing": ("swing", "سوينج"), "position": ("position", "بوزيشن")}

@@ -69,3 +69,12 @@ The reviewer merges finished (non-draft) merge requests from the owner's session
 - `feat/academy-intelligence-core` commits a temporary build file `modules/.workspace_app_build.tmp` (5111 lines). Do not merge that file.
 - The TIA shell has no browser or mobile test yet.
 - GEX is a naive dealer-sign estimate on a delayed Cboe chain, mock-tested only.
+
+
+## Owner-approved unified risk policy — 2026-11-09
+- One deterministic policy for every engine; no user-selectable risk percentage.
+- Base risk is 0.25% of equity per trade.
+- Automatic step-up to 0.50% only when setup grade is exactly A+, validation explicitly passed, and at least 30 closed out-of-sample trades exist for that setup/rule version.
+- Missing validation metadata, mock/delayed evidence, fewer than 30 trades, or any grade below A+ always means 0.25%.
+- Daily maximum loss remains 2%; stop after 3 stops; minimum R:R remains 1:2.
+- The policy does not authorize automatic order placement. Python engines use modules/risk_policy.py; browser Order Flow Desk mirrors the same fail-closed rule.

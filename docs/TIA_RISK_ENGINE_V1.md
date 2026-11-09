@@ -22,3 +22,16 @@ The older Order Flow implementation embeds 0.5%, while meeting notes also mentio
 
 ## Integration plan
 Keep this contract isolated until the owner approves the policy and the missing gates above are implemented and tested. Do not merge this branch into `main` as a claim of live enforcement.
+
+## Follow-up slice: quantity sizing and daily ledger
+- `modules/tia_risk_ledger.py` adds quantity sizing derived from equity, explicit risk %, entry/stop, tick size, quantity step, point value, multiplier, fee/funding reserve and a timestamped FX conversion quote.
+- Sizing rounds quantity down and rejects stale/future FX timestamps, currency mismatches, off-tick prices and quantities below minimum increment.
+- `RiskLedger` adds file-backed SQLite sessions keyed by account + IANA timezone + local session date, immutable event rows, payload hashes, duplicate-event idempotency and conflicting-replay rejection.
+- Session identity locks start equity and policy version for that local trading day. Session rollover is based on the configured timezone (including timezone database DST rules).
+
+### Remaining persistence and sizing limits
+- SQLite is appropriate only as a local/single-host interim ledger on a reliable local filesystem. It is not a distributed lock or multi-host production database. Use a transactional server database for horizontally scaled deployments.
+- The event journal is append-only; a materialized state reducer (open/close position projection, stop counter, realized P&L, fee/funding totals) and recovery/reconciliation process are still required before the ledger can drive live enforcement.
+- The sizing function returns an auditable proposed quantity but has not yet been wired into Order Flow Desk's UI/decision path. Existing callers must not continue supplying arbitrary risk amounts as if verified.
+- Broker-specific contract semantics (inverse contracts, quanto, options Greeks, FX pip value, CFD lot conventions, exchange fee tiers, maker/taker and funding schedules) need provider/instrument adapters and verified specs. The generic linear point-value model must not be applied to them without an adapter.
+- No automatic stop movement, partial fill, slippage or gap-through-stop simulation is included.

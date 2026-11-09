@@ -161,6 +161,12 @@ class TIAKnowledgeStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_tia_meeting_events_meeting
                     ON tia_meeting_events(meeting_id, sequence);
+                CREATE TRIGGER IF NOT EXISTS tia_meeting_events_no_update
+                    BEFORE UPDATE ON tia_meeting_events
+                    BEGIN SELECT RAISE(ABORT, 'meeting events are append-only'); END;
+                CREATE TRIGGER IF NOT EXISTS tia_meeting_events_no_delete
+                    BEFORE DELETE ON tia_meeting_events
+                    BEGIN SELECT RAISE(ABORT, 'meeting events are append-only'); END;
             """)
             conn.execute(
                 "INSERT OR IGNORE INTO tia_schema_meta(key,value) VALUES('schema_version',?)",

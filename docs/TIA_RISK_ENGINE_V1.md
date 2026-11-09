@@ -77,3 +77,21 @@ The current public market adapters cannot prove account balance, equity, used/fr
 - Missing feeds remain unavailable; they are not treated as zero or as neutral evidence. Local collection time is not misrepresented as provider event time.
 - The existing `volume_profile` / VP calculation is explicitly described as a volume-profile approximation, not exchange-level bid/ask footprint delta.
 - Public order-book snapshots are venue-specific and cancellable; they do not establish global liquidity or historical depth.
+
+
+## Instrument-spec evidence gate (reviewed against the current Dashboard repository)
+
+The current repository contains symbol/watchlist and chart-provider mappings, not a verified broker contract-specification registry:
+- `config.py` labels `US100`/`US500` as broker-dependent CFD names and the starter stock list as placeholders. TradingView mappings are chart symbols, not broker contract specifications.
+- OKX public market adapters provide venue-specific crypto market data; they do not establish the user's broker lot size, account currency, fees or execution contract.
+- Hyperliquid xyz exposes oracle-linked perpetual instruments for metals/TradFi symbols; these are not the underlying cash contract and do not establish an MT5 CFD specification.
+- Deribit options and Cboe delayed option chains are not linear spot/CFD sizing specifications. Options require a separate premium/Greeks/multiplier/assignment model.
+- The current public market adapters do not provide authenticated account equity, margin, fills, broker fees or financing.
+
+Accordingly, no universal XAUUSD, FX, index-CFD, stock-CFD, futures, inverse/quanto crypto or options multiplier is inferred from the watchlist or chart symbol. A caller may use `size_trade` only after supplying an instrument specification verified against the actual execution venue/account, including quote currency, tick size, quantity step, point value, contract multiplier and applicable round-trip cost reserve. Until then the instrument is unsupported for automated sizing and must fail closed at the integration boundary.
+
+### FX conversion consistency limitation
+`size_trade` uses a timestamped `ConversionQuote` for the sizing calculation. `Position` currently stores `account_ccy_per_quote_ccy` inside `InstrumentSpec` for mark-to-market P&L and stop-risk projection. The caller must ensure this stored conversion is the same validated conversion used for the position snapshot and refresh it with a fresh quote as required. The normalized position contract does not yet carry its own FX quote timestamp/provenance; this is a production gate, not an assumed live conversion.
+
+### Policy provenance note
+The legacy `config.py` and `modules/desk_risk.py` currently state a 0.5% per-trade default and describe a 2026-11-09 owner decision, while earlier meeting notes recorded 0.25%. The isolated TIA engine deliberately has no default and requires an explicit versioned policy. The existence of the legacy 0.5% constant is not, by itself, permission to silently select it for TIA or to migrate the live Desk path.

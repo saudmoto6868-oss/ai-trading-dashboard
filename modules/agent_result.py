@@ -4,7 +4,10 @@ It only describes and checks data: no network, no orders, no secrets. Rules enfo
 a statistic with n < 30 is NOT EVIDENCE; a verdict is never a probability."""
 from __future__ import annotations
 
+import json
+import os
 import time
+from pathlib import Path
 
 VERDICTS = ("bullish", "bearish", "neutral", "skip", "info")
 STREAMS = ("grok", "tia", "claude")
@@ -64,3 +67,56 @@ def summarize(results) -> dict:
         d = out.setdefault(r["agent"], {})
         d[r["verdict"]] = d.get(r["verdict"], 0) + 1
     return {"by_agent": out, "invalid": invalid}
+
+
+def save(results, path) -> int:
+    """Append the VALID results to a jsonl file (one per line); invalid ones are dropped. -> how many were written."""
+    n = 0
+    with Path(path).open("a") as f:
+        for r in results:
+            if not validate(r):
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+                n += 1
+    return n
+
+
+def load(path, day: str | None = None) -> list:
+    """Results from a jsonl file; day = 'YYYY-MM-DD' keeps only those whose ts starts with it. Bad lines are skipped."""
+    p = Path(path)
+    if not p.exists():
+        return []
+    out = []
+    for line in p.read_text().splitlines():
+        try:
+            r = json.loads(line)
+        except Exception:
+            continue
+        if day is None or str(r.get("ts", "")).startswith(day):
+            out.append(r)
+    return out
+
+
+def load_dir(folder, day: str | None = None) -> list:
+    """Results other streams (Grok, TIA) drop as *.jsonl files in a folder: the only coupling between the streams. Invalid ones stay in the list so summarize() can count them."""
+    p = Path(folder)
+    if not p.is_dir():
+        return []
+    out = []
+    for f in sorted(p.glob("*.jsonl")):
+        out += load(f, day)
+    return out
+
+
+def text(summary: dict, ar: bool = True) -> str:
+    """One short block for the daily review: what each agent said today + how many results broke the contract."""
+    by = summary.get("by_agent") or {}
+    bad = summary.get("invalid") or []
+    if not by and not bad:
+        return ""
+    names = {"bullish": ("صاعد", "bullish"), "bearish": ("هابط", "bearish"), "neutral": ("محايد", "neutral"), "skip": ("تخطّي", "skip"), "info": ("معلومة", "info")}
+    lines = ["🤖 " + ("الأجينتات النهارده" if ar else "Agents today")]
+    for ag, d in sorted(by.items()):
+        lines.append(f"• {ag}: " + " · ".join(f"{names[k][0 if ar else 1]} {v}" for k, v in sorted(d.items())))
+    if bad:
+        lines.append(("⚠ نتايج مخالفة للعقد: " if ar else "⚠ results breaking the contract: ") + str(len(bad)))
+    return "\n".join(lines)

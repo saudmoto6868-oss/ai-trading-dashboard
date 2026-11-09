@@ -25,7 +25,7 @@ Panel.prototype.build_intel = function(){
     P.ttl.textContent=L("XPIX Intelligence","XPIX Intelligence")+" · "+S.sym;
     tabs.innerHTML=""; definitions.forEach(([k,label])=>{const b=el("button",null,label);b.classList.toggle("on",S.tab===k);b.onclick=()=>{S.tab=k;Ws.save();render();};tabs.append(b);});
     const book=Hub.last["book|"+S.sym], tape=Hub.last["trades|"+S.sym], now=Date.now();
-    const goodBook=book&&!book.error, goodTape=tape&&!tape.error;
+    const goodBook=book&&!book.error&&book.capability!=="unsupported", goodTape=tape&&!tape.error&&tape.capability!=="unsupported";
     const age=x=>x&&(x.receivedAt||x.t)?Math.max(0,Math.round((now-(x.receivedAt||x.t))/1000))+"s "+L("since received","من وقت الاستلام"):L("timestamp unavailable","التوقيت غير متاح");
     const mid=goodBook&&book.bids?.length&&book.asks?.length?(book.bids[0].p+book.asks[0].p)/2:null;
     const buy=goodTape?(tape.rows||[]).filter(x=>x.side==="Buy").reduce((a,x)=>a+x.q,0):null;
@@ -36,7 +36,7 @@ Panel.prototype.build_intel = function(){
     const tapeStats=goodTape?tape.stats||{}:{};
     const bq=goodBook?(book.bids||[]).slice(0,10).reduce((a,x)=>a+x.q,0):null;
     const aq=goodBook?(book.asks||[]).slice(0,10).reduce((a,x)=>a+x.q,0):null;
-    const fmt=x=>x==null?"—":fmtQ(x), status=(ok,x)=>ok?L("Receiving data","البيانات بتوصل"):(x&&x.capability==="unsupported"?L("Not supported by this feed","المصدر ده مش بيدعم البيانات دي"):L("Unavailable / error","غير متاح / فيه خطأ"));
+    const fmt=x=>x==null?"—":fmtQ(x), status=(ok,x)=>x&&x.capability==="unsupported"?L("Not supported by this feed","المصدر ده مش بيدعم البيانات دي"):x&&x.stale?L("STALE · last snapshot shown","بيانات قديمة · آخر لقطة معروضة"):ok?L("Receiving data","البيانات بتوصل"):L("Unavailable / error","غير متاح / فيه خطأ");
     const explain={
       overview:L("This is the market evidence panel. Read source and freshness before trusting a value.","دي لوحة أدلة السوق. راجع المصدر وحداثة البيانات قبل ما تعتمد على أي رقم."),
       flow:L("Executed trades show aggressive buying/selling. Delta is buy volume minus sell volume; it is not a direction guarantee.","الصفقات المنفذة بتوضح الشراء والبيع العدواني. الدلتا = حجم الشراء ناقص البيع، ومش ضمان لاتجاه السعر."),
@@ -71,7 +71,7 @@ Panel.prototype.build_intel = function(){
     }
     else if(S.tab==="setups"){
       const chart=Ws.panels.find(x=>x.type==="chart"&&x.state.sym===S.sym), fpReady=!!(chart&&chart.chart&&chart.chart.fpOn), bookAge=book&&(book.receivedAt||book.t)?Math.max(0,Math.round((now-(book.receivedAt||book.t))/1000)):null, tapeAge=tape&&(tape.receivedAt||tape.t)?Math.max(0,Math.round((now-(tape.receivedAt||tape.t))/1000)):null;
-      const packet=[ [L("Order book","دفتر الأوامر"),goodBook?L("Available","متاح"):L("Missing / unsupported","ناقص / غير مدعوم"),bookAge==null?"—":bookAge+"s"], [L("Time & Sales","الصفقات"),goodTape?L("Available","متاح"):L("Missing / unsupported","ناقص / غير مدعوم"),tapeAge==null?"—":tapeAge+"s"], [L("Footprint","الفوتبرنت"),fpReady?L("Enabled on linked chart","مفعّل على الشارت"):L("Not enabled","مش مفعّل"),"—"] ];
+      const packet=[ [L("Order book","دفتر الأوامر"),book&&book.stale?L("STALE","قديمة"):goodBook?L("Available","متاح"):L("Missing / unsupported","ناقص / غير مدعوم"),bookAge==null?"—":bookAge+"s"], [L("Time & Sales","الصفقات"),tape&&tape.stale?L("STALE","قديمة"):goodTape?L("Available","متاح"):L("Missing / unsupported","ناقص / غير مدعوم"),tapeAge==null?"—":tapeAge+"s"], [L("Footprint","الفوتبرنت"),fpReady?L("Enabled on linked chart","مفعّل على الشارت"):L("Not enabled","مش مفعّل"),"—"] ];
       h+="<div style='padding:10px;border:1px solid #d99b24;border-radius:6px'><b>"+L("WAIT — no ranked setup or trade plan is authorized yet","انتظار — مفيش ترتيب فرص أو خطة صفقة معتمدة لسه")+"</b><p class='m'>"+L("This is an evidence-readiness packet, not a BUY/SELL signal. A ranked setup requires a versioned rule, validated trigger, invalidation, stop, targets, expiry, risk and replay evidence. Missing or stale inputs block it.","دي بطاقة جاهزية أدلة، مش إشارة شراء أو بيع. ترتيب الفرص محتاج قاعدة بإصدار محدد وتريجر وإبطال وستوب وأهداف وصلاحية ومخاطرة وأدلة اختبار تاريخي. نقص البيانات أو قدمها يمنع التفعيل.")+"</p></div>";
       h+="<div style='overflow:auto'><table class='rdt'><tr><th>"+L("Evidence","الدليل")+"</th><th>"+L("Status","الحالة")+"</th><th>"+L("Age","العمر")+"</th></tr>"+packet.map(x=>"<tr><td>"+x[0]+"</td><td>"+x[1]+"</td><td>"+x[2]+"</td></tr>").join("")+"</table></div>";
       h+="<button data-open='setup'>"+L("Open existing Setup Card","افتح كارت الصفقات الحالي")+"</button>";

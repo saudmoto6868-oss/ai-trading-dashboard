@@ -156,8 +156,16 @@ const Hub = {
         this.last[key] = payload; (this.fails = this.fails || {})[key] = 0; setStatus(true);
         this.subs[key] && this.subs[key].forEach(cb => { try{ cb(payload); }catch(e){ console.error(e);} });
       } catch(e){ this.fails = this.fails || {}; this.fails[key] = (this.fails[key] || 0) + 1;
-        if (this.last[key] && this.fails[key] < 8) { /* keep showing the last good book / tape for ~12 s of failures instead of replacing the panel with an error */ }
-        else { setStatus(false); this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e)}); }catch(_){} }); } }
+        const previous = this.last[key], supportedSnapshot = previous && !previous.error && previous.capability === "supported";
+        if (supportedSnapshot) {
+          const stale = Object.assign({}, previous, {stale:true, staleSince:previous.staleSince || Date.now(), staleAt:Date.now(), failureCount:this.fails[key], lastError:String(e.message||e)});
+          this.last[key] = stale;
+          this.subs[key] && this.subs[key].forEach(cb => { try{ cb(stale); }catch(_){} });
+          if (this.fails[key] >= 8) setStatus(false);
+        } else {
+          setStatus(false);
+          this.subs[key] && this.subs[key].forEach(cb => { try{ cb({error:String(e.message||e), capability:"unavailable", receivedAt:Date.now(), failureCount:this.fails[key]}); }catch(_){} });
+        } }
       this.busy[key] = false; clearTimeout(this.timers[key]);
       if (this.subs[key] && this.subs[key].size) this.timers[key] = setTimeout(tick, every);
     };

@@ -38,7 +38,12 @@ def build_command_snapshot() -> dict:
         task_counts[state] = task_counts.get(state, 0) + 1
 
 
-    academy_count = _safe(lambda: len(__import__("modules.academy_intelligence", fromlist=["search_records"]).search_records(limit=200)), 0)
+    def _academy_count() -> int:
+        ai = __import__("modules.academy_intelligence", fromlist=["initialize", "search_records"])
+        ai.initialize()
+        return len(ai.search_records(limit=200))
+
+    academy_count = _safe(_academy_count, 0)
     legacy_count = _safe(lambda: len(__import__("modules.academy", fromlist=["load"]).load()), 0)
     lab_summary = _safe(lambda: __import__("modules.office_kpi", fromlist=["load", "summary"]).summary(
         __import__("modules.office_kpi", fromlist=["load"]).load()) or {}, {})

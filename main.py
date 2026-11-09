@@ -3694,27 +3694,13 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
-if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+    if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
+        st.session_state.pop("stats_tab", None)
+    _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
     if _stab == "Monte Carlo":
         from modules.quant_montecarlo import render as _mc_render
         _mc_render()
-        st.stop()
-    if _stab == "Edge Map":
-        from modules.quant_edgemap import render as _em_render
-        _em_render()
-        st.stop()
-    if _stab == "Robustness":
-        from modules.quant_robustness import render as _rb_render
-        _rb_render()
-        st.stop()
-    if _stab == "Execution":
-        from modules.quant_execution import render as _ex_render
-        _ex_render()
-        st.stop()
-    if _stab == "Lab evidence":
-        _stats_lab()
-        st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
         st.stop()
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
@@ -3786,4 +3772,15 @@ if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 
         _spot_render()
     except Exception as _sp_exc:
         st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
+    st.stop()
+
+if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+    st.markdown(kit_css(), unsafe_allow_html=True)
+    for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
+        try:
+            _fn()
+        except Exception as _om_exc:
+            st.error(f"{_nm}: {type(_om_exc).__name__}: {_om_exc}")
+        if _nm == "Macro regime":
+            st.divider()
     st.stop()

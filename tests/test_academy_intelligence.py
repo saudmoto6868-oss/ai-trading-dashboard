@@ -53,7 +53,32 @@ def run():
         assert import_legacy_lessons(db, legacy) == 1
         assert import_legacy_lessons(db, legacy) == 1  # idempotent upsert
         legacy_rows = search_records("Legacy lesson", path=db)
-        assert len(legacy_rows) == 1 and legacy_rows[0]["status"] == "review"
+        assert len(legacy_rows) == 1 and legacy_rows[0]["status"] == "inbox"
+        assert legacy_rows[0]["claim_type"] == "hypothesis"
+        # Re-import must not reset an owner review decision.
+        from modules.academy_intelligence import upsert_record
+        reviewed = dict(legacy_rows[0], status="accepted", evidence_grade="corroborated")
+        upsert_record(reviewed, db)
+        assert import_legacy_lessons(db, legacy) == 1
+        preserved = search_records("Legacy lesson", path=db)[0]
+        assert preserved["status"] == "accepted"
+        assert preserved["evidence_grade"] == "corroborated"
+
+        refs = Path(td) / "academy_refs.json"
+        refs.write_text(json.dumps({
+            "sources": [{"id": "s1", "title": "Primary source", "origin": "primary",
+                         "path": "docs/source.md", "takeaways": ["Claim"], "open": ["Check date"]}],
+            "claims": [{"id": "c1", "claim": "A research claim", "verdict": "confirmed",
+                        "origin": "reputable", "evidence": "Secondary evidence",
+                        "urls": ["https://example.org"]}],
+        }), encoding="utf-8")
+        from modules.academy_intelligence import import_legacy_references
+        assert import_legacy_references(db, refs) == 2
+        ref_source = search_records("Primary source", path=db)[0]
+        ref_claim = search_records("A research claim", path=db)[0]
+        assert ref_source["status"] == "inbox" and ref_source["evidence_grade"] == "source_only"
+        assert ref_claim["status"] == "inbox" and ref_claim["evidence_grade"] == "source_only"
+        assert ref_claim["claim_type"] == "hypothesis"
     print("PASS: academy intelligence core")
 
 

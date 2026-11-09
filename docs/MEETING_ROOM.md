@@ -290,3 +290,8 @@
 - المالك وافق على تنفيذ المقترحات السبعة بالترتيب، مع الحفاظ على عدد التابات وأسمائها وترتيبها.
 - نُفذ أساس المرحلة 1 في commit `3352bdec`: metadata لمصدر/رمز/وقت استلام book وtrades، ووسم Yahoo كـ unsupported capability. لم يكتمل بعد دمج Footprint/OFM/VP/indicator registry/setup engine.
 - CI pipeline `3043754889` ظهر Failed فور الإنشاء، بلا jobs ظاهرة؛ لذلك لا توجد نتيجة اختبار ناجحة ولا يجوز اعتبار التعديل متحققًا runtime. لا merge/deploy.
+
+
+## 2026-11-09 — المرحلة 2: إضافة اختبار عقد البيانات
+- أُضيف `tests/browser/xpix_evidence_contract_mock.js` لاختبار payload book/trades وtimestamps وYahoo unsupported. سيدخل ضمن `run_all.sh` تلقائياً.
+- لم يتم تشغيل الاختبار بعد؛ CI في GitLab مقيد بمصدر schedule/web، وpush pipeline السابق لم ينتج jobs، فلا نعتبره فشل كود ولا نجاح اختبار.

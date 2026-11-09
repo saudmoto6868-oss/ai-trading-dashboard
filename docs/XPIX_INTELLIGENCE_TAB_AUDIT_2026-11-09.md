@@ -65,3 +65,11 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - **6 — Indicators registry:** لم يتم ربط سجل المؤشرات وإعداداتها؛ لا تُعرض أسماء أو حالات غير مثبتة.
 - **7 — Deterministic setup ranking:** لم يتم تفعيل ترتيب فرص أو تنبيهات دخول؛ WAIT يظل الوضع الآمن حتى اكتمال الأدلة والتحقق.
 - لا build أو browser test أو CI أو merge أو deploy في هذه الخطوة.
+
+
+## تحديث المرحلة 2 — 2026-11-09
+
+- أُضيف `tests/browser/xpix_evidence_contract_mock.js` للتحقق من عقد بيانات Hub للـbook والـtrades، ووجود exchange timestamp وreceived timestamp، وتمييز Yahoo كـunsupported.
+- الاختبار يدخل تلقائياً ضمن `tests/browser/run_all.sh` لأنه يلتقط كل `*_mock.js`.
+- لم يُشغّل محلياً أو على CI بعد؛ الإضافة موجودة على الفرع فقط، ولا تُسجل كاختبار ناجح.
+- توضيح CI: `.gitlab-ci.yml` يقيّد GitLab pipeline إلى `schedule` أو `web` فقط؛ لذلك push pipeline الذي ظهر Failed بلا jobs لا يثبت فشل كود XPIX، لكنه أيضاً لا يقدم أي تحقق ناجح.

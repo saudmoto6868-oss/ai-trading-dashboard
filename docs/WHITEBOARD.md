@@ -49,3 +49,10 @@
 - [ ] المرحلة 6: chart indicator registry/settings mapping.
 - [ ] المرحلة 7: deterministic setup ranking + decision packet + validated chart alerts.
 - قيد ثابت: لا تغيير لعدد التابات أو أسمائها أو ترتيبها دون موافقة منفصلة؛ لا merge/deploy دون مراجعة وموافقة المالك.
+
+
+## XPIX Intelligence — حالة المرحلة 2 (2026-11-09)
+- [x] إضافة browser mock لاختبار evidence contract: `tests/browser/xpix_evidence_contract_mock.js`.
+- [ ] تشغيل الاختبار في بيئة Playwright.
+- [ ] اختبار تبديل الرمز وتصفية الاشتراكات أثناء إعادة البناء (سيُضاف إذا لم تغطه اختبارات موجودة).
+- CI GitLab الحالي لا يعمل على push: workflow rules تسمح فقط بـschedule/web.

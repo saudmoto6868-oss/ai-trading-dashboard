@@ -102,3 +102,51 @@ Prices are snapshots from public pricing pages on 2026-11-09 and may change. Do 
 
 ## Known validation limits
 Prior repository notes include tests that passed on isolated/stubbed data but do not prove live exchange connectivity or production UI behavior. Verify the actual current main branch and CI before claiming a feature is complete. No live order execution is in scope.
+
+
+## Visual design system — owner reference images (2026-11-09)
+Treat the three uploaded references as the product's visual identity, not generic inspiration:
+- Radial intelligence: circular/radial KPI compositions, segmented rings, gauges and orbital indicators for aggregate state and confluence.
+- Data observatory: dense multi-panel analytics, fine grid lines, waveform/area plots, distribution tables and connected-node visualizations.
+- Institutional command center: one wide operational canvas with many synchronized panels and persistent agent/alert activity.
+Do not copy illegible pseudo-text or decorative fake numbers from the references. All labels must be readable, values sourced, and charts tied to real data contracts.
+
+### Tokens
+- Canvas #090D11; panel #111820; raised panel #172129; subtle grid #26333B.
+- Gold #D8B46A = key levels / targets / premium attention.
+- Cyan #36D6CE = live feed / flow / active data.
+- Green #36C98F = positive / confirmed bullish.
+- Red #F06464 = negative / risk / bearish.
+- Amber #E8A85B = warning / candidate / stale soon.
+- Text #E7ECEF; muted #93A1AA.
+Color is never the sole carrier of meaning; pair with labels, icons, arrows, line styles and numeric values. Use restrained glow only for active states.
+
+### Density and layout
+- Default desktop is a single high-density canvas, not a page of tall cards.
+- Three visual layers: (1) 3–5 decision KPIs in the header, (2) synchronized central chart/flow/radial context, (3) compact detail strips, tables and agent trace.
+- Combine related views into one canvas and use compact segmented controls / drawers for detail. Keep no more than six top-level Radar destinations; prefer one page with contextual panels.
+- Avoid excessive donut charts, 3D charts, decorative gradients, illegible labels and equal visual weight across all widgets.
+- On mobile, reflow into priority summary + one primary chart + compact agent/alert strip; do not squeeze the full desktop wall into a narrow viewport.
+
+### Interaction model
+- Cross-filtering: selecting symbol/timeframe/level in any panel synchronizes the other panels.
+- Hover/focus tooltips reveal exact values, source, venue, timestamp and formula.
+- Clicking an agent marker opens its live activity trace, evidence and recommended next action; agent suggestions never silently alter a trade or execute an order.
+- Agent rail shows specialist identity, status, last action, source evidence and confidence/evidence quality. Use a visible activity timeline / trace tree, pause and dismiss controls, and an audit log. Agents are not animated mascots that move randomly; their movement must point to a real alert, chart level or action.
+- Guided pointers are contextual, dismissible and rate-limited. Each pointer names the reason and linked evidence.
+- Support layout options: Observatory (radial/analytical), Command (wide operational wall), Compact (high-density reading). Persist user choice after implementation.
+
+### Agent roles for Radar
+- Market Scout: breadth, relative strength, rotation, regime.
+- Flow Analyst: trades, CVD, delta, OI/funding when source supports them.
+- Liquidity Sentinel: book validity, depth, spread, sweeps, absorption candidates.
+- Auction Guide: VWAP, value area, POC/HVN/LVN and acceptance/rejection.
+- Risk Guardian: invalidation, event risk, data freshness, risk limits.
+- Research Tutor: links signals to Academy lessons and Lab evidence.
+Each agent must expose status (idle/working/attention/error), exact inputs, timestamp, result and evidence level. If the required data source is missing/stale, agent status is blocked/limited rather than fabricating a conclusion.
+
+### Accessibility and performance
+- Contrast, legible numeric typography, aligned values, keyboard focus, reduced-motion preference, responsive layout.
+- No continuous decorative animation. Use short purposeful state transitions; honor reduced motion.
+- Lazy-load secondary visualizations; reuse cached normalized data and shared filters to avoid duplicate API requests.
+- Each panel must expose a compact/expanded mode and a last-updated/source marker.

@@ -33,6 +33,7 @@ telegram_alerts:
         - .brain_sent.json
         - .brain_log.jsonl
         - .brain_graded.json
+        - .brain_agents.jsonl
         - .signal_log.jsonl
       when: always
   before_script:

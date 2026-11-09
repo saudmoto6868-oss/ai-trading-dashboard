@@ -62,6 +62,10 @@ def test_thresholds_reject_invalid_values():
             MarketRiskThresholds(book_imbalance_abs=value)
     with pytest.raises(ValueError):
         MarketRiskThresholds(thin_book_usd=-1)
+    with pytest.raises(ValueError):
+        MarketRiskThresholds(thin_book_usd="100")
+    with pytest.raises(ValueError):
+        MarketRiskThresholds(book_imbalance_abs="0.2")
 
 
 def test_unverified_freshness_always_creates_caution_flag():

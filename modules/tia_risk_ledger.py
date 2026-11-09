@@ -243,6 +243,7 @@ class RiskLedger:
         realized = fees = funding = 0.0
         deposits = withdrawals = 0.0
         cashflow_count = 0
+        cashflow_currency = None
         stopped_trades = 0
         for event in self.events(session_id):
             payload = event["payload"]
@@ -277,6 +278,11 @@ class RiskLedger:
                 reference = payload.get("external_reference")
                 if not isinstance(currency, str) or not currency.strip():
                     raise ValueError("account_cashflow requires account_currency")
+                currency = currency.strip().upper()
+                if cashflow_currency is None:
+                    cashflow_currency = currency
+                elif cashflow_currency != currency:
+                    raise ValueError("cashflow currency differs within one account session")
                 if not isinstance(source, str) or not source.strip():
                     raise ValueError("account_cashflow requires source provenance")
                 if not isinstance(reference, str) or not reference.strip():
@@ -316,6 +322,7 @@ class RiskLedger:
             "withdrawals_account_ccy": withdrawals,
             "net_cashflow_account_ccy": deposits - withdrawals,
             "cashflow_count": cashflow_count,
+            "cashflow_account_currency": cashflow_currency,
             "stopped_trades": stopped_trades,
             "open_positions": list(positions.values()),
             "open_position_count": len(positions),

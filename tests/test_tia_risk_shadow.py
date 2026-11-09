@@ -1,7 +1,7 @@
 import pytest
 
 from modules.desk_risk import DeskRules
-from modules.tia_risk_engine import RiskPolicy, RiskSnapshot
+from modules.tia_risk_engine import InstrumentSpec, Position, RiskPolicy, RiskSnapshot
 from modules.tia_risk_shadow import compare_legacy_and_tia
 
 
@@ -27,12 +27,16 @@ def test_matching_simple_case_is_shadow_match():
 
 
 def test_tia_blocks_unrealized_loss_that_legacy_does_not_see():
+    spec = InstrumentSpec("BTC", "crypto", "USD", 1, 0.001, 1)
+    position = Position("p1", "BTC", "crypto", "long", 1, 100, 90, 70, spec)
     result = compare_legacy_and_tia(**args(
-        tia_snapshot=RiskSnapshot(10_000, 0, 0, 0, (), stopped_trades=0),
-        tia_policy=RiskPolicy("tight", "v1", 0.5, 0.5, 1.0, 3, 2.0),
+        symbol="ETH",
+        tia_snapshot=RiskSnapshot(10_000, 0, 0, 0, (position,)),
     ))
-    # Both can still allow at zero P&L; policy mismatch is surfaced, not hidden.
-    assert "DAILY_LOSS_POLICY_DIFFERS" in result.differences
+    assert result.legacy_allowed
+    assert not result.tia_allowed
+    assert "ALLOW_BLOCK_DISAGREEMENT" in result.differences
+    assert "TIA_INCLUDES_OPEN_PNL_OR_COSTS_NOT_IN_LEGACY" in result.differences
 
 
 def test_caller_risk_amount_mismatch_is_reported():

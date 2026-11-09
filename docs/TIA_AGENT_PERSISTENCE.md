@@ -45,3 +45,10 @@ This is a persistence layer, not a permission broker. It does not retrieve secre
 - A due schedule is converted into an idempotently-created `monitoring` task in `queued` state. The worker then calculates and persists the next occurrence. If dispatch fails, it records a bounded retry time; task creation is idempotent across retries.
 - This worker dispatches tasks only. It does not execute agent reasoning, external tools, notifications, or trading. It is not yet installed as a deployed service or connected to a process supervisor/heartbeat monitor.
 - The admin UI now configures weekly schedules, previews five local-time occurrences and enables/pauses saved schedules.
+
+
+## Typed agent messaging and memory retrieval
+
+Schema version 4 adds a durable inbox/outbox for typed agent messages: analysis, alert, question, decision, task handoff, and status. Each record stores sender, receiver, subject, body, payload, correlation ID, and acknowledgement state. Only the designated receiver can acknowledge. Reads are bounded and scoped to the requested mailbox. This is persistence only; it does not wake agents, invoke models, authorize tools, or execute orders.
+
+The store also provides bounded keyword retrieval over an individual agent's own memory records, optionally filtered by memory type. This is a basic SQLite retrieval baseline, not semantic/vector search or an automatic memory-writing policy.

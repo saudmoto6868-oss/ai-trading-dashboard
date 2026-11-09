@@ -489,7 +489,7 @@ class TIAStore:
         if not terms: return []
         clauses, params = ["agent_id=?"], [agent_id]
         if memory_type: clauses.append("memory_type=?"); params.append(memory_type)
-        for term in terms: clauses.append("content LIKE ? ESCAPE '\\\\'"); params.append("%" + term.replace("\\\\", "\\\\\\\\").replace("%", "\\\\%").replace("_", "\\\\_") + "%")
+        for term in terms: clauses.append("content LIKE ?"); params.append("%" + term + "%")
         params.append(max(1, min(int(limit), 200)))
         with self._connect() as db:
             rows = db.execute("SELECT * FROM memory_items WHERE " + " AND ".join(clauses) + " ORDER BY created_at DESC LIMIT ?", params).fetchall()

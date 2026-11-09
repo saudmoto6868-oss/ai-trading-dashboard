@@ -173,7 +173,9 @@ def render() -> None:
             rows = [r for r in rows if r.get("evidence_grade") == grade]
         st.caption(f"{len(rows)} record(s) shown · consensus or citations alone are not empirical validation.")
         for item in rows:
-            with st.expander(f"{item.get('title', 'Untitled')} · {item.get('status')} · {item.get('evidence_grade')}"):
+            with st.container(border=True):
+                st.markdown(f"**{item.get('title', 'Untitled')}**")
+                st.caption(f"STATUS · {str(item.get('status', 'unknown')).upper()}    /    EVIDENCE · {str(item.get('evidence_grade', 'unknown')).upper()}")
                 st.write(item.get("summary", ""))
                 st.caption(
                     f"Topic: {item.get('topic', '—')} | School: {item.get('school') or '—'} | "
@@ -253,8 +255,9 @@ def render() -> None:
             st.warning("لا توجد snapshots متاحة حاليًا.")
         for key, item in hub.items():
             source_label = provenance.get(key, "PROVENANCE NOT DOCUMENTED")
-            with st.expander(f"{key} · {source_label} · {item.get('n_trials', 0)} trials"):
-                st.write(f"Last published: {item.get('asof') or '—'}")
+            with st.container(border=True):
+                st.markdown(f"**{key.upper()}**")
+                st.caption(f"{source_label}  ·  {item.get('n_trials', 0)} trials  ·  Last published: {item.get('asof') or '—'}")
                 if source_label.startswith("MOCK ONLY"):
                     st.warning("هذه النتائج تجريبية مصطنعة وليست قياسًا على إشارات تداول حقيقية؛ لا تستخدم كدليل أداء.")
                 elif source_label == "PROVENANCE NOT DOCUMENTED":
@@ -341,7 +344,9 @@ def render() -> None:
                 meta = proposal.get("metadata") or {}
                 review = reviews.get(proposal.get("id"))
                 state = review.get("status") if review else "awaiting_owner_review"
-                with st.expander(f"{meta.get('priority', 'P2')} · {proposal.get('title', 'Untitled')} · {state}"):
+                with st.container(border=True):
+                    st.markdown(f"**{meta.get('priority', 'P2')} · {proposal.get('title', 'Untitled')}**")
+                    st.caption(f"REVIEW STATE · {str(state).replace('_', ' ').upper()}")
                     st.write(proposal.get("body", ""))
                     st.caption(f"Area: {meta.get('area') or '—'} · Suggested owner: {meta.get('suggested_owner') or '—'}")
                     st.caption(f"Next action: {meta.get('next_action') or '—'}")

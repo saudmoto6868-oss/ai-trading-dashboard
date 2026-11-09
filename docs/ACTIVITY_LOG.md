@@ -79,3 +79,6 @@
 
 
 | 2026-11-09 | ChatGPT | توسيع اختبارات XPIX downstream | `tests/browser/xpix_evidence_contract_mock.js`, `docs/XPIX_INTELLIGENCE_TAB_AUDIT_2026-11-09.md` | إضافة assertions لـAuction/Value Levels وIndicators registry وSetups WAIT باستخدام fixtures معزولة | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل؛ GitLab CI لم يبدأ jobs بسبب بوابة التحقق | مراجعة static فقط؛ لا ادعاء نجاح browser أو build. |
+
+
+| 2026-11-09 | ChatGPT | إعادة توليد Workspace bundle من ملفات المصدر | `modules/workspace_app.html` | إعادة تجميع جميع أجزاء `modules/ws/*` بترتيب build script؛ إزالة ملفات التجميع المؤقتة | — | commit `aeb87493` على `feat/xpix-intelligence-workspace` | push pipeline فشل فور الإنشاء دون jobs | تم spot-check لوجود علامات XPIX الجديدة داخل bundle؛ لم يتم تشغيل build --check أو browser tests. |

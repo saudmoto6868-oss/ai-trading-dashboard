@@ -123,3 +123,11 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - تم توسيع `tests/browser/xpix_evidence_contract_mock.js` ليشمل Auction من بيانات Value Levels تجريبية، وقراءة Indicator Registry، وبقاء Setups في حالة WAIT دون أوامر تداول.
 - هذه إضافات assertions فقط؛ لم يتم تشغيل الاختبار بعد. يجب اعتبار النتائج غير متحققة حتى تشغيل browser test فعلياً.
 - آخر push pipeline فشل فور الإنشاء دون بدء jobs (`started_at=null`)؛ لا يمثل نتيجة اختبار للكود. تشغيل CI ما زال يتطلب حل بوابة التحقق من الهوية في GitLab.
+
+
+## مزامنة Generated Workspace Bundle — 2026-11-09
+
+- تمت إعادة توليد `modules/workspace_app.html` من جميع ملفات `modules/ws/*` مرتبة أبجدياً، بنفس منطق `scripts/build_workspace.py`.
+- تمت إزالة ملفات التجميع المؤقتة من الفرع في نفس commit الخاص بتحديث الـbundle.
+- تحققنا من وجود علامات XPIX الجديدة داخل الـbundle الناتج: Footprint handoff، unsupported feed capability، وAuction / Volume.
+- لم يتم تشغيل `scripts/build_workspace.py --check` محلياً ولا browser tests؛ المطابقة الكاملة للتوليد الآلي ما زالت تحتاج تحقق CI أو build فعلي.

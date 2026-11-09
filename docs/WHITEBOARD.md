@@ -34,3 +34,9 @@
 - Meeting Room can now capture task proposals with priority, area, suggested owner and next action.
 - Proposals are append-only journal entries and appear under “Task proposals awaiting review”.
 - They are **not official Technical Office tasks** and do not modify `data/office_tasks.json`; owner review and an approved write contract are required before formal board integration.
+
+
+### 31a. Task proposal review lifecycle
+- Owner can append an approval-for-manual-entry or decline decision from the proposal card.
+- The decision is stored as a separate journal event linked to the original proposal ID; the proposal itself remains unchanged.
+- Approval is not an automatic write to the official task board. The no-write invariant is covered by a regression test (not yet executed).

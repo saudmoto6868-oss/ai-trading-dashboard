@@ -724,3 +724,7 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], section[da
 
 # Spot desk page (modules/spot_page.py) - added 2026-11-06
 AR.update({"Spot": "السبوت"})
+
+# Hub pages (2026-11-09): Workspace, Radar, then Trading / Lab / Learn & AI
+AR.update({"Trading": "التداول", "Lab": "المعمل", "Learn & AI": "التعلّم و AI", "Options & macro": "الأوبشن والماكرو", "Journal": "الجورنال",
+           "My journal": "الجورنال بتاعي", "Order flow": "الأوردر فلو"})

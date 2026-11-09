@@ -98,7 +98,7 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
-# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
+# Monte Carlo lives in Trading > Journal; only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
     _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")

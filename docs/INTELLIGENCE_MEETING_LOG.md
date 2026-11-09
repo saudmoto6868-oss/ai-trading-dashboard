@@ -114,3 +114,11 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - Added a Knowledge intake form. New entries are forced to inbox + unreviewed; empirical-validation claim type is not offered. Source URLs are restricted to HTTP(S) in both UI and shared data-layer validation.
 - Added regression coverage for proposals beyond the journal limit, review linkage, unsafe source URLs, and test environment variable restoration.
 - Not yet executed: Python tests or Streamlit runtime preview. GitLab pipeline creation previously failed because the repository has no CI config file. No merge/deploy; main remains untouched.
+## 2026-11-09 · Academy source quality and legacy indexing
+- Legacy Academy lesson statuses are now mapped conservatively: draft → inbox, reviewed → review, owner-approved → accepted. Legacy verdicts are retained in record details; contradictory claims map to disputed, and non-empirical verdicts never become empirical validation.
+- Legacy lesson and reference imports are deterministic and insert-once. Re-indexing does not overwrite owner review decisions already made in the shared Knowledge store.
+- The legacy reference catalog is indexed as separate source and claim records. Even a legacy 'confirmed' claim starts in inbox; source citations grant source_only at most, never validated.
+- HTTP(S) source URL validation is enforced in the shared data layer. Local document paths are preserved as provenance, not presented as web links.
+- Center Knowledge counts now trigger indexing of both legacy lessons and legacy reference catalog. Original JSON files remain untouched.
+- Added regression coverage for conservative status mapping, review preservation, source/claim import, and the rule that legacy confirmed claims are not empirical validation.
+- Tests still not executed: no repository checkout or configured CI pipeline is available through the current GitLab branch; do not describe the new tests as passing.

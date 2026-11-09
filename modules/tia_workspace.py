@@ -29,28 +29,6 @@ Panel.prototype.build_tiaheat = function(){
   });};
   const off=Hub.sub("tickers","TIA_HEAT",draw);this.unsubs.push(off);
 };
-Panel.prototype.build_tiaoptions = function(){
-  const wrap=el("div");wrap.style.cssText="padding:9px;overflow:auto;height:100%;font-size:12px";
-  const bar=el("div","tb");const cur=el("select");["BTC","ETH"].forEach(x=>cur.append(Object.assign(el("option"),{value:x,textContent:x})));bar.append(cur);
-  const exp=el("select");bar.append(exp);const content=el("div");wrap.append(bar,content);this.body.append(wrap);
-  const fmt=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
-  const render=()=>{const d=TIA_OPTIONS[cur.value];content.replaceChildren();exp.replaceChildren();
-    if(!d){const msg=el("div","m","Options snapshot unavailable: "+(TIA_OPTIONS_ERRORS[cur.value]||"no provider data"));content.append(msg);return;}
-    d.expiries.forEach((x,i)=>exp.append(Object.assign(el("option"),{value:String(i),textContent:x.exp+" · "+x.days+"d"})));
-    const metrics=el("div");metrics.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin:9px 0";
-    const cards=[["UNDERLYING PROXY",d.summary.spot],["TOTAL OI",d.summary.totals.oi],["PUT/CALL OI",d.summary.totals.pc_oi],["DVOL IV RANK",d.dvol&&d.dvol.rank!=null?d.dvol.rank+"%":null]];
-    cards.forEach(([k,v])=>{const c=el("div");c.style.cssText="padding:8px;border:1px solid var(--line)";const a=el("div","m",k);a.style.fontSize="9px";const b=el("div",null,fmt(v));b.style.cssText="font:700 15px ui-monospace,Menlo,monospace;margin-top:5px";c.append(a,b);metrics.append(c);});content.append(metrics);
-    const detail=el("div","m","Deribit public option book · snapshot "+d.asof+" · underlying is the nearest-expiry forward proxy, not a spot quote.");detail.style.cssText="font-size:10px;margin:5px 0 10px";content.append(detail);
-    const draw=()=>{const x=d.expiries[Number(exp.value)||0];if(!x)return;const stats=el("div");stats.style.cssText="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0";
-      [["PCR VOL",x.pc_vol],["ATM IV",x.iv],["10% SKEW",x.skew10],["MAX PAIN",x.max_pain]].forEach(([k,v])=>{const z=el("span",null,k+": "+fmt(v));stats.append(z);});content.append(stats);
-      const cv=el("canvas");cv.width=640;cv.height=220;cv.style.cssText="width:100%;height:220px;background:var(--panel0);border:1px solid var(--line)";content.append(cv);
-      const ctx=cv.getContext("2d"),ls=x.levels||[],mx=Math.max(1,...ls.flatMap(a=>[a[1],a[2]]));ctx.font="10px ui-monospace";ctx.fillStyle="#d6ad62";ctx.fillText("CALL OI",12,14);ctx.fillStyle="#78a9d1";ctx.fillText("PUT OI",90,14);
-      const w=(cv.width-36)/Math.max(1,ls.length);ls.forEach((a,i)=>{const xx=18+i*w,bh=(a[1]/mx)*160,ph=(a[2]/mx)*160;ctx.fillStyle="#d6ad62";ctx.fillRect(xx,190-bh,Math.max(1,w*.42),bh);ctx.fillStyle="#78a9d1";ctx.fillRect(xx+w*.46,190-ph,Math.max(1,w*.42),ph);});
-      const foot=el("div","m","Open interest is not directional positioning; it does not reveal opening/closing flow or dealer inventory. Max pain is descriptive, not a forecast.");foot.style.cssText="font-size:10px;margin-top:7px";content.append(foot);
-    };draw();};
-  cur.onchange=render;exp.onchange=()=>{const old=content.querySelector("canvas");if(old){const idx=Number(exp.value)||0;const x=TIA_OPTIONS[cur.value].expiries[idx];const ctx=old.getContext("2d");ctx.clearRect(0,0,old.width,old.height);const ls=x.levels||[],mx=Math.max(1,...ls.flatMap(a=>[a[1],a[2]])),w=(old.width-36)/Math.max(1,ls.length);ctx.font="10px ui-monospace";ctx.fillStyle="#d6ad62";ctx.fillText("CALL OI",12,14);ctx.fillStyle="#78a9d1";ctx.fillText("PUT OI",90,14);ls.forEach((a,i)=>{const xx=18+i*w;ctx.fillStyle="#d6ad62";ctx.fillRect(xx,190-a[1]/mx*160,Math.max(1,w*.42),a[1]/mx*160);ctx.fillStyle="#78a9d1";ctx.fillRect(xx+w*.46,190-a[2]/mx*160,Math.max(1,w*.42),a[2]/mx*160);});const stats=content.querySelector("div[style*='display: flex']");if(stats){stats.replaceChildren();[["PCR VOL",x.pc_vol],["ATM IV",x.iv],["10% SKEW",x.skew10],["MAX PAIN",x.max_pain]].forEach(([k,v])=>stats.append(el("span",null,k+": "+fmt(v)));}}};
-  render();
-};
 '''
 
     # Add TIA-native panels to the existing draggable/resizable panel system.

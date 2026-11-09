@@ -13,7 +13,7 @@ def _header():
     .tia-card{background:#11100e;border:1px solid #3c3222;border-radius:12px;padding:14px 15px;min-height:85px}
     .tia-card h4{color:#e4c27e;font-size:14px;margin:0 0 7px}
     .tia-card p{color:#b8b0a1;font-size:12px;margin:0;line-height:1.55}
-    </style><div class="tia-hero"><div class="tia-kicker">6868 · PARENT COMPANY</div><div class="tia-title">TIA</div><div class="tia-sub">TRADE INTELLIGENCE AGENCY · RESEARCH · INTELLIGENCE · DECISION</div></div>""", unsafe_allow_html=True)
+    </style><div class="tia-hero"><div class="tia-kicker">TRADE INTELLIGENCE AGENCY</div><div class="tia-title">TIA</div><div class="tia-sub">INSTITUTIONAL FINANCIAL INTELLIGENCE</div></div>""", unsafe_allow_html=True)
 
 def _card(title, body):
     st.markdown(f'<div class="tia-card"><h4>{title}</h4><p>{body}</p></div>', unsafe_allow_html=True)
@@ -31,10 +31,10 @@ def _overview():
         _card("Technical Intelligence","Price Action, SMC/ICT, Gann, Elliott and multi-timeframe structure.")
     with b:
         _card("Order Flow & Liquidity","Footprint, Delta, DOM, Time & Sales where feeds permit.")
-        _card("Strategy & Innovation Lab","Research, strategy discovery and indicator development.")
+        _card("Strategy & Research Intelligence","Research intake, strategy discovery, indicator evaluation and institutional knowledge.")
     with c:
-        _card("Quant Validation & Risk","Backtests, out-of-sample checks, costs and portfolio risk.")
-        _card("Trade Review & Decision","Challenge, ranking, trade plans and human-approved decisions.")
+        _card("Quant & Risk Intelligence","Backtests, out-of-sample checks, costs and portfolio risk.")
+        _card("Trade Decision & Performance Intelligence","Challenge, ranking, trade plans, post-trade review and performance learning.")
 
 def _geometry():
     st.subheader("Geometric Intelligence")
@@ -73,12 +73,12 @@ def _agents():
 
 def _meeting_room():
     st.subheader("TIA Meeting Room")
-    st.caption("Dedicated identity archive, source references, decisions, review notes and project files.")
+    st.caption("Institutional archive: approved identity, conceptual environments, source references, decisions and project files.")
     st.markdown("### Locked identity rules")
     for item in [
       "Use the last owner-approved TIA logo exactly; do not redraw, distort or convert it into a 77 motif.",
-      "TIA dominates; descriptor remains subordinate and no wider than the TIA mark.",
-      "6868 remains contiguous, centered and on the same background.",
+      "The standalone owner-approved logo geometry is locked; the institution name is Trade Intelligence Agency.",
+      "6868 remains a quiet ownership signature, not the visible parent-company title.",
       "Charcoal/black foundation; champagne, brass and warm gold primary; orange/amber restrained.",
       "Create original patterns inspired by references, never copies of reference artwork.",
       "Motion transforms particles and surrounding fields, not the approved letter geometry."]:

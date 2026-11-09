@@ -84,3 +84,5 @@
 | 2026-11-09 | ChatGPT | إعادة توليد Workspace bundle من ملفات المصدر | `modules/workspace_app.html` | إعادة تجميع جميع أجزاء `modules/ws/*` بترتيب build script؛ إزالة ملفات التجميع المؤقتة | — | commit `aeb87493` على `feat/xpix-intelligence-workspace` | push pipeline فشل فور الإنشاء دون jobs | تم spot-check لوجود علامات XPIX الجديدة داخل bundle؛ لم يتم تشغيل build --check أو browser tests. |
 
 | 2026-11-09 | ChatGPT | تثبيت عقد التابات الستة باختبار Regression | `tests/browser/xpix_evidence_contract_mock.js` | إضافة assertion للأسماء والعدد والترتيب المعتمد | — | فرع `feat/xpix-intelligence-workspace` | غير مشغّل | اختبار مضاف؛ التنفيذ الفعلي ينتظر فتح CI بعد التحقق من الهوية. |
+
+| 2026-11-09 | ChatGPT | إصلاح assertions في XPIX browser mock بعد مراجعة ذاتية | `tests/browser/xpix_evidence_contract_mock.js` | الضغط على Order Flow قبل اختبار زر Footprint؛ دعم ترتيب التابات بالإنجليزية والعربية | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل | إصلاح static لتجنب false failure؛ لا browser pass مدّعى. |

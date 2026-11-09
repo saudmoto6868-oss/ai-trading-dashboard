@@ -38,7 +38,7 @@ def render() -> None:
         mtg = snap.get("meeting_room") or {}
         c = st.columns(4)
         with c[0]:
-            _metric("Open project tasks", len(tasks.get("open") or []))
+            _metric("Active project tasks", len(tasks.get("open") or []))
         with c[1]:
             _metric("Knowledge records", academy.get("indexed_records", 0))
         with c[2]:
@@ -107,7 +107,7 @@ def render() -> None:
                     f"Topic: {item.get('topic', '—')} | School: {item.get('school') or '—'} | "
                     f"Claim: {item.get('claim_type')} | Asset/TF: {item.get('asset') or '—'} / {item.get('timeframe') or '—'}"
                 )
-                if item.get("source_url", "").startswith(("https://", "http://")):
+                if isinstance(item.get("source_url"), str) and item["source_url"].startswith(("https://", "http://")):
                     st.markdown(f"[Open source]({item['source_url']})")
                 details = item.get("details") or {}
                 if details:
@@ -139,6 +139,44 @@ def render() -> None:
     with room:
         st.markdown("### Meeting Room")
         st.caption("سجل تراكمي: طلبات المالك، القرارات، ما اكتمل، الخطوات التالية، العوائق وتقارير الوكلاء.")
+        st.markdown("#### Task handoff · proposal only")
+        st.caption("المقترح يُحفظ في سجل الاجتماع بانتظار مراجعة المالك؛ لا يغيّر data/office_tasks.json ولا يعيّن مهمة رسمية تلقائيًا.")
+        with st.form("tic_task_proposal_form", clear_on_submit=True):
+            proposal_title = st.text_input("Proposed task title", key="tic_proposal_title")
+            proposal_detail = st.text_area("Task scope / expected outcome", key="tic_proposal_detail", height=110)
+            pc1, pc2, pc3 = st.columns(3)
+            with pc1:
+                proposal_priority = st.selectbox("Priority", ["P1", "P2", "P3"], key="tic_proposal_priority")
+            with pc2:
+                proposal_area = st.text_input("Area", key="tic_proposal_area")
+            with pc3:
+                proposal_owner = st.text_input("Suggested owner", key="tic_proposal_owner")
+            proposal_next = st.text_input("Next action / acceptance check", key="tic_proposal_next")
+            proposal_submitted = st.form_submit_button("Save task proposal for review")
+        if proposal_submitted:
+            try:
+                if not proposal_title.strip() or not proposal_detail.strip():
+                    raise ValueError("العنوان ونطاق المهمة مطلوبان.")
+                meeting.append_entry(
+                    entry_type="recommendation",
+                    title=proposal_title,
+                    body=proposal_detail,
+                    owner=proposal_owner,
+                    status="awaiting_owner_review",
+                    metadata={
+                        "kind": "task_proposal",
+                        "priority": proposal_priority,
+                        "area": proposal_area.strip(),
+                        "suggested_owner": proposal_owner.strip(),
+                        "next_action": proposal_next.strip(),
+                        "official_board_written": False,
+                    },
+                )
+                st.success("اتحفظ مقترح المهمة في سجل الاجتماع — بانتظار مراجعة المالك.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not save task proposal: {type(exc).__name__}: {exc}")
+
         with st.form("tic_meeting_entry_form", clear_on_submit=True):
             entry_type = st.selectbox(
                 "Entry type",
@@ -160,6 +198,18 @@ def render() -> None:
                 st.error(f"Could not save entry: {type(exc).__name__}: {exc}")
 
         entries = meeting.list_entries(limit=200)
+        proposals = [e for e in entries if (e.get("metadata") or {}).get("kind") == "task_proposal"]
+        st.markdown(f"#### Task proposals awaiting review · {sum(e.get('status') == 'awaiting_owner_review' for e in proposals)}")
+        if proposals:
+            for proposal in proposals:
+                meta = proposal.get("metadata") or {}
+                with st.expander(f"{meta.get('priority', 'P2')} · {proposal.get('title', 'Untitled')} · {proposal.get('status', 'recorded')}"):
+                    st.write(proposal.get("body", ""))
+                    st.caption(f"Area: {meta.get('area') or '—'} · Suggested owner: {meta.get('suggested_owner') or '—'}")
+                    st.caption(f"Next action: {meta.get('next_action') or '—'}")
+                    st.caption("Official Technical Office board unchanged; owner review is required.")
+        else:
+            st.caption("No task proposals yet.")
         st.markdown(f"#### History · {len(entries)} latest entries")
         if not entries:
             st.caption("السجل الجديد فارغ حتى الآن. سجل الاجتماع التاريخي الأصلي محفوظ في docs/MEETING_ROOM.md.")
@@ -169,7 +219,7 @@ def render() -> None:
                 st.write(item.get("body", ""))
                 if item.get("owner"):
                     st.caption(f"Owner: {item['owner']}")
-                if item.get("related_url", "").startswith(("https://", "http://")):
+                if isinstance(item.get("related_url"), str) and item["related_url"].startswith(("https://", "http://")):
                     st.markdown(f"[Related link]({item['related_url']})")
                 st.caption(f"Actor: {item.get('actor', 'owner')} · Status: {item.get('status', 'recorded')}")
 

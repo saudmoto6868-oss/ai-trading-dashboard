@@ -85,7 +85,8 @@ def compare_legacy_and_tia(
         differences.append("MIN_REWARD_RISK_POLICY_DIFFERS")
     if tia_snapshot.realized_pnl != legacy_realized_pnl:
         differences.append("REALIZED_PNL_INPUT_DIFFERS")
-    if tia_snapshot.unrealized_pnl != 0 or tia_snapshot.fees_paid != 0 or tia_snapshot.funding_paid != 0:
+    tia_unrealized = sum(position.unrealized_pnl for position in tia_snapshot.positions)
+    if tia_unrealized != 0 or tia_snapshot.fees_paid != 0 or tia_snapshot.funding_paid != 0:
         differences.append("TIA_INCLUDES_OPEN_PNL_OR_COSTS_NOT_IN_LEGACY")
     if tia_snapshot.positions:
         differences.append("TIA_INCLUDES_OPEN_POSITION_STOP_RISK_AND_SYMBOL_GUARDS")

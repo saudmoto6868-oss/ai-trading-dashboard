@@ -286,3 +286,12 @@
 **المالك يقول: يا Claude Code، اعتمد. ابدأ معالجة بطء التنقل وفق الخطة أعلاه على فرع مستقل، وسجّل القياسات والـSHA والاختبارات والنتائج هنا. لا تغيّر تقسيم التابات أو ترتيبها أو وظائفها، ولا تعدّل main مباشرة، ولا تدمج أو تنشر. اعرض النتائج والـdiff للمراجعة قبل أي دمج.**
 
 **الحالة:** الخطة معتمدة؛ التنفيذ والقياسات لم يثبتا بعد. هذا التسجيل لا يعني أن البطء تم إصلاحه.
+
+
+## 2026-11-09 — Owner-approved unified risk policy
+**[Owner decision]** Both Order Flow Desk and Brain/HORIZONS use the same automatic risk tiers; no manual risk selector:
+- Base: 0.25% of equity per trade.
+- Step-up: 0.50% only for A+ with explicit successful validation and at least 30 closed out-of-sample trades for the exact setup/rule version.
+- Missing/invalid validation, mock evidence, n < 30, or grade below A+ => 0.25%.
+- Daily cap 2%; stop after 3 stops; minimum R:R 1:2.
+- No automatic orders are enabled by this policy. See `modules/risk_policy.py` and MR for implementation.

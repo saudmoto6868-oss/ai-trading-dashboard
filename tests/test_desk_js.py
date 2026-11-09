@@ -68,7 +68,7 @@ def test_day_and_check_match_python():
     now = 1793750400000 + 12 * H   # 2026-11-04 12:00 UTC
     jr = [{"status": "sl", "r": -1, "t1": now - H}, {"status": "sl", "r": -1, "t1": now - 2 * H}, {"status": "tp", "r": 2, "t1": now - 3 * H},
           {"status": "sl", "r": -1, "t1": now - 2 * DAY}, {"status": "open", "r": 0, "t0": now - H}]
-    out = node("const d = DESK.day(%s, %d); const a = DESK.check({entry:100, stop:99, target:103, riskPct:0.5}, d);"
+    out = node("const d = DESK.day(%s, %d); const a = DESK.check({entry:100, stop:99, target:103, riskPct:0.25}, d);"
                "const b = DESK.check({entry:100, stop:99, target:101.5, riskPct:0.8}, {n:0, stops:3, R:-3, lossPct:1.5}, null, true);"
                "console.log(JSON.stringify({d, a, b: b.why.map(w => w[0])}))" % (json.dumps(jr), now))
     assert out["d"] == {"n": 3, "stops": 2, "R": 0, "lossPct": 0}, out["d"]
@@ -78,7 +78,7 @@ def test_day_and_check_match_python():
     d = DeskDay(10000)
     for r in (-1, -1, 2):
         d.record(r * 50)
-    ok, why = d.check("BTC", "long", 100, 99, 103, 50)
+    ok, why = d.check("BTC", "long", 100, 99, 103, 25)
     assert ok and d.stops == 2, why
     print("ok test_day_and_check_match_python")
 

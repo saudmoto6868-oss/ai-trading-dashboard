@@ -42,9 +42,20 @@ const { chromium } = require('playwright');
         yahoo.venue === 'Yahoo' && Number.isFinite(yahoo.receivedAt)
     };
   });
+  await p.evaluate(() => { Ws.add("intel"); });
+  await p.waitForTimeout(300);
+  const fpLink = await p.evaluate(() => {
+    const intel = Ws.panels.find(x => x.type === "intel");
+    const button = intel && intel.root.querySelector("[data-enable-footprint]");
+    if (!button) return false;
+    button.click();
+    const chart = Ws.panels.find(x => x.type === "chart" && x.state.sym === intel.state.sym);
+    return !!chart && !!chart.chart && chart.chart.fpOn === true && chart.state.fp === true;
+  });
+  out.footprintLink = fpLink;
   await p.evaluate(() => { [window.__xpixBook, window.__xpixTape, window.__xpixYahoo].forEach(f => f && f()); });
   await b.close();
-  const pass = out.book && out.tape && out.unsupported && !errs.length;
+  const pass = out.book && out.tape && out.unsupported && out.footprintLink && !errs.length;
   console.log(JSON.stringify({out, errors: errs}), pass ? 'PASS' : 'FAIL');
   process.exit(pass ? 0 : 1);
 })();

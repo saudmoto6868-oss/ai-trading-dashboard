@@ -10,6 +10,7 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "api"
 
 default:
   image: python:3.12-slim
@@ -60,7 +61,7 @@ xpix_evidence_contract:
   stage: test
   image: mcr.microsoft.com/playwright:v1.56.1-noble
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
   timeout: 10m
   script:
     - npm install --no-save playwright@1.56.1

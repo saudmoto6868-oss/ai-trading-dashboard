@@ -6,7 +6,7 @@
 - Validated open positions with side-aware stop geometry.
 - Stop-risk reservation for every open position.
 - Mark-to-market unrealized P&L combined with realized P&L, paid fees and funding when calculating daily net drawdown.
-- Per-trade, daily-loss, stop-count, aggregate-open-risk, duplicate-symbol/side and reward:risk checks.
+- Per-trade, daily-loss, stop-count, aggregate portfolio open-risk, optional asset-class concentration, duplicate-symbol/side and reward:risk checks.
 - Fail-closed finite-number and identity validation.
 - No order placement, broker writes, or automatic risk-profile selection.
 
@@ -47,3 +47,7 @@ The ledger accepts only the documented projection event types: `position_open`, 
 - Ledger-only positions, broker-only positions, changed position attributes, stale/incomplete snapshots and account mismatches all fail closed. No reconciliation function writes to a broker or alters the ledger.
 - Provider adapters are still required to map broker-specific position IDs, netting/hedging models, partial fills and contract quantities into this normalized contract. A broker that cannot provide stable position IDs needs a documented deterministic identity adapter and ambiguity handling.
 - This compares positions, not balances, cash, margin, orders, executions, accrued commissions or financing statements. Those are separate reconciliation domains and remain mandatory before production risk enforcement.
+
+
+## Portfolio concentration extension
+RiskPolicy may optionally define `max_asset_class_open_risk_pct`. When supplied, the engine sums reserved stop risk for existing positions in the proposed trade's asset class and adds proposed risk before checking the class cap. The class cap cannot exceed the total portfolio open-risk cap. Leaving it unset means no class-specific cap is asserted; it does not imply unlimited account leverage or margin safety.

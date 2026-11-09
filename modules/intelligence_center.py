@@ -30,14 +30,13 @@ def build_command_snapshot() -> dict:
                 "findings": (snap.get("findings") or [])[:5],
             }
 
-    tasks_data = _safe(lambda: __import__("json").loads(
-        (__import__("pathlib").Path(__file__).resolve().parent.parent / "data" / "office_tasks.json").read_text(encoding="utf-8")
-    ), {})
+    tasks_data = _safe(lambda: __import__("modules.office_ui", fromlist=["load_tasks"]).load_tasks(), {"tasks": []})
     tasks = tasks_data.get("tasks", []) if isinstance(tasks_data, dict) else []
     task_counts: dict[str, int] = {}
     for task in tasks:
         state = str(task.get("status", "open"))
         task_counts[state] = task_counts.get(state, 0) + 1
+
 
     academy_count = _safe(lambda: len(__import__("modules.academy_intelligence", fromlist=["search_records"]).search_records(limit=200)), 0)
     legacy_count = _safe(lambda: len(__import__("modules.academy", fromlist=["load"]).load()), 0)

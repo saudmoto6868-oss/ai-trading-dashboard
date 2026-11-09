@@ -15,7 +15,7 @@
 
 | # | المهمة | الأولوية | المسؤول | الحالة | التاريخ | الملاحظات |
 |---:|---|---|---|---|---|---|
-| 31 | XPIX Intelligence Workspace — دمج أدوات السوق الحالية + AI Voice | A | ChatGPT (مراجعة Claude مطلوبة) | **شغال — أول shell + مرجع Agents مركزي** | 2026-11-09 | Issue #9؛ `docs/XPIX_INTELLIGENCE_WORKSPACE_SPEC.md`; `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md` مرجع إلزامي لكل Agent؛ branch `feat/xpix-intelligence-workspace`. التالي: Phase 0 audit ثم shell مستقل. لا merge/deploy. |
+| 31 | XPIX Intelligence Workspace — دمج أدوات السوق الحالية + AI Voice | A | ChatGPT (مراجعة Claude مطلوبة) | **شغال — أول shell + مرجع Agents مركزي** | 2026-11-09 | Issue #9؛ `docs/XPIX_INTELLIGENCE_WORKSPACE_SPEC.md`; `docs/XPIX_INTELLIGENCE_AGENT_START_HERE.md` مرجع إلزامي لكل Agent؛ branch `feat/xpix-intelligence-workspace`. التالي: فحص shell + build/check محلي، ثم Footprint/OFM/Tape parity، ثم Auction/VP وsetup engine وchart alerts. CI محجوب بطلب Identity Verification. لا merge/deploy. |
 | 30 | TIA institutional terminal — parent-company layer | A | ChatGPT | شغال — branch only | 2026-11-09 | `team/tia-intelligence-terminal-2026-11-09`; page index 12 placed between Radar and Workspace; first shell + foundation spec. Review requested; no merge/deploy. |
 | 29 | ويدجت تصنيف الصفقات (سكالب/سوينج + ارتداد بالنقاط) | A | Claude Code (سعود) | خلص (mock) | 2026-11-06 | `modules/ws/24b_tclass.js`. محتاج من المالك: تجربة على أسعار حقيقية + تأكيد حجم النقطة لكل سوق. |
 | 27 | Prop Firms tracker — page 10 | A | Claude Code (سعود) | خلص | 2026-11-04 | `modules/prop_firms.py` + main.py + i18n. |

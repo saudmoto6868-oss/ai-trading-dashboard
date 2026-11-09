@@ -24,6 +24,18 @@ def test_a_plus_step_up_requires_validated_30_trade_sample():
     print("ok test_a_plus_step_up_requires_validated_30_trade_sample")
 
 
+def test_day_guard_uses_same_automatic_tier():
+    base_day = DeskDay(10_000)
+    ok, why = base_day.check("BTC", "long", 100, 99, 102, 50)
+    assert not ok and any("0.25%" in reason for reason in why), why
+
+    qualified_day = DeskDay(10_000)
+    ok, why = qualified_day.check("BTC", "long", 100, 99, 102, 50,
+                                  grade="A+", validation_n=30, validation_passed=True)
+    assert ok, why
+    print("ok test_day_guard_uses_same_automatic_tier")
+
+
 def test_size_point_value_and_step_rounds_down():
     s = position_size(50_000, entry=5000, stop=4990, point_value=50, qty_step=1)   # 125 base budget / 500 per contract
     assert s["qty"] == 0, s                                   # never rounds up past the cap

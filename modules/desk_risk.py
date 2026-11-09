@@ -27,11 +27,11 @@ RULES = DeskRules()
 def position_size(equity: float, entry: float, stop: float,
                   point_value: float = 1.0, qty_step: float = 0.0, *, grade=None,
                   validation_n=0, validation_passed=False) -> dict:
-    """Size so that hitting the stop loses risk_pct % of equity.
+    """Size under the shared automatic risk policy; callers cannot choose a percentage.
 
     point_value = money per 1.0 price move per unit (1 for spot crypto / CFD units, 50 for ES, 20 for NQ ...).
     qty_step > 0 rounds the quantity DOWN to that step (never up: rounding up would break the risk cap).
-    -> {"qty", "risk_amount", "risk_per_unit", "actual_risk_pct"}; qty 0 means the stop is too wide for the step.
+    -> includes qty, risk_amount, risk_per_unit, policy risk_pct and actual_risk_pct. qty 0 means the stop is too wide for the step.
     """
     rp = risk_pct_for_setup(grade, validation_n, validation_passed)
     if equity <= 0 or rp <= 0:

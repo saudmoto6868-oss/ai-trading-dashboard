@@ -74,3 +74,5 @@
 | 2026-11-09 | ChatGPT | دمج مخرجات Value Levels في Auction tab | `modules/ws/22x_intelligence.js` | جدول POC/VAH/VAL والسعر مقابل القيمة من لوحة valuelv القائمة | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | قراءة من المصدر الحالي فقط؛ لا حساب أو polling مكرر. |
 
 | 2026-11-09 | ChatGPT | ربط Indicators بسجل الشارت | `modules/ws/22x_intelligence.js` | عرض chart.indItems وحالات ON/OFF مع إبقاء الإعدادات في الشارت | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | لا قائمة مؤشرات مصطنعة ولا registry مكرر. |
+
+| 2026-11-09 | ChatGPT | إضافة Decision Readiness Packet الآمن | `modules/ws/22x_intelligence.js` | عرض جاهزية book/tape/footprint وعمر البيانات داخل Setups | — | branch `feat/xpix-intelligence-workspace` | لم يُختبر browser | القرار WAIT؛ لا ranking أو BUY/SELL أو SL/TP حتى اعتماد القواعد والتحقق. |

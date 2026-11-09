@@ -85,3 +85,10 @@
 - [x] عدم إنشاء إعدادات أو registry موازٍ.
 - [ ] اختبار عرض القائمة عند وجود chart وعند عدم وجوده.
 - [ ] المرحلة 7: Decision packet / setup ranking؛ تبقى WAIT حتى اكتمال الإثبات.
+
+
+## XPIX Intelligence — المرحلة 7
+- [x] إضافة Evidence Readiness Packet: book / tape / footprint / freshness.
+- [x] الإبقاء على WAIT وعدم اختلاق ranking أو trade plan.
+- [ ] اعتماد قواعد setup ranking بإصدار واضح من المالك/Academy/Playbook.
+- [ ] Replay + OOS + risk validation ثم اختبار التنبيه على الشارت.

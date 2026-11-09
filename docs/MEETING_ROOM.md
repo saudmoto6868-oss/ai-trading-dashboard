@@ -315,3 +315,7 @@
 ## 2026-11-09 — المرحلة 6: Indicators
 - تبويب Indicators يعرض الآن أسماء المؤشرات وحالات ON/OFF من `chart.indItems` للرمز نفسه، ويترك الإعدادات في لوحة الشارت الأصلية.
 - لم يُختبر المتصفح بعد.
+
+
+## 2026-11-09 — المرحلة 7: Evidence readiness packet
+- Setups يعرض الآن حالة book/tape/footprint وعمر البيانات، مع إبقاء WAIT. لم يتم تفعيل ترتيب فرص أو BUY/SELL/SL/TP؛ يلزم اعتماد قواعد versioned واختبارات replay/OOS أولاً.

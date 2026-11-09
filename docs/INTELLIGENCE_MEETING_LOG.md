@@ -53,3 +53,17 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - Source inspection only for this baseline. No UI navigation changes or live app tests have been performed as part of this audit.
 - Branch: feat/academy-intelligence-core.
 - Main branch untouched; no merge/deploy.
+
+
+## 2026-11-09 — First implementation increment
+
+### Implemented on feat/academy-intelligence-core
+- Added `modules/intelligence_meeting.py`: append-only meeting entries using the shared Academy Intelligence database adapter; typed entries for owner requests, decisions, completed work, next steps, blockers, recommendations, meeting notes, agent reports and test results; bounded retrieval and summary.
+- Added `modules/intelligence_center.py`: read-only command snapshot aggregating existing task board, Academy index/legacy lesson counts, Lab summary, published Research Hub snapshots and Meeting Room summary. Technical Office, Radar and Spot are explicitly represented as read-only sources.
+- Added `tests/test_intelligence_meeting.py`: persistence/order, input validation and URL validation tests.
+
+### Not yet done / verification
+- Files were confirmed present on the feature branch via GitLab raw-file retrieval.
+- Tests have NOT been executed. No syntax check, Streamlit AppTest, browser test or live deployment check has run.
+- No main navigation change yet. The new aggregation/journal modules are not yet wired into the Streamlit page; next step is a safe UI integration and migration of existing meeting-room/whiteboard records without losing history.
+- SQLite remains local-only; cross-instance durability still requires configured and tested persistent PostgreSQL via `DATABASE_URL`.

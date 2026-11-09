@@ -54,8 +54,10 @@ Rules (from TIA's data-integrity rule + the repo rules): never label mock or est
 3. Statistics: n >= 30 or it is written as NOT EVIDENCE; a rule goes live only after the lab gate in `docs/PIPELINE.md`.
 4. Claude review note in the meeting room, then the owner's explicit "merge N".
 
-## 6. Open decisions for the owner
-- Risk per trade: 0.25 % (newest minutes) or 0.5 % (older DESK request). One place to change: `DeskRules` in `modules/desk_risk.py`.
+## 6. Owner decisions (2026-11-09) and what is still open
+- DECIDED by the owner: the three streams stay separate in code; they may read, borrow, ask and cooperate through this contract. The contract is approved to go to the meeting room.
+- Risk per trade: owner left it to Claude ("quarter or half, whichever is best"). DECISION (reviewer): start at **0.25 %** per trade (daily cap 2 %, lock after 3 stops, R:R >= 1:2). A second tier of **0.5 %** is allowed ONLY for setups graded A+ whose school / key has n >= 30 graded trades with a positive average R in `brain.stats` (n < 30 = not evidence). Reason: with no graded history yet, the smaller size is the only defensible default, and 3 stops at 0.25 % cost 0.75 % a day. One place to change: `DeskRules` in `modules/desk_risk.py` (a two-tier rule is a small addition there, not done yet).
+- MR #3 (TIA shell) review by Claude, read-only: the page code is static (no market data, strings are constants, `unsafe_allow_html` only for fixed HTML) and import-guarded by try/except. ONE behaviour change to decide: `_PAGE_ORDER = [1, 12, 0, 11, ...]` puts Radar FIRST and the Workspace third, while main has the Workspace first; it also breaks the rule "Spot right after Radar" (Spot is now fourth). Suggested order: `[0, 1, 12, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]` (Workspace, Radar, TIA, Spot) unless the owner wants Radar first. The `_PAGES` comment is stale. No browser / mobile test yet.
 - Do the two meeting rooms stay (TIA = identity archive, MEETING_ROOM = decisions)? Proposed: yes, with links.
 - GitLab CI: no pipeline has run yet. Needs a runner and variables (owner: Settings > CI/CD) and a `.gitlab-ci.yml` for the Telegram jobs.
 

@@ -122,3 +122,10 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - Center Knowledge counts now trigger indexing of both legacy lessons and legacy reference catalog. Original JSON files remain untouched.
 - Added regression coverage for conservative status mapping, review preservation, source/claim import, and the rule that legacy confirmed claims are not empirical validation.
 - Tests still not executed: no repository checkout or configured CI pipeline is available through the current GitLab branch; do not describe the new tests as passing.
+
+## 2026-11-09 · Knowledge review and source classification
+- Added an append-only `knowledge_review_events` ledger. Every owner decision records actor, timestamp, decision, reason and source classification; prior review events remain intact.
+- Knowledge review supports accept, reject, return-to-review and archive. Acceptance is editorial curation for the shared library, not empirical validation.
+- Added source classes: primary, secondary, marketing, community, internal and unknown. Classification is an explicit reviewer choice; the system does not infer source quality from a URL or reputation label.
+- The review operation changes curation status and source classification only. It never changes `evidence_grade` or promotes a claim to `empirically_validated`; Lab remains the sole validation authority.
+- Added tests for append-only history, required reasons, invalid decisions/classes and the invariant that review does not upgrade evidence. Tests have not been executed in this GitLab-only workflow.

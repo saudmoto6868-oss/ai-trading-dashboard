@@ -284,3 +284,9 @@
 - تم تحديد مكان المنتج: التنفيذ الحي داخل Workspace كـ panel `intel`. Academy هي مصدر قواعد المدارس، Playbook هو مصدر أسلوب التداول، Radar يكتشف المرشحين، Technical Office وResearch Hub/Labs للتحقق والاعتماد، Spot مستقل للسبوت والدفتر، وTIA طبقة مؤسسية عليا لا تنشئ Cockpit مكررًا.
 - تمت إضافة رابط المرجع إلى `AGENTS.md` و`CLAUDE.md` ليظهر لأي Agent يبدأ من تعليمات المستودع.
 - لا تزال قواعد المدارس التفصيلية محفوظة في `docs/academy/ai/` ونتائجها في `STRATEGY_LAB.md` و`docs/PIPELINE.md`؛ المرجع يربطها ولا ينسخ نسخًا متعارضة منها.
+
+
+## 2026-11-09 — تنفيذ XPIX Intelligence (المراحل 1–7)
+- المالك وافق على تنفيذ المقترحات السبعة بالترتيب، مع الحفاظ على عدد التابات وأسمائها وترتيبها.
+- نُفذ أساس المرحلة 1 في commit `3352bdec`: metadata لمصدر/رمز/وقت استلام book وtrades، ووسم Yahoo كـ unsupported capability. لم يكتمل بعد دمج Footprint/OFM/VP/indicator registry/setup engine.
+- CI pipeline `3043754889` ظهر Failed فور الإنشاء، بلا jobs ظاهرة؛ لذلك لا توجد نتيجة اختبار ناجحة ولا يجوز اعتبار التعديل متحققًا runtime. لا merge/deploy.

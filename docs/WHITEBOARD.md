@@ -38,3 +38,14 @@
 - AI يشرح قرارًا محسوبًا؛ لا يحسب السعر أو المخاطرة بنفسه ولا يخترع مستويات.
 - لا تداول آلي أو ربط حسابات/محافظ. لا أسرار. لا paid workflows أو APIs دون موافقة.
 - كل عمل على فرع مستقل؛ لا merge أو deploy دون مراجعة Claude وموافقة المالك.
+
+
+## XPIX Intelligence — تنفيذ المالك 2026-11-09
+- [x] بدء المرحلة 1: Evidence metadata + received-time freshness + explicit unsupported feed status (`3352bdec`).
+- [ ] المرحلة 2: contract tests (payload shape / symbol switch / subscription cleanup).
+- [ ] المرحلة 3: Footprint + Order Flow parity/integration.
+- [ ] المرحلة 4: OFM/DOM Liquidity integration.
+- [ ] المرحلة 5: Auction / Volume Profile POC-VAH-VAL integration.
+- [ ] المرحلة 6: chart indicator registry/settings mapping.
+- [ ] المرحلة 7: deterministic setup ranking + decision packet + validated chart alerts.
+- قيد ثابت: لا تغيير لعدد التابات أو أسمائها أو ترتيبها دون موافقة منفصلة؛ لا merge/deploy دون مراجعة وموافقة المالك.

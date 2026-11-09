@@ -1,8 +1,8 @@
 # Scheduled Telegram jobs stay restricted to schedules/manual runs.
-# The integration branch also runs isolated unit tests on push.
+# Lightweight unit tests run on repository pushes; they never invoke alert jobs.
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "integration/tia-knowledge-center-2026-11-09"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
 
@@ -53,7 +53,7 @@ intelligence_unit_tests:
   stage: test
   timeout: 10m
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "integration/tia-knowledge-center-2026-11-09"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
   before_script:
     - python -m pip install --quiet --upgrade pip
     - python -m pip install --quiet pytest

@@ -25,3 +25,6 @@
 - [ ] M3 جدول مقارنة أدوات  
 - [ ] M4 قائمة رفض  
 - [ ] M5 ربط لاحق بالمشروع فقط بأمر جديد
+
+
+| 30 | Trade Intelligence Center — تجميع المعرفة والبحث وقاعة الاجتماعات | A | ChatGPT | **شغال — UI أولي على فرع منفصل، غير مختبر حيًا** | 2026-11-09 | `feat/academy-intelligence-core`; الصفحة 12 مضافة دون حذف أي صفحة. Command Center + Knowledge + Research snapshots + Meeting Room. المحاضر التاريخية والـ Whiteboard ظاهرة للقراءة دون تعديل. متبقي: مراجعة payloads، اختبار فعلي، وربط task handoff بعد فحص عقد الكتابة. لا merge/deploy. |

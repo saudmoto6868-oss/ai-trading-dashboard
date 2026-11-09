@@ -67,3 +67,25 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - Tests have NOT been executed. No syntax check, Streamlit AppTest, browser test or live deployment check has run.
 - No main navigation change yet. The new aggregation/journal modules are not yet wired into the Streamlit page; next step is a safe UI integration and migration of existing meeting-room/whiteboard records without losing history.
 - SQLite remains local-only; cross-instance durability still requires configured and tested persistent PostgreSQL via `DATABASE_URL`.
+
+
+## 2026-11-09 — Additive Center UI + historical records
+
+### Implemented
+- Added `modules/intelligence_center_ui.py` with four sections: Command Center, Knowledge, Research snapshots and Meeting Room.
+- Added page index 12, “Trade Intelligence Center”, to `main.py` and placed it near the start of the page selector. All existing page IDs and routes remain available; no old tab was removed.
+- Added read-only rendering of the existing `docs/MEETING_ROOM.md`, `docs/WHITEBOARD.md`, this workstream log and the Center architecture contract inside the Meeting Room section. Original files are read from disk and are not overwritten.
+- Corrected the Command Center task adapter to use the existing `modules.office_ui.load_tasks()` source instead of duplicating JSON parsing. Lab summary uses `modules.office_kpi.load()/summary()`; Academy legacy lesson count uses the actual `modules.academy.load()` API; Research Hub snapshots use the documented `hub_core.read(id)` contract.
+
+### Review notes / outstanding
+- The Meeting Room UI can append entries to the new journal. This journal is separate from the historical Markdown meeting log; both are visible, but no claim is made that every past chat transcript or attachment has been archived.
+- SQLite is still local/dev persistence. Do not rely on cross-instance or production durability until a persistent PostgreSQL service is configured and tested.
+- No tests, py_compile, Streamlit AppTest, browser test or deployment test have been executed. UI is code-integrated but not live-verified.
+- Existing specialist routes remain unchanged; Technical Office, Radar and Spot behavior/options were not edited.
+- No MR, merge or deployment.
+
+### Next
+1. Inspect task-board schema and add a safe, explicit task handoff from Meeting Room only after confirming current task write contract.
+2. Review Research Hub snapshot presentation against actual snapshot payload shapes and add timestamps/empty-state clarity.
+3. Run available automated tests and syntax checks in a real branch checkout/CI environment; report failures honestly.
+4. Design persistent PostgreSQL setup separately; do not silently claim SQLite is production durable.

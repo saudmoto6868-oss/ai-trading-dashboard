@@ -53,9 +53,19 @@ const { chromium } = require('playwright');
     return !!chart && !!chart.chart && chart.chart.fpOn === true && chart.state.fp === true;
   });
   out.footprintLink = fpLink;
+  const liquidityPreview = await p.evaluate(() => {
+    const intel = Ws.panels.find(x => x.type === "intel");
+    const tab = intel && [...intel.root.querySelectorAll(".seg button")].find(x => /Liquidity|السيولة/.test(x.textContent));
+    if (!tab) return false;
+    tab.click();
+    const table = intel.root.querySelector("table.rdt");
+    return !!table && table.querySelectorAll("tr").length >= 2 &&
+      /OKX public venue snapshot|لقطة دفتر OKX العامة/.test(intel.root.textContent);
+  });
+  out.liquidityPreview = liquidityPreview;
   await p.evaluate(() => { [window.__xpixBook, window.__xpixTape, window.__xpixYahoo].forEach(f => f && f()); });
   await b.close();
-  const pass = out.book && out.tape && out.unsupported && out.footprintLink && !errs.length;
+  const pass = out.book && out.tape && out.unsupported && out.footprintLink && out.liquidityPreview && !errs.length;
   console.log(JSON.stringify({out, errors: errs}), pass ? 'PASS' : 'FAIL');
   process.exit(pass ? 0 : 1);
 })();

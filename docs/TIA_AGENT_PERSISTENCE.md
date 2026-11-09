@@ -1,6 +1,6 @@
 # TIA Agent Persistence Layer — Phase B
 Date: 2026-11-09
-Status: SQLite repository implementation added; not yet integrated into the Streamlit UI or worker runtime.
+Status: SQLite repository and basic Streamlit profile/task controls integrated; worker runtime not connected.
 
 ## Added
 `modules/tia_agent_store.py` provides:
@@ -25,7 +25,7 @@ Override with environment variable `TIA_AGENT_DB`. Keep the database outside ver
 This is a persistence layer, not a permission broker. It does not retrieve secrets, validate user identity, execute tools, call brokers, or submit orders. Raw secret-like fields are rejected from structured payloads. UI authentication and server-side authorization remain mandatory.
 
 ## Not yet complete
-- No UI wiring; the existing Streamlit task desk remains session-state based.
+- TIA workspace now exposes persistent rename, enable/pause, versioned Do/Don't instructions, task creation, task history and cancellation controls. Radar's original session-state task desk remains a separate prototype.
 - No worker, scheduler, message bus, secret manager, approval token service or broker adapter.
 - No migration runner beyond schema version 1; future schema changes require numbered migrations.
-- No tests or CI were run in this change; do not treat persistence as production-ready.
+- GitLab pipeline for the current branch reports failed with zero jobs; no test job ran. No local compile/unit/UI test is claimed. Do not treat persistence as production-ready.

@@ -15,6 +15,8 @@ Side = Literal["long", "short"]
 
 
 def _finite(name: str, value: float, *, positive: bool = False, non_negative: bool = False) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a numeric value (booleans and numeric strings are not accepted)")
     value = float(value)
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite")
@@ -135,8 +137,10 @@ class RiskSnapshot:
             _finite(name, getattr(self, name))
         _finite("fees_paid", self.fees_paid, non_negative=True)
         _finite("funding_paid", self.funding_paid, non_negative=True)
-        if self.stopped_trades < 0:
-            raise ValueError("stopped_trades must be >= 0")
+        if isinstance(self.stopped_trades, bool) or not isinstance(self.stopped_trades, int) or self.stopped_trades < 0:
+            raise ValueError("stopped_trades must be an integer >= 0")
+        if not isinstance(self.positions, tuple) or any(not isinstance(p, Position) for p in self.positions):
+            raise ValueError("positions must be a tuple of validated Position objects")
         ids = [p.position_id for p in self.positions]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate position_id")

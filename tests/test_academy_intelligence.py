@@ -52,7 +52,7 @@ def run():
             raise AssertionError("non-HTTP source URLs should be rejected")
         except ValueError:
             pass
-        assert search_records(topic="Liquidity", status="inbox", path=db)
+        assert search_records(topic="Liquidity", status="accepted", path=db)
         try:
             upsert_record({"title": "bad"}, db)
             raise AssertionError("required fields should be enforced")

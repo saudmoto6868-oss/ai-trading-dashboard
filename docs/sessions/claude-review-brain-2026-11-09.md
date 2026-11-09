@@ -12,7 +12,7 @@ This is a log of what happened, not evidence of anything. No secrets in it.
 ## Decisions
 - Brain v2 merged to `main` (MR !1, 2026-11-08).
 - The three streams stay separate in code; they cooperate through `docs/AGENT_CONTRACT.md` and the shared result object `modules/agent_result.py`. Others drop `*.jsonl` files in `data/agent_results/`.
-- Risk per trade: start at 0.25 % (daily cap 2 %, lock after 3 stops, R:R >= 1:2); 0.5 % only for A+ setups whose school / key has n >= 30 graded trades with a positive average R. The Order Flow Desk widget merged with a 0.5 % default: to be aligned.
+- Risk per trade: the owner chose 0.5 % ("خليها نص", told to the Order Flow Desk session) and that stands. The reviewer's suggestion, only if the owner confirms it: start at 0.25 % (daily cap 2 %, lock after 3 stops, R:R >= 1:2); 0.5 % only for A+ setups whose school / key has n >= 30 graded trades with a positive average R. The Order Flow Desk widget uses 0.5 %, as the owner said.
 - Standing merge rule and this session-note rule: see `docs/AGENT_CONTRACT.md` section 5.
 
 ## Done (merged on GitLab main)
@@ -26,6 +26,7 @@ This is a log of what happened, not evidence of anything. No secrets in it.
 ## Open
 - Owner: add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in GitLab CI/CD variables, then Run pipeline; create the pipeline schedule.
 - TIA page order (Radar first vs Workspace first) and the Spot-after-Radar rule.
-- Align the Order Flow Desk risk default (0.5 %) with the decision above.
+- Owner to say whether he wants the two-tier option (0.25 % default, 0.5 % only for A+ setups with n >= 30 and positive average R) or keeps a flat 0.5 %.
+- Every GitLab pipeline fails with "Identity verification is required in order to run CI jobs" (reported by the Order Flow Desk session): the owner must verify the account at gitlab.com/-/identity_verification before any CI job can run.
 - Draft MRs (#4, #5, #7, #8, #10, #13) wait for their authors.
 - Weekly lab result could not be read (GitHub Actions unreachable); the video school (Instagram / channel) is waiting for a rules table.

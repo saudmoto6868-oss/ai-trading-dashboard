@@ -18,7 +18,7 @@ from typing import Any
 
 from modules.tia_agent_charter import default_roster, validate_profile
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 TASK_STATES = {
     "draft": {"queued", "cancelled"},
     "queued": {"running", "cancelled", "blocked"},
@@ -160,6 +160,22 @@ class TIAStore:
             CREATE INDEX IF NOT EXISTS idx_task_events_task_time ON task_events(task_id, created_at);
             CREATE INDEX IF NOT EXISTS idx_memory_agent_type_time ON memory_items(agent_id, memory_type, created_at);
             CREATE INDEX IF NOT EXISTS idx_audit_entity_time ON audit_events(entity_type, entity_id, created_at);
+            """)
+            # Additive migration preserves all existing records.
+            db.executescript("""
+            CREATE TABLE IF NOT EXISTS scheduled_jobs (
+                job_id TEXT PRIMARY KEY, title TEXT NOT NULL, owner_agent_id TEXT NOT NULL,
+                schedule_json TEXT NOT NULL, timezone TEXT NOT NULL, next_run_at TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1, lease_until TEXT, last_run_at TEXT,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, idempotency_key TEXT UNIQUE,
+                FOREIGN KEY(owner_agent_id) REFERENCES agent_profiles(agent_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_due ON scheduled_jobs(enabled,next_run_at,lease_until);
+            CREATE TABLE IF NOT EXISTS scheduler_events (
+                event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, event_type TEXT NOT NULL,
+                actor TEXT NOT NULL, created_at TEXT NOT NULL, payload_json TEXT NOT NULL,
+                FOREIGN KEY(job_id) REFERENCES scheduled_jobs(job_id)
+            );
             """)
             db.execute("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(?,?)", (SCHEMA_VERSION, utc_now()))
         self.seed_roster()
@@ -413,3 +429,67 @@ class TIAStore:
             rows = db.execute("SELECT * FROM audit_events" + where +
                               " ORDER BY created_at DESC LIMIT ?", (*params, limit)).fetchall()
         return [{**dict(r), "payload": json.loads(r["payload_json"])} for r in rows]
+
+    def create_scheduled_job(self, title, owner_agent_id, schedule, timezone_name, next_run_at, idempotency_key=None, actor="owner"):
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        title = _safe_text(title, "scheduled job title")
+        if not title or len(title) > 160 or not next_run_at.endswith("Z"):
+            raise ValueError("valid title and UTC next_run_at are required")
+        try: ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc: raise ValueError("unknown IANA timezone") from exc
+        job_id, now = str(uuid.uuid4()), utc_now()
+        safe = _redact(schedule)
+        with self._connect() as db:
+            if not db.execute("SELECT 1 FROM agent_profiles WHERE agent_id=? AND enabled=1", (owner_agent_id,)).fetchone():
+                raise ValueError("owner agent is missing or disabled")
+            if idempotency_key:
+                old = db.execute("SELECT job_id FROM scheduled_jobs WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+                if old: return old["job_id"]
+            db.execute("INSERT INTO scheduled_jobs VALUES(?,?,?,?,?,?,1,NULL,NULL,?,?,?)",
+                       (job_id, title, owner_agent_id, _json(safe), timezone_name, next_run_at, now, now, idempotency_key))
+            self._scheduler_event(db, job_id, "schedule.created", actor, {"timezone":timezone_name,"next_run_at":next_run_at})
+        return job_id
+
+    def _scheduler_event(self, db, job_id, event_type, actor, payload):
+        db.execute("INSERT INTO scheduler_events VALUES(?,?,?,?,?,?)",
+                   (str(uuid.uuid4()), job_id, event_type, actor, utc_now(), _json(_redact(payload))))
+
+    def list_scheduled_jobs(self, enabled=None, limit=100):
+        limit=max(1,min(int(limit),500))
+        with self._connect() as db:
+            if enabled is None: rows=db.execute("SELECT * FROM scheduled_jobs ORDER BY next_run_at LIMIT ?",(limit,)).fetchall()
+            else: rows=db.execute("SELECT * FROM scheduled_jobs WHERE enabled=? ORDER BY next_run_at LIMIT ?",(int(enabled),limit)).fetchall()
+        return [{**dict(x),"schedule":json.loads(x["schedule_json"]),"enabled":bool(x["enabled"])} for x in rows]
+
+    def set_scheduled_job_enabled(self, job_id, enabled, actor="owner"):
+        with self._connect() as db:
+            cur=db.execute("UPDATE scheduled_jobs SET enabled=?,updated_at=? WHERE job_id=?",(int(bool(enabled)),utc_now(),job_id))
+            if not cur.rowcount: raise KeyError(job_id)
+            self._scheduler_event(db,job_id,"schedule.enabled_changed",actor,{"enabled":bool(enabled)})
+
+    def claim_due_jobs(self, now_utc, lease_seconds=120, limit=20, actor="scheduler"):
+        from datetime import timedelta
+        now=datetime.fromisoformat(now_utc.replace("Z","+00:00"))
+        if now.tzinfo is None: raise ValueError("now_utc must be timezone-aware")
+        now=now.astimezone(timezone.utc)
+        now_s=now.isoformat(timespec="seconds").replace("+00:00","Z")
+        lease_s=(now+timedelta(seconds=max(10,min(int(lease_seconds),3600)))).isoformat(timespec="seconds").replace("+00:00","Z")
+        claimed=[]
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rows=db.execute("SELECT * FROM scheduled_jobs WHERE enabled=1 AND next_run_at<=? AND (lease_until IS NULL OR lease_until<=?) ORDER BY next_run_at LIMIT ?",(now_s,now_s,max(1,min(int(limit),100)))).fetchall()
+            for row in rows:
+                cur=db.execute("UPDATE scheduled_jobs SET lease_until=?,updated_at=? WHERE job_id=? AND (lease_until IS NULL OR lease_until<=?)",(lease_s,now_s,row["job_id"],now_s))
+                if cur.rowcount:
+                    item=dict(row); item["schedule"]=json.loads(item.pop("schedule_json")); claimed.append(item)
+                    self._scheduler_event(db,row["job_id"],"schedule.claimed",actor,{"lease_until":lease_s,"due_at":row["next_run_at"]})
+        return claimed
+
+    def record_scheduled_run(self, job_id, next_run_at, outcome, actor="scheduler"):
+        if outcome not in {"enqueued","skipped","failed"}: raise ValueError("unsupported scheduler outcome")
+        if next_run_at is not None and not next_run_at.endswith("Z"): raise ValueError("next_run_at must be UTC ISO-8601")
+        now=utc_now()
+        with self._connect() as db:
+            if not db.execute("SELECT 1 FROM scheduled_jobs WHERE job_id=?",(job_id,)).fetchone(): raise KeyError(job_id)
+            db.execute("UPDATE scheduled_jobs SET last_run_at=?,next_run_at=COALESCE(?,next_run_at),lease_until=NULL,updated_at=? WHERE job_id=?",(now,next_run_at,now,job_id))
+            self._scheduler_event(db,job_id,"schedule.run_recorded",actor,{"outcome":outcome,"next_run_at":next_run_at})

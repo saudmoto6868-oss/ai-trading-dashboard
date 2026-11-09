@@ -101,8 +101,8 @@ class RiskLedger:
     """Append-only event ledger with idempotency and atomic session updates."""
 
     def __init__(self, db_path: str, *, busy_timeout_ms: int = 5000):
-        if db_path != ":memory:" and not str(db_path).strip():
-            raise ValueError("db_path is required")
+        if not str(db_path).strip() or db_path == ":memory:":
+            raise ValueError("a persistent file-backed db_path is required; :memory: is not supported")
         self.db_path = db_path
         self.busy_timeout_ms = int(busy_timeout_ms)
         if self.busy_timeout_ms < 1:

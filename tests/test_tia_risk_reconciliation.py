@@ -21,7 +21,7 @@ def ledger():
 
 def snapshot(now, positions=None, complete=True):
     return BrokerPositionSnapshot("acct-1", "broker-adapter-test", now,
-                                  tuple(positions or [BrokerPosition("p1", "xauusd", "long", .5, 2000)]),
+                                  tuple([BrokerPosition("p1", "xauusd", "long", .5, 2000)] if positions is None else positions),
                                   complete)
 
 
@@ -61,3 +61,15 @@ def test_reject_duplicate_broker_ids(now):
     with pytest.raises(ValueError, match="duplicate"):
         snapshot(now, [BrokerPosition("p1", "XAUUSD", "long", 1, 2000),
                       BrokerPosition("p1", "XAUUSD", "long", 1, 2000)])
+
+
+def test_explicit_empty_broker_snapshot_is_not_replaced_by_fixture_position(now, ledger):
+    result = reconcile_positions(ledger_state=ledger, broker=snapshot(now, []), now=now)
+    assert result.broker_only_ids == ()
+    assert result.ledger_only_ids == ("p1",)
+    assert not result.reconciled
+
+
+def test_snapshot_complete_must_be_boolean(now):
+    with pytest.raises(ValueError, match="explicit boolean"):
+        BrokerPositionSnapshot("acct", "broker", now, (), 1)

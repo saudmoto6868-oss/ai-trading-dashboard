@@ -196,6 +196,8 @@ class RiskLedger:
                      payload: dict, created_at: datetime) -> bool:
         if not session_id.strip() or not event_id.strip() or not event_type.strip():
             raise ValueError("session_id, event_id and event_type are required")
+        if not isinstance(payload, dict):
+            raise ValueError("event payload must be a JSON object")
         if created_at.tzinfo is None:
             raise ValueError("created_at must be timezone-aware")
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)

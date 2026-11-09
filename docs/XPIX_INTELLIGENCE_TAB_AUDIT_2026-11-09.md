@@ -52,3 +52,16 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - No removal or replacement of existing Workspace tools.
 - No generated bundle edits by hand.
 - No merge to main, deployment, or live trading actions.
+
+
+## تنفيذ المراحل 1–7 — تحديث 2026-11-09
+
+- بدأ التنفيذ على الفرع الحالي دون تغيير عدد التابات أو أسمائها أو ترتيبها.
+- **1 — Evidence envelope:** أضيفت بيانات `symbol/venue/source/exchangeTs/receivedAt/t/capability` إلى book وtrades من OKX، مع تمييز Yahoo كـ `unsupported` بدل عرضه كأنه عطل اتصال. `receivedAt` هو وقت استلام التطبيق؛ `exchangeTs` لا يُعرض كوقت موثوق إلا عندما يرجعه المصدر.
+- **2 — Contract checks:** لم تُضف اختبارات آلية بعد؛ يلزم اختبار payload shape وتبديل الرمز وتنظيف الاشتراكات.
+- **3 — Footprint / Order Flow:** لم يتم دمج footprint داخل التاب؛ يلزم أولاً إثبات parity مع أداة Footprint الحالية ومنع ازدواج التجميع.
+- **4 — Liquidity:** لم يتم دمج heatmap/DOM داخل التاب؛ سيظل عرض الدفتر موصوفاً كسيولة معروضة من venue واحد.
+- **5 — Auction / Volume Profile:** لم يتم نقل POC/VAH/VAL إلى التاب؛ المصدر الحالي هو لوحة Value Levels القائمة.
+- **6 — Indicators registry:** لم يتم ربط سجل المؤشرات وإعداداتها؛ لا تُعرض أسماء أو حالات غير مثبتة.
+- **7 — Deterministic setup ranking:** لم يتم تفعيل ترتيب فرص أو تنبيهات دخول؛ WAIT يظل الوضع الآمن حتى اكتمال الأدلة والتحقق.
+- لا build أو browser test أو CI أو merge أو deploy في هذه الخطوة.

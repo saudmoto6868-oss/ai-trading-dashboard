@@ -25,14 +25,17 @@ Panel.prototype.build_intel = function(){
     tabs.innerHTML=""; definitions.forEach(([k,label])=>{const b=el("button",null,label);b.classList.toggle("on",S.tab===k);b.onclick=()=>{S.tab=k;Ws.save();render();};tabs.append(b);});
     const book=Hub.last["book|"+S.sym], tape=Hub.last["trades|"+S.sym], now=Date.now();
     const goodBook=book&&!book.error, goodTape=tape&&!tape.error;
-    const age=x=>x&&x.t?Math.max(0,Math.round((now-x.t)/1000))+"s":L("timestamp unavailable","التوقيت غير متاح");
+    const age=x=>x&&(x.receivedAt||x.t)?Math.max(0,Math.round((now-(x.receivedAt||x.t))/1000))+"s "+L("since received","من وقت الاستلام"):L("timestamp unavailable","التوقيت غير متاح");
     const mid=goodBook&&book.bids?.length&&book.asks?.length?(book.bids[0].p+book.asks[0].p)/2:null;
     const buy=goodTape?(tape.rows||[]).filter(x=>x.side==="Buy").reduce((a,x)=>a+x.q,0):null;
     const sell=goodTape?(tape.rows||[]).filter(x=>x.side==="Sell").reduce((a,x)=>a+x.q,0):null;
     const delta=buy!=null&&sell!=null?buy-sell:null;
+    const spread=goodBook&&book.bids?.length&&book.asks?.length?book.asks[0].p-book.bids[0].p:null;
+    const spreadPct=spread!=null&&mid?spread/mid*100:null;
+    const tapeStats=goodTape?tape.stats||{}:{};
     const bq=goodBook?(book.bids||[]).slice(0,10).reduce((a,x)=>a+x.q,0):null;
     const aq=goodBook?(book.asks||[]).slice(0,10).reduce((a,x)=>a+x.q,0):null;
-    const fmt=x=>x==null?"—":fmtQ(x), status=(ok)=>ok?L("Receiving data","البيانات بتوصل"):L("Unavailable / error","غير متاح / فيه خطأ");
+    const fmt=x=>x==null?"—":fmtQ(x), status=(ok,x)=>ok?L("Receiving data","البيانات بتوصل"):(x&&x.capability==="unsupported"?L("Not supported by this feed","المصدر ده مش بيدعم البيانات دي"):L("Unavailable / error","غير متاح / فيه خطأ"));
     const explain={
       overview:L("This is the market evidence panel. Read source and freshness before trusting a value.","دي لوحة أدلة السوق. راجع المصدر وحداثة البيانات قبل ما تعتمد على أي رقم."),
       flow:L("Executed trades show aggressive buying/selling. Delta is buy volume minus sell volume; it is not a direction guarantee.","الصفقات المنفذة بتوضح الشراء والبيع العدواني. الدلتا = حجم الشراء ناقص البيع، ومش ضمان لاتجاه السعر."),
@@ -48,7 +51,7 @@ Panel.prototype.build_intel = function(){
       tile(L("Tape delta","دلتا الصفقات"),fmt(delta),L("Buy volume − sell volume","حجم الشراء − البيع"))+
       tile(L("Top-10 bid size","حجم أفضل 10 طلبات"),fmt(bq),L("Resting bids","طلبات شراء معروضة"))+
       tile(L("Top-10 ask size","حجم أفضل 10 عروض"),fmt(aq),L("Resting asks","عروض بيع معروضة"))+"</div>";
-      h+="<div style='margin-top:10px;padding:8px;border:1px solid #2b3139;border-radius:6px'><b>"+L("Data health","حالة البيانات")+"</b><div>"+L("Order book","دفتر الأوامر")+": "+status(goodBook)+" · "+age(book)+"</div><div>"+L("Time & Sales","الصفقات")+": "+status(goodTape)+" · "+age(tape)+"</div><div class='m' style='font-size:10px'>"+L("Venue: OKX public feed when this symbol is an OKX instrument. This is not a consolidated/global order book.","المصدر: بيانات OKX العامة لو الرمز متاح عليها. ده مش دفتر أوامر موحد لكل السوق.")+"</div></div>";
+      h+="<div style='margin-top:10px;padding:8px;border:1px solid #2b3139;border-radius:6px'><b>"+L("Data health","حالة البيانات")+"</b><div>"+L("Order book","دفتر الأوامر")+": "+status(goodBook,book)+" · "+age(book)+"</div><div>"+L("Time & Sales","الصفقات")+": "+status(goodTape,tape)+" · "+age(tape)+"</div><div class='m' style='font-size:10px'>"+L("Venue: OKX public feed when this symbol is an OKX instrument. This is not a consolidated/global order book.","المصدر: بيانات OKX العامة لو الرمز متاح عليها. ده مش دفتر أوامر موحد لكل السوق.")+"</div></div>";
       h+="<div style='display:flex;flex-wrap:wrap;gap:6px;margin-top:10px'>"+["ofm","dom","tape","limits","setup","risk"].map(k=>"<button data-open='"+k+"'>"+({ofm:"Heatmap / OFM",dom:"DOM",tape:"Time & Sales",limits:"Limit Tracker",setup:"Setup Card",risk:"Risk Manager"}[k])+"</button>").join("")+"</div>";
     } else if(S.tab==="flow"){
       h+="<div>"+tile(L("Aggressive buy volume","حجم شراء السوق"),fmt(buy),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Aggressive sell volume","حجم بيع السوق"),fmt(sell),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Net delta","صافي الدلتا"),fmt(delta),L("Positive = buy-led prints; negative = sell-led prints","الموجب شراء أكثر؛ السالب بيع أكثر"))+"</div><button data-open='tape'>"+L("Open full Time & Sales","افتح Time & Sales")+"</button>";

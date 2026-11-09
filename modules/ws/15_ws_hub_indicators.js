@@ -139,15 +139,15 @@ const Hub = {
       (this.busy = this.busy || {})[key] = true;
       try {
         let payload;
-        if (/^Y:/.test(sym) && (kind === "book" || kind === "trades")){ payload = {error:"no order book / tape for this market (Yahoo feed)"}; }
+        if (/^Y:/.test(sym) && (kind === "book" || kind === "trades")){ payload = {error:"unsupported_market_feed", message:"no order book / tape for this market (Yahoo feed)", symbol:sym, venue:"Yahoo", source:"Yahoo feed", receivedAt:Date.now(), t:Date.now(), capability:"unsupported"}; }
         else if (kind === "book"){
           let d; try { d = (await okx("/market/books-full?instId="+encodeURIComponent(sym)+"&sz=2000"))[0]; if (!d || !d.bids || d.bids.length < 5) throw 0; } catch(e){ d = (await okx("/market/books?instId="+encodeURIComponent(sym)+"&sz=400"))[0]; }   // up to 2000 levels a side = the widest band OKX's REST book gives; falls back to 400
           const bb = d.bids.map(x=>({p:+x[0],q:+x[1]})), aa = d.asks.map(x=>({p:+x[0],q:+x[1]}));
-          payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa} };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
+          payload = { bids:bb.slice(0,50), asks:aa.slice(0,50), deep:{bids:bb, asks:aa}, symbol:sym, venue:"OKX", source:"OKX REST", exchangeTs:+d.ts || null, receivedAt:Date.now(), t:Date.now(), capability:"supported" };   // every other panel keeps the nearest 50 levels; the order-flow heat map gets the full 400 so it fills the chart top to bottom
         } else if (kind === "trades"){
           const d = await okx("/market/trades?instId="+encodeURIComponent(sym)+"&limit=100");
           { const mx = d.length ? Math.max(...d.map(x => +x.ts || 0)) : 0; if (mx > 0 && Math.abs(mx - nowS()) > 60000) SKEW = Math.round(mx - Date.now()); }   // PC clock wrong and /public/time failed: take the exchange time from the prints
-          payload = this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse());
+          payload = Object.assign(this.analyze(sym, d.map(x=>({id:x.tradeId, t:+x.ts, p:+x.px, q:+x.sz, side:x.side==="buy"?"Buy":"Sell"})).reverse()), {symbol:sym, venue:"OKX", source:"OKX REST", exchangeTs:d.length ? Math.max(...d.map(x=>+x.ts || 0)) : null, receivedAt:Date.now(), t:Date.now(), capability:"supported"});
         } else if (kind === "tickers"){
           const AS = SYMS.concat([...(Hub.extra || [])]), types = ["SPOT"], optU = [...new Set(AS.filter(s => /-\d{6}-[\d.]+-[CP]$/.test(s)).map(s => s.split("-").slice(0,2).join("-")))]; if (AS.some(s => /-SWAP$/.test(s))) types.push("SWAP"); if (AS.some(s => /-\d{6}$/.test(s))) types.push("FUTURES");
           const m = {}; Object.entries(HL.q).forEach(([k, x]) => { if (x.last) m[k] = {last:x.last, open:x.open || 0, live:1}; }); FH_LIST.forEach(x => { const q = FH.q[x.id]; if (q) m[x.id] = {last:q.last, open:FH.ref(x), live:1}; }); (await Promise.all(types.map(t => okx("/market/tickers?instType="+t).catch(() => [])).concat(optU.map(u => okx("/market/tickers?instType=OPTION&uly="+u).catch(() => []))))).forEach(d => d.forEach(x => m[x.instId] = {last:+x.last, open:+x.open24h, bid:+x.bidPx || 0, ask:+x.askPx || 0, hi:+x.high24h || 0, lo:+x.low24h || 0})); Object.keys(YF).forEach(y => { const D = YF[y], h = D["1h"] || D["1d"] || [], d = D["1d"] || h; if (h.length) m[y] = {last:h[h.length-1][4], open:(d.length > 1 ? d[d.length-2][4] : d[0][1])}; });

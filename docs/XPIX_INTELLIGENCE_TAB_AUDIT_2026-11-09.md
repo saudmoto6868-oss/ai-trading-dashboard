@@ -82,3 +82,12 @@ Status: REVIEW FINDINGS / PROPOSAL ONLY
 - يضبط رمز الشارت والفريم من XPIX Intelligence ثم يفعّل الـFootprint على الشارت المرتبط.
 - أُضيف تحقق للزر إلى `tests/browser/xpix_evidence_contract_mock.js`.
 - لم يُشغّل الاختبار بعد، ولم تُثبت بعد مطابقة بيانات Footprint الحية أو عرضها على جهاز فعلي. المرحلة 3: ربط الواجهة مبدئياً، والتحقق ما زال مفتوحاً.
+
+
+## تحديث المرحلة 4 — معاينة Liquidity
+
+- أُضيفت معاينة Order Book داخل تبويب Liquidity: أفضل 5 مستويات bid/ask، أحجامها، وحساب imbalance من مجموع أحجام أفضل 10 مستويات.
+- المعاينة تستهلك نفس `Hub.last` المشترك؛ لا تضيف polling أو اشتراكات مستقلة.
+- توضيح صريح أن القيم لقطة OKX عامة من venue واحد وأن imbalance ليس إشارة دخول.
+- روابط OFM وDOM وLimit Tracker ما زالت تفتح اللوحات القائمة نفسها.
+- أُضيف assertion للمعاينة إلى browser mock؛ لم يُشغّل بعد.

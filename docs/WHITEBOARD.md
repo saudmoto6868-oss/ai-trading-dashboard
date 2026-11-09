@@ -63,3 +63,11 @@
 - [x] إضافة assertion للتحقق من handoff داخل browser mock.
 - [ ] تشغيل browser mock ومقارنة بيانات Footprint مع العرض الحالي.
 - [ ] بعد التحقق ننتقل إلى دمج Liquidity في التاب نفسه.
+
+
+## XPIX Intelligence — المرحلة 4
+- [x] معاينة دفتر أوامر أفضل 5 مستويات في Liquidity tab من نفس Hub.
+- [x] Book imbalance من top-10 displayed size مع توضيح أنه ليس إشارة.
+- [x] إبقاء روابط OFM / DOM / Limit Tracker للأدوات الأصلية.
+- [ ] تشغيل اختبار المتصفح والتحقق من عدم وجود regressions.
+- [ ] بعد ذلك المرحلة 5: Auction / Volume Profile.

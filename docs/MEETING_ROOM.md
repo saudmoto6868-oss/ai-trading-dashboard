@@ -300,3 +300,8 @@
 ## 2026-11-09 — المرحلة 3: Footprint handoff
 - أُضيف زر في XPIX Intelligence > Order Flow لتفعيل Footprint على الشارت المرتبط باستخدام المحرك الحالي فقط؛ لا duplicate engine/polling.
 - أُضيف assertion لاختبار browser mock. لم يُشغّل الاختبار بعد؛ لا ندّعي runtime pass.
+
+
+## 2026-11-09 — المرحلة 4: Liquidity preview
+- أُضيفت معاينة أفضل 5 مستويات bid/ask + Book Imbalance من Hub المشترك داخل تبويب Liquidity، مع تسمية OKX public venue snapshot والتنبيه أنه ليس إشارة.
+- أُضيف اختبار للمعاينة إلى XPIX browser mock؛ لم يُشغّل بعد.

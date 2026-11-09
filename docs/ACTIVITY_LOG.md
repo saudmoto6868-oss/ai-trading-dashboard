@@ -68,3 +68,5 @@
 | 2026-11-09 | ChatGPT | إضافة اختبار Hub evidence contract | `tests/browser/xpix_evidence_contract_mock.js` | الاختبار يدخل تلقائياً ضمن `tests/browser/run_all.sh` | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل؛ GitLab CI push غير مفعّل حسب `.gitlab-ci.yml` | يغطي metadata book/trades وtimestamps وYahoo unsupported؛ لا ادعاء نجاح حتى تشغيله. |
 
 | 2026-11-09 | ChatGPT | ربط Order Flow بميزة Footprint الحالية | `modules/ws/22x_intelligence.js`, `tests/browser/xpix_evidence_contract_mock.js` | زر يفعّل Footprint على الشارت المرتبط ويعيد استخدام محركه/اشتراكاته | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل الاختبار بعد | ربط واجهة فقط؛ لا محرك مكرر ولا ادعاء تحقق حي. |
+
+| 2026-11-09 | ChatGPT | دمج معاينة Liquidity في XPIX | `modules/ws/22x_intelligence.js`, `tests/browser/xpix_evidence_contract_mock.js` | Top-5 bid/ask ladder + top-10 imbalance من Hub المشترك؛ روابط OFM/DOM باقية | — | branch `feat/xpix-intelligence-workspace` | لم يُشغّل browser mock | بيانات venue واحد؛ لا duplicate polling؛ لا إشارة تداول. |

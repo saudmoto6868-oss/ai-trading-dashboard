@@ -217,6 +217,68 @@ def import_legacy_lessons(path: str | Path | None = None,
     return imported
 
 
+def import_legacy_references(path: str | Path | None = None,
+                             source_file: str | Path = "data/academy_refs.json") -> int:
+    """Index legacy reference catalog sources and claims as unreviewed research inputs.
+
+    Vendor/source reputation and a legacy 'confirmed' verdict are not Lab validation.
+    Existing records are never overwritten by a later import.
+    """
+    source = Path(source_file)
+    if not source.exists():
+        return 0
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    items = []
+    for item in payload.get("sources", []):
+        if not isinstance(item, dict) or not item.get("id") or not item.get("title"):
+            continue
+        items.append({
+            "id": "legacy-ref-source-" + str(item["id"]),
+            "title": item["title"],
+            "summary": " | ".join(str(x) for x in item.get("takeaways", [])[:5]) or
+                       "Legacy reference catalog entry; review the original material before use.",
+            "topic": "Reference library",
+            "claim_type": "interpretation",
+            "status": "inbox",
+            "evidence_grade": "source_only" if item.get("path") else "unreviewed",
+            "source_title": item.get("origin", ""),
+            "language": "ar",
+            "provenance": [{"kind": "legacy_reference_catalog", "source": str(source),
+                            "path": item.get("path", ""), "origin": item.get("origin", ""),
+                            "kind_label": item.get("kind", ""), "open_questions": item.get("open", [])}],
+            "details": {"record_type": "reference_source", "takeaways": item.get("takeaways", []),
+                        "open_questions": item.get("open", [])},
+        })
+    for item in payload.get("claims", []):
+        if not isinstance(item, dict) or not item.get("id") or not item.get("claim"):
+            continue
+        urls = [str(url).strip() for url in item.get("urls", [])
+                if isinstance(url, str) and url.strip().startswith(("https://", "http://"))]
+        verdict = item.get("verdict", "unverified")
+        items.append({
+            "id": "legacy-ref-claim-" + str(item["id"]),
+            "title": str(item["claim"])[:240],
+            "summary": item.get("evidence") or item.get("note") or "Legacy claim pending source review.",
+            "topic": "Research claims",
+            "claim_type": "disputed" if verdict == "contradicted" else "hypothesis",
+            "status": "inbox",
+            "evidence_grade": "source_only" if urls else "unreviewed",
+            "source_url": urls[0] if urls else "",
+            "source_title": item.get("origin", ""),
+            "language": "ar",
+            "provenance": [{"kind": "legacy_reference_claim", "source": str(source),
+                            "urls": urls, "legacy_verdict": verdict, "where": item.get("where", "")}],
+            "details": {"record_type": "reference_claim", "legacy_verdict": verdict,
+                        "note": item.get("note", ""), "where": item.get("where", "")},
+        })
+    for record in items:
+        with connect(path) as db:
+            exists = _execute(db, "SELECT id FROM knowledge_records WHERE id = ?", (record["id"],)).fetchone()
+        if not exists:
+            upsert_record(record, path)
+    return len(items)
+
+
 def promotion_gate(record: dict[str, Any]) -> tuple[bool, list[str]]:
     """Minimum metadata guard; not a profitability guarantee."""
     reasons = []
@@ -240,6 +302,7 @@ def workspace_snapshot(limit: int = 80) -> list[dict]:
         # Re-run the deterministic ID-based import so lessons added to the legacy
         # source later are indexed too; upsert keeps the import idempotent.
         import_legacy_lessons()
+        import_legacy_references()
         rows = search_records(limit=limit)
         out = []
         for row in rows:

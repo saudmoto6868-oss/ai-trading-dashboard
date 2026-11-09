@@ -226,6 +226,72 @@ class RiskLedger:
                                (session_id,)).fetchall()
         return [{**dict(row), "payload": json.loads(row["payload_json"])} for row in rows]
 
+
+    def project_session(self, session_id: str) -> dict:
+        """Rebuild deterministic daily risk state from the append-only event journal.
+
+        Event contract:
+        - position_open: {position_id, symbol, asset_class, side, quantity, entry, stop, mark, spec:{...}}
+        - position_mark: {position_id, mark}
+        - position_close: {position_id, realized_pnl, fees_paid, funding_paid, stopped}
+        Stop classification is explicit; a losing manual close is not automatically a stop.
+        """
+        session = self.session(session_id)
+        if session is None:
+            raise ValueError("unknown risk session")
+        positions: dict[str, dict] = {}
+        realized = fees = funding = 0.0
+        stopped_trades = 0
+        for event in self.events(session_id):
+            payload = event["payload"]
+            kind = event["event_type"]
+            if kind == "position_open":
+                required = ("position_id", "symbol", "asset_class", "side", "quantity", "entry", "stop", "mark", "spec")
+                if any(k not in payload for k in required):
+                    raise ValueError("position_open event is missing required fields")
+                pid = str(payload["position_id"])
+                if not pid or pid in positions:
+                    raise ValueError("position_open duplicates an active position_id")
+                spec = payload["spec"]
+                positions[pid] = {k: payload[k] for k in required if k != "spec"}
+                positions[pid]["spec"] = dict(spec)
+            elif kind == "position_mark":
+                pid = str(payload.get("position_id", ""))
+                if pid not in positions:
+                    raise ValueError("position_mark references an unknown open position")
+                mark = _finite("mark", payload.get("mark"), positive=True)
+                positions[pid]["mark"] = mark
+            elif kind == "position_close":
+                pid = str(payload.get("position_id", ""))
+                if pid not in positions:
+                    raise ValueError("position_close references an unknown open position")
+                realized += _finite("realized_pnl", payload.get("realized_pnl", 0.0))
+                fees += _finite("fees_paid", payload.get("fees_paid", 0.0), non_negative=True)
+                funding += _finite("funding_paid", payload.get("funding_paid", 0.0), non_negative=True)
+                stopped = payload.get("stopped")
+                if not isinstance(stopped, bool):
+                    raise ValueError("position_close requires explicit boolean stopped classification")
+                if stopped:
+                    stopped_trades += 1
+                del positions[pid]
+            else:
+                raise ValueError(f"unsupported risk event type: {kind}")
+        return {
+            "session_id": session_id,
+            "account_id": session["account_id"],
+            "session_date": session["session_date"],
+            "timezone": session["timezone"],
+            "start_equity": session["start_equity"],
+            "policy_id": session["policy_id"],
+            "policy_version": session["policy_version"],
+            "realized_pnl": realized,
+            "fees_paid": fees,
+            "funding_paid": funding,
+            "stopped_trades": stopped_trades,
+            "open_positions": list(positions.values()),
+            "open_position_count": len(positions),
+        }
+
     def session(self, session_id: str) -> dict | None:
         with closing(self._connect()) as con:
             row = con.execute("SELECT * FROM risk_sessions WHERE session_id=?", (session_id,)).fetchone()

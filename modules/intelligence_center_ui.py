@@ -6,6 +6,7 @@ until the owner approves a tested navigation migration.
 from __future__ import annotations
 
 import streamlit as st
+from pathlib import Path
 
 
 def _metric(label: str, value) -> None:
@@ -171,3 +172,20 @@ def render() -> None:
                 if item.get("related_url", "").startswith(("https://", "http://")):
                     st.markdown(f"[Related link]({item['related_url']})")
                 st.caption(f"Actor: {item.get('actor', 'owner')} · Status: {item.get('status', 'recorded')}")
+
+        st.divider()
+        st.markdown("### Existing project records")
+        st.caption("المحاضر الأصلية محفوظة كما هي؛ العرض هنا للرجوع فقط، ولا يستبدل المحادثات أو المرفقات الأصلية.")
+        project_root = Path(__file__).resolve().parent.parent
+        for label, relpath in (
+            ("Historical Meeting Room · full existing log", "docs/MEETING_ROOM.md"),
+            ("Current project Whiteboard", "docs/WHITEBOARD.md"),
+            ("Trade Intelligence Center workstream log", "docs/INTELLIGENCE_MEETING_LOG.md"),
+            ("Center architecture and migration contract", "docs/INTELLIGENCE_COMMAND_CENTER.md"),
+        ):
+            with st.expander(label, expanded=False):
+                try:
+                    content = (project_root / relpath).read_text(encoding="utf-8")
+                    st.markdown(content)
+                except OSError:
+                    st.warning(f"Could not read {relpath} from this build.")

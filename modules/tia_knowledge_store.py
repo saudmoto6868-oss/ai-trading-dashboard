@@ -15,9 +15,10 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 SCHEMA_VERSION = 1
 MAX_TITLE = 240
@@ -67,8 +68,12 @@ def _tags(values: Iterable[str] | None) -> list[str]:
         return []
     if isinstance(values, (str, bytes)):
         raise ValidationError("tags must be a list of strings")
+    try:
+        iterator = iter(values)
+    except TypeError as exc:
+        raise ValidationError("tags must be an iterable of strings") from exc
     result: list[str] = []
-    for item in values:
+    for item in iterator:
         tag = _text(item, "tag", MAX_TAG).lower()
         if tag not in result:
             result.append(tag)
@@ -97,6 +102,9 @@ def _source_url(value: str | None) -> str | None:
     url = _text(value, "source_url", MAX_SOURCE_URL)
     if not URL_RE.match(url):
         raise ValidationError("source_url must use http or https")
+    parsed = urlsplit(url)
+    if not parsed.hostname:
+        raise ValidationError("source_url must include a valid host")
     return url
 
 
@@ -106,6 +114,8 @@ class TIAKnowledgeStore:
     def __init__(self, db_path: str | os.PathLike[str] | None = None):
         configured = db_path or os.getenv("TIA_DATABASE_PATH", "data/tia_institutional.db")
         self.db_path = str(configured)
+        if self.db_path == ":memory:":
+            raise ValueError("a persistent SQLite path is required for multi-session TIA storage")
         if self.db_path != ":memory:":
             Path(self.db_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
@@ -290,8 +300,16 @@ class TIAKnowledgeStore:
         title = _text(title, "title", MAX_TITLE)
         body = _text(body, "body", MAX_BODY)
         actor = _text(actor, "actor", 120)
+        if related_ids is None:
+            related_ids = []
+        if isinstance(related_ids, (str, bytes)):
+            raise ValidationError("related_ids must be a list of strings")
+        try:
+            related_iterator = iter(related_ids)
+        except TypeError as exc:
+            raise ValidationError("related_ids must be iterable") from exc
         ids = []
-        for value in related_ids or []:
+        for value in related_iterator:
             ids.append(_text(value, "related_id", 120))
             if len(ids) > 64:
                 raise ValidationError("at most 64 related IDs are allowed")

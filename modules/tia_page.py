@@ -13,7 +13,7 @@ def _header():
     .tia-card{background:#11100e;border:1px solid #3c3222;border-radius:12px;padding:14px 15px;min-height:85px}
     .tia-card h4{color:#e4c27e;font-size:14px;margin:0 0 7px}
     .tia-card p{color:#b8b0a1;font-size:12px;margin:0;line-height:1.55}
-    </style><div class="tia-hero"><div class="tia-kicker">6868 · PARENT COMPANY</div><div class="tia-title">TIA</div><div class="tia-sub">TRADE INTELLIGENCE AGENCY · RESEARCH · INTELLIGENCE · DECISION</div></div>""", unsafe_allow_html=True)
+    </style><div class="tia-hero"><div class="tia-kicker">TRADE INTELLIGENCE AGENCY</div><div class="tia-title">TIA</div><div class="tia-sub">INSTITUTIONAL FINANCIAL INTELLIGENCE · RESEARCH · DECISION</div></div>""", unsafe_allow_html=True)
 
 def _card(title, body):
     st.markdown(f'<div class="tia-card"><h4>{title}</h4><p>{body}</p></div>', unsafe_allow_html=True)
@@ -31,10 +31,10 @@ def _overview():
         _card("Technical Intelligence","Price Action, SMC/ICT, Gann, Elliott and multi-timeframe structure.")
     with b:
         _card("Order Flow & Liquidity","Footprint, Delta, DOM, Time & Sales where feeds permit.")
-        _card("Strategy & Innovation Lab","Research, strategy discovery and indicator development.")
+        _card("Strategy & Research Intelligence","Research, strategy discovery and indicator development.")
     with c:
-        _card("Quant Validation & Risk","Backtests, out-of-sample checks, costs and portfolio risk.")
-        _card("Trade Review & Decision","Challenge, ranking, trade plans and human-approved decisions.")
+        _card("Quant & Risk Intelligence","Backtests, out-of-sample checks, costs and portfolio risk.")
+        _card("Trade Decision & Performance Intelligence","Challenge, ranking, trade plans and human-approved decisions.")
 
 def _geometry():
     st.subheader("Geometric Intelligence")
@@ -104,14 +104,61 @@ def _meeting_room():
     st.markdown("Logo explorations: tia_trade_intelligence_agency_logo.png; trade_intelligence_agency_global_logo.png; glossy_tia_logo_with_golden_wave.png; luxury_tia_logo_with_golden_wave.png; futuristic_tia_golden_wave_logo.png; futuristic_tia_logo_with_golden_wave.png; futuristic_tia_logo_with_golden_mesh.png; luxury_tia_trade_intelligence_logo.png; luxury_gold_wave_tia_logo_poster.png; minimalist_tia_6868_gold_logo.png.")
     st.info("The 171 MB screen recording is referenced from its Drive folder; it has not been copied into Git.")
 
+def _knowledge_room():
+    st.subheader("Knowledge & Decision Registry")
+    st.caption("TIA-native records only. The separate Academy project remains independent; this workspace consumes no Academy files or database.")
+    try:
+        from modules.tia_knowledge_store import TIAKnowledgeStore
+        store = TIAKnowledgeStore()
+        health = store.health()
+    except Exception as exc:
+        st.error(f"TIA knowledge store unavailable: {type(exc).__name__}: {exc}")
+        return
+    st.metric("Local store status", health.status.upper())
+    st.caption(f"Backend: {health.backend} · Schema: {health.schema_version or 'unknown'} · {health.detail}")
+    if health.status != "ready":
+        st.warning("Registry data is unavailable or requires attention. No empty-state or zero-value fallback is presented as valid data.")
+        return
+    left, right = st.columns(2)
+    with left:
+        st.markdown("#### Approved knowledge")
+        try:
+            records = store.list_knowledge(status="approved", limit=20)
+            if not records:
+                st.info("No approved knowledge records yet.")
+            for record in records:
+                with st.expander(record["title"]):
+                    st.caption(f'{record["category"]} · {record["created_by"]} · {record["content_sha256"][:12]}')
+                    st.write(record["body"])
+                    if record.get("source_url"):
+                        st.markdown(f'[Open source]({record["source_url"]})')
+        except Exception as exc:
+            st.error(f"Knowledge query failed: {type(exc).__name__}: {exc}")
+    with right:
+        st.markdown("#### Recent meeting events")
+        try:
+            events = store.list_meeting_events(limit=20)
+            if not events:
+                st.info("No meeting events recorded yet.")
+            for event in events:
+                with st.expander(f'{event["kind"].upper()} · {event["title"]}'):
+                    st.caption(f'{event["meeting_id"]} · {event["actor"]} · {event["event_id"]}')
+                    st.write(event["body"])
+            if events:
+                st.caption("Append-only hash chain: " + ("verified" if store.verify_meeting_chain() else "verification failed"))
+        except Exception as exc:
+            st.error(f"Meeting journal query failed: {type(exc).__name__}: {exc}")
+    st.info("This first increment is read-only in the interface. Shared-database deployment, access control and backup/restore validation are separate release gates.")
+
 def render_tia():
     _header()
-    selected=st.segmented_control("TIA sections",["Command Center","Geometric Intelligence","Trading Interface","Seven Agents","TIA Meeting Room","Roadmap"],default="Command Center",key="tia_section",label_visibility="collapsed")
+    selected=st.segmented_control("TIA sections",["Command Center","Geometric Intelligence","Trading Interface","Seven Agents","TIA Meeting Room","Knowledge & Decisions","Roadmap"],default="Command Center",key="tia_section",label_visibility="collapsed")
     if selected=="Command Center": _overview()
     elif selected=="Geometric Intelligence": _geometry()
     elif selected=="Trading Interface": _market()
     elif selected=="Seven Agents": _agents()
     elif selected=="TIA Meeting Room": _meeting_room()
+    elif selected=="Knowledge & Decisions": _knowledge_room()
     else:
         st.subheader("TIA implementation roadmap")
         for i,step in enumerate(["Lock approved brand asset and charter.","Preserve navigation and existing page IDs.","Define source/time/unit/coverage data contracts.","Build five geometry systems.","Integrate chart, order-flow, heatmap and portfolio modules.","Add orchestration and decision trail.","Validate tests and desktop/mobile rendering."],1):

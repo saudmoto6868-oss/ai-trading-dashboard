@@ -79,3 +79,21 @@ def test_losing_manual_exit_not_counted_as_stop(policy):
                          entry=100, stop=99, target=103, proposed_risk=25,
                          proposed_asset_class="crypto")
     assert a.allowed
+
+
+
+def test_asset_class_open_risk_cap_blocks_concentration(spec):
+    policy = RiskPolicy("test", "1", 0.5, 2.0, 1.0, 3, 2.0,
+                        max_asset_class_open_risk_pct=0.6)
+    p = Position("p1", "XAUUSD", "metals", "long", 5, 2000, 1990, 2000, spec)
+    snap = RiskSnapshot(10000, 0, 0, 0, (p,))
+    result = assess_new_trade(policy=policy, snapshot=snap, symbol="XAGUSD", side="long",
+        entry=30, stop=29, target=33, proposed_risk=20, proposed_asset_class="metals")
+    assert not result.allowed
+    assert any("asset-class cap" in reason for reason in result.reasons)
+
+
+def test_asset_class_cap_cannot_exceed_portfolio_cap():
+    with pytest.raises(ValueError, match="cannot exceed portfolio"):
+        RiskPolicy("test", "1", 0.25, 2.0, 1.0, 3, 2.0,
+                   max_asset_class_open_risk_pct=1.1)

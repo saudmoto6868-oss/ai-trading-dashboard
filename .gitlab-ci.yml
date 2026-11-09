@@ -10,7 +10,7 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
-    - if: $CI_PIPELINE_SOURCE == "api" && $RUN_OF_BT == "1"
+    - if: $CI_PIPELINE_SOURCE == "api"
 
 default:
   image: python:3.12-slim
@@ -23,7 +23,7 @@ telegram_alerts:
   stage: test
   timeout: 15m
   rules:
-    - if: $RUN_OF_BT == "1"
+    - if: $RUN_OF_BT == "1" || $CI_PIPELINE_SOURCE == "api"
       when: never
     - when: on_success
   resource_group: telegram-alerts        # one run at a time
@@ -62,7 +62,7 @@ of_setups_bt:
   stage: test
   timeout: 60m
   rules:
-    - if: $RUN_OF_BT == "1"
+    - if: $RUN_OF_BT == "1" || $CI_PIPELINE_SOURCE == "api"
   cache:
     - key: pip-312
       paths:

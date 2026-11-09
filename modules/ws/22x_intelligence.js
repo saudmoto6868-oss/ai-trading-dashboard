@@ -19,7 +19,7 @@ Panel.prototype.build_intel = function(){
     ["setups",L("Setups","الفرص")],["indicators",L("Indicators","المؤشرات")]
   ];
   const open = type => { const p=Ws.panels.find(x=>x.type===type && x.state.sym===S.sym); if(p){p.front();return p;} Ws.add(type); const n=Ws.panels[Ws.panels.length-1]; if(n.setSymbol)n.setSymbol(S.sym); return n; };
-  const enableFootprint = () => { let c=Ws.panels.find(x=>x.type==="chart" && x.state.sym===S.sym); if(!c){ Ws.add("chart"); c=Ws.panels[Ws.panels.length-1]; if(c.setSymbol)c.setSymbol(S.sym); } if(!c || !c.chart) return; c.state.tf=S.tf||c.state.tf||"5m"; c.state.fp=true; c.chart.fpOn=true; c.chart.draw(); Ws.save(); c.front(); if(c.resub)c.resub(); };
+  const enableFootprint = () => { let c=Ws.panels.find(x=>x.type==="chart" && x.state.sym===S.sym); if(!c){ Ws.add("chart"); c=Ws.panels[Ws.panels.length-1]; if(c.setSymbol)c.setSymbol(S.sym); } if(!c || !c.chart) return; const tf=S.tf||c.state.tf||"5m"; if(c.setTf) c.setTf(tf); const fp=(c.indItems||[]).find(it=>it&&it.id==="fp"); if(fp&&fp.set) fp.set(true); else { c.state.fp=true; c.chart.fpOn=true; if(c.chart.fpFill)c.chart.fpFill(); } c.chart.draw(); Ws.save(); c.front(); };
   const tile=(name,value,note)=>"<div style='padding:9px;border:1px solid #2b3139;border-radius:6px;min-width:0'><div class='m' style='font-size:10px'>"+name+"</div><b style='font-size:16px'>"+value+"</b><div class='m' style='font-size:10px'>"+note+"</div></div>";
   const render=()=>{
     P.ttl.textContent=L("XPIX Intelligence","XPIX Intelligence")+" · "+S.sym;

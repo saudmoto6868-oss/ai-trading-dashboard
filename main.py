@@ -1763,6 +1763,51 @@ def _office_options():
         lines.append(_ot("IV structure: ", "هيكل الـ IV: ") + (_ot("inverted (near expiries cost more than far ones): the market is tense in the short term.", "مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير.") if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
                                        _ot("normal (far expiries cost more): relative calm.", "طبيعي (البعيد أغلى): هدوء نسبي.") if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else _ot("flat.", "مسطح.")))
     st.markdown(f"<div class='xo-card' dir='{'rtl' if _oa else 'ltr'}' style='line-height:24px'><b>" + _ot("Reading of the nearest expiry (context, not a signal)", "قراءة أقرب استحقاق (سياق مش إشارة)") + "</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
+    # GEX (gamma exposure) from the same book: call wall, put wall, gamma flip (modules/gex.py). Naive dealer sign; context, not a signal.
+    def _gex_block(chain, spot, mult, title, days):
+        from modules import gex as GX
+        _td = _pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+        gx, tb = GX.levels(chain, spot, _td, max_days=days, mult=mult), GX.by_strike(chain, spot, _td, max_days=days, mult=mult)
+        if not gx["n_contracts"]:
+            st.info(L("No open interest to compute GEX."))
+            return
+        f = lambda v: f"{v:,.0f}" if v else "-"
+        st.markdown("<div class='xo-row'>" + U.indicators(title, [
+            (L("Call wall"), f(gx["call_wall"]), L("strike with the most call gamma"), None),
+            (L("Put wall"), f(gx["put_wall"]), L("strike with the most put gamma"), None),
+            (L("Gamma flip"), f(gx["gamma_flip"]), L("total GEX changes sign near here"), None),
+            (L("Net GEX per 1% move"), f"${gx['net_gex'] / 1e6:,.1f}M", L("positive = moves dampened, negative = moves can extend"), "warn" if gx["net_gex"] < 0 else None)]) + "</div>", unsafe_allow_html=True)
+        nb = tb[(tb.index >= spot * 0.8) & (tb.index <= spot * 1.2)].reset_index()
+        if len(nb):
+            nb["side"] = nb["net_gex"].map(lambda v: "+" if v >= 0 else "-")
+            bars = alt.Chart(nb).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("net_gex:Q", title="GEX $ / 1%"),
+                                                   color=alt.Color("side:N", scale=alt.Scale(domain=["+", "-"], range=["#e3a857", "#b8574a"]), legend=None), tooltip=["strike", "call_gex", "put_gex", "net_gex"])
+            marks = [alt.Chart(_pd.DataFrame({"x": [spot]})).mark_rule(color="#eaecef", strokeDash=[6, 4]).encode(x="x:Q")]
+            if gx["gamma_flip"]:
+                marks.append(alt.Chart(_pd.DataFrame({"x": [gx["gamma_flip"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q"))
+            ch_ = bars
+            for m_ in marks:
+                ch_ = ch_ + m_
+            st.altair_chart(ch_.properties(height=220), use_container_width=True)
+            st.caption(L("Gold = positive GEX, rust = negative; white dashed = spot, purple dotted = gamma flip."))
+        st.caption(L("GEX assumes dealers are long the calls and short the puts the public holds; public data cannot confirm who is long or short, and providers disagree. Context, not a trade signal."))
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Gamma exposure (GEX)'))}</div>", unsafe_allow_html=True)
+    try:
+        _gex_block(OD.gex_chain(rows), s["spot"], 1, f"GEX · {cur} · " + L("expiries up to 45 days"), 45)
+    except Exception as _e:
+        st.warning(f"GEX: {type(_e).__name__}: {_e}")
+    with st.expander(L("GEX for a US index / stock (Cboe, 15 min delayed)")):
+        _us = (st.text_input(L("Symbol"), value="SPX", key="od_gex_us") or "SPX").strip().upper()
+        if st.button(L("Load"), key="od_gex_us_go"):
+            try:
+                from modules import cboe_options as CB
+                _px, _chain = CB.fetch(_us)
+                if not _px:
+                    st.warning(L("Cboe sent no underlying price."))
+                else:
+                    _gex_block(_chain, float(_px), 100, f"GEX · {_us} · Cboe · " + L("expiries up to 30 days"), 30)
+            except Exception as _e:
+                st.warning(f"Cboe: {type(_e).__name__}: {_e}")
     st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 

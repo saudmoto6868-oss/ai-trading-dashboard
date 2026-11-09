@@ -133,7 +133,7 @@ def school_weights(entries, graded: dict, min_n: int = 10, shrink_n: int = 20, l
     return out
 
 
-def review_text(entries, graded: dict, day: str | None = None, ar: bool = True) -> str:
+def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, agents: str = "") -> str:
     """The daily review message: how the last graded ideas did, per school, with the n<30 warning."""
     import html
     esc = html.escape
@@ -145,5 +145,7 @@ def review_text(entries, graded: dict, day: str | None = None, ar: bool = True) 
     rows = sorted(st["school"].items(), key=lambda kv: -kv[1]["n"])[:6]
     for name, r in rows:
         lines.append(f"• {esc(name)}: n={r['n']} · {r['avg_r']:+.2f}R · {r['win']}%" + ("" if r["evidence"] else (" · ⚠ مش دليل (n<30)" if ar else " · ⚠ not evidence (n<30)")))
+    if agents:
+        lines.append("\n" + agents)
     lines.append("\n<i>R قبل التكاليف. المخ بيسجّل ويقيّم ويقترح بس؛ أي ترقية بتعدي على اللاب الأسبوعي.</i>" if ar else "\n<i>R before costs. The brain logs, grades and suggests only; any promotion goes through the weekly lab.</i>")
     return "\n".join(lines)[:3900]

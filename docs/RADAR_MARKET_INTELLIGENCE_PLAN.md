@@ -168,3 +168,43 @@ Validation status:
 - GitLab CI pipeline creation was blocked by GitLab identity verification requirement; no successful pipeline is claimed.
 - The branch is not merged into main.
 - Before merge: run compile/import checks, existing test suite, Radar smoke test, news feed fetch test, and verify agent room does not add duplicate market data requests.
+
+
+## Agent autonomy and command delegation — owner request (2026-11-09)
+
+Product direction: each specialist can receive direct work orders, work independently within a declared scope, ask another agent for help, and report progress to the owner. The owner can also assign one task to the coordinator for routing. A task must have an owner, objective, inputs, allowed tools, deadline/monitor condition when relevant, status, evidence, and completion report.
+
+### Autonomy tiers
+1. **Read / analyse (default):** read market data, charts, news, order flow and research; create analysis, comparisons and candidate setups.
+2. **Research / prepare:** gather public information, draft reports, prepare code changes or alerts; no external side effect without permission.
+3. **Operate internal workspace:** create/update task records, dashboards, watchlists, notes and local research artifacts within the user's granted scope.
+4. **External actions:** send messages, publish, deploy, merge code, alter accounts, or call external services. Require a clear, action-specific user approval and an auditable receipt.
+5. **Broker / live trading:** agents may monitor and prepare a complete order ticket, but a live order requires a separate explicit confirmation for that exact symbol, side, quantity, order type, entry, stop, targets, and account. No blanket 'do anything' permission. Enforce hard risk limits, stale-data checks, duplicate-order protection, a kill switch, and broker-side reconciliation. No withdrawals or transfers.
+
+### Execution state machine
+draft -> queued -> running -> needs_approval -> approved -> executing -> completed | failed | cancelled
+A task can also be blocked when required data, connector, credentials, or permissions are missing. Every transition records who/what changed it, timestamp, tool, arguments summary (never secrets), result, and evidence. Long-running monitoring tasks need an explicit stop condition / expiry and pause/cancel controls.
+
+### Delegation rules
+- One primary owner per task; helper agents can be added as collaborators without changing accountability.
+- The coordinator decomposes broad requests into sub-tasks and routes each to the matching specialist.
+- Agents can ask each other questions and pass structured evidence; no agent may silently change another agent's mandate or permissions.
+- The agent reports: what I was asked, what I did, what I found, what remains, what needs owner approval.
+- The terminal is a real event stream, not a scripted animation. It shows queued / started / tool call / result / review / approval / completion events.
+
+### First UI increment in this branch
+- Added an optional Agent Task Desk under the Radar Agent Control Room: free-text command, direct specialist assignment or simple coordinator routing, task type, one-off/ongoing flag, queue and task log.
+- High-impact commands are flagged as requiring approval in the UI.
+- **This is currently an intake/queue prototype only.** Tasks live in Streamlit session state and are not persisted across sessions; no background worker, LLM task executor, cross-agent message bus, DOM live connector, broker adapter, or actual approval-to-execution path is connected. The UI explicitly states that queueing is not execution.
+- The keyword-based routing and high-impact detection are convenience hints, not a security boundary. Real authorization must be enforced server-side by a capability/permission service, not by UI logic.
+
+### Required next engineering milestones
+A. Persistent task store + event log (SQLite/Postgres) and task API; idempotency keys, ownership, expiry, pause/cancel.
+B. Agent runtime adapter: each agent gets scoped tools and context; supports long-running jobs, checkpoints, retries and cancellation.
+C. Inter-agent message bus with typed messages and evidence references.
+D. Permission broker: allowlisted tools/actions, per-agent scopes, human approval tokens, immutable audit log; enforce on server.
+E. Live data adapters: synchronized chart, trades, DOM/order book, funding/OI, macro/news; source, venue, freshness and coverage on every event.
+F. Broker adapter in paper-trading mode first; then limited live mode only after explicit order-level approval, risk engine checks, account reconciliation and emergency kill switch.
+G. CI and tests: task lifecycle, permission bypass attempts, duplicate order prevention, stale data, retries, cancellation, audit completeness, and mobile/desktop UX.
+
+No milestone should be described as autonomous execution until a real worker and scoped tools have run an end-to-end task and its audit trail has been verified.

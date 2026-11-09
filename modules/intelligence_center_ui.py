@@ -120,11 +120,27 @@ def render() -> None:
         snap = build_command_snapshot()
         hub = snap.get("research_hub") or {}
         st.caption("قراءة فقط من snapshots التي تنشرها وحدات Research Hub؛ لا يتم تشغيل أو تعديل الوحدات من هنا.")
+        # Provenance comes from the documented Research Hub audit, not from the
+        # presence of a snapshot alone. Mock-only outputs must never look empirical.
+        provenance = {
+            "truth": "REAL LAB DATA",
+            "plateau": "REAL MARKET DATA · METHOD PROBE",
+            "regime": "REAL MARKET DATA · DESCRIPTIVE",
+            "trail": "MOCK ONLY · awaiting real signal_log",
+            "decay": "MOCK ONLY · awaiting real signal_log",
+            "consensus": "REAL LAB DATA · descriptive caveats",
+            "funnel": "REAL LAB DATA · Chain-only coverage caveat",
+        }
         if not hub:
             st.warning("لا توجد snapshots متاحة حاليًا.")
         for key, item in hub.items():
-            with st.expander(f"{key} · {item.get('n_trials', 0)} trials"):
+            source_label = provenance.get(key, "PROVENANCE NOT DOCUMENTED")
+            with st.expander(f"{key} · {source_label} · {item.get('n_trials', 0)} trials"):
                 st.write(f"Last published: {item.get('asof') or '—'}")
+                if source_label.startswith("MOCK ONLY"):
+                    st.warning("هذه النتائج تجريبية مصطنعة وليست قياسًا على إشارات تداول حقيقية؛ لا تستخدم كدليل أداء.")
+                elif source_label == "PROVENANCE NOT DOCUMENTED":
+                    st.warning("مصدر هذه اللقطة غير موثق في سجل التدقيق؛ لا تعاملها كدليل تجريبي.")
                 findings = item.get("findings") or []
                 if findings:
                     for finding in findings:
@@ -243,8 +259,6 @@ def render() -> None:
                                               "official_board_written": False},
                                 )
                                 st.rerun()
-        else:
-            st.caption("No task proposals yet.")
         else:
             st.caption("No task proposals yet.")
         st.markdown(f"#### History · {len(entries)} latest entries")

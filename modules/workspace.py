@@ -169,8 +169,14 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
         status.append("World feeds failed: " + ", ".join(str(e) for e in world_errs[:6]))
+    try:
+        from modules.academy_intelligence import workspace_snapshot
+        academy = workspace_snapshot()
+    except Exception:
+        academy = []
     cfg = {
         "symbols": list(symbols),
+        "academy": academy,
         "feedStatus": status,
         "news": [
             {

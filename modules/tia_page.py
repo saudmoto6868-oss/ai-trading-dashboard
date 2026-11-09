@@ -1,8 +1,41 @@
 """TIA — Trade Intelligence Agency terminal."""
 from __future__ import annotations
 import streamlit as st
+from modules.cmc import fetch_cmc
+from modules.fred_feed import snapshot as fetch_fred_snapshot
+from modules.tia_integrations import cmc_evidence, fred_evidence
 
 GOLD = "#D6AD62"
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _load_provider_evidence():
+    """Reuse existing providers; cache to respect provider limits and avoid duplicate feeds."""
+    evidence = []
+    try:
+        evidence.extend(fred_evidence(fetch_fred_snapshot()))
+    except Exception:
+        pass
+    try:
+        evidence.extend(cmc_evidence(fetch_cmc()))
+    except Exception:
+        pass
+    return evidence
+
+
+def _evidence_panel():
+    st.markdown("### Verified provider snapshots")
+    st.caption("Values below are populated only when the existing provider returns a real observation. Missing credentials or missing fields remain unavailable.")
+    evidence = _load_provider_evidence()
+    if not evidence:
+        st.info("No provider-backed TIA snapshots are currently available. Configure the existing FRED_API_KEY and/or CMC_API_KEY in Streamlit Secrets; no placeholder values are shown.")
+        return
+    for item in evidence:
+        label = item.metric_id.replace(".", " · ").replace("_", " ").title()
+        st.metric(label, f"{item.value:,.2f} {item.unit}")
+        st.caption(f"Source: {item.source} · Observed: {item.observed_at} · Coverage: {item.coverage} · Quality: {item.quality.value}")
+        if item.notes:
+            st.caption(item.notes)
+
 
 def _header():
     st.markdown("""<style>
@@ -25,6 +58,7 @@ def _overview():
     for col,label,value,help_text in [(cols[0],"Markets monitored","—","Existing Radar universe"),(cols[1],"Qualified opportunities","—","Evidence required"),(cols[2],"Active research tracks","7","Seven coordinated functions"),(cols[3],"Portfolio risk","—","Verified portfolio data required")]:
         col.metric(label,value,help=help_text)
     st.info("TIA is an institutional layer. XPIX, Radar, Technical Office and Workspace remain authoritative source systems.")
+    _evidence_panel()
     a,b,c=st.columns(3)
     with a:
         _card("Market Intelligence","Macro events, news catalysts, sessions and cross-asset context.")
@@ -84,6 +118,8 @@ def _meeting_room():
       "Motion transforms particles and surrounding fields, not the approved letter geometry."]:
         st.markdown("- "+item)
     st.divider()
+    st.markdown("### Locked master reference")
+    st.markdown("The inspected owner-approved master is recorded in [TIA Asset Manifest](../blob/main/docs/TIA_ASSET_MANIFEST.md). Its Library original is hash-identified; binary repository storage is still pending.")
     st.markdown("### Archive record")
     for title,desc in [
       ("01 · Approved identity","Locked logo, wordmark proportions, 6868 signature and usage rules."),
@@ -96,7 +132,8 @@ def _meeting_room():
     st.markdown("### Reference links")
     st.markdown("- [TIA identity and motion reference folder](https://drive.google.com/drive/folders/1L1QNx2ZNAGk5kBKfQf2sBUJzvcDUdDAz)")
     st.markdown("- [Threads motion reference — Morphiq](https://www.threads.com/@alvarodiazds_/post/DfcYGnQTRVW)")
-    st.markdown("- Repository archive: docs/TIA_MEETING_ROOM.md")
+    st.markdown("- [Repository archive](../blob/main/docs/TIA_MEETING_ROOM.md)")
+    st.markdown("- [Locked identity asset manifest](../blob/main/docs/TIA_ASSET_MANIFEST.md)")
     st.markdown("### Image inventory")
     st.caption("The repository archive records filenames and provenance. Binary copies of every original image are not yet verified in this branch.")
     st.markdown("Identity boards: a_detailed_polished_branding_identity_system_bo.png; a_cohesive_brand_identity_moodboard_in_a_dark_char.png; a_sleek_high_end_dark_ui_moodboard_composition_wi.png.")

@@ -111,7 +111,7 @@ def scan(symbols, fetch, horizons=ALL, min_grade: str = "A", calm: dict | None =
 
 
 def sizing(p: dict, equity: float | None = None) -> dict | None:
-    """Position size for a plan with the desk's risk rule (modules/desk_risk.py: 0.5 % of equity per trade, owner 2026-11-09).
+    """Position size under the shared desk policy: 0.25% base; 0.50% only for validated A+ with >=30 OOS trades.
     Equity = env / secret DESK_EQUITY (default 10 000). Units = the instrument's price units (spot coins, perp contracts in USD);
     futures with a point value other than 1 need their own multiplier. None when the plan has no usable stop."""
     from modules import desk_risk as DR

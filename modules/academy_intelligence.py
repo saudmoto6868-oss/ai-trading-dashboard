@@ -10,6 +10,7 @@ import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,16 @@ def _execute(db, sql: str, args=()):
     return db.execute(sql.replace("?", "%s"), args)
 
 
+@contextmanager
+def db_session(path: str | Path | None = None):
+    db = connect(path)
+    try:
+        with db:
+            yield db
+    finally:
+        db.close()
+
+
 def initialize(path: str | Path | None = None) -> None:
     statements = [
         """CREATE TABLE IF NOT EXISTS knowledge_records (
@@ -70,7 +81,7 @@ def initialize(path: str | Path | None = None) -> None:
         "CREATE INDEX IF NOT EXISTS idx_knowledge_status ON knowledge_records(status)",
         "CREATE INDEX IF NOT EXISTS idx_knowledge_asset_tf ON knowledge_records(asset, timeframe)",
     ]
-    with connect(path) as db:
+    with db_session(path) as db:
         for statement in statements:
             _execute(db, statement)
 

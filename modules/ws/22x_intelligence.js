@@ -18,7 +18,8 @@ Panel.prototype.build_intel = function(){
     ["liquidity",L("Liquidity","السيولة")],["auction",L("Auction / Volume","المزاد والحجم")],
     ["setups",L("Setups","الفرص")],["indicators",L("Indicators","المؤشرات")]
   ];
-  const open = type => { const p=Ws.panels.find(x=>x.type===type && x.state.sym===S.sym); if(p){p.front();return;} Ws.add(type); const n=Ws.panels[Ws.panels.length-1]; if(n.setSymbol)n.setSymbol(S.sym); };
+  const open = type => { const p=Ws.panels.find(x=>x.type===type && x.state.sym===S.sym); if(p){p.front();return p;} Ws.add(type); const n=Ws.panels[Ws.panels.length-1]; if(n.setSymbol)n.setSymbol(S.sym); return n; };
+  const enableFootprint = () => { let c=Ws.panels.find(x=>x.type==="chart" && x.state.sym===S.sym); if(!c){ Ws.add("chart"); c=Ws.panels[Ws.panels.length-1]; if(c.setSymbol)c.setSymbol(S.sym); } if(!c || !c.chart) return; c.state.tf=S.tf||c.state.tf||"5m"; c.state.fp=true; c.chart.fpOn=true; c.chart.draw(); Ws.save(); c.front(); if(c.resub)c.resub(); };
   const tile=(name,value,note)=>"<div style='padding:9px;border:1px solid #2b3139;border-radius:6px;min-width:0'><div class='m' style='font-size:10px'>"+name+"</div><b style='font-size:16px'>"+value+"</b><div class='m' style='font-size:10px'>"+note+"</div></div>";
   const render=()=>{
     P.ttl.textContent=L("XPIX Intelligence","XPIX Intelligence")+" · "+S.sym;
@@ -54,7 +55,7 @@ Panel.prototype.build_intel = function(){
       h+="<div style='margin-top:10px;padding:8px;border:1px solid #2b3139;border-radius:6px'><b>"+L("Data health","حالة البيانات")+"</b><div>"+L("Order book","دفتر الأوامر")+": "+status(goodBook,book)+" · "+age(book)+"</div><div>"+L("Time & Sales","الصفقات")+": "+status(goodTape,tape)+" · "+age(tape)+"</div><div class='m' style='font-size:10px'>"+L("Venue: OKX public feed when this symbol is an OKX instrument. This is not a consolidated/global order book.","المصدر: بيانات OKX العامة لو الرمز متاح عليها. ده مش دفتر أوامر موحد لكل السوق.")+"</div></div>";
       h+="<div style='display:flex;flex-wrap:wrap;gap:6px;margin-top:10px'>"+["ofm","dom","tape","limits","setup","risk"].map(k=>"<button data-open='"+k+"'>"+({ofm:"Heatmap / OFM",dom:"DOM",tape:"Time & Sales",limits:"Limit Tracker",setup:"Setup Card",risk:"Risk Manager"}[k])+"</button>").join("")+"</div>";
     } else if(S.tab==="flow"){
-      h+="<div>"+tile(L("Aggressive buy volume","حجم شراء السوق"),fmt(buy),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Aggressive sell volume","حجم بيع السوق"),fmt(sell),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Net delta","صافي الدلتا"),fmt(delta),L("Positive = buy-led prints; negative = sell-led prints","الموجب شراء أكثر؛ السالب بيع أكثر"))+"</div><button data-open='tape'>"+L("Open full Time & Sales","افتح Time & Sales")+"</button>";
+      h+="<div>"+tile(L("Aggressive buy volume","حجم شراء السوق"),fmt(buy),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Aggressive sell volume","حجم بيع السوق"),fmt(sell),L("Trades in Hub snapshot","الصفقات في لقطة البيانات"))+tile(L("Net delta","صافي الدلتا"),fmt(delta),L("Positive = buy-led prints; negative = sell-led prints","الموجب شراء أكثر؛ السالب بيع أكثر"))+"</div><button data-enable-footprint>"+L("Enable Footprint on linked chart","فعّل Footprint على الشارت المرتبط")+"</button> <button data-open='tape'>"+L("Open full Time & Sales","افتح Time & Sales")+"</button>";
     } else if(S.tab==="liquidity"){
       h+="<div>"+tile(L("Bid liquidity · top 10","سيولة الطلب · أفضل 10"),fmt(bq),L("Displayed size only","حجم معروض فقط"))+tile(L("Ask liquidity · top 10","سيولة العرض · أفضل 10"),fmt(aq),L("Displayed size only","حجم معروض فقط"))+"</div><button data-open='ofm'>"+L("Open Liquidity Heatmap","افتح خريطة السيولة")+"</button> <button data-open='dom'>DOM</button> <button data-open='limits'>"+L("Limit Tracker","تتبع الأوامر")+"</button>";
     } else if(S.tab==="auction"){h+="<button data-open='chart'>"+L("Open linked chart + Volume Profile","افتح الشارت المرتبط والـVolume Profile")+"</button> <button data-open='valuelv'>"+L("Multi-timeframe value levels","مستويات القيمة على فريمات متعددة")+"</button>";}
@@ -62,6 +63,7 @@ Panel.prototype.build_intel = function(){
     else {h+="<button data-open='chart'>"+L("Open chart indicators","افتح مؤشرات الشارت")+"</button><div class='m' style='margin-top:8px'>"+L("Indicator selection will be expanded after the chart indicator registry and saved settings are mapped into this panel.","هنوسع اختيار المؤشرات بعد ربط سجل مؤشرات الشارت وإعداداتها المحفوظة بالويدجت.")+"</div>";}
     content.innerHTML=h;
     content.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>open(b.dataset.open));
+    content.querySelectorAll("[data-enable-footprint]").forEach(b=>b.onclick=enableFootprint);
   };
   P.setSymbol = next => {S.sym=next;if(symSel.value!==next)symSel.value=next;P.setTitle();Ws.save();P.resub();};
   symSel.onchange=()=>{S.sym=symSel.value;P.setTitle();Ws.save();P.resub();};

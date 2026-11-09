@@ -56,3 +56,17 @@
 - لم يتم تعديل كود Workspace حتى الآن.
 - لم تُشغّل اختبارات أو Workflows.
 - لا يوجد Merge أو Deploy.
+
+
+## توضيح المالك — أولوية المنتج
+- المطلوب الأساسي منصة تحليل سوق مستقلة بجوار الشارت، وليست Chatbot. الـAI/Voice اقتراح ثانوي اختياري؛ الأولوية للأدوات والقراءة والـSetups والتنبيهات المفسرة.
+- يختار المستخدم الرمز ويربطه بالشارت، ويشاهد Heatmap وDOM وTime & Sales وFootprint وAuction/Volume Profile في مساحة مستقلة.
+- إضافة قسم Indicators لاختيار مؤشرات الشارت الموجودة، مع اعتبارها سياقًا مساعدًا.
+- محرك الفرص يرتب Setup 1/2/3 ويشرح الأدلة والتعارضات، ثم لا يصدر BUY/SELL إلا بعد تحقق trigger/invalidation/stop/targets/data quality. غير ذلك WAIT/NO TRADE.
+- التنبيه المطلوب مرتبط بالشارت ويعرض منطقة الدخول والاتجاه والهدف والستوب وسبب النظرية/القواعد، مع شرح عربي ظاهر لكل أداة ومصطلح.
+
+## تنفيذ أولي على الفرع
+- أضيف modules/ws/22x_intelligence.js كلوحة أولية تقرأ Hub book/trades المشتركين وتعرض mid/delta/top-10 liquidity/data status، وتفتح الأدوات الموجودة من اختصارات داخلية.
+- أضيفت اللوحة لقائمة Widgets في modules/ws/26_snap.js ولقائمة الإضافة السياقية في modules/ws/24_flow_confluence_misc.js، وأضيف اسمها في modules/ws/11_i18n_helpers_themes.js.
+- هذه ليست بعد نسخة مكتملة: لم يتم دمج Footprint renderer داخلها، ولا Auction Profile أو indicator registry أو setup ranking engine أو chart alert annotations.
+- محاولة تشغيل GitLab CI رُفضت من GitLab برسالة Identity verification required؛ لذلك لا توجد نتيجة اختبارات CI حتى الآن. لم يتم merge أو deploy.

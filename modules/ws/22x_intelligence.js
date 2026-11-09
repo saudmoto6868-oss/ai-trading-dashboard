@@ -5,12 +5,12 @@ Panel.prototype.build_intel = function(){
   const P = this, S = this.state, ar = lang === "ar", L = (en, aa) => ar ? aa : en;
   S.sym = S.sym || SYMS[0]; S.tab = S.tab || "overview";
   P.ttl.textContent = L("XPIX Intelligence","XPIX Intelligence") + " · " + S.sym;
-  const bar = el("div","tb"), sym = P.symSelect(), tf = el("select"), tabs = el("div","seg");
+  const bar = el("div","tb"), symSel = P.symSelect(), tf = el("select"), tabs = el("div","seg");
   [["1m","1m"],["5m","5m"],["15m","15m"],["1H","1H"],["4H","4H"]].forEach(([v,l]) => tf.append(Object.assign(el("option"),{value:v,textContent:l})));
   tf.value = S.tf || "5m"; tf.onchange = () => { S.tf=tf.value; Ws.save(); render(); };
   const link = el("button",null,L("Link chart","ربط بالشارت")); link.title=L("Use this symbol on the chart","استخدم نفس الرمز على الشارت");
   link.onclick=()=>{ const c=Ws.panels.find(x=>x.type==="chart"); if(c) Ws.broadcast(c,S.sym); else { Ws.add("chart"); const n=Ws.panels[Ws.panels.length-1]; n.setSymbol(S.sym); } };
-  bar.append(sym,tf,link); P.body.append(bar,tabs);
+  bar.append(symSel,tf,link); P.body.append(bar,tabs);
   const content=el("div"); content.style.cssText="overflow:auto;min-height:0;flex:1;padding:8px";
   P.body.append(content); P.body.style.display="flex"; P.body.style.flexDirection="column";
   const definitions=[
@@ -60,8 +60,8 @@ Panel.prototype.build_intel = function(){
     content.innerHTML=h;
     content.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>open(b.dataset.open));
   };
-  P.setSymbol = sym => {S.sym=sym;P.setTitle();sym.value=sym;Ws.save();render();};
-  const oldSelect=sym.onchange; sym.onchange=()=>{S.sym=sym.value;P.setTitle();Ws.save();render();};
+  P.setSymbol = next => {S.sym=next;if(symSel.value!==next)symSel.value=next;P.setTitle();Ws.save();P.resub();};
+  symSel.onchange=()=>{S.sym=symSel.value;P.setTitle();Ws.save();P.resub();};
   P.resub=()=>{P.clearSubs();P.unsubs.push(Hub.sub("book",S.sym,render),Hub.sub("trades",S.sym,render));render();};
   P.destroy=()=>P.clearSubs();
   P.resub(); render();

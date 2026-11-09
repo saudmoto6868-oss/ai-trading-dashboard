@@ -78,7 +78,7 @@ Panel.prototype.build_intel = function(){
     }
     else {
       const chart=Ws.panels.find(x=>x.type==="chart"&&x.state.sym===S.sym), items=chart&&chart.indItems||[];
-      const indRows=items.filter(it=>it&&it.label&&typeof it.get==="function").map(it=>"<tr><td>"+it.label+"</td><td>"+(it.get()?L("ON","مفعّل"):L("OFF","متوقف"))+"</td></tr>").join("");
+      const indRows=items.filter(it=>it&&it.label&&typeof it.get==="function").map(it=>"<tr><td>"+esc(it.label)+"</td><td>"+(it.get()?L("ON","مفعّل"):L("OFF","متوقف"))+"</td></tr>").join("");
       h+="<div class='m' style='font-size:10px;margin-bottom:6px'>"+L("Live status from the existing linked chart indicator registry. Settings and toggles remain owned by the chart.","حالة مباشرة من سجل مؤشرات الشارت المرتبط. الإعدادات والتفعيل يفضلوا تابعين للشارت الأصلي.")+"</div>";
       h+="<div style='overflow:auto'><table class='rdt'><tr><th>"+L("Indicator","المؤشر")+"</th><th>"+L("State","الحالة")+"</th></tr>"+(indRows||"<tr><td colspan='2'>"+L("Open the linked chart to load its indicator registry","افتح الشارت المرتبط لتحميل سجل المؤشرات")+"</td></tr>")+"</table></div>";
       h+="<button data-open='chart'>"+L("Open chart indicator settings","افتح إعدادات مؤشرات الشارت")+"</button>";

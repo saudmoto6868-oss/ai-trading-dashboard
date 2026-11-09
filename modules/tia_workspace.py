@@ -8,15 +8,9 @@ import streamlit.components.v1 as components
 from modules.workspace import build_workspace_html
 
 
-def render_tia_workspace(height: int = 980, universe: str = "Crypto"):
-    if universe == "Crypto":
-        symbols = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]
-        asset_class = "Crypto"
-    else:
-        symbols = ["HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:SP500",
-                   "HL:xyz:XYZ100", "HL:xyz:EUR", "HL:xyz:GBP",
-                   "HL:xyz:CL", "HL:xyz:BRENTOIL", "HL:xyz:JP225"]
-        asset_class = "TradFi"
+def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None):
+    symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
+    asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
                                ui_theme="gold", ui_mat="steel")
 

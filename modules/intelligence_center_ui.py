@@ -142,8 +142,54 @@ def render() -> None:
                 if isinstance(item.get("source_url"), str) and item["source_url"].startswith(("https://", "http://")):
                     st.markdown(f"[Open source]({item['source_url']})")
                 details = item.get("details") or {}
+                source_class_labels = {
+                    "primary": "Primary · original data/research/document",
+                    "secondary": "Secondary · independent analysis/report",
+                    "marketing": "Marketing · vendor promotional material",
+                    "community": "Community · forum/social content",
+                    "internal": "Internal · project notes/logs",
+                    "unknown": "Unknown · not yet classified",
+                }
+                current_class = details.get("source_class", "unknown")
+                st.caption(f"Source class: {source_class_labels.get(current_class, 'Unknown')}")
                 if details:
                     st.json(details)
+                if item.get("status") in {"inbox", "review"}:
+                    st.markdown("#### Owner review")
+                    st.caption("القبول هنا اعتماد تحريري لإدراج المعرفة بالمكتبة فقط؛ لا يرفع Evidence Grade ولا يمنح صلاحية Empirical Validation.")
+                    with st.form(f"tic_review_{item['id']}"):
+                        decision = st.selectbox(
+                            "Decision",
+                            ["accept", "reject", "return_to_review", "archive"],
+                            format_func=lambda value: {
+                                "accept": "Accept into knowledge library",
+                                "reject": "Reject this entry",
+                                "return_to_review": "Return for more review",
+                                "archive": "Archive",
+                            }[value], key=f"tic_review_decision_{item['id']}")
+                        source_class = st.selectbox(
+                            "Source classification",
+                            ["unknown", "primary", "secondary", "marketing", "community", "internal"],
+                            index=["unknown", "primary", "secondary", "marketing", "community", "internal"].index(current_class)
+                            if current_class in {"unknown", "primary", "secondary", "marketing", "community", "internal"} else 0,
+                            format_func=lambda value: source_class_labels[value],
+                            key=f"tic_review_source_{item['id']}")
+                        reason = st.text_area("Reason for decision (required)", key=f"tic_review_reason_{item['id']}")
+                        submitted = st.form_submit_button("Record review decision")
+                    if submitted:
+                        try:
+                            knowledge.review_record(item["id"], decision, reason,
+                                                     source_class=source_class, actor="owner")
+                            st.success("Review decision appended. Evidence grade was not changed.")
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Could not record review: {type(exc).__name__}: {exc}")
+                history = knowledge.list_review_events(item["id"])
+                if history:
+                    with st.expander(f"Review history · {len(history)} event(s)"):
+                        for event in history:
+                            st.write(f"{event['created_at'][:16]} · {event['decision']} · {event['source_class']} · {event['actor']}")
+                            st.caption(event["reason"])
         if not rows:
             st.caption("لا توجد سجلات مطابقة. ستظهر هنا المعرفة بعد فهرستها ومراجعتها.")
 

@@ -1,119 +1,174 @@
-"""TIA — Trade Intelligence Agency terminal."""
+"""TIA interactive single-screen trading intelligence cockpit.
+Existing public market sources only; account data is explicitly not connected.
+"""
 from __future__ import annotations
+from datetime import datetime, timezone
+import pandas as pd
 import streamlit as st
 
-GOLD = "#D6AD62"
 
-def _header():
-    st.markdown("""<style>
-    .tia-hero{background:linear-gradient(115deg,#090909,#17130d 62%,#241a0c);border:1px solid #594522;border-radius:16px;padding:22px 24px;margin:4px 0 16px}
-    .tia-kicker{color:#c9a45e;font-size:11px;letter-spacing:3px;font-weight:700}
-    .tia-title{color:#f0d9a6;font-size:30px;font-weight:750;letter-spacing:5px;margin:4px 0}
-    .tia-sub{color:#bdb19b;font-size:12px;letter-spacing:1.4px}
-    .tia-card{background:#11100e;border:1px solid #3c3222;border-radius:12px;padding:14px 15px;min-height:85px}
-    .tia-card h4{color:#e4c27e;font-size:14px;margin:0 0 7px}
-    .tia-card p{color:#b8b0a1;font-size:12px;margin:0;line-height:1.55}
-    </style><div class="tia-hero"><div class="tia-kicker">6868 · PARENT COMPANY</div><div class="tia-title">TIA</div><div class="tia-sub">TRADE INTELLIGENCE AGENCY · RESEARCH · INTELLIGENCE · DECISION</div></div>""", unsafe_allow_html=True)
+@st.cache_data(ttl=45, show_spinner=False)
+def _flow(asset, cls):
+    from modules.spot_flow import fetch
+    return fetch(asset, cls)
 
-def _card(title, body):
-    st.markdown(f'<div class="tia-card"><h4>{title}</h4><p>{body}</p></div>', unsafe_allow_html=True)
 
-def _overview():
-    st.subheader("Intelligence Command Center")
-    st.caption("Institution-level view. Live values appear only when a verified source is connected.")
-    cols=st.columns(4)
-    for col,label,value,help_text in [(cols[0],"Markets monitored","—","Existing Radar universe"),(cols[1],"Qualified opportunities","—","Evidence required"),(cols[2],"Active research tracks","7","Seven coordinated functions"),(cols[3],"Portfolio risk","—","Verified portfolio data required")]:
-        col.metric(label,value,help=help_text)
-    st.info("TIA is an institutional layer. XPIX, Radar, Technical Office and Workspace remain authoritative source systems.")
-    a,b,c=st.columns(3)
-    with a:
-        _card("Market Intelligence","Macro events, news catalysts, sessions and cross-asset context.")
-        _card("Technical Intelligence","Price Action, SMC/ICT, Gann, Elliott and multi-timeframe structure.")
-    with b:
-        _card("Order Flow & Liquidity","Footprint, Delta, DOM, Time & Sales where feeds permit.")
-        _card("Strategy & Innovation Lab","Research, strategy discovery and indicator development.")
-    with c:
-        _card("Quant Validation & Risk","Backtests, out-of-sample checks, costs and portfolio risk.")
-        _card("Trade Review & Decision","Challenge, ranking, trade plans and human-approved decisions.")
+@st.cache_data(ttl=120, show_spinner=False)
+def _options(currency):
+    from modules.options_desk import fetch, summarize, dvol, iv_rank
+    rows = fetch(currency)
+    out = summarize(rows)
+    history = dvol(currency, 365)
+    out["dvol_history"] = history[-90:]
+    out["dvol_rank"] = iv_rank([x[1] for x in history])
+    return out
 
-def _geometry():
-    st.subheader("Geometric Intelligence")
-    for title,body in [
-        ("Radial Geometry","Central asset with measured relationships to DXY, yields, metals, indices and catalysts."),
-        ("Network Connections","Nodes represent assets, events, strategies or liquidity zones; edges require measured or traceable relationships."),
-        ("Circular Data Systems","Separate rings for strength, sessions, exposure and risk; every ring has units and source."),
-        ("Polygonal Structures","Multi-factor confluence and liquidity geometry; never imply a signal from shape alone."),
-        ("Dynamic Grids","Heatmaps for correlation, volatility, sessions, liquidity and strategy performance.")]:
-        _card(title,body)
-    st.write("Gold-first palette: charcoal/black, champagne, brass and warm gold. Orange/amber is restrained. Motion may use particle assembly, radial expansion, node pulses and grid illumination, but must never distort the locked approved TIA logo.")
 
-def _market():
-    st.subheader("Trading Interface")
-    view=st.segmented_control("Trading modules",["Candlestick & Structure","Volume & Order Flow","Heatmaps","Portfolio Analytics"],default="Candlestick & Structure",key="tia_market_module",label_visibility="collapsed")
-    details={
-      "Candlestick & Structure":"Reuse the existing chart engine. Planned overlays: BOS/CHoCH, swings, FVG/IFVG, order blocks, liquidity sweeps, sessions and HTF levels.",
-      "Volume & Order Flow":"Volume, Delta, Footprint, DOM and Time & Sales. Separate executed trades from resting liquidity and derived estimates.",
-      "Heatmaps":"Liquidity, volume, correlation, volatility, sessions and strategy performance. Every view declares source, timestamp, unit and coverage.",
-      "Portfolio Analytics":"Exposure, correlation clusters, expectancy, profit factor, drawdown, R-multiples and funded-account limits."}
-    st.write(details.get(view,""))
-    st.info("No synthetic live values. Existing XPIX modules remain authoritative until integrations are reviewed and tested.")
+@st.cache_data(ttl=180, show_spinner=False)
+def _news():
+    from modules.news_feed import get_latest_news
+    return get_latest_news("general", 12)
 
-def _agents():
-    st.subheader("Seven specialist functions")
-    for name,detail in [
-      ("01 · Intelligence Director","Orchestration, priorities, evidence standards and final synthesis."),
-      ("02 · Market Intelligence","Macro, news, geopolitics, catalysts, sessions and cross-asset context."),
-      ("03 · Technical Intelligence","Price Action, SMC/ICT, Elliott, Gann and multi-timeframe structure."),
-      ("04 · Order Flow & Liquidity","Footprint, Delta, DOM, Time & Sales and liquidity evidence."),
-      ("05 · Strategy & Innovation Lab","Research, strategy discovery, indicator development and experiments."),
-      ("06 · Quant Validation & Risk","Backtesting, walk-forward, costs, validation and portfolio risk."),
-      ("07 · Trade Review & Decision","Challenge, ranking, trade plans and post-trade learning.")]:
-        _card(name,detail)
-    st.warning("Seven organizational responsibilities, not a requirement for seven isolated model instances.")
 
-def _meeting_room():
-    st.subheader("TIA Meeting Room")
-    st.caption("Dedicated identity archive, source references, decisions, review notes and project files.")
-    st.markdown("### Locked identity rules")
-    for item in [
-      "Use the last owner-approved TIA logo exactly; do not redraw, distort or convert it into a 77 motif.",
-      "TIA dominates; descriptor remains subordinate and no wider than the TIA mark.",
-      "6868 remains contiguous, centered and on the same background.",
-      "Charcoal/black foundation; champagne, brass and warm gold primary; orange/amber restrained.",
-      "Create original patterns inspired by references, never copies of reference artwork.",
-      "Motion transforms particles and surrounding fields, not the approved letter geometry."]:
-        st.markdown("- "+item)
-    st.divider()
-    st.markdown("### Archive record")
-    for title,desc in [
-      ("01 · Approved identity","Locked logo, wordmark proportions, 6868 signature and usage rules."),
-      ("02 · Explorations","Historical logo generations, dark/gold posters, minimal variants and alternate lockups."),
-      ("03 · Moodboards","M7 / 77 boards, gold-first boards, orange/cream boards and dark UI compositions."),
-      ("04 · Motion references","Particle assembly, Morphiq-inspired transitions, topographic contours, dotted meshes and final logo hold."),
-      ("05 · Meeting record","Chronological owner decisions, handoffs, reviews and unresolved approvals."),
-      ("06 · Project files","TIA page shell, foundation charter, meeting archive, meeting notes and whiteboard item.")]:
-        _card(title,desc)
-    st.markdown("### Reference links")
-    st.markdown("- [TIA identity and motion reference folder](https://drive.google.com/drive/folders/1L1QNx2ZNAGk5kBKfQf2sBUJzvcDUdDAz)")
-    st.markdown("- [Threads motion reference — Morphiq](https://www.threads.com/@alvarodiazds_/post/DfcYGnQTRVW)")
-    st.markdown("- Repository archive: docs/TIA_MEETING_ROOM.md")
-    st.markdown("### Image inventory")
-    st.caption("The repository archive records filenames and provenance. Binary copies of every original image are not yet verified in this branch.")
-    st.markdown("Identity boards: a_detailed_polished_branding_identity_system_bo.png; a_cohesive_brand_identity_moodboard_in_a_dark_char.png; a_sleek_high_end_dark_ui_moodboard_composition_wi.png.")
-    st.markdown("M7 boards: M7 Market Intelligence Brand Board.png; M7 Market Intelligence Brand Board(1).png; M7 Market Intelligence Brand System.png; 77% Market Intelligence Brand Board.png.")
-    st.markdown("Logo explorations: tia_trade_intelligence_agency_logo.png; trade_intelligence_agency_global_logo.png; glossy_tia_logo_with_golden_wave.png; luxury_tia_logo_with_golden_wave.png; futuristic_tia_golden_wave_logo.png; futuristic_tia_logo_with_golden_wave.png; futuristic_tia_logo_with_golden_mesh.png; luxury_tia_trade_intelligence_logo.png; luxury_gold_wave_tia_logo_poster.png; minimalist_tia_6868_gold_logo.png.")
-    st.info("The 171 MB screen recording is referenced from its Drive folder; it has not been copied into Git.")
+@st.cache_data(ttl=90, show_spinner=False)
+def _candles(symbol, tf):
+    from modules.market_cache import get_klines
+    return get_klines(symbol, tf, 180)
+
+
+def _fmt(v, digits=2, suffix=""):
+    try:
+        n = float(v)
+        return "—" if pd.isna(n) else f"{n:,.{digits}f}{suffix}"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _metric(col, label, value, help_text=""):
+    col.metric(label, value, help=help_text or None)
+
 
 def render_tia():
-    _header()
-    selected=st.segmented_control("TIA sections",["Command Center","Geometric Intelligence","Trading Interface","Seven Agents","TIA Meeting Room","Roadmap"],default="Command Center",key="tia_section",label_visibility="collapsed")
-    if selected=="Command Center": _overview()
-    elif selected=="Geometric Intelligence": _geometry()
-    elif selected=="Trading Interface": _market()
-    elif selected=="Seven Agents": _agents()
-    elif selected=="TIA Meeting Room": _meeting_room()
-    else:
-        st.subheader("TIA implementation roadmap")
-        for i,step in enumerate(["Lock approved brand asset and charter.","Preserve navigation and existing page IDs.","Define source/time/unit/coverage data contracts.","Build five geometry systems.","Integrate chart, order-flow, heatmap and portfolio modules.","Add orchestration and decision trail.","Validate tests and desktop/mobile rendering."],1):
-            st.markdown(f"**{i}.** {step}")
-        st.caption("No merge, deployment or live order execution is performed by this branch.")
+    st.markdown("""
+    <style>
+    .tia-top{background:linear-gradient(110deg,#080a0d,#17140e 68%,#2a1e0b);border:1px solid #66502a;border-radius:15px;padding:16px 20px;margin:0 0 12px}
+    .tia-k{font-size:10px;letter-spacing:3px;color:#c6a35e;font-weight:700}
+    .tia-h{font-size:27px;letter-spacing:5px;color:#f3dfb5;font-weight:800}
+    .tia-s{font-size:11px;letter-spacing:1.5px;color:#b9ad96}
+    div[data-testid="stMetric"]{background:#111216;border:1px solid #393124;padding:9px 11px;border-radius:10px}
+    div[data-testid="stMetricLabel"]{color:#c5ad7d}
+    </style>
+    <div class="tia-top"><div class="tia-k">TRADE INTELLIGENCE AGENCY · 6868</div>
+    <div class="tia-h">TIA COMMAND COCKPIT</div>
+    <div class="tia-s">MARKET · STRUCTURE · LIQUIDITY · DERIVATIVES · RISK · DECISION</div></div>
+    """, unsafe_allow_html=True)
+
+    # One persistent screen; controls drive every linked panel below.
+    c1,c2,c3,c4=st.columns([1.15,1,1,0.8])
+    universe=c1.selectbox("Market universe",["Crypto","TradFi proxies"],key="tia_universe")
+    symbols=["BTC","ETH","SOL","XRP"] if universe=="Crypto" else ["GOLD","SILVER","SP500","EUR"]
+    asset=c2.selectbox("Focus asset",symbols,key="tia_asset")
+    tf=c3.selectbox("Timeframe",["5m","15m","1h","4h","1d"],index=2,key="tia_tf")
+    if c4.button("↻ Refresh",use_container_width=True,key="tia_refresh"):
+        st.cache_data.clear(); st.rerun()
+    st.caption("Evidence cockpit · "+datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")+" · Selected asset: "+asset)
+
+    flow=_flow(asset,"crypto" if universe=="Crypto" else "metals")
+    tape=flow.get("tape",{}); taker=flow.get("taker",{}); book=flow.get("book",{})
+    deriv=flow.get("deriv",{}); prem=flow.get("premium",{}); vp=flow.get("vp",{})
+    st.subheader("LIVE MARKET KPIs")
+    k=st.columns(6)
+    _metric(k[0],"Aggressor buy share",_fmt(tape.get("buy_share")*100 if tape.get("ok") else None,1,"%"),"Recent executed prints")
+    _metric(k[1],"Taker buy share",_fmt(taker.get("buy_share")*100 if taker.get("ok") else None,1,"%"),"Provider taker history")
+    _metric(k[2],"Book imbalance",_fmt(book.get("imbalance")*100 if book.get("ok") else None,1,"%"),"Venue snapshot, not global depth")
+    _metric(k[3],"Funding",_fmt(deriv.get("funding") if deriv.get("ok") else None,4,"%"),"Perpetual funding")
+    _metric(k[4],"Open interest",_fmt(deriv.get("oi") if deriv.get("ok") else deriv.get("oi_chg_7d") if deriv.get("ok") else None), "Provider units / coverage vary")
+    _metric(k[5],"Coinbase premium",_fmt(prem.get("premium_pct") if prem.get("ok") else None,3,"%"),"BTC / ETH / SOL only")
+    st.caption("Feed: "+str(flow.get("src","unknown"))+" · Missing values stay blank; unavailable is never converted to zero.")
+
+    left,right=st.columns([1.65,1])
+    with left:
+        st.subheader("01 · PRICE ACTION & STRUCTURE")
+        try:
+            sym=asset+"-USDT" if universe=="Crypto" else "HL:xyz:"+asset
+            df=_candles(sym,tf)
+            if df is not None and not df.empty:
+                st.line_chart(df.set_index("time")[["close"]],height=280,use_container_width=True)
+                q=st.columns(3)
+                _metric(q[0],"Last",_fmt(df.iloc[-1]["close"],4))
+                _metric(q[1],"50-bar high",_fmt(df["high"].tail(50).max(),4))
+                _metric(q[2],"50-bar low",_fmt(df["low"].tail(50).min(),4))
+                st.area_chart(df.set_index("time")[["volume"]],height=105,use_container_width=True)
+            else: st.info("No candles returned for this selection.")
+        except Exception as exc: st.warning("Chart feed unavailable: "+type(exc).__name__)
+    with right:
+        st.subheader("02 · ORDER FLOW & LIQUIDITY")
+        if book.get("ok"):
+            st.progress(min(1.0,max(0.0,float(book.get("imbalance",0))*.5+.5)),text="Bid / ask depth balance")
+            st.dataframe(pd.DataFrame([
+                {"Level":"Bid wall","Price":book.get("wall_bid"),"Size":book.get("wall_bid_size")},
+                {"Level":"Ask wall","Price":book.get("wall_ask"),"Size":book.get("wall_ask_size")}]),hide_index=True,use_container_width=True)
+        else: st.info("No order-book snapshot for this instrument.")
+        if tape.get("ok"):
+            st.write(f"Prints **{tape.get('n','—')}** · large buys **{tape.get('big_buy','—')}** · large sells **{tape.get('big_sell','—')}**")
+        if vp.get("ok"):
+            st.write(f"7-day candle volume profile · POC **{_fmt(vp.get('poc'),4)}** · VAL **{_fmt(vp.get('val'),4)}** · VAH **{_fmt(vp.get('vah'),4)}**")
+        st.caption("Volume profile is candle-derived; it is not exchange-native footprint or aggressor delta.")
+
+    st.divider()
+    a,b=st.columns([1.25,1])
+    with a:
+        st.subheader("03 · OPTIONS & VOLATILITY")
+        if universe=="Crypto" and asset in ("BTC","ETH"):
+            try:
+                opt=_options(asset); totals=opt.get("totals",{}); rank=opt.get("dvol_rank") or {}
+                x=st.columns(4)
+                _metric(x[0],"Options OI",_fmt(totals.get("oi"),0))
+                _metric(x[1],"Put / Call OI",_fmt(totals.get("pc_oi")))
+                _metric(x[2],"Options volume",_fmt(totals.get("vol"),0))
+                _metric(x[3],"DVOL rank",_fmt(rank.get("rank"),0,"%"))
+                ex=opt.get("expiries",[])
+                if ex: st.dataframe(pd.DataFrame([{"Expiry":str(z["exp"]),"DTE":z["days"],"P/C OI":z["pc_oi"],"ATM IV":z["iv"],"Max pain":z["max_pain"]} for z in ex[:10]]),hide_index=True,use_container_width=True)
+                if opt.get("dvol_history"): st.line_chart(pd.DataFrame(opt["dvol_history"],columns=["Date","DVOL"]).set_index("Date"),height=130)
+                st.caption("Deribit BTC/ETH only. OI does not reveal dealer inventory or opening/closing intent.")
+            except Exception as exc: st.warning("Options feed unavailable: "+type(exc).__name__)
+        else: st.info("Deribit options panel is available for BTC/ETH only. Cboe US options are separate and delayed.")
+        st.subheader("04 · NEWS & CATALYSTS")
+        try:
+            for item in (_news() or [])[:8]:
+                head=item.get("headline",""); url=item.get("url","")
+                if head:
+                    if url.startswith(("https://","http://")): st.markdown(f"- [{head}]({url}) · {item.get('source','')} · {item.get('datetime','')}")
+                    else: st.markdown(f"- {head} · {item.get('source','')}")
+        except Exception as exc: st.caption("News unavailable: "+type(exc).__name__)
+    with b:
+        st.subheader("05 · PROVIDER HEALTH")
+        rows=[]
+        for label,obj in [("Time & Sales",tape),("Taker volume",taker),("Order book",book),("Derivatives",deriv),("Cross-venue premium",prem),("Volume profile",vp)]:
+            rows.append({"Feed":label,"Status":"AVAILABLE" if obj.get("ok") else "UNAVAILABLE","Detail":"" if obj.get("ok") else obj.get("why","Not supplied")})
+        st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+        st.caption("Provider event timestamps are not yet exposed by the existing order-flow adapter.")
+        st.subheader("06 · ACCOUNT RISK")
+        st.warning("Broker balance, equity, margin, open positions, fills, fees and funding are not connected. Account KPIs are intentionally not fabricated.")
+        _metric(st,"Portfolio exposure","NOT CONNECTED")
+        _metric(st,"Daily loss / open risk","NOT VERIFIED")
+        st.subheader("07 · EVIDENCE SYNTHESIS")
+        evidence=[]
+        for label,obj,key in [("Executed buy share",tape,"buy_share"),("Taker buy share",taker,"buy_share"),("Book imbalance",book,"imbalance")]:
+            if obj.get("ok") and obj.get(key) is not None: evidence.append({"Evidence":label,"Value":_fmt(obj[key],4),"Scope":"Provider / venue specific"})
+        if evidence: st.dataframe(pd.DataFrame(evidence),hide_index=True,use_container_width=True)
+        else: st.info("Insufficient verified directional evidence. No signal issued.")
+        st.caption("No synthetic confidence score. This cockpit does not place orders.")
+
+    st.divider()
+    st.subheader("08 · ALL CONNECTED DATA DOMAINS")
+    st.dataframe(pd.DataFrame([
+        {"Domain":"Crypto spot / derivatives","Provider":"OKX","Coverage":"Trades, book, taker history, OI/funding, L/S accounts"},
+        {"Domain":"TradFi proxy markets","Provider":"Hyperliquid xyz","Coverage":"Oracle-linked perpetuals: metals, FX, indices, selected stocks"},
+        {"Domain":"Crypto options","Provider":"Deribit","Coverage":"BTC/ETH chain, DVOL; dealer direction unknown"},
+        {"Domain":"US options","Provider":"Cboe delayed endpoint","Coverage":"Delayed / unofficial; not live validated"},
+        {"Domain":"News","Provider":"Finnhub / Alpha Vantage / RSS","Coverage":"Headlines; impact attribution not inferred"},
+        {"Domain":"Macro","Provider":"Existing FRED modules","Coverage":"Series depend on module configuration"},
+        {"Domain":"Broker account","Provider":"Not connected","Coverage":"Authenticated adapter and reconciliation required"},
+        {"Domain":"Historical depth","Provider":"Not yet recorded","Coverage":"Sequenced WebSocket capture required; never inferred from OHLCV"},
+    ]),hide_index=True,use_container_width=True)

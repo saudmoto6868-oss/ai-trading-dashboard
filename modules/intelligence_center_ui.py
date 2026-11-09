@@ -18,13 +18,38 @@ def render() -> None:
     from modules import academy_intelligence as knowledge
     from modules import intelligence_meeting as meeting
 
-    st.markdown("## ◈ Trade Intelligence Center")
-    st.caption("6868 Capital · Trade Intelligence Agency | مركز المعرفة والبحث وقرارات المشروع")
-    st.info(
-        "المركز يجمع المعرفة المنشورة، ملخصات البحث، حالة المعمل وسجل الاجتماعات. "
-        "لا يغيّر محركات Radar أو Spot أو Technical Office، ولا يحل محل Lab في اعتماد الأدلة."
-    )
-
+    # Visual identity is scoped to PAGE 13; no specialist page styles are modified.
+    st.markdown("""
+    <style>
+    .tic-shell{background:linear-gradient(135deg,#071321 0%,#0b1c2b 55%,#10283a 100%);
+      border:1px solid #1d4055;border-radius:18px;padding:24px 26px;margin:0 0 18px 0;
+      box-shadow:0 12px 34px rgba(0,0,0,.18);position:relative;overflow:hidden}
+    .tic-shell:after{content:"";position:absolute;width:260px;height:260px;right:-90px;top:-145px;
+      border:1px solid rgba(74,207,213,.18);border-radius:50%;box-shadow:0 0 0 28px rgba(74,207,213,.035),0 0 0 58px rgba(74,207,213,.025)}
+    .tic-eyebrow{font-size:11px;letter-spacing:2.4px;color:#65d5d2;font-weight:800;text-transform:uppercase}
+    .tic-title{font-size:29px;line-height:1.2;font-weight:800;color:#f1f7fb;margin:8px 0 5px}
+    .tic-sub{font-size:13px;color:#9bb4c5;margin:0}
+    .tic-kpi{background:linear-gradient(145deg,#102638,#0b1b29);border:1px solid #234459;
+      border-radius:14px;padding:16px 17px;min-height:112px;position:relative;overflow:hidden}
+    .tic-kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#42c6c9}
+    .tic-kpi-label{font-size:11px;letter-spacing:1.1px;text-transform:uppercase;color:#91aebe;font-weight:700}
+    .tic-kpi-value{font-size:30px;line-height:1.25;color:#f4f8fb;font-weight:800;margin-top:9px}
+    .tic-kpi-foot{font-size:11px;color:#6f91a5;margin-top:3px}
+    .tic-section{font-size:17px;font-weight:750;color:#dceaf2;margin:17px 0 8px}
+    .tic-chip{display:inline-block;border:1px solid #31566a;border-radius:99px;padding:4px 9px;
+      color:#8fd8d7;font-size:10px;letter-spacing:.7px;font-weight:800}
+    div[data-testid="stTabs"] button{font-weight:700}
+    div[data-testid="stTabs"] button[aria-selected="true"]{color:#53d1d0}
+    div[data-testid="stMetric"]{background:#0d2030;border:1px solid #1d3d52;padding:12px;border-radius:12px}
+    @media(prefers-reduced-motion:no-preference){.tic-kpi{transition:transform .18s ease,border-color .18s ease}
+      .tic-kpi:hover{transform:translateY(-2px);border-color:#4abec4}}
+    </style>
+    <section class="tic-shell">
+      <div class="tic-eyebrow">6868 CAPITAL · INTELLIGENCE OPERATIONS</div>
+      <div class="tic-title">Trade Intelligence Center</div>
+      <p class="tic-sub">Knowledge · Research · Evidence · Decisions &nbsp; <span class="tic-chip">PAGE 13</span></p>
+    </section>
+    """, unsafe_allow_html=True)
     overview, library, research, room = st.tabs(
         ["Command Center", "Knowledge", "Research", "Meeting Room"]
     )
@@ -36,15 +61,22 @@ def render() -> None:
         lab = snap.get("lab") or {}
         hub = snap.get("research_hub") or {}
         mtg = snap.get("meeting_room") or {}
-        c = st.columns(4)
-        with c[0]:
-            _metric("Tasks not closed", len(tasks.get("open") or []))
-        with c[1]:
-            _metric("Knowledge records", academy.get("indexed_records", 0))
-        with c[2]:
-            _metric("Legacy lessons", academy.get("legacy_lessons", 0))
-        with c[3]:
-            _metric("Meeting entries", mtg.get("entries", 0))
+        kpis = [
+            ("OPEN WORK", len(tasks.get("open") or []), "Technical Office · read only"),
+            ("KNOWLEDGE", academy.get("indexed_records", 0), "Indexed library records"),
+            ("LEGACY LESSONS", academy.get("legacy_lessons", 0), "Imported reference material"),
+            ("MEETING LOG", mtg.get("entries", 0), "Append-only entries"),
+        ]
+        cards = st.columns(4)
+        for col, (label, value, foot) in zip(cards, kpis):
+            with col:
+                safe_value = value if value not in (None, "") else "—"
+                st.markdown(
+                    f'<div class="tic-kpi"><div class="tic-kpi-label">{label}</div>'
+                    f'<div class="tic-kpi-value">{safe_value}</div>'
+                    f'<div class="tic-kpi-foot">{foot}</div></div>',
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("### Project direction")
         st.write(
@@ -74,6 +106,14 @@ def render() -> None:
             st.caption("الأرقام من ملف المعمل المنشور؛ لا تُفسَّر كضمان ربحية.")
         else:
             st.caption("ملخص المعمل غير متاح حاليًا؛ راجع صفحة Lab الأصلية.")
+        # Compact visual comparison from published snapshots only.
+        if hub:
+            trial_data = {
+                "Research module": list(hub.keys()),
+                "Published trials": [int((item or {}).get("n_trials") or 0) for item in hub.values()],
+            }
+            st.markdown('<div class="tic-section">Research activity · published snapshots</div>', unsafe_allow_html=True)
+            st.bar_chart(trial_data, x="Research module", y="Published trials", horizontal=True)
         st.markdown("### Connected research snapshots")
         if hub:
             for key, item in hub.items():

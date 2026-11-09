@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from modules.tia_risk_engine import InstrumentSpec, _finite
+from modules.tia_risk_engine import InstrumentSpec, Position, _finite
 
 
 @dataclass(frozen=True)
@@ -252,9 +252,13 @@ class RiskLedger:
                 pid = str(payload["position_id"])
                 if not pid or pid in positions:
                     raise ValueError("position_open duplicates an active position_id")
-                spec = payload["spec"]
+                spec = InstrumentSpec(**dict(payload["spec"]))
+                Position(position_id=pid, symbol=str(payload["symbol"]),
+                         asset_class=str(payload["asset_class"]), side=payload["side"],
+                         quantity=payload["quantity"], entry=payload["entry"],
+                         stop=payload["stop"], mark=payload["mark"], spec=spec)
                 positions[pid] = {k: payload[k] for k in required if k != "spec"}
-                positions[pid]["spec"] = dict(spec)
+                positions[pid]["spec"] = dict(payload["spec"])
             elif kind == "position_mark":
                 pid = str(payload.get("position_id", ""))
                 if pid not in positions:

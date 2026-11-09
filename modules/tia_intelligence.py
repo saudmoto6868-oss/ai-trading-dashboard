@@ -152,3 +152,17 @@ def director_report(symbol: str, asset_class: str) -> dict:
                 "score": 0, "director_summary": "Director could not complete analysis.",
                 "warnings": [f"{type(exc).__name__}: {str(exc)[:180]}"], "technical": {}, "flow": {},
                 "sources": {}, "options": None}
+
+
+def symbols_for_class(asset_class: str, top: int = 60) -> dict[str, Any]:
+    """Discover the selected tab's actual symbols without forcing every provider/class to load."""
+    from modules.asset_classes import class_symbols
+    if asset_class == "Options":
+        # The options chain itself is a separate panel; charts use its supported underlyings.
+        return {"symbols": ["BTC-USDT", "ETH-USDT"], "note": "Options chains are shown in the Options Desk; chart symbols are the supported BTC/ETH underlyings.", "kind": "options"}
+    try:
+        syms, note = class_symbols(asset_class, CRYPTO_SEED, top=top, mtype="SPOT", wide=(asset_class == "Crypto"))
+        syms = list(dict.fromkeys(str(x) for x in syms if x))
+        return {"symbols": syms, "note": note or "", "kind": "market"}
+    except Exception as exc:
+        return {"symbols": [], "note": f"{type(exc).__name__}: {str(exc)[:160]}", "kind": "market"}

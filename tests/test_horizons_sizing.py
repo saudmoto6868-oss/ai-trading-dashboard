@@ -1,0 +1,35 @@
+"""Brain plans carry the desk's position size (modules/horizons.py sizing + format_plan). Plain script."""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from modules import horizons as H  # noqa: E402
+
+PLAN = {"symbol": "BTC-USDT", "horizon": "swing", "tf": "4h", "direction": "bullish", "grade": "A+", "entry": 100.0, "stop": 98.0,
+        "tps": [104.0, 106.0], "move_points": 600, "rr1": 2.0, "schools": ["SMC", "ICT", "Elliott", "Classic"],
+        "confluence": {"n": 3, "of": 3}, "exit": {"text_ar": "x", "text_en": "y"}}
+
+
+def test_sizing_half_percent():
+    s = H.sizing(PLAN, equity=10000)
+    assert s["qty"] == 25 and s["risk_amount"] == 50 and s["risk_pct"] == 0.5
+    os.environ["DESK_EQUITY"] = "20000"
+    try:
+        assert H.sizing(PLAN)["qty"] == 50
+    finally:
+        del os.environ["DESK_EQUITY"]
+    assert H.sizing(dict(PLAN, stop=100.0)) is None and H.sizing({"entry": 1}) is None
+    print("ok test_sizing_half_percent")
+
+
+def test_format_plan_shows_size():
+    ar, en = H.format_plan(PLAN), H.format_plan(PLAN, ar=False)
+    assert "الحجم 25" in ar and "0.5% من 10,000$" in ar
+    assert "Size 25" in en and "risk 50$ = 0.5% of 10,000$" in en
+    assert "Size" not in H.format_plan(dict(PLAN, stop=100.0), ar=False)   # no usable stop -> no size line, plan still shown
+    print("ok test_format_plan_shows_size")
+
+
+if __name__ == "__main__":
+    test_sizing_half_percent(); test_format_plan_shows_size()

@@ -21,6 +21,14 @@ def run():
         rows = search_records("sweep", asset="XAUUSD", path=db)
         assert len(rows) == 1 and rows[0]["id"] == rid
         assert rows[0]["provenance"][0]["url"] == "https://example.org"
+        try:
+            upsert_record({
+                "title": "Unsafe source", "summary": "Should be rejected.",
+                "topic": "Security", "claim_type": "fact", "source_url": "javascript:alert(1)",
+            }, db)
+            raise AssertionError("non-HTTP source URLs should be rejected")
+        except ValueError:
+            pass
         assert search_records(topic="Liquidity", status="inbox", path=db)
         try:
             upsert_record({"title": "bad"}, db)

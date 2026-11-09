@@ -28,13 +28,23 @@ def analyse(data: dict, tf: str = "1h") -> dict:
     regimes = Counter(str(d.get("regime")) for _, d in valid if d.get("regime"))
     ranked = sorted(valid, key=lambda x: (len(x[1].get("flags") or []), float(x[1].get("volx") or 0)), reverse=True)
     top = ranked[:5]
-    flow_ready = any(any(k in d for k in ("cvd", "delta", "ofi", "imbalance", "open_interest")) for _, d in valid)
+    flow_rows = []
+    try:
+        from modules import flow_log
+        flow_rows = flow_log.load()[-200:]
+    except Exception:
+        flow_rows = []
+    flow_by_symbol = {}
+    for row in flow_rows:
+        if row.get("sym"):
+            flow_by_symbol[row["sym"]] = row
+    flow_ready = bool(flow_by_symbol) or any(any(k in d for k in ("cvd", "delta", "ofi", "imbalance", "open_interest")) for _, d in valid)
     book_ready = any(any(k in d for k in ("bids", "asks", "order_book", "depth")) for _, d in valid)
     stale = sum(1 for _, d in valid if d.get("ts") is None)
     return {
         "tf": tf, "count": len(valid), "up": len(up), "down": len(down),
         "neutral": max(0, len(valid) - len(up) - len(down)),
-        "regimes": regimes, "top": top, "flow_ready": flow_ready, "book_ready": book_ready,
+        "regimes": regimes, "top": top, "flow_ready": flow_ready, "book_ready": book_ready, "flow_rows": flow_by_symbol,
         "missing_ts": stale,
         "steps": [
             {"agent": "market_scout", "title": "١. مسح السوق والاتجاه", "state": "done" if valid else "blocked",
@@ -42,7 +52,7 @@ def analyse(data: dict, tf: str = "1h") -> dict:
             {"agent": "chart_reader", "title": "٢. مراجعة الشارت والإشارات", "state": "done" if valid else "blocked",
              "detail": "تم ترتيب الرموز حسب عدد إشارات الرادار والحجم النسبي. أعلى المرشحين: " + (", ".join(s for s, _ in top[:3]) if top else "لا توجد بيانات كافية") + "."},
             {"agent": "flow_analyst", "title": "٣. فتح فحص تدفق الأوامر", "state": "done" if flow_ready else "limited",
-             "detail": "حقول CVD / Delta / OFI موجودة في نتيجة الرادار." if flow_ready else "بيانات Order Flow الحية غير مرفقة بنتيجة Radar الحالية. لم يتم اختلاق CVD أو Delta؛ يلزم ربط مصدر Workspace/Exchange قبل إصدار تأكيد."},
+             "detail": (f"تمت قراءة سجل Flow Collector لعدد {len(flow_by_symbol)} رمز. هذه لقطات مسجلة وليست بالضرورة بثاً حياً؛ راجع التوقيت والمصدر قبل استخدامها." if flow_by_symbol else "بيانات Order Flow الحية غير مرفقة بنتيجة Radar الحالية، ولا يوجد سجل Collector محفوظ. لم يتم اختلاق CVD أو Delta؛ يلزم ربط مصدر Workspace/Exchange قبل إصدار تأكيد.")},
             {"agent": "liquidity_sentinel", "title": "٤. فحص دفتر الأوامر والسيولة", "state": "done" if book_ready else "limited",
              "detail": "بيانات دفتر الأوامر موجودة في سياق الفحص." if book_ready else "لا توجد لقطة DOM صالحة في سياق الرادار الحالي. لا يمكن تأكيد جدار سيولة أو امتصاص من الشموع وحدها."},
             {"agent": "risk_guardian", "title": "٥. مراجعة المخاطر وجودة البيانات", "state": "done" if valid else "blocked",
@@ -120,7 +130,7 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
     k1.metric("الرموز المفحوصة", result["count"])
     k2.metric("صاعد", result["up"])
     k3.metric("هابط", result["down"])
-    k4.metric("فحص Order Flow", "متصل" if result["flow_ready"] else "غير مربوط")
+    k4.metric("سجل Flow", len(result["flow_rows"]))
 
     selected = st.session_state.get("rac_agent_selected", "market_scout")
     cards = []
@@ -164,7 +174,14 @@ def render(data: dict, tf: str = "1h", news_items: list | None = None):
                 svg = d.get("svg")
                 if svg and isinstance(svg, str) and svg.startswith("data:image/svg+xml"):
                     st.markdown(f"<img src='{svg}' style='width:100%;border-radius:5px;border:1px solid #263943'/>", unsafe_allow_html=True)
-        if not result["flow_ready"]:
+        if result["flow_rows"]:
+            flow_view = []
+            for sym, row in list(result["flow_rows"].items())[:8]:
+                flow_view.append({"الرمز": sym, "Mid": row.get("mid"), "CVD": row.get("cvd"), "OFI": row.get("ofi"), "Imbalance": row.get("imb"), "Spread bps": row.get("spread_bps"), "سرعة الصفقات": row.get("speed"), "وقت السجل": row.get("t")})
+            st.markdown("**قراءة Flow Collector المحفوظة**")
+            st.dataframe(pd.DataFrame(flow_view), hide_index=True, use_container_width=True)
+            st.caption("السجل قد يكون تاريخياً أو متأخراً؛ لا يُعرض على أنه بث مباشر.")
+        elif not result["flow_ready"]:
             st.warning("الوكيل طلب Order Flow، لكن بيانات DOM / Tape / CVD غير موجودة في سياق Radar الحالي. لن يعرض قراءة وهمية.")
         if not result["book_ready"]:
             st.info("دفتر الأوامر غير متصل بهذه الجولة. راجع Order Flow Desk في Workspace حتى يتم ربط المصدر.")

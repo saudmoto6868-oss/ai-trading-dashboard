@@ -1,0 +1,19 @@
+# Session note — Claude, 2026-11-09 (Order Flow Desk day, GitLab)
+
+**Asked (owner):** status on GitLab; fix the chart Manual/Auto problem (ChatGPT's fix did not hold); do everything that is
+missing in order; adjust the look to the owner's picture; risk 0.5 % ("خليها نص"); delete ChatGPT's branch.
+
+**Decided:** risk 0.5 % per trade (owner, directly); every change on its own branch, merged after a check; GEX and the FRED regime
+are context, never entry signals; n < 30 = not evidence.
+
+**Done (merged):** chart fully manual scale + no Manual/Auto button / Auto-Center (owner tested: works); time-axis dates;
+Order Flow Desk widget; desk_risk + GEX + Options-desk GEX panel; FRED macro regime tab; order-flow setups backtest engine +
+runner; Order Flow Map back in the widget menu; Gold Noir theme; brain plans show position size; branch review;
+PROJECT_STATUS conflict markers removed. ChatGPT's MR !2 closed.
+
+**NOT tested:** anything on live data (sandbox has no market access); the full app was not run here (no checkout) — UI pieces
+were smoke-tested on stub pages / a stubbed Streamlit; the 5-setup backtest has NO results yet.
+
+**Open / blocked:** GitLab identity verification (all CI fails without it) -> then run `of_setups_bt` on real trades;
+delete branch `fix/manual-price-scale-lock` (UI only); a reviewer session proposed 0.25 % / two-tier risk — owner to confirm or
+keep 0.5 %; draft MRs of other agents wait for their authors.

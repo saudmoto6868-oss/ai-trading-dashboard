@@ -53,6 +53,10 @@ Rules (from TIA's data-integrity rule + the repo rules): never label mock or est
 2. Say what was NOT tested; mock-tested stays labelled mock-tested.
 3. Statistics: n >= 30 or it is written as NOT EVIDENCE; a rule goes live only after the lab gate in `docs/PIPELINE.md`.
 4. Claude review note in the meeting room, then the owner's explicit "merge N".
+5. **Session note (owner rule, 2026-11-09):** every contributor (Grok, ChatGPT / TIA, each Claude session) keeps a note of THEIR conversation and what happened in it, in `docs/sessions/<who>-<date>-<topic>.md` (or inside their own tab / work item for TIA). A short factual log is enough: what the owner asked, what was decided, what was done, what was NOT tested, what is open. No secrets, tokens or personal data in the note. A merge request that has no session note for its work gets one requested at review; it does not block a fix that the owner asked to merge right away.
+
+### Standing merge rule (owner, 2026-11-09)
+The reviewer merges finished (non-draft) merge requests from the owner's sessions without waiting for a separate command, after a quick check of: secrets, conflicts, `workspace_app.html` generated from `modules/ws/*`, the evidence rule (n < 30 = not evidence), and the agreed risk numbers. Draft merge requests are not merged until their author marks them ready.
 
 ## 6. Owner decisions (2026-11-09) and what is still open
 - DECIDED by the owner: the three streams stay separate in code; they may read, borrow, ask and cooperate through this contract. The contract is approved to go to the meeting room.

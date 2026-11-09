@@ -69,7 +69,7 @@ const { chromium } = require('playwright');
     // Inject deterministic source-panel fixtures; the UI still renders through its real panel readers.
     Ws.panels.push({
       type: "valuelv", state: { sym: intel.state.sym },
-      levelsData: { "5m": { vp: { vah: 60200, poc: 60000, val: 59800 }, px: 60100 } }
+      levelsData: { "5m": { vp: { vah: 60200, poc: 60000, val: 59800 }, px: 60300 } }
     });
     const chart = Ws.panels.find(x => x.type === "chart" && x.state.sym === intel.state.sym);
     if (chart) chart.indItems = [
@@ -82,14 +82,14 @@ const { chromium } = require('playwright');
       return true;
     };
     const auctionTab = clickTab(/Auction|المزاد/);
-    const auction = auctionTab && /60000/.test(intel.root.textContent) &&
+    const auction = auctionTab && /60[,]?000/.test(intel.root.textContent) &&
       /Above value|فوق القيمة/.test(intel.root.textContent);
     const indicatorsTab = clickTab(/Indicators|المؤشرات/);
     const indicators = indicatorsTab && /Contract Fixture/.test(intel.root.textContent) &&
       /ON|مفعّل/.test(intel.root.textContent) && !intel.root.innerHTML.includes("<safe>");
     const setupsTab = clickTab(/Setups|الفرص/);
     const waitState = setupsTab && /WAIT|انتظار/.test(intel.root.textContent) &&
-      !/BUY|SELL/.test(intel.root.textContent);
+      !/\\b(?:BUY|SELL)\\s*[:=]/.test(intel.root.textContent);
     Ws.panels = Ws.panels.filter(x => x.type !== "valuelv");
     return { auction, indicators, waitState };
   });

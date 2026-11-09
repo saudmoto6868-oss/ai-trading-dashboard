@@ -74,10 +74,10 @@ def test_day_and_check_match_python():
     assert out["d"] == {"n": 3, "stops": 2, "R": 0, "lossPct": 0}, out["d"]
     assert out["a"]["ok"] and out["a"]["rr"] == 3
     assert set(out["b"]) == {"stops", "left", "rr", "cap", "dup"}, out["b"]
-    # the same day in the Python manager (equity 10 000, 0.5 % = 50 per R): 2 stops, net 0 -> still allowed
+    # the same day in the Python manager (equity 10 000, base 0.25% = 25 per R): 2 stops, net 0 -> still allowed
     d = DeskDay(10000)
     for r in (-1, -1, 2):
-        d.record(r * 50)
+        d.record(r * 25)
     ok, why = d.check("BTC", "long", 100, 99, 103, 25)
     assert ok and d.stops == 2, why
     print("ok test_day_and_check_match_python")

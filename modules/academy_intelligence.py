@@ -165,27 +165,47 @@ def search_records(query: str = "", *, topic: str = "", school: str = "",
 
 def import_legacy_lessons(path: str | Path | None = None,
                           source_file: str | Path = "data/academy.json") -> int:
-    """Idempotently index legacy lessons; the original JSON remains untouched."""
+    """Idempotently index legacy lessons without upgrading their review/evidence state.
+
+    Legacy status and verdict vocabularies are deliberately mapped conservatively.
+    The source JSON is never modified.
+    """
     source = Path(source_file)
     if not source.exists():
         return 0
     payload = json.loads(source.read_text(encoding="utf-8"))
     imported = 0
+    status_map = {"draft": "inbox", "reviewed": "review", "approved": "accepted"}
+    claim_map = {
+        "consistent": "interpretation",
+        "hypothesis": "hypothesis",
+        "unverified": "interpretation",
+        "contradicted": "disputed",
+    }
     for lesson in payload.get("lessons", []):
-        verdict = lesson.get("verdict", "hypothesis")
-        claim = verdict if verdict in CLAIM_TYPES else "interpretation"
-        refs = lesson.get("sources", [])
+        if not isinstance(lesson, dict) or not lesson.get("id"):
+            continue
+        refs = [str(url).strip() for url in lesson.get("sources", [])
+                if isinstance(url, str) and url.strip().startswith(("https://", "http://"))]
         record = {
-            "id": "legacy-" + str(lesson.get("id", uuid.uuid4())),
-            "title": lesson.get("title", "Untitled legacy lesson"),
-            "summary": lesson.get("summary", ""), "topic": lesson.get("topic", "General"),
-            "school": lesson.get("school", ""), "claim_type": claim,
-            "status": "review" if lesson.get("status") == "draft" else "accepted",
-            "evidence_grade": "source_only" if refs else "unreviewed", "language": "ar",
+            "id": "legacy-" + str(lesson["id"]),
+            "title": lesson.get("title") or "Untitled legacy lesson",
+            "summary": lesson.get("summary") or "Legacy lesson imported for review.",
+            "topic": lesson.get("topic") or "General",
+            "school": lesson.get("school", ""),
+            "claim_type": claim_map.get(lesson.get("verdict"), "interpretation"),
+            "status": status_map.get(lesson.get("status"), "inbox"),
+            "evidence_grade": "source_only" if refs else "unreviewed",
+            "source_url": refs[0] if refs else "",
+            "source_title": lesson.get("source", ""),
+            "language": "ar",
             "provenance": [{"kind": "legacy_academy_json", "source": str(source),
                             "references": refs, "source_label": lesson.get("source", "")}],
-            "details": {"points": lesson.get("points", []), "caveats": lesson.get("caveats", []),
-                        "verdict_note": lesson.get("verdict_note", ""), "uses": lesson.get("uses", [])},
+            "details": {"legacy_status": lesson.get("status", ""),
+                        "legacy_verdict": lesson.get("verdict", ""),
+                        "verdict_note": lesson.get("verdict_note", ""),
+                        "points": lesson.get("points", []), "caveats": lesson.get("caveats", []),
+                        "uses": lesson.get("uses", [])},
         }
         upsert_record(record, path)
         imported += 1
@@ -212,8 +232,9 @@ def workspace_snapshot(limit: int = 80) -> list[dict]:
     """Safe read-only payload for the Workspace widget; gracefully degrades."""
     try:
         initialize()
-        if not search_records(limit=1):
-            import_legacy_lessons()
+        # Re-run the deterministic ID-based import so lessons added to the legacy
+        # source later are indexed too; upsert keeps the import idempotent.
+        import_legacy_lessons()
         rows = search_records(limit=limit)
         out = []
         for row in rows:

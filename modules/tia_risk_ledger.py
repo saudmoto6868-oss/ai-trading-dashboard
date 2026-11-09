@@ -241,6 +241,8 @@ class RiskLedger:
             raise ValueError("unknown risk session")
         positions: dict[str, dict] = {}
         realized = fees = funding = 0.0
+        deposits = withdrawals = 0.0
+        cashflow_count = 0
         stopped_trades = 0
         for event in self.events(session_id):
             payload = event["payload"]
@@ -265,6 +267,25 @@ class RiskLedger:
                     raise ValueError("position_mark references an unknown open position")
                 mark = _finite("mark", payload.get("mark"), positive=True)
                 positions[pid]["mark"] = mark
+            elif kind == "account_cashflow":
+                flow_type = payload.get("flow_type")
+                if flow_type not in ("deposit", "withdrawal"):
+                    raise ValueError("account_cashflow requires flow_type deposit or withdrawal")
+                amount = _finite("cashflow amount", payload.get("amount"), positive=True)
+                currency = payload.get("account_currency")
+                source = payload.get("source")
+                reference = payload.get("external_reference")
+                if not isinstance(currency, str) or not currency.strip():
+                    raise ValueError("account_cashflow requires account_currency")
+                if not isinstance(source, str) or not source.strip():
+                    raise ValueError("account_cashflow requires source provenance")
+                if not isinstance(reference, str) or not reference.strip():
+                    raise ValueError("account_cashflow requires external_reference")
+                if flow_type == "deposit":
+                    deposits += amount
+                else:
+                    withdrawals += amount
+                cashflow_count += 1
             elif kind == "position_close":
                 pid = str(payload.get("position_id", ""))
                 if pid not in positions:
@@ -291,6 +312,10 @@ class RiskLedger:
             "realized_pnl": realized,
             "fees_paid": fees,
             "funding_paid": funding,
+            "deposits_account_ccy": deposits,
+            "withdrawals_account_ccy": withdrawals,
+            "net_cashflow_account_ccy": deposits - withdrawals,
+            "cashflow_count": cashflow_count,
             "stopped_trades": stopped_trades,
             "open_positions": list(positions.values()),
             "open_position_count": len(positions),

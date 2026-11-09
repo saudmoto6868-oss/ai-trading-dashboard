@@ -39,3 +39,11 @@ Keep this contract isolated until the owner approves the policy and the missing 
 
 ## Event replay contract
 The ledger accepts only the documented projection event types: `position_open`, `position_mark`, and `position_close`. Close events must carry an explicit boolean `stopped`; negative realized P&L alone does not increment the stop counter. Replay rejects duplicate active position IDs, marks/closes of unknown positions, malformed instrument specs, and unsupported event types. This projection is a deterministic rebuild from the append-only journal, not broker reconciliation.
+
+
+## Broker position reconciliation boundary
+- `modules/tia_risk_reconciliation.py` defines a normalized, read-only broker snapshot contract. It compares account identity, position IDs, symbols, side, quantity and entry against the event-ledger projection.
+- A snapshot is accepted only when the source/account are present, its timestamp is timezone-aware and within the configured age, and the provider explicitly marks the snapshot complete.
+- Ledger-only positions, broker-only positions, changed position attributes, stale/incomplete snapshots and account mismatches all fail closed. No reconciliation function writes to a broker or alters the ledger.
+- Provider adapters are still required to map broker-specific position IDs, netting/hedging models, partial fills and contract quantities into this normalized contract. A broker that cannot provide stable position IDs needs a documented deterministic identity adapter and ambiguity handling.
+- This compares positions, not balances, cash, margin, orders, executions, accrued commissions or financing statements. Those are separate reconciliation domains and remain mandatory before production risk enforcement.

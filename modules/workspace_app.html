@@ -1861,7 +1861,7 @@ class CandleChart {
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
         if (this.drag.col && this.colOwn === true){ const R2 = this.colWideR || this._wideAutoR || 0.02; this.colWideC = Math.max(-OFM.SPAN, Math.min(OFM.SPAN, (this.colWideC || 0) + dy/Math.max(1, this.PB)*2*R2)); }   // own price scale: drag up / down moves the column's price window
         if (this.drag.col){ const win = this._wideWin || this.flowSpan || 120000, pw = Math.max(60, this.cw() - OFM.CAX - OFM.CDP); this.flowOff = Math.max(0, Math.min(OFM.KEEP - Math.min(win, OFM.KEEP), (this.flowOff || 0) + dx*win/pw)); /* drag right = look further back in time */ }
-        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); } }
+        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); if (dy && this.PB > 0){ if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.yShift = Math.max(-8, Math.min(8, this.yShift + dy/this.PB)); } } }   // owner 2026-11-09: the chart body also pans the PRICE (drag down = candles follow down); the scale is manual, so it moves only by your hand
     }
     this.drawSoon();
   }

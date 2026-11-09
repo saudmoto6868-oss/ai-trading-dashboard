@@ -56,4 +56,4 @@
 
 
 ## Owner decision: unified risk policy — 2026-11-09
-Both engines use one deterministic policy; no manual percentage selector. Base 0.25%. Step up to 0.50% only for A+ plus explicit validation_passed=true and at least 30 closed out-of-sample trades for that exact setup/rule version. Raw journal count, A+ grade, school count, mock data or missing metadata cannot qualify. Daily cap 2%, lock after 3 stops, and minimum R:R 1:2 remain unchanged. TIA has no independent sizing engine in main; future TIA sizing must call modules/risk_policy.py.
+Both engines use one deterministic policy; no manual percentage selector. Base 0.25%. Step up to 0.50% only for grade exactly A+ plus literal boolean validation_passed=true and integer validation_n >= 30 closed out-of-sample trades for that exact setup/rule version. Raw journal count, A+ grade, school count, mock data or missing metadata cannot qualify. Daily cap 2%, lock after 3 stops, and minimum R:R 1:2 remain unchanged. TIA has no independent sizing engine in main; future TIA sizing must call modules/risk_policy.py.

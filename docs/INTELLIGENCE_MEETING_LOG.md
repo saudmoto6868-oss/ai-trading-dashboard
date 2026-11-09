@@ -98,3 +98,11 @@ Canonical working log for the Academy Intelligence / Trade Intelligence Center c
 - **Safety boundary:** this does not write to `data/office_tasks.json`. Repository audit found that file is explicitly maintained by the site manager and no official task-write API exists. Formal board integration remains pending an owner-approved write contract.
 - Also hardened optional source/link rendering against null values and corrected the queue metric label to “Active project tasks”.
 - Runtime tests and live Streamlit verification remain outstanding.
+
+
+### Owner review lifecycle for task proposals
+- Added append-only review actions: “Approve for manual board entry” and “Decline proposal”.
+- A review is a separate `decision` journal entry carrying `kind=task_proposal_review`, the original proposal ID, and an explicit `official_board_written=false` marker.
+- The original proposal is never edited. The UI derives its current review state from the latest review event in the loaded journal window.
+- Approval means permission for a human to enter the item in the official board; it does not write or assign a Technical Office task.
+- Added a regression test covering proposal metadata, review linkage and the no-board-write invariant. Test execution is still pending because this GitLab project has no CI configuration file.

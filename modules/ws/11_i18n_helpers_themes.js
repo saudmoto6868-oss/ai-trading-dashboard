@@ -47,6 +47,8 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
 const THEMES = {
   dark:     {name:"Dark",     css:{bg:"#0b0e11",panel:"#161a1e",panel2:"#1e2329",line:"#2b3139",txt:"#eaecef",mut:"#848e9c",panel0:"#0e1114",dot:"#1b2027"}, ch:{bg:"#0b0e11",grid:"#1f252b",mut:"#848e9c",line:"#2b3139",pane:"#0e1217",up:"#0ecb81",dn:"#f6465d",txt:"#eaecef"}},
   midnight: {name:"Midnight", css:{bg:"#05070d",panel:"#0b1020",panel2:"#131a30",line:"#1f2a48",txt:"#e6ebff",mut:"#7f8db3",panel0:"#080c18",dot:"#101830"}, ch:{bg:"#05070d",grid:"#121a30",mut:"#7f8db3",line:"#1f2a48",pane:"#080c18",up:"#19d3a2",dn:"#ff5d7a",txt:"#e6ebff"}},
+  // "Gold Noir" (owner picture 2026-11-09): matte charcoal, amber gold accents, rounded cards (extra CSS: NOIR_CSS, html.th-noir)
+  noir:     {name:"Gold Noir", css:{bg:"#121212",panel:"#1d1c1a",panel2:"#252321",line:"rgba(227,168,87,.14)",txt:"#ece5d8",mut:"#8f877a",panel0:"#191817",dot:"transparent",gold:"#e3a857"}, ch:{bg:"#1b1a18",grid:"rgba(227,168,87,.06)",mut:"#8f877a",line:"rgba(227,168,87,.16)",pane:"#191817",up:"#e3b26a",dn:"#b8574a",txt:"#ece5d8"}},
   // dashboard themes (picked in the Streamlit top bar, CFG.ui): "lux" = theme 1 "Less is More" - warm charcoal + amber gold, glass cards over a blurred photo
   lux:      {name:"Less is More", css:{bg:"#0d0c0a",panel:"rgba(24,21,18,.80)",panel2:"rgba(40,35,29,.86)",line:"rgba(224,169,90,.18)",txt:"#efe6d6",mut:"#a8997f",panel0:"rgba(16,14,12,.62)",dot:"rgba(224,169,90,.10)",gold:"#e0a95a"},
              ch:{bg:"rgba(14,12,10,.58)",grid:"rgba(224,169,90,.07)",mut:"#a8997f",line:"rgba(224,169,90,.20)",pane:"rgba(16,14,12,.52)",up:"#e0a95a",dn:"#c0665a",txt:"#efe6d6"}},
@@ -56,7 +58,25 @@ const THEMES = {
   day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645",txt:"#1a2230"}}
 };
 const TH = Object.assign({}, THEMES.dark.ch);   // live canvas colours (read by CandleChart.paint)
-const ThemeCfg = Object.assign({name:"dark", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
+const ThemeCfg = Object.assign({name:"noir", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
+if (!ThemeCfg.noirV){ ThemeCfg.noirV = 1; if (ThemeCfg.name === "dark" && !ThemeCfg.up && !ThemeCfg.dn && !ThemeCfg.bg) ThemeCfg.name = "noir"; store.set(LS+"_theme", ThemeCfg); }   // 2026-11-09 owner: Gold Noir is the new default; someone who picked another theme or own colours keeps them
+const NOIR_CSS = "html.th-noir #ws{background:radial-gradient(1400px 800px at 15% -10%,#22201d 0%,#141414 55%,#101010 100%)}"
+  + "html.th-noir #bar{background:linear-gradient(180deg,#1a1918,#151515);border-bottom:1px solid rgba(227,168,87,.14)}"
+  + "html.th-noir #strip{background:#151515;border-bottom-color:rgba(227,168,87,.08)}"
+  + "html.th-noir #strip .chip{border-radius:999px;background:#211f1e;border-color:rgba(227,168,87,.16)}"
+  + "html.th-noir .panel{border-radius:16px;border:1px solid rgba(255,255,255,.05);background:linear-gradient(165deg,#24221f 0%,#1c1b1a 45%,#181817 100%);box-shadow:0 14px 34px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)}"
+  + "html.th-noir .panel.focus{border-color:rgba(227,168,87,.42);box-shadow:0 0 0 1px rgba(227,168,87,.18),0 14px 34px rgba(0,0,0,.6),0 0 22px rgba(227,168,87,.10)}"
+  + "html.th-noir .ph{background:transparent;border-bottom:1px solid rgba(255,255,255,.04)}"
+  + "html.th-noir .ph .ttl{color:#e3a857;letter-spacing:.05em;font-weight:600}"
+  + "html.th-noir .tb{border-bottom-color:rgba(255,255,255,.04)}"
+  + "html.th-noir button,html.th-noir select,html.th-noir input,html.th-noir textarea{border-radius:999px;background:#242220;border-color:rgba(255,255,255,.07)}"
+  + "html.th-noir .dt button{border-radius:8px}"
+  + "html.th-noir button:hover{border-color:#e3a857;color:#f3cf95}"
+  + "html.th-noir button.on{background:linear-gradient(180deg,#f2c47e,#d4974a);color:#1a1510;border-color:transparent;box-shadow:0 0 12px rgba(227,168,87,.45)}"
+  + "html.th-noir .stpop,html.th-noir .fibpop,html.th-noir #wmenu,html.th-noir .indpop{border-radius:14px;background:#1f1e1c;border-color:rgba(227,168,87,.16)}"
+  + "html.th-noir .dt{border-radius:12px;background:#1c1b19;border-color:rgba(227,168,87,.12)}"
+  + "html.th-noir ::selection{background:rgba(227,168,87,.35)}";   // Gold Noir (owner picture 2026-11-09): matte charcoal cards, big radius, soft depth, amber-gold accents
+
 function applyTheme(){
   const V = CFG.uiVars || {};
   if (CFG.ui && V.bg && !THEMES[CFG.ui]){   // engine themes (3-9): build the preset from the palette sent by the server
@@ -70,6 +90,7 @@ function applyTheme(){
   document.body && document.body.classList.toggle("ui-"+(ui || "none"), true); if (ui && CFG.uiBg && document.body) document.body.style.setProperty("--uibg", "url("+CFG.uiBg+")");
   Object.entries(t.css).forEach(([k, v]) => r.setProperty("--"+k, v)); Object.assign(TH, t.ch);
   if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.up)) TH.up = ThemeCfg.up; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.dn)) TH.dn = ThemeCfg.dn; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.bg)){ TH.bg = ThemeCfg.bg; r.setProperty("--bg", ThemeCfg.bg); }
+  { const on = (ui || ThemeCfg.name) === "noir"; document.documentElement.classList.toggle("th-noir", on); let s = document.getElementById("thNoir"); if (on && !s){ s = document.createElement("style"); s.id = "thNoir"; s.textContent = NOIR_CSS; document.head.appendChild(s); } else if (!on && s) s.remove(); }
   r.setProperty("color-scheme", ThemeCfg.name === "day" ? "light" : "dark"); r.setProperty("--grn", TH.up); r.setProperty("--red", TH.dn);
   try { Ws.panels.forEach(p => p.chart && p.chart.draw()); } catch(e){}
 }

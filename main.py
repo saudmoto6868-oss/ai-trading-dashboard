@@ -98,7 +98,7 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
-# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
+# Monte Carlo lives in Trading > Journal; only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
     _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
@@ -1129,15 +1129,36 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [1, 12, 0, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro"]   # 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [11, 10, 16, 4, 6], 14: [2, 9, 8, 3], 15: [5, 12, 7]}   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
+_PAGE_ORDER = [0, 1, 13, 14, 15]   # the top bar: Workspace, Radar, Trading, Lab, Learn & AI
+
+
+def _nav_to(i):
+    """Open page i (an old page index opens its hub with that sub-page selected)."""
+    h = _HUB_OF.get(i)
+    st.session_state["page"] = h if h is not None else (i if i in _PAGE_ORDER else 0)
+    if h is not None:
+        st.session_state[f"hub_{h}"] = i
+
+
 if "page" not in st.session_state:
     try:
-        st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
+        _nav_to(int(st.query_params.get("page", 0)))
     except (TypeError, ValueError):
-        st.session_state["page"] = 0
+        _nav_to(0)
+elif st.session_state["page"] not in _PAGE_ORDER:   # a session opened before the hubs existed
+    _nav_to(st.session_state["page"])
 with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+if PAGE in _HUBS:   # one compact row of sub-tabs; PAGE becomes the old page index, so every `if PAGE == N` block below is unchanged
+    _hk = f"hub_{PAGE}"
+    if st.session_state.get(_hk) not in _HUBS[PAGE]:   # Streamlit drops an undrawn widget's value: come back to the last sub-page used
+        st.session_state[_hk] = st.session_state.get("last_" + _hk) if st.session_state.get("last_" + _hk) in _HUBS[PAGE] else _HUBS[PAGE][0]
+    with st.container(key="hubnav"):
+        PAGE = st.radio(L(_PAGES[PAGE]), _HUBS[PAGE], format_func=lambda i: L(_PAGES[i]), horizontal=True, key=_hk, label_visibility="collapsed")
+    st.session_state["last_" + _hk] = PAGE
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
@@ -1185,6 +1206,14 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 [data-testid="stExpander"] summary{{background:#0b0f14!important;color:#e6e9ee!important}} [data-testid="stExpander"] summary p{{color:#e6e9ee!important}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
+if PAGE != 0:   # every page after the Workspace (owner 2026-11-09): full width, tight spacing, small framed metrics, hub sub-tabs as one row
+    st.markdown(f"""<style>.block-container{{max-width:100%!important;padding-left:1rem!important;padding-right:1rem!important}}
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]{{gap:.45rem}} [data-testid="stHorizontalBlock"]{{gap:.5rem!important}}
+[data-testid="stMetric"]{{background:rgba(255,255,255,.02);border:1px solid #1c232b;border-radius:6px;padding:4px 10px}} [data-testid="stMetricValue"]{{font-size:1.15rem!important}} [data-testid="stMetricLabel"] p{{font-size:11px!important}}
+.stApp h1{{font-size:1.35rem}} .stApp h2{{font-size:1.15rem}} .stApp h3{{font-size:1rem}} [data-testid="stButtonGroup"] button{{min-height:26px;padding:0 10px}} [data-testid="stButtonGroup"] button p{{font-size:12px}}
+.st-key-hubnav [role="radiogroup"]{{gap:2px 4px;flex-wrap:wrap;border-bottom:1px solid #1c232b}} .st-key-hubnav label{{padding:3px 12px;margin:0;border-radius:6px 6px 0 0;white-space:nowrap}}
+.st-key-hubnav [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-hubnav [data-testid="stRadioOption"] p{{font-size:12px;color:#c3c9d1}}
+.st-key-hubnav label:has(input:checked){{background:rgba(240,185,11,.10);border-bottom:2px solid {ui_accent}}} .st-key-hubnav label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""", unsafe_allow_html=True)
 
 def _md_sections(path):
     """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
@@ -2058,12 +2087,20 @@ def _office_regime():
     st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
 
 
+def _office_flow():
+    """Technical Office > Order flow: the forward-test judge on top, the manual (methods, tools, routine) under it - one tab (2026-11-09)."""
+    _office_flow_lab()
+    st.divider()
+    _office_flow_manual()
+
+
 def render_lab_page():
-    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
-    analysis, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
+    """Technical Office v2: one tab bar, only the open tab runs. Options desk + Macro regime live in Trading > Options & macro (2026-11-09)."""
+    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab
             "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
-            "Options desk": _office_options, "Macro regime": _office_regime, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
+            "Order flow": _office_flow, "Operations": _office_ops}
+    if st.session_state.get("to_tab") not in tabs:   # a tab that moved (Options desk, Macro regime, Flow manual / lab) must not break an open session
+        st.session_state.pop("to_tab", None)
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
@@ -3657,27 +3694,13 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
-if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+    if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
+        st.session_state.pop("stats_tab", None)
+    _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
     if _stab == "Monte Carlo":
         from modules.quant_montecarlo import render as _mc_render
         _mc_render()
-        st.stop()
-    if _stab == "Edge Map":
-        from modules.quant_edgemap import render as _em_render
-        _em_render()
-        st.stop()
-    if _stab == "Robustness":
-        from modules.quant_robustness import render as _rb_render
-        _rb_render()
-        st.stop()
-    if _stab == "Execution":
-        from modules.quant_execution import render as _ex_render
-        _ex_render()
-        st.stop()
-    if _stab == "Lab evidence":
-        _stats_lab()
-        st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
         st.stop()
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
@@ -3749,4 +3772,15 @@ if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 
         _spot_render()
     except Exception as _sp_exc:
         st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
+    st.stop()
+
+if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+    st.markdown(kit_css(), unsafe_allow_html=True)
+    for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
+        try:
+            _fn()
+        except Exception as _om_exc:
+            st.error(f"{_nm}: {type(_om_exc).__name__}: {_om_exc}")
+        if _nm == "Macro regime":
+            st.divider()
     st.stop()

@@ -194,8 +194,11 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
         if not dry and items:
             brain.record(items, now)
     if agent_log and not dry:
-        from modules import agent_result
-        agent_result.save(agent_log, AGENTS_FILE)
+        try:
+            from modules import agent_result
+            agent_result.save(agent_log, AGENTS_FILE)
+        except Exception as e:
+            msgs.append(f"(agent results not saved: {type(e).__name__})")
     # grade what is old enough, and review once after the New York close
     entries = brain.load()
     graded = brain.load_graded()
@@ -205,9 +208,13 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
             brain.save_graded(graded)
         rd = review_due(now_utc)
         if rd and entries and f"review|{rd}" not in sent:
-            from modules import agent_result
-            res = agent_result.load(AGENTS_FILE, rd) + agent_result.load_dir(AGENTS_DIR, rd)
-            out(f"review|{rd}", brain.review_text(entries, graded, agents=agent_result.text(agent_result.summarize(res))))
+            try:
+                from modules import agent_result
+                res = agent_result.load(AGENTS_FILE, rd) + agent_result.load_dir(AGENTS_DIR, rd)
+                block = agent_result.text(agent_result.summarize(res))
+            except Exception:
+                block = ""   # the review must go out even when the agents block cannot be built
+            out(f"review|{rd}", brain.review_text(entries, graded, agents=block))
     if log is not None:
         log.append(f"{len(msgs)} message(s)")
     return msgs

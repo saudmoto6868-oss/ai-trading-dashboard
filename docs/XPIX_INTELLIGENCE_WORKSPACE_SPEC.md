@@ -85,3 +85,15 @@ Implement per-market adapters for crypto exchanges, futures, US equities/options
 
 ## Initial files to audit
 `modules/ws/22_panels.js`, `22_ofmap.js`, `23_orderflow.js`, `13_okx_levels_regime_footprint.js`, `24_flow_confluence_misc.js`, `25_guide.js`, `modules/guide_ai.py`, `modules/guide_bridge/index.html`, `modules/workspace.py`, `scripts/build_workspace.py`, existing tests under `tests/browser/` and `tests/test_*`.
+
+
+## Owner clarification — 2026-11-09 (priority update)
+The widget is primarily a standalone market-analysis cockpit beside the user's chart, not an AI chat product. The AI/voice copilot is optional and secondary. The core workflow is:
+1. Select/link the instrument and venue to the chart (e.g. XAUUSD only when the feed is genuinely that broker/venue; COMEX GC must remain a separate instrument/source).
+2. Inspect a dedicated liquidity heatmap, DOM, Time & Sales, Footprint, Volume/Auction Profile and market context without replacing the user's chart.
+3. Choose existing chart indicators from a dedicated Indicators area; indicator readings remain supporting context, not substitutes for market microstructure evidence.
+4. A deterministic setup engine reviews the evidence and ranks/labels candidate setups (Setup 1, Setup 2, Setup 3), with explicit reasons and conflicts.
+5. When all required conditions are validated, publish a chart-linked alert/annotation with direction, entry area, trigger, invalidation, stop, target ladder, expiry and the theory/rules that justify it. Otherwise show WAIT / NO TRADE and the missing conditions.
+6. Every panel, metric, signal and setup must have a concise Arabic explanation available inline/on hover; voice explanation is a later optional enhancement.
+
+Do not imply an actionable trade when the current feed cannot support it. Separate venue-specific resting liquidity from executed trades; never label an OKX book as the global gold book or as a broker XAUUSD CFD book. New setup families must be versioned and measured with replay/forward tests and realistic spread, fees and slippage before being promoted.

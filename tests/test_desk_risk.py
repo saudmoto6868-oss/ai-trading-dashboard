@@ -21,8 +21,10 @@ def test_a_plus_step_up_requires_validated_30_trade_sample():
     assert base["risk_pct"] == 0.25 and base["risk_amount"] == 25
     assert tier["risk_pct"] == 0.5 and tier["risk_amount"] == 50
     assert bad["risk_pct"] == other["risk_pct"] == 0.25
-    # Validation count must be a genuine integer; coercible or fractional inputs fail closed.
-    for invalid_n in ("30", 30.9, True):
+    # Integer-valued numeric counts (including 30.0) match JavaScript; strings/fractions/bools fail closed.
+    numeric_float = position_size(10000, 100, 99, grade="A+", validation_n=30.0, validation_passed=True)
+    assert numeric_float["risk_pct"] == 0.5 and numeric_float["risk_amount"] == 50
+    for invalid_n in ("30", 30.9, True, float("nan"), float("inf")):
         rejected = position_size(10000, 100, 99, grade="A+", validation_n=invalid_n, validation_passed=True)
         assert rejected["risk_pct"] == 0.25, (invalid_n, rejected)
     print("ok test_a_plus_step_up_requires_validated_30_trade_sample")

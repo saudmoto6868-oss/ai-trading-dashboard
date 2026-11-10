@@ -73,8 +73,16 @@ def test_day_and_check_match_python():
                "const b = DESK.check({entry:100, stop:99, target:101.5, riskPct:0.8}, {n:0, stops:3, R:-3, lossPct:1.5}, null, true);"
                "console.log(JSON.stringify({d, a, b: b.why.map(w => w[0])}))" % (json.dumps(jr), now))
     assert out["d"] == {"n": 3, "stops": 2, "R": 0, "lossPct": 0}, out["d"]
+    mixed = node("const d = DESK.day([{status:'sl',r:-1,riskPct:0.5,t1:1793750400000+11*3600000},{status:'tp',r:1,riskPct:0.25,t1:1793750400000+10*3600000}], 1793750400000+12*3600000); console.log(JSON.stringify(d));")
+    assert mixed["lossPct"] == 0.25, mixed
+    legacy = node("console.log(JSON.stringify(DESK.day([{status:'sl',r:-1,t1:1793750400000+11*3600000}], 1793750400000+12*3600000).lossPct))")
+    assert legacy == 0.25, legacy
     assert out["a"]["ok"] and out["a"]["rr"] == 3
     assert set(out["b"]) == {"stops", "left", "rr", "cap", "dup"}, out["b"]
+    qualified = node("console.log(JSON.stringify(DESK.check({entry:100,stop:99,target:103,riskPct:0.5,riskCapPct:0.5},{n:0,stops:0,R:0,lossPct:0},null,false)))")
+    assert qualified["ok"], qualified
+    rejected = node("console.log(JSON.stringify(DESK.check({entry:100,stop:99,target:103,riskPct:0.5},{n:0,stops:0,R:0,lossPct:0},null,false)))")
+    assert not rejected["ok"] and any(w[0] == "cap" for w in rejected["why"]), rejected
     # the same day in the Python manager (equity 10 000, base 0.25% = 25 per R): 2 stops, net 0 -> still allowed
     d = DeskDay(10000)
     for r in (-1, -1, 2):
@@ -85,8 +93,8 @@ def test_day_and_check_match_python():
 
 
 def test_risk_policy_has_no_manual_input_and_matches_python():
-    out = node("console.log(JSON.stringify([DESK.riskFor('A+',29,true), DESK.riskFor('A+',30,true), DESK.riskFor('A+',50,false), DESK.riskFor('A',50,true), DESK.riskFor('A+','30',true), DESK.riskFor('A+',30.9,true), DESK.riskFor('A+',true,true)]))")
-    assert out == [0.25, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25], out
+    out = node("console.log(JSON.stringify([DESK.riskFor('A+',29,true), DESK.riskFor('A+',30,true), DESK.riskFor('A+',30.0,true), DESK.riskFor('A+',50,false), DESK.riskFor('A',50,true), DESK.riskFor('A+','30',true), DESK.riskFor('A+',30.9,true), DESK.riskFor('A+',true,true)]))")
+    assert out == [0.25, 0.5, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25], out
     assert "rkI" not in SRC and 'lab(Lg(\"risk %\"' not in SRC
     print("ok test_risk_policy_has_no_manual_input_and_matches_python")
 

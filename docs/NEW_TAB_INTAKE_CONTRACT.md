@@ -9,6 +9,11 @@ One folder `data/<tab>/` with:
 - `README.md`: how the table was made and what was NOT covered.
 Rules: no invented numbers; a number appears only with its source id + locator; transcripts are summarised, not pasted (copyright); no keys, no personal data.
 
+### 1b. Amendments (2026-11-10, after the V7 review)
+- Sources that are files of this repository may be typed `repo` (the `article` type is accepted for the first V7 delivery).
+- Rows describing what OUR project does or what the owner asked (categories `project-setting`, `process`, and the backtest figures of our own pipeline) are PROJECT FACTS, not market claims: they are excluded from the "% of claims tested" and are never shown as research results.
+- A rule chosen after trying several variants on the same sample is selection-biased: record every variant tried, and pre-register (`docs/PREREG_*.md`) before testing any new one.
+
 ## 2. What Claude does with it (review gate before anything shows in the app)
 1. Schema check (a plain test script under `tests/`), duplicate / dead-link / missing-locator report.
 2. Mark which claims are testable with the platform's own engines (walk-forward lab, order-flow backtest, regime). Untestable claims stay `unverified`, shown as opinions.

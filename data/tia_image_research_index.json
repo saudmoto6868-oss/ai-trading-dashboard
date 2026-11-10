@@ -1,0 +1,136 @@
+{
+  "batch_id": "tia_reference_batch_01",
+  "status": "educational_reference_unvalidated",
+  "original_archive": "/TIA Image Research/Originals/",
+  "original_images": [
+    {
+      "id": 1,
+      "filename": "TIA-Reference-1.jpg"
+    },
+    {
+      "id": 2,
+      "filename": "TIA-Reference-2.jpg"
+    },
+    {
+      "id": 3,
+      "filename": "TIA-Reference-3.jpg"
+    },
+    {
+      "id": 4,
+      "filename": "TIA-Reference-4.jpg"
+    },
+    {
+      "id": 5,
+      "filename": "TIA-Reference-5.jpg"
+    },
+    {
+      "id": 6,
+      "filename": "TIA-Reference-6.jpg"
+    },
+    {
+      "id": 7,
+      "filename": "TIA-Reference-7.jpg"
+    },
+    {
+      "id": 8,
+      "filename": "TIA-Reference-8.jpg"
+    },
+    {
+      "id": 9,
+      "filename": "TIA-Reference-9.jpg"
+    },
+    {
+      "id": 10,
+      "filename": "TIA-Reference-10.jpg"
+    }
+  ],
+  "topic_groups": [
+    {
+      "image_ids": [
+        1,
+        2,
+        3
+      ],
+      "topic": "price_action_structure",
+      "status": "reference_only",
+      "missing": [
+        "objective swing definitions",
+        "breakout and retest rules",
+        "volume/context",
+        "invalidation",
+        "failed-pattern examples"
+      ]
+    },
+    {
+      "image_ids": [
+        4,
+        5,
+        6
+      ],
+      "topic": "candlestick_patterns",
+      "status": "reference_only",
+      "missing": [
+        "exact OHLC definitions",
+        "ATR-normalized thresholds",
+        "trend/location context",
+        "confirmation",
+        "invalidation",
+        "validated expectancy"
+      ]
+    },
+    {
+      "image_ids": [
+        7,
+        8
+      ],
+      "topic": "volume_profile",
+      "status": "blocked_missing_data",
+      "missing": [
+        "verified volume-at-price feed",
+        "profile anchor/session",
+        "value-area algorithm",
+        "developing vs fixed profile",
+        "venue semantics"
+      ]
+    },
+    {
+      "image_ids": [
+        9,
+        10
+      ],
+      "topic": "order_flow_footprint",
+      "status": "blocked_missing_data",
+      "missing": [
+        "classified trade prints",
+        "aggressor-side methodology",
+        "feed coverage",
+        "timestamp alignment",
+        "latency",
+        "repeatable confirmation rules"
+      ]
+    }
+  ],
+  "setup_completion_fields": [
+    "market_venue",
+    "instrument_session_timezone",
+    "higher_timeframe_regime",
+    "objective_formation",
+    "prerequisites",
+    "disqualifiers",
+    "confirmation",
+    "entry_trigger",
+    "invalidation",
+    "stop",
+    "targets",
+    "costs",
+    "valid_failed_ambiguous_examples",
+    "chronological_oos_test",
+    "forward_review"
+  ],
+  "guardrails": [
+    "No image-derived rule may place or authorize an order.",
+    "OHLCV cannot reconstruct true volume-at-price or footprint.",
+    "No future leakage; confirmed pivots are delayed until confirmation.",
+    "No strategy is validated by pattern naming alone."
+  ]
+}

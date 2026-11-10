@@ -39,18 +39,20 @@ const DESK = {
     if (!(eq > 0) || !(rp > 0) || !(per > 0)) return {qty:0, risk:0, per:0, pct:0};
     let q = eq*rp/100/per; if (step > 0) q = Math.floor(q/step + 1e-9)*step; return {qty:q, risk:q*per, per, pct:q*per/eq*100}; },
   rr(entry, stop, target){ const r = Math.abs(entry - stop); if (!(r > 0)) return 0; return (stop < entry ? target - entry : entry - target)/r; },
-  // today's closed journal trades (UTC day) -> stops and loss in % of equity (each trade risks rules.risk %)
+  // Closed journal R is converted per trade using its recorded riskPct; legacy records safely default to base risk.
   day(trades, now, rules){ rules = rules || this.RULES; const d0 = Math.floor(now/86400000)*86400000;
     const done = (trades || []).filter(t => (t.status === "tp" || t.status === "sl") && (+t.t1 || +t.t0 || 0) >= d0);
     const R = done.reduce((s, t) => s + (+t.r || 0), 0), stops = done.filter(t => t.status === "sl" || (+t.r || 0) < 0).length;
-    return {n:done.length, stops, R, lossPct:Math.max(0, -R*rules.risk)}; },
+    const netPct = done.reduce((s, t) => { const rp = typeof t.riskPct === "number" && Number.isFinite(t.riskPct) && t.riskPct > 0 ? t.riskPct : rules.risk; return s - (+t.r || 0)*rp; }, 0);
+    return {n:done.length, stops, R, lossPct:Math.max(0, netPct)}; },
   // allowed / blocked, every failed rule listed (same rules as DeskDay.check)
   check(plan, dayS, rules, openSame){ rules = rules || this.RULES; const why = [];
     if (dayS.stops >= rules.stops) why.push(["stops", dayS.stops+" stops today (limit "+rules.stops+") - day locked", dayS.stops+" ستوب النهارده (الحد "+rules.stops+") - اليوم اتقفل"]);
     if (dayS.lossPct >= rules.day - 1e-9) why.push(["day", "daily loss "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - day locked", "خسارة اليوم "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - اليوم اتقفل"]);
     else if (plan.riskPct > rules.day - dayS.lossPct + 1e-9) why.push(["left", "risk "+plan.riskPct.toFixed(2)+"% > what is left of today's cap "+(rules.day - dayS.lossPct).toFixed(2)+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من الباقي من حد اليوم "+(rules.day - dayS.lossPct).toFixed(2)+"%"]);
     const rr = this.rr(plan.entry, plan.stop, plan.target); if (rr < rules.rr - 1e-9) why.push(["rr", "reward:risk "+rr.toFixed(2)+" < "+rules.rr, "العائد للمخاطرة "+rr.toFixed(2)+" أقل من "+rules.rr]);
-    if (plan.riskPct > rules.risk*1.0001) why.push(["cap", "risk "+plan.riskPct.toFixed(2)+"% > per-trade cap "+rules.risk+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من حد الصفقة "+rules.risk+"%"]);
+    const perTradeCap = typeof plan.riskCapPct === "number" && Number.isFinite(plan.riskCapPct) && plan.riskCapPct > 0 ? plan.riskCapPct : rules.risk;
+    if (plan.riskPct > perTradeCap*1.0001) why.push(["cap", "risk "+plan.riskPct.toFixed(2)+"% > per-trade cap "+perTradeCap+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من حد الصفقة "+perTradeCap+"%"]);
     if (openSame) why.push(["dup", "the same trade is already open in the journal", "نفس الصفقة مفتوحة في الجورنال"]);
     return {ok:!why.length, why, rr}; }
 };
@@ -95,7 +97,7 @@ Panel.prototype.build_ofdesk = function(){
     const E = num(enI.value, aE), SL = num(slI.value, aS), TP = num(tpI.value, aT), riskPct = DESK.riskFor(null, 0, false), sz = DESK.size(S.eq, E, SL, riskPct, S.pv, S.step);
     const dayS = DESK.day(Journal.list, Date.now(), DESK.RULES), dirT = side > 0 ? "bullish" : "bearish";
     const openSame = (Journal.list || []).some(t => t.status === "open" && t.symbol === sym && t.dir === dirT);
-    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct}, dayS, rules, openSame);
+    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct, riskCapPct:riskPct}, dayS, rules, openSame);
     // agent 6: the skeptic - every reason against
     const skp = [];
     if (bias.available && ((side > 0 && bias.bias === "bear") || (side < 0 && bias.bias === "bull"))) skp.push(Lg("against the chart's bias ("+bias.trend+", price "+bias.ema+" EMA50)","عكس اتجاه الشارت ("+bias.trend+"، السعر "+(bias.ema === "above" ? "فوق" : "تحت")+" EMA50)"));

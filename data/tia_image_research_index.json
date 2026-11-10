@@ -2,111 +2,136 @@
   "batch_id": "tia_reference_batch_01",
   "status": "educational_reference_unvalidated",
   "original_archive": "/TIA Image Research/Originals/",
-  "original_images": [
+  "images": [
     {
       "id": 1,
-      "filename": "TIA-Reference-1.jpg"
-    },
-    {
-      "id": 2,
-      "filename": "TIA-Reference-2.jpg"
-    },
-    {
-      "id": 3,
-      "filename": "TIA-Reference-3.jpg"
-    },
-    {
-      "id": 4,
-      "filename": "TIA-Reference-4.jpg"
-    },
-    {
-      "id": 5,
-      "filename": "TIA-Reference-5.jpg"
-    },
-    {
-      "id": 6,
-      "filename": "TIA-Reference-6.jpg"
-    },
-    {
-      "id": 7,
-      "filename": "TIA-Reference-7.jpg"
-    },
-    {
-      "id": 8,
-      "filename": "TIA-Reference-8.jpg"
-    },
-    {
-      "id": 9,
-      "filename": "TIA-Reference-9.jpg"
-    },
-    {
-      "id": 10,
-      "filename": "TIA-Reference-10.jpg"
-    }
-  ],
-  "topic_groups": [
-    {
-      "image_ids": [
-        1,
-        2,
-        3
-      ],
+      "filename": "TIA-Reference-1.jpg",
       "topic": "price_action_structure",
       "status": "reference_only",
       "missing": [
-        "objective swing definitions",
-        "breakout and retest rules",
-        "volume/context",
-        "invalidation",
-        "failed-pattern examples"
+        "objective swing and pivot rules",
+        "pattern boundaries",
+        "breakout and retest",
+        "failure cases",
+        "target and invalidation rules"
       ]
     },
     {
-      "image_ids": [
-        4,
-        5,
-        6
-      ],
+      "id": 2,
+      "filename": "TIA-Reference-2.jpg",
+      "topic": "price_action_structure",
+      "status": "reference_only",
+      "missing": [
+        "objective detection",
+        "close-confirmed breakout",
+        "retest criteria",
+        "false-break filters",
+        "stop and target math"
+      ]
+    },
+    {
+      "id": 3,
+      "filename": "TIA-Reference-3.jpg",
+      "topic": "volume_profile_shape_hypotheses",
+      "status": "reference_only",
+      "missing": [
+        "exact profile-shape definitions",
+        "verify distribution data source",
+        "profile anchor and period",
+        "acceptance/rejection rules",
+        "evidence and failure examples"
+      ]
+    },
+    {
+      "id": 4,
+      "filename": "TIA-Reference-4.jpg",
+      "topic": "volume_profile_anatomy",
+      "status": "blocked_missing_data",
+      "missing": [
+        "verified volume-at-price",
+        "value-area algorithm",
+        "fixed vs developing profile",
+        "session definitions",
+        "acceptance/rejection and retest rules"
+      ]
+    },
+    {
+      "id": 5,
+      "filename": "TIA-Reference-5.jpg",
+      "topic": "volume_profile_learning_roadmap",
+      "status": "lesson_incomplete",
+      "missing": [
+        "complete original ten-part lesson",
+        "stepwise rules and examples",
+        "counterexamples",
+        "entry stop target and risk",
+        "independent validation"
+      ]
+    },
+    {
+      "id": 6,
+      "filename": "TIA-Reference-6.jpg",
+      "topic": "order_flow_footprint",
+      "status": "blocked_missing_data",
+      "missing": [
+        "platform and feed identification",
+        "classified trade prints",
+        "aggressor methodology",
+        "aggregation and timestamps",
+        "latency and replay examples"
+      ]
+    },
+    {
+      "id": 7,
+      "filename": "TIA-Reference-7.jpg",
       "topic": "candlestick_patterns",
       "status": "reference_only",
       "missing": [
         "exact OHLC definitions",
         "ATR-normalized thresholds",
-        "trend/location context",
-        "confirmation",
+        "trend and location context",
+        "confirmation and invalidation",
+        "frequency and expectancy"
+      ]
+    },
+    {
+      "id": 8,
+      "filename": "TIA-Reference-8.jpg",
+      "topic": "mixed_candlestick_and_chart_patterns",
+      "status": "reference_only",
+      "missing": [
+        "separate candle vs chart structures",
+        "verify ambiguous labels",
+        "objective formation rules",
+        "context",
+        "confirmation and invalidation"
+      ]
+    },
+    {
+      "id": 9,
+      "filename": "TIA-Reference-9.jpg",
+      "topic": "price_action_chart_pattern_examples",
+      "status": "reference_only",
+      "missing": [
+        "exact pivots",
+        "confirmed vs developing patterns",
+        "breakout and retest",
         "invalidation",
-        "validated expectancy"
+        "measured moves",
+        "failed patterns"
       ]
     },
     {
-      "image_ids": [
-        7,
-        8
-      ],
-      "topic": "volume_profile",
-      "status": "blocked_missing_data",
+      "id": 10,
+      "filename": "TIA-Reference-10.jpg",
+      "topic": "candlestick_pattern_encyclopedia",
+      "status": "reference_only",
       "missing": [
-        "verified volume-at-price feed",
-        "profile anchor/session",
-        "value-area algorithm",
-        "developing vs fixed profile",
-        "venue semantics"
-      ]
-    },
-    {
-      "image_ids": [
-        9,
-        10
-      ],
-      "topic": "order_flow_footprint",
-      "status": "blocked_missing_data",
-      "missing": [
-        "classified trade prints",
-        "aggressor-side methodology",
-        "feed coverage",
-        "timestamp alignment",
-        "latency",
-        "repeatable confirmation rules"
+        "verify names and translations",
+        "exact OHLC sequences",
+        "remove duplicates",
+        "ATR-normalized thresholds",
+        "trend context and confirmation"
       ]
     }
   ],

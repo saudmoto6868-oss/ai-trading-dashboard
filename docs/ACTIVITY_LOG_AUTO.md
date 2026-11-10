@@ -1655,3 +1655,5 @@
 | 2026-11-10 15:35:16 | Bash | git status --short / | نجح |
 | 2026-11-10 15:35:21 | mcp__gitlab__get_merge_request |  | نجح |
 | 2026-11-10 15:37:56 | mcp__gitlab__get_merge_request |  | نجح |
+| 2026-11-10 15:38:08 | Bash | git status --short / | نجح |
+| 2026-11-10 15:38:10 | mcp__gitlab__list_pipelines |  | نجح |

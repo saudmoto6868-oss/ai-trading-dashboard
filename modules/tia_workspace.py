@@ -221,6 +221,13 @@ Panel.prototype.build_tiaagents = function(){
     ['6 · Quant Validation & Risk','Out-of-sample validation, costs, portfolio risk.','Evidence: Portfolio, Funded, Correlation, Radial'],
     ['7 · Trade Review & Decision','Challenges the plan and ranks it.','Evidence: Order Flow Desk skeptic, journal results in Portfolio']];
   D.forEach(([t,r,e],i)=>{const c=el('div');c.style.cssText='border:1px solid var(--line);border-top:2px solid var(--gold);padding:6px 7px';const a=el('div',null,t);a.style.cssText='font-weight:700;font-size:11px';const b=el('div','m',r);b.style.cssText='font-size:10px;margin:2px 0';const d=el('div',null,e);d.style.cssText='font-size:10px;color:'+(i===0&&A.ran?'var(--grn)':'var(--mut)');c.append(a,b,d);grid.append(c);});
+  if(A.ran){const S=A.sources||{},nm=Object.keys(S),okn=nm.filter(n=>S[n]==='ok').length,T=A.tech||{},tf=Object.keys(T).filter(t=>T[t]&&T[t].status==='ok'),cnt={};tf.forEach(t=>{const k=String(T[t].trend||'?');cnt[k]=(cnt[k]||0)+1;});const agree=Object.values(cnt).length?Math.max(...Object.values(cnt)):0;
+    const steps=[['Sources asked',nm.length,nm.length],['Sources returned data',okn,nm.length],['Timeframes with data',tf.length,Object.keys(T).length],['Timeframes sharing the most common trend',agree,Object.keys(T).length]];
+    const fn=el('div');fn.style.cssText='border:1px solid var(--line);padding:5px 7px;margin-bottom:6px';
+    const hd=el('div',null,'Evidence funnel · stance: '+(A.stance||'UNAVAILABLE'));hd.style.cssText='font-weight:700;font-size:11px;margin-bottom:3px';fn.append(hd);
+    steps.forEach(([k,v,mx])=>{const r=el('div');r.style.cssText='display:flex;align-items:center;gap:6px;font-size:10px;margin:2px 0';const l=el('span','m',k);l.style.cssText='flex:0 0 130px';const b=el('div');b.style.cssText='flex:1;height:7px;background:var(--panel2);border:1px solid var(--line)';const f=el('div');f.style.cssText='height:100%;background:var(--gold);width:'+(mx>0?Math.round(100*v/mx):0)+'%';b.append(f);const n=el('span',null,v+'/'+mx);n.style.fontFamily='ui-monospace,Menlo,monospace';r.append(l,b,n);fn.append(r);});
+    (A.warnings||[]).slice(0,3).forEach(w=>{const d=el('div',null,'⚠ '+w);d.style.cssText='font-size:9px;color:var(--red);margin-top:2px';fn.append(d);});
+    wrap.append(fn);}
   wrap.append(note,grid);this.body.append(wrap);
 };
 '''

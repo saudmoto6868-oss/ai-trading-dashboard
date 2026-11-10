@@ -29,7 +29,10 @@ def render_tia():
     report = st.session_state.get(key)
 
     ctrl = {"markets": list(CLASSES), "market": market, "symbols": list(symbols), "selected": selected,
-            "agents": {"ran": bool(report), "stance": (report or {}).get("stance")}}
+            "agents": {"ran": bool(report), "stance": (report or {}).get("stance"),
+                          "sources": {k: (v or {}).get("status") for k, v in ((report or {}).get("sources") or {}).items()},
+                          "tech": {k: {"status": (v or {}).get("status"), "trend": (v or {}).get("trend")} for k, v in ((report or {}).get("technical") or {}).items()},
+                          "warnings": [str(w)[:140] for w in ((report or {}).get("warnings") or [])[:6]]}}
     from modules.tia_workspace import render_tia_workspace
     render_tia_workspace(height=900, universe=market, symbols=[selected] + [s for s in symbols if s != selected], ctrl=ctrl)
     if catalog.get("note"):

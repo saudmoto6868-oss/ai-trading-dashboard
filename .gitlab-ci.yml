@@ -27,7 +27,7 @@ mr_tests:
       paths:
         - .cache/pip
   before_script:
-    - pip install --quiet pandas numpy requests tzdata
+    - pip install --quiet -r requirements.txt tzdata
   script:
     # plain-script tests; no secrets, no network side effects. Failing scripts are listed, job fails if any fails.
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail

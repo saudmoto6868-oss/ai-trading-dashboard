@@ -10,7 +10,7 @@ from modules.workspace import build_workspace_html
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
 
-def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None):
+def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None, ctrl: dict | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
@@ -58,6 +58,39 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     except Exception as _e:
         funded["error"] = str(_e)[:120]
     doc = doc.replace("</head>", "<script>const TIA_FUNDED = " + json.dumps(funded, default=str, separators=(",", ":")).replace("</", "<\\/") + ";</script></head>", 1)
+    # Toolbar controls (market | symbol | Run TIA Director) built INTO the workspace's own #bar, so they look and size like the other toolbar options.
+    # They talk to the Streamlit page through URL parameters of the parent window (tia_mkt / tia_sym / tia_run), the same way the Guide changes pages.
+    if ctrl:
+        tia_bar_js = r'''
+(function(){
+  const C = window.TIA_CTRL; if (!C) return;
+  const go = (k, v, drop) => { try { const P = window.parent, u = new URL(P.location.href); (drop || []).forEach(x => u.searchParams.delete(x)); u.searchParams.set(k, v); P.location.href = u.href; } catch(e){ console.warn('tia ctl', e); } };
+  const sel = (opts, cur, fn, w) => { const s = document.createElement('select'); s.style.maxWidth = w + 'px'; opts.forEach(o => { const e = document.createElement('option'); e.value = o; e.textContent = o; if (o === cur) e.selected = true; s.append(e); }); s.onchange = () => fn(s.value); return s; };
+  const mk = () => { const bar = document.getElementById('bar'); if (!bar) return false; if (bar.querySelector('.tiactl')) return true;
+    const g = document.createElement('span'); g.className = 'tiactl'; g.style.cssText = 'display:inline-flex;gap:4px;align-items:center;margin-left:8px';
+    g.append(sel(C.markets, C.market, v => go('tia_mkt', v, ['tia_sym', 'tia_run']), 110), sel(C.symbols, C.selected, v => go('tia_sym', v, ['tia_run']), 150));
+    const b = document.createElement('button'); b.textContent = 'Run TIA Director'; b.onclick = () => go('tia_run', String(Date.now())); g.append(b); bar.append(g); return true; };
+  let n = 0; const t = setInterval(() => { if (mk() || ++n > 60) clearInterval(t); }, 250);
+})();
+'''
+        doc = doc.replace("</head>", "<script>window.TIA_CTRL = " + json.dumps(ctrl, default=str, separators=(",", ":")).replace("</", "<\\/") + ";</script><script>" + tia_bar_js + "</script></head>", 1)
+    tia_agents_panel = r'''
+Panel.prototype.build_tiaagents = function(){
+  const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
+  const C=(typeof TIA_CTRL!=='undefined'&&TIA_CTRL)||{},A=C.agents||{};
+  const note=el('div','m','Seven specialist responsibilities, not seven separate AI instances. Each card says where its evidence appears in this workspace; nothing here is an order or a signal.');note.style.cssText='font-size:10px;margin-bottom:6px';
+  const grid=el('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:5px';
+  const D=[['1 · Intelligence Director','Synthesises the evidence and states what conflicts.',A.ran?('Last report: '+(A.stance||'UNAVAILABLE')):'Not run yet: press Run TIA Director'],
+    ['2 · Market Intelligence','Macro, news, catalysts, sessions.','Evidence: news ticker, Options, Session Ring, Pulse'],
+    ['3 · Technical Intelligence','Price action, structure, multi-timeframe.','Evidence: Chart, Level scanner (Order Flow Desk)'],
+    ['4 · Order Flow & Liquidity','Footprint, delta, DOM, tape, resting liquidity.','Evidence: chart order-flow map, Order Flow Desk; + Widget: DOM, Tape'],
+    ['5 · Strategy & Innovation Lab','Research and strategy discovery.','Evidence: Lab and Research Hub pages (not shown here)'],
+    ['6 · Quant Validation & Risk','Out-of-sample validation, costs, portfolio risk.','Evidence: Portfolio, Funded, Correlation, Radial'],
+    ['7 · Trade Review & Decision','Challenges the plan and ranks it.','Evidence: Order Flow Desk skeptic, journal results in Portfolio']];
+  D.forEach(([t,r,e],i)=>{const c=el('div');c.style.cssText='border:1px solid var(--line);border-top:2px solid var(--gold);padding:6px 7px';const a=el('div',null,t);a.style.cssText='font-weight:700;font-size:11px';const b=el('div','m',r);b.style.cssText='font-size:10px;margin:2px 0';const d=el('div',null,e);d.style.cssText='font-size:10px;color:'+(i===0&&A.ran?'var(--grn)':'var(--mut)');c.append(a,b,d);grid.append(c);});
+  wrap.append(note,grid);this.body.append(wrap);
+};
+'''
     tia_funded_panel = r'''
 Panel.prototype.build_tiafunded = function(){
   const wrap=el('div');wrap.style.cssText='padding:8px;overflow:auto;height:100%;font-size:11px';
@@ -281,9 +314,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
@@ -302,8 +335,8 @@ Ws.builtinStandard = () => {
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
     ["tiapulse", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
-    ["tiafunded", {x:ta + tb + 2*g, y:0, w:r(tc*0.6), h:h1}, {group:1}],
-    ["tiasources", {x:ta + tb + 3*g + r(tc*0.6), y:0, w:tc - r(tc*0.6) - g, h:h1}, {group:1}],
+    ["tiaagents", {x:ta + tb + 2*g, y:0, w:r(tc*0.62), h:h1}, {group:1}],
+    ["tiafunded", {x:ta + tb + 3*g + r(tc*0.62), y:0, w:tc - r(tc*0.62) - g, h:h1}, {group:1}],
     ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
     ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],

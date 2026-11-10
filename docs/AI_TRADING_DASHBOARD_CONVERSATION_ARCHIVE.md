@@ -39,3 +39,10 @@ Every substantial conversation/work increment must create a new dated note in `d
 
 ## Current next action
 Follow the prioritized backlog in [the platform UI coverage audit](TIA_PLATFORM_UI_COVERAGE_AUDIT.md). Begin with a reusable TIA-owned presentation adapter and tests, then integrate page-by-page under the ownership rules. Resolve the 30-commit divergence safely and restore CI job creation before treating the MR as mergeable.
+
+
+## 2026-11-10 — TIA shared guidance UI increment
+- Added a read-only shared-guidance expander to modules/tia_page.py using build_guidance_view("TIA", "director").
+- The panel shows specialist schools, reasoning, required outputs and next actions. Capability metadata is not fabricated; unprovided capabilities are explicitly labelled unverified.
+- Session note: docs/sessions/2026-11-10-tia-guidance-ui.md.
+- Validation remains blocked: current GitLab pipelines fail before jobs are created; zero tests executed. MR !46 is Draft and currently reports conflicts.

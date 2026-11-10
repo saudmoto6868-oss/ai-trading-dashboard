@@ -39,6 +39,30 @@ def render_tia():
         from modules.tia_agent_admin import render_agent_admin
         render_agent_admin()
 
+    # Shared platform guidance is read-only; no market data is fetched here.
+    with st.expander("منهج TIA الموحد · المدارس وخطوات التفكير", expanded=False):
+        from modules.tia_guidance_panel import build_guidance_view
+        guidance = build_guidance_view("TIA", "director")
+        st.caption(guidance.get("summary", ""))
+        st.caption(f"Route: {guidance.get('route_id') or 'UNMAPPED'} · Status: {guidance.get('status')}")
+        if guidance.get("schools"):
+            st.markdown("**التخصصات المرشحة**")
+            for school in guidance["schools"]:
+                st.write(f"• {school.get('name', school.get('id'))} — {school.get('role', 'context')}")
+                if school.get("blocked_by"):
+                    st.caption("بيانات التحقق غير مُمررة لهذه الشاشة: " + ", ".join(school["blocked_by"]))
+        if guidance.get("reasoning"):
+            st.markdown("**تسلسل التفكير**")
+            for step in guidance["reasoning"]:
+                st.write("• " + step)
+        if guidance.get("required_outputs"):
+            st.markdown("**المخرجات المطلوبة**")
+            st.write(" · ".join(guidance["required_outputs"]))
+        if guidance.get("next_actions"):
+            st.markdown("**الخطوات التالية**")
+            st.write(" · ".join(guidance["next_actions"]))
+        st.caption("مرجع توجيهي فقط؛ لا ينشئ إشارات ولا ينفذ أوامر. غياب بيانات القدرات هنا يعني أنها غير مُثبتة لهذه الشاشة.")
+
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
 

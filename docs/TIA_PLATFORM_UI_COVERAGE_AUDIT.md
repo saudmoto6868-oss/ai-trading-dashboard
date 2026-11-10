@@ -12,7 +12,7 @@ A route existing is never counted as integration. Search was run on branch `feat
 ## Executive finding
 
 - The registry contains **19 routes across 7 surfaces**.
-- Search for `resolve_guidance` returns only the router definition, its tests and documentation/recovery notes. **No page consumer was found**.
+- At audit time, search for `resolve_guidance` found no page consumer. A subsequent TIA-owned integration now consumes the presentation adapter in `modules/tia_page.py`; the other six surfaces remain pending.
 - The visual reference catalog is consumed by `modules/tia_intelligence.py`; that is a TIA-specific knowledge path, not proof of platform-wide router integration.
 - Therefore the platform-wide shared router is **implemented as a library/registry but not yet integrated into the page UIs**.
 - This audit does not claim a complete rendered-control inventory or browser/mobile test.
@@ -24,7 +24,7 @@ A route existing is never counted as integration. Search was run on branch `feat
 | Workspace | 6 | `modules/workspace.py`, `modules/ws/*`, generated `modules/workspace_app.html` | Not found | Registry ready; integration pending; generated HTML must not be edited |
 | Radar | 5 | `modules/radar_agents.py`, `modules/radar_presets.py`, Radar app modules | Not found | Existing deterministic Radar specialists are separate; add read-only guidance context without duplicating scans |
 | Spot | 4 | `modules/spot_page.py`, `spot_board.py`, `spot_brain.py`, `spot_flow.py`, `spot_outlook.py`, other `spot_*` | Not found | Integration pending; preserve spot/derivatives separation |
-| TIA | 1 | `modules/tia_page.py`, `tia_workspace.py`, `tia_intelligence.py`, `tia_agent_*` | Not found for shared router | TIA-specific visual catalog is consumed by `tia_intelligence.py`; shared route panel pending |
+| TIA | 1 | `modules/tia_page.py`, `tia_workspace.py`, `tia_intelligence.py`, `tia_agent_*` | Found: `modules/tia_page.py` | Shared guidance is rendered in a collapsed read-only expander; capability metadata remains unasserted; browser/mobile verification pending |
 | Trading Lab | 1 | `modules/strategy_lab.py`, `validation_lab.py`, `calibration_lab.py`, `lab_*` | Not found | Integration pending; experiment provenance/version binding required |
 | Learn & AI | 1 | `modules/academy.py`, `ai_page.py`, `guide_ai.py` | Not found | Integration pending; lessons should link to canonical route/school cards |
 | Order Flow Desk | 1 | `modules/desk_*`, shared agent contract | Not found | Read-only contract/proposal integration only; owner boundary remains |

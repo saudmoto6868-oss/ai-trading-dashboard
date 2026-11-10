@@ -46,6 +46,40 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
             options_errors["provider"] = str(_e)[:180]
         _OPT_CACHE["v"] = (_time.time(), options_payload, options_errors)
     doc = doc.replace("</head>", "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
+    # Funded accounts: rule limits from the Prop Firms page (server session data) are handed to the iframe; the live balance is NOT read.
+    funded = {"accounts": [], "error": ""}
+    try:
+        from modules import prop_firms as _pf
+        _keys = ("id", "name", "firm", "status", "size", "max_loss_pct", "daily_loss_pct", "profit_target_pct", "inactivity_limit", "consistency_rule", "color")
+        for _a in _pf._load_accounts():
+            _row = {k: _a.get(k) for k in _keys}
+            _row["days_left"] = _pf._days_left(_a)
+            funded["accounts"].append(_row)
+    except Exception as _e:
+        funded["error"] = str(_e)[:120]
+    doc = doc.replace("</head>", "<script>const TIA_FUNDED = " + json.dumps(funded, default=str, separators=(",", ":")).replace("</", "<\\/") + ";</script></head>", 1)
+    tia_funded_panel = r'''
+Panel.prototype.build_tiafunded = function(){
+  const wrap=el('div');wrap.style.cssText='padding:8px;overflow:auto;height:100%;font-size:11px';
+  const note=el('div','m','Prop-firm account rules from the Prop Firms page. Rule limits only: the live balance is not read here, so distance to a limit is NOT shown.');note.style.cssText='font-size:10px;margin-bottom:6px';
+  const out=el('div');wrap.append(note,out);this.body.append(wrap);
+  const F=(typeof TIA_FUNDED!=='undefined'&&TIA_FUNDED)||{},A=F.accounts||[];
+  if(!A.length){out.textContent=F.error?('Prop accounts unavailable: '+F.error):'No prop accounts configured.';return;}
+  const money=s=>{const m=String(s||'').match(/([\d.]+)\s*([KkMm]?)/);if(!m)return null;const u=m[2].toLowerCase();return +m[1]*(u==='k'?1e3:u==='m'?1e6:1);};
+  const usd=v=>v==null?'':' ($'+Math.round(v).toLocaleString()+')';
+  A.forEach(a=>{const card=el('div');card.style.cssText='border:1px solid var(--line);border-left:3px solid '+(a.color||'#d6ad62')+';padding:7px 9px;margin-bottom:6px';
+    const sz=money(a.size),active=a.status==='active';
+    const head=el('div',null,(a.firm||'')+' · '+(a.name||a.id));head.style.cssText='font-weight:700;margin-bottom:3px';
+    const st=el('span',null,' '+String(a.status||'').toUpperCase());st.style.cssText='font-weight:400;font-size:9px;color:'+(active?'var(--grn)':'var(--mut)');head.append(st);card.append(head);
+    const row=(k,v,col)=>{const r=el('div');r.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:1px 0';const l=el('span','m',k),x=el('span',null,v);x.style.cssText='font-family:ui-monospace,Menlo,monospace'+(col?';color:'+col:'');r.append(l,x);card.append(r);};
+    const pct=(p)=>Number.isFinite(+p)&&+p>0?(+p).toFixed(1)+'%'+usd(sz==null?null:sz*p/100):'-';
+    row('Max loss',pct(a.max_loss_pct));row('Daily loss',pct(a.daily_loss_pct));if(+a.profit_target_pct>0)row('Profit target',pct(a.profit_target_pct));
+    if(a.inactivity_limit){const d=a.days_left;row('Inactivity ('+a.inactivity_limit+' d)',active?(d==null?'-':d+' d left'):'not active',active&&d!=null&&d<=7?'var(--red)':null);}
+    if(a.consistency_rule)row('Consistency',String(a.consistency_rule));
+    out.append(card);});
+  const foot=el('div','m','Source: Prop Firms page data (session). Rules are as entered by you; verify them on the firm site.');foot.style.cssText='font-size:10px';out.append(foot);
+};
+'''
     tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";
@@ -214,9 +248,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
@@ -228,11 +262,12 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.28), h2 = r(H*0.44), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
-  const ta = r((W - 2*g)*0.45), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
+  const ta = r((W - 2*g)*0.38), tb = r((W - 2*g)*0.26), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
     ["tiapulse", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
-    ["tiasources", {x:ta + tb + 2*g, y:0, w:tc, h:h1}, {group:1}],
+    ["tiafunded", {x:ta + tb + 2*g, y:0, w:r(tc*0.6), h:h1}, {group:1}],
+    ["tiasources", {x:ta + tb + 3*g + r(tc*0.6), y:0, w:tc - r(tc*0.6) - g, h:h1}, {group:1}],
     ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
     ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],

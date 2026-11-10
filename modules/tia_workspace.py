@@ -74,6 +74,52 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
 })();
 '''
         doc = doc.replace("</head>", "<script>window.TIA_CTRL = " + json.dumps(ctrl, default=str, separators=(",", ":")).replace("</", "<\\/") + ";</script><script>" + tia_bar_js + "</script></head>", 1)
+    # Trade Plan card (owner 2026-11-10, docs/TIA_VISUAL_BRIEF_2026-11-10.md P1-1). It invents nothing: it shows the best live setup that the Workspace
+    # scanner / Trade-class engine already produced for the selected symbol (Alerts.list), the price ladder, R:R, and the unified risk policy.
+    tia_plan_panel = r'''
+Panel.prototype.build_tiaplan = function(){
+  const wrap=el('div');wrap.style.cssText='padding:8px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');wrap.append(out);this.body.append(wrap);
+  let last=null,dead=false;this.unsubs.push(()=>{dead=true;});
+  const sym0=()=>(SYMS&&SYMS[0])||'';
+  const fp=v=>!Number.isFinite(+v)?'-':(+v>=1000?(+v).toFixed(1):+v>=1?(+v).toFixed(3):(+v).toPrecision(4));
+  const sv=(tag,at,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in at)e.setAttribute(k,at[k]);if(txt!=null)e.textContent=txt;return e;};
+  const okPlan=c=>{const p=c&&c.plan;if(!p||!Array.isArray(p.tps)||!p.tps.length)return false;const e=+p.entry,s=+p.stop,t=+p.tps[0];if(!(e>0&&s>0&&t>0))return false;return c.direction==='bullish'?(s<e&&e<t):(s>e&&e>t);};
+  const pick=()=>{let L=[];try{L=(Alerts.list||[]).filter(a=>a&&a.card&&a.card.symbol===sym0()&&okPlan(a.card));}catch(e){}
+    if(!L.length)return null;const sc=a=>{try{return wScore(a.card);}catch(e){return a.card.score/Math.max(1,a.card.max||1);}};L.sort((a,b)=>sc(b)-sc(a));return L[0].card;};
+  const row=(box,k,v,col)=>{const r=el('div');r.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:1px 0';const a=el('span','m',k),b=el('span',null,v);b.style.cssText='font-family:ui-monospace,Menlo,monospace'+(col?';color:'+col:'');r.append(a,b);box.append(r);};
+  const draw=()=>{if(dead)return;out.replaceChildren();const S=sym0(),c=pick();
+    const head=el('div',null,S||'-');head.style.cssText='font-weight:700;font-size:13px;margin-bottom:4px';out.append(head);
+    if(!c){const m=el('div','m','NO PLAN. No live setup with a valid entry / stop / target exists for this symbol right now (scanner + trade-class engine). Nothing is invented; a plan appears here only when the engines produce one. Other widgets (Agents, Options, Correlation) are context, not a plan.');m.style.cssText='font-size:11px';out.append(m);return;}
+    const pl=c.plan,long_=c.direction==='bullish',e=+pl.entry,s=+pl.stop,tps=pl.tps.map(Number).filter(v=>v>0),risk=Math.abs(e-s),rr=risk>0?Math.abs(tps[0]-e)/risk:0;
+    let minRR=2;try{if(DESK&&DESK.RULES&&+DESK.RULES.minRR>0)minRR=+DESK.RULES.minRR;}catch(x){}
+    let rp=0.25;try{rp=DESK.riskFor(null,0,false);}catch(x){}
+    const vd=String(c.verdict||'').toUpperCase(),blocked=rr<minRR,state=blocked?'BLOCKED: R:R below 1:'+minRR:vd==='TAKE'?'TAKE':vd==='WAIT'?'WAIT':vd==='SKIP'?'SKIP':'REVIEW';
+    const scol=blocked||vd==='SKIP'?'var(--red)':vd==='TAKE'?'var(--grn)':'var(--gold)';
+    const top=el('div');top.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap';
+    const side=el('span',null,long_?'LONG':'SHORT');side.style.cssText='font-weight:700;padding:1px 6px;border:1px solid '+(long_?'var(--grn)':'var(--red)')+';color:'+(long_?'var(--grn)':'var(--red)');
+    const st=el('span',null,state);st.style.cssText='font-weight:700;color:'+scol;const tt=el('span','m',String(c.ttype||'')+' · score '+(c.score||0)+'/'+(c.max||10));top.append(side,st,tt);out.append(top);
+    const px=[e,s].concat(tps);if(last!=null)px.push(last);const lo=Math.min(...px),hi=Math.max(...px),pad=(hi-lo)*0.08||1,A=lo-pad,B=hi+pad,H=120,W=250,Y=v=>H-6-(v-A)/(B-A)*(H-12);
+    const svg=sv('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',height:String(H)});svg.style.cssText='display:block;background:var(--panel0);border:1px solid var(--line);margin-bottom:6px';
+    svg.append(sv('rect',{x:'0',y:String(Math.min(Y(e),Y(s))),width:'150',height:String(Math.abs(Y(e)-Y(s))),fill:'rgba(230,106,103,.14)'}));
+    svg.append(sv('rect',{x:'0',y:String(Math.min(Y(e),Y(tps[tps.length-1]))),width:'150',height:String(Math.abs(Y(e)-Y(tps[tps.length-1]))),fill:'rgba(49,196,141,.12)'}));
+    const ln=(v,col,lab,dash)=>{svg.append(sv('line',{x1:'0',x2:'150',y1:String(Y(v)),y2:String(Y(v)),stroke:col,'stroke-width':'1.5','stroke-dasharray':dash||''}));svg.append(sv('text',{x:'156',y:String(Y(v)+3),'font-size':'9',fill:col},lab+' '+fp(v)));};
+    tps.slice(0,3).forEach((t,i)=>ln(t,'#31c48d','TP'+(i+1),i?'3 3':''));ln(e,'#78a9d1','ENTRY');ln(s,'#e66a67','STOP');if(last!=null)ln(last,'#d6ad62','NOW','2 2');
+    out.append(svg);
+    const tb=el('div');row(tb,'Entry',fp(e));row(tb,'Stop',fp(s)+' ('+(risk/e*100).toFixed(2)+'%)','var(--red)');
+    tps.slice(0,3).forEach((t,i)=>row(tb,'TP'+(i+1),fp(t)+' ('+(Math.abs(t-e)/risk).toFixed(2)+' R)','var(--grn)'));
+    row(tb,'R:R (TP1)','1:'+rr.toFixed(2),blocked?'var(--red)':null);row(tb,'Risk policy',rp+'% of equity per trade (automatic, no manual selector)');
+    if(last!=null)row(tb,'Price vs entry',((last-e)/e*100).toFixed(2)+'%');out.append(tb);
+    const sg=(c.ana&&c.ana.sig)||[];if(sg.length){const ev=el('div');ev.style.cssText='margin-top:6px;border-top:1px solid var(--line);padding-top:4px';const h=el('div','m','Why / why not (from the engine)');h.style.fontSize='10px';ev.append(h);
+      sg.slice(0,7).forEach(t=>{const d=el('div',null,String(t));d.style.cssText='font-size:10px;padding:1px 0';ev.append(d);});out.append(ev);}
+    let ti='';try{ti=tfTxt(c);}catch(x){}if(ti){const d=el('div','m','Walk-forward history on this timeframe: '+ti);d.style.cssText='font-size:10px;margin-top:4px';out.append(d);}
+    let nj=0;try{nj=((Journal&&Journal.list)||[]).filter(t=>t.status==='tp'||t.status==='sl').length;}catch(x){}
+    const f=el('div','m','Information, not an order and not a proven edge. Position size = risk % of equity divided by the stop distance (set equity in the Order Flow Desk). Closed journal trades: '+nj+(nj<30?' (under 30: not evidence)':'')+'. Source: live scanner / trade-class engine in this browser session.');f.style.cssText='font-size:10px;margin-top:6px';out.append(f);};
+  let off=null;try{off=Hub.sub('tickers','TIA_PLAN',data=>{const q=data&&data[sym0()];last=q&&Number.isFinite(+q.last)?+q.last:null;draw();});}catch(x){}
+  if(off)this.unsubs.push(off);
+  draw();const iv=setInterval(()=>{if(!document.hidden)draw();},4000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     tia_agents_panel = r'''
 Panel.prototype.build_tiaagents = function(){
   const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
@@ -314,9 +360,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
@@ -331,10 +377,10 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.24), h2 = r(H*0.50), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
-  const ta = r((W - 2*g)*0.38), tb = r((W - 2*g)*0.26), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
+  const ta = r((W - 2*g)*0.30), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
-    ["tiapulse", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
+    ["tiaplan", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
     ["tiaagents", {x:ta + tb + 2*g, y:0, w:r(tc*0.62), h:h1}, {group:1}],
     ["tiafunded", {x:ta + tb + 3*g + r(tc*0.62), y:0, w:tc - r(tc*0.62) - g, h:h1}, {group:1}],
     ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],

@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "status": "educational_reference_unvalidated",
+  "source_images": [
+    "4640.jpg",
+    "4641.jpg",
+    "4642.jpg",
+    "4643.jpg",
+    "4644.jpg",
+    "4645.jpg",
+    "4646.jpg",
+    "4647.jpg",
+    "4648.jpg",
+    "4649.jpg"
+  ],
+  "guardrails": [
+    "Image-derived labels are educational references, not validated trading signals.",
+    "Never score a setup from a candlestick name alone; require market context, location, confirmation, invalidation and risk.",
+    "Do not infer institutional intent from a volume-profile shape or open interest alone.",
+    "Do not claim a volume-profile metric is available unless the data adapter actually computes it from volume-at-price.",
+    "No image-derived rule may trigger an order."
+  ],
+  "modules": [
+    {
+      "id": "price_action_structure",
+      "title": "Price-action structures",
+      "patterns": [
+        "head_and_shoulders",
+        "inverse_head_and_shoulders",
+        "double_top",
+        "double_bottom",
+        "triple_top",
+        "triple_bottom",
+        "ascending_triangle",
+        "descending_triangle",
+        "symmetrical_triangle",
+        "bull_flag",
+        "bear_flag",
+        "rising_wedge",
+        "falling_wedge",
+        "channel",
+        "rectangle_range"
+      ],
+      "required_context": [
+        "prior_trend_or_range",
+        "confirmed_swing_points",
+        "neckline_or_boundary",
+        "breakout_close_or_retest",
+        "volume_or_range_expansion_if_available"
+      ],
+      "bullish_context": [
+        "confirmed break above resistance or neckline",
+        "retest holds as support",
+        "invalidation below structure or retest swing"
+      ],
+      "bearish_context": [
+        "confirmed break below support or neckline",
+        "retest fails as resistance",
+        "invalidation above structure or retest swing"
+      ],
+      "invalidation": "A close back inside the broken structure, or a violation of the defining swing that formed the pattern.",
+      "caution": "Pattern names are subjective; require objective pivots and minimum structure quality."
+    },
+    {
+      "id": "candlestick_patterns",
+      "title": "Candlestick patterns",
+      "patterns": [
+        "long_body_bullish",
+        "long_body_bearish",
+        "marubozu",
+        "spinning_top",
+        "long_legged_doji",
+        "dragonfly_doji",
+        "gravestone_doji",
+        "hammer",
+        "hanging_man",
+        "inverted_hammer",
+        "shooting_star",
+        "bullish_engulfing",
+        "bearish_engulfing",
+        "piercing_line",
+        "dark_cloud_cover",
+        "morning_star",
+        "evening_star",
+        "three_white_soldiers",
+        "three_black_crows",
+        "tweezer_top",
+        "tweezer_bottom",
+        "inside_bar",
+        "outside_bar",
+        "harami"
+      ],
+      "required_context": [
+        "candle_ohlc_geometry",
+        "preceding_trend",
+        "support_or_resistance_location",
+        "next_bar_confirmation"
+      ],
+      "bullish_context": [
+        "bullish reversal pattern at a pre-marked support or after a downside sweep",
+        "subsequent candle confirms by taking pattern high or reclaiming level"
+      ],
+      "bearish_context": [
+        "bearish reversal pattern at a pre-marked resistance or after an upside sweep",
+        "subsequent candle confirms by taking pattern low or rejecting level"
+      ],
+      "invalidation": "Beyond the pattern extreme, with a buffer derived from instrument volatility.",
+      "caution": "The chart is a visual cheat sheet; candle patterns have no standalone star rating or guaranteed outcome."
+    },
+    {
+      "id": "volume_profile",
+      "title": "Volume profile",
+      "concepts": [
+        "POC",
+        "VAH",
+        "VAL",
+        "value_area_70_percent",
+        "HVN",
+        "LVN",
+        "developing_POC",
+        "profile_shape"
+      ],
+      "required_context": [
+        "volume_at_price_by_session_or_selected_range",
+        "profile_period_and_anchor",
+        "POC_and_value_area_calculation",
+        "current_price_relative_to_profile"
+      ],
+      "candidate_uses": [
+        "POC as a high-volume reference that price may revisit, not a guaranteed magnet",
+        "Acceptance outside value area may support continuation only after a confirmed close and hold",
+        "LVN may be a low-acceptance region where price can traverse quickly; verify with actual volume-at-price",
+        "HVN may behave as an acceptance or balance area"
+      ],
+      "invalidation": "A failed acceptance/rejection read: price re-enters value and holds, or the expected level is invalidated by subsequent auction behavior.",
+      "caution": "70% value area is a common convention, not universal. Session and composite profiles are not interchangeable. OHLCV candles alone cannot reconstruct true volume-at-price."
+    },
+    {
+      "id": "order_flow_footprint",
+      "title": "Order-flow and footprint",
+      "concepts": [
+        "bid_ask_volume_imbalance",
+        "delta",
+        "cumulative_delta",
+        "absorption",
+        "initiative_activity",
+        "exhaustion",
+        "unfinished_auction"
+      ],
+      "required_context": [
+        "trade_side_classified_prints_or_verified_footprint_feed",
+        "timestamp_and_exchange",
+        "aggregation_method",
+        "coverage_and_latency"
+      ],
+      "candidate_uses": [
+        "Use footprint evidence as confirmation at a pre-defined price location",
+        "Look for failed continuation / absorption only when the underlying bid-ask prints are available",
+        "Keep exchange-specific flow separate from candle-derived proxies"
+      ],
+      "invalidation": "The suspected absorption or imbalance is contradicted by subsequent traded volume and price acceptance.",
+      "caution": "A static screenshot cannot establish live delta, aggressor classification, or institutional positioning."
+    }
+  ],
+  "workflow": [
+    "Define higher-timeframe regime and key levels.",
+    "Identify a price-action structure at a pre-defined location.",
+    "Check candle confirmation; do not act on an unconfirmed pattern.",
+    "Use volume profile only when real volume-at-price data exists.",
+    "Use footprint/order-flow only when verified trade-side data exists.",
+    "Define entry trigger, stop/invalidation, target and position risk before grading.",
+    "Record the setup as a hypothesis until out-of-sample testing meets the project's evidence gate."
+  ]
+}

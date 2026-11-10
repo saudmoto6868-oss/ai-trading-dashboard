@@ -51,11 +51,66 @@ def summarize(d: dict) -> dict:
             "from": dates[0] if dates else "", "to": dates[-1] if dates else ""}
 
 
+DASH = os.path.join(ROOT, "research", "cfx", "dashboard")
+_LIB_TAG = '<script src="vendor/lightweight-charts.standalone.production.js"></script>'
+_DATA_TAG = '<script src="data.js"></script>'
+
+
+def dashboard_html(base: str = DASH) -> tuple:
+    """-> (html, error). The CFX research dashboard with its two script files inlined, so it runs inside one iframe. Any problem -> ("", reason)."""
+    try:
+        with open(os.path.join(base, "index.html"), encoding="utf-8") as f:
+            html = f.read()
+        with open(os.path.join(base, "vendor", "lightweight-charts.standalone.production.js"), encoding="utf-8") as f:
+            lib = f.read()
+        with open(os.path.join(base, "data.js"), encoding="utf-8") as f:
+            data = f.read()
+        if _LIB_TAG not in html or _DATA_TAG not in html:
+            raise ValueError("index.html no longer references the two expected script files")
+        safe = lambda s: s.replace("</script", "<\\/script")
+        return html.replace(_LIB_TAG, "<script>" + safe(lib) + "</script>").replace(_DATA_TAG, "<script>" + safe(data) + "</script>"), ""
+    except Exception as e:   # noqa: BLE001
+        return "", f"{type(e).__name__}: {e}"
+
+
+def _read(rel: str) -> str:
+    try:
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
+            return f.read()
+    except Exception:   # noqa: BLE001
+        return ""
+
+
 def render() -> None:
     import streamlit as st
+    import streamlit.components.v1 as components
     st.subheader("V7 research (CFX v7 single-oscillator chart)")
-    st.caption("Research intake, read-only. No signals, no entries, no orders. Every row is `unverified` until it is measured with its sample size; "
+    st.caption("Research intake, read-only: nothing here is a recommendation or an order. Every claim is `unverified` until it is measured with its sample size; "
                "under 30 cases it is not evidence.")
+    view = st.radio("View", ["Dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
+    if view == "Dashboard":
+        st.warning("Research snapshot of the CFX v7 chart on GC=F gold FUTURES (not spot XAUUSD), window 6-10 Nov 2026. The dots and alerts are the research rule 'variant B' "
+                   "(62 signals on the longer sample, 59.7% against the next 8 bars, p about 0.13): NOT an edge, NOT a recommendation, no orders. Time axis: Cairo.")
+        html, err = dashboard_html()
+        if err:
+            st.error(f"The dashboard files could not be loaded: {err}")
+        else:
+            components.html(html, height=900, scrolling=True)
+        return
+    if view == "Chart images":
+        for rel, cap in (("research/cfx/cfx_chart_real_v7.png", "Chart: price + SMA 144 / 77 + SMC/ICT overlays + session boxes"),
+                         ("research/cfx/cfx_osc_v7.png", "Single oscillator pane: Stochastic 5,3,3 + RSI 14 + MACD 12,26,1"),
+                         ("research/cfx/cfx_settings_v7.png", "Indicator settings")):
+            p = os.path.join(ROOT, rel)
+            if os.path.exists(p):
+                st.image(p, caption=cap, use_container_width=True)
+            else:
+                st.info(f"{rel} is not in this deployment.")
+        return
+    if view == "Rules":
+        txt = _read("research/cfx/README.md")
+        st.markdown(txt) if txt else st.info("research/cfx/README.md is not in this deployment.")
+        return
     d = load()
     if d["error"]:
         st.error(f"data/v7 could not be read: {d['error']}. Nothing is shown instead of guessing.")

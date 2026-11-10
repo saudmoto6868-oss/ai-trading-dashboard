@@ -56,6 +56,24 @@ def test_real_data_if_present():
     print("ok real data", s)
 
 
+def test_dashboard_inlines_scripts_and_fails_closed():
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, "vendor"))
+        open(os.path.join(d, "index.html"), "w").write("<html>" + V._LIB_TAG + V._DATA_TAG + "</html>")
+        open(os.path.join(d, "vendor", "lightweight-charts.standalone.production.js"), "w").write("var LW=1;/* </script> */")
+        open(os.path.join(d, "data.js"), "w").write("window.CFX_DATA={};")
+        html, err = V.dashboard_html(d)
+        assert err == "" and "var LW=1" in html and "window.CFX_DATA" in html
+        assert 'src="data.js"' not in html and 'src="vendor' not in html, "external scripts must be inlined"
+        assert html.count("</script>") == 2, "a </script> inside a library must not close the tag early"
+        open(os.path.join(d, "index.html"), "w").write("<html>no tags</html>")
+        h2, e2 = V.dashboard_html(d)
+        assert h2 == "" and "no longer references" in e2
+        h3, e3 = V.dashboard_html(os.path.join(d, "missing"))
+        assert h3 == "" and e3
+    print("ok dashboard inlining")
+
+
 if __name__ == "__main__":
-    test_loader_and_grouping(); test_broken_data_gives_error_and_no_rows(); test_page_has_no_signal_or_order_controls(); test_real_data_if_present()
+    test_loader_and_grouping(); test_broken_data_gives_error_and_no_rows(); test_page_has_no_signal_or_order_controls(); test_real_data_if_present(); test_dashboard_inlines_scripts_and_fails_closed()
     print("ALL V7 PAGE TESTS PASSED")

@@ -32,8 +32,8 @@ tia_quality:
     - python -m pip install --quiet --upgrade pip
     - python -m pip install --quiet pytest
   script:
-    - python -m compileall -q modules/tia_agent_charter.py modules/tia_agent_store.py modules/tia_agent_admin.py modules/tia_page.py modules/tia_session_scheduler.py modules/tia_scheduler_worker.py
-    - python -m pytest -q tests/test_tia_agent_messaging.py tests/test_tia_scheduler_worker.py tests/test_tia_session_scheduler.py
+    - python -m compileall -q modules/tia_agent_charter.py modules/tia_agent_store.py modules/tia_agent_admin.py modules/tia_page.py modules/tia_session_scheduler.py modules/tia_scheduler_worker.py modules/tia_knowledge_router.py modules/tia_visual_knowledge.py
+    - python -m pytest -q tests/test_tia_agent_messaging.py tests/test_tia_scheduler_worker.py tests/test_tia_session_scheduler.py tests/test_tia_knowledge_router.py tests/test_tia_visual_knowledge.py
 
 telegram_alerts:
   stage: test

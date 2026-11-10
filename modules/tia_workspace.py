@@ -130,7 +130,29 @@ Panel.prototype.build_tiasources = function(){
     doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
-    doc = doc.replace("ai_ws_v5", "tia_ws_v1")
+    # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
+    doc = doc.replace("ai_ws_v5", "tia_ws_v2")
+    # TIA's own start layout (owner 2026-11-10: use the Workspace widget engine, but show TIA's data, not a Workspace copy):
+    # heatmap + pulse on top, ONE chart with the order-flow column + the Order Flow Desk in the middle, options + feed health at the bottom.
+    # Every other widget stays one click away in + Widget. The Workspace standard stays untouched (renamed, never deleted).
+    tia_layout = r'''
+Ws.builtinStandard = () => {
+  const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
+  const h1 = r(H*0.28), h2 = r(H*0.44), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
+  return [
+    ["tiaheat", {x:0, y:0, w:w1, h:h1}, {group:1}],
+    ["tiapulse", {x:w1 + g, y:0, w:w2, h:h1}, {group:1}],
+    ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
+    ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
+    ["tiaoptions", {x:0, y:y3, w:w1, h:h3}, {group:1}],
+    ["tiasources", {x:w1 + g, y:y3, w:w2, h:h3}, {group:1}],
+  ]; };
+'''
+    _marker = "/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */"
+    if _marker in doc:
+        doc = doc.replace("Ws.builtinStandard = () => {", "Ws.builtinStandardWorkspace = () => {", 1)
+        doc = doc.replace(_marker, tia_layout + _marker, 1)
     doc = doc.replace("<title>6868 X</title>", "<title>TIA Command Workspace</title>")
     doc = doc.replace(
         ":root{--panel0:#0e1114;--dot:#1b2027;--bg:#0b0e11;--panel:#161a1e;--panel2:#1e2329;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--grn:#0ecb81;--red:#f6465d;--gold:#f0b90b;--blue:#4aa3ff;--vio:#b57cff}",

@@ -58,6 +58,6 @@ def render_tia():
 
     st.divider()
     st.markdown("### Interactive TIA workspace")
-    st.caption("All existing movable workspace panels remain available. The selected market tab supplies its discovered symbol universe to the watchlist and charts.")
+    st.caption("TIA's own layout: heatmap, pulse, one chart with order flow, the Order Flow Desk, options and feed health. Every other workspace widget is available from + Widget.")
     from modules.tia_workspace import render_tia_workspace
-    render_tia_workspace(height=1040, universe=market, symbols=symbols)
+    render_tia_workspace(height=1040, universe=market, symbols=[selected] + [s for s in symbols if s != selected])

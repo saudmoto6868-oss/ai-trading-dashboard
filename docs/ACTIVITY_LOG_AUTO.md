@@ -1744,3 +1744,7 @@
 | 2026-11-10 17:49:33 | mcp__gitlab__get_merge_request |  | نجح |
 | 2026-11-10 17:51:49 | mcp__gitlab__list_commits |  | نجح |
 | 2026-11-10 17:51:53 | mcp__gitlab__accept_merge_request |  | نجح |
+| 2026-11-10 17:52:07 | Bash | git status --short / | نجح |
+| 2026-11-10 17:52:36 | mcp__gitlab__get_merge_request |  | نجح |
+| 2026-11-10 17:52:37 | mcp__gitlab__list_user_events |  | نجح |
+| 2026-11-10 17:52:41 | mcp__gitlab__get_pipeline |  | نجح |

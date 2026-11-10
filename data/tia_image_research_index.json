@@ -1,161 +1,457 @@
 {
-  "batch_id": "tia_reference_batch_01",
+  "batch_id": "tia_reference_archive_01",
+  "archive_path": "/TIA Image Research/Originals/",
+  "image_count": 30,
+  "original_numbering": "4640.jpg through 4669.jpg",
   "status": "educational_reference_unvalidated",
-  "original_archive": "/TIA Image Research/Originals/",
   "images": [
     {
-      "id": 1,
-      "filename": "TIA-Reference-1.jpg",
-      "topic": "price_action_structure",
+      "reference_id": 1,
+      "filename": "TIA-Reference-01.jpg",
+      "original_filename": "4640.jpg",
+      "topic": "classical_chart_patterns",
       "status": "reference_only",
       "missing": [
-        "objective swing and pivot rules",
-        "pattern boundaries",
-        "breakout and retest",
-        "failure cases",
-        "target and invalidation rules"
+        "full lessons",
+        "objective pivots",
+        "breakout retest",
+        "failure invalidation targets"
       ]
     },
     {
-      "id": 2,
-      "filename": "TIA-Reference-2.jpg",
-      "topic": "price_action_structure",
+      "reference_id": 2,
+      "filename": "TIA-Reference-02.jpg",
+      "original_filename": "4641.jpg",
+      "topic": "bullish_bearish_chart_patterns",
       "status": "reference_only",
       "missing": [
-        "objective detection",
-        "close-confirmed breakout",
-        "retest criteria",
-        "false-break filters",
-        "stop and target math"
+        "formation criteria",
+        "confirmed breakout",
+        "retest",
+        "false-break filters"
       ]
     },
     {
-      "id": 3,
-      "filename": "TIA-Reference-3.jpg",
-      "topic": "volume_profile_shape_hypotheses",
+      "reference_id": 3,
+      "filename": "TIA-Reference-03.jpg",
+      "original_filename": "4642.jpg",
+      "topic": "profile_shape_hypotheses",
       "status": "reference_only",
       "missing": [
-        "exact profile-shape definitions",
-        "verify distribution data source",
-        "profile anchor and period",
-        "acceptance/rejection rules",
-        "evidence and failure examples"
+        "source and profile period",
+        "acceptance rejection",
+        "empirical validation"
       ]
     },
     {
-      "id": 4,
-      "filename": "TIA-Reference-4.jpg",
+      "reference_id": 4,
+      "filename": "TIA-Reference-04.jpg",
+      "original_filename": "4643.jpg",
       "topic": "volume_profile_anatomy",
       "status": "blocked_missing_data",
       "missing": [
         "verified volume-at-price",
         "value-area algorithm",
-        "fixed vs developing profile",
-        "session definitions",
-        "acceptance/rejection and retest rules"
+        "session and anchor",
+        "developing vs fixed profile"
       ]
     },
     {
-      "id": 5,
-      "filename": "TIA-Reference-5.jpg",
-      "topic": "volume_profile_learning_roadmap",
+      "reference_id": 5,
+      "filename": "TIA-Reference-05.jpg",
+      "original_filename": "4644.jpg",
+      "topic": "volume_profile_price_action_lesson",
       "status": "lesson_incomplete",
       "missing": [
-        "complete original ten-part lesson",
-        "stepwise rules and examples",
-        "counterexamples",
-        "entry stop target and risk",
-        "independent validation"
+        "complete lesson",
+        "entry confirmation invalidation",
+        "stop targets",
+        "counterexamples"
       ]
     },
     {
-      "id": 6,
-      "filename": "TIA-Reference-6.jpg",
-      "topic": "order_flow_footprint",
+      "reference_id": 6,
+      "filename": "TIA-Reference-06.jpg",
+      "original_filename": "4645.jpg",
+      "topic": "footprint_order_flow",
       "status": "blocked_missing_data",
       "missing": [
-        "platform and feed identification",
         "classified trade prints",
         "aggressor methodology",
-        "aggregation and timestamps",
-        "latency and replay examples"
+        "venue feed timestamps latency"
       ]
     },
     {
-      "id": 7,
-      "filename": "TIA-Reference-7.jpg",
+      "reference_id": 7,
+      "filename": "TIA-Reference-07.jpg",
+      "original_filename": "4646.jpg",
       "topic": "candlestick_patterns",
       "status": "reference_only",
       "missing": [
-        "exact OHLC definitions",
-        "ATR-normalized thresholds",
-        "trend and location context",
-        "confirmation and invalidation",
-        "frequency and expectancy"
+        "exact OHLC",
+        "ATR normalized thresholds",
+        "context confirmation invalidation"
       ]
     },
     {
-      "id": 8,
-      "filename": "TIA-Reference-8.jpg",
-      "topic": "mixed_candlestick_and_chart_patterns",
+      "reference_id": 8,
+      "filename": "TIA-Reference-08.jpg",
+      "original_filename": "4647.jpg",
+      "topic": "buy_sell_candlestick_patterns",
       "status": "reference_only",
       "missing": [
-        "separate candle vs chart structures",
-        "verify ambiguous labels",
-        "objective formation rules",
+        "objective thresholds",
         "context",
-        "confirmation and invalidation"
+        "separate pattern recognition from entry"
       ]
     },
     {
-      "id": 9,
-      "filename": "TIA-Reference-9.jpg",
-      "topic": "price_action_chart_pattern_examples",
+      "reference_id": 9,
+      "filename": "TIA-Reference-09.jpg",
+      "original_filename": "4648.jpg",
+      "topic": "chart_patterns",
       "status": "reference_only",
       "missing": [
-        "exact pivots",
-        "confirmed vs developing patterns",
-        "breakout and retest",
+        "swing rules",
+        "breakout retest",
         "invalidation",
-        "measured moves",
-        "failed patterns"
+        "measured moves"
       ]
     },
     {
-      "id": 10,
+      "reference_id": 10,
       "filename": "TIA-Reference-10.jpg",
-      "topic": "candlestick_pattern_encyclopedia",
+      "original_filename": "4649.jpg",
+      "topic": "candlestick_pattern_matrix",
       "status": "reference_only",
       "missing": [
-        "verify names and translations",
-        "exact OHLC sequences",
-        "remove duplicates",
-        "ATR-normalized thresholds",
-        "trend context and confirmation"
+        "canonical names",
+        "OHLC rules",
+        "context",
+        "failed examples"
+      ]
+    },
+    {
+      "reference_id": 11,
+      "filename": "TIA-Reference-11.jpg",
+      "original_filename": "4650.jpg",
+      "topic": "candlestick_pattern_matrix_extended",
+      "status": "reference_only",
+      "missing": [
+        "deduplicate",
+        "canonical definitions",
+        "counterexamples"
+      ]
+    },
+    {
+      "reference_id": 12,
+      "filename": "TIA-Reference-12.jpg",
+      "original_filename": "4651.jpg",
+      "topic": "bullish_bearish_reversal_continuation_patterns",
+      "status": "reference_only",
+      "missing": [
+        "separate candle and chart structures",
+        "context",
+        "objective triggers"
+      ]
+    },
+    {
+      "reference_id": 13,
+      "filename": "TIA-Reference-13.jpg",
+      "original_filename": "4652.jpg",
+      "topic": "price_action_market_structure",
+      "status": "reference_only",
+      "missing": [
+        "swing labels",
+        "BOS CHoCH definitions",
+        "liquidity context",
+        "confirmation"
+      ]
+    },
+    {
+      "reference_id": 14,
+      "filename": "TIA-Reference-14.jpg",
+      "original_filename": "4653.jpg",
+      "topic": "price_manipulation_market_phases",
+      "status": "research_hypothesis_only",
+      "missing": [
+        "observable definitions",
+        "distinguish narrative from evidence",
+        "failure cases"
+      ]
+    },
+    {
+      "reference_id": 15,
+      "filename": "TIA-Reference-15.jpg",
+      "original_filename": "4654.jpg",
+      "topic": "chart_pattern_catalogue",
+      "status": "reference_only",
+      "missing": [
+        "verify names",
+        "prerequisites",
+        "breakout retest",
+        "failure target math"
+      ]
+    },
+    {
+      "reference_id": 16,
+      "filename": "TIA-Reference-16.jpg",
+      "original_filename": "4655.jpg",
+      "topic": "multi_indicator_technical_chart",
+      "status": "unverified_example",
+      "missing": [
+        "identify indicators and formulas",
+        "signal timing",
+        "repainting",
+        "correlation"
+      ]
+    },
+    {
+      "reference_id": 17,
+      "filename": "TIA-Reference-17.jpg",
+      "original_filename": "4656.jpg",
+      "topic": "trend_indicator_strategy",
+      "status": "unverified_example",
+      "missing": [
+        "indicator logic",
+        "parameters",
+        "entry exit",
+        "regime and out-of-sample test"
+      ]
+    },
+    {
+      "reference_id": 18,
+      "filename": "TIA-Reference-18.jpg",
+      "original_filename": "4657.jpg",
+      "topic": "multi_panel_technical_chart",
+      "status": "unverified_example",
+      "missing": [
+        "decode panels",
+        "signal timing",
+        "confirmed vs intrabar",
+        "independent testing"
+      ]
+    },
+    {
+      "reference_id": 19,
+      "filename": "TIA-Reference-19.jpg",
+      "original_filename": "4658.jpg",
+      "topic": "scalping_strategy_claim",
+      "status": "unverified_claim",
+      "missing": [
+        "full source strategy",
+        "sample size",
+        "verified performance",
+        "costs drawdown out-of-sample"
+      ]
+    },
+    {
+      "reference_id": 20,
+      "filename": "TIA-Reference-20.jpg",
+      "original_filename": "4659.jpg",
+      "topic": "historical_gann_geometry",
+      "status": "gann_reference",
+      "missing": [
+        "instrument dates scale anchor",
+        "price-time ratio",
+        "original source"
+      ]
+    },
+    {
+      "reference_id": 21,
+      "filename": "TIA-Reference-21.jpg",
+      "original_filename": "4660.jpg",
+      "topic": "gann_angle_grid",
+      "status": "gann_reference",
+      "missing": [
+        "anchor and scale",
+        "units",
+        "square subdivisions",
+        "angle construction"
+      ]
+    },
+    {
+      "reference_id": 22,
+      "filename": "TIA-Reference-22.jpg",
+      "original_filename": "4661.jpg",
+      "topic": "gann_price_time_square",
+      "status": "gann_reference",
+      "missing": [
+        "exact construction",
+        "price-time scaling",
+        "anchor",
+        "Gann method vs decorative geometry"
+      ]
+    },
+    {
+      "reference_id": 23,
+      "filename": "TIA-Reference-23.jpg",
+      "original_filename": "4662.jpg",
+      "topic": "circular_gann_numerical_wheel",
+      "status": "gann_reference",
+      "missing": [
+        "chart edition",
+        "number sequence",
+        "degrees",
+        "price conversion",
+        "source"
+      ]
+    },
+    {
+      "reference_id": 24,
+      "filename": "TIA-Reference-24.jpg",
+      "original_filename": "4663.jpg",
+      "topic": "complete_gann_chart_wheel",
+      "status": "gann_reference",
+      "missing": [
+        "usage instructions",
+        "degree to price/time mapping",
+        "anchor",
+        "arithmetic"
+      ]
+    },
+    {
+      "reference_id": 25,
+      "filename": "TIA-Reference-25.jpg",
+      "original_filename": "4664.jpg",
+      "topic": "square_grid_geometry",
+      "status": "gann_reference",
+      "missing": [
+        "dimensions",
+        "divisions",
+        "circle centers",
+        "diagonals",
+        "anchor"
+      ]
+    },
+    {
+      "reference_id": 26,
+      "filename": "TIA-Reference-26.jpg",
+      "original_filename": "4665.jpg",
+      "topic": "tesla_number_multiplication",
+      "status": "separate_numerical_research",
+      "missing": [
+        "verify source and mathematics",
+        "distinguish Tesla from Gann",
+        "no unsupported trading inference"
+      ]
+    },
+    {
+      "reference_id": 27,
+      "filename": "TIA-Reference-27.jpg",
+      "original_filename": "4666.jpg",
+      "topic": "gann_square_nine_style_degree_map",
+      "status": "gann_reference",
+      "missing": [
+        "confirm method identity",
+        "number-degree conversion",
+        "anchor rules"
+      ]
+    },
+    {
+      "reference_id": 28,
+      "filename": "TIA-Reference-28.jpg",
+      "original_filename": "4667.jpg",
+      "topic": "gann_fan_price_time_chart",
+      "status": "gann_reference",
+      "missing": [
+        "1x1 2x1 1x2 definitions",
+        "scale calibration",
+        "confirmed anchor"
+      ]
+    },
+    {
+      "reference_id": 29,
+      "filename": "TIA-Reference-29.jpg",
+      "original_filename": "4668.jpg",
+      "topic": "circular_angle_degree_diagram",
+      "status": "gann_reference",
+      "missing": [
+        "360 degree divisions",
+        "price-time relationship",
+        "validate before coding"
+      ]
+    },
+    {
+      "reference_id": 30,
+      "filename": "TIA-Reference-30.jpg",
+      "original_filename": "4669.jpg",
+      "topic": "radial_cycle_visualization",
+      "status": "research_hypothesis_only",
+      "missing": [
+        "identify line meaning",
+        "measurable cycle hypothesis",
+        "test predictive value"
       ]
     }
   ],
-  "setup_completion_fields": [
-    "market_venue",
-    "instrument_session_timezone",
-    "higher_timeframe_regime",
-    "objective_formation",
-    "prerequisites",
-    "disqualifiers",
-    "confirmation",
-    "entry_trigger",
-    "invalidation",
-    "stop",
-    "targets",
-    "costs",
-    "valid_failed_ambiguous_examples",
-    "chronological_oos_test",
-    "forward_review"
+  "workstreams": [
+    {
+      "id": "price_action_structure",
+      "image_refs": [
+        1,
+        2,
+        9,
+        13,
+        15
+      ]
+    },
+    {
+      "id": "candlestick_patterns",
+      "image_refs": [
+        7,
+        8,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "id": "volume_profile_orderflow",
+      "image_refs": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "id": "gann_square_geometry",
+      "image_refs": [
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        27,
+        28,
+        29,
+        30
+      ]
+    },
+    {
+      "id": "numerical_research_tesla",
+      "image_refs": [
+        26
+      ]
+    },
+    {
+      "id": "technical_indicators_scalping",
+      "image_refs": [
+        16,
+        17,
+        18,
+        19
+      ]
+    }
   ],
   "guardrails": [
     "No image-derived rule may place or authorize an order.",
     "OHLCV cannot reconstruct true volume-at-price or footprint.",
-    "No future leakage; confirmed pivots are delayed until confirmation.",
+    "Gann fan angles require calibrated price/time scaling.",
+    "Tesla numerical graphics are not assumed to be Gann methods.",
+    "Confirmed pivots are delayed until confirmation; no future leakage.",
     "No strategy is validated by pattern naming alone."
   ]
 }

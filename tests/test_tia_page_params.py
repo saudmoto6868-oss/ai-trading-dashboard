@@ -20,7 +20,9 @@ if PROJECT_ROOT not in sys.path:
 
 # Safely mock third-party dependencies in sys.modules if not installed or running offline
 for mod_name in ["streamlit", "streamlit.components", "streamlit.components.v1", "requests", "numpy"]:
-    if mod_name not in sys.modules:
+    try:
+        __import__(mod_name)          # real package wins; the stub is used only when it cannot be imported
+    except ImportError:
         sys.modules[mod_name] = MagicMock()
 
 import modules.asset_classes

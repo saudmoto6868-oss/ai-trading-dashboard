@@ -1,40 +1,40 @@
-"""TIA unified market workspace and Intelligence Director UI."""
+"""TIA unified market workspace and Intelligence Director UI.
+
+Owner 2026-11-10: the market / symbol / Run Director controls are NOT Streamlit widgets any more (CSS could not shrink them): they live inside the
+workspace toolbar (modules/tia_workspace.py) and talk to this page through URL parameters tia_mkt / tia_sym / tia_run.
+"""
 from __future__ import annotations
 import streamlit as st
 
 
 def render_tia():
-    st.markdown("""
-    <style>
-    .tia-top{background:linear-gradient(110deg,#080a0d,#17140e 68%,#2a1e0b);border:1px solid #66502a;border-radius:15px;padding:15px 20px;margin:0 0 10px}
-    .tia-k{font-size:10px;letter-spacing:3px;color:#c6a35e;font-weight:700}
-    .tia-h{font-size:27px;letter-spacing:5px;color:#f3dfb5;font-weight:800}
-    .tia-s{font-size:11px;letter-spacing:1.5px;color:#b9ad96}
-    </style>
-    <div class="tia-top"><div class="tia-k">TRADE INTELLIGENCE AGENCY · 6868</div>
-    <div class="tia-h">TIA COMMAND WORKSPACE</div>
-    <div class="tia-s">UNIFIED MARKETS · MULTI-SOURCE INTELLIGENCE · HUMAN-CONTROLLED DECISIONS</div></div>
-    """,unsafe_allow_html=True)
-
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
-    market = st.selectbox("Market tab", CLASSES, index=0, key="tia_market_class")
+    qp = st.query_params
+    market = qp.get("tia_mkt") if qp.get("tia_mkt") in CLASSES else CLASSES[0]
     catalog = symbols_for_class(market, top=60)
     symbols = catalog.get("symbols") or []
-    if catalog.get("note"):
-        st.caption(catalog["note"])
     if not symbols:
         st.warning("No verified symbols are currently available for this tab. No placeholder prices will be shown.")
         return
-
-    left, right = st.columns([3, 1])
-    selected = left.selectbox("Symbol / instrument", symbols, key=f"tia_symbol_{market}")
-    run = right.button("Run TIA Director", type="primary", use_container_width=True)
+    selected = qp.get("tia_sym") if qp.get("tia_sym") in symbols else symbols[0]
     key = f"tia_director_{market}_{selected}"
-    if run:
+    if qp.get("tia_run"):
         with st.spinner("Collecting available market evidence and reconciling sources…"):
             st.session_state[key] = director_report(selected, market)
+        try:
+            del st.query_params["tia_run"]   # a reload must not run the Director again
+        except Exception:
+            pass
     report = st.session_state.get(key)
+
+    ctrl = {"markets": list(CLASSES), "market": market, "symbols": list(symbols), "selected": selected,
+            "agents": {"ran": bool(report), "stance": (report or {}).get("stance")}}
+    from modules.tia_workspace import render_tia_workspace
+    render_tia_workspace(height=900, universe=market, symbols=[selected] + [s for s in symbols if s != selected], ctrl=ctrl)
+    if catalog.get("note"):
+        st.caption(catalog["note"])
+
     if report:
         st.markdown("### TIA Intelligence Director")
         stance = report.get("stance", "UNAVAILABLE")
@@ -55,9 +55,3 @@ def render_tia():
         with st.expander("Evidence and provenance"):
             st.json({"sources": src, "technical": technical, "flow": report.get("flow"), "options": report.get("options")})
         st.caption("Research bias only. No order execution. Conflicting or unavailable evidence reduces confidence.")
-
-    st.divider()
-    st.markdown("### Interactive TIA workspace")
-    st.caption("All existing movable workspace panels remain available. The selected market tab supplies its discovered symbol universe to the watchlist and charts.")
-    from modules.tia_workspace import render_tia_workspace
-    render_tia_workspace(height=1040, universe=market, symbols=symbols)

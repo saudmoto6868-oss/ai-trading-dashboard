@@ -1451,3 +1451,5 @@
 | 2026-11-10 06:34:28 | Bash | git add -A && | نجح |
 | 2026-11-10 06:39:11 | mcp__gitlab__add_commit |  | نجح |
 | 2026-11-10 06:39:17 | mcp__gitlab__get_repository_file | modules/tia_page.py | نجح |
+| 2026-11-10 06:39:30 | Bash | git add -A && | نجح |
+| 2026-11-10 06:41:15 | mcp__gitlab__list_merge_requests |  | نجح |

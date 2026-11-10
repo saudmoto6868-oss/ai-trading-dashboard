@@ -90,7 +90,16 @@ Panel.prototype.build_tiaplan = function(){
   const row=(box,k,v,col)=>{const r=el('div');r.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:1px 0';const a=el('span','m',k),b=el('span',null,v);b.style.cssText='font-family:ui-monospace,Menlo,monospace'+(col?';color:'+col:'');r.append(a,b);box.append(r);};
   const draw=()=>{if(dead)return;out.replaceChildren();const S=sym0(),c=pick();
     const head=el('div',null,S||'-');head.style.cssText='font-weight:700;font-size:13px;margin-bottom:4px';out.append(head);
-    if(!c){const m=el('div','m','NO PLAN. No live setup with a valid entry / stop / target exists for this symbol right now (scanner + trade-class engine). Nothing is invented; a plan appears here only when the engines produce one. Other widgets (Agents, Options, Correlation) are context, not a plan.');m.style.cssText='font-size:11px';out.append(m);return;}
+    if(!c){const m=el('div','m','NO PLAN for this symbol right now (scanner + trade-class engines produced no valid entry / stop / target). Nothing is invented.');m.style.cssText='font-size:11px;margin-bottom:6px';out.append(m);
+      let O=[];try{O=(Alerts.list||[]).filter(a=>a&&a.card&&okPlan(a.card)&&a.card.symbol!==S);}catch(ex){}
+      const sc=a=>{try{return wScore(a.card);}catch(ex){return a.card.score/Math.max(1,a.card.max||1);}};O.sort((a,b)=>sc(b)-sc(a));
+      const h2=el('div','m','Live setups on other symbols ('+O.length+')');h2.style.cssText='font-size:10px;margin-bottom:3px';out.append(h2);
+      O.slice(0,5).forEach(a=>{const k=a.card,p=k.plan,e0=+p.entry,s0=+p.stop,t0=+p.tps[0],rr0=Math.abs(t0-e0)/Math.abs(e0-s0),lg=k.direction==='bullish';
+        const r=el('div');r.style.cssText='display:flex;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--line);cursor:pointer';
+        const l=el('span',null,k.symbol+' '+(lg?'LONG':'SHORT')),x=el('span','m',String(k.ttype||'')+' · R:R 1:'+rr0.toFixed(1)+' · '+String(k.verdict||''));l.style.color=lg?'var(--grn)':'var(--red)';
+        r.title='Open '+k.symbol+' in TIA';r.onclick=()=>{try{const C=window.TIA_CTRL;if(!C||(C.symbols||[]).indexOf(k.symbol)<0)return;const P=window.parent,u=new URL(P.location.href);u.searchParams.delete('tia_run');u.searchParams.set('tia_sym',k.symbol);P.location.href=u.href;}catch(e2){}};
+        r.append(l,x);out.append(r);});
+      return;}
     const pl=c.plan,long_=c.direction==='bullish',e=+pl.entry,s=+pl.stop,tps=pl.tps.map(Number).filter(v=>v>0),risk=Math.abs(e-s),rr=risk>0?Math.abs(tps[0]-e)/risk:0;
     let minRR=2;try{if(DESK&&DESK.RULES&&+DESK.RULES.minRR>0)minRR=+DESK.RULES.minRR;}catch(x){}
     let rp=0.25;try{rp=DESK.riskFor(null,0,false);}catch(x){}
@@ -145,14 +154,15 @@ Panel.prototype.build_tiaconf = function(){
       const am=(-90+i*90+45)*Math.PI/180;svg.append(sv('text',{x:C+(R+0)*Math.cos(am),y:C+R*Math.sin(am)+3,'text-anchor':'middle','font-size':'7',fill:'#0d0c0a','font-weight':'700'},x.tf));});
     svg.append(sv('text',{x:C,y:C-2,'text-anchor':'middle','font-size':'9',fill:vc,'font-weight':'700'},verdict));
     svg.append(sv('text',{x:C,y:C+10,'text-anchor':'middle','font-size':'7',fill:'#a99d89'},up+' up / '+dn+' down of '+ok.length));
-    out.append(svg);
+    const top=el('div');top.style.cssText='display:flex;gap:8px;align-items:center';const rowsBox=el('div');rowsBox.style.cssText='flex:1;min-width:0';
+    svg.style.cssText='flex:0 0 108px;width:108px;height:108px;display:block';top.append(svg,rowsBox);out.append(top);
     res.forEach(x=>{const row=el('div');row.style.cssText='margin:3px 0';
       const h=el('div');h.style.cssText='display:flex;justify-content:space-between;font-size:10px';
       const l=el('span',null,x.tf+' '+(x.a?x.a.tr:'-')),r=el('span','m',x.a?('RSI '+x.a.rsi.toFixed(0)+(x.a.ret!=null?' · '+(x.a.ret>0?'+':'')+x.a.ret.toFixed(1)+'%':'')):'no data');l.style.color=x.a?col(x.a.tr):'var(--mut)';h.append(l,r);
       const bar=el('div');bar.style.cssText='position:relative;height:6px;background:var(--panel2);border:1px solid var(--line)';
       if(x.a){const z=(a,b,c2)=>{const d=el('div');d.style.cssText='position:absolute;top:0;bottom:0;left:'+a+'%;width:'+(b-a)+'%;background:'+c2;bar.append(d);};z(0,30,'rgba(49,196,141,.18)');z(70,100,'rgba(230,106,103,.18)');
         const dot=el('div');dot.style.cssText='position:absolute;top:-2px;width:8px;height:8px;border-radius:50%;background:'+col(x.a.tr)+';left:calc('+Math.max(0,Math.min(100,x.a.rsi))+'% - 4px)';bar.append(dot);}
-      row.append(h,bar);out.append(row);});
+      row.append(h,bar);rowsBox.append(row);});
     const f=el('div','m','Trend = close vs SMA20 / SMA50. RSI(14) = simple average of the last 14 changes (not Wilder smoothing). Closed candles only. OKX public API · '+when+' UTC. Descriptive; not a signal or an order.');f.style.cssText='font-size:9px;margin-top:5px';out.append(f);};
   const load=async()=>{const s=sym();
     if(!/^[A-Z0-9]+-USDT$/.test(s)){out.textContent='Needs a crypto USDT pair as the selected symbol (OKX candles).';return;}
@@ -408,7 +418,7 @@ Panel.prototype.build_tiasources = function(){
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
-    doc = doc.replace("ai_ws_v5", "tia_ws_v4")
+    doc = doc.replace("ai_ws_v5", "tia_ws_v5")
     # Owner 2026-11-10: on 1H / 1D / 1W the order-flow map was a thin line, because it shared the chart's (huge) price range while the book only covers about +-0.6 %.
     # In TIA the map starts with its OWN price scale (auto range around the current price; shift+wheel / drag on it still adjusts). The Workspace default is untouched.
     doc = doc.replace("this.colWide = 0; this.colOwn = false;", "this.colWide = 0; this.colOwn = true;", 1)

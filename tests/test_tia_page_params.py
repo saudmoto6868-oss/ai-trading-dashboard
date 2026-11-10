@@ -265,7 +265,7 @@ def test_tia_workspace_html_structure():
 
     # Verify TIA-specific markers are present
     assert "window.TIA_CTRL" in rendered_doc
-    assert "tia_ws_v2" in rendered_doc
+    assert "tia_ws_v" in rendered_doc and "ai_ws_v5" not in rendered_doc   # TIA-only storage key (version bumps when the start layout changes)
     assert "Ws.builtinStandard = () => {" in rendered_doc
     assert "TIA Command Workspace" in rendered_doc
     assert "const TIA_OPTIONS = " in rendered_doc

@@ -94,7 +94,8 @@ def test_duplicate_rr_and_per_trade_cap():
     assert any("reward:risk" in w for w in why)
     assert any("per-trade cap" in w for w in why)
     d.record(+5, "XAU", "long")
-    ok, why = d.check("XAU", "long", 100, 99, 102, 50)
+    ok, why = d.check("XAU", "long", 100, 99, 102, 50,
+                     grade="A+", validation_n=30, validation_passed=True)
     assert ok, why
     print("ok test_duplicate_rr_and_per_trade_cap")
 

@@ -133,6 +133,45 @@ Panel.prototype.build_tiaport = function(){
   draw();const iv=setInterval(()=>{if(!document.hidden)draw();},5000);this.unsubs.push(()=>clearInterval(iv));
 };
 '''
+    # Radial correlation (TIA_FOUNDATION: radial geometry = central asset + measured relationships with metric, sample and window).
+    tia_radial_panel = r'''
+Panel.prototype.build_tiaradial = function(){
+  const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');const note=el('div','m','Radial correlation: centre = the selected pair, spokes = the other USDT pairs. Hourly log returns, last 100 OKX 1H candles. Line width = |correlation|; green positive, red negative. Lead-lag is the lag (-3..+3 h) with the largest |correlation|: a descriptive measure on a small sample, not a trading signal; correlation is not causation.');note.style.cssText='font-size:10px;margin-top:4px';
+  wrap.append(out,note);this.body.append(wrap);
+  let dead=false;this.unsubs.push(()=>{dead=true;});
+  const syms=(SYMS||[]).filter(s=>/^[A-Z0-9]+-USDT$/.test(s)).slice(0,11);
+  const pear=(x,y)=>{const n=x.length;if(n<20)return null;const mx=x.reduce((s,v)=>s+v,0)/n,my=y.reduce((s,v)=>s+v,0)/n;let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){const dx=x[i]-mx,dy=y[i]-my;sxy+=dx*dy;sxx+=dx*dx;syy+=dy*dy;}return sxx>0&&syy>0?sxy/Math.sqrt(sxx*syy):null;};
+  const lagged=(a,b,k)=>{const x=[],y=[];for(let i=0;i<a.length;i++){const j=i+k;if(j>=0&&j<b.length){x.push(a[i]);y.push(b[j]);}}return pear(x,y);};
+  const sv=(tag,at,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in at)e.setAttribute(k,at[k]);if(txt!=null)e.textContent=txt;return e;};
+  const draw=(series,names,n)=>{out.replaceChildren();const c0=names[0],others=names.slice(1),S=360,C=S/2,R=128;
+    const svg=sv('svg',{viewBox:'0 0 '+S+' '+S,width:'100%',height:'100%'});svg.style.cssText='max-height:'+Math.max(240,(this.body.clientHeight||360)-60)+'px;display:block;margin:0 auto';
+    svg.append(sv('circle',{cx:C,cy:C,r:R,fill:'none',stroke:'#51432c','stroke-dasharray':'3 5'}));
+    others.forEach((s,i)=>{const ang=-Math.PI/2+2*Math.PI*i/others.length,x=C+R*Math.cos(ang),y=C+R*Math.sin(ang),cr=pear(series[c0],series[s]);
+      let best=null;for(let k=-3;k<=3;k++){const v=lagged(series[c0],series[s],k);if(v!=null&&(best==null||Math.abs(v)>Math.abs(best.v)))best={k,v};}
+      const mag=cr==null?0:Math.min(1,Math.abs(cr)),col=cr==null?'#848e9c':cr>=0?'#31c48d':'#e66a67';
+      svg.append(sv('line',{x1:C,y1:C,x2:x,y2:y,stroke:col,'stroke-width':String(1+6*mag),opacity:String(.35+.55*mag)}));
+      svg.append(sv('circle',{cx:x,cy:y,r:'17',fill:'#141311',stroke:col,'stroke-width':'2'}));
+      svg.append(sv('text',{x:x,y:y-1,'text-anchor':'middle','font-size':'9',fill:'#eee6d7','font-weight':'700'},s.replace('-USDT','')));
+      svg.append(sv('text',{x:x,y:y+9,'text-anchor':'middle','font-size':'8',fill:col},cr==null?'-':cr.toFixed(2)));
+      const lx=C+(R+34)*Math.cos(ang),ly=C+(R+34)*Math.sin(ang);
+      svg.append(sv('text',{x:lx,y:ly,'text-anchor':'middle','font-size':'7',fill:'#a99d89'},best&&best.k!==0&&best.v!=null?('lag '+(best.k>0?'+':'')+best.k+'h '+best.v.toFixed(2)):''));});
+    svg.append(sv('circle',{cx:C,cy:C,r:'26',fill:'#201d18',stroke:'#d6ad62','stroke-width':'2'}));
+    svg.append(sv('text',{x:C,y:C+3,'text-anchor':'middle','font-size':'10',fill:'#f3dfb5','font-weight':'700'},c0.replace('-USDT','')));
+    out.append(svg);const f=el('div','m','Source: OKX public API · '+n+' aligned hourly returns · '+new Date().toISOString().slice(0,16)+' UTC · lag text shown only when the best lag is not 0');f.style.cssText='font-size:10px';out.append(f);};
+  const load=async()=>{
+    if(syms.length<3){out.textContent='Needs at least three USDT pairs in the symbol list.';return;}
+    out.textContent='Loading candles...';const raw={};
+    await Promise.all(syms.map(async s=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar=1H&limit=100');const j=await r.json();if(j&&j.code==='0'&&Array.isArray(j.data)){const m=new Map();j.data.forEach(c=>m.set(+c[0],+c[4]));raw[s]=m;}}catch(e){}}));
+    if(dead)return;const names=syms.filter(s=>raw[s]&&raw[s].size>=30);
+    if(names.length<3||names[0]!==syms[0]){out.textContent='No candle data for the centre pair or too few pairs (feed unavailable).';return;}
+    let ts=[...raw[names[0]].keys()];names.slice(1).forEach(s=>{ts=ts.filter(t=>raw[s].has(t));});ts.sort((a,b)=>a-b);
+    if(ts.length<25){out.textContent='Too few aligned candles.';return;}
+    const series={};names.forEach(s=>{const c=ts.map(t=>raw[s].get(t));const r=[];for(let i=1;i<c.length;i++)r.push(c[i]>0&&c[i-1]>0?Math.log(c[i]/c[i-1]):0);series[s]=r;});
+    draw(series,names,ts.length-1);};
+  load();const iv=setInterval(()=>{if(!document.hidden)load();},600000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     # Add TIA-native panels to the existing draggable/resizable panel system.
     tia_panels = r'''
 Panel.prototype.build_tiapulse = function(){
@@ -175,9 +214,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaport"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
@@ -189,7 +228,7 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.28), h2 = r(H*0.44), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
-  const ta = r((W - 2*g)*0.45), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 2*g)*0.40), bb = r((W - 2*g)*0.30), bc = W - ba - bb - 2*g;
+  const ta = r((W - 2*g)*0.45), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
     ["tiapulse", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
@@ -198,7 +237,8 @@ Ws.builtinStandard = () => {
     ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
     ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],
     ["tiacorr", {x:ba + g, y:y3, w:bb, h:h3}, {group:1}],
-    ["tiaport", {x:ba + bb + 2*g, y:y3, w:bc, h:h3}, {group:1}],
+    ["tiaradial", {x:ba + bb + 2*g, y:y3, w:bd, h:h3}, {group:1}],
+    ["tiaport", {x:ba + bb + bd + 3*g, y:y3, w:bc, h:h3}, {group:1}],
   ]; };
 '''
     _marker = "/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */"

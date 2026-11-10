@@ -1729,3 +1729,7 @@
 | 2026-11-10 17:39:31 | mcp__gitlab__add_commit |  | نجح |
 | 2026-11-10 17:39:33 | mcp__gitlab__save_merge_request |  | نجح |
 | 2026-11-10 17:39:38 | mcp__gitlab__accept_merge_request |  | نجح |
+| 2026-11-10 17:39:53 | Bash | git status --short / | نجح |
+| 2026-11-10 17:40:11 | mcp__gitlab__get_merge_request |  | نجح |
+| 2026-11-10 17:40:12 | mcp__gitlab__get_merge_request |  | نجح |
+| 2026-11-10 17:40:13 | mcp__gitlab__list_pipelines |  | نجح |

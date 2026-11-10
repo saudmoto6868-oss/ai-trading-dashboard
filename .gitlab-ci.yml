@@ -1,27 +1,47 @@
-# Telegram alerts on GitLab (port of .github/workflows/telegram-alerts.yml).
-# Runs ONLY from a pipeline schedule or the "Run pipeline" button, never on push (saves free CI minutes).
-# Needed once, in the GitLab UI (nothing secret is in this file):
-#   Settings > CI/CD > Variables: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  (Masked, Protected)
-#   Build > Pipeline schedules > New schedule, branch main (the interval GitLab.com allows may be longer than 30 minutes: check)
-# State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache. A cache miss means the dedupe memory is lost and
-# some alerts can repeat once; this is best effort, not a guarantee.
+# CI entry points: run TIA quality checks on pushes and merge requests.
+# Telegram jobs remain restricted to schedules and manual runs.
 
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 default:
   image: python:3.12-slim
   interruptible: false
 
+stages:
+  - test
+
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+tia_quality:
+  stage: test
+  timeout: 15m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+  cache:
+    key: "pip-312"
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --quiet --upgrade pip
+    - python -m pip install --quiet pytest
+  script:
+    - python -m compileall -q modules/tia_agent_charter.py modules/tia_agent_store.py modules/tia_agent_admin.py modules/tia_page.py modules/tia_session_scheduler.py modules/tia_scheduler_worker.py
+    - python -m pytest -q tests/test_tia_agent_messaging.py tests/test_tia_scheduler_worker.py tests/test_tia_session_scheduler.py
 
 telegram_alerts:
   stage: test
   timeout: 15m
-  resource_group: telegram-alerts        # one run at a time
+  resource_group: telegram-alerts
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   cache:
     - key: pip-312
       paths:

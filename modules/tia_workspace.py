@@ -365,7 +365,7 @@ Panel.prototype.build_tiasources = function(){
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
-    doc = doc.replace("ai_ws_v5", "tia_ws_v2")
+    doc = doc.replace("ai_ws_v5", "tia_ws_v3")
     # Owner 2026-11-10: on 1H / 1D / 1W the order-flow map was a thin line, because it shared the chart's (huge) price range while the book only covers about +-0.6 %.
     # In TIA the map starts with its OWN price scale (auto range around the current price; shift+wheel / drag on it still adjusts). The Workspace default is untouched.
     doc = doc.replace("this.colWide = 0; this.colOwn = false;", "this.colWide = 0; this.colOwn = true;", 1)

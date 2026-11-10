@@ -84,6 +84,55 @@ Panel.prototype.build_tiaoptions = function(){
 };
 '''
 
+    # TIA data widgets (owner 2026-11-10; TIA_FOUNDATION.md: heatmaps + portfolio analytics). Real data only: OKX public candles, the workspace's own Journal.
+    tia_extra_panels = r'''
+Panel.prototype.build_tiacorr = function(){
+  const wrap=el('div');wrap.style.cssText='padding:8px;overflow:auto;height:100%;font-size:11px';
+  const note=el('div','m','Correlation of hourly log returns, last 100 OKX 1H candles, crypto USDT pairs only. Correlation is not causation; it moves with the window.');note.style.cssText='font-size:10px;margin-bottom:6px';
+  const out=el('div');wrap.append(note,out);this.body.append(wrap);
+  let dead=false;this.unsubs.push(()=>{dead=true;});
+  const syms=(SYMS||[]).filter(s=>/^[A-Z0-9]+-USDT$/.test(s)).slice(0,10);
+  const corr=(x,y)=>{const n=Math.min(x.length,y.length);if(n<20)return null;const a=x.slice(-n),b=y.slice(-n);const ma=a.reduce((s,v)=>s+v,0)/n,mb=b.reduce((s,v)=>s+v,0)/n;let sab=0,saa=0,sbb=0;for(let i=0;i<n;i++){const da=a[i]-ma,db=b[i]-mb;sab+=da*db;saa+=da*da;sbb+=db*db;}return saa>0&&sbb>0?sab/Math.sqrt(saa*sbb):null;};
+  const draw=(series,names,n)=>{out.replaceChildren();const tbl=el('table');tbl.style.cssText='border-collapse:collapse;font:10px ui-monospace,Menlo,monospace';
+    const hr=el('tr');hr.append(el('th'));names.forEach(s=>{const th=el('th',null,s.replace('-USDT',''));th.style.cssText='padding:3px 4px;color:var(--mut)';hr.append(th);});tbl.append(hr);
+    names.forEach(a=>{const tr=el('tr');const th=el('th',null,a.replace('-USDT',''));th.style.cssText='padding:3px 6px;text-align:right;color:var(--mut)';tr.append(th);
+      names.forEach(b=>{const c=a===b?1:corr(series[a],series[b]);const td=el('td',null,c==null?'-':c.toFixed(2));const mag=c==null?0:Math.min(1,Math.abs(c));
+        td.style.cssText='padding:5px 6px;text-align:center;border:1px solid var(--line);background:'+(c==null?'rgba(130,130,130,.1)':c>=0?'rgba(49,196,141,'+(.08+.5*mag)+')':'rgba(230,106,103,'+(.08+.5*mag)+')');tr.append(td);});tbl.append(tr);});
+    out.append(tbl);const f=el('div','m','Source: OKX public API · '+n+' aligned hourly returns · '+new Date().toISOString().slice(0,16)+' UTC');f.style.cssText='font-size:10px;margin-top:6px';out.append(f);};
+  const load=async()=>{
+    if(syms.length<2){out.textContent='Needs at least two USDT pairs in the symbol list.';return;}
+    out.textContent='Loading candles...';const raw={};
+    await Promise.all(syms.map(async s=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar=1H&limit=100');const j=await r.json();if(j&&j.code==='0'&&Array.isArray(j.data)){const m=new Map();j.data.forEach(c=>m.set(+c[0],+c[4]));raw[s]=m;}}catch(e){}}));
+    if(dead)return;const names=syms.filter(s=>raw[s]&&raw[s].size>=30);
+    if(names.length<2){out.textContent='No candle data returned for enough pairs (feed unavailable).';return;}
+    let ts=[...raw[names[0]].keys()];names.slice(1).forEach(s=>{ts=ts.filter(t=>raw[s].has(t));});ts.sort((a,b)=>a-b);
+    if(ts.length<25){out.textContent='Too few aligned candles to compute correlation.';return;}
+    const series={};names.forEach(s=>{const c=ts.map(t=>raw[s].get(t));const r=[];for(let i=1;i<c.length;i++)if(c[i]>0&&c[i-1]>0)r.push(Math.log(c[i]/c[i-1]));series[s]=r;});
+    draw(series,names,ts.length-1);};
+  load();const iv=setInterval(()=>{if(!document.hidden)load();},600000);this.unsubs.push(()=>clearInterval(iv));
+};
+Panel.prototype.build_tiaport = function(){
+  const wrap=el('div');wrap.style.cssText='padding:8px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');wrap.append(out);this.body.append(wrap);
+  const draw=()=>{out.replaceChildren();let J=[];try{J=(Journal&&Journal.list)||[];}catch(e){}
+    const done=J.filter(t=>(t.status==='tp'||t.status==='sl')&&Number.isFinite(+t.r)).sort((a,b)=>((+a.t1||+a.t0||0)-(+b.t1||+b.t0||0)));
+    const n=done.length;
+    if(!n){out.append(el('div','m','No closed journal trades yet. Nothing is estimated: these numbers come only from the closed trades in this workspace journal.'));return;}
+    const rs=done.map(t=>+t.r),sum=rs.reduce((s,v)=>s+v,0),wins=rs.filter(v=>v>0),loss=rs.filter(v=>v<0);
+    const gw=wins.reduce((s,v)=>s+v,0),gl=-loss.reduce((s,v)=>s+v,0);
+    let cum=0,peak=0,dd=0;rs.forEach(v=>{cum+=v;if(cum>peak)peak=cum;if(peak-cum>dd)dd=peak-cum;});
+    const fmt=(v,d)=>Number.isFinite(v)?v.toFixed(d==null?2:d):'-';
+    const cards=[['TRADES',String(n)],['WIN RATE',fmt(100*wins.length/n,0)+'%'],['EXPECTANCY',fmt(sum/n,3)+' R'],['PROFIT FACTOR',gl>0?fmt(gw/gl):'-'],['TOTAL',fmt(sum)+' R'],['MAX DRAWDOWN',fmt(dd)+' R']];
+    const grid=el('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin-bottom:8px';
+    cards.forEach(([k,v])=>{const c=el('div');c.style.cssText='padding:7px;border:1px solid var(--line)';const a=el('div','m',k);a.style.fontSize='9px';const b=el('div',null,v);b.style.cssText='font:700 15px ui-monospace,Menlo,monospace;margin-top:4px';c.append(a,b);grid.append(c);});out.append(grid);
+    const by={};done.forEach(t=>{const k=String(t.symbol||'?');(by[k]=by[k]||{n:0,r:0});by[k].n++;by[k].r+=+t.r;});
+    const tbl=el('table');tbl.style.cssText='width:100%;border-collapse:collapse;font:11px ui-monospace,Menlo,monospace';
+    const h=el('tr');['SYMBOL','N','TOTAL R'].forEach(x=>{const th=el('th',null,x);th.style.cssText='text-align:right;padding:4px;border-bottom:1px solid var(--line);color:var(--mut)';h.append(th);});tbl.append(h);
+    Object.entries(by).sort((a,b)=>b[1].r-a[1].r).slice(0,12).forEach(([k,v])=>{const tr=el('tr');[k.replace(/^HL:xyz:|^Y:|-USDT.*$/g,''),String(v.n),fmt(v.r)].forEach((x,i)=>{const td=el('td',null,x);td.style.cssText='text-align:right;padding:4px;border-bottom:1px solid var(--line)';if(i===2)td.style.color=v.r>=0?'var(--grn)':'var(--red)';tr.append(td);});tbl.append(tr);});out.append(tbl);
+    const foot=el('div','m',(n<30?'Under 30 closed trades: this is not evidence. ':'')+'R-multiples from the journal; costs and slippage are whatever the journal recorded. Funded-account limits are not modelled here.');foot.style.cssText='font-size:10px;margin-top:8px';out.append(foot);};
+  draw();const iv=setInterval(()=>{if(!document.hidden)draw();},5000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     # Add TIA-native panels to the existing draggable/resizable panel system.
     tia_panels = r'''
 Panel.prototype.build_tiapulse = function(){
@@ -126,9 +175,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaport"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
@@ -140,13 +189,16 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.28), h2 = r(H*0.44), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
+  const ta = r((W - 2*g)*0.45), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 2*g)*0.40), bb = r((W - 2*g)*0.30), bc = W - ba - bb - 2*g;
   return [
-    ["tiaheat", {x:0, y:0, w:w1, h:h1}, {group:1}],
-    ["tiapulse", {x:w1 + g, y:0, w:w2, h:h1}, {group:1}],
+    ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
+    ["tiapulse", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
+    ["tiasources", {x:ta + tb + 2*g, y:0, w:tc, h:h1}, {group:1}],
     ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
-    ["tiaoptions", {x:0, y:y3, w:w1, h:h3}, {group:1}],
-    ["tiasources", {x:w1 + g, y:y3, w:w2, h:h3}, {group:1}],
+    ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],
+    ["tiacorr", {x:ba + g, y:y3, w:bb, h:h3}, {group:1}],
+    ["tiaport", {x:ba + bb + 2*g, y:y3, w:bc, h:h3}, {group:1}],
   ]; };
 '''
     _marker = "/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */"

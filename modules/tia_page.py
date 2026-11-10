@@ -13,19 +13,19 @@ def render_tia():
     .tia-k{font-size:8px;letter-spacing:1.5px;color:#c6a35e;font-weight:700}
     .tia-h{font-size:16px;letter-spacing:1.8px;color:#f3dfb5;font-weight:800;line-height:1.2}
     .tia-s{font-size:8px;letter-spacing:.5px;color:#a99d89}
-    .tia-tools [data-testid="stWidgetLabel"]{font-size:10px!important;margin-bottom:1px!important}
-    .tia-tools [data-baseweb="select"]>div{min-height:31px!important;min-height:31px!important;font-size:11px!important}
-    .tia-tools [data-baseweb="select"] input{font-size:11px!important}
-    .tia-tools [data-testid="stButton"] button{min-height:31px!important;height:31px!important;
+    div[data-testid="stSelectbox"] [data-testid="stWidgetLabel"]{font-size:10px!important;margin-bottom:1px!important}
+    div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:31px!important;min-height:31px!important;font-size:11px!important}
+    div[data-testid="stSelectbox"] [data-baseweb="select"] input{font-size:11px!important}
+    div[data-testid="stButton"] button{min-height:31px!important;height:31px!important;
       padding:0 8px!important;font-size:10px!important;white-space:nowrap}
-    .tia-tools [data-testid="stVerticalBlock"]{gap:.25rem!important}
+    div[data-testid="stVerticalBlock"]{gap:.25rem!important}
     .tia-report{border:1px solid #51432c;background:#11110f;border-radius:8px;padding:8px 10px;margin:4px 0}
     div[data-baseweb="popover"] li{font-size:11px!important;min-height:26px!important}
     div[data-baseweb="popover"] ul{max-height:260px!important}
     @media(max-width:700px){
       .tia-top{padding:6px 8px}.tia-h{font-size:13px;letter-spacing:1px}
       .tia-s{display:none}
-      .tia-tools [data-baseweb="select"]>div{font-size:10px!important}
+      div[data-testid="stSelectbox"] [data-baseweb="select"]>div{font-size:10px!important}
     }
     </style>
     <div class="tia-top">

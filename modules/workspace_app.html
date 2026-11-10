@@ -6902,7 +6902,7 @@ Panel.prototype.build_ofdesk = function(){
     const E = num(enI.value, aE), SL = num(slI.value, aS), TP = num(tpI.value, aT), riskPct = DESK.riskFor(null, 0, false), sz = DESK.size(S.eq, E, SL, riskPct, S.pv, S.step);
     const dayS = DESK.day(Journal.list, Date.now(), DESK.RULES), dirT = side > 0 ? "bullish" : "bearish";
     const openSame = (Journal.list || []).some(t => t.status === "open" && t.symbol === sym && t.dir === dirT);
-    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct}, dayS, rules, openSame);
+    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct, riskCapPct:riskPct}, dayS, rules, openSame);
     // agent 6: the skeptic - every reason against
     const skp = [];
     if (bias.available && ((side > 0 && bias.bias === "bear") || (side < 0 && bias.bias === "bull"))) skp.push(Lg("against the chart's bias ("+bias.trend+", price "+bias.ema+" EMA50)","عكس اتجاه الشارت ("+bias.trend+"، السعر "+(bias.ema === "above" ? "فوق" : "تحت")+" EMA50)"));

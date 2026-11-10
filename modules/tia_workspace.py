@@ -80,6 +80,39 @@ Panel.prototype.build_tiafunded = function(){
   const foot=el('div','m','Source: Prop Firms page data (session). Rules are as entered by you; verify them on the firm site.');foot.style.cssText='font-size:10px';out.append(foot);
 };
 '''
+    tia_ring_panel = r'''
+Panel.prototype.build_tiaring = function(){
+  const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');const note=el('div','m','Session ring: average traded volume (bar length) and average high-low range (bar brightness) by UTC hour of day, from the last 300 OKX 1H candles of the centre pair. Session hours are conventional UTC approximations (Asia 00-08, London 07-16, New York 13-22), not exchange rules. About 12 samples per hour: descriptive, not a forecast.');note.style.cssText='font-size:10px;margin-top:4px';
+  wrap.append(out,note);this.body.append(wrap);
+  let dead=false;this.unsubs.push(()=>{dead=true;});
+  const sym=(SYMS||[]).find(s=>/^[A-Z0-9]+-USDT$/.test(s));
+  const sv=(tag,at,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in at)e.setAttribute(k,at[k]);if(txt!=null)e.textContent=txt;return e;};
+  const draw=(vol,rng,cnt)=>{out.replaceChildren();const S=340,C=S/2,r0=52,L=96;
+    const svg=sv('svg',{viewBox:'0 0 '+S+' '+S,width:'100%',height:'100%'});svg.style.cssText='max-height:'+Math.max(240,(this.body.clientHeight||340)-70)+'px;display:block;margin:0 auto';
+    const mv=Math.max(...vol)||1,mr=Math.max(...rng)||1;
+    svg.append(sv('circle',{cx:C,cy:C,r:r0-4,fill:'none',stroke:'#51432c','stroke-dasharray':'3 5'}));
+    for(let h=0;h<24;h++){const a=(-90+h*15)*Math.PI/180,len=6+L*vol[h]/mv,b=.25+.75*rng[h]/mr;
+      svg.append(sv('line',{x1:C+r0*Math.cos(a),y1:C+r0*Math.sin(a),x2:C+(r0+len)*Math.cos(a),y2:C+(r0+len)*Math.sin(a),stroke:'rgba(214,173,98,'+b.toFixed(2)+')','stroke-width':'9','stroke-linecap':'round'}));
+      svg.append(sv('text',{x:C+(r0-16)*Math.cos(a),y:C+(r0-16)*Math.sin(a)+3,'text-anchor':'middle','font-size':'8',fill:'#a99d89'},String(h)));}
+    [['ASIA',0,8,'#78a9d1'],['LONDON',7,16,'#31c48d'],['NEW YORK',13,22,'#e66a67']].forEach(([n,a0,a1,col],i)=>{const m=(a0+a1+1)/2,a=(-90+m*15)*Math.PI/180,R=r0+L+22;
+      svg.append(sv('text',{x:C+R*Math.cos(a),y:C+R*Math.sin(a)+3,'text-anchor':'middle','font-size':'9',fill:col,'font-weight':'700'},n));});
+    svg.append(sv('text',{x:C,y:C-2,'text-anchor':'middle','font-size':'11',fill:'#f3dfb5','font-weight':'700'},sym.replace('-USDT','')));
+    svg.append(sv('text',{x:C,y:C+11,'text-anchor':'middle','font-size':'8',fill:'#a99d89'},'UTC hours'));
+    out.append(svg);const top=vol.map((v,h)=>[v,h]).sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]+':00').join(', ');
+    const f=el('div','m','Busiest UTC hours by volume: '+top+' · '+cnt+' candles · source OKX public API · '+new Date().toISOString().slice(0,16)+' UTC');f.style.cssText='font-size:10px';out.append(f);};
+  const load=async()=>{
+    if(!sym){out.textContent='Needs a crypto USDT pair as the centre symbol.';return;}
+    out.textContent='Loading candles...';
+    try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+sym+'&bar=1H&limit=300');const j=await r.json();if(dead)return;
+      if(!(j&&j.code==='0'&&Array.isArray(j.data)&&j.data.length>=96)){out.textContent='Not enough candle data returned (feed unavailable).';return;}
+      const sv_=new Array(24).fill(0),sr=new Array(24).fill(0),n=new Array(24).fill(0);
+      j.data.forEach(c=>{const h=new Date(+c[0]).getUTCHours(),o=+c[1],hi=+c[2],lo=+c[3],v=+c[5];if(!(o>0)||!Number.isFinite(v))return;sv_[h]+=v;sr[h]+=(hi-lo)/o*100;n[h]++;});
+      const vol=sv_.map((x,h)=>n[h]?x/n[h]:0),rng=sr.map((x,h)=>n[h]?x/n[h]:0);
+      draw(vol,rng,j.data.length);}catch(e){if(!dead)out.textContent='Candle feed error: '+String(e).slice(0,80);}};
+  load();const iv=setInterval(()=>{if(!document.hidden)load();},900000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";
@@ -248,9 +281,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")

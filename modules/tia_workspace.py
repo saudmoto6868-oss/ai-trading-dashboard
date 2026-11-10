@@ -45,7 +45,8 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
         except Exception as _e:
             options_errors["provider"] = str(_e)[:180]
         _OPT_CACHE["v"] = (_time.time(), options_payload, options_errors)
-    compact_css = """<style>html,body{font-size:11px!important} .tb select,.tb button,select,button{font-size:10px!important;min-height:25px!important;padding:2px 6px!important} .tb{gap:4px!important} .panel .title,.panel .head{font-size:10px!important} .panel table{font-size:10px!important} .panel th,.panel td{padding:3px 4px!important} @media(max-width:700px){.tb select,.tb button,select,button{font-size:9px!important;min-height:23px!important;padding:1px 4px!important}}</style>"""\n    doc = doc.replace("</head>", compact_css + "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
+    compact_css = """<style>html,body{font-size:11px!important} .tb select,.tb button,select,button{font-size:10px!important;min-height:25px!important;padding:2px 6px!important} .tb{gap:4px!important} .panel .title,.panel .head{font-size:10px!important} .panel table{font-size:10px!important} .panel th,.panel td{padding:3px 4px!important} @media(max-width:700px){.tb select,.tb button,select,button{font-size:9px!important;min-height:23px!important;padding:1px 4px!important}}</style>"""
+    doc = doc.replace("</head>", compact_css + "<script>const TIA_OPTIONS = " + json.dumps(options_payload, default=str, separators=(",", ":")) + "; const TIA_OPTIONS_ERRORS = " + json.dumps(options_errors) + ";</script></head>", 1)
     tia_new_panels = r'''
 Panel.prototype.build_tiaheat = function(){
   const wrap=el("div");wrap.style.cssText="padding:8px;overflow:auto;height:100%";

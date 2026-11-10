@@ -1,4 +1,4 @@
-"""TIA unified market workspace and Intelligence Director UI."""
+""""TIA unified market workspace and Intelligence Director UI."""
 from __future__ import annotations
 
 import streamlit as st
@@ -14,7 +14,7 @@ def render_tia():
     .tia-h{font-size:16px;letter-spacing:1.8px;color:#f3dfb5;font-weight:800;line-height:1.2}
     .tia-s{font-size:8px;letter-spacing:.5px;color:#a99d89}
     div[data-testid="stSelectbox"] [data-testid="stWidgetLabel"]{font-size:10px!important;margin-bottom:1px!important}
-    div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:31px!important;min-height:31px!important;font-size:11px!important}
+    div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:31px!important;font-size:11px!important}
     div[data-testid="stSelectbox"] [data-baseweb="select"] input{font-size:11px!important}
     div[data-testid="stButton"] button{min-height:31px!important;height:31px!important;
       padding:0 8px!important;font-size:10px!important;white-space:nowrap}
@@ -42,7 +42,6 @@ def render_tia():
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
 
-    # One compact toolbar: market selector, instrument selector and Director action share one row.
     st.markdown('<div class="tia-tools">', unsafe_allow_html=True)
     market_col, symbol_col, run_col = st.columns([0.85, 1.35, 0.62], vertical_alignment="bottom", gap="small")
     with market_col:
@@ -88,11 +87,22 @@ def render_tia():
                 st.caption("المصادر: " + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
                 for warning in report.get("warnings", []):
                     st.warning(warning)
+                vk = report.get("visual_knowledge") or {}
+                vks = vk.get("summary") or {}
+                st.markdown("**Image-derived playbook · مرجع تعليمي غير معتمد كإشارة**")
+                st.caption(f"{vks.get('module_count', 0)} وحدات معرفية · {vks.get('pattern_count', 0)} نمط مستخرج · لا توجد إشارة تلقائية من الصور")
+                with st.expander("قواعد Price Action والشموع وVolume Profile وOrder Flow"):
+                    for mid, state in (vk.get("modules") or {}).items():
+                        st.markdown(f"**{mid}** · {state.get('status', 'unknown')}")
+                        st.caption(state.get("reason", ""))
+                    st.markdown("**تسلسل التقييم المقترح**")
+                    for step in vk.get("workflow", []):
+                        st.write("• " + step)
                 with st.expander("تفاصيل الأدلة ومصادر البيانات"):
                     st.json({"sources": src, "technical": technical, "flow": report.get("flow"),
                              "options": report.get("options")})
                 st.caption("تحليل بحثي فقط؛ لا ينفذ أوامر تداول.")
-
+    
     st.markdown("### TIA Market Workspace")
     st.caption("اختر السوق والرمز من الشريط المختصر أعلاه؛ أدوات الشارت والتدفق تظل داخل مساحة العمل.")
     from modules.tia_workspace import render_tia_workspace

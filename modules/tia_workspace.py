@@ -70,7 +70,7 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     const g = document.createElement('span'); g.className = 'tiactl'; g.style.cssText = 'display:inline-flex;gap:4px;align-items:center;margin-left:8px';
     g.append(sel(C.markets, C.market, v => go('tia_mkt', v, ['tia_sym', 'tia_run']), 110), sel(C.symbols, C.selected, v => go('tia_sym', v, ['tia_run']), 150));
     const b = document.createElement('button'); b.textContent = 'Run TIA Director'; b.onclick = () => go('tia_run', String(Date.now())); g.append(b); bar.append(g); return true; };
-  let n = 0; const t = setInterval(() => { if (mk() || ++n > 60) clearInterval(t); }, 250);
+  setInterval(mk, 800);   // buildBar() empties #bar at start-up and on every language / layout rebuild: the controls are put back whenever they are missing
 })();
 '''
         doc = doc.replace("</head>", "<script>window.TIA_CTRL = " + json.dumps(ctrl, default=str, separators=(",", ":")).replace("</", "<\\/") + ";</script><script>" + tia_bar_js + "</script></head>", 1)

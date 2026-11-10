@@ -173,6 +173,40 @@ Panel.prototype.build_tiaconf = function(){
   load();const iv=setInterval(()=>{if(!document.hidden)load();},300000);this.unsubs.push(()=>clearInterval(iv));
 };
 '''
+    # Source health (docs/TIA_VISUAL_BRIEF_2026-11-10.md P1-4): real probes from the browser, one small request per source per 60 s.
+    tia_health_panel = r'''
+Panel.prototype.build_tiahealth = function(){
+  const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');wrap.append(out);this.body.append(wrap);
+  let dead=false;this.unsubs.push(()=>{dead=true;});
+  const H={};
+  const J=(u,o)=>fetch(u,o).then(r=>r.json());
+  const P=[
+    ['OKX REST',()=>J('https://www.okx.com/api/v5/public/time').then(j=>j&&j.code==='0'?'ok':'bad reply')],
+    ['Hyperliquid',()=>J('https://api.hyperliquid.xyz/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'allMids'})}).then(j=>j&&typeof j==='object'&&Object.keys(j).length>5?'ok':'bad reply')],
+    ['Deribit',()=>J('https://www.deribit.com/api/v2/public/get_time').then(j=>j&&j.result>0?'ok':'bad reply')],
+    ['Binance klines',()=>J('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1w&limit=2').then(j=>Array.isArray(j)&&j.length&&j[0].length>=10&&isFinite(+j[0][9])?'taker-buy volume field present':'reachable, but no taker field / bad reply')]
+  ];
+  const probe=async([name,fn])=>{const t0=performance.now(),rec=H[name]||(H[name]={hist:[]});
+    try{const note=await Promise.race([fn(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout 8 s')),8000))]);
+      rec.ok=!/bad reply|no taker/.test(note);rec.note=note;rec.ms=performance.now()-t0;rec.t=Date.now();rec.hist.push(rec.ms);}
+    catch(e){rec.ok=false;rec.note=/Failed to fetch|NetworkError/i.test(String(e&&e.message))?'blocked or offline (CORS / region / network)':String((e&&e.message)||e).slice(0,50);rec.ms=null;rec.hist.push(null);}
+    if(rec.hist.length>14)rec.hist.shift();};
+  const draw=()=>{if(dead)return;out.replaceChildren();
+    P.forEach(([name])=>{const r=H[name];const row=el('div');row.style.cssText='padding:4px 0;border-bottom:1px solid var(--line)';
+      const h=el('div');h.style.cssText='display:flex;justify-content:space-between;gap:6px;align-items:center';
+      const dot=el('span',null,'● ');dot.style.color=!r?'var(--mut)':r.ok?'var(--grn)':'var(--red)';
+      const l=el('span',null,name);l.style.cssText='flex:1;font-weight:700';l.prepend(dot);
+      const ms=el('span','m',!r?'...':r.ms==null?'FAIL':Math.round(r.ms)+' ms');ms.style.cssText='font-family:ui-monospace,Menlo,monospace';h.append(l,ms);
+      const bars=el('div');bars.style.cssText='display:flex;gap:1px;align-items:flex-end;height:12px;margin:2px 0';
+      ((r&&r.hist)||[]).forEach(v=>{const b=el('span');b.style.cssText='width:5px;display:inline-block;background:'+(v==null?'var(--red)':'var(--gold)')+';height:'+(v==null?12:Math.max(2,Math.min(12,v/60)))+'px';bars.append(b);});
+      const n=el('div','m',r?(r.note+(r.t?' · '+Math.round((Date.now()-r.t)/1000)+' s ago':'')):'probing...');n.style.fontSize='9px';
+      row.append(h,bars,n);out.append(row);});
+    const f=el('div','m','Measured from THIS browser (CORS, region and network included): one small request per source every 60 s. Latency of a probe, not a feed guarantee. Binance row = feasibility check for real taker-volume delta on big timeframes.');f.style.cssText='font-size:9px;margin-top:5px';out.append(f);};
+  const run=async()=>{await Promise.all(P.map(probe));draw();};
+  draw();run();const iv=setInterval(()=>{if(!document.hidden)run();},60000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     tia_agents_panel = r'''
 Panel.prototype.build_tiaagents = function(){
   const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
@@ -413,12 +447,12 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
-    doc = doc.replace("ai_ws_v5", "tia_ws_v5")
+    doc = doc.replace("ai_ws_v5", "tia_ws_v6")
     # Owner 2026-11-10: on 1H / 1D / 1W the order-flow map was a thin line, because it shared the chart's (huge) price range while the book only covers about +-0.6 %.
     # In TIA the map starts with its OWN price scale (auto range around the current price; shift+wheel / drag on it still adjusts). The Workspace default is untouched.
     doc = doc.replace("this.colWide = 0; this.colOwn = false;", "this.colWide = 0; this.colOwn = true;", 1)
@@ -430,7 +464,7 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.24), h2 = r(H*0.50), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
-  const ta = r((W - 3*g)*0.26), tb = r((W - 3*g)*0.22), tcf = r((W - 3*g)*0.20), tc = W - ta - tb - tcf - 3*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
+  const ta = r((W - 3*g)*0.26), tb = r((W - 3*g)*0.22), tcf = r((W - 3*g)*0.20), tc = W - ta - tb - tcf - 3*g, ba = r((W - 4*g)*0.26), bb = r((W - 4*g)*0.22), bd = r((W - 4*g)*0.22), bh = r((W - 4*g)*0.14), bc = W - ba - bb - bd - bh - 4*g;
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
     ["tiaplan", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
@@ -442,7 +476,8 @@ Ws.builtinStandard = () => {
     ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],
     ["tiacorr", {x:ba + g, y:y3, w:bb, h:h3}, {group:1}],
     ["tiaradial", {x:ba + bb + 2*g, y:y3, w:bd, h:h3}, {group:1}],
-    ["tiaport", {x:ba + bb + bd + 3*g, y:y3, w:bc, h:h3}, {group:1}],
+    ["tiahealth", {x:ba + bb + bd + 3*g, y:y3, w:bh, h:h3}, {group:1}],
+    ["tiaport", {x:ba + bb + bd + bh + 4*g, y:y3, w:bc, h:h3}, {group:1}],
   ]; };
 '''
     _marker = "/* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */"

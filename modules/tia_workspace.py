@@ -120,6 +120,49 @@ Panel.prototype.build_tiaplan = function(){
   draw();const iv=setInterval(()=>{if(!document.hidden)draw();},4000);this.unsubs.push(()=>clearInterval(iv));
 };
 '''
+    # Multi-timeframe confidence (docs/TIA_VISUAL_BRIEF_2026-11-10.md P1-2): real OKX candles, closed bars only, descriptive.
+    tia_conf_panel = r'''
+Panel.prototype.build_tiaconf = function(){
+  const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
+  const out=el('div');wrap.append(out);this.body.append(wrap);
+  let dead=false;this.unsubs.push(()=>{dead=true;});
+  const sym=()=>(SYMS&&SYMS[0])||'';
+  const sv=(tag,at,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in at)e.setAttribute(k,at[k]);if(txt!=null)e.textContent=txt;return e;};
+  const TF=[['15m','15m'],['1H','1H'],['4H','4H'],['1D','1D']];
+  const sma=(a,n)=>a.length<n?null:a.slice(-n).reduce((s,v)=>s+v,0)/n;
+  const rsi=(c,n)=>{if(c.length<n+1)return null;let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d;}return g+l===0?50:100-100/(1+g/(l||1e-12));};
+  const analyse=c=>{const p=c[c.length-1],m20=sma(c,20),m50=sma(c,50),r=rsi(c,14),ret=c.length>21?(p/c[c.length-21]-1)*100:null;
+    if(m20==null||m50==null||r==null)return null;
+    const tr=p>m20&&m20>m50?'UP':p<m20&&m20<m50?'DOWN':'RANGE';return {tr,rsi:r,ret};};
+  const col=t=>t==='UP'?'#31c48d':t==='DOWN'?'#e66a67':'#d6ad62';
+  const draw=(res,when)=>{out.replaceChildren();
+    const ok=res.filter(x=>x.a),up=ok.filter(x=>x.a.tr==='UP').length,dn=ok.filter(x=>x.a.tr==='DOWN').length;
+    const verdict=!ok.length?'NO DATA':up>=3&&dn===0?'ALIGNED UP':dn>=3&&up===0?'ALIGNED DOWN':(up>0&&dn>0)?'CONFLICT':'MIXED / RANGE';
+    const vc=verdict==='ALIGNED UP'?'#31c48d':verdict==='ALIGNED DOWN'?'#e66a67':verdict==='CONFLICT'?'#e66a67':'#d6ad62';
+    const S=120,C=S/2,R=44,svg=sv('svg',{viewBox:'0 0 '+S+' '+S,width:'100%',height:'110'});svg.style.cssText='display:block;margin:0 auto 4px;max-width:150px';
+    res.forEach((x,i)=>{const a0=(-90+i*90+5)*Math.PI/180,a1=(-90+(i+1)*90-5)*Math.PI/180;
+      svg.append(sv('path',{d:'M '+(C+R*Math.cos(a0))+' '+(C+R*Math.sin(a0))+' A '+R+' '+R+' 0 0 1 '+(C+R*Math.cos(a1))+' '+(C+R*Math.sin(a1)),fill:'none',stroke:x.a?col(x.a.tr):'#555','stroke-width':'9','stroke-linecap':'round'}));
+      const am=(-90+i*90+45)*Math.PI/180;svg.append(sv('text',{x:C+(R+0)*Math.cos(am),y:C+R*Math.sin(am)+3,'text-anchor':'middle','font-size':'7',fill:'#0d0c0a','font-weight':'700'},x.tf));});
+    svg.append(sv('text',{x:C,y:C-2,'text-anchor':'middle','font-size':'9',fill:vc,'font-weight':'700'},verdict));
+    svg.append(sv('text',{x:C,y:C+10,'text-anchor':'middle','font-size':'7',fill:'#a99d89'},up+' up / '+dn+' down of '+ok.length));
+    out.append(svg);
+    res.forEach(x=>{const row=el('div');row.style.cssText='margin:3px 0';
+      const h=el('div');h.style.cssText='display:flex;justify-content:space-between;font-size:10px';
+      const l=el('span',null,x.tf+' '+(x.a?x.a.tr:'-')),r=el('span','m',x.a?('RSI '+x.a.rsi.toFixed(0)+(x.a.ret!=null?' · '+(x.a.ret>0?'+':'')+x.a.ret.toFixed(1)+'%':'')):'no data');l.style.color=x.a?col(x.a.tr):'var(--mut)';h.append(l,r);
+      const bar=el('div');bar.style.cssText='position:relative;height:6px;background:var(--panel2);border:1px solid var(--line)';
+      if(x.a){const z=(a,b,c2)=>{const d=el('div');d.style.cssText='position:absolute;top:0;bottom:0;left:'+a+'%;width:'+(b-a)+'%;background:'+c2;bar.append(d);};z(0,30,'rgba(49,196,141,.18)');z(70,100,'rgba(230,106,103,.18)');
+        const dot=el('div');dot.style.cssText='position:absolute;top:-2px;width:8px;height:8px;border-radius:50%;background:'+col(x.a.tr)+';left:calc('+Math.max(0,Math.min(100,x.a.rsi))+'% - 4px)';bar.append(dot);}
+      row.append(h,bar);out.append(row);});
+    const f=el('div','m','Trend = close vs SMA20 / SMA50. RSI(14) = simple average of the last 14 changes (not Wilder smoothing). Closed candles only. OKX public API · '+when+' UTC. Descriptive; not a signal or an order.');f.style.cssText='font-size:9px;margin-top:5px';out.append(f);};
+  const load=async()=>{const s=sym();
+    if(!/^[A-Z0-9]+-USDT$/.test(s)){out.textContent='Needs a crypto USDT pair as the selected symbol (OKX candles).';return;}
+    out.textContent='Loading candles...';
+    const res=await Promise.all(TF.map(async([tf,bar])=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar='+bar+'&limit=120');const j=await r.json();
+      if(!(j&&j.code==='0'&&Array.isArray(j.data)))return {tf,a:null};const c=j.data.filter(k=>k[8]==='1').reverse().map(k=>+k[4]).filter(v=>v>0);return {tf,a:analyse(c)};}catch(e){return {tf,a:null};}}));
+    if(dead)return;draw(res,new Date().toISOString().slice(0,16));};
+  load();const iv=setInterval(()=>{if(!document.hidden)load();},300000);this.unsubs.push(()=>clearInterval(iv));
+};
+'''
     tia_agents_panel = r'''
 Panel.prototype.build_tiaagents = function(){
   const wrap=el('div');wrap.style.cssText='padding:6px;overflow:auto;height:100%;font-size:11px';
@@ -360,12 +403,12 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
-    doc = doc.replace("ai_ws_v5", "tia_ws_v3")
+    doc = doc.replace("ai_ws_v5", "tia_ws_v4")
     # Owner 2026-11-10: on 1H / 1D / 1W the order-flow map was a thin line, because it shared the chart's (huge) price range while the book only covers about +-0.6 %.
     # In TIA the map starts with its OWN price scale (auto range around the current price; shift+wheel / drag on it still adjusts). The Workspace default is untouched.
     doc = doc.replace("this.colWide = 0; this.colOwn = false;", "this.colWide = 0; this.colOwn = true;", 1)
@@ -377,12 +420,13 @@ Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
   const h1 = r(H*0.24), h2 = r(H*0.50), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
-  const ta = r((W - 2*g)*0.30), tb = r((W - 2*g)*0.30), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
+  const ta = r((W - 3*g)*0.26), tb = r((W - 3*g)*0.22), tcf = r((W - 3*g)*0.20), tc = W - ta - tb - tcf - 3*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
   return [
     ["tiaheat", {x:0, y:0, w:ta, h:h1}, {group:1}],
     ["tiaplan", {x:ta + g, y:0, w:tb, h:h1}, {group:1}],
-    ["tiaagents", {x:ta + tb + 2*g, y:0, w:r(tc*0.62), h:h1}, {group:1}],
-    ["tiafunded", {x:ta + tb + 3*g + r(tc*0.62), y:0, w:tc - r(tc*0.62) - g, h:h1}, {group:1}],
+    ["tiaconf", {x:ta + tb + 2*g, y:0, w:tcf, h:h1}, {group:1}],
+    ["tiaagents", {x:ta + tb + tcf + 3*g, y:0, w:r(tc*0.62), h:h1}, {group:1}],
+    ["tiafunded", {x:ta + tb + tcf + 4*g + r(tc*0.62), y:0, w:tc - r(tc*0.62) - g, h:h1}, {group:1}],
     ["chart", {x:0, y:y2, w:w3, h:h2}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["ofdesk", {x:w3 + g, y:y2, w:w4, h:h2}, {group:1}],
     ["tiaoptions", {x:0, y:y3, w:ba, h:h3}, {group:1}],

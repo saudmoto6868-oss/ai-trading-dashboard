@@ -287,13 +287,16 @@ Panel.prototype.build_tiasources = function(){
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v2")
+    # Owner 2026-11-10: on 1H / 1D / 1W the order-flow map was a thin line, because it shared the chart's (huge) price range while the book only covers about +-0.6 %.
+    # In TIA the map starts with its OWN price scale (auto range around the current price; shift+wheel / drag on it still adjusts). The Workspace default is untouched.
+    doc = doc.replace("this.colWide = 0; this.colOwn = false;", "this.colWide = 0; this.colOwn = true;", 1)
     # TIA's own start layout (owner 2026-11-10: use the Workspace widget engine, but show TIA's data, not a Workspace copy):
     # heatmap + pulse on top, ONE chart with the order-flow column + the Order Flow Desk in the middle, options + feed health at the bottom.
     # Every other widget stays one click away in + Widget. The Workspace standard stays untouched (renamed, never deleted).
     tia_layout = r'''
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(500, Math.min((Ws.el.clientHeight || 760) - 8, 960)), r = v => Math.round(v), g = 6, S0 = SYMS[0];
-  const h1 = r(H*0.28), h2 = r(H*0.44), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
+  const h1 = r(H*0.24), h2 = r(H*0.50), y2 = h1 + g, y3 = y2 + h2 + g, h3 = H - y3, w1 = r((W - g)*0.6), w2 = W - w1 - g, w3 = r((W - g)*0.56), w4 = W - w3 - g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};
   const ta = r((W - 2*g)*0.38), tb = r((W - 2*g)*0.26), tc = W - ta - tb - 2*g, ba = r((W - 3*g)*0.28), bb = r((W - 3*g)*0.24), bd = r((W - 3*g)*0.28), bc = W - ba - bb - bd - 3*g;
   return [

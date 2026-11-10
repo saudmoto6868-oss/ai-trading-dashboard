@@ -1603,3 +1603,6 @@
 | 2026-11-10 13:44:14 | mcp__gitlab__get_commit |  | نجح |
 | 2026-11-10 13:44:15 | mcp__gitlab__get_commit |  | نجح |
 | 2026-11-10 13:44:32 | mcp__gitlab__get_commit |  | نجح |
+| 2026-11-10 13:44:59 | Bash | git add -A && | نجح |
+| 2026-11-10 13:48:41 | mcp__gitlab__list_user_events |  | نجح |
+| 2026-11-10 13:48:41 | mcp__gitlab__list_merge_requests |  | نجح |

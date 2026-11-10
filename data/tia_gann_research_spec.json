@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "project": "TIA Gann Research",
+  "status": "research_specification_unvalidated",
+  "scope": "standalone_gann_only",
+  "prior_decisions": {
+    "standalone_from_xpix_shix": true,
+    "automatic_htf_confirmed_pivot_anchor": true,
+    "square_of_nine_default": true,
+    "time_cycles_default": true,
+    "fan_default": false,
+    "geometry_star_default": false,
+    "channel_default": false,
+    "no_ema_rsi_adx_filters": true,
+    "no_chart_scale_distortion": true,
+    "confirmed_close_only": true,
+    "no_repainting_no_future_leakage": true
+  },
+  "components": [
+    "anchor_engine",
+    "square_of_nine",
+    "fan_engine",
+    "geometry_engine",
+    "time_cycle_engine",
+    "gann_event_evaluator",
+    "gann_research_ledger"
+  ],
+  "square_of_nine": {
+    "formula": "(sqrt(anchor_price * multiplier) +/- degrees / 180)^2 / multiplier",
+    "status": "common modern practitioner reconstruction; not verified as verbatim original Gann formula",
+    "test_vectors_anchor_100": {
+      "45_up": 105.0625,
+      "45_down": 95.0625,
+      "90_up": 110.25,
+      "90_down": 90.25,
+      "180_up": 121,
+      "180_down": 81,
+      "270_up": 132.25,
+      "270_down": 72.25,
+      "360_up": 144,
+      "360_down": 64
+    },
+    "rules": [
+      "freeze multiplier per anchor epoch",
+      "round only at display/tick boundary",
+      "record formula variant",
+      "levels are not signals"
+    ]
+  },
+  "fan": {
+    "calibration_methods": [
+      "reference_swing_top_to_top_or_bottom_to_bottom",
+      "fixed_user_scale",
+      "frozen_atr_normalized_research_variant"
+    ],
+    "slope_convention": "base_price_units_per_time_unit * numerator / denominator",
+    "ratios": {
+      "1x1": 1,
+      "2x1": 2,
+      "1x2": 0.5,
+      "4x1": 4,
+      "1x4": 0.25
+    },
+    "requires_explicit_time_unit": true,
+    "requires_explicit_price_unit": true,
+    "scale_invariant_to_chart_zoom": true
+  },
+  "anchor": {
+    "sources": [
+      "manual",
+      "confirmed_chart_pivot",
+      "confirmed_htf_pivot"
+    ],
+    "fields": [
+      "symbol",
+      "venue",
+      "chart_timeframe",
+      "anchor_timeframe",
+      "pivot_side",
+      "pivot_price",
+      "pivot_time",
+      "pivot_index",
+      "left_bars",
+      "right_bars",
+      "known_time",
+      "known_index",
+      "source_mode",
+      "selection_policy",
+      "data_revision"
+    ],
+    "never_fallback_to_current_close": true
+  },
+  "time_cycles": {
+    "families": [
+      "elapsed_calendar_time",
+      "trading_time",
+      "bar_counts",
+      "seasonal_calendar_dates",
+      "price_derived_cycles"
+    ],
+    "legacy_project_defaults_bars": [
+      30,
+      45,
+      90
+    ],
+    "note": "project defaults and secondary-source cycle lists are hypotheses, not universal laws",
+    "projection_origin": "anchor_time_or_anchor_index_not_current_bar"
+  },
+  "validation": {
+    "baseline_comparisons": [
+      "confirmed_swing_levels",
+      "square_of_nine_only",
+      "fan_only",
+      "time_cycles_only",
+      "geometry_only",
+      "predeclared_confluence"
+    ],
+    "promotion_gate_project_initial": {
+      "min_trades": 100,
+      "t_statistic_greater_than": 3,
+      "net_after_costs_positive": true,
+      "both_halves_positive": true
+    },
+    "extra_requirements": [
+      "untouched_chronological_oos",
+      "walk_forward",
+      "forward_paper_review",
+      "parameter_stability",
+      "overfit_control"
+    ],
+    "status": "not_tested_no_profitability_claim"
+  },
+  "known_prior_defects": [
+    "moving fallback anchor",
+    "time cycles projected from current bar rather than anchor",
+    "fan slope derived from current close/ATR rather than calibrated anchor",
+    "historical boxes not representing true historical outcomes",
+    "unconfirmed MTF values and possible repainting",
+    "drawing autoscale distortion"
+  ],
+  "sources": [
+    {
+      "name": "TradingView Gann Fan",
+      "url": "https://www.tradingview.com/support/solutions/43000518151-gann-fan-drawing-tool/",
+      "type": "platform documentation"
+    },
+    {
+      "name": "TradingView Gann Box",
+      "url": "https://www.tradingview.com/support/solutions/43000518152-gann-box-drawing-tool/",
+      "type": "platform documentation"
+    },
+    {
+      "name": "TradingView Gann Square",
+      "url": "https://www.tradingview.com/support/solutions/43000518149-gann-square-drawing-tool/",
+      "type": "platform documentation"
+    },
+    {
+      "name": "TradingView Pine repainting",
+      "url": "https://www.tradingview.com/pine-script-docs/concepts/repainting/",
+      "type": "platform documentation"
+    },
+    {
+      "name": "TradingView Pine other timeframes",
+      "url": "https://www.tradingview.com/pine-script-docs/concepts/other-timeframes-and-data/",
+      "type": "platform documentation"
+    },
+    {
+      "name": "Gann and John Gann, How to Make Profits Trading in Commodities (1941)",
+      "url": "https://books.google.com/books?id=JYm-QQAACAAJ",
+      "type": "bibliographic primary-source record"
+    },
+    {
+      "name": "FAO AGRIS book record",
+      "url": "https://agris.fao.org/search/en/providers/122535/records/65ddec5263b8185d9ca59e6a",
+      "type": "bibliographic record"
+    },
+    {
+      "name": "Gann techniques summary",
+      "url": "https://cyclesresearchinstitute.org/pdf/cycles-economy/Summary-of-W-D-Gann-Techniques-of-Analysis.pdf",
+      "type": "secondary source"
+    },
+    {
+      "name": "Square of Nine formula guide",
+      "url": "https://www.quantum-algo.com/ar/blog/guides/gann-square-of-9/",
+      "type": "secondary practitioner reconstruction"
+    },
+    {
+      "name": "Probability of Backtest Overfitting",
+      "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2326253",
+      "type": "research paper"
+    }
+  ],
+  "open_questions": [
+    "identify exact wheel convention in each archived Gann image",
+    "separate original Gann source from modern reinterpretation",
+    "verify whether 24-part wheel and spiral formula are equivalent",
+    "recover historical chart price/time scale",
+    "test predictive value after costs against simple baselines",
+    "reconstruct historical examples point-in-time including failures",
+    "test calibration stability across market regimes"
+  ]
+}

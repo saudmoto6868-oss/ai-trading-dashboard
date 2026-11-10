@@ -1,6 +1,6 @@
 """Order Flow Desk - agent 5 (risk manager): position size + daily guard.
 
-Rules: risk per trade 0.5 % (owner decision 2026-11-09; the 2026-11-08 minutes said 0.25 %), max daily loss 2 %,
+Rules: 0.25 % base; 0.50 % only for explicitly validated A+ setups with n >= 30. Max daily loss 2 %,
 stop trading after 3 stops in a day, reward:risk at least 1:2 (docs/MEETING_ROOM.md, 2026-11-08).
 Nothing here places orders - it only says "allowed / blocked, and why".
 
@@ -11,10 +11,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from modules.risk_policy import risk_pct_for_setup
+
 
 @dataclass(frozen=True)
 class DeskRules:
-    risk_pct: float = 0.5           # % of equity risked per trade (owner decision 2026-11-09)
     daily_max_loss_pct: float = 2.0  # % of start-of-day equity; reaching it locks the day
     max_stops: int = 3               # stops (losing trades) per day before the day locks
     min_rr: float = 2.0              # first target must be >= min_rr x risk
@@ -23,15 +24,16 @@ class DeskRules:
 RULES = DeskRules()
 
 
-def position_size(equity: float, entry: float, stop: float, risk_pct: float | None = None,
-                  point_value: float = 1.0, qty_step: float = 0.0) -> dict:
-    """Size so that hitting the stop loses risk_pct % of equity.
+def position_size(equity: float, entry: float, stop: float,
+                  point_value: float = 1.0, qty_step: float = 0.0, *, grade=None,
+                  validation_n=0, validation_passed=False) -> dict:
+    """Size under the shared automatic risk policy; callers cannot choose a percentage.
 
     point_value = money per 1.0 price move per unit (1 for spot crypto / CFD units, 50 for ES, 20 for NQ ...).
     qty_step > 0 rounds the quantity DOWN to that step (never up: rounding up would break the risk cap).
-    -> {"qty", "risk_amount", "risk_per_unit", "actual_risk_pct"}; qty 0 means the stop is too wide for the step.
+    -> includes qty, risk_amount, risk_per_unit, policy risk_pct and actual_risk_pct. qty 0 means the stop is too wide for the step.
     """
-    rp = RULES.risk_pct if risk_pct is None else float(risk_pct)
+    rp = risk_pct_for_setup(grade, validation_n, validation_passed)
     if equity <= 0 or rp <= 0:
         raise ValueError("equity and risk_pct must be > 0")
     per_unit = abs(float(entry) - float(stop)) * float(point_value)
@@ -43,7 +45,7 @@ def position_size(equity: float, entry: float, stop: float, risk_pct: float | No
         qty = math.floor(qty / qty_step + 1e-9) * qty_step
     risk = qty * per_unit
     return {"qty": qty, "risk_amount": risk, "risk_per_unit": per_unit,
-            "actual_risk_pct": risk / equity * 100.0}
+            "risk_pct": rp, "actual_risk_pct": risk / equity * 100.0}
 
 
 def reward_risk(entry: float, stop: float, target: float) -> float:
@@ -98,7 +100,7 @@ class DeskDay:
         self.log.append({"pnl": float(pnl), "symbol": symbol, "side": side})
 
     def check(self, symbol: str, side: str, entry: float, stop: float, target: float,
-              risk_amount: float) -> tuple[bool, list[str]]:
+              risk_amount: float, *, grade=None, validation_n=0, validation_passed=False) -> tuple[bool, list[str]]:
         """-> (allowed, reasons). Every failed rule is listed, not only the first."""
         why = []
         lock = self.lock_reason()
@@ -113,9 +115,10 @@ class DeskDay:
                 why.append(f"reward:risk {rr:.2f} < {self.rules.min_rr}")
         except ValueError as e:
             why.append(str(e))
-        per_trade_cap = self.start_equity * self.rules.risk_pct / 100.0
+        effective_risk_pct = risk_pct_for_setup(grade, validation_n, validation_passed)
+        per_trade_cap = self.start_equity * effective_risk_pct / 100.0
         if risk_amount > per_trade_cap * 1.0001:
-            why.append(f"risk {risk_amount:.2f} > per-trade cap {per_trade_cap:.2f} ({self.rules.risk_pct}%)")
+            why.append(f"risk {risk_amount:.2f} > per-trade cap {per_trade_cap:.2f} ({effective_risk_pct}%)")
         if risk_amount > self.remaining_budget() * 1.0001:
             why.append(f"risk {risk_amount:.2f} > what is left of today's cap {self.remaining_budget():.2f}")
         return (not why), why

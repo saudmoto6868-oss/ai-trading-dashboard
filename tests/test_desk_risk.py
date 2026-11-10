@@ -7,17 +7,46 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules.desk_risk import DeskDay, DeskRules, position_size, reward_risk
 
 
-def test_size_half_percent_default():
-    s = position_size(10_000, entry=100, stop=99)          # 0.5 % of 10k = 50, 1.0 per unit
-    assert abs(s["qty"] - 50) < 1e-9 and abs(s["risk_amount"] - 50) < 1e-9
-    print("ok test_size_half_percent_default")
+def test_size_base_quarter_percent_default():
+    s = position_size(10_000, entry=100, stop=99)
+    assert abs(s["qty"] - 25) < 1e-9 and abs(s["risk_amount"] - 25) < 1e-9
+    print("ok test_size_base_quarter_percent_default")
+
+
+def test_a_plus_step_up_requires_validated_30_trade_sample():
+    base = position_size(10000, 100, 99, grade="A+", validation_n=29, validation_passed=True)
+    tier = position_size(10000, 100, 99, grade="A+", validation_n=30, validation_passed=True)
+    bad = position_size(10000, 100, 99, grade="A+", validation_n=50, validation_passed=False)
+    other = position_size(10000, 100, 99, grade="A", validation_n=50, validation_passed=True)
+    assert base["risk_pct"] == 0.25 and base["risk_amount"] == 25
+    assert tier["risk_pct"] == 0.5 and tier["risk_amount"] == 50
+    assert bad["risk_pct"] == other["risk_pct"] == 0.25
+    # Integer-valued numeric counts (including 30.0) match JavaScript; strings/fractions/bools fail closed.
+    numeric_float = position_size(10000, 100, 99, grade="A+", validation_n=30.0, validation_passed=True)
+    assert numeric_float["risk_pct"] == 0.5 and numeric_float["risk_amount"] == 50
+    for invalid_n in ("30", 30.9, True, float("nan"), float("inf")):
+        rejected = position_size(10000, 100, 99, grade="A+", validation_n=invalid_n, validation_passed=True)
+        assert rejected["risk_pct"] == 0.25, (invalid_n, rejected)
+    print("ok test_a_plus_step_up_requires_validated_30_trade_sample")
+
+
+def test_day_guard_uses_same_automatic_tier():
+    base_day = DeskDay(10_000)
+    ok, why = base_day.check("BTC", "long", 100, 99, 102, 50)
+    assert not ok and any("0.25%" in reason for reason in why), why
+
+    qualified_day = DeskDay(10_000)
+    ok, why = qualified_day.check("BTC", "long", 100, 99, 102, 50,
+                                  grade="A+", validation_n=30, validation_passed=True)
+    assert ok, why
+    print("ok test_day_guard_uses_same_automatic_tier")
 
 
 def test_size_point_value_and_step_rounds_down():
-    s = position_size(50_000, entry=5000, stop=4990, point_value=50, qty_step=1)   # 250 budget / 500 per contract
+    s = position_size(50_000, entry=5000, stop=4990, point_value=50, qty_step=1)   # 125 base budget / 500 per contract
     assert s["qty"] == 0, s                                   # never rounds up past the cap
-    s = position_size(250_000, entry=5000, stop=4990, point_value=50, qty_step=1)  # 1250 / 500 = 2.5 -> 2
-    assert s["qty"] == 2 and s["actual_risk_pct"] <= 0.5
+    s = position_size(250_000, entry=5000, stop=4990, point_value=50, qty_step=1)  # 625 base budget / 500 = 1.25 -> 1
+    assert s["qty"] == 1 and s["actual_risk_pct"] <= 0.25
     print("ok test_size_point_value_and_step_rounds_down")
 
 
@@ -67,20 +96,21 @@ def test_duplicate_rr_and_per_trade_cap():
     assert any("reward:risk" in w for w in why)
     assert any("per-trade cap" in w for w in why)
     d.record(+5, "XAU", "long")
-    ok, why = d.check("XAU", "long", 100, 99, 102, 50)
+    ok, why = d.check("XAU", "long", 100, 99, 102, 50,
+                     grade="A+", validation_n=30, validation_passed=True)
     assert ok, why
     print("ok test_duplicate_rr_and_per_trade_cap")
 
 
-def test_custom_rules_quarter_percent():
-    r = DeskRules(risk_pct=0.25)
-    s = position_size(10_000, 100, 99, risk_pct=r.risk_pct)
+def test_default_rules_are_fixed_quarter_percent():
+    r = DeskRules()
+    s = position_size(10_000, 100, 99)
     assert abs(s["qty"] - 25) < 1e-9
     ok, _ = DeskDay(10_000, rules=r).check("BTC", "long", 100, 99, 102, 25)
     assert ok
     ok, _ = DeskDay(10_000, rules=r).check("BTC", "long", 100, 99, 102, 50)
     assert not ok
-    print("ok test_custom_rules_quarter_percent")
+    print("ok test_default_rules_are_fixed_quarter_percent")
 
 
 if __name__ == "__main__":

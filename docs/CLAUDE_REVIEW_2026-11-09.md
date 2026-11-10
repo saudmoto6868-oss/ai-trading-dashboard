@@ -7,8 +7,7 @@ branch `team/work-allocation-2026-11-08` (`docs/XPIX_UPDATE_2026-11-08.md`).
 
 1. **Work division (XPiX table): approved as written.** Free models prepare (sources, rules tables, test cases,
    short summaries); Claude decides and writes code. Improvement-researcher (agent 7) output stays a proposal.
-2. **Risk numbers (owner decided 2026-11-09): 0.5 % per trade**, 2 % daily cap, lock after 3 stops, R:R ≥ 1:2.
-   They live in one place (`DeskRules` in `modules/desk_risk.py`).
+2. **Risk policy (owner's later decision, 2026-11-09): 0.25% base per trade; automatic 0.50% only for grade exactly A+ with explicit validation passed and >=30 closed OOS trades for the same setup/rule version.** Malformed or missing validation fails closed to 0.25%. Daily cap 2%, lock after 3 stops, R:R ≥ 1:2. Canonical logic is `modules/risk_policy.py`; no manual selector.
 3. **Correction to MISSING_ITEMS:** options flow is not missing — `modules/options_flow.py` (Unusual Whales filter,
    needs `UNUSUALWHALES_API_KEY`) and `modules/cboe_options.py` (free delayed chain, put/call, max pain) exist.
    FRED feed exists (`modules/fred_feed.py`) and a regime module exists (`modules/regime.py`); what is missing is the
@@ -26,7 +25,7 @@ same caveat already written in `modules/flow_manual.py`.
 
 ## Next, in order
 
-1. ~~Owner: confirm 0.25 % or 0.5 %~~ → 0.5 % (2026-11-09).
+1. ~~Owner: confirm 0.25 % or 0.5 %~~ → resolved by later owner decision: 0.25% base / 0.50% only for validated A+ with n>=30 closed OOS trades (2026-11-09).
 2. Wire `gex.levels()` into the Options desk / Order Flow Desk as a context panel (needs a live Cboe check from the
    owner's browser — the sandbox cannot reach Cboe).
 3. Order Flow Desk tab skeleton in `modules/ws/*` (rebuild with `scripts/build_workspace.py`): one view with the

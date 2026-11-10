@@ -8,11 +8,11 @@
 | | `desk_risk.py` | TIA Risk Engine v1 |
 |---|---|---|
 | الحالة | في `main`، متوصّل بودجت Order Flow Desk وبتقرير المخ (حجم المركز) | Draft، مش متوصّل، اختباراته مكتوبة ومش متشغّلة، MR فيه `conflicts: true` وفرعه الهدف مش موجود |
-| الطريقة | قاعدة بسيطة: نسبة الصفقة (0.5%)، سقف يومي 2%، قفل بعد 3 ستوبات، R:R | سياسة صريحة بنسخة، خسارة محسوبة من أسعار السوق (mark-to-market) مع الرسوم والتمويل، حجم بالتك واللوت، دفتر SQLite، مطابقة مراكز الوسيط (قراءة بس) |
+| الطريقة | سياسة موحدة: 0.25% أساسي و0.50% تلقائيًا فقط لـ A+ باختبار OOS ناجح و30 صفقة مغلقة، سقف يومي 2%، قفل بعد 3 ستوبات، R:R | سياسة صريحة بنسخة، خسارة محسوبة من أسعار السوق (mark-to-market) مع الرسوم والتمويل، حجم بالتك واللوت، دفتر SQLite، مطابقة مراكز الوسيط (قراءة بس) |
 | القوة | بسيط ومختبر ومتوصّل | أدق مفاهيميًا (مخاطر المراكز المفتوحة، تكلفة، ودائع/سحوبات لا تخبّي خسايرًا) |
 | الضعف | بيشوف الخسارة المحققة وقيمة مخاطرة يدخلها اللي بيستدعيه | ما اتشغّلش، محتاج مواصفات أدوات من الوسيط (التوثيق بنفسه بيقول مفيش تخمين)، SQLite محلي |
 | الأقرب للصح | للإنتاج بالمستقبل: محرك TIA (أدق). للاستخدام دلوقتي: `desk_risk` (الوحيد اللي متوصّل ومختبر) | |
-| التكامل | **الاتنين يفضلوا.** `desk_risk` هو القرار الحي. محرك TIA يتشغّل بجنبه "ظل" (shadow) عن طريق `tia_risk_shadow.py` اللي كاتبه صاحبه، ويقارن القرارين على نفس المدخلات. التحويل بعد اختبارات وقرار المالك في السياسة (0.5% ثابت ولا طبقتين) | |
+| التكامل | **الاتنين يفضلوا.** `desk_risk` هو القرار الحي. محرك TIA يتشغّل بجنبه "ظل" (shadow) عن طريق `tia_risk_shadow.py` اللي كاتبه صاحبه، ويقارن القرارين على نفس المدخلات. التحويل بعد اختبارات وقرار المالك في السياسة الموحدة (0.25% أساسي / 0.50% مشروط بـ A+ و30 صفقة OOS ناجحة) | |
 
 ## 2) سجل المحادثات والمعرفة: `docs/sessions` + `MEETING_ROOM.md` مقابل سجل TIA (#7) مقابل Trade Intelligence Center (#27)
 - **`docs/sessions` و`MEETING_ROOM`:** ملفات markdown في git. بسيطة، بتتقري بالعين، متتبّعة بالتاريخ، من غير قاعدة بيانات. ضعفها: مفيش بحث ولا تحقق من التلاعب.
@@ -53,3 +53,7 @@
 3. **عقد واحد للنتايج:** `agent_result`.
 4. **مصدر واحد لكل بيانات:** `spot_flow` و`options_desk` يتعاد استخدامهم.
 5. **أرقام الصفحات الثابتة** (11 Spot و12 TIA و13-15 الهبات) ما تتكررش. #27 لازم يغيّر رقمه.
+
+
+## Owner decision: unified risk policy — 2026-11-09
+Both engines use one deterministic policy; no manual percentage selector. Base 0.25%. Step up to 0.50% only for grade exactly A+ plus literal boolean validation_passed=true and integer validation_n >= 30 closed out-of-sample trades for that exact setup/rule version. Raw journal count, A+ grade, school count, mock data or missing metadata cannot qualify. Daily cap 2%, lock after 3 stops, and minimum R:R 1:2 remain unchanged. TIA has no independent sizing engine in main; future TIA sizing must call modules/risk_policy.py.

@@ -54,10 +54,11 @@ def test_volume_profile_value_area():
 
 
 def test_size_and_rr_match_python():
-    cases = [(10000, 100, 99, 0.5, 1, 0), (50000, 5000, 4990, 0.5, 50, 1), (250000, 5000, 4990, 0.5, 50, 1), (8000, 2000, 2030, 0.25, 1, 0.001)]
-    js = node("console.log(JSON.stringify(%s.map(c => DESK.size(...c))))" % json.dumps(cases))
+    cases = [(10000, 100, 99, None, 0, False, 1, 0), (50000, 5000, 4990, None, 0, False, 50, 1),
+             (250000, 5000, 4990, "A+", 30, True, 50, 1), (8000, 2000, 2030, None, 0, False, 1, 0.001)]
+    js = node("console.log(JSON.stringify(%s.map(c => DESK.size(c[0],c[1],c[2],DESK.riskFor(c[3],c[4],c[5]),c[6],c[7]))))" % json.dumps(cases))
     for c, j in zip(cases, js):
-        p = position_size(c[0], c[1], c[2], risk_pct=c[3], point_value=c[4], qty_step=c[5])
+        p = position_size(c[0], c[1], c[2], point_value=c[6], qty_step=c[7], grade=c[3], validation_n=c[4], validation_passed=c[5])
         assert abs(p["qty"] - j["qty"]) < 1e-9 and abs(p["actual_risk_pct"] - j["pct"]) < 1e-9, (c, p, j)
     rr = node("console.log(JSON.stringify([DESK.rr(100,99,102), DESK.rr(100,101,97), DESK.rr(100,99,98)]))")
     assert rr == [reward_risk(100, 99, 102), reward_risk(100, 101, 97), reward_risk(100, 99, 98)]
@@ -68,19 +69,34 @@ def test_day_and_check_match_python():
     now = 1793750400000 + 12 * H   # 2026-11-04 12:00 UTC
     jr = [{"status": "sl", "r": -1, "t1": now - H}, {"status": "sl", "r": -1, "t1": now - 2 * H}, {"status": "tp", "r": 2, "t1": now - 3 * H},
           {"status": "sl", "r": -1, "t1": now - 2 * DAY}, {"status": "open", "r": 0, "t0": now - H}]
-    out = node("const d = DESK.day(%s, %d); const a = DESK.check({entry:100, stop:99, target:103, riskPct:0.5}, d);"
+    out = node("const d = DESK.day(%s, %d); const a = DESK.check({entry:100, stop:99, target:103, riskPct:0.25}, d);"
                "const b = DESK.check({entry:100, stop:99, target:101.5, riskPct:0.8}, {n:0, stops:3, R:-3, lossPct:1.5}, null, true);"
                "console.log(JSON.stringify({d, a, b: b.why.map(w => w[0])}))" % (json.dumps(jr), now))
     assert out["d"] == {"n": 3, "stops": 2, "R": 0, "lossPct": 0}, out["d"]
+    mixed = node("const d = DESK.day([{status:'sl',r:-1,riskPct:0.5,t1:1793750400000+11*3600000},{status:'tp',r:1,riskPct:0.25,t1:1793750400000+10*3600000}], 1793750400000+12*3600000); console.log(JSON.stringify(d));")
+    assert mixed["lossPct"] == 0.25, mixed
+    legacy = node("console.log(JSON.stringify(DESK.day([{status:'sl',r:-1,t1:1793750400000+11*3600000}], 1793750400000+12*3600000).lossPct))")
+    assert legacy == 0.25, legacy
     assert out["a"]["ok"] and out["a"]["rr"] == 3
     assert set(out["b"]) == {"stops", "left", "rr", "cap", "dup"}, out["b"]
-    # the same day in the Python manager (equity 10 000, 0.5 % = 50 per R): 2 stops, net 0 -> still allowed
+    qualified = node("console.log(JSON.stringify(DESK.check({entry:100,stop:99,target:103,riskPct:0.5,riskCapPct:0.5},{n:0,stops:0,R:0,lossPct:0},null,false)))")
+    assert qualified["ok"], qualified
+    rejected = node("console.log(JSON.stringify(DESK.check({entry:100,stop:99,target:103,riskPct:0.5},{n:0,stops:0,R:0,lossPct:0},null,false)))")
+    assert not rejected["ok"] and any(w[0] == "cap" for w in rejected["why"]), rejected
+    # the same day in the Python manager (equity 10 000, base 0.25% = 25 per R): 2 stops, net 0 -> still allowed
     d = DeskDay(10000)
     for r in (-1, -1, 2):
-        d.record(r * 50)
-    ok, why = d.check("BTC", "long", 100, 99, 103, 50)
+        d.record(r * 25)
+    ok, why = d.check("BTC", "long", 100, 99, 103, 25)
     assert ok and d.stops == 2, why
     print("ok test_day_and_check_match_python")
+
+
+def test_risk_policy_has_no_manual_input_and_matches_python():
+    out = node("console.log(JSON.stringify([DESK.riskFor('A+',29,true), DESK.riskFor('A+',30,true), DESK.riskFor('A+',30.0,true), DESK.riskFor('A+',50,false), DESK.riskFor('A',50,true), DESK.riskFor('A+','30',true), DESK.riskFor('A+',30.9,true), DESK.riskFor('A+',true,true)]))")
+    assert out == [0.25, 0.5, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25], out
+    assert "rkI" not in SRC and 'lab(Lg(\"risk %\"' not in SRC
+    print("ok test_risk_policy_has_no_manual_input_and_matches_python")
 
 
 def test_widget_is_registered():

@@ -1283,7 +1283,7 @@ const Journal = {
       const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       const rec = {id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
-        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), riskPct:0.25, score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
       added++;
     });
     if (added) this.save();
@@ -6806,11 +6806,12 @@ Panel.prototype.build_tclass = function(){
 /* ---- ORDER FLOW DESK (owner 2026-11-08 minutes, Grok plan; Claude build 2026-11-09). One widget that reads the linked chart and puts the
    desk's agents side by side: 1 level scanner (previous day / week high-low, today's open, volume profile POC / VAH / VAL), 2 context (bias,
    regime, ATR), 3+4 order-flow read (Flow confluence v1 = 3 of 4: stacked imbalance, delta, tape, absorption - needs Footprint on the chart),
-   5 risk manager (0.5 % per trade, 2 % daily cap, lock after 3 stops, R:R >= 2 - same rules as modules/desk_risk.py), 6 skeptic (every
+   5 risk manager (0.25 % base; 0.50 % only for validated A+ with n >= 30; 2 % daily cap, lock after 3 stops, R:R >= 2), 6 skeptic (every
    reason NOT to take it). Description, not advice: nothing here places an order; under 30 journal trades nothing here is evidence. ---- */
 /* DESK-BEGIN pure engine (no DOM, no fetch): tests/test_desk_js.py runs it with node on synthetic candles */
 const DESK = {
-  RULES: {risk:0.5, day:2, stops:3, rr:2},
+  RULES: {risk:0.25, day:2, stops:3, rr:2},
+  riskFor(grade, validationN, validationPassed){ return grade === "A+" && validationPassed === true && Number.isInteger(validationN) && validationN >= 30 ? 0.5 : 0.25; },
   atr(rows, n){ n = Math.min(n || 14, rows.length - 1); if (n < 1) return 0; let s = 0;
     for (let i = rows.length - n; i < rows.length; i++) s += Math.max(rows[i].h - rows[i].l, Math.abs(rows[i].h - rows[i-1].c), Math.abs(rows[i].l - rows[i-1].c)); return s/n; },
   // high / low of the last COMPLETE period before the current one (UTC day or UTC week starting Monday) + the current period's open
@@ -6843,24 +6844,26 @@ const DESK = {
     if (!(eq > 0) || !(rp > 0) || !(per > 0)) return {qty:0, risk:0, per:0, pct:0};
     let q = eq*rp/100/per; if (step > 0) q = Math.floor(q/step + 1e-9)*step; return {qty:q, risk:q*per, per, pct:q*per/eq*100}; },
   rr(entry, stop, target){ const r = Math.abs(entry - stop); if (!(r > 0)) return 0; return (stop < entry ? target - entry : entry - target)/r; },
-  // today's closed journal trades (UTC day) -> stops and loss in % of equity (each trade risks rules.risk %)
+  // Closed journal R is converted per trade using its recorded riskPct; legacy records safely default to base risk.
   day(trades, now, rules){ rules = rules || this.RULES; const d0 = Math.floor(now/86400000)*86400000;
     const done = (trades || []).filter(t => (t.status === "tp" || t.status === "sl") && (+t.t1 || +t.t0 || 0) >= d0);
     const R = done.reduce((s, t) => s + (+t.r || 0), 0), stops = done.filter(t => t.status === "sl" || (+t.r || 0) < 0).length;
-    return {n:done.length, stops, R, lossPct:Math.max(0, -R*rules.risk)}; },
+    const netPct = done.reduce((s, t) => { const rp = typeof t.riskPct === "number" && Number.isFinite(t.riskPct) && t.riskPct > 0 ? t.riskPct : rules.risk; return s - (+t.r || 0)*rp; }, 0);
+    return {n:done.length, stops, R, lossPct:Math.max(0, netPct)}; },
   // allowed / blocked, every failed rule listed (same rules as DeskDay.check)
   check(plan, dayS, rules, openSame){ rules = rules || this.RULES; const why = [];
     if (dayS.stops >= rules.stops) why.push(["stops", dayS.stops+" stops today (limit "+rules.stops+") - day locked", dayS.stops+" ستوب النهارده (الحد "+rules.stops+") - اليوم اتقفل"]);
     if (dayS.lossPct >= rules.day - 1e-9) why.push(["day", "daily loss "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - day locked", "خسارة اليوم "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - اليوم اتقفل"]);
     else if (plan.riskPct > rules.day - dayS.lossPct + 1e-9) why.push(["left", "risk "+plan.riskPct.toFixed(2)+"% > what is left of today's cap "+(rules.day - dayS.lossPct).toFixed(2)+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من الباقي من حد اليوم "+(rules.day - dayS.lossPct).toFixed(2)+"%"]);
     const rr = this.rr(plan.entry, plan.stop, plan.target); if (rr < rules.rr - 1e-9) why.push(["rr", "reward:risk "+rr.toFixed(2)+" < "+rules.rr, "العائد للمخاطرة "+rr.toFixed(2)+" أقل من "+rules.rr]);
-    if (plan.riskPct > rules.risk*1.0001) why.push(["cap", "risk "+plan.riskPct.toFixed(2)+"% > per-trade cap "+rules.risk+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من حد الصفقة "+rules.risk+"%"]);
+    const perTradeCap = typeof plan.riskCapPct === "number" && Number.isFinite(plan.riskCapPct) && plan.riskCapPct > 0 ? plan.riskCapPct : rules.risk;
+    if (plan.riskPct > perTradeCap*1.0001) why.push(["cap", "risk "+plan.riskPct.toFixed(2)+"% > per-trade cap "+perTradeCap+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من حد الصفقة "+perTradeCap+"%"]);
     if (openSame) why.push(["dup", "the same trade is already open in the journal", "نفس الصفقة مفتوحة في الجورنال"]);
     return {ok:!why.length, why, rr}; }
 };
 /* DESK-END */
 Panel.prototype.build_ofdesk = function(){
-  const S = this.state.od = Object.assign({eq:10000, risk:DESK.RULES.risk, pv:1, step:0, side:"auto", sym:""}, this.state.od || {});
+  const S = this.state.od = Object.assign({eq:10000, pv:1, step:0, side:"auto", sym:""}, this.state.od || {});
   if (!document.getElementById("odCss")){ const st = el("style"); st.id = "odCss"; st.textContent =
     ".odw{font-size:12px;line-height:1.5}.odw .tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px}.odw .tb input{width:86px}.odw .tb select,.odw .tb button,.odw .tb input{font-size:12px}"
     +".odw .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px}.odw .ag{border:1px solid var(--line);border-radius:7px;padding:6px 8px;border-top:3px solid var(--ac)}"
@@ -6870,17 +6873,17 @@ Panel.prototype.build_ofdesk = function(){
   this.body.classList.add("odw"); this.body.style.overflow = "auto";
   const stop_ = x => { x.onpointerdown = e => e.stopPropagation(); return x; }, num = (v, d) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
   const charts = () => Ws.panels.filter(p => p.type === "chart" && p.chart), pick = () => { const C = charts(); return C.find(p => p.state.sym === S.sym && p.chart.data.length) || C.find(p => p.chart.data.length) || C[0] || null; };
-  const tb = el("div","tb"), symSel = stop_(el("select")), sideSel = stop_(el("select")), eqI = stop_(el("input")), rkI = stop_(el("input")), pvI = stop_(el("input")), enI = stop_(el("input")), slI = stop_(el("input")), tpI = stop_(el("input")), shB = stop_(el("button", null, "📈 "+Lg("Show on chart","اعرضها على الشارت")));
+  const tb = el("div","tb"), symSel = stop_(el("select")), sideSel = stop_(el("select")), eqI = stop_(el("input")), pvI = stop_(el("input")), enI = stop_(el("input")), slI = stop_(el("input")), tpI = stop_(el("input")), shB = stop_(el("button", null, "📈 "+Lg("Show on chart","اعرضها على الشارت")));
   [["auto",Lg("Side: auto (bias)","الاتجاه: تلقائي (الترند)")],["long",Lg("Long","شراء")],["short",Lg("Short","بيع")]].forEach(([v, l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l}))); sideSel.value = S.side;
-  eqI.type = rkI.type = pvI.type = enI.type = slI.type = tpI.type = "number"; eqI.step = "any"; rkI.step = "0.05"; pvI.step = "any"; enI.step = slI.step = tpI.step = "any";
-  eqI.value = S.eq; rkI.value = S.risk; pvI.value = S.pv; eqI.title = Lg("Account equity","رأس مال الحساب"); rkI.title = Lg("Risk per trade %","المخاطرة لكل صفقة %"); pvI.title = Lg("Money per 1.0 price move per unit (1 spot, 50 ES, 20 NQ)","قيمة حركة 1 في السعر للوحدة (1 سبوت، 50 ES، 20 NQ)");
+  eqI.type = pvI.type = enI.type = slI.type = tpI.type = "number"; eqI.step = "any"; pvI.step = "any"; enI.step = slI.step = tpI.step = "any";
+  eqI.value = S.eq; pvI.value = S.pv; eqI.title = Lg("Account equity","رأس مال الحساب"); pvI.title = Lg("Money per 1.0 price move per unit (1 spot, 50 ES, 20 NQ)","قيمة حركة 1 في السعر للوحدة (1 سبوت، 50 ES، 20 NQ)");
   enI.placeholder = Lg("entry (auto)","دخول (تلقائي)"); slI.placeholder = Lg("stop (auto)","ستوب (تلقائي)"); tpI.placeholder = Lg("target (auto)","هدف (تلقائي)");
   const lab = t => el("span","m", esc(t));
-  tb.append(symSel, sideSel, lab(Lg("equity","رأس المال")), eqI, lab(Lg("risk %","مخاطرة %")), rkI, lab(Lg("pt value","قيمة النقطة")), pvI, enI, slI, tpI, shB);
+  tb.append(symSel, sideSel, lab(Lg("equity","رأس المال")), eqI, lab(Lg("pt value","قيمة النقطة")), pvI, enI, slI, tpI, shB);
   const head = el("div"), grid = el("div","grid"), foot = el("div","m"); this.body.append(tb, head, grid, foot);
   foot.style.marginTop = "6px"; foot.textContent = Lg("Description, not advice: nothing here places an order. Mock-tested only; under 30 journal trades nothing here is evidence.","وصف مش نصيحة: مفيش أي أمر بيتبعت من هنا. متجرب على بيانات وهمية بس؛ أقل من 30 صفقة في الجورنال = مش دليل.");
-  const save = () => { S.eq = num(eqI.value, S.eq); S.risk = Math.max(0.05, Math.min(5, num(rkI.value, S.risk))); S.pv = num(pvI.value, 1) || 1; S.side = sideSel.value; S.sym = symSel.value; Ws.save(); draw(); };
-  [eqI, rkI, pvI].forEach(i => i.onchange = save); sideSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; symSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; [enI, slI, tpI].forEach(i => i.oninput = () => draw());
+  const save = () => { S.eq = num(eqI.value, S.eq); S.pv = num(pvI.value, 1) || 1; S.side = sideSel.value; S.sym = symSel.value; Ws.save(); draw(); };
+  [eqI, pvI].forEach(i => i.onchange = save); sideSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; symSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; [enI, slI, tpI].forEach(i => i.oninput = () => draw());
   let last = null;
   const ag = (col, title, html) => '<div class="ag" style="--ac:'+col+'"><div class="ah">'+esc(title)+'</div>'+html+'</div>';
   const draw = () => {
@@ -6896,10 +6899,10 @@ Panel.prototype.build_ofdesk = function(){
     // auto plan: entry = price, stop = beyond the nearest level on the other side (+0.25 ATR) or 1 ATR, target = the next level in our direction (or 2R)
     const opp = side > 0 ? Lv.below[0] : Lv.above[0], nxt = (side > 0 ? Lv.above : Lv.below).find(l => Math.abs(l.p - px) >= 0.5*a);
     const aE = px, aS = opp && Math.abs(opp.p - px) <= 2*a ? opp.p - side*0.25*a : px - side*a, aT = nxt ? nxt.p : px + side*2*Math.abs(px - aS);
-    const E = num(enI.value, aE), SL = num(slI.value, aS), TP = num(tpI.value, aT), sz = DESK.size(S.eq, E, SL, S.risk, S.pv, S.step);
-    const dayS = DESK.day(Journal.list, Date.now(), Object.assign({}, DESK.RULES, {risk:S.risk})), dirT = side > 0 ? "bullish" : "bearish";
+    const E = num(enI.value, aE), SL = num(slI.value, aS), TP = num(tpI.value, aT), riskPct = DESK.riskFor(null, 0, false), sz = DESK.size(S.eq, E, SL, riskPct, S.pv, S.step);
+    const dayS = DESK.day(Journal.list, Date.now(), DESK.RULES), dirT = side > 0 ? "bullish" : "bearish";
     const openSame = (Journal.list || []).some(t => t.status === "open" && t.symbol === sym && t.dir === dirT);
-    const rules = Object.assign({}, DESK.RULES, {risk:S.risk}), chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct}, dayS, rules, openSame);
+    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct, riskCapPct:riskPct}, dayS, rules, openSame);
     // agent 6: the skeptic - every reason against
     const skp = [];
     if (bias.available && ((side > 0 && bias.bias === "bear") || (side < 0 && bias.bias === "bull"))) skp.push(Lg("against the chart's bias ("+bias.trend+", price "+bias.ema+" EMA50)","عكس اتجاه الشارت ("+bias.trend+"، السعر "+(bias.ema === "above" ? "فوق" : "تحت")+" EMA50)"));
@@ -6921,7 +6924,7 @@ Panel.prototype.build_ofdesk = function(){
       + ag("#b57cff", Lg("2 · Context","2 · السياق"), '<div>'+esc(Lg("Bias","الاتجاه"))+': <b>'+(bias.available ? esc(bias.bias+" · "+bias.trend+" · "+bias.ema+" EMA50") : "–")+'</b></div><div>'+esc(Lg("Regime","الريجيم"))+': <b>'+esc(reg || "–")+'</b></div><div>ATR 14: <b>'+fmtP(a)+'</b></div>'+(nw ? '<div class="rd">⚠ '+esc((nw.country || "")+" "+(nw.title || ""))+'</div>' : '<div class="m">'+esc(Lg("no high-impact news now","مفيش أخبار قوية دلوقتي"))+'</div>'))
       + ag("#0ecb81", Lg("3+4 · Order-flow read (3 of 4)","3+4 · قراءة الأوردر فلو (3 من 4)"), fcHtml)
       + ag("#f0b90b", Lg("5 · Risk manager","5 · مدير المخاطرة"), '<table><tr><td>'+esc(Lg("Entry","دخول"))+'</td><td class="r">'+fmtP(E)+'</td></tr><tr><td>'+esc(Lg("Stop","ستوب"))+'</td><td class="r rd">'+fmtP(SL)+'</td></tr><tr><td>'+esc(Lg("Target","هدف"))+'</td><td class="r g">'+fmtP(TP)+'</td></tr>'
-          +'<tr><td>R:R</td><td class="r"><b class="'+(chk.rr >= rules.rr ? "g" : "rd")+'">'+chk.rr.toFixed(2)+'</b></td></tr><tr><td>'+esc(Lg("Size","الحجم"))+'</td><td class="r"><b>'+(sz.qty ? +sz.qty.toPrecision(4) : 0)+'</b></td></tr><tr><td>'+esc(Lg("Risk","المخاطرة"))+'</td><td class="r">'+sz.risk.toFixed(2)+' ('+sz.pct.toFixed(2)+'%)</td></tr>'
+          +'<tr><td>'+esc(Lg("Risk tier","شريحة المخاطرة"))+'</td><td class="r">'+riskPct.toFixed(2)+'%</td></tr><tr><td>R:R</td><td class="r"><b class="'+(chk.rr >= rules.rr ? "g" : "rd")+'">'+chk.rr.toFixed(2)+'</b></td></tr><tr><td>'+esc(Lg("Size","الحجم"))+'</td><td class="r"><b>'+(sz.qty ? +sz.qty.toPrecision(4) : 0)+'</b></td></tr><tr><td>'+esc(Lg("Risk","المخاطرة"))+'</td><td class="r">'+sz.risk.toFixed(2)+' ('+sz.pct.toFixed(2)+'%)</td></tr>'
           +'<tr><td>'+esc(Lg("Today","النهارده"))+'</td><td class="r">'+dayS.n+' '+esc(Lg("closed","مقفولة"))+' · '+dayS.stops+'/'+rules.stops+' '+esc(Lg("stops","ستوب"))+' · −'+dayS.lossPct.toFixed(2)+'% / '+rules.day+'%</td></tr></table>'
           +'<div>'+(chk.ok ? '<b class="g">✓ '+esc(Lg("rules OK","القواعد تمام"))+'</b>' : chk.why.map(w => '<div class="rd">⛔ '+esc(lang === "ar" ? w[2] : w[1])+'</div>').join(""))+'</div>')
       + ag("#f6465d", Lg("6 · Skeptic: why NOT","6 · المتشكك: ليه لأ"), skp.length ? '<ul>'+skp.map(s => '<li>'+esc(s)+'</li>').join("")+'</ul>' : '<div class="g">'+esc(Lg("nothing against found - still not evidence under 30 trades","مفيش اعتراض - برضه مش دليل تحت 30 صفقة"))+'</div>');

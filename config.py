@@ -51,8 +51,8 @@ TRADE_TYPES = ["Scalp", "Day Trade", "Swing", "Position"]
 
 # ---- Risk/target defaults (from the Risk Management section of the doc) ----
 
-DEFAULT_RISK_PERCENT = 0.5    # % of equity per trade, standing default
-HARD_RISK_CEILING_PERCENT = 1.0
+DEFAULT_RISK_PERCENT = 0.25   # base; 0.50% only for validated A+ with n >= 30
+HARD_RISK_CEILING_PERCENT = 0.5
 RR_TARGETS = [1.5, 2.5, 3.5]  # TP1/TP2/TP3 as multiples of risk (partial-profit-then-runner style)
 
 # ---- External free API endpoints -------------------------------------------

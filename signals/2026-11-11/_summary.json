@@ -1,0 +1,1158 @@
+[
+  {
+    "key": "gold",
+    "last": 4006.60009765625,
+    "rec": "bear",
+    "rec_prob": 76.3,
+    "alt_prob": 23.7,
+    "bull": {
+      "valid": true,
+      "entry": 3950.449951171875,
+      "sl": 3890.402955845424,
+      "tp1": 4022.44015,
+      "tp2": 4104.623000864955,
+      "rr1": 1.19889760406401,
+      "rr2": 2.567539788708902,
+      "poi": "Bullish OB (discount)",
+      "schools": [
+        "SMC",
+        "Gann",
+        "Patterns",
+        "Fundamentals",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 23.7
+    },
+    "bear": {
+      "valid": true,
+      "entry": 4146.699951171875,
+      "sl": 4174.297239467076,
+      "tp1": 4095.0,
+      "tp2": 4012.8171491350445,
+      "rr1": 1.8733706956587222,
+      "rr2": 4.851302802098565,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Gann",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 1.9",
+      "weak": "",
+      "prob": 76.3
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 4043.699951171875,
+      "weekly": 4074.300048828125,
+      "h4": 4012.300048828125
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 4073.699951171875,
+        "low": 4034.10009765625
+      },
+      "London": {
+        "high": 4074.699951171875,
+        "low": 4039.5
+      },
+      "NY": {
+        "high": 4054.89990234375,
+        "low": 4005.39990234375
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "حساسية لعوائد الدولار/الفيد بعد CPI الساخن",
+      "تحوط مقابل تشديد ديسمبر"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "btc",
+    "last": 74178.65625,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 71504.18359375,
+      "sl": 69522.50970982143,
+      "tp1": 74246.761272,
+      "tp2": 76381.75664030357,
+      "rr1": 1.383970238742301,
+      "rr2": 2.4613399238446,
+      "poi": "Bullish FVG",
+      "schools": [
+        "SMC",
+        "Gann",
+        "Patterns",
+        "CRT",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 81036.33203125,
+      "sl": 82059.03568638393,
+      "tp1": 79735.859375,
+      "tp2": 77600.86400669643,
+      "rr1": 1.271602628700588,
+      "rr2": 3.359201863910114,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "Elliott",
+        "SMC",
+        "Gann",
+        "Patterns",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, Elliott, SMC) وRR 1.3",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 73708.875,
+      "weekly": 74584.6484375,
+      "h4": 73885.6875
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 73923.7578125,
+        "low": 73119.953125
+      },
+      "London": {
+        "high": 74069.171875,
+        "low": 73436.7421875
+      },
+      "NY": {
+        "high": 74382.0,
+        "low": 73309.6015625
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "مخاطرة عالية بعد CPI/أمام الفيد",
+      "سيولة كريبتو ضعيفة نسبيًا"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "eth",
+    "last": 2083.2099609375,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 2388.033203125,
+      "sl": 2005.7769670758928,
+      "tp1": 2446.04785156,
+      "tp2": 2533.159969654308,
+      "rr1": 0.1517690045677812,
+      "rr2": 0.3796583360661357,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 2235.6812744140625,
+      "sl": 2262.671274239676,
+      "tp1": 2173.30053711,
+      "tp2": 2071.815037,
+      "rr1": 2.3112537127496706,
+      "rr2": 6.071368598474473,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Harmonic",
+        "Elliott",
+        "Gann",
+        "Patterns",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Harmonic) وRR 2.3",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 2050.64794921875,
+      "weekly": 2120.980224609375,
+      "h4": 2073.1201171875
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 2070.030029296875,
+        "low": 2041.22998046875
+      },
+      "London": {
+        "high": 2068.0,
+        "low": 2044.77001953125
+      },
+      "NY": {
+        "high": 2087.31005859375,
+        "low": 2042.8399658203125
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "يتبع BTC + مخاوف ماكرو"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "bnb",
+    "last": 685.7100219726562,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 670.56494140625,
+      "sl": 653.0333077566964,
+      "tp1": 692.272163,
+      "tp2": 713.1756533390067,
+      "rr1": 1.238174492329912,
+      "rr2": 2.430504354843266,
+      "poi": "Bullish FVG",
+      "schools": [
+        "SMC",
+        "PA",
+        "Gann",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 751.4082641601562,
+      "sl": 764.1733681815011,
+      "tp1": 718.14300537,
+      "tp2": 697.2395150309933,
+      "rr1": 2.605952817504074,
+      "rr2": 4.243502366967468,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "Elliott",
+        "SMC",
+        "Gann",
+        "Patterns",
+        "SMT",
+        "CRT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, Elliott, SMC) وRR 2.6",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 679.6113891601562,
+      "weekly": 683.2907104492188,
+      "h4": 683.9000244140625
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Premium",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 683.719970703125,
+        "low": 675.97998046875
+      },
+      "London": {
+        "high": 682.8900146484375,
+        "low": 675.9000244140625
+      },
+      "NY": {
+        "high": 686.239990234375,
+        "low": 677.6300048828125
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "بيتا عالية مع البيتكوين"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": [
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "xrp",
+    "last": 1.0722999572753906,
+    "rec": "bear",
+    "rec_prob": 75.6,
+    "alt_prob": 24.4,
+    "bull": {
+      "valid": true,
+      "entry": 1.1274549961090088,
+      "sl": 1.0296141896929059,
+      "tp1": 1.27732599,
+      "tp2": 1.33445203,
+      "rr1": 1.531784123421994,
+      "rr2": 2.115651347053115,
+      "poi": "Breakout-retest R",
+      "schools": [
+        "SMC",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "BOS صعودي ثم ريتست المستوى المكسور على 1س مع FVG داعم",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 24.4
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.2909885048866272,
+      "sl": 1.3432636150291988,
+      "tp1": 1.25727797,
+      "tp2": 1.2092564814697049,
+      "rr1": 0.6448677926203752,
+      "rr2": 1.5634978710520544,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 0.6",
+      "weak": "",
+      "prob": 75.6
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1.0556052923202515,
+      "weekly": 1.11046302318573,
+      "h4": 1.0709999799728394
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1.0637999773025513,
+        "low": 1.0460000038146973
+      },
+      "London": {
+        "high": 1.0664000511169434,
+        "low": 1.0501999855041504
+      },
+      "NY": {
+        "high": 1.0779000520706177,
+        "low": 1.0515999794006348
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "حساسية للمخاطرة الكلية"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": [
+      "قمة مزدوجة"
+    ]
+  },
+  {
+    "key": "eurusd",
+    "last": 1.109139323234558,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 1.1270145177841187,
+      "sl": 1.1029439551489695,
+      "tp1": 1.14709195,
+      "tp2": 1.15794349,
+      "rr1": 0.8341073085912519,
+      "rr2": 1.2849293423128056,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.1307271122932434,
+      "sl": 1.1344750676836286,
+      "tp1": 1.11623347,
+      "tp2": 1.11140752,
+      "rr1": 3.867079723100379,
+      "rr2": 5.154701772279597,
+      "poi": "Bearish FVG",
+      "schools": [
+        "ICT",
+        "SMC",
+        "PA",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, PA) وRR 3.9",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1.1169440746307373,
+      "weekly": 1.1148520708084106,
+      "h4": 1.1086474657058716
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1.1173185110092163,
+        "low": 1.1154489517211914
+      },
+      "London": {
+        "high": 1.1163206100463867,
+        "low": 1.1107407808303833
+      },
+      "NY": {
+        "high": 1.1134617328643799,
+        "low": 1.1086474657058716
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "حساس للدولار بعد CPI الأمريكي الساخن"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": [
+      "قمة مزدوجة",
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "usdjpy",
+    "last": 159.91700744628906,
+    "rec": "bull",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 158.5114974975586,
+      "sl": 158.15589861188616,
+      "tp1": 158.94200134,
+      "tp2": 160.38299561,
+      "rr1": 1.210644520517313,
+      "rr2": 5.262947067177696,
+      "poi": "Bullish FVG",
+      "schools": [
+        "ICT",
+        "TL",
+        "SMC",
+        "PA",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن السعر في خصم + توافق (ICT, TL, SMC) وRR 1.2",
+      "weak": "",
+      "prob": 78.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 162.0644989013672,
+      "sl": 163.5010990687779,
+      "tp1": 157.55499268,
+      "tp2": 154.84928894717967,
+      "rr1": 3.139012735530292,
+      "rr2": 5.022420376848475,
+      "poi": "Bearish FVG",
+      "schools": [
+        "SMC",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "weak": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "prob": 22.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 158.7010040283203,
+      "weekly": 158.197998046875,
+      "h4": 159.74899291992188
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Premium",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 158.95899963378906,
+        "low": 158.65899658203125
+      },
+      "London": {
+        "high": 159.5989990234375,
+        "low": 158.75799560546875
+      },
+      "NY": {
+        "high": 159.927001953125,
+        "low": 159.17799377441406
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "فروقات الفائدة فيد/BOJ",
+      "حساس لعوائد الخزانة"
+    ],
+    "htf_trend": "bull",
+    "candle_pats": [],
+    "chart_pats": [
+      "قمة مزدوجة",
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "gbpusd",
+    "last": 1.3275980949401855,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 1.330672025680542,
+      "sl": 1.3203497069222587,
+      "tp1": 1.34174156,
+      "tp2": 1.35023832,
+      "rr1": 1.0723883440021778,
+      "rr2": 1.8955328524181552,
+      "poi": "Breakout-retest R",
+      "schools": [
+        "SMC",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "BOS صعودي ثم ريتست المستوى المكسور على 1س مع FVG داعم",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.3358447551727295,
+      "sl": 1.3379067148481096,
+      "tp1": 1.32731616,
+      "tp2": 1.31863487,
+      "rr1": 4.136160020276383,
+      "rr2": 8.346373296343332,
+      "poi": "Bearish FVG",
+      "schools": [
+        "TL",
+        "SMC",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (TL, SMC, Elliott) وRR 4.1",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1.334507703781128,
+      "weekly": 1.3362730741500854,
+      "h4": 1.326770305633545
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1.335594892501831,
+        "low": 1.3332622051239014
+      },
+      "London": {
+        "high": 1.334614634513855,
+        "low": 1.3285505771636963
+      },
+      "NY": {
+        "high": 1.3313097953796387,
+        "low": 1.3267526626586914
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "GBP مقابل دولار بعد CPI الساخن"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": [
+      "قمة مزدوجة"
+    ]
+  },
+  {
+    "key": "silver",
+    "last": 52.02000045776367,
+    "rec": "bear",
+    "rec_prob": 74.4,
+    "alt_prob": 25.6,
+    "bull": {
+      "valid": true,
+      "entry": 51.42499923706055,
+      "sl": 50.61894095284598,
+      "tp1": 53.73500061,
+      "tp2": 55.121001433763674,
+      "rr1": 2.865799431849215,
+      "rr2": 4.585279090958746,
+      "poi": "Bullish FVG",
+      "schools": [
+        "SMC",
+        "Patterns",
+        "Fundamentals",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 25.6
+    },
+    "bear": {
+      "valid": true,
+      "entry": 54.013999938964844,
+      "sl": 54.51879217965262,
+      "tp1": 51.84000015,
+      "tp2": 50.232503,
+      "rr1": 4.306721882259474,
+      "rr2": 7.491194662209087,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 4.3",
+      "weak": "",
+      "prob": 74.4
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 51.52000045776367,
+      "weekly": 52.724998474121094,
+      "h4": 52.29999923706055
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 53.06999969482422,
+        "low": 51.41999816894531
+      },
+      "London": {
+        "high": 53.18000030517578,
+        "low": 52.56999969482422
+      },
+      "NY": {
+        "high": 52.89500045776367,
+        "low": 52.0099983215332
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "يتبع الذهب + طلب صناعي"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Shooting star"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "platinum",
+    "last": 1543.0999755859375,
+    "rec": "bear",
+    "rec_prob": 55.8,
+    "alt_prob": 44.2,
+    "bull": {
+      "valid": true,
+      "entry": 1538.5499877929688,
+      "sl": 1531.2285226004465,
+      "tp1": 1552.936178,
+      "tp2": 1584.3076065714286,
+      "rr1": 1.9649332242574058,
+      "rr2": 6.2497898405901,
+      "poi": "Bullish FVG",
+      "schools": [
+        "TL",
+        "SMC",
+        "Gann",
+        "Fundamentals",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 44.2
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1589.8499755859375,
+      "sl": 1632.4714285714285,
+      "tp1": 1533.295023,
+      "tp2": 1499.3620514484373,
+      "rr1": 1.326912824984867,
+      "rr2": 2.123060519975787,
+      "poi": "Bearish FVG",
+      "schools": [
+        "ICT",
+        "SMC",
+        "PA",
+        "Elliott",
+        "Gann",
+        "CRT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, PA) وRR 1.3",
+      "weak": "",
+      "prob": 55.8
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1541.300048828125,
+      "weekly": 1580.0,
+      "h4": 1549.5999755859375
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1577.800048828125,
+        "low": 1542.5999755859375
+      },
+      "London": {
+        "high": 1576.0,
+        "low": 1557.9000244140625
+      },
+      "NY": {
+        "high": 1574.800048828125,
+        "low": 1542.800048828125
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "صناعي + تحوط محدود"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Doji"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "copper",
+    "last": 6.296000003814697,
+    "rec": "bull",
+    "rec_prob": 65.3,
+    "alt_prob": 34.7,
+    "bull": {
+      "valid": true,
+      "entry": 6.164750099182129,
+      "sl": 6.089985908780779,
+      "tp1": 6.44750023,
+      "tp2": 6.617150308490723,
+      "rr1": 3.781892498267008,
+      "rr2": 6.051027997227218,
+      "poi": "Bullish FVG",
+      "schools": [
+        "SMC",
+        "PA",
+        "Patterns",
+        "CISD",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "confirmed",
+      "note": "",
+      "reason": "مرشّح لأن السعر في خصم + توافق (SMC, PA, Patterns) وRR 3.8",
+      "weak": "",
+      "prob": 65.3
+    },
+    "bear": {
+      "valid": true,
+      "entry": 6.51324987411499,
+      "sl": 6.565885497842516,
+      "tp1": 6.46000004,
+      "tp2": 6.41050005,
+      "rr1": 1.0116691005818412,
+      "rr2": 1.9520966379516302,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "weak": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "prob": 34.7
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 6.268499851226807,
+      "weekly": 6.335000038146973,
+      "h4": 6.294000148773193
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 6.334000110626221,
+        "low": 6.265500068664551
+      },
+      "London": {
+        "high": 6.332499980926514,
+        "low": 6.276000022888184
+      },
+      "NY": {
+        "high": 6.304500102996826,
+        "low": 6.26200008392334
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "نمو الصين/دولار",
+      "حساس للمخاطرة"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "ndx",
+    "last": 28619.0,
+    "rec": "bear",
+    "rec_prob": 74.4,
+    "alt_prob": 25.6,
+    "bull": {
+      "valid": true,
+      "entry": 27470.5,
+      "sl": 27244.285714285714,
+      "tp1": 28661.308503,
+      "tp2": 29474.522788714286,
+      "rr1": 5.26407295295231,
+      "rr2": 8.858957701926096,
+      "poi": "Bullish FVG",
+      "schools": [
+        "SMC",
+        "PA",
+        "Gann",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 25.6
+    },
+    "bear": {
+      "valid": true,
+      "entry": 29001.125,
+      "sl": 29291.714285714286,
+      "tp1": 28576.722747,
+      "tp2": 27763.508461285714,
+      "rr1": 1.4604883038161351,
+      "rr2": 4.258988887605231,
+      "poi": "Bearish FVG",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Gann",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 1.5",
+      "weak": "",
+      "prob": 74.4
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 27899.5,
+      "weekly": 26878.5,
+      "h4": 28549.0
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Premium",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 28280.0,
+        "low": 27918.0
+      },
+      "London": {
+        "high": 28406.25,
+        "low": 28178.0
+      },
+      "NY": {
+        "high": 28624.5,
+        "low": 28199.0
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "أسهم نمو حساسة للفائدة بعد CPI"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": [
+      "رأس وكتفين"
+    ]
+  },
+  {
+    "key": "spx",
+    "last": 7650.75,
+    "rec": "bear",
+    "rec_prob": 71.1,
+    "alt_prob": 28.9,
+    "bull": {
+      "valid": true,
+      "entry": 7481.0,
+      "sl": 7440.267857142857,
+      "tp1": 7630.375,
+      "tp2": 7759.669642857143,
+      "rr1": 3.6672512056115503,
+      "rr2": 6.841516878561997,
+      "poi": "Bullish FVG",
+      "schools": [
+        "ICT",
+        "SMC",
+        "PA",
+        "Gann"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو بعد CPI الساخن",
+      "prob": 28.9
+    },
+    "bear": {
+      "valid": true,
+      "entry": 7855.625,
+      "sl": 7885.549107142857,
+      "tp1": 7707.25,
+      "tp2": 7577.955357142857,
+      "rr1": 4.958376846188317,
+      "rr2": 9.279128748321737,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Gann",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Gann) وRR 5.0",
+      "weak": "",
+      "prob": 71.1
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 7554.25,
+      "weekly": 7371.0,
+      "h4": 7632.25
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Premium",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 7597.5,
+        "low": 7557.0
+      },
+      "London": {
+        "high": 7620.0,
+        "low": 7584.0
+      },
+      "NY": {
+        "high": 7651.75,
+        "low": 7593.25
+      }
+    },
+    "judas": null,
+    "fund": [
+      "CPI أكتوبر أمس: +0.4% أعلى من المتوقع",
+      "فيد ديسمبر: رفع شبه مؤكد (احتمال 50 نقطة قائم)",
+      "مؤشر كلي بعد بيانات التضخم الساخنة"
+    ],
+    "htf_trend": "neutral",
+    "candle_pats": [],
+    "chart_pats": [
+      "رأس وكتفين"
+    ]
+  }
+]

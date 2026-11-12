@@ -22,6 +22,7 @@ def load_pipeline():
     sys.modules["fused_oscillator"] = fake
     spec = importlib.util.spec_from_file_location("cfx_pipeline_policy_test", PIPE)
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -40,7 +41,7 @@ def test_cfx_rr_gate_is_two_to_one():
 
 def test_cfx_library_uses_same_rr_minimum():
     source = open(LIB, encoding="utf-8").read()
-    match = re.search(r"^RR1_MIN\\s*=\\s*([0-9.]+)", source, flags=re.M)
+    match = re.search(r"^RR1_MIN\s*=\s*([0-9.]+)", source, flags=re.M)
     assert match and float(match.group(1)) == 2.0, "cfx_lib RR1_MIN must match cfx_pipeline"
 
 

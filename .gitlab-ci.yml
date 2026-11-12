@@ -16,6 +16,15 @@ default:
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
+# Run the Academy language/data checks as a required job without a Streamlit ScriptRunContext.
+academy_tests:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 5m
+  script:
+    - python tests/test_academy.py
+
 mr_tests:
   stage: test
   timeout: 15m
@@ -31,15 +40,6 @@ mr_tests:
     # plain-script tests; no secrets, no network side effects. Failing scripts are listed, job fails if any fails.
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
   allow_failure: true   # informative until the full suite is known green in CI
-
-# Run the Academy language/data checks as a required job without a Streamlit ScriptRunContext.
-academy_tests:
-  stage: test
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  timeout: 5m
-  script:
-    - python tests/test_academy.py
 
 telegram_alerts:
   stage: test

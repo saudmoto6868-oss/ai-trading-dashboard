@@ -69,12 +69,13 @@
       });
       if (run) out.push(run);
     });
-    return out.slice(-9);
+    return out.sort((a, b) => a.i0 - b.i0).slice(-9);
   }
   function nySessionDay(sec) {
     const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date(sec * 1000));
     const v = k => +(p.find(x => x.type === k) || {}).value;
-    const d = new Date(Date.UTC(v('year'), v('month') - 1, v('day') + (v('hour') >= 18 ? 1 : 0)));
+    const hour = v('hour') % 24;
+    const d = new Date(Date.UTC(v('year'), v('month') - 1, v('day') + (hour >= 18 ? 1 : 0)));
     return d.toISOString().slice(0, 10);
   }
   function prevDay(b) {

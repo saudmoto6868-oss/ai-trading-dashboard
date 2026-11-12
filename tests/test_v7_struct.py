@@ -85,6 +85,31 @@ def _prev_day(b):
     return None if prior is None else {"hi": hi, "lo": lo, "sessionDate": prior}
 
 
+def _sessions(b):
+    windows = (("Asia", 19, 2), ("London", 2, 9), ("NY", 8, 17))
+    ny = ZoneInfo("America/New_York")
+    out = []
+    for name, start, end in windows:
+        run = None
+        for i, x in enumerate(b):
+            dt = datetime.fromtimestamp(x["time"], timezone.utc).astimezone(ny)
+            minute = dt.hour * 60 + dt.minute
+            inside = (start * 60 <= minute < end * 60) if start < end else (minute >= start * 60 or minute < end * 60)
+            if inside:
+                if run is None:
+                    run = {"name": name, "i0": i, "i1": i, "hi": x["high"], "lo": x["low"]}
+                else:
+                    run["i1"] = i
+                    run["hi"] = max(run["hi"], x["high"])
+                    run["lo"] = min(run["lo"], x["low"])
+            elif run is not None:
+                out.append(run)
+                run = None
+        if run is not None:
+            out.append(run)
+    return sorted(out, key=lambda x: x["i0"])[-9:]
+
+
 def _equal(sw, atr, n, max_back=150):
     out, tol = [], 0.10 * atr
     for a in range(len(sw)):
@@ -143,6 +168,7 @@ def test_js_matches_python_definitions():
                         else [Lo[-1][1] + q * span for q in (0.62, 0.705, 0.79)])
             assert all(abs(res["ote"][k] - v) < 1e-9 for k, v in zip(("p62", "p705", "p79"), expected))
         assert res["prevDay"] == _prev_day(b)
+        assert res["sessions"] == _sessions(b)
         for key, swings in (("eqh", H), ("eql", Lo)):
             actual = [{"i1": x["i1"], "i2": x["i2"], "p": x["p"]} for x in res[key]]
             assert actual == _equal(swings, _atr(b), len(b)), (key, actual, _equal(swings, _atr(b), len(b)))

@@ -51,6 +51,7 @@ v7_structure_parity:
   script:
     - python tests/test_v7_struct.py
     - python tests/test_v7_live_wiring.py
+    - python tests/test_v7_extra.py
 
 telegram_alerts:
   stage: test

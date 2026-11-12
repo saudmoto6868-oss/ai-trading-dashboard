@@ -15,6 +15,7 @@ def test_no_deprecated_html_component_calls_remain():
         source = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         assert "components.html(" not in source, f"deprecated components.html remains in {rel}"
         assert "st.iframe(" in source, f"expected st.iframe in {rel}"
+        compile(source, rel, "exec")  # syntax-check each migrated Python module
 
 
 if __name__ == "__main__":

@@ -20,7 +20,8 @@ def test_live_structure_is_wired_and_scripts_parse():
     page_source = inspect.getsource(v7_page)
     assert "components.html(" not in page_source
     assert "components.v1.html(" not in page_source
-    assert page_source.count("st.iframe(") >= 3
+    assert page_source.count("st.iframe(") >= 2   # live chart + the separate snapshot view (the snapshot no longer sits under the live chart)
+    assert "One live chart" not in page_source and "What else the CFX research built" not in page_source, "the default view must stay a single chart workspace"
 
     scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S | re.I)
     assert len(scripts) >= 4, f"expected library, indicators, structure, and app scripts; got {len(scripts)}"

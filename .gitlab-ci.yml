@@ -32,6 +32,15 @@ mr_tests:
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
   allow_failure: true   # informative until the full suite is known green in CI
 
+# Run the Academy language/data checks as a required job without a Streamlit ScriptRunContext.
+academy_tests:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 5m
+  script:
+    - python tests/test_academy.py
+
 telegram_alerts:
   stage: test
   rules:

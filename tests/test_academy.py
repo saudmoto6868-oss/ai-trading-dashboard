@@ -1,6 +1,10 @@
 """modules/academy.py: the shipped lessons are valid, and bad lessons are dropped."""
 import json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from modules import i18n  # noqa: E402
+# This file is also executed directly by CI, outside Streamlit. Avoid repeated
+# ScriptRunContext warnings from st.session_state; language tests override this below.
+i18n.lang = lambda: "en"
 from modules import academy as A  # noqa: E402
 
 

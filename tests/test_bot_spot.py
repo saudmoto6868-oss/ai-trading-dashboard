@@ -2,6 +2,7 @@
 The action-runner checks are browser-independent; Telegram itself is faked (nothing is sent)."""
 import datetime as dt
 import os
+import base64
 import sys
 import tempfile
 
@@ -73,7 +74,7 @@ SO.build = lambda asset, candles=None: _orig_build(asset, get)
 def fake_to_png(html, path, ctx=None, width=1440):
     # This test verifies bot routing/action handling, not Chromium rendering.
     with open(path, "wb") as image:
-        image.write(b"\x89PNG\r\n\x1a\n" + b"\0" * 50_000)
+        image.write(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jwYkAAAAASUVORK5CYII="))
     return path
 
 
@@ -114,7 +115,7 @@ assert sent[-1] == ("text", "LLM: ازيك عامل ايه")
 n = len(sent)
 X.handle(p, "الدهب هيطلع الاسبوع الجاي؟")
 ph = [s for s in sent[n:] if s[0] == "photo"]
-assert ph and os.path.getsize(ph[0][1]) > 50_000 and "الدهب" in ph[0][2], sent[n:]
+assert ph and open(ph[0][1], "rb").read().startswith(b"\\x89PNG\\r\\n\\x1a\\n") and "الدهب" in ph[0][2], sent[n:]
 X.handle(p, "/spotchart GOLD")
 assert sent[-1][0] == "photo" and "محلل السبوت" in sent[-1][2]
 X.handle(p, "/help")

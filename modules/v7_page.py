@@ -83,6 +83,7 @@ def _read(rel: str) -> str:
 
 LIVE_APP = os.path.join(ROOT, "modules", "v7_live_app.html")
 LIVE_IND = os.path.join(ROOT, "modules", "v7_live_ind.js")
+LIVE_STRUCT = os.path.join(ROOT, "modules", "v7_live_struct.js")
 LIVE_LIB = os.path.join(DASH, "vendor", "lightweight-charts.standalone.production.js")
 
 
@@ -93,12 +94,14 @@ def live_html() -> tuple:
             app = f.read()
         with open(LIVE_IND, encoding="utf-8") as f:
             ind = f.read()
+        with open(LIVE_STRUCT, encoding="utf-8") as f:
+            struct = f.read()
         with open(LIVE_LIB, encoding="utf-8") as f:
             lib = f.read()
-        if "/*LIB*/" not in app or "/*IND*/" not in app:
+        if "/*LIB*/" not in app or "/*IND*/" not in app or "/*STRUCT*/" not in app:
             raise ValueError("v7_live_app.html lost its placeholders")
         safe = lambda s: s.replace("</script", "<\\/script")
-        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)), ""
+        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)).replace("/*STRUCT*/", safe(struct)), ""
     except Exception as e:   # noqa: BLE001
         return "", f"{type(e).__name__}: {e}"
 
@@ -117,29 +120,15 @@ def _show_images(st) -> None:
 def render() -> None:
     import streamlit as st
     import streamlit.components.v1 as components
-    st.subheader("V7 research (CFX v7 single-oscillator chart)")
-    st.caption("Research intake, read-only: nothing here is a recommendation or an order. Every claim is `unverified` until it is measured with its sample size; "
-               "under 30 cases it is not evidence.")
+    st.markdown("<style>.block-container{padding-top:2.2rem !important;padding-bottom:.5rem !important}</style>", unsafe_allow_html=True)
     view = st.radio("View", ["Live chart", "Snapshot dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
+    st.caption("V7 research: live chart + tools (toggles inside the chart bar). Research only: not a recommendation, no orders; under 30 cases is not evidence.")
     if view == "Live chart":
-        st.info("Live candles fetched by your browser (OKX for crypto, Hyperliquid for gold / silver), refreshed every 5 s; pick the symbol and timeframe inside the chart. "
-                "Indicators are the exact CFX v7 settings. Research dots on closed candles only: not an edge, not a recommendation, no orders.")
         html, err = live_html()
         if err:
             st.error(f"The live chart files could not be loaded: {err}")
         else:
-            components.html(html, height=960, scrolling=True)
-        st.markdown("#### What else the CFX research built: structure tools, trade story, schools, alerts, images")
-        st.caption("Below: the static snapshot of the full CFX dashboard (6-10 Nov 2026, gold futures) and its chart images. Those overlays are NOT live yet; "
-                   "porting them to the live chart is in progress and each one will be tested against its definition before it appears.")
-        with st.expander("CFX dashboard snapshot: BOS / CHoCH, CISD, order blocks, FVG, sessions, trade story, schools, alerts", expanded=True):
-            shtml, serr = dashboard_html()
-            if serr:
-                st.error(f"The dashboard files could not be loaded: {serr}")
-            else:
-                components.html(shtml, height=900, scrolling=True)
-        with st.expander("CFX chart images", expanded=True):
-            _show_images(st)
+            components.html(html, height=920, scrolling=False)
         return
     if view == "Snapshot dashboard":
         st.warning("Research snapshot of the CFX v7 chart on GC=F gold FUTURES (not spot XAUUSD), window 6-10 Nov 2026. The dots and alerts are the research rule 'variant B' "

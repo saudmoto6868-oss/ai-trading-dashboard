@@ -83,7 +83,7 @@ risk_policy_tests:
     - python tests/test_horizons_sizing.py
     - python tests/test_desk_js.py
     - python tests/test_workspace_parts_sync.py
-ÿ
+
 
 v7_structure_parity:
   stage: test

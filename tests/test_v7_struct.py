@@ -61,7 +61,7 @@ def test_js_matches_python_definitions():
     try:
         import numpy  # noqa: F401
     except Exception as e:  # noqa: BLE001
-        print("skip: numpy missing", e); return
+        raise RuntimeError("NumPy is required for the V7 parity test; refusing a silent skip.") from e
     for seed in (11, 12, 13):
         b = _bars(seed=seed)
         js = "const S=require(%s);const b=JSON.parse(process.argv[1]);console.log(JSON.stringify(S.compute(b)))" % json.dumps(JS)

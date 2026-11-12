@@ -1,6 +1,7 @@
 """Ensure the V7 page actually embeds and parses the live structure engine."""
 import os
 import re
+import inspect
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,9 @@ def test_live_structure_is_wired_and_scripts_parse():
     assert "V7STRUCT" in html
     assert "Structure &amp; liquidity" in html
     assert "S.compute(closed)" in html
+    page_source = inspect.getsource(v7_page)
+    assert "components.html(" not in page_source
+    assert page_source.count("st.iframe(") >= 3
 
     scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S | re.I)
     assert len(scripts) >= 4, f"expected library, indicators, structure, and app scripts; got {len(scripts)}"

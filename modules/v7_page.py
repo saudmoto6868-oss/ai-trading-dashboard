@@ -120,7 +120,6 @@ def _show_images(st) -> None:
 
 def render() -> None:
     import streamlit as st
-    import streamlit.components.v1 as components
     st.subheader("V7 research (CFX v7 single-oscillator chart)")
     st.caption("Research intake, read-only: nothing here is a recommendation or an order. Every claim is `unverified` until it is measured with its sample size; "
                "under 30 cases it is not evidence.")
@@ -132,7 +131,7 @@ def render() -> None:
         if err:
             st.error(f"The live chart files could not be loaded: {err}")
         else:
-            components.html(html, height=960, scrolling=True)
+            st.iframe(html, height=960, alt="V7 live CFX chart and structure readout")
         st.markdown("#### What else the CFX research built: structure tools, trade story, schools, alerts, images")
         st.caption("Below: the static snapshot of the full CFX dashboard (6-10 Nov 2026, gold futures) and its chart images. Those overlays are NOT live yet; "
                    "porting them to the live chart is in progress and each one will be tested against its definition before it appears.")
@@ -141,7 +140,7 @@ def render() -> None:
             if serr:
                 st.error(f"The dashboard files could not be loaded: {serr}")
             else:
-                components.html(shtml, height=900, scrolling=True)
+                st.iframe(shtml, height=900, alt="CFX research dashboard snapshot")
         with st.expander("CFX chart images", expanded=True):
             _show_images(st)
         return
@@ -152,7 +151,7 @@ def render() -> None:
         if err:
             st.error(f"The dashboard files could not be loaded: {err}")
         else:
-            components.html(html, height=900, scrolling=True)
+            st.iframe(html, height=900, alt="V7 CFX snapshot dashboard")
         return
     if view == "Chart images":
         for rel, cap in (("research/cfx/cfx_chart_real_v7.png", "Chart: price + SMA 144 / 77 + SMC/ICT overlays + session boxes"),

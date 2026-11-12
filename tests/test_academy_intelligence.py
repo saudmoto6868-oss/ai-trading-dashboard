@@ -52,8 +52,8 @@ def run():
             raise AssertionError("non-HTTP source URLs should be rejected")
         except ValueError:
             pass
-        # return_to_review intentionally moves the record back out of accepted state.
-        assert search_records(topic="Liquidity", status="inbox", path=db)
+        # return_to_review intentionally moves the record back to the review queue.
+        assert search_records(topic="Liquidity", status="review", path=db)
         try:
             upsert_record({"title": "bad"}, db)
             raise AssertionError("required fields should be enforced")

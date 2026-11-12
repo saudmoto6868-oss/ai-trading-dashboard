@@ -18,14 +18,14 @@
  <select id="sym"></select><select id="tf"></select>
  <button id="ctr" title="Put the current candle back in the middle">Center on now</button><span id="px">-</span><span id="chg"></span><span id="live" class="dn">connecting...</span></div>
 <div id="grid"><div id="charts"><div id="chart"></div><div id="osc"></div><div id="macd"></div></div>
-<div id="side"><h3>Live readout</h3><div id="read"></div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
+<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
 <div id="note">Live candles from public APIs (OKX for crypto, Hyperliquid xyz perpetuals for gold / silver) refreshed every 5 s. Indicators use the exact CFX v7 settings and are computed in this browser. Signals are research dots on CLOSED candles only, rule "variant B" (62 signals on gold futures Sep-Nov, 59.7% against the next 8 bars, p about 0.13): NOT an edge, NOT a recommendation, no orders. Perpetual prices differ slightly from futures / spot.</div>
 <script>/*LIB*/</script>
 <script>/*IND*/</script>
 <script>
 (function(){
 const SYMS=[['BTC-USDT','okx','BTC-USDT'],['ETH-USDT','okx','ETH-USDT'],['SOL-USDT','okx','SOL-USDT'],['XRP-USDT','okx','XRP-USDT'],['DOGE-USDT','okx','DOGE-USDT'],['GOLD (Hyperliquid xyz perp)','hl','xyz:GOLD'],['SILVER (Hyperliquid xyz perp)','hl','xyz:SILVER']];
-const TFS={'5m':{okx:'5m',hl:'5m',sec:300},'15m':{okx:'15m',hl:'15m',sec:900},'1H':{okx:'1H',hl:'1h',sec:3600},'4H':{okx:'4H',hl:'4h',sec:14400}};
+const TFS={'5m':{okx:'5m',hl:'5m',sec:300},'15m':{okx:'15m',hl:'15m',sec:900},'1H':{okx:'1H',hl:'1h',sec:3600},'4H':{okx:'4H',hl:'4h',sec:14400},'1D':{okx:'1D',hl:'1d',sec:86400}};
 const $=id=>document.getElementById(id),I=window.V7IND,fin=Number.isFinite;
 SYMS.forEach((s,i)=>$('sym').append(Object.assign(document.createElement('option'),{value:i,textContent:s[0]})));
 Object.keys(TFS).forEach(t=>$('tf').append(Object.assign(document.createElement('option'),{value:t,textContent:t})));
@@ -80,9 +80,22 @@ async function tick(){if(busy)return;busy=true;const s=SYMS[+$('sym').value],tf=
       '<div class="r" style="display:block;font-size:10px;margin-top:4px">Research rule, not evidence: under 30 cases per setup it proves nothing, and the original sample was 59.7% against the move.</div>';
   }catch(e){$('live').textContent='ERROR: '+String(e&&e.message||e).slice(0,70);$('live').className='dn';}
   busy=false;}
+async function getFor(s,name){const tf=TFS[name];return s[1]==='okx'?getOKX(s[2],tf.okx):getHL(s[2],tf.hl,tf.sec);}
+let planBusy=false;
+async function planTick(){if(planBusy)return;planBusy=true;const s=SYMS[+$('sym').value];
+  try{const r=await Promise.all(['1D','4H','1H','15m'].map(n=>getFor(s,n)));const p=I.dayPlan({d1:r[0],h4:r[1],h1:r[2],m15:r[3]},Date.now());
+    const col=p.state.indexOf('LONG')>=0?'up':p.state.indexOf('SHORT')>=0?'dn':'';
+    const L=(a,c,t)=>a.length?'<div style="font-size:10px;margin-top:3px"><span class="'+c+'" style="font-weight:700">'+t+'</span>'+a.map(x=>'<div>- '+x+'</div>').join('')+'</div>':'';
+    $('plan').innerHTML=row('Verdict',p.state,col)+row('Bias',p.dir||'none')+row('1D / 4H / 1H / 15m',[p.trends.d1,p.trends.h4,p.trends.h1,p.trends.m15].map(x=>x||'-').join(' / '))+
+      row('Session (NY clock)',((p.session.asia?'Asia ':'')+(p.session.london?'London ':'')+(p.session.ny?'NY':''))||'closed')+row('Kill zone',p.session.kz||'none')+
+      (p.levels?row('Prev daily high / low',f2(p.levels.pdh)+' / '+f2(p.levels.pdl))+row('Price in prev. range',p.levels.pos==null?'-':Math.round(p.levels.pos*100)+'%'):'')+
+      L(p.agree,'up','Agrees')+L(p.conflict,'dn','Conflicts')+L(p.waiting,'','Waiting for')+
+      '<div class="r" style="display:block;font-size:10px;margin-top:4px">Rule-based context, not a trade call: no entry, stop or target. If a plan is ever taken: risk '+p.risk.basePct+'% of equity, R:R at least 1:'+p.risk.minRR+' (platform policy).</div>';
+  }catch(e){$('plan').textContent='Day plan unavailable: '+String(e&&e.message||e).slice(0,60);}
+  planBusy=false;}
 $('ctr').onclick=()=>center();
-$('sym').onchange=$('tf').onchange=()=>{first=true;lastKey='';cs.setData([]);[s77,s144,sk,sd,sr,sm].forEach(x=>x.setData([]));tick();};
+$('sym').onchange=$('tf').onchange=()=>{first=true;lastKey='';cs.setData([]);[s77,s144,sk,sd,sr,sm].forEach(x=>x.setData([]));tick();planTick();};
 setInterval(()=>{if(!document.hidden)tick();if(lastOk&&Date.now()-lastOk>20000){$('live').textContent='STALE '+Math.round((Date.now()-lastOk)/1000)+'s';$('live').className='dn';}},5000);
-tick();
+tick();planTick();setInterval(()=>{if(!document.hidden)planTick();},60000);
 })();
 </script></body></html>

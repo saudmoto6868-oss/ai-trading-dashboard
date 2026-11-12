@@ -38,6 +38,42 @@
     }
     return out;
   }
-  const api = { rollMean, ema, stochKD, rsiWilder, compute, signalsB };
+  /* ---- Day plan (rule-based "Director"): top-down bias, location, session, momentum -> WAIT / WATCH, with what agrees, what conflicts, what we wait for.
+     It never prints an entry, stop or target: research context only. Risk shown is the platform policy (0.25 % base, R:R >= 2). ---- */
+  function nyMinutes(ms) { const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms)); return (+p.find(x => x.type === 'hour').value % 24) * 60 + (+p.find(x => x.type === 'minute').value); }
+  function sessionNow(ms) {
+    const t = nyMinutes(ms), inW = (a, b) => (a < b ? (t >= a * 60 && t < b * 60) : (t >= a * 60 || t < b * 60));
+    const kz = inW(2, 5) ? 'London kill zone' : inW(7, 10) ? 'NY AM kill zone' : inW(20, 24) ? 'Asia kill zone' : '';
+    return { asia: inW(19, 2), london: inW(2, 9), ny: inW(8, 17), kz, nyMinutes: t };
+  }
+  function closedBars(b) { return b.length && b[b.length - 1].closed === false ? b.slice(0, -1) : b; }
+  function trendOf(c) {
+    const m20 = rollMean(c, 20), m50 = rollMean(c, 50), n = c.length - 1;
+    if (n < 49 || !fin(m20[n]) || !fin(m50[n])) return null;
+    return c[n] > m20[n] && m20[n] > m50[n] ? 'UP' : c[n] < m20[n] && m20[n] < m50[n] ? 'DOWN' : 'RANGE';
+  }
+  function atr14(b) { const n = b.length; if (n < 15) return NaN; let s = 0; for (let i = n - 14; i < n; i++) s += Math.max(b[i].high - b[i].low, Math.abs(b[i].high - b[i - 1].close), Math.abs(b[i].low - b[i - 1].close)); return s / 14; }
+  function dayPlan(f, nowMs) {
+    const ses = sessionNow(nowMs), agree = [], conflict = [], waiting = [], C = {};
+    ['d1', 'h4', 'h1', 'm15'].forEach(k => { C[k] = closedBars(f[k] || []); });
+    const T = {}; ['d1', 'h4', 'h1', 'm15'].forEach(k => { T[k] = trendOf(C[k].map(b => b.close)); });
+    const out = { state: 'WAIT', dir: null, trends: T, session: ses, agree, conflict, waiting, levels: null, risk: { basePct: 0.25, minRR: 2 } };
+    if (!T.d1 || !T.h4) { out.state = 'NO DATA'; conflict.push('not enough daily / 4H candles to read the bias'); return out; }
+    const pd = C.d1[C.d1.length - 1], px = (f.m15 && f.m15.length ? f.m15[f.m15.length - 1].close : C.h1[C.h1.length - 1].close), rng = pd.high - pd.low, pos = rng > 0 ? (px - pd.low) / rng : NaN, a = atr14(C.m15);
+    out.levels = { pdh: pd.high, pdl: pd.low, px, pos: fin(pos) ? pos : null, atr15: fin(a) ? a : null };
+    if (T.d1 !== 'RANGE' && T.h4 !== 'RANGE' && T.d1 !== T.h4) { out.state = 'CONFLICT'; conflict.push('1D is ' + T.d1 + ' but 4H is ' + T.h4); return out; }
+    const dir = T.d1 !== 'RANGE' ? T.d1 : T.h4 !== 'RANGE' ? T.h4 : null;
+    if (!dir) { out.state = 'WAIT'; waiting.push('1D and 4H are both ranging: no directional bias'); return out; }
+    out.dir = dir; const up = dir === 'UP';
+    agree.push('1D ' + T.d1 + (T.h4 === dir ? ' and 4H ' + T.h4 + ' agree' : ' (4H ranging)'));
+    if (T.h1 === dir) agree.push('1H ' + T.h1 + ' agrees'); else if (T.h1 && T.h1 !== 'RANGE') conflict.push('1H is ' + T.h1 + ' against the bias'); else waiting.push('1H not trending with the bias yet');
+    if (fin(pos)) { const fits = up ? pos < 0.5 : pos > 0.5; if (fits) agree.push('price in ' + (up ? 'discount' : 'premium') + ' of the previous daily range (' + Math.round(pos * 100) + '%)'); else waiting.push('price in ' + (up ? 'premium' : 'discount') + ' of the previous daily range (' + Math.round(pos * 100) + '%): wait for a pullback'); }
+    const ind = compute(C.m15), n = C.m15.length - 1, k = ind.k, d = ind.d, w = k.slice(-6).filter(fin);
+    if (n >= 20 && w.length) { const turn = up ? (k[n] >= d[n] && Math.min(...w) <= 20) : (k[n] <= d[n] && Math.max(...w) >= 80); if (turn) agree.push('15m Stoch turning ' + (up ? 'up from oversold' : 'down from overbought')); else waiting.push('15m Stoch has not turned ' + (up ? 'up from <= 20' : 'down from >= 80') + ' yet'); }
+    if (ses.kz) agree.push('inside the ' + ses.kz); else waiting.push('outside a kill zone (London 02-05, NY AM 07-10, Asia 20-24, New York time)');
+    out.state = (T.h1 === dir && agree.length >= 4) ? 'WATCH ' + (up ? 'LONG' : 'SHORT') : 'WAIT';
+    return out;
+  }
+  const api = { rollMean, ema, stochKD, rsiWilder, compute, signalsB, sessionNow, trendOf, dayPlan };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.V7IND = api;
 })(typeof window !== 'undefined' ? window : globalThis);

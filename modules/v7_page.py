@@ -103,6 +103,17 @@ def live_html() -> tuple:
         return "", f"{type(e).__name__}: {e}"
 
 
+def _show_images(st) -> None:
+    for rel, cap in (("research/cfx/cfx_chart_real_v7.png", "Chart: price + SMA 144 / 77 + SMC/ICT overlays + session boxes"),
+                     ("research/cfx/cfx_osc_v7.png", "Single oscillator pane: Stochastic 5,3,3 + RSI 14 + MACD 12,26,1"),
+                     ("research/cfx/cfx_settings_v7.png", "Indicator settings")):
+        p = os.path.join(ROOT, rel)
+        if os.path.exists(p):
+            st.image(p, caption=cap, use_container_width=True)
+        else:
+            st.info(f"{rel} is not in this deployment.")
+
+
 def render() -> None:
     import streamlit as st
     import streamlit.components.v1 as components
@@ -117,7 +128,18 @@ def render() -> None:
         if err:
             st.error(f"The live chart files could not be loaded: {err}")
         else:
-            components.html(html, height=700, scrolling=True)
+            components.html(html, height=960, scrolling=True)
+        st.markdown("#### What else the CFX research built: structure tools, trade story, schools, alerts, images")
+        st.caption("Below: the static snapshot of the full CFX dashboard (6-10 Nov 2026, gold futures) and its chart images. Those overlays are NOT live yet; "
+                   "porting them to the live chart is in progress and each one will be tested against its definition before it appears.")
+        with st.expander("CFX dashboard snapshot: BOS / CHoCH, CISD, order blocks, FVG, sessions, trade story, schools, alerts", expanded=True):
+            shtml, serr = dashboard_html()
+            if serr:
+                st.error(f"The dashboard files could not be loaded: {serr}")
+            else:
+                components.html(shtml, height=900, scrolling=True)
+        with st.expander("CFX chart images", expanded=True):
+            _show_images(st)
         return
     if view == "Snapshot dashboard":
         st.warning("Research snapshot of the CFX v7 chart on GC=F gold FUTURES (not spot XAUUSD), window 6-10 Nov 2026. The dots and alerts are the research rule 'variant B' "

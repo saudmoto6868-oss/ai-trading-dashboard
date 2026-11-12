@@ -15,6 +15,7 @@ default:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONPATH: "$CI_PROJECT_DIR"
 
 # Run the Academy language/data checks as a required job without a Streamlit ScriptRunContext.
 academy_tests:

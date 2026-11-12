@@ -176,5 +176,5 @@ def test_js_matches_python_definitions():
 
 if __name__ == "__main__":
     test_js_matches_python_definitions()
-    print("ok JS == independent Python on 3 synthetic series (swings, ATR, BOS / CHoCH, FVG, 50 %, OTE direction)")
+    print("ok JS == independent Python on 3 synthetic series (swings, ATR, EQH/EQL, BOS/CHoCH, FVG, sessions, NY prior day, 50 %, OTE)")
     print("V7 STRUCT TESTS DONE")

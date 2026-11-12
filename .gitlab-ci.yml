@@ -51,6 +51,7 @@ v7_structure_parity:
     - pip install --quiet numpy
   script:
     - python tests/test_v7_struct.py
+    - python tests/test_v7_live_wiring.py
 
 telegram_alerts:
   stage: test

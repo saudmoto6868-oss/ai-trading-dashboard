@@ -3782,10 +3782,9 @@ if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution an
                         (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
                         st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
                                        "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
-                import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
-                    _components.html(_html, height=900, scrolling=True)
+                    st.iframe(_html, height=900, alt="QuantStats performance report")
                 else:
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:

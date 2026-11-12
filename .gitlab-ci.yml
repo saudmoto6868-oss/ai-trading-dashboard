@@ -32,15 +32,6 @@ mr_tests:
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
   allow_failure: true   # informative until the full suite is known green in CI
 
-# Required guard for the deprecated components.html API migration.
-streamlit_iframe_migration:
-  stage: test
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  timeout: 3m
-  script:
-    - python tests/test_streamlit_iframe_migration.py
-
 telegram_alerts:
   stage: test
   rules:
@@ -92,3 +83,13 @@ risk_policy_tests:
     - python tests/test_horizons_sizing.py
     - python tests/test_desk_js.py
     - python tests/test_workspace_parts_sync.py
+
+# Required guard for the deprecated components.html API migration.
+streamlit_iframe_migration:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 3m
+  script:
+    - python tests/test_streamlit_iframe_migration.py
+

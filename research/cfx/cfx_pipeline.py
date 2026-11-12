@@ -33,7 +33,7 @@ NY = "America/New_York"
 CAIRO = "Africa/Cairo"
 
 # Risk / cost
-RR1_MIN = 1.5
+RR1_MIN = 2.0
 SL_BUF_ATR = 0.15
 COST_R_MAX = 0.20
 NEWS_EVENTS: list[pd.Timestamp] = []  # empty = no calendar feed

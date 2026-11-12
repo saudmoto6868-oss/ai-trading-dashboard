@@ -48,7 +48,7 @@ v7_structure_parity:
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends nodejs
     - rm -rf /var/lib/apt/lists/*
-    - pip install --quiet numpy
+    - pip install --quiet numpy tzdata
   script:
     - python tests/test_v7_struct.py
     - python tests/test_v7_live_wiring.py

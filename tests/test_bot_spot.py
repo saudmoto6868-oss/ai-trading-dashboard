@@ -115,7 +115,7 @@ assert sent[-1] == ("text", "LLM: ازيك عامل ايه")
 n = len(sent)
 X.handle(p, "الدهب هيطلع الاسبوع الجاي؟")
 ph = [s for s in sent[n:] if s[0] == "photo"]
-assert ph and open(ph[0][1], "rb").read().startswith(b"\\x89PNG\\r\\n\\x1a\\n") and "الدهب" in ph[0][2], sent[n:]
+assert ph and open(ph[0][1], "rb").read().startswith(b"\x89PNG\r\n\x1a\n") and "الدهب" in ph[0][2], sent[n:]
 X.handle(p, "/spotchart GOLD")
 assert sent[-1][0] == "photo" and "محلل السبوت" in sent[-1][2]
 X.handle(p, "/help")

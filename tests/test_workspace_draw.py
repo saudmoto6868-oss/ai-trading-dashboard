@@ -27,8 +27,14 @@ def test_tradingview_tool_set():
 
 
 def test_chart_is_free_by_default():
-    assert 'getItem("ai_ac") === "1"' in H                                          # 2026-10-24: auto-centre is OFF unless the user turned it on (it undid every zoom / pan on each live tick)
-    assert "freezeY(){" in H                                                        # vertical drag / Shift+wheel switches the price scale to manual
+    assert "followLatest" not in H and "ch.autoCenter" not in H and "ac:true}" not in H   # 2026-11-09: no Auto-Center (it re-centred the chart on every live tick / poll)
+    assert "lockBtn" not in H and "_autoChip" not in H                                 # no Manual / Auto button, no yellow Auto chip
+    assert "centerNow(){ this.fit(); }" in H and "fit.onclick = () => this.chart.centerNow()" in H   # toolbar Fit: latest candle centred, scale set once
+    assert "if (!this.lockR){ const z = this.yZoom" in H                               # the price scale is set once after open / Fit, then stays locked
+    assert "lk: this.lockR" in H and "this.lockR = v.lk || null" in H                  # the lock is part of the per-tab view (reload keeps it)
+    assert "stale leftover" not in H and "(this.state.locks || {})" not in H          # no automatic reset of the lock, no old per-symbol locks
+    assert "if (!isFinite(lo)) return [0,1];" not in H                                # an empty window never gives a 0..1 price scale
+    assert "freezeY(){" in H
 
 
 def test_symbol_logos_in_the_workspace():

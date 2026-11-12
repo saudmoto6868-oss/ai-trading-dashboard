@@ -871,6 +871,7 @@ def render() -> None:
     fx, fx_src = _fx(d)
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
+    # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
     tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
                     T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات")])
     with tabs[0]:

@@ -146,3 +146,13 @@ def strikes(rows: list, expiry, spot: float, span: float = 0.25) -> list:
         if o["exp"] == expiry and abs(o["k"] - spot) <= span * spot:
             a = acc.setdefault(o["k"], [0.0, 0.0]); a[0 if o["cp"] == "C" else 1] += o["oi"]
     return [(k, round(v[0], 1), round(v[1], 1)) for k, v in sorted(acc.items())]
+
+
+def gex_chain(rows: list, today=None):
+    """Deribit rows -> the chain frame modules/gex.py reads: expiry, type C/P, strike, oi (coins), iv (percent, gex.py rescales), gamma
+    unknown (gex.py prices it with Black-Scholes). Expiries already past and strikes without open interest are dropped."""
+    import pandas as pd
+    today = today or datetime.now(timezone.utc).date()
+    b = [o for o in _book(rows) if o["exp"] >= today and o["oi"] > 0]
+    return pd.DataFrame([{"expiry": pd.Timestamp(o["exp"]), "type": o["cp"], "strike": o["k"], "oi": o["oi"], "iv": o["iv"], "gamma": None} for o in b],
+                        columns=["expiry", "type", "strike", "oi", "iv", "gamma"])

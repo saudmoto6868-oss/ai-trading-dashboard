@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#050505;--panel:#0d0d0d;--line:#2a2a2a;--gold:#d4af37;--teal:#26a69a;--red:#ef5350;--text:#e8e8e8;--dim:#8a8a8a}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font:12px "Segoe UI",Arial,sans-serif}
+#bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--gold);background:#0b0b0b}
+#bar select,#bar button{background:#161616;color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 7px;font-size:12px;cursor:pointer}
+#bar b{color:var(--gold)}#live{font-weight:700}#px{font:700 15px ui-monospace,Menlo,monospace}
+#grid{display:grid;grid-template-columns:1fr 250px}
+#charts{min-width:0}#chart{height:560px}#osc{height:190px;border-top:1px solid var(--line)}#macd{height:120px;border-top:1px solid var(--line)}
+#side{border-left:1px solid var(--gold);background:var(--panel);padding:8px 10px;overflow:auto;max-height:870px}
+#side h3{margin:8px 0 4px;color:var(--gold);font-size:11px;letter-spacing:.06em;text-transform:uppercase}#side h3:first-child{margin-top:0}
+.r{display:flex;justify-content:space-between;padding:2px 0;color:var(--dim)}.r b{color:var(--text);font-weight:600}
+.up{color:var(--teal)!important}.dn{color:var(--red)!important}
+#note{padding:6px 10px;color:var(--dim);font-size:11px;border-top:1px solid var(--line)}
+@media(max-width:760px){#grid{grid-template-columns:1fr}#side{border-left:0;border-top:1px solid var(--gold);max-height:none}}
+</style></head><body>
+<div id="bar"><b>V7 LIVE</b>
+ <select id="sym"></select><select id="tf"></select>
+ <button id="ctr" title="Put the current candle back in the middle">Center on now</button><span id="px">-</span><span id="chg"></span><span id="live" class="dn">connecting...</span></div>
+<div id="grid"><div id="charts"><div id="chart"></div><div id="osc"></div><div id="macd"></div></div>
+<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
+<div id="note">Live candles from public APIs (OKX for crypto, Hyperliquid xyz perpetuals for gold / silver) refreshed every 5 s. Indicators use the exact CFX v7 settings and are computed in this browser. Signals are research dots on CLOSED candles only, rule "variant B" (62 signals on gold futures Sep-Nov, 59.7% against the next 8 bars, p about 0.13): NOT an edge, NOT a recommendation, no orders. Perpetual prices differ slightly from futures / spot.</div>
+<script>/*LIB*/</script>
+<script>/*IND*/</script>
+<script>
+(function(){
+const SYMS=[['BTC-USDT','okx','BTC-USDT'],['ETH-USDT','okx','ETH-USDT'],['SOL-USDT','okx','SOL-USDT'],['XRP-USDT','okx','XRP-USDT'],['DOGE-USDT','okx','DOGE-USDT'],['GOLD (Hyperliquid xyz perp)','hl','xyz:GOLD'],['SILVER (Hyperliquid xyz perp)','hl','xyz:SILVER']];
+const TFS={'5m':{okx:'5m',hl:'5m',sec:300},'15m':{okx:'15m',hl:'15m',sec:900},'1H':{okx:'1H',hl:'1h',sec:3600},'4H':{okx:'4H',hl:'4h',sec:14400},'1D':{okx:'1D',hl:'1d',sec:86400}};
+const $=id=>document.getElementById(id),I=window.V7IND,fin=Number.isFinite;
+SYMS.forEach((s,i)=>$('sym').append(Object.assign(document.createElement('option'),{value:i,textContent:s[0]})));
+Object.keys(TFS).forEach(t=>$('tf').append(Object.assign(document.createElement('option'),{value:t,textContent:t})));
+$('tf').value='15m';
+function cairo(time,type){const ts=typeof time==='number'?time:Date.UTC(time.year,time.month-1,time.day)/1000;const pr=new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(ts*1000));const g=k=>(pr.find(x=>x.type===k)||{}).value||'';return type===0?g('year'):type===1?g('month'):type===2?g('day'):g('hour')+':'+g('minute');}
+const base={layout:{background:{color:'#050505'},textColor:'#8a8a8a'},grid:{vertLines:{color:'#141414'},horzLines:{color:'#141414'}},rightPriceScale:{borderColor:'#333'},crosshair:{mode:0},localization:{locale:'en-GB',timeFormatter:t=>cairo(t,3)}};
+const mk=(el,extra)=>LightweightCharts.createChart($(el),Object.assign({width:$(el).clientWidth,height:$(el).clientHeight},base,extra||{}));
+const ch=mk('chart',{timeScale:{borderColor:'#333',timeVisible:true,secondsVisible:false,tickMarkFormatter:cairo}});
+const oc=mk('osc',{timeScale:{borderColor:'#333',visible:false},rightPriceScale:{borderColor:'#333',scaleMargins:{top:.06,bottom:.08}}});
+const mc=mk('macd',{timeScale:{borderColor:'#333',visible:false}});
+const cs=ch.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderVisible:false,wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
+const s77=ch.addLineSeries({color:'#ff9800',lineWidth:1,lineStyle:2,lastValueVisible:false,priceLineVisible:false});
+const s144=ch.addLineSeries({color:'#ef5350',lineWidth:1,lineStyle:2,lastValueVisible:false,priceLineVisible:false});
+const sk=oc.addLineSeries({color:'#42a5f5',lineWidth:2,autoscaleInfoProvider:()=>({priceRange:{minValue:0,maxValue:100}})});
+const sd=oc.addLineSeries({color:'#ef9a9a',lineWidth:1,lastValueVisible:false});
+const sr=oc.addLineSeries({color:'#b39ddb',lineWidth:1,lastValueVisible:false});
+[15,50,85].forEach(v=>sk.createPriceLine({price:v,color:v===50?'#555':v<50?'#26a69a':'#ef5350',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:String(v)}));
+const sm=mc.addLineSeries({color:'#9e9e9e',lineWidth:1,lastValueVisible:true});
+sm.createPriceLine({price:0,color:'#555',lineWidth:1,lineStyle:2,axisLabelVisible:false});
+let syncing=false;const link=(a,bs)=>a.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(syncing||!r)return;syncing=true;bs.forEach(b=>b.timeScale().setVisibleLogicalRange(r));syncing=false;});
+link(ch,[oc,mc]);
+new ResizeObserver(()=>{[[ch,'chart'],[oc,'osc'],[mc,'macd']].forEach(([c,e])=>c.applyOptions({width:$(e).clientWidth}));}).observe($('charts'));
+let first=true,lastOk=0,busy=false,lastKey='';
+async function getOKX(inst,bar){const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+inst+'&bar='+bar+'&limit=300');const j=await r.json();if(!(j&&j.code==='0'&&Array.isArray(j.data)))throw new Error('OKX bad reply');return j.data.map(k=>({time:Math.floor(+k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],closed:k[8]==='1'})).reverse();}
+async function getHL(coin,iv,sec){const now=Date.now();const r=await fetch('https://api.hyperliquid.xyz/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'candleSnapshot',req:{coin:coin,interval:iv,startTime:now-300*sec*1000,endTime:now}})});const j=await r.json();if(!Array.isArray(j)||!j.length)throw new Error('Hyperliquid returned no candles');return j.map(k=>({time:Math.floor(k.t/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,closed:k.T<now})).sort((a,b)=>a.time-b.time);}
+let nBars=0;
+function center(){const n=nBars-1,half=Math.max(40,Math.min(110,Math.round(n/3)));ch.timeScale().setVisibleLogicalRange({from:n-half,to:n+half});}   // the current candle sits in the MIDDLE of the screen, empty space on its right
+const pts=(bars,arr)=>bars.map((b,i)=>fin(arr[i])?{time:b.time,value:arr[i]}:null).filter(Boolean);
+const row=(k,v,c)=>'<div class="r"><span>'+k+'</span><b'+(c?' class="'+c+'"':'')+'>'+v+'</b></div>';
+const f2=v=>fin(v)?v.toFixed(2):'-';
+function fmtT(t){return new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(t*1000));}
+async function tick(){if(busy)return;busy=true;const s=SYMS[+$('sym').value],tf=TFS[$('tf').value];
+  try{const bars=s[1]==='okx'?await getOKX(s[2],tf.okx):await getHL(s[2],tf.hl,tf.sec);
+    const ind=I.compute(bars),lastClosed=bars.length-1-(bars[bars.length-1].closed?0:1),sig=I.signalsB(ind,lastClosed);
+    nBars=bars.length;const key=bars.length+'|'+bars[bars.length-1].time,full=first||key!==lastKey;lastKey=key;
+    const vr=full&&!first?ch.timeScale().getVisibleLogicalRange():null;
+    const feed=(series,data)=>{if(full)series.setData(data);else if(data.length)series.update(data[data.length-1]);};   // update() only accepts the last bar or a newer one: a new candle reloads everything
+    feed(cs,bars.map(b=>({time:b.time,open:b.open,high:b.high,low:b.low,close:b.close})));feed(s77,pts(bars,ind.sma77));feed(s144,pts(bars,ind.sma144));
+    feed(sk,pts(bars,ind.k));feed(sd,pts(bars,ind.d));feed(sr,pts(bars,ind.rsi));feed(sm,pts(bars,ind.macd));
+    cs.setMarkers(sig.map(x=>({time:bars[x.i].time,position:x.side==='buy'?'belowBar':'aboveBar',color:x.side==='buy'?'#26a69a':'#ef5350',shape:x.side==='buy'?'arrowUp':'arrowDown',text:'research '+x.side})));
+    if(first){center();first=false;}else if(vr){ch.timeScale().setVisibleLogicalRange(vr);}
+    const L=bars[bars.length-1],n=bars.length-1,chg=(L.close/bars[0].close-1)*100;
+    $('px').textContent=L.close.toPrecision(L.close>=100?7:5);$('chg').textContent=(chg>=0?'+':'')+chg.toFixed(2)+'% over '+bars.length+' bars';$('chg').className=chg>=0?'up':'dn';
+    lastOk=Date.now();$('live').textContent='LIVE';$('live').className='up';
+    const k=ind.k[n],d=ind.d[n],r=ind.rsi[n],m=ind.macd[n],m1=ind.macd[n-1],a77=ind.sma77[n],a144=ind.sma144[n];
+    $('read').innerHTML=row('Source',s[1]==='okx'?'OKX spot candles':'Hyperliquid xyz perp')+row('Last bar opened',fmtT(L.time)+' Cairo'+(L.closed?'':' (forming)'))+
+      row('Stoch %K / %D',f2(k)+' / '+f2(d),k<=15?'up':k>=85?'dn':'')+row('RSI 14',f2(r),r<=10?'up':r>=90?'dn':'')+
+      row('MACD (12,26)',f2(m)+(fin(m1)?(m>m1?' rising':' falling'):''),fin(m1)?(m>m1?'up':'dn'):'')+
+      row('SMA 77',f2(a77),fin(a77)?(L.close>a77?'up':'dn'):'')+row('SMA 144',f2(a144),fin(a144)?(L.close>a144?'up':'dn'):'')+
+      row('Bars loaded',bars.length)+(bars.length<150?row('Note','fewer than 144 bars: SMA 144 not complete yet','dn'):'');
+    const ls=sig[sig.length-1];$('sigs').innerHTML=row('Signals in window',sig.length+' (closed candles)')+(ls?row('Last',ls.side+' @ '+fmtT(bars[ls.i].time)+', '+(lastClosed-ls.i)+' bars ago',ls.side==='buy'?'up':'dn'):row('Last','none in this window'))+
+      '<div class="r" style="display:block;font-size:10px;margin-top:4px">Research rule, not evidence: under 30 cases per setup it proves nothing, and the original sample was 59.7% against the move.</div>';
+  }catch(e){$('live').textContent='ERROR: '+String(e&&e.message||e).slice(0,70);$('live').className='dn';}
+  busy=false;}
+async function getFor(s,name){const tf=TFS[name];return s[1]==='okx'?getOKX(s[2],tf.okx):getHL(s[2],tf.hl,tf.sec);}
+let planBusy=false;
+async function planTick(){if(planBusy)return;planBusy=true;const s=SYMS[+$('sym').value];
+  try{const r=await Promise.all(['1D','4H','1H','15m'].map(n=>getFor(s,n)));const p=I.dayPlan({d1:r[0],h4:r[1],h1:r[2],m15:r[3]},Date.now());
+    const col=p.state.indexOf('LONG')>=0?'up':p.state.indexOf('SHORT')>=0?'dn':'';
+    const L=(a,c,t)=>a.length?'<div style="font-size:10px;margin-top:3px"><span class="'+c+'" style="font-weight:700">'+t+'</span>'+a.map(x=>'<div>- '+x+'</div>').join('')+'</div>':'';
+    $('plan').innerHTML=row('Verdict',p.state,col)+row('Bias',p.dir||'none')+row('1D / 4H / 1H / 15m',[p.trends.d1,p.trends.h4,p.trends.h1,p.trends.m15].map(x=>x||'-').join(' / '))+
+      row('Session (NY clock)',((p.session.asia?'Asia ':'')+(p.session.london?'London ':'')+(p.session.ny?'NY':''))||'closed')+row('Kill zone',p.session.kz||'none')+
+      (p.levels?row('Prev daily high / low',f2(p.levels.pdh)+' / '+f2(p.levels.pdl))+row('Price in prev. range',p.levels.pos==null?'-':Math.round(p.levels.pos*100)+'%'):'')+
+      L(p.agree,'up','Agrees')+L(p.conflict,'dn','Conflicts')+L(p.waiting,'','Waiting for')+
+      '<div class="r" style="display:block;font-size:10px;margin-top:4px">Rule-based context, not a trade call: no entry, stop or target. If a plan is ever taken: risk '+p.risk.basePct+'% of equity, R:R at least 1:'+p.risk.minRR+' (platform policy).</div>';
+  }catch(e){$('plan').textContent='Day plan unavailable: '+String(e&&e.message||e).slice(0,60);}
+  planBusy=false;}
+$('ctr').onclick=()=>center();
+$('sym').onchange=$('tf').onchange=()=>{first=true;lastKey='';cs.setData([]);[s77,s144,sk,sd,sr,sm].forEach(x=>x.setData([]));tick();planTick();};
+setInterval(()=>{if(!document.hidden)tick();if(lastOk&&Date.now()-lastOk>20000){$('live').textContent='STALE '+Math.round((Date.now()-lastOk)/1000)+'s';$('live').className='dn';}},5000);
+tick();planTick();setInterval(()=>{if(!document.hidden)planTick();},60000);
+})();
+</script></body></html>

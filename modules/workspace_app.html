@@ -750,7 +750,7 @@ const TFS = [["5s","5s"],["15s","15s"],["30s","30s"],["1m","1m"],["5m","5m"],["1
 /* ---------------- i18n ---------------- */
 const I18N = {
  en:{add:"+ Widget",trading:"Trading layout",blank:"Blank canvas",smart:"Smart ×",big:"Big ×",abs:"Absorb ×",
-  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indBvd:"Breakout Volume Delta",indEw:"Elliott waves (auto 1-2-3-4-5 / A-B-C)",bvdTip:"A close through a swing high/low, labelled BUY/SELL % (who was stronger inside the breakout bar) or ⚠ weak. Uses live trade delta when available, otherwise the close position inside the bar (~).",auto:"Auto",manual:"Manual",lockTip:"Auto: price scale follows the candles. Manual: the scale stays where you set it (drag / wheel on the price axis).",indVol:"Volume (colour by delta)",openDot:"Open Depth of Market",closeDot:"Close Depth of Market",ofSet:"Depth of Trade settings (colours, sizes)",indDot:"Order flow: sweep ◆ / absorption ⊗ dots",dotTip:"Sweep = diamond, absorption = ring with cross (dashed line to its target). Same buy/sell colours as the bubbles, depth map and Time & Sales.",indDot3:"Depth of Trade (bubbles + DOM + dots + BUY/SELL)",dot3Tip:"Turns the whole order-flow view on or off at once",indBub:"Order flow: bubbles (big prints)",bubTip:"Circle per large trade, size = volume, green = buys / red = sells (⚙ for colours and size). Builds from live trades.",indDom:"Order flow: depth heat-map (DOM)",domTip:"Resting bid/ask liquidity behind the candles, heat = size. Builds from the live order book while the chart is open.",indMk:"Order flow: BUY/SELL markers + targets",indFp:"Footprint candles (sell × buy per price)",fpTip:"Per price inside each candle: sells (hit bid) × buys (lifted ask), POC outlined, 3:1 imbalances bold. Builds from live trades while the chart is open; zoom in for the numbers.",indDelta:"Order flow: delta per candle",deltaTip:"Buy volume minus sell volume for each candle (builds from live trades while the chart is open)",tRect:"Rectangle",tChan:"Parallel channel (3 clicks)",tText:"Text note",valuelv:"Value Levels",web:"External chart (ChartLabs)",liq:"Liquidations (OKX)",rsihm:"RSI heat map",posn:"Positioning: OI + long/short",tclass:"Trade Classes",tvc:"TradingView chart (live)",fundhm:"Funding heat map",fund:"Fundamentals (crypto)",cmc:"CoinMarketCap",macrof:"Macro & COT",stockf:"Stock fundamentals",macrof:"Macro & COT",risk:"Risk Manager",indVp:"Volume Profile (POC/VA)",vpTip:"Volume profile of the loaded candles: POC = price with most traded volume, VAH/VAL = 70% value area",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",ofm:"Order Flow Map",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",setup:"Setup Card",signals:"Signals",settings:"Settings",stTheme:"Theme",stCandles:"Candle colours",stUp:"Up",stDn:"Down",stBg:"Background",stReset:"Reset to theme",stNote:"Saved in this browser. Applies to every chart and panel.",sgSearch:"search symbol / strategy",sgAge:"Age",sgSrc:"Source",sgAny:"All",sgMin:"min strength",sgNone:"no signals match the filters",sgCount:"signals",sgScan:"scan",sgAlert:"alert",sgTiming:"Timing",tmNow:"at entry",tmWait:"waiting",tmRun:"running",tmLate:"late - do not chase",tmStop:"stop hit",tmTp:"TP1 hit",tmNA:"no price",sgTimeTip:"Timing layer: where price is now relative to the plan. at entry = within 0.25 R of the entry; waiting = not at the entry yet; running = in profit, under 50% of the way to TP1; late = 50%+ of the way to TP1 (chasing); stop / TP1 hit = already decided.",sgPipTip:"Forex plan with a 30-50 pip stop and a 120+ pip target (pip = 0.0001, JPY pairs 0.01)",
+  vwap:"VWAP",kzTip:"Sessions + Kill Zones (NY time): live session boxes (Asia/London/NY) that freeze into H/M/L lines (high/low = resting liquidity, raids flagged) + REJ signals (wick beyond range, close back inside, EMA9/21 aligned); kill-zone bands: Asia 20-24, London Open 02-05, NY AM 07-10, NY PM 13:30-16 (1H and lower)",setupmode:"Setup display",mLines:"Setup: lines",mBox:"Setup: box",tCur:"Select / move",tTrend:"Trend line",tH:"Horizontal line",tFib:"Fib retracement",indBvd:"Breakout Volume Delta",indEw:"Elliott waves (auto 1-2-3-4-5 / A-B-C)",bvdTip:"A close through a swing high/low, labelled BUY/SELL % (who was stronger inside the breakout bar) or ⚠ weak. Uses live trade delta when available, otherwise the close position inside the bar (~).",auto:"Auto",manual:"Manual",lockTip:"Auto: price scale follows the candles. Manual: the scale stays where you set it (drag / wheel on the price axis).",indVol:"Volume (colour by delta)",openDot:"Open Depth of Market",closeDot:"Close Depth of Market",ofSet:"Depth of Trade settings (colours, sizes)",indDot:"Order flow: sweep ◆ / absorption ⊗ dots",dotTip:"Sweep = diamond, absorption = ring with cross (dashed line to its target). Same buy/sell colours as the bubbles, depth map and Time & Sales.",indDot3:"Depth of Trade (bubbles + DOM + dots + BUY/SELL)",dot3Tip:"Turns the whole order-flow view on or off at once",indBub:"Order flow: bubbles (big prints)",bubTip:"Circle per large trade, size = volume, green = buys / red = sells (⚙ for colours and size). Builds from live trades.",indDom:"Order flow: depth heat-map (DOM)",domTip:"Resting bid/ask liquidity behind the candles, heat = size. Builds from the live order book while the chart is open.",indMk:"Order flow: BUY/SELL markers + targets",indFp:"Footprint candles (sell × buy per price)",fpTip:"Per price inside each candle: sells (hit bid) × buys (lifted ask), POC outlined, 3:1 imbalances bold. Builds from live trades while the chart is open; zoom in for the numbers.",indDelta:"Order flow: delta per candle",deltaTip:"Buy volume minus sell volume for each candle (builds from live trades while the chart is open)",tRect:"Rectangle",tChan:"Parallel channel (3 clicks)",tText:"Text note",valuelv:"Value Levels",web:"External chart (ChartLabs)",liq:"Liquidations (OKX)",rsihm:"RSI heat map",posn:"Positioning: OI + long/short",tclass:"Trade Classes",ofdesk:"Order Flow Desk",tvc:"TradingView chart (live)",fundhm:"Funding heat map",fund:"Fundamentals (crypto)",cmc:"CoinMarketCap",macrof:"Macro & COT",stockf:"Stock fundamentals",macrof:"Macro & COT",risk:"Risk Manager",indVp:"Volume Profile (POC/VA)",vpTip:"Volume profile of the loaded candles: POC = price with most traded volume, VAH/VAL = 70% value area",indHarm:"Harmonic patterns",harmTip:"Auto XABCD: Gartley, Bat, Butterfly, Crab, Cypher (zig-zag pivots + Fibonacci ratios)",fibPreset:"Fib levels preset",tWave:"Elliott wave (6 clicks: 0-5)",tLong:"Long position (R:R)",tShort:"Short position (R:R)",tDel:"Delete selected",tClr:"Clear all drawings (click twice)",sig:"Signals",flow:"Flow",rf:"Refresh",fAll:"All",fBid:"Bid",fAsk:"Ask",fAbs:"Absorb",win:"Window",event:"Event",side:"Side",note:"Note",links:"Links",ticker:"News ticker",showchart:"Show on chart",tvopen:"TradingView",strats:"strategies",eta:"Est. time",entry:"Entry",stop:"Stop",alerts:"Alerts",addsym:"Add symbol e.g. PEPE-USDT",clear:"Clear",noalerts:"No trade alerts match — scanner setups (Wave 3, EMA cross on higher timeframes ...) appear here.",conf:"Confidence",chart:"Chart",dom:"Depth of Market",tape:"Time & Sales",ofm:"Order Flow Map",limits:"Limit Tracking",watch:"Watchlist",news:"News",video:"Video",notes:"Notes",setup:"Setup Card",signals:"Signals",settings:"Settings",stTheme:"Theme",stCandles:"Candle colours",stUp:"Up",stDn:"Down",stBg:"Background",stReset:"Reset to theme",stNote:"Saved in this browser. Applies to every chart and panel.",sgSearch:"search symbol / strategy",sgAge:"Age",sgSrc:"Source",sgAny:"All",sgMin:"min strength",sgNone:"no signals match the filters",sgCount:"signals",sgScan:"scan",sgAlert:"alert",sgTiming:"Timing",tmNow:"at entry",tmWait:"waiting",tmRun:"running",tmLate:"late - do not chase",tmStop:"stop hit",tmTp:"TP1 hit",tmNA:"no price",sgTimeTip:"Timing layer: where price is now relative to the plan. at entry = within 0.25 R of the entry; waiting = not at the entry yet; running = in profit, under 50% of the way to TP1; late = 50%+ of the way to TP1 (chasing); stop / TP1 hit = already decided.",sgPipTip:"Forex plan with a 30-50 pip stop and a 120+ pip target (pip = 0.0001, JPY pairs 0.01)",
   emptyMsg:"Blank canvas — use “+ Widget” to add a chart, DOM, news or video.",
   live:"Live from OKX",offline:"Cannot reach OKX from this browser",offlineHL:"Cannot reach Hyperliquid from this browser",busy:"Hyperliquid is rate-limiting this browser: waiting a few seconds, then retrying (not an error)",pace:"pace",delta:"delta",
   legend:"green = buy · red = sell · gold edge = large order (SMART = bigger than usual, WHALE = very large; a NEW one flashes softly) · violet row = ABSORPTION: heavy orders hit this price but it did not move, someone is soaking them up · blue outline = the resting size at this level just grew",
@@ -762,7 +762,7 @@ const I18N = {
   group:"Link group",time:"Time",price:"Price",size:"Size",value:"Value",bid:"Bid size",ask:"Ask size",loading:"Loading…",fit:"Fit",
   symbol:"Symbol",last:"Last",chg:"24h",long:"Long",short:"Short",cmDel:"Delete this drawing",cmAll:"Delete all drawings",cmOv:"Clear signal / Fib overlays",cmNone:"Nothing to delete",uniTip:"OKX universe: spot / perpetuals, USDT / USDC, by category",uniNone:"Nothing in this category.",uniAll:"Add all",journal:"Journal",jWin:"Win rate",jNet:"Net result",jTrades:"Wins / losses",jOpen:"open",jAvg:"Avg / trade",jBest:"Best trade",jWorst:"Worst trade",jDd:"Max drawdown",jEq:"Equity curve (R)",jEmpty:"Closed trades will draw the curve — the journal logs every scanner trade and follows it to TP1 or SL.",jStrat:"By strategy (win rate)",jLog:"Trade log",jRes:"Result",jExp:"expired",scanner:"Market radar",ind:"Indicators",indKz:"Sessions & Kill Zones",indSig:"Signals (Elliott · OB · FVG · trade plan)",indFlow:"Order-flow lines (classic absorb/sweep)",indSet:"Settings",indColor:"Colour",indWidth:"Line width",indStyle:"Line style",ready:"Ready trades",rdEmpty:"No ready trades yet — the scanner is still working or nothing qualifies.",rdSetup:"Setup",rdType:"Type",rdStr:"Strength",sound:"Sound alert on new 50%+ trades",scanning:"Scanning in the background…",fib:"Fibonacci",fibRatios:"Ratios (comma separated)",fibHi:"High",fibLo:"Low",fibAuto:"Auto from chart",fibDir:"Direction"},
  ar:{add:"+ ويدجت",trading:"تخطيط التداول",blank:"مساحة فاضية",smart:"سمارت ×",big:"كبير ×",abs:"امتصاص ×",
-  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي (اختار النسب)",indBvd:"دلتا حجم الاختراق (Breakout Volume Delta)",indEw:"موجات إليوت (تلقائي 1-2-3-4-5 / A-B-C)",bvdTip:"إغلاق خارج سوينج هاي/لو مع علامة شراء/بيع % (مين الأقوى جوه شمعة الاختراق) أو ⚠ ضعيف. بيستخدم دلتا الصفقات الحية لو موجودة وإلا موقع الإغلاق جوه الشمعة (~).",auto:"تلقائي",manual:"يدوي",lockTip:"تلقائي: مقياس السعر بيتبع الشموع. يدوي: المقياس بيثبت زي ما ظبطته (اسحب أو لف العجلة على محور السعر).",indVol:"الفوليوم (بلون الدلتا)",openDot:"افتح عمق السوق",closeDot:"اقفل عمق السوق",ofSet:"إعدادات عمق التداول (الألوان والأحجام)",indDot:"أوردر فلو: نقط سويب ◆ / امتصاص ⊗",dotTip:"السويب = معين، الامتصاص = دايرة بعلامة X (وخط متقطع للهدف). بنفس ألوان الفقاعات وخريطة السيولة والتايم آند سيلز.",indDot3:"عمق التداول (فقاعات + DOM + نقط + BUY/SELL)",dot3Tip:"يشغّل أو يطفّي عرض الأوردر فلو كله مرة واحدة",indBub:"أوردر فلو: فقاعات (الصفقات الكبيرة)",bubTip:"دايرة لكل صفقة كبيرة، الحجم = الكمية، أخضر شراء / أحمر بيع (⚙ للألوان والحجم). بتتبني من الصفقات الحية.",indDom:"أوردر فلو: خريطة السيولة (DOM)",domTip:"السيولة الواقفة في دفتر الأوامر خلف الشموع، الحرارة = الحجم. بتتبني من الدفتر الحي طول ما الشارت مفتوح.",indMk:"أوردر فلو: علامات BUY/SELL والأهداف",indFp:"شموع فوت برينت (بيع × شراء لكل سعر)",fpTip:"لكل سعر جوه الشمعة: بيع × شراء، وPOC بإطار أصفر، والاختلال 3:1 بخط عريض. بيتبني من الصفقات الحية طول ما الشارت مفتوح، قرّب عشان تشوف الأرقام.",indDelta:"أوردر فلو: دلتا كل شمعة",deltaTip:"حجم الشراء ناقص حجم البيع لكل شمعة (بيتبني من الصفقات الحية)",tRect:"مستطيل",tChan:"قناة متوازية (3 نقرات)",tText:"ملاحظة نصية",valuelv:"مستويات القيمة",web:"شارت خارجي (ChartLabs)",liq:"التصفيات (OKX)",rsihm:"خريطة RSI",posn:"التمركز: OI + لونج/شورت",tclass:"Trade Classes",tvc:"شارت TradingView (لحظي)",fundhm:"خريطة التمويل",fund:"التحليل الأساسي (كريبتو)",cmc:"CoinMarketCap",macrof:"الماكرو وCOT",stockf:"أساسيات الأسهم",risk:"إدارة المخاطر",indVp:"بروفايل الحجم (POC/VA)",vpTip:"بروفايل الحجم للشموع المحملة: POC أكثر سعر اتداول عليه، VAH/VAL منطقة القيمة 70%",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",ofm:"خريطة الأوردر فلو",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",setup:"سيت اب",signals:"الإشارات",settings:"الإعدادات",stTheme:"الثيم",stCandles:"ألوان الشموع",stUp:"صاعد",stDn:"هابط",stBg:"الخلفية",stReset:"رجّع لألوان الثيم",stNote:"بتتحفظ في المتصفح ده. بتطبق على كل الشارتات واللوحات.",sgSearch:"ابحث برمز / استراتيجية",sgAge:"العمر",sgSrc:"المصدر",sgAny:"الكل",sgMin:"أقل قوة",sgNone:"مفيش إشارات بالفلاتر دي",sgCount:"إشارة",sgScan:"سكان",sgAlert:"تنبيه",sgTiming:"التوقيت",tmNow:"عند الدخول",tmWait:"مستني",tmRun:"ماشية",tmLate:"متأخرة - ما تلاحقش",tmStop:"ضربت الستوب",tmTp:"ضربت TP1",tmNA:"مفيش سعر",sgTimeTip:"طبقة التوقيت: السعر دلوقتي فين من الخطة. عند الدخول = في حدود 0.25 R من الدخول؛ مستني = لسه ما وصلش؛ ماشية = في ربح وأقل من نص الطريق لـ TP1؛ متأخرة = عدّت نص الطريق (مطاردة)؛ ضربت الستوب/TP1 = اتحسمت.",sgPipTip:"خطة فوركس بستوب 30-50 نقطة وهدف 120 نقطة أو أكتر (النقطة = 0.0001 وأزواج الين 0.01)",
+  vwap:"VWAP",kzTip:"كيل زون (توقيت نيويورك): آسيا 20-24، لندن 02-05، نيويورك صباحا 07-10، نيويورك مساء 13:30-16 مع أعلى/أقل سعر لكل جلسة (فريم ساعة وأقل)",setupmode:"شكل الصفقة",mLines:"الصفقة: خطوط",mBox:"الصفقة: مربع",tCur:"تحديد / تحريك",tTrend:"خط اتجاه",tH:"خط أفقي",tFib:"فيبوناتشي (اختار النسب)",indBvd:"دلتا حجم الاختراق (Breakout Volume Delta)",indEw:"موجات إليوت (تلقائي 1-2-3-4-5 / A-B-C)",bvdTip:"إغلاق خارج سوينج هاي/لو مع علامة شراء/بيع % (مين الأقوى جوه شمعة الاختراق) أو ⚠ ضعيف. بيستخدم دلتا الصفقات الحية لو موجودة وإلا موقع الإغلاق جوه الشمعة (~).",auto:"تلقائي",manual:"يدوي",lockTip:"تلقائي: مقياس السعر بيتبع الشموع. يدوي: المقياس بيثبت زي ما ظبطته (اسحب أو لف العجلة على محور السعر).",indVol:"الفوليوم (بلون الدلتا)",openDot:"افتح عمق السوق",closeDot:"اقفل عمق السوق",ofSet:"إعدادات عمق التداول (الألوان والأحجام)",indDot:"أوردر فلو: نقط سويب ◆ / امتصاص ⊗",dotTip:"السويب = معين، الامتصاص = دايرة بعلامة X (وخط متقطع للهدف). بنفس ألوان الفقاعات وخريطة السيولة والتايم آند سيلز.",indDot3:"عمق التداول (فقاعات + DOM + نقط + BUY/SELL)",dot3Tip:"يشغّل أو يطفّي عرض الأوردر فلو كله مرة واحدة",indBub:"أوردر فلو: فقاعات (الصفقات الكبيرة)",bubTip:"دايرة لكل صفقة كبيرة، الحجم = الكمية، أخضر شراء / أحمر بيع (⚙ للألوان والحجم). بتتبني من الصفقات الحية.",indDom:"أوردر فلو: خريطة السيولة (DOM)",domTip:"السيولة الواقفة في دفتر الأوامر خلف الشموع، الحرارة = الحجم. بتتبني من الدفتر الحي طول ما الشارت مفتوح.",indMk:"أوردر فلو: علامات BUY/SELL والأهداف",indFp:"شموع فوت برينت (بيع × شراء لكل سعر)",fpTip:"لكل سعر جوه الشمعة: بيع × شراء، وPOC بإطار أصفر، والاختلال 3:1 بخط عريض. بيتبني من الصفقات الحية طول ما الشارت مفتوح، قرّب عشان تشوف الأرقام.",indDelta:"أوردر فلو: دلتا كل شمعة",deltaTip:"حجم الشراء ناقص حجم البيع لكل شمعة (بيتبني من الصفقات الحية)",tRect:"مستطيل",tChan:"قناة متوازية (3 نقرات)",tText:"ملاحظة نصية",valuelv:"مستويات القيمة",web:"شارت خارجي (ChartLabs)",liq:"التصفيات (OKX)",rsihm:"خريطة RSI",posn:"التمركز: OI + لونج/شورت",tclass:"Trade Classes",ofdesk:"أوردر فلو ديسك",tvc:"شارت TradingView (لحظي)",fundhm:"خريطة التمويل",fund:"التحليل الأساسي (كريبتو)",cmc:"CoinMarketCap",macrof:"الماكرو وCOT",stockf:"أساسيات الأسهم",risk:"إدارة المخاطر",indVp:"بروفايل الحجم (POC/VA)",vpTip:"بروفايل الحجم للشموع المحملة: POC أكثر سعر اتداول عليه، VAH/VAL منطقة القيمة 70%",indHarm:"الأنماط التوافقية (Harmonic)",harmTip:"رسم XABCD تلقائي: Gartley / Bat / Butterfly / Crab / Cypher",fibPreset:"مستويات الفيبوناتشي",tWave:"موجات إليوت (6 نقرات: 0-5)",tLong:"صفقة شراء (R:R)",tShort:"صفقة بيع (R:R)",tDel:"حذف المحدد",tClr:"مسح كل الرسومات (اضغط مرتين)",sig:"الإشارات",flow:"التدفق",rf:"التحديث",fAll:"الكل",fBid:"شراء",fAsk:"بيع",fAbs:"امتصاص",win:"النافذة",event:"الحدث",side:"الجهة",note:"ملاحظة",links:"الروابط",ticker:"شريط الأخبار",showchart:"اعرضها على الشارت",tvopen:"TradingView",strats:"استراتيجيات",eta:"الوقت المتوقع",entry:"دخول",stop:"وقف",alerts:"التنبيهات",addsym:"أضف رمز مثل PEPE-USDT",clear:"مسح",noalerts:"مفيش صفقات مطابقة — صفقات السكانر (موجة 3، كروس EMA على فريم عالي...) هتظهر هنا.",conf:"نسبة الثقة",chart:"الشارت",dom:"عمق السوق",tape:"الصفقات",ofm:"خريطة الأوردر فلو",limits:"تتبع الأوامر",watch:"قائمة المراقبة",news:"الأخبار",video:"فيديو",notes:"ملاحظات",setup:"سيت اب",signals:"الإشارات",settings:"الإعدادات",stTheme:"الثيم",stCandles:"ألوان الشموع",stUp:"صاعد",stDn:"هابط",stBg:"الخلفية",stReset:"رجّع لألوان الثيم",stNote:"بتتحفظ في المتصفح ده. بتطبق على كل الشارتات واللوحات.",sgSearch:"ابحث برمز / استراتيجية",sgAge:"العمر",sgSrc:"المصدر",sgAny:"الكل",sgMin:"أقل قوة",sgNone:"مفيش إشارات بالفلاتر دي",sgCount:"إشارة",sgScan:"سكان",sgAlert:"تنبيه",sgTiming:"التوقيت",tmNow:"عند الدخول",tmWait:"مستني",tmRun:"ماشية",tmLate:"متأخرة - ما تلاحقش",tmStop:"ضربت الستوب",tmTp:"ضربت TP1",tmNA:"مفيش سعر",sgTimeTip:"طبقة التوقيت: السعر دلوقتي فين من الخطة. عند الدخول = في حدود 0.25 R من الدخول؛ مستني = لسه ما وصلش؛ ماشية = في ربح وأقل من نص الطريق لـ TP1؛ متأخرة = عدّت نص الطريق (مطاردة)؛ ضربت الستوب/TP1 = اتحسمت.",sgPipTip:"خطة فوركس بستوب 30-50 نقطة وهدف 120 نقطة أو أكتر (النقطة = 0.0001 وأزواج الين 0.01)",
   emptyMsg:"مساحة فاضية — اضغط «+ ويدجت» وضيف شارت أو DOM أو أخبار أو فيديو.",
   live:"مباشر من OKX",offline:"المتصفح مش قادر يوصل لـ OKX",offlineHL:"المتصفح مش قادر يوصل لـ Hyperliquid",busy:"Hyperliquid حاطط حد على الطلبات: بستنى كام ثانية وبعدين بحاول تاني (مش عطل)",pace:"السرعة",delta:"الفرق",
   legend:"أخضر = شراء · أحمر = بيع · حافة دهبية = أمر كبير (سمارت = أكبر من المعتاد، حوت = ضخم جدًا؛ الجديد بيومّض بهدوء) · صف بنفسجي = امتصاص: أوامر ثقيلة ضربت السعر ده وما اتحركش، يعني حد بيمتصها · إطار أزرق = الحجم المعلّق عند المستوى ده زاد",
@@ -796,6 +796,8 @@ const store = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null
 const THEMES = {
   dark:     {name:"Dark",     css:{bg:"#0b0e11",panel:"#161a1e",panel2:"#1e2329",line:"#2b3139",txt:"#eaecef",mut:"#848e9c",panel0:"#0e1114",dot:"#1b2027"}, ch:{bg:"#0b0e11",grid:"#1f252b",mut:"#848e9c",line:"#2b3139",pane:"#0e1217",up:"#0ecb81",dn:"#f6465d",txt:"#eaecef"}},
   midnight: {name:"Midnight", css:{bg:"#05070d",panel:"#0b1020",panel2:"#131a30",line:"#1f2a48",txt:"#e6ebff",mut:"#7f8db3",panel0:"#080c18",dot:"#101830"}, ch:{bg:"#05070d",grid:"#121a30",mut:"#7f8db3",line:"#1f2a48",pane:"#080c18",up:"#19d3a2",dn:"#ff5d7a",txt:"#e6ebff"}},
+  // "Gold Noir" (owner picture 2026-11-09): matte charcoal, amber gold accents, rounded cards (extra CSS: NOIR_CSS, html.th-noir)
+  noir:     {name:"Gold Noir", css:{bg:"#121212",panel:"#1d1c1a",panel2:"#252321",line:"rgba(227,168,87,.14)",txt:"#ece5d8",mut:"#8f877a",panel0:"#191817",dot:"transparent",gold:"#e3a857"}, ch:{bg:"#1b1a18",grid:"rgba(227,168,87,.06)",mut:"#8f877a",line:"rgba(227,168,87,.16)",pane:"#191817",up:"#e3b26a",dn:"#b8574a",txt:"#ece5d8"}},
   // dashboard themes (picked in the Streamlit top bar, CFG.ui): "lux" = theme 1 "Less is More" - warm charcoal + amber gold, glass cards over a blurred photo
   lux:      {name:"Less is More", css:{bg:"#0d0c0a",panel:"rgba(24,21,18,.80)",panel2:"rgba(40,35,29,.86)",line:"rgba(224,169,90,.18)",txt:"#efe6d6",mut:"#a8997f",panel0:"rgba(16,14,12,.62)",dot:"rgba(224,169,90,.10)",gold:"#e0a95a"},
              ch:{bg:"rgba(14,12,10,.58)",grid:"rgba(224,169,90,.07)",mut:"#a8997f",line:"rgba(224,169,90,.20)",pane:"rgba(16,14,12,.52)",up:"#e0a95a",dn:"#c0665a",txt:"#efe6d6"}},
@@ -805,7 +807,25 @@ const THEMES = {
   day:      {name:"Day",      css:{bg:"#f3f5f8",panel:"#ffffff",panel2:"#eceff4",line:"#d3d9e2",txt:"#1a2230",mut:"#5a6677",panel0:"#e8ecf2",dot:"#dde2ea"}, ch:{bg:"#ffffff",grid:"#e8ecf2",mut:"#5a6677",line:"#d3d9e2",pane:"#f6f8fb",up:"#089981",dn:"#f23645",txt:"#1a2230"}}
 };
 const TH = Object.assign({}, THEMES.dark.ch);   // live canvas colours (read by CandleChart.paint)
-const ThemeCfg = Object.assign({name:"dark", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
+const ThemeCfg = Object.assign({name:"noir", up:"", dn:"", bg:""}, store.get(LS+"_theme", {}) || {});
+if (!ThemeCfg.noirV){ ThemeCfg.noirV = 1; if (ThemeCfg.name === "dark" && !ThemeCfg.up && !ThemeCfg.dn && !ThemeCfg.bg) ThemeCfg.name = "noir"; store.set(LS+"_theme", ThemeCfg); }   // 2026-11-09 owner: Gold Noir is the new default; someone who picked another theme or own colours keeps them
+const NOIR_CSS = "html.th-noir #ws{background:radial-gradient(1400px 800px at 15% -10%,#22201d 0%,#141414 55%,#101010 100%)}"
+  + "html.th-noir #bar{background:linear-gradient(180deg,#1a1918,#151515);border-bottom:1px solid rgba(227,168,87,.14)}"
+  + "html.th-noir #strip{background:#151515;border-bottom-color:rgba(227,168,87,.08)}"
+  + "html.th-noir #strip .chip{border-radius:999px;background:#211f1e;border-color:rgba(227,168,87,.16)}"
+  + "html.th-noir .panel{border-radius:16px;border:1px solid rgba(255,255,255,.05);background:linear-gradient(165deg,#24221f 0%,#1c1b1a 45%,#181817 100%);box-shadow:0 14px 34px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)}"
+  + "html.th-noir .panel.focus{border-color:rgba(227,168,87,.42);box-shadow:0 0 0 1px rgba(227,168,87,.18),0 14px 34px rgba(0,0,0,.6),0 0 22px rgba(227,168,87,.10)}"
+  + "html.th-noir .ph{background:transparent;border-bottom:1px solid rgba(255,255,255,.04)}"
+  + "html.th-noir .ph .ttl{color:#e3a857;letter-spacing:.05em;font-weight:600}"
+  + "html.th-noir .tb{border-bottom-color:rgba(255,255,255,.04)}"
+  + "html.th-noir button,html.th-noir select,html.th-noir input,html.th-noir textarea{border-radius:999px;background:#242220;border-color:rgba(255,255,255,.07)}"
+  + "html.th-noir .dt button{border-radius:8px}"
+  + "html.th-noir button:hover{border-color:#e3a857;color:#f3cf95}"
+  + "html.th-noir button.on{background:linear-gradient(180deg,#f2c47e,#d4974a);color:#1a1510;border-color:transparent;box-shadow:0 0 12px rgba(227,168,87,.45)}"
+  + "html.th-noir .stpop,html.th-noir .fibpop,html.th-noir #wmenu,html.th-noir .indpop{border-radius:14px;background:#1f1e1c;border-color:rgba(227,168,87,.16)}"
+  + "html.th-noir .dt{border-radius:12px;background:#1c1b19;border-color:rgba(227,168,87,.12)}"
+  + "html.th-noir ::selection{background:rgba(227,168,87,.35)}";   // Gold Noir (owner picture 2026-11-09): matte charcoal cards, big radius, soft depth, amber-gold accents
+
 function applyTheme(){
   const V = CFG.uiVars || {};
   if (CFG.ui && V.bg && !THEMES[CFG.ui]){   // engine themes (3-9): build the preset from the palette sent by the server
@@ -819,6 +839,7 @@ function applyTheme(){
   document.body && document.body.classList.toggle("ui-"+(ui || "none"), true); if (ui && CFG.uiBg && document.body) document.body.style.setProperty("--uibg", "url("+CFG.uiBg+")");
   Object.entries(t.css).forEach(([k, v]) => r.setProperty("--"+k, v)); Object.assign(TH, t.ch);
   if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.up)) TH.up = ThemeCfg.up; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.dn)) TH.dn = ThemeCfg.dn; if (/^#[0-9a-f]{6}$/i.test(ThemeCfg.bg)){ TH.bg = ThemeCfg.bg; r.setProperty("--bg", ThemeCfg.bg); }
+  { const on = (ui || ThemeCfg.name) === "noir"; document.documentElement.classList.toggle("th-noir", on); let s = document.getElementById("thNoir"); if (on && !s){ s = document.createElement("style"); s.id = "thNoir"; s.textContent = NOIR_CSS; document.head.appendChild(s); } else if (!on && s) s.remove(); }
   r.setProperty("color-scheme", ThemeCfg.name === "day" ? "light" : "dark"); r.setProperty("--grn", TH.up); r.setProperty("--red", TH.dn);
   try { Ws.panels.forEach(p => p.chart && p.chart.draw()); } catch(e){}
 }
@@ -1262,7 +1283,7 @@ const Journal = {
       const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       const rec = {id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
-        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), riskPct:0.25, score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
       added++;
     });
     if (added) this.save();
@@ -1716,12 +1737,10 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
-    else { if (this.autoCenter) this.followLatest(); this.draw(); }
-    if (fit && this.lockR && arr.length){ const lc = arr[arr.length-1].c, lo = this.lockR[0], hi = this.lockR[1], sp = hi - lo;   // a saved manual price lock that the price has left by more than its whole height is a stale leftover (owner 2026-11-05: locked while the PC clock was wrong, gold now 4127 vs lock ~4020-4065): back to automatic
-      if (sp > 0 && (lc < lo - sp || lc > hi + sp)){ this.autoY(); this.draw(); } }
+    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
   }
-  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
+  restoreFrom(v){ this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -1747,19 +1766,11 @@ class CandleChart {
     const sec = TFSEC[this.tf] || 3600; let pv = 0, vv = 0, day = null;
     this.vwV = this.data.map(c => { const d = Math.floor(c.t/86400000); if (sec < 86400 && d !== day){ pv = 0; vv = 0; day = d; } const tp = (c.h+c.l+c.c)/3; pv += tp*c.v; vv += c.v; return vv ? pv/vv : c.c; });
   }
-  followLatest(){
-    const n = this.data.length; if (!this.autoCenter || !n) return;
-    // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
-    if (!isFinite(this.r)) return;   // no layout yet: keep the current view
-    const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
-    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
-    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
-    this.clampR();
-  }
+  centerNow(){ this.fit(); }   // toolbar Fit: one click = latest candle back to the middle, price scale set once, then locked again
   fit(){
-    const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.autoCenter) this.followLatest(); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
+    const n = this.data.length; this.lockR = null; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    if ((TFSEC[this.tf] || 0) >= 3600 && this.PR > 0) this.bw = Math.max(4, Math.min(9, 0.5*this.PR/60));   // 1H and bigger: about 60 candles in the left half (bw 9 showed only ~24 candles, one big candle squashed the rest)
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.onFree) this.onFree(); else this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   freezeY(){   // price scale -> manual at the range on screen right now (TradingView: dragging the chart vertically switches auto-scale off); the ⇅ / 🔒 button switches it back
     if (this.lockR || this._lo == null || !isFinite(this._lo) || !isFinite(this._hi) || this._hi <= this._lo) return;
@@ -1848,18 +1859,18 @@ class CandleChart {
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
       if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
-        const vert = e.pointerType !== "touch" || (this.drag.ty > 28 && this.drag.ty > 1.6*this.drag.tx);   // a finger: only a clearly VERTICAL drag turns the price scale manual; a sideways swipe (even a wobbly one) just moves time and never locks the scale
         if (this.drag.col && this.colOwn === true){ const R2 = this.colWideR || this._wideAutoR || 0.02; this.colWideC = Math.max(-OFM.SPAN, Math.min(OFM.SPAN, (this.colWideC || 0) + dy/Math.max(1, this.PB)*2*R2)); }   // own price scale: drag up / down moves the column's price window
-        else if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
         if (this.drag.col){ const win = this._wideWin || this.flowSpan || 120000, pw = Math.max(60, this.cw() - OFM.CAX - OFM.CDP); this.flowOff = Math.max(0, Math.min(OFM.KEEP - Math.min(win, OFM.KEEP), (this.flowOff || 0) + dx*win/pw)); /* drag right = look further back in time */ }
-        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); } }
+        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); if (dy && this.PB > 0){ if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.yShift = Math.max(-8, Math.min(8, this.yShift + dy/this.PB)); } } }   // owner 2026-11-09: the chart body also pans the PRICE (drag down = candles follow down); the scale is manual, so it moves only by your hand
     }
     this.drawSoon();
   }
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
-  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
-  restoreView(){ try { if (this.autoCenter) return false; const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  // per-tab view in sessionStorage only: a reload (Streamlit refresh) reopens this tab exactly where it was (zoom, position AND the price-scale lock); a new tab opens centred. A shared localStorage key let one tab's reload overwrite another tab's view, which then snapped back
+  viewGet(){ try { return JSON.parse(sessionStorage.getItem(this.viewKey()) || "null"); } catch(e){ return null; } }
+  saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lk: this.lockR})); } catch(e){} }
+  restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
@@ -1881,16 +1892,20 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
-    if (!isFinite(lo)) return [0,1];
+    if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
     return [mid-span/2, mid+span/2];
   }
-  fmtTime(ms){
+  fmtTime(ms, full){
     const d = new Date(ms), day = d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
     if (TFSEC[this.tf] < 60) return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds());
-    if (this.tf === "1D" || this.tf === "1W") return day;
-    return d.getHours() === 0 && d.getMinutes() === 0 ? day : pad2(d.getHours())+":"+pad2(d.getMinutes());
+    const sec = TFSEC[this.tf] || 0, hm = pad2(d.getHours())+":"+pad2(d.getMinutes());
+    if (sec >= 604800) return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+" '"+String(d.getFullYear()).slice(2);   // 1W / 1M span years: month + year
+    if (sec >= 86400) return day;
+    if (full) return day+" "+hm;   // crosshair label: date and hour
+    if (sec >= 14400) return day;   // 4H..12H: axis steps are days apart, an hour alone repeated ("03:00 03:00" on 3D / 12H)
+    return d.getHours() === 0 && d.getMinutes() === 0 ? day : hm;
   }
   drawData(){   // redraw asked by streaming data (book polls, trades): at most ~7 per second per chart; mouse / touch still use draw() at full speed
     const now = performance.now(); if (now - (this._dd || 0) >= 140){ this._dd = now; this.draw(); return; }
@@ -1900,13 +1915,8 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
-    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
+    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift+"|"+this.lockR; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
-    this._autoChip = null;
-    { const n = this.data.length, lo = this._lo, hi = this._hi;   // the price scale is manual and the newest candle is outside it (a finger drag locked it): a big tap target brings the candles back
-      if (this.lockR && n && lo != null && hi != null && isFinite(lo) && isFinite(hi)){ const lc = this.data[n-1].c; if (lc < lo || lc > hi){ const c = this.ctx, w = TCH ? 112 : 92, h2 = TCH ? 34 : 22, x = Math.max(6, this.PR - w - 10), y = 30;
-        c.save(); c.fillStyle = "rgba(240,185,11,.95)"; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h2, 6) : c.rect(x, y, w, h2); c.fill(); c.fillStyle = "#111"; c.font = "bold "+(TCH ? 14 : 12)+"px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText("⇅ "+(lang === "ar" ? "أوتو" : "Auto"), x + w/2, y + h2/2); c.restore(); this._autoChip = {x, y, w, h:h2}; } } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
   _paint(){
@@ -1922,18 +1932,19 @@ class CandleChart {
         const y0 = this.yZoom, s0 = this.yShift; this.yZoom = 1; this.yShift = 0; const [l0, h0] = this.range(i0, i1), sp0 = (h0 - l0) || 1, tg = Math.max((bh - bl)*1.3, px*(["1m","5m","13m","15m","30m","1H","1h","2H","2h","4H","4h"].includes(this.tf) ? 0.02 : 0.004));   // task 56 batch 1: small timeframes show a wider price band (at least ±1%) so more of the order flow is visible
         if (tg < sp0){ this.yZoom = Math.max(0.02, tg/sp0); this.yShift = (px - (h0 + l0)/2)/(sp0*this.yZoom); } else { this.yZoom = y0; this.yShift = s0; }
         this._bookFit = false; } }
+    if (!this.lockR){ const z = this.yZoom, sh = this.yShift; this.yZoom = 1; this.yShift = 0; const [a, b] = this.range(i0, i1); this.yZoom = z; this.yShift = sh; const m = (a+b)/2, hs = (b-a)/1.12/2; if (isFinite(m) && hs > 0) this.lockR = [m-hs, m+hs]; }   // 2026-11-09 owner: fully manual - the price scale is set once (open / Fit) and never rescales by itself when you pan or a new candle comes; it moves only when you zoom / drag the price axis
     const [lo, hi] = this.range(i0, i1), py = v => PB - (v-lo)/(hi-lo)*PB; this._lo = lo; this._hi = hi;
     // grid + price axis
     const nt = niceTicks(lo, hi, Math.max(3, Math.floor(PB/48))), dec = Math.max(0, Math.min(8, 1 - Math.floor(Math.log10(nt.step))));
     c.strokeStyle = TH.grid; c.fillStyle = TH.mut; c.lineWidth = 1; c.textAlign = "left";
     nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), (this.W-this.axw)+5, y); });
     // time axis
-    const stepBars = Math.max(1, Math.ceil(90/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
-    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 5 ? 5 : 10)*mag;
+    const stepBars = Math.max(1, Math.ceil(70/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
+    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 3 ? 3 : nb <= 5 ? 5 : 10)*mag;   // the 3 step: with narrow candles (4H / 1D) a jump from 20 to 50 bars left one label on the axis
     c.textAlign = "center";
     for (let i = Math.ceil(i0/st)*st; i <= i1; i += st){
       const x = Math.round(this.x(i))+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,PB); c.stroke();
-      c.fillText(this.fmtTime(this.data[i].t), x, H-10);
+      if (x > 22) c.fillText(this.fmtTime(this.data[i].t), x, H-10);
     }
     c.strokeStyle = TH.line; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(0,H-19.5); c.lineTo(W,H-19.5); c.moveTo((this.W-this.axw)+.5,0); c.lineTo((this.W-this.axw)+.5,H); c.stroke();
     // clip plot
@@ -2070,7 +2081,7 @@ class CandleChart {
       const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last; const inMain = m.y < PB;
       c.strokeStyle = "#5a636e"; c.setLineDash([2,3]); c.beginPath(); c.moveTo(m.x+.5,0); c.lineTo(m.x+.5,H-20); c.moveTo(0,m.y+.5); c.lineTo(PR,m.y+.5); c.stroke(); c.setLineDash([]);
       if (inMain){ c.fillStyle = "#2b3139"; c.fillRect((this.W-this.axw)+1, m.y-8, this.axw-2, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), (this.W-this.axw)+5, m.y); }
-      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t); const tw = c.measureText(label).width + 10;
+      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t, true); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, H-19, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, H-10);
     }
     const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? TH.up : TH.dn;
@@ -2969,7 +2980,6 @@ Object.assign(CandleChart.prototype, {
   toolDown(e){
     const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
     if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
-    const ac = this._autoChip; if (ac && q.x >= ac.x && q.x <= ac.x+ac.w && q.y >= ac.y && q.y <= ac.y+ac.h){ this.autoY(); this._autoChip = null; this.draw(); return true; }
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
@@ -4040,7 +4050,7 @@ class Panel {
     const rf = el("select"); rf.title = T("rf"); [["1s",1000],["2s",2000],["5s",5000]].forEach(([l,v]) => { const o = el("option"); o.value = v; o.textContent = "↻ "+l; rf.append(o); });
     rf.value = this.state.rf || 2000; rf.onchange = () => { this.state.rf = +rf.value; Ws.save(); };
     this.cdEl = el("span","m"); this.cdEl.style.cssText = "font-family:ui-monospace,Menlo,monospace;min-width:52px";
-    const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.fit();
+    const fit = el("button",null,T("fit")); fit.onclick = () => this.chart.centerNow();   // latest candle back to the middle, price scale set once (then locked again)
     const palB = el("button",null,"🎨"); palB.title = Lg("Chart colours: candles, background, grid, presets","ألوان الشارت: الشموع، الخلفية، الشبكة، قوالب جاهزة");
     palB.onclick = ev => { ev.stopPropagation(); document.querySelectorAll(".stpop").forEach(x => x.remove()); const ch_ = this.chart, base = () => Object.assign({up:TH.up, dn:TH.dn, bg:TH.bg, grid:TH.grid, vu:TH.vu || TH.up, vd:TH.vd || TH.dn, pane:TH.pane}, ch_.pal || {});
       const pop = el("div","stpop"), r_ = palB.getBoundingClientRect(); pop.style.left = Math.max(4, Math.min(r_.left, innerWidth-280))+"px"; pop.style.top = (r_.bottom+3)+"px"; pop.style.gridTemplateColumns = "1fr auto"; pop.style.minWidth = "250px"; pop.onpointerdown = e => e.stopPropagation();
@@ -4053,8 +4063,6 @@ class Panel {
       const dl = el("label"); dl.style.cssText = "grid-column:1/-1;display:flex;gap:6px;align-items:center;cursor:pointer"; const dc = el("input"); dc.type = "checkbox"; dc.checked = !!ch_.dots; dc.onchange = () => { ch_.dots = dc.checked; this.state.dots = dc.checked; Ws.save(); ch_.draw(); }; dl.append(dc, document.createTextNode(Lg("Dot-matrix candles and lines","شموع وخطوط بنقط (دوت ماتريكس)"))); pop.append(dl);
       const rs = el("div","full"); rs.textContent = Lg("Reset to theme","رجوع لألوان الثيم"); rs.onclick = () => { apply(null); pop.remove(); }; pop.append(rs);
       document.body.append(pop); const off = e => { if (!pop.contains(e.target)){ pop.remove(); document.removeEventListener("pointerdown", off, true); } }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0); };
-    const ac = el("button",null,"⊙"); ac.title = Lg("Auto-Center: follow the latest candle while preserving zoom","توسيط تلقائي: متابعة الشمعة الحالية مع الحفاظ على الزوم"); ac.classList.toggle("on", this.state.ac !== undefined ? !!this.state.ac : acGet());
-    ac.onclick = () => { this.chart.autoCenter = !this.chart.autoCenter; acSet(this.chart.autoCenter); this.state.ac = this.chart.autoCenter; ac.classList.toggle("on", this.chart.autoCenter); this.chart.saveView(); this.chart.draw(); Ws.save(); };
     // task 22: Master: one click turns every indicator off, the next click turns the same ones back on (drawings, layout and the chart itself are not touched)
     const masterB = el("button",null,"⏻"); masterB.title = Lg("Master: turn all indicators off, click again to restore them","الماستر: إيقاف كل المؤشرات، والضغطة التانية ترجعهم");
     masterB.onclick = () => {
@@ -4106,13 +4114,10 @@ class Panel {
     this.updEl = el("span","m"); this.updEl.style.fontSize = "10px";
     const kzb = el("button",null,"KZ"); kzb.title = T("kzTip"); kzb.onclick = () => { this.chart.kz = !this.chart.kz; this.state.kz = this.chart.kz; kzb.classList.toggle("on", this.chart.kz); this.chart.draw(); Ws.save(); };
         this.indBtn = this.buildIndMenu();
-    const lockBtn = el("button"); lockBtn.title = T("lockTip");
-    const lockSync = () => { lockBtn.textContent = this.chart.lockR ? "🔒 "+T("manual") : "⇅ "+T("auto"); lockBtn.classList.toggle("on", !!this.chart.lockR); };
-    lockBtn.onclick = () => { const c_ = this.chart, LK = this.state.locks = this.state.locks || {}; if (c_.lockR){ c_.lockR = null; c_.yZoom = 1; c_.yShift = 0; delete LK[this.state.sym]; } else { c_.lockR = [c_._lo, c_._hi]; c_.yZoom = 1; c_.yShift = 0; LK[this.state.sym] = c_.lockR; } Ws.save(); lockSync(); c_.draw(); };
-    this.lockSync = lockSync;
+    this.lockSync = () => {};   // 2026-11-09 owner: no Manual / Auto button - the price scale is set on open / Fit and then moves only when you zoom or drag the price axis
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
-    tb.append(this.indBtn, lockBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
+    tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
     if (this.state.maL) this.chart.maL = this.state.maL.map(m => Object.assign({}, m));
@@ -4120,7 +4125,7 @@ class Panel {
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
-    this.chart.lockR = (this.state.locks || {})[this.state.sym] || null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => { const LK = this.state.locks = this.state.locks || {}; if (this.chart.lockR) LK[this.state.sym] = this.chart.lockR; else delete LK[this.state.sym]; Ws.save(); this.lockSync(); }; this.chart.autoCenter = this.state.ac !== undefined ? !!this.state.ac : acGet(); this.lockSync(); this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
+    this.chart.lockR = null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => this.chart.saveView(); if (this.state.locks || this.state.ac !== undefined){ delete this.state.locks; delete this.state.ac; Ws.save(); }   // old per-symbol price locks and the Auto-Center flag are dropped: the lock lives in each chart's per-tab view now this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };
     this.chart.onGroupSel = (on, cur, tick) => { this.gSelTb.style.display = on ? "" : "none"; if (on) this.gSelTb.sync(cur, tick); };
     this.state.ofstep = this.state.ofstep || {}; this.chart.ofStepMap = this.state.ofstep; this.chart.onOfStep = () => Ws.save();   // price grouping of the order-flow column, per symbol
@@ -4459,13 +4464,13 @@ class Panel {
     const ch = this.chart; if (!ch.data.length) return;
     const last = ch.data[ch.data.length-1];
     if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); if (ch.autoCenter) ch.followLatest(); ch.drawSoon(); this.showPx(row.c, "ws");
+    ch.calcEma(); ch.drawSoon(); this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
     if (this.type !== "chart") return;
     clearTimeout(this.timer); const tok = this.tok = (this.tok||0)+1, sym = this.state.sym, tf = this.state.tf;
-    { const lk = (this.state.locks || {})[sym] || null; if (lk !== this.chart.lockR){ this.chart.lockR = lk; this.chart.yZoom = 1; this.chart.yShift = 0; } }   // the price-scale lock belongs to its symbol: another symbol starts unlocked (its range is absolute prices)
+    this.chart.lockR = null;   // a symbol / timeframe opens from its own per-tab view (lock included) or fitted - never with another symbol's price range
     this.chart.srData = null;   // S/R levels belong to the symbol: never draw the previous symbol's levels while the new one loads
     this.msg.textContent = ""; this.chart.data = []; this.chart.draw(); this.noMore = false; this.lastPx = null;
     this.unwatch && this.unwatch(); this.wsUnsubs = [];
@@ -4587,7 +4592,7 @@ class Panel {
         if (first){
           this._ccShown = false; this.chart.setData(rows, true); fillHist(); CandleCache.put(sym, tf, rows); this.syncSR && this.syncSR();
           const v = this._refreshView;
-          if (v && v.sym === sym && v.tf === tf && this.chart.data.length && !this.chart.autoCenter){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
+          if (v && v.sym === sym && v.tf === tf && this.chart.data.length){ this.chart.bw = v.bw; this.chart.yZoom = v.yZoom; this.chart.yShift = v.yShift; this.chart.r = (this.chart.data.length-1) - v.back; this.chart.clampR(); this.chart.saveView(); this.chart.draw(); }
           this._refreshView = null;
         }
         else {
@@ -6284,7 +6289,7 @@ Ws.defaults = () => {
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
   const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
-  const OF = {dcol:true, dom:true, bub:true, ac:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on; ac = Auto-Center (the latest candle in the middle of the chart)
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
   return [
     ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
     ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],
@@ -6837,6 +6842,137 @@ Panel.prototype.build_tclass = function(){
   TC.subs.add(draw); Journal.subs.add(draw);
   this.unwatch = () => { clearInterval(iv); TC.subs.delete(draw); Journal.subs.delete(draw); };
 };
+/* ---- ORDER FLOW DESK (owner 2026-11-08 minutes, Grok plan; Claude build 2026-11-09). One widget that reads the linked chart and puts the
+   desk's agents side by side: 1 level scanner (previous day / week high-low, today's open, volume profile POC / VAH / VAL), 2 context (bias,
+   regime, ATR), 3+4 order-flow read (Flow confluence v1 = 3 of 4: stacked imbalance, delta, tape, absorption - needs Footprint on the chart),
+   5 risk manager (0.25 % base; 0.50 % only for validated A+ with n >= 30; 2 % daily cap, lock after 3 stops, R:R >= 2), 6 skeptic (every
+   reason NOT to take it). Description, not advice: nothing here places an order; under 30 journal trades nothing here is evidence. ---- */
+/* DESK-BEGIN pure engine (no DOM, no fetch): tests/test_desk_js.py runs it with node on synthetic candles */
+const DESK = {
+  RULES: {risk:0.25, day:2, stops:3, rr:2},
+  riskFor(grade, validationN, validationPassed){ return grade === "A+" && validationPassed === true && Number.isInteger(validationN) && validationN >= 30 ? 0.5 : 0.25; },
+  atr(rows, n){ n = Math.min(n || 14, rows.length - 1); if (n < 1) return 0; let s = 0;
+    for (let i = rows.length - n; i < rows.length; i++) s += Math.max(rows[i].h - rows[i].l, Math.abs(rows[i].h - rows[i-1].c), Math.abs(rows[i].l - rows[i-1].c)); return s/n; },
+  // high / low of the last COMPLETE period before the current one (UTC day or UTC week starting Monday) + the current period's open
+  period(rows, ms, offset){ if (!rows.length) return null; const key = t => Math.floor((t - (offset || 0))/ms), cur = key(rows[rows.length-1].t);
+    let hi = -Infinity, lo = Infinity, prevKey = null, open = null;
+    for (let i = rows.length - 1; i >= 0; i--){ const k = key(rows[i].t);
+      if (k === cur){ open = rows[i].o; continue; }
+      if (prevKey == null) prevKey = k; if (k !== prevKey) break; if (rows[i].h > hi) hi = rows[i].h; if (rows[i].l < lo) lo = rows[i].l; }
+    return isFinite(hi) ? {hi, lo, open} : {hi:null, lo:null, open}; },
+  // volume profile of the candles: each candle's volume spread evenly over its high-low range; POC = fullest bin, value area = 70 % around it
+  vp(rows, bins){ bins = bins || 40; if (rows.length < 5) return null; let lo = Infinity, hi = -Infinity; rows.forEach(r => { if (r.l < lo) lo = r.l; if (r.h > hi) hi = r.h; });
+    if (!(hi > lo)) return null; const w = (hi - lo)/bins, v = new Array(bins).fill(0);
+    rows.forEach(r => { const vol = +r.v || 0; if (!(vol > 0)) return; const a = Math.max(0, Math.min(bins - 1, Math.floor((r.l - lo)/w))), b = Math.max(0, Math.min(bins - 1, Math.floor((r.h - lo)/w)));
+      for (let k = a; k <= b; k++) v[k] += vol/(b - a + 1); });
+    const tot = v.reduce((s, x) => s + x, 0); if (!(tot > 0)) return null;
+    let p = 0; for (let k = 1; k < bins; k++) if (v[k] > v[p]) p = k;
+    let a = p, b = p, acc = v[p];
+    while (acc < 0.7*tot && (a > 0 || b < bins - 1)){ const dn = a > 0 ? v[a-1] : -1, up = b < bins - 1 ? v[b+1] : -1; if (up >= dn){ b++; acc += v[b]; } else { a--; acc += v[a]; } }
+    const mid = k => lo + (k + 0.5)*w; return {poc:mid(p), vah:lo + (b + 1)*w, val:lo + a*w}; },
+  // agent 1: every level with its name, nearest first relative to px (dist in ATR)
+  levels(rows){ if (!rows || rows.length < 20) return {px:null, atr:0, list:[]}; const px = rows[rows.length-1].c, a = this.atr(rows, 14) || px*0.001, L = [];
+    const d = this.period(rows, 86400000, 0), wk = this.period(rows, 604800000, 345600000);   // 1970-01-01 was a Thursday: +4 days = Monday weeks
+    if (d){ if (d.hi != null){ L.push({p:d.hi, k:"PDH"}); L.push({p:d.lo, k:"PDL"}); } if (d.open != null) L.push({p:d.open, k:"DO"}); }
+    if (wk && wk.hi != null){ L.push({p:wk.hi, k:"PWH"}); L.push({p:wk.lo, k:"PWL"}); }
+    const v = this.vp(rows.slice(-300)); if (v){ L.push({p:v.poc, k:"POC"}); L.push({p:v.vah, k:"VAH"}); L.push({p:v.val, k:"VAL"}); }
+    L.forEach(l => { l.dist = (l.p - px)/a; }); L.sort((x, y) => Math.abs(x.dist) - Math.abs(y.dist));
+    return {px, atr:a, list:L, above:L.filter(l => l.p > px).sort((x, y) => x.p - y.p), below:L.filter(l => l.p < px).sort((x, y) => y.p - x.p)}; },
+  // agent 5: same math as modules/desk_risk.py position_size / reward_risk
+  size(eq, entry, stop, riskPct, pv, step){ const rp = riskPct == null ? this.RULES.risk : +riskPct, per = Math.abs(entry - stop)*(pv || 1);
+    if (!(eq > 0) || !(rp > 0) || !(per > 0)) return {qty:0, risk:0, per:0, pct:0};
+    let q = eq*rp/100/per; if (step > 0) q = Math.floor(q/step + 1e-9)*step; return {qty:q, risk:q*per, per, pct:q*per/eq*100}; },
+  rr(entry, stop, target){ const r = Math.abs(entry - stop); if (!(r > 0)) return 0; return (stop < entry ? target - entry : entry - target)/r; },
+  // Closed journal R is converted per trade using its recorded riskPct; legacy records safely default to base risk.
+  day(trades, now, rules){ rules = rules || this.RULES; const d0 = Math.floor(now/86400000)*86400000;
+    const done = (trades || []).filter(t => (t.status === "tp" || t.status === "sl") && (+t.t1 || +t.t0 || 0) >= d0);
+    const R = done.reduce((s, t) => s + (+t.r || 0), 0), stops = done.filter(t => t.status === "sl" || (+t.r || 0) < 0).length;
+    const netPct = done.reduce((s, t) => { const rp = typeof t.riskPct === "number" && Number.isFinite(t.riskPct) && t.riskPct > 0 ? t.riskPct : rules.risk; return s - (+t.r || 0)*rp; }, 0);
+    return {n:done.length, stops, R, lossPct:Math.max(0, netPct)}; },
+  // allowed / blocked, every failed rule listed (same rules as DeskDay.check)
+  check(plan, dayS, rules, openSame){ rules = rules || this.RULES; const why = [];
+    if (dayS.stops >= rules.stops) why.push(["stops", dayS.stops+" stops today (limit "+rules.stops+") - day locked", dayS.stops+" ستوب النهارده (الحد "+rules.stops+") - اليوم اتقفل"]);
+    if (dayS.lossPct >= rules.day - 1e-9) why.push(["day", "daily loss "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - day locked", "خسارة اليوم "+dayS.lossPct.toFixed(2)+"% >= "+rules.day+"% - اليوم اتقفل"]);
+    else if (plan.riskPct > rules.day - dayS.lossPct + 1e-9) why.push(["left", "risk "+plan.riskPct.toFixed(2)+"% > what is left of today's cap "+(rules.day - dayS.lossPct).toFixed(2)+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من الباقي من حد اليوم "+(rules.day - dayS.lossPct).toFixed(2)+"%"]);
+    const rr = this.rr(plan.entry, plan.stop, plan.target); if (rr < rules.rr - 1e-9) why.push(["rr", "reward:risk "+rr.toFixed(2)+" < "+rules.rr, "العائد للمخاطرة "+rr.toFixed(2)+" أقل من "+rules.rr]);
+    const perTradeCap = typeof plan.riskCapPct === "number" && Number.isFinite(plan.riskCapPct) && plan.riskCapPct > 0 ? plan.riskCapPct : rules.risk;
+    if (plan.riskPct > perTradeCap*1.0001) why.push(["cap", "risk "+plan.riskPct.toFixed(2)+"% > per-trade cap "+perTradeCap+"%", "المخاطرة "+plan.riskPct.toFixed(2)+"% أكبر من حد الصفقة "+perTradeCap+"%"]);
+    if (openSame) why.push(["dup", "the same trade is already open in the journal", "نفس الصفقة مفتوحة في الجورنال"]);
+    return {ok:!why.length, why, rr}; }
+};
+/* DESK-END */
+Panel.prototype.build_ofdesk = function(){
+  const S = this.state.od = Object.assign({eq:10000, pv:1, step:0, side:"auto", sym:""}, this.state.od || {});
+  if (!document.getElementById("odCss")){ const st = el("style"); st.id = "odCss"; st.textContent =
+    ".odw{font-size:12px;line-height:1.5}.odw .tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px}.odw .tb input{width:86px}.odw .tb select,.odw .tb button,.odw .tb input{font-size:12px}"
+    +".odw .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px}.odw .ag{border:1px solid var(--line);border-radius:7px;padding:6px 8px;border-top:3px solid var(--ac)}"
+    +".odw .ah{font-weight:800;font-size:11px;color:var(--ac);letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px}.odw table{width:100%;border-collapse:collapse}.odw td{padding:1px 3px}.odw td.r{text-align:end;font-family:ui-monospace,Menlo,Consolas,monospace}"
+    +".odw .g{color:#0ecb81}.odw .rd{color:#f6465d}.odw .y{color:#f0b90b}.odw .m{color:var(--mut)}.odw .vd{font-weight:800;padding:1px 8px;border-radius:4px;color:#0b0e11}.odw ul{margin:2px 0;padding-inline-start:16px}";
+    document.head.append(st); }
+  this.body.classList.add("odw"); this.body.style.overflow = "auto";
+  const stop_ = x => { x.onpointerdown = e => e.stopPropagation(); return x; }, num = (v, d) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+  const charts = () => Ws.panels.filter(p => p.type === "chart" && p.chart), pick = () => { const C = charts(); return C.find(p => p.state.sym === S.sym && p.chart.data.length) || C.find(p => p.chart.data.length) || C[0] || null; };
+  const tb = el("div","tb"), symSel = stop_(el("select")), sideSel = stop_(el("select")), eqI = stop_(el("input")), pvI = stop_(el("input")), enI = stop_(el("input")), slI = stop_(el("input")), tpI = stop_(el("input")), shB = stop_(el("button", null, "📈 "+Lg("Show on chart","اعرضها على الشارت")));
+  [["auto",Lg("Side: auto (bias)","الاتجاه: تلقائي (الترند)")],["long",Lg("Long","شراء")],["short",Lg("Short","بيع")]].forEach(([v, l]) => sideSel.append(Object.assign(el("option"), {value:v, textContent:l}))); sideSel.value = S.side;
+  eqI.type = pvI.type = enI.type = slI.type = tpI.type = "number"; eqI.step = "any"; pvI.step = "any"; enI.step = slI.step = tpI.step = "any";
+  eqI.value = S.eq; pvI.value = S.pv; eqI.title = Lg("Account equity","رأس مال الحساب"); pvI.title = Lg("Money per 1.0 price move per unit (1 spot, 50 ES, 20 NQ)","قيمة حركة 1 في السعر للوحدة (1 سبوت، 50 ES، 20 NQ)");
+  enI.placeholder = Lg("entry (auto)","دخول (تلقائي)"); slI.placeholder = Lg("stop (auto)","ستوب (تلقائي)"); tpI.placeholder = Lg("target (auto)","هدف (تلقائي)");
+  const lab = t => el("span","m", esc(t));
+  tb.append(symSel, sideSel, lab(Lg("equity","رأس المال")), eqI, lab(Lg("pt value","قيمة النقطة")), pvI, enI, slI, tpI, shB);
+  const head = el("div"), grid = el("div","grid"), foot = el("div","m"); this.body.append(tb, head, grid, foot);
+  foot.style.marginTop = "6px"; foot.textContent = Lg("Description, not advice: nothing here places an order. Mock-tested only; under 30 journal trades nothing here is evidence.","وصف مش نصيحة: مفيش أي أمر بيتبعت من هنا. متجرب على بيانات وهمية بس؛ أقل من 30 صفقة في الجورنال = مش دليل.");
+  const save = () => { S.eq = num(eqI.value, S.eq); S.pv = num(pvI.value, 1) || 1; S.side = sideSel.value; S.sym = symSel.value; Ws.save(); draw(); };
+  [eqI, pvI].forEach(i => i.onchange = save); sideSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; symSel.onchange = () => { enI.value = slI.value = tpI.value = ""; save(); }; [enI, slI, tpI].forEach(i => i.oninput = () => draw());
+  let last = null;
+  const ag = (col, title, html) => '<div class="ag" style="--ac:'+col+'"><div class="ah">'+esc(title)+'</div>'+html+'</div>';
+  const draw = () => {
+    const C = charts(), syms = [...new Set(C.map(p => p.state.sym))]; if (symSel.options.length !== syms.length || [...symSel.options].some((o, i) => o.value !== syms[i])){ symSel.innerHTML = ""; syms.forEach(s => symSel.append(Object.assign(el("option"), {value:s, textContent:s.replace(/^HL:xyz:|^Y:|-USDT.*$/g, "")}))); }
+    const P = pick(); if (P) symSel.value = P.state.sym;
+    if (!P || !P.chart.data.length){ head.innerHTML = '<div class="m" style="padding:8px">'+esc(Lg("Open a chart first: the desk reads the chart's candles (and its footprint for the order-flow read).","افتح شارت الأول: الديسك بيقرا شموع الشارت (والفوت برينت بتاعه لقراءة الأوردر فلو)."))+'</div>'; grid.innerHTML = ""; return; }
+    const ch = P.chart, rows = ch.data, sym = P.state.sym, tf = P.state.tf, Lv = DESK.levels(rows), px = Lv.px, a = Lv.atr;
+    let bias = {available:false}; try { bias = TCE.bias(rows); } catch(e){}
+    let reg = null; try { reg = (Regime.of(rows) || {}).regime || null; } catch(e){}
+    let fc = null; try { fc = Ws.flowConf(sym); } catch(e){}
+    let nw = null; try { nw = Ctx.news(sym); } catch(e){}
+    const side = S.side === "long" ? 1 : S.side === "short" ? -1 : bias.bias === "bull" ? 1 : bias.bias === "bear" ? -1 : (fc && fc.dir) || 1;
+    // auto plan: entry = price, stop = beyond the nearest level on the other side (+0.25 ATR) or 1 ATR, target = the next level in our direction (or 2R)
+    const opp = side > 0 ? Lv.below[0] : Lv.above[0], nxt = (side > 0 ? Lv.above : Lv.below).find(l => Math.abs(l.p - px) >= 0.5*a);
+    const aE = px, aS = opp && Math.abs(opp.p - px) <= 2*a ? opp.p - side*0.25*a : px - side*a, aT = nxt ? nxt.p : px + side*2*Math.abs(px - aS);
+    const E = num(enI.value, aE), SL = num(slI.value, aS), TP = num(tpI.value, aT), riskPct = DESK.riskFor(null, 0, false), sz = DESK.size(S.eq, E, SL, riskPct, S.pv, S.step);
+    const dayS = DESK.day(Journal.list, Date.now(), DESK.RULES), dirT = side > 0 ? "bullish" : "bearish";
+    const openSame = (Journal.list || []).some(t => t.status === "open" && t.symbol === sym && t.dir === dirT);
+    const rules = DESK.RULES, chk = DESK.check({entry:E, stop:SL, target:TP, riskPct:sz.pct, riskCapPct:riskPct}, dayS, rules, openSame);
+    // agent 6: the skeptic - every reason against
+    const skp = [];
+    if (bias.available && ((side > 0 && bias.bias === "bear") || (side < 0 && bias.bias === "bull"))) skp.push(Lg("against the chart's bias ("+bias.trend+", price "+bias.ema+" EMA50)","عكس اتجاه الشارت ("+bias.trend+"، السعر "+(bias.ema === "above" ? "فوق" : "تحت")+" EMA50)"));
+    if (reg && /vol|chop/i.test(reg)) skp.push(Lg("regime: "+reg+" - stops get hit more","الريجيم: "+reg+" - الستوبات بتضرب أكتر"));
+    if (!fc) skp.push(Lg("no order-flow read: turn Footprint on in this chart","مفيش قراءة أوردر فلو: شغّل الفوت برينت في الشارت ده"));
+    else if (fc.n < 3) skp.push(Lg("order flow: only "+fc.n+" of 4 (needs 3, level first)","الأوردر فلو: "+fc.n+" من 4 بس (محتاج 3، والمستوى أولًا)"));
+    else if (fc.dir !== side) skp.push(Lg("order flow points the other way","الأوردر فلو بيشاور الناحية التانية"));
+    if (Lv.list.length && Math.abs(Lv.list[0].dist) > 1) skp.push(Lg("price is not at a level (nearest "+Lv.list[0].k+" "+Math.abs(Lv.list[0].dist).toFixed(1)+" ATR away): order flow alone is not a signal","السعر مش عند مستوى (أقرب "+Lv.list[0].k+" على بعد "+Math.abs(Lv.list[0].dist).toFixed(1)+" ATR): الأوردر فلو لوحده مش إشارة"));
+    if (nw) skp.push(Lg("news: ","خبر: ")+(nw.country || "")+" "+(nw.title || ""));
+    chk.why.forEach(w => skp.push(lang === "ar" ? w[2] : w[1]));
+    const verdict = !chk.ok ? "SKIP" : skp.length ? "WAIT" : "TAKE", VC = {TAKE:"#0ecb81", WAIT:"#f0b90b", SKIP:"#848e9c"}, VT = {TAKE:Lg("TAKE","ادخل"), WAIT:Lg("WAIT","استنى"), SKIP:Lg("SKIP","ماتدخلش")};
+    last = {sym, side, E, SL, TP, tf};
+    head.innerHTML = '<b style="font-size:14px">'+esc(sym.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+'</b> '+esc(tf)+' · '+fmtP(px)+' · ATR '+fmtP(a)+' · <b style="color:'+(side > 0 ? "#0ecb81" : "#f6465d")+'">'+(side > 0 ? "▲ "+esc(Lg("Long","شراء")) : "▼ "+esc(Lg("Short","بيع")))+'</b> · <span class="vd" style="background:'+VC[verdict]+'">'+VT[verdict]+'</span>';
+    const lvRows = Lv.list.slice(0, 8).map(l => '<tr><td><b>'+l.k+'</b></td><td class="r">'+fmtP(l.p)+'</td><td class="r '+(l.p > px ? "rd" : "g")+'">'+(l.dist >= 0 ? "+" : "")+l.dist.toFixed(1)+' ATR</td></tr>').join("");
+    const fcHtml = !fc ? '<div class="m">'+esc(Lg("Footprint is off on this chart: turn it on (Indicators → Footprint) to read stacked imbalance, delta, tape and absorption.","الفوت برينت مقفول في الشارت ده: شغّله (المؤشرات ← Footprint) عشان يقرا الإمبالانس والدلتا والتايب والامتصاص."))+'</div>'
+      : '<div><b class="'+(fc.n >= 3 ? "g" : "y")+'">'+fc.n+' / 4</b> '+(fc.dir ? (fc.dir > 0 ? "▲" : "▼") : "")+'</div><div>'+["level","delta","tape","absorb"].map(k => (fc.parts.includes(k) ? '<b class="g">✓</b> ' : '<span class="m">✗</span> ')+esc({level:Lg("stacked imbalance level","مستوى إمبالانس متراكم"), delta:Lg("candle delta","دلتا الشمعة"), tape:Lg("tape 60 s > 55 %","التايب 60 ث > 55%"), absorb:Lg("absorption 2 min","امتصاص 2 دقيقة")}[k])).join("<br>")+'</div>';
+    grid.innerHTML =
+      ag("#4aa3ff", Lg("1 · Level scanner","1 · ماسح المستويات"), Lv.list.length ? '<table>'+lvRows+'</table><div class="m">'+esc(Lg("PDH/PDL = previous UTC day, PWH/PWL = previous week, DO = today's open, POC/VAH/VAL = volume profile of the loaded candles","PDH/PDL = اليوم السابق UTC، PWH/PWL = الأسبوع السابق، DO = فتح النهارده، POC/VAH/VAL = بروفايل الحجم للشموع المحملة"))+'</div>' : '<div class="m">'+esc(Lg("needs 20+ candles","محتاج 20 شمعة على الأقل"))+'</div>')
+      + ag("#b57cff", Lg("2 · Context","2 · السياق"), '<div>'+esc(Lg("Bias","الاتجاه"))+': <b>'+(bias.available ? esc(bias.bias+" · "+bias.trend+" · "+bias.ema+" EMA50") : "–")+'</b></div><div>'+esc(Lg("Regime","الريجيم"))+': <b>'+esc(reg || "–")+'</b></div><div>ATR 14: <b>'+fmtP(a)+'</b></div>'+(nw ? '<div class="rd">⚠ '+esc((nw.country || "")+" "+(nw.title || ""))+'</div>' : '<div class="m">'+esc(Lg("no high-impact news now","مفيش أخبار قوية دلوقتي"))+'</div>'))
+      + ag("#0ecb81", Lg("3+4 · Order-flow read (3 of 4)","3+4 · قراءة الأوردر فلو (3 من 4)"), fcHtml)
+      + ag("#f0b90b", Lg("5 · Risk manager","5 · مدير المخاطرة"), '<table><tr><td>'+esc(Lg("Entry","دخول"))+'</td><td class="r">'+fmtP(E)+'</td></tr><tr><td>'+esc(Lg("Stop","ستوب"))+'</td><td class="r rd">'+fmtP(SL)+'</td></tr><tr><td>'+esc(Lg("Target","هدف"))+'</td><td class="r g">'+fmtP(TP)+'</td></tr>'
+          +'<tr><td>'+esc(Lg("Risk tier","شريحة المخاطرة"))+'</td><td class="r">'+riskPct.toFixed(2)+'%</td></tr><tr><td>R:R</td><td class="r"><b class="'+(chk.rr >= rules.rr ? "g" : "rd")+'">'+chk.rr.toFixed(2)+'</b></td></tr><tr><td>'+esc(Lg("Size","الحجم"))+'</td><td class="r"><b>'+(sz.qty ? +sz.qty.toPrecision(4) : 0)+'</b></td></tr><tr><td>'+esc(Lg("Risk","المخاطرة"))+'</td><td class="r">'+sz.risk.toFixed(2)+' ('+sz.pct.toFixed(2)+'%)</td></tr>'
+          +'<tr><td>'+esc(Lg("Today","النهارده"))+'</td><td class="r">'+dayS.n+' '+esc(Lg("closed","مقفولة"))+' · '+dayS.stops+'/'+rules.stops+' '+esc(Lg("stops","ستوب"))+' · −'+dayS.lossPct.toFixed(2)+'% / '+rules.day+'%</td></tr></table>'
+          +'<div>'+(chk.ok ? '<b class="g">✓ '+esc(Lg("rules OK","القواعد تمام"))+'</b>' : chk.why.map(w => '<div class="rd">⛔ '+esc(lang === "ar" ? w[2] : w[1])+'</div>').join(""))+'</div>')
+      + ag("#f6465d", Lg("6 · Skeptic: why NOT","6 · المتشكك: ليه لأ"), skp.length ? '<ul>'+skp.map(s => '<li>'+esc(s)+'</li>').join("")+'</ul>' : '<div class="g">'+esc(Lg("nothing against found - still not evidence under 30 trades","مفيش اعتراض - برضه مش دليل تحت 30 صفقة"))+'</div>');
+  };
+  shB.onclick = () => { if (!last) return; const long_ = last.side > 0; try { Ws.showOnChart({symbol:last.sym, direction:long_ ? "bullish" : "bearish", ttype:"Desk", tfk:String(last.tf || "").toLowerCase(), tfc:last.tf, score:0, max:10, src:"ofdesk",
+      plan:{entry:last.E, stop:last.SL, tps:[last.TP]}, zones:[], tags:[], ana:{sig:[Lg("Order Flow Desk plan (not advice)","خطة الأوردر فلو ديسك (مش نصيحة)")]}}); } catch(e){ console.warn("ofdesk showOnChart", e); } };
+  draw(); const iv = setInterval(() => { if (!document.hidden) draw(); }, 2000);
+  this.unwatch = () => clearInterval(iv);
+};
 const RETIRED = {ready:"signals", ticker:null, links:null, video:null};   // owner OK 2026-10-17: duplicates / not part of the trading decision
 Ws.build = list => { Ws.hist.mute++; try { list.map(([t,r,s]) => [t in RETIRED ? RETIRED[t] : t, r, s]).filter(([t]) => t).forEach(([t,r,s]) => new Panel(t, r, s)); } finally { Ws.hist.mute--; } Ws.checkEmpty(); };
 Ws.cascade = 0;
@@ -7146,7 +7282,7 @@ const Guide = {
   async goTo(get){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ this.point(r); this.flash(r); } return r; },   // scroll the target on screen if needed, point at it, spotlight it
   up(){ this.point(new DOMRect(innerWidth/2, this.view().t, 10, 10)); },
   flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
-  page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
+  page(i, name){ try { const P = window.parent, u = new URL(P.location.href); u.searchParams.set("page", i); P.location.href = u.href; return true; } catch(e){} return false; },   // fixed page index via ?page= (the tab bar order no longer matches the indexes)
   live: {
     chart(g){ const p = g.chart(); if (!p) return ""; const c = p.chart, d = c.data[c.data.length-1]; return d ? g.G(" Now: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" at "+d.c+".", " دلوقتي: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" على "+d.c+".") : ""; },
     vp(g){ const p = g.chart(); if (!p || !p.chart._vp2) return g.G(" Turn it on from Indicators > Volume profile.", " شغّله من المؤشرات ← Volume profile."); const v = p.chart._vp2, tb = v.f.dl.reduce((a,b) => a+b, 0);
@@ -7444,14 +7580,14 @@ function wsRecBtn(){
    colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
 const WGROUPS = () => [
   [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
-  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["dom","tape","limits","risk"]],
+  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["ofdesk","ofm","dom","tape","limits","risk"]],
   [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
   [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
   [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
   [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
-const WCODE = {tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+const WCODE = {ofdesk:"OFD", ofm:"MAP", tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
   fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
-const WNEW = new Set(["tclass"]);   // gets a small NEW mark in the menu
+const WNEW = new Set(["ofdesk", "ofm"]);   // gets a small NEW mark in the menu
 function wMenuBtn(sel){
   if (!document.getElementById("wmCss")){ const st = el("style"); st.id = "wmCss"; st.textContent =
     "#wmBtn{font-weight:700;padding:2px 10px;border-radius:5px;border:1px solid #f0b90b;color:#f0b90b;background:rgba(240,185,11,.08);cursor:pointer}#wmBtn:hover,#wmBtn.on{background:#f0b90b;color:#000}"

@@ -98,7 +98,7 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
-# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
+# Monte Carlo lives in Trading > Journal; only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
     _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
@@ -1129,15 +1129,39 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [0, 1, 11, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7"]   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
+_PAGE_ORDER = [0, 1, 11, 12, 18, 13, 14, 15]   # 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
+
+
+def _nav_to(i):
+    """Open page i (an old page index opens its hub with that sub-page selected)."""
+    if i == 8:   # Lab Summary now sits on top of Technical Office > Lab results (owner 2026-11-09)
+        i = 2
+        st.session_state["to_tab"] = "Lab results"
+    h = _HUB_OF.get(i)
+    st.session_state["page"] = h if h is not None else (i if i in _PAGE_ORDER else 0)
+    if h is not None:
+        st.session_state[f"hub_{h}"] = i
+
+
 if "page" not in st.session_state:
     try:
-        st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
+        _nav_to(int(st.query_params.get("page", 0)))
     except (TypeError, ValueError):
-        st.session_state["page"] = 0
+        _nav_to(0)
+elif st.session_state["page"] not in _PAGE_ORDER:   # a session opened before the hubs existed
+    _nav_to(st.session_state["page"])
 with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+if PAGE in _HUBS:   # one compact row of sub-tabs; PAGE becomes the old page index, so every `if PAGE == N` block below is unchanged
+    _hk = f"hub_{PAGE}"
+    if st.session_state.get(_hk) not in _HUBS[PAGE]:   # Streamlit drops an undrawn widget's value: come back to the last sub-page used
+        st.session_state[_hk] = st.session_state.get("last_" + _hk) if st.session_state.get("last_" + _hk) in _HUBS[PAGE] else _HUBS[PAGE][0]
+    with st.container(key="hubnav"):
+        PAGE = st.radio(L(_PAGES[PAGE]), _HUBS[PAGE], format_func=lambda i: L(_PAGES[i]), horizontal=True, key=_hk, label_visibility="collapsed")
+    st.session_state["last_" + _hk] = PAGE
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
@@ -1185,6 +1209,14 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 [data-testid="stExpander"] summary{{background:#0b0f14!important;color:#e6e9ee!important}} [data-testid="stExpander"] summary p{{color:#e6e9ee!important}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
+if PAGE != 0:   # every page after the Workspace (owner 2026-11-09): full width, tight spacing, small framed metrics, hub sub-tabs as one row
+    st.markdown(f"""<style>.block-container{{max-width:100%!important;padding-left:1rem!important;padding-right:1rem!important}}
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]{{gap:.45rem}} [data-testid="stHorizontalBlock"]{{gap:.5rem!important}}
+[data-testid="stMetric"]{{background:rgba(255,255,255,.02);border:1px solid #1c232b;border-radius:6px;padding:4px 10px}} [data-testid="stMetricValue"]{{font-size:1.15rem!important}} [data-testid="stMetricLabel"] p{{font-size:11px!important}}
+.stApp h1{{font-size:1.35rem}} .stApp h2{{font-size:1.15rem}} .stApp h3{{font-size:1rem}} [data-testid="stButtonGroup"] button{{min-height:26px;padding:0 10px}} [data-testid="stButtonGroup"] button p{{font-size:12px}}
+.st-key-hubnav [role="radiogroup"]{{gap:2px 4px;flex-wrap:wrap;border-bottom:1px solid #1c232b}} .st-key-hubnav label{{padding:3px 12px;margin:0;border-radius:6px 6px 0 0;white-space:nowrap}}
+.st-key-hubnav [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-hubnav [data-testid="stRadioOption"] p{{font-size:12px;color:#c3c9d1}}
+.st-key-hubnav label:has(input:checked){{background:rgba(240,185,11,.10);border-bottom:2px solid {ui_accent}}} .st-key-hubnav label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""", unsafe_allow_html=True)
 
 def _md_sections(path):
     """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
@@ -1351,15 +1383,6 @@ def _office_overview():
          (L("Backtest"), L("rules + engine, verdict on out-of-sample"), "info"), (L("Strategy import"), L("text / video link -> rules"), "off")],
         [(L("Alerts · Telegram"), L("confirmed only, never orders"), "ok" if tg else "off"), (L("Journal"), L("in the browser · CSV export"), "info"),
          (L("Model inventory"), L("gate verdict per strategy"), "info")]]), unsafe_allow_html=True)
-    st.markdown(U.tools(L("Tools"), [
-        (L("Backtest"), L("strategy + symbol + timeframe, verdict on out-of-sample"), L("tab: Backtest"), "ok"),
-        (L("Strategy builder"), L("indicator + condition + value, AND / OR, JSON"), L("tab: Backtest"), "ok"),
-        (L("Strategy import"), L("text or link -> rules + assumptions"), L("waiting: ChatGPT template"), "warn"),
-        (L("Scanner control"), L("filters, timeframe, confirmed / candidate"), L("Radar page"), "ok"),
-        (L("Trade card"), L("entry, stop, target and the detector's evidence"), L("task 17, after the ranking"), "off"),
-        (L("Telegram"), L("alerts for confirmed setups only"), L("workflow every 30 min") + (" · " + L("key set") if tg else " · " + L("no key")), "ok" if tg else "warn"),
-        (L("Recording"), L("snapshot / record the chart and the workspace"), L("Workspace toolbar"), "ok"),
-        (L("KPIs"), L("net R, profit factor, drawdown, t"), L("Stats page"), "ok")]), unsafe_allow_html=True)
     st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
 
 
@@ -1534,7 +1557,6 @@ def _office_ops():
 
 
 def _office_lab():
-    _office_control_room()
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
                  "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
     lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
@@ -1763,6 +1785,51 @@ def _office_options():
         lines.append(_ot("IV structure: ", "هيكل الـ IV: ") + (_ot("inverted (near expiries cost more than far ones): the market is tense in the short term.", "مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير.") if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
                                        _ot("normal (far expiries cost more): relative calm.", "طبيعي (البعيد أغلى): هدوء نسبي.") if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else _ot("flat.", "مسطح.")))
     st.markdown(f"<div class='xo-card' dir='{'rtl' if _oa else 'ltr'}' style='line-height:24px'><b>" + _ot("Reading of the nearest expiry (context, not a signal)", "قراءة أقرب استحقاق (سياق مش إشارة)") + "</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
+    # GEX (gamma exposure) from the same book: call wall, put wall, gamma flip (modules/gex.py). Naive dealer sign; context, not a signal.
+    def _gex_block(chain, spot, mult, title, days):
+        from modules import gex as GX
+        _td = _pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+        gx, tb = GX.levels(chain, spot, _td, max_days=days, mult=mult), GX.by_strike(chain, spot, _td, max_days=days, mult=mult)
+        if not gx["n_contracts"]:
+            st.info(L("No open interest to compute GEX."))
+            return
+        f = lambda v: f"{v:,.0f}" if v else "-"
+        st.markdown("<div class='xo-row'>" + U.indicators(title, [
+            (L("Call wall"), f(gx["call_wall"]), L("strike with the most call gamma"), None),
+            (L("Put wall"), f(gx["put_wall"]), L("strike with the most put gamma"), None),
+            (L("Gamma flip"), f(gx["gamma_flip"]), L("total GEX changes sign near here"), None),
+            (L("Net GEX per 1% move"), f"${gx['net_gex'] / 1e6:,.1f}M", L("positive = moves dampened, negative = moves can extend"), "warn" if gx["net_gex"] < 0 else None)]) + "</div>", unsafe_allow_html=True)
+        nb = tb[(tb.index >= spot * 0.8) & (tb.index <= spot * 1.2)].reset_index()
+        if len(nb):
+            nb["side"] = nb["net_gex"].map(lambda v: "+" if v >= 0 else "-")
+            bars = alt.Chart(nb).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("net_gex:Q", title="GEX $ / 1%"),
+                                                   color=alt.Color("side:N", scale=alt.Scale(domain=["+", "-"], range=["#e3a857", "#b8574a"]), legend=None), tooltip=["strike", "call_gex", "put_gex", "net_gex"])
+            marks = [alt.Chart(_pd.DataFrame({"x": [spot]})).mark_rule(color="#eaecef", strokeDash=[6, 4]).encode(x="x:Q")]
+            if gx["gamma_flip"]:
+                marks.append(alt.Chart(_pd.DataFrame({"x": [gx["gamma_flip"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q"))
+            ch_ = bars
+            for m_ in marks:
+                ch_ = ch_ + m_
+            st.altair_chart(ch_.properties(height=220), use_container_width=True)
+            st.caption(L("Gold = positive GEX, rust = negative; white dashed = spot, purple dotted = gamma flip."))
+        st.caption(L("GEX assumes dealers are long the calls and short the puts the public holds; public data cannot confirm who is long or short, and providers disagree. Context, not a trade signal."))
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Gamma exposure (GEX)'))}</div>", unsafe_allow_html=True)
+    try:
+        _gex_block(OD.gex_chain(rows), s["spot"], 1, f"GEX · {cur} · " + L("expiries up to 45 days"), 45)
+    except Exception as _e:
+        st.warning(f"GEX: {type(_e).__name__}: {_e}")
+    with st.expander(L("GEX for a US index / stock (Cboe, 15 min delayed)")):
+        _us = (st.text_input(L("Symbol"), value="SPX", key="od_gex_us") or "SPX").strip().upper()
+        if st.button(L("Load"), key="od_gex_us_go"):
+            try:
+                from modules import cboe_options as CB
+                _px, _chain = CB.fetch(_us)
+                if not _px:
+                    st.warning(L("Cboe sent no underlying price."))
+                else:
+                    _gex_block(_chain, float(_px), 100, f"GEX · {_us} · Cboe · " + L("expiries up to 30 days"), 30)
+            except Exception as _e:
+                st.warning(f"Cboe: {type(_e).__name__}: {_e}")
     st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 
@@ -1977,12 +2044,91 @@ def _office_strategy_map():
     st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
 
 
+def _office_regime():
+    """Technical Office > Macro regime: risk-on / neutral / risk-off from five FRED series (modules/fred_regime.py), walk-forward with
+    publication delays (no look-ahead). A description of financial conditions, not a trade signal."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_ui as U, fred_regime as FR
+    st.markdown(U.CSS, unsafe_allow_html=True)
+
+    @st.cache_data(ttl=6 * 3600, show_spinner=False)
+    def _load():
+        return FR.load_all()
+    frames, errs = _load()
+    if errs:
+        st.caption(L("Not loaded: ") + ", ".join(errs))
+    if not frames:
+        st.warning(L("FRED did not answer; try again later."))
+        return
+    now = _pd.Timestamp.now(tz="UTC").tz_localize(None)
+    r = FR.regime_at(frames, now)
+    if r["score"] is None:
+        st.info(L("Not enough FRED history yet."))
+        return
+    names = {"risk-on": L("Risk on"), "neutral": L("Neutral"), "risk-off": L("Risk off")}
+    items = [(L("Regime now"), names[r["regime"]], L("score") + f" {r['score']:+.2f} · {r['n']}/5 " + L("series"), "warn" if r["regime"] == "risk-off" else None)]
+    items += [(L(p["label"]), f"{p['value']:.2f}", f"z {p['z']:+.2f} · " + L("known since") + f" {p['known_since'].date()}", "warn" if p["contrib"] > 1 else None) for p in r["parts"]]
+    st.markdown("<div class='xo-row'>" + U.indicators(L("Macro regime (FRED)"), items) + "</div>", unsafe_allow_html=True)
+    h = FR.history(frames, start=now - _pd.DateOffset(years=3), end=now)
+    if len(h):
+        line = alt.Chart(h).mark_line(color="#e3a857").encode(x=alt.X("date:T", title=None), y=alt.Y("score:Q", title=L("Stress score")), tooltip=["date:T", "score:Q", "regime:N"])
+        rules = alt.Chart(_pd.DataFrame({"y": [FR.TH, -FR.TH]})).mark_rule(color="#8f877a", strokeDash=[4, 4]).encode(y="y:Q")
+        st.altair_chart((line + rules).properties(height=240), use_container_width=True)
+        cnt = h["regime"].value_counts()
+        st.caption(L("Last 3 years, weekly: ") + " · ".join(f"{names.get(k, k)} {int(v)}" for k, v in cnt.items()))
+    st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
+
+
+def _office_control():
+    """Technical Office > Control room: status, gauge, alerts, charts, system map; under it the work board (left) and the GitHub workflows (right)."""
+    _office_overview()
+    a, b = st.columns([2, 1])
+    with a:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Work board'))}</div>", unsafe_allow_html=True)
+        _office_board()
+    with b:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Operations'))}</div>", unsafe_allow_html=True)
+        _office_ops()
+
+
+def _office_lab_all():
+    """Technical Office > Lab results: the Lab Summary on top (was its own page), then one detector's card (left) next to the weekly lab tables (right)."""
+    try:
+        from modules.lab_summary import render_lab_summary
+        render_lab_summary(_scan_store().get("payload") or {})
+    except Exception as _ls_exc:
+        st.error(L("Lab Summary") + f": {_ls_exc}")
+    st.divider()
+    a, b = st.columns(2)
+    with a:
+        _office_detector()
+    with b:
+        _office_lab()
+
+
+def _office_strategies():
+    """Technical Office > Strategies: scanner presets for the Radar (folded), the strategy map, then the rule builder / backtest."""
+    with st.expander(L("Scanner presets -> Radar"), expanded=False):
+        _office_scanner()
+    _office_strategy_map()
+    st.divider()
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Backtest your own rules'))}</div>", unsafe_allow_html=True)
+    _office_backtest()
+
+
+def _office_flow():
+    """Technical Office > Order flow: the forward-test judge on top, the manual (methods, tools, routine) under it - one tab (2026-11-09)."""
+    _office_flow_lab()
+    st.divider()
+    _office_flow_manual()
+
+
 def render_lab_page():
-    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
-    analysis, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
-            "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
+    """Technical Office v2: one tab bar, only the open tab runs. Options desk + Macro regime live in Trading > Options & macro (2026-11-09)."""
+    tabs = {"Control room": _office_control, "Lab results": _office_lab_all, "Strategies": _office_strategies, "Order flow": _office_flow}   # 2026-11-09: 9 tabs -> 4
+    if st.session_state.get("to_tab") not in tabs:   # a tab that moved (Options desk, Macro regime, Flow manual / lab) must not break an open session
+        st.session_state.pop("to_tab", None)
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
@@ -2067,10 +2213,15 @@ def _playbook_rules():
 
 def render_playbook_page():
     """Playbook (owner 2026-10-22): one tab bar - by trading style, schools, rules and timing, the full document."""
-    tabs = {"By trading style": _playbook_styles, "Schools": _playbook_schools, "Rules & timing": _playbook_rules, "Full document": _playbook_doc}
-    pick = st.segmented_control(L("Playbook"), list(tabs), default="By trading style", format_func=L, key="pb_tab", label_visibility="collapsed")
+    tabs = {"Styles & rules": (_playbook_styles, _playbook_rules), "Schools & document": (_playbook_schools, _playbook_doc)}   # 2026-11-09: 4 tabs -> 2 (owner approved)
+    if st.session_state.get("pb_tab") not in tabs:
+        st.session_state.pop("pb_tab", None)
+    pick = st.segmented_control(L("Playbook"), list(tabs), default="Styles & rules", format_func=L, key="pb_tab", label_visibility="collapsed")
     try:
-        tabs.get(pick or "By trading style", _playbook_styles)()
+        for _i, _fn in enumerate(tabs.get(pick or "Styles & rules", tabs["Styles & rules"])):
+            if _i:
+                st.divider()
+            _fn()
     except Exception as e:
         st.error(f"Playbook: {type(e).__name__}: {e}")
 
@@ -2084,12 +2235,12 @@ def render_alerts_page():
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
     tgw = wf.get("telegram-alerts.yml", {})
-    tab = st.segmented_control(L("Alerts"), ["Sources", "Telegram", "Radar alerts (task 17)"], default="Sources", format_func=L, key="al_tab", label_visibility="collapsed")
-    if tab in (None, "Sources"):
-        st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
+    st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
                              (L("Telegram workflow"), tgw.get("schedule") or "-", "ok" if tgw else "off"),
                              (L("Dashboard banners"), L("on"), "ok"),
                              (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
+    _al, _ar_ = st.columns([3, 2])   # 2026-11-09: one page, sources left, Telegram + Radar plan right (was 3 tabs)
+    with _al:
         st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
             (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
             (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
@@ -2099,16 +2250,17 @@ def render_alerts_page():
             (L("Order-flow sync alerts"), L("book + tape agree with the setup"), L("waiting for the order-flow sync fix"), "off"),
             (L("News alarm"), L("strong news event: blinking light, short Arabic summary, source"), L("chat item 24.1, open"), "off"),
             (L("Paper-trading bot"), L("follows only rules that passed the lab, own track record"), L("planned, never real orders"), "off")]) + "</div>", unsafe_allow_html=True)
-    elif tab == "Telegram":
-        st.markdown(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
+    with _ar_:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('Telegram'))}</div>", unsafe_allow_html=True)
+        st.caption(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
         st.markdown(U.table([L("Setting"), L("Where"), L("Value")], [
             [L("Bot token and chat id"), "Streamlit secrets / GitHub secrets", U.badge(L("key set") if tg else L("no key"), "ok" if tg else "warn")],
             [L("Schedule"), ".github/workflows/telegram-alerts.yml", U.esc(tgw.get("schedule") or "-")],
             [L("Timeframes / top / minimum quality"), "TG_TFS · TG_TOP · TG_MIN_Q · TG_MIN_STARS", "1h,1d · 3 · 60 · 4"],
             [L("Already-sent memory"), ".tg_sent.json (actions/cache)", L("no repeats")]]), unsafe_allow_html=True)
         st.caption(L("Use the sidebar > Telegram alerts > Send test message to check the link. The keys never go into the code or the chat."))
-    else:
-        st.markdown(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
+        st.markdown(f"<div class='xo-h' style='margin-top:8px'>{html.escape(L('Radar alerts (task 17)'))}</div>", unsafe_allow_html=True)
+        st.caption(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
                       "with the entry, stop and target from the existing rules, the detector's lab evidence, and the Radar mark. Suggestion only - no orders."))
         st.markdown(U.table([L("Field"), L("Source")], [[L("Symbol, timeframe, strategy"), "Radar"], [L("Entry / stop / target"), L("existing scanner rules")],
                                                       [L("Evidence"), "data/strategy_lab.json (net avg R, n)"], [L("Invalidation"), L("stop level")], [L("Status"), L("confirmed only")]]), unsafe_allow_html=True)
@@ -3456,22 +3608,24 @@ if PAGE == 3:   # playbook
     render_playbook_page()
 
 if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
-    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent", "Agent desk"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
+    if st.session_state.get("ai_tab") not in ("Mr X", "Backtest agent"):   # 2026-11-09: Agent desk folded under Mr X (owner approved)
+        st.session_state.pop("ai_tab", None)
+    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
     if _ai_tab == "Backtest agent":
         _c = st.columns([1.2, 0.8, 4])
         _bt_agent(_c[0].text_input(L("Symbol"), "BTC-USDT", key="ai_bt_sym"), _c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="ai_bt_tf"))
-    elif _ai_tab == "Agent desk":
-        from modules import office_ui as _U
-        st.markdown(_U.CSS, unsafe_allow_html=True)
-        st.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
-        st.markdown(_U.table([L("Needs"), L("Status")], [
-            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
-            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
-            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
-        st.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
     else:
         from modules.ai_page import render_ai_page
         render_ai_page(ACTIVE_SYMBOLS, L)
+        from modules import office_ui as _U
+        st.markdown(_U.CSS, unsafe_allow_html=True)
+        _adx = st.expander(L("Agent desk"), expanded=False)
+        _adx.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
+        _adx.markdown(_U.table([L("Needs"), L("Status")], [
+            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
+            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
+            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
+        _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
 if PAGE == 6:   # alerts (owner 2026-10-22: built as a real page)
     render_alerts_page()
@@ -3567,36 +3721,27 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         import importlib as _il_hub
         from modules import hub_ui as _hub_ui
         _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
-        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
-                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
-                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
+        _HUB_TABS = {"Command Center": [("hub_ui", "render_overview")],   # 2026-11-09: 8 tabs -> 4 (owner approved); each group runs its parts one under the other
+                     "Truth, funnel & consensus": [("hub_truth", "render"), ("hub_funnel", "render"), ("hub_consensus", "render")],
+                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render")],
+                     "Trail & decay": [("hub_trail", "render"), ("hub_decay", "render")]}   # the trail publishes the live R series the decay watch reads
+        if st.session_state.get("hub_tab") not in _HUB_TABS:
+            st.session_state.pop("hub_tab", None)
         _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
-        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
-        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
+        for _hi, (_hub_mod, _hub_fn) in enumerate(_HUB_TABS[_hub_tab]):   # only the open group is imported and run
+            if _hi:
+                st.divider()
+            getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
-if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+    if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
+        st.session_state.pop("stats_tab", None)
+    _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
     if _stab == "Monte Carlo":
         from modules.quant_montecarlo import render as _mc_render
         _mc_render()
-        st.stop()
-    if _stab == "Edge Map":
-        from modules.quant_edgemap import render as _em_render
-        _em_render()
-        st.stop()
-    if _stab == "Robustness":
-        from modules.quant_robustness import render as _rb_render
-        _rb_render()
-        st.stop()
-    if _stab == "Execution":
-        from modules.quant_execution import render as _ex_render
-        _ex_render()
-        st.stop()
-    if _stab == "Lab evidence":
-        _stats_lab()
-        st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
         st.stop()
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
@@ -3654,10 +3799,45 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
     st.stop()
 
+if PAGE == 12:   # TIA institutional intelligence terminal (new standalone parent-company workspace)
+    try:
+        from modules.tia_page import render_tia
+        render_tia()
+    except Exception as _tia_exc:
+        st.error(f"TIA: {type(_tia_exc).__name__}: {_tia_exc}")
+    st.stop()
+
 if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
     try:
         from modules.spot_page import render as _spot_render
         _spot_render()
     except Exception as _sp_exc:
         st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
+    st.stop()
+
+if PAGE == 17:   # Trade Intelligence Center (MR !27, additive; knowledge + meeting journal, read-only over Lab / Radar / Spot)
+    try:
+        from modules.intelligence_center_ui import render as _tic_render
+        _tic_render()
+    except Exception as _tic_exc:
+        st.error(f"Trade Intelligence Center: {type(_tic_exc).__name__}: {_tic_exc}")
+    st.stop()
+
+if PAGE == 18:   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md
+    try:
+        from modules.v7_page import render as _v7_render
+        _v7_render()
+    except Exception as _v7_exc:
+        st.error(f"V7 Research: {type(_v7_exc).__name__}: {_v7_exc}")
+    st.stop()
+
+if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+    st.markdown(kit_css(), unsafe_allow_html=True)
+    for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
+        try:
+            _fn()
+        except Exception as _om_exc:
+            st.error(f"{_nm}: {type(_om_exc).__name__}: {_om_exc}")
+        if _nm == "Macro regime":
+            st.divider()
     st.stop()

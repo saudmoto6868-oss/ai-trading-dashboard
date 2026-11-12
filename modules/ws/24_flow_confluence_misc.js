@@ -304,7 +304,7 @@ Ws.defaults = () => {
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
   const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
-  const OF = {dcol:true, dom:true, bub:true, ac:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on; ac = Auto-Center (the latest candle in the middle of the chart)
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
   return [
     ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
     ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],

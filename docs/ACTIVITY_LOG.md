@@ -13,6 +13,7 @@
 ## الصيغة
 | الوقت (UTC) | الذكاء / الحساب | الفعل | قرأ | غيّر | نسخ | بعت | استقبل | النتيجة |
 |---|---|---|---|---|---|---|---|---|
+| 2026-11-10 13:50 | Antigravity / Gemini | تنفيذ المهمة 2: كتابة اختبارات معزولة لبارامترات صفحة TIA | طلب Claude وتعليمات المالك، modules/tia_page.py، modules/tia_workspace.py | tests/test_tia_page_params.py، docs/sessions/antigravity-2026-11-10-tia-tests.md | — | branch team/antigravity-tests-2026-11-10 | تفاصيل المهمة 2 من Claude | تم إنشاء 10 اختبارات وحدة معزولة بالكامل تغطي tia_mkt وtia_sym وtia_run والـ warning وبنية ctrl وتخزين التقرير وحقن HTML للـ workspace؛ جميع الـ 10 اختبارات نجحت 10/10 بـ python3 وunittest بدون شبكة وبدون تشغيل Streamlit حي |
 
 | 2026-10-22 19:25 | ChatGPT | عزل إصلاح Order Flow عن تغييرات الكاش | PR #66، modules/workspace_app.html على main والفرع السابق | modules/workspace_app.html؛ tests/test_orderflow_render_policy.py؛ .github/workflows/orderflow-render-regression.yml | — | أنشأت فرعًا نظيفًا من main وأضفت إصلاح العرض واختبار CI | اكتشفت أن PR #66 الأصلي يحتوي تغييرات الكاش غير المتعلقة بالإصلاح؛ لا رد مراجعة نهائي من Claude حتى الآن | الفرع النظيف لا يتضمن تعديل TTL أو workflow الكاش؛ يلزم تشغيل CI ومراجعة المتصفح قبل الاعتماد؛ لا merge/deploy |
 

@@ -25,3 +25,6 @@
 - [ ] M3 جدول مقارنة أدوات  
 - [ ] M4 قائمة رفض  
 - [ ] M5 ربط لاحق بالمشروع فقط بأمر جديد
+
+
+| 30 | TIA institutional terminal — parent-company layer | A | ChatGPT | شغال — branch only | 2026-11-09 | `team/tia-intelligence-terminal-2026-11-09`; page index 12 placed between Radar and Workspace; first shell + foundation spec. Review requested; no merge/deploy. |

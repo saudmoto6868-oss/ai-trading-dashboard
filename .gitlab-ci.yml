@@ -1,0 +1,85 @@
+# Telegram alerts run only from schedules / the manual Run pipeline button on main.
+# Merge requests and manual feature-branch runs execute deterministic risk-policy tests only.
+# State files (.tg_sent.json, .brain_*.json*, ...) are kept in the job cache.
+# A cache miss can cause duplicate alerts once; this is best effort, not a guarantee.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+default:
+  image: python:3.12-slim
+  interruptible: false
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+mr_tests:
+  stage: test
+  timeout: 15m
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  cache:
+    - key: pip-312
+      paths:
+        - .cache/pip
+  before_script:
+    - pip install --quiet -r requirements.txt tzdata
+  script:
+    # plain-script tests; no secrets, no network side effects. Failing scripts are listed, job fails if any fails.
+    - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
+  allow_failure: true   # informative until the full suite is known green in CI
+
+telegram_alerts:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  timeout: 15m
+  resource_group: telegram-alerts
+  cache:
+    - key: pip-312
+      paths:
+        - .cache/pip
+    - key: tg-state
+      paths:
+        - .tg_sent.json
+        - .tc_sent.json
+        - .brain_sent.json
+        - .brain_log.jsonl
+        - .brain_graded.json
+        - .brain_agents.jsonl
+        - .signal_log.jsonl
+      when: always
+  before_script:
+    - pip install --quiet pandas numpy requests tzdata
+  script:
+    - python -m modules.tg_cron || true
+    - python -m modules.tclass_cron || true
+    - python -m modules.brain_cron
+    - python -m modules.signal_log || true
+  artifacts:
+    when: always
+    paths:
+      - .signal_log.jsonl
+    expire_in: 90 days
+    exclude:
+      - .cache/**/*
+
+risk_policy_tests:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+  timeout: 10m
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends nodejs
+    - rm -rf /var/lib/apt/lists/*
+  script:
+    - python tests/test_desk_risk.py
+    - python tests/test_horizons_sizing.py
+    - python tests/test_desk_js.py
+    - python tests/test_workspace_parts_sync.py

@@ -57,12 +57,10 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.autoCenter ? null : store.get(this.viewKey(), null); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
-    else { if (this.autoCenter) this.followLatest(); this.draw(); }
-    if (fit && this.lockR && arr.length){ const lc = arr[arr.length-1].c, lo = this.lockR[0], hi = this.lockR[1], sp = hi - lo;   // a saved manual price lock that the price has left by more than its whole height is a stale leftover (owner 2026-11-05: locked while the PC clock was wrong, gold now 4127 vs lock ~4020-4065): back to automatic
-      if (sp > 0 && (lc < lo - sp || lc > hi + sp)){ this.autoY(); this.draw(); } }
+    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
   }
-  restoreFrom(v){ this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
+  restoreFrom(v){ this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
   calcEma(){
     this.emaV = {};
     const emaOf = (arr, len) => { const k = 2/(len+1); let e = null; return arr.map(v => (e = e == null ? v : v*k + e*(1-k))); };
@@ -88,19 +86,11 @@ class CandleChart {
     const sec = TFSEC[this.tf] || 3600; let pv = 0, vv = 0, day = null;
     this.vwV = this.data.map(c => { const d = Math.floor(c.t/86400000); if (sec < 86400 && d !== day){ pv = 0; vv = 0; day = d; } const tp = (c.h+c.l+c.c)/3; pv += tp*c.v; vv += c.v; return vv ? pv/vv : c.c; });
   }
-  followLatest(){
-    const n = this.data.length; if (!this.autoCenter || !n) return;
-    // Keep the user-selected horizontal and vertical zoom; move the latest candle to the plot center.
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw);
-    if (!isFinite(this.r)) return;   // no layout yet: keep the current view
-    const [lo, hi] = this.range(Math.max(0, Math.floor(this.idx(0))-1), Math.min(n-1, Math.ceil(this.r)));
-    const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom;
-    if (span > 0) this.yShift = (this.data[n-1].c - (hi+lo)/2) / span;
-    this.clampR();
-  }
+  centerNow(){ this.fit(); }   // toolbar Fit: one click = latest candle back to the middle, price scale set once, then locked again
   fit(){
-    const n = this.data.length; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
-    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.autoCenter) this.followLatest(); this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
+    const n = this.data.length; this.lockR = null; this.yZoom = 1; this.yShift = 0; this._bookFit = !!this.bookFitOn;   // bookFitOn (off by default: the column stays on the chart's own price scale, level with the candles). _bookFit: with the order-flow column on, the price scale is framed once around the order book as soon as a book snapshot exists (see paint)
+    if ((TFSEC[this.tf] || 0) >= 3600 && this.PR > 0) this.bw = Math.max(4, Math.min(9, 0.5*this.PR/60));   // 1H and bigger: about 60 candles in the left half (bw 9 showed only ~24 candles, one big candle squashed the rest)
+    this.r = n - 1 + Math.round(0.5*this.PR/this.bw); if (this.onFree) this.onFree(); else this.saveView(); this.draw();   // standard: the latest candle opens in the middle of the chart (free space on the right), with or without the order-flow column
   }
   freezeY(){   // price scale -> manual at the range on screen right now (TradingView: dragging the chart vertically switches auto-scale off); the ⇅ / 🔒 button switches it back
     if (this.lockR || this._lo == null || !isFinite(this._lo) || !isFinite(this._hi) || this._hi <= this._lo) return;
@@ -189,18 +179,18 @@ class CandleChart {
       const dx = (e.clientX - this.drag.x)/this.S, dy = (e.clientY - this.drag.y)/this.S; this.drag.x = e.clientX; this.drag.y = e.clientY;
       if (this.drag.axis){ this._bookFit = false; if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.zoomY(Math.exp(Math.max(-30, Math.min(30, dy))*0.004), this.candleY()); }   // drag the price axis: smooth, about the middle of the plot (the scale turns manual first so the candles are not re-fitted under your hand)
       else { this._bookFit = false; this.drag.ty = (this.drag.ty || 0) + Math.abs(dy); this.drag.tx = (this.drag.tx || 0) + Math.abs(dx);
-        const vert = e.pointerType !== "touch" || (this.drag.ty > 28 && this.drag.ty > 1.6*this.drag.tx);   // a finger: only a clearly VERTICAL drag turns the price scale manual; a sideways swipe (even a wobbly one) just moves time and never locks the scale
         if (this.drag.col && this.colOwn === true){ const R2 = this.colWideR || this._wideAutoR || 0.02; this.colWideC = Math.max(-OFM.SPAN, Math.min(OFM.SPAN, (this.colWideC || 0) + dy/Math.max(1, this.PB)*2*R2)); }   // own price scale: drag up / down moves the column's price window
-        else if (this.lockR || vert){ if (this.drag.ty > 6) this.freezeY(); this.yShift += dy/Math.max(1, this.PB); }
         if (this.drag.col){ const win = this._wideWin || this.flowSpan || 120000, pw = Math.max(60, this.cw() - OFM.CAX - OFM.CDP); this.flowOff = Math.max(0, Math.min(OFM.KEEP - Math.min(win, OFM.KEEP), (this.flowOff || 0) + dx*win/pw)); /* drag right = look further back in time */ }
-        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); } }
+        else { this.r -= dx/this.bw; this.clampR(); this.checkMore(); if (dy && this.PB > 0){ if (!this.lockR && this.drag.ay == null){ this.freezeY(); this.drag.ay = 1; } this.yShift = Math.max(-8, Math.min(8, this.yShift + dy/this.PB)); } } }   // owner 2026-11-09: the chart body also pans the PRICE (drag down = candles follow down); the scale is manual, so it moves only by your hand
     }
     this.drawSoon();
   }
   /* view memory: the position is kept as offsets from the latest candle, so a refresh reopens the same view (not re-fitted) */
   viewKey(){ return LS+"_view|"+(this.uid || "")+"|"+this.sym+"|"+this.tf; }
-  saveView(){ if (!this.data.length || this.r == null || this.autoCenter) return; try { store.set(this.viewKey(), {back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift}); } catch(e){} }
-  restoreView(){ try { if (this.autoCenter) return false; const v = store.get(this.viewKey(), null); if (!v || !this.data.length) return false; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
+  // per-tab view in sessionStorage only: a reload (Streamlit refresh) reopens this tab exactly where it was (zoom, position AND the price-scale lock); a new tab opens centred. A shared localStorage key let one tab's reload overwrite another tab's view, which then snapped back
+  viewGet(){ try { return JSON.parse(sessionStorage.getItem(this.viewKey()) || "null"); } catch(e){ return null; } }
+  saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lk: this.lockR})); } catch(e){} }
+  restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
@@ -222,16 +212,20 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
-    if (!isFinite(lo)) return [0,1];
+    if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
     return [mid-span/2, mid+span/2];
   }
-  fmtTime(ms){
+  fmtTime(ms, full){
     const d = new Date(ms), day = d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
     if (TFSEC[this.tf] < 60) return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds());
-    if (this.tf === "1D" || this.tf === "1W") return day;
-    return d.getHours() === 0 && d.getMinutes() === 0 ? day : pad2(d.getHours())+":"+pad2(d.getMinutes());
+    const sec = TFSEC[this.tf] || 0, hm = pad2(d.getHours())+":"+pad2(d.getMinutes());
+    if (sec >= 604800) return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+" '"+String(d.getFullYear()).slice(2);   // 1W / 1M span years: month + year
+    if (sec >= 86400) return day;
+    if (full) return day+" "+hm;   // crosshair label: date and hour
+    if (sec >= 14400) return day;   // 4H..12H: axis steps are days apart, an hour alone repeated ("03:00 03:00" on 3D / 12H)
+    return d.getHours() === 0 && d.getMinutes() === 0 ? day : hm;
   }
   drawData(){   // redraw asked by streaming data (book polls, trades): at most ~7 per second per chart; mouse / touch still use draw() at full speed
     const now = performance.now(); if (now - (this._dd || 0) >= 140){ this._dd = now; this.draw(); return; }
@@ -241,13 +235,8 @@ class CandleChart {
     this._raf = requestAnimationFrame(() => { this._raf = 0; this.paint(); });
   }
   paint(){   // per-chart palette (state.pal: up / dn / bg / grid) is laid over the theme colours for the duration of one paint
-    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
+    { const sg = this.r+"|"+this.bw+"|"+this.yZoom+"|"+this.yShift+"|"+this.lockR; if (sg !== this._sg){ this._sg = sg; clearTimeout(this._svT2); this._svT2 = setTimeout(() => this.saveView(), 500); } }   // auto-save: any change of the view (drag, zoom, price scale, resize) is stored 0.5 s later, so the next open starts exactly here
     if (!this.pal) this._paint(); else { const bak = Object.assign({}, TH); Object.assign(TH, this.pal); try { this._paint(); } finally { Object.assign(TH, bak); } }
-    this._autoChip = null;
-    { const n = this.data.length, lo = this._lo, hi = this._hi;   // the price scale is manual and the newest candle is outside it (a finger drag locked it): a big tap target brings the candles back
-      if (this.lockR && n && lo != null && hi != null && isFinite(lo) && isFinite(hi)){ const lc = this.data[n-1].c; if (lc < lo || lc > hi){ const c = this.ctx, w = TCH ? 112 : 92, h2 = TCH ? 34 : 22, x = Math.max(6, this.PR - w - 10), y = 30;
-        c.save(); c.fillStyle = "rgba(240,185,11,.95)"; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h2, 6) : c.rect(x, y, w, h2); c.fill(); c.fillStyle = "#111"; c.font = "bold "+(TCH ? 14 : 12)+"px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText("⇅ "+(lang === "ar" ? "أوتو" : "Auto"), x + w/2, y + h2/2); c.restore(); this._autoChip = {x, y, w, h:h2}; } } }
     const h = this._hint; if (h && Date.now() - h.t < 3500){ const c = this.ctx; c.save(); c.font = "bold 12px sans-serif"; c.textAlign = "left"; const w = c.measureText(h.s).width + 16; c.fillStyle = "rgba(240,185,11,.92)"; c.fillRect(8, 26, Math.min(w, this.W - 16), 22); c.fillStyle = "#111"; c.fillText(h.s, 16, 41); c.restore(); }
   }
   _paint(){
@@ -263,18 +252,19 @@ class CandleChart {
         const y0 = this.yZoom, s0 = this.yShift; this.yZoom = 1; this.yShift = 0; const [l0, h0] = this.range(i0, i1), sp0 = (h0 - l0) || 1, tg = Math.max((bh - bl)*1.3, px*(["1m","5m","13m","15m","30m","1H","1h","2H","2h","4H","4h"].includes(this.tf) ? 0.02 : 0.004));   // task 56 batch 1: small timeframes show a wider price band (at least ±1%) so more of the order flow is visible
         if (tg < sp0){ this.yZoom = Math.max(0.02, tg/sp0); this.yShift = (px - (h0 + l0)/2)/(sp0*this.yZoom); } else { this.yZoom = y0; this.yShift = s0; }
         this._bookFit = false; } }
+    if (!this.lockR){ const z = this.yZoom, sh = this.yShift; this.yZoom = 1; this.yShift = 0; const [a, b] = this.range(i0, i1); this.yZoom = z; this.yShift = sh; const m = (a+b)/2, hs = (b-a)/1.12/2; if (isFinite(m) && hs > 0) this.lockR = [m-hs, m+hs]; }   // 2026-11-09 owner: fully manual - the price scale is set once (open / Fit) and never rescales by itself when you pan or a new candle comes; it moves only when you zoom / drag the price axis
     const [lo, hi] = this.range(i0, i1), py = v => PB - (v-lo)/(hi-lo)*PB; this._lo = lo; this._hi = hi;
     // grid + price axis
     const nt = niceTicks(lo, hi, Math.max(3, Math.floor(PB/48))), dec = Math.max(0, Math.min(8, 1 - Math.floor(Math.log10(nt.step))));
     c.strokeStyle = TH.grid; c.fillStyle = TH.mut; c.lineWidth = 1; c.textAlign = "left";
     nt.ticks.forEach(v => { const y = Math.round(py(v))+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(PR,y); c.stroke(); c.fillText(v.toFixed(dec), (this.W-this.axw)+5, y); });
     // time axis
-    const stepBars = Math.max(1, Math.ceil(90/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
-    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 5 ? 5 : 10)*mag;
+    const stepBars = Math.max(1, Math.ceil(70/this.bw)), mag = Math.pow(10, Math.floor(Math.log10(stepBars))), nb = stepBars/mag;
+    const st = (nb <= 1 ? 1 : nb <= 2 ? 2 : nb <= 3 ? 3 : nb <= 5 ? 5 : 10)*mag;   // the 3 step: with narrow candles (4H / 1D) a jump from 20 to 50 bars left one label on the axis
     c.textAlign = "center";
     for (let i = Math.ceil(i0/st)*st; i <= i1; i += st){
       const x = Math.round(this.x(i))+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,PB); c.stroke();
-      c.fillText(this.fmtTime(this.data[i].t), x, H-10);
+      if (x > 22) c.fillText(this.fmtTime(this.data[i].t), x, H-10);
     }
     c.strokeStyle = TH.line; c.beginPath(); c.moveTo(0,PB+.5); c.lineTo(W,PB+.5); c.moveTo(0,H-19.5); c.lineTo(W,H-19.5); c.moveTo((this.W-this.axw)+.5,0); c.lineTo((this.W-this.axw)+.5,H); c.stroke();
     // clip plot
@@ -411,7 +401,7 @@ class CandleChart {
       const ii = Math.max(0, Math.min(n-1, Math.round(this.idx(m.x)))); show = this.data[ii] || last; const inMain = m.y < PB;
       c.strokeStyle = "#5a636e"; c.setLineDash([2,3]); c.beginPath(); c.moveTo(m.x+.5,0); c.lineTo(m.x+.5,H-20); c.moveTo(0,m.y+.5); c.lineTo(PR,m.y+.5); c.stroke(); c.setLineDash([]);
       if (inMain){ c.fillStyle = "#2b3139"; c.fillRect((this.W-this.axw)+1, m.y-8, this.axw-2, 16); c.fillStyle = "#eaecef"; c.textAlign = "left"; c.fillText((lo + (PB-m.y)/PB*(hi-lo)).toFixed(dec), (this.W-this.axw)+5, m.y); }
-      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t); const tw = c.measureText(label).width + 10;
+      const tx = this.x(ii), label = this.fmtTime(this.data[ii].t, true); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, H-19, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, H-10);
     }
     const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? TH.up : TH.dn;

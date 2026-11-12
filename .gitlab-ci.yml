@@ -36,6 +36,22 @@ mr_tests:
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
   allow_failure: true   # informative until the full suite is known green in CI
 
+
+# Hard gate for the V7 browser/Python parity contract. Kept separate because mr_tests
+# remains allow_failure while the legacy full suite is being stabilized.
+v7_structure_parity:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 5m
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends nodejs
+    - rm -rf /var/lib/apt/lists/*
+    - pip install --quiet numpy
+  script:
+    - python tests/test_v7_struct.py
+
 telegram_alerts:
   stage: test
   rules:

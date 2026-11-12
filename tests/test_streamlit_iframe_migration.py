@@ -1,5 +1,4 @@
 """Guard the Streamlit 1.56+ migration from components.html() to st.iframe()."""
-import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent

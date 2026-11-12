@@ -23,6 +23,8 @@ academy_tests:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   timeout: 5m
+  before_script:
+    - pip install --quiet -r requirements.txt tzdata
   script:
     - python tests/test_academy.py
     - python tests/test_academy_intelligence.py

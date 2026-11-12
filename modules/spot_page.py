@@ -250,8 +250,7 @@ def _tab_analyzer(cr, met):
         return
     from modules import spot_dash
     from modules.i18n import lang
-    import streamlit.components.v1 as components
-    components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
+    st.iframe(spot_dash.render(bd, lang() == "ar"), height=2450, alt="Spot dashboard")
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -288,8 +287,7 @@ def _tab_brain(d, px, met, cr, fx):
     for m in marks:
         m["score"] = 20 if m["wk"] > 0.3 else -20 if m["wk"] < -0.3 else 0
     from modules import spot_brain_view
-    import streamlit.components.v1 as components
-    components.html(spot_brain_view.render(br, marks), height=1400, scrolling=True)
+    st.iframe(spot_brain_view.render(br, marks), height=1400, alt="Spot brain analysis")
     with st.expander(T("How it decided (thinking log)", "فكّر إزاي (سجل التفكير)")):
         for k, h in br["horizons"].items():
             st.markdown(f"**{h['label']}: {h['verdict_ar']} ({h['score']:+d})** - " + " · ".join(h["reasons"]))
@@ -318,8 +316,7 @@ def _tab_ideas():
             st.error(f"{type(e).__name__}: {e}")
             return
     from modules import spot_board
-    import streamlit.components.v1 as components
-    components.html(spot_board.render(r), height=3700, scrolling=True)
+    st.iframe(spot_board.render(r), height=3700, alt="Spot market board")
     if st.button(T("Send today's ideas to Telegram", "ابعت أفكار النهارده على تليجرام"), key="sp_id_tg"):
         from modules import spot_ideas, telegram_alerts
         err = telegram_alerts.send(spot_ideas.telegram_text(r))
@@ -586,8 +583,7 @@ def _tab_ledger(d, px, fx, egp):
     html = C.invoice_html(tx)
     a.download_button(T("Invoice (HTML, print / save PDF)", "الفاتورة (HTML للطباعة / PDF)"), html.encode("utf8"), file_name=f"invoice_{tx.get('invoice_no') or tx['id']}.html", mime="text/html")
     if b.button(T("Print preview", "معاينة الطباعة"), key="sp_prev"):
-        import streamlit.components.v1 as components
-        components.html(html, height=560, scrolling=True)
+            st.iframe(html, height=560, alt="Spot invoice preview")
     if c3.button(T("Delete record", "امسح التسجيل"), key="sp_del"):
         st.session_state["sp_del_ask"] = sel
     if st.session_state.get("sp_del_ask") == sel:

@@ -12,6 +12,7 @@ EXPECTED_IFRAME_FILES = (
     "modules/quant_execution.py",
     "modules/quant_montecarlo.py",
     "modules/quant_robustness.py",
+    "modules/spot_page.py",
     "main.py",
 )
 

@@ -81,14 +81,45 @@ def _read(rel: str) -> str:
         return ""
 
 
+LIVE_APP = os.path.join(ROOT, "modules", "v7_live_app.html")
+LIVE_IND = os.path.join(ROOT, "modules", "v7_live_ind.js")
+LIVE_LIB = os.path.join(DASH, "vendor", "lightweight-charts.standalone.production.js")
+
+
+def live_html() -> tuple:
+    """-> (html, error): the LIVE chart page (candles fetched by the browser itself) with the chart library and the indicator maths inlined."""
+    try:
+        with open(LIVE_APP, encoding="utf-8") as f:
+            app = f.read()
+        with open(LIVE_IND, encoding="utf-8") as f:
+            ind = f.read()
+        with open(LIVE_LIB, encoding="utf-8") as f:
+            lib = f.read()
+        if "/*LIB*/" not in app or "/*IND*/" not in app:
+            raise ValueError("v7_live_app.html lost its placeholders")
+        safe = lambda s: s.replace("</script", "<\\/script")
+        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)), ""
+    except Exception as e:   # noqa: BLE001
+        return "", f"{type(e).__name__}: {e}"
+
+
 def render() -> None:
     import streamlit as st
     import streamlit.components.v1 as components
     st.subheader("V7 research (CFX v7 single-oscillator chart)")
     st.caption("Research intake, read-only: nothing here is a recommendation or an order. Every claim is `unverified` until it is measured with its sample size; "
                "under 30 cases it is not evidence.")
-    view = st.radio("View", ["Dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
-    if view == "Dashboard":
+    view = st.radio("View", ["Live chart", "Snapshot dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
+    if view == "Live chart":
+        st.info("Live candles fetched by your browser (OKX for crypto, Hyperliquid for gold / silver), refreshed every 5 s; pick the symbol and timeframe inside the chart. "
+                "Indicators are the exact CFX v7 settings. Research dots on closed candles only: not an edge, not a recommendation, no orders.")
+        html, err = live_html()
+        if err:
+            st.error(f"The live chart files could not be loaded: {err}")
+        else:
+            components.html(html, height=700, scrolling=True)
+        return
+    if view == "Snapshot dashboard":
         st.warning("Research snapshot of the CFX v7 chart on GC=F gold FUTURES (not spot XAUUSD), window 6-10 Nov 2026. The dots and alerts are the research rule 'variant B' "
                    "(62 signals on the longer sample, 59.7% against the next 8 bars, p about 0.13): NOT an edge, NOT a recommendation, no orders. Time axis: Cairo.")
         html, err = dashboard_html()

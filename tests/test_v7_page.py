@@ -74,6 +74,15 @@ def test_dashboard_inlines_scripts_and_fails_closed():
     print("ok dashboard inlining")
 
 
+def test_live_html_builds():
+    if not os.path.exists(V.LIVE_LIB):
+        print("skip live html (chart library absent)"); return
+    html, err = V.live_html()
+    assert err == "" and "V7IND" in html and "createChart" in html, err
+    assert "/*LIB*/" not in html and "/*IND*/" not in html and 'src="' not in html, "everything must be inlined"
+    print("ok live html")
+
+
 if __name__ == "__main__":
-    test_loader_and_grouping(); test_broken_data_gives_error_and_no_rows(); test_page_has_no_signal_or_order_controls(); test_real_data_if_present(); test_dashboard_inlines_scripts_and_fails_closed()
+    test_live_html_builds(); test_loader_and_grouping(); test_broken_data_gives_error_and_no_rows(); test_page_has_no_signal_or_order_controls(); test_real_data_if_present(); test_dashboard_inlines_scripts_and_fails_closed()
     print("ALL V7 PAGE TESTS PASSED")

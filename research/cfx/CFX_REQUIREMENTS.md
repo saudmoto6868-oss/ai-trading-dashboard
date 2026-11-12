@@ -10,7 +10,7 @@ Status is against **the current v7 tree**. GC=F futures (yfinance), not spot XAU
 2. Standalone 3-letter indicator **CFX**, separate from TIA; new files/versions rather than overwriting TIA. — **done**.
 3. Do not rebuild from scratch each pass; copy forward and patch. — **done** (v7 built from v6, which restored v2).
 4. Never claim an edge. Backtest n=83, hit 37.35%, +0.238R after $0.30 spread; show numbers at n≥30, claim edge only at n≥100 and t>3 after costs. — **done** (disclaimers on chart, dashboard, log).
-5. rr1 minimum **1.5**. — **done** (engine `RR1_MIN`).
+5. rr1 minimum **2.0**. — **done 2026-11-12** (aligned with the owner-approved platform minimum R:R ≥ 1:2; engine `RR1_MIN`).
 6. Gmail read-only; outgoing mail only via DraftExternalMessage when asked. — **done** (not touched here).
 
 ## Chart content & style

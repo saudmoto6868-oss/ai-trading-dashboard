@@ -29,7 +29,7 @@ Dots sit on the exact signal bar, both sides. They are **not** painted on sequen
 
 Honest check (next 8 bars, MFE vs MAE, Sep–Nov, n=62): **59.7% against-move**. That is documented, not filtered, and is **not** an edge.
 
-The CFX sequential trade engine backtest on the same futures series (separate from this oscillator) is n=83, 37.35% TP1-or-better, +0.238R after a $0.30 spread. Numbers may be shown at n≥30; an edge would require n≥100 and t>3 after costs. Neither threshold is met.
+Historical baseline only: the CFX sequential trade engine backtest on the same futures series (separate from this oscillator) was n=83, 37.35% TP1-or-better, +0.238R after a $0.30 spread under the former 1.5R gate. It is **not a result for the current 2.0R gate**; rerun the backtest before presenting current performance. Even the old sample did not meet the n≥100 and t>3 edge-claim thresholds.
 
 ## SMC / ICT structure
 

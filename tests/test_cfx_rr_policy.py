@@ -19,12 +19,24 @@ def load_pipeline():
         "in_killzone": lambda *_a, **_k: False, "hook_flags": lambda *_a, **_k: {},
     }.items():
         setattr(fake, name, value)
-    sys.modules["fused_oscillator"] = fake
-    spec = importlib.util.spec_from_file_location("cfx_pipeline_policy_test", PIPE)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    old_fused = sys.modules.get("fused_oscillator")
+    old_test_module = sys.modules.get("cfx_pipeline_policy_test")
+    try:
+        sys.modules["fused_oscillator"] = fake
+        spec = importlib.util.spec_from_file_location("cfx_pipeline_policy_test", PIPE)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        if old_fused is None:
+            sys.modules.pop("fused_oscillator", None)
+        else:
+            sys.modules["fused_oscillator"] = old_fused
+        if old_test_module is None:
+            sys.modules.pop("cfx_pipeline_policy_test", None)
+        else:
+            sys.modules["cfx_pipeline_policy_test"] = old_test_module
 
 
 def test_cfx_rr_gate_is_two_to_one():

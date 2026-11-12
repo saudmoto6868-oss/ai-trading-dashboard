@@ -1,5 +1,7 @@
 # CFX fix log — 10 November 2026, Africa/Cairo (UTC+2)
 
+> **Current policy update (2026-11-12):** the active `RR1_MIN` is now 2.0, aligned with the owner-approved platform minimum R:R ≥ 1:2. All historical decisions and performance figures below that explicitly refer to 1.5R are point-in-time records from the former gate. In particular, n=83 / 37.35% / +0.238R is a historical 1.5R result and must not be presented as measured performance under the current 2.0R filter. A fresh backtest at 2.0R is required.
+
 Fixes applied on box files under `/workspace/cfx/` only. No GitLab commit, branch, push, or merge.
 Originals kept in `/workspace/cfx/backups/`.
 

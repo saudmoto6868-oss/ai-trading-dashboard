@@ -25,6 +25,7 @@ academy_tests:
   timeout: 5m
   script:
     - python tests/test_academy.py
+    - python tests/test_academy_intelligence.py
 
 mr_tests:
   stage: test

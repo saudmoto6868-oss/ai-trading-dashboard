@@ -10,6 +10,8 @@ EXPECTED_IFRAME_FILES = (
     "modules/micro_foundations.py",
     "modules/quant_edgemap.py",
     "modules/quant_execution.py",
+    "modules/quant_montecarlo.py",
+    "modules/quant_robustness.py",
     "main.py",
 )
 

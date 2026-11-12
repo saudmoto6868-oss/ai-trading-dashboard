@@ -57,7 +57,7 @@ def _fvgs(b, atr):
 
 def test_js_matches_python_definitions():
     if not shutil.which("node"):
-        print("skip: node not installed"); return
+        raise RuntimeError("Node.js is required for the V7 JavaScript/Python parity test; refusing a silent skip.")
     try:
         import numpy  # noqa: F401
     except Exception as e:  # noqa: BLE001

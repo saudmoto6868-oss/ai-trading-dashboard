@@ -83,3 +83,18 @@ risk_policy_tests:
     - python tests/test_horizons_sizing.py
     - python tests/test_desk_js.py
     - python tests/test_workspace_parts_sync.py
+ÿ
+
+v7_structure_parity:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+  timeout: 10m
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends nodejs
+    - rm -rf /var/lib/apt/lists/*
+    - pip install --quiet -r requirements.txt
+  script:
+    - python tests/test_v7_struct.py

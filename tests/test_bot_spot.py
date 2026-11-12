@@ -73,7 +73,7 @@ SO.build = lambda asset, candles=None: _orig_build(asset, get)
 def fake_to_png(html, path, ctx=None, width=1440):
     # This test verifies bot routing/action handling, not Chromium rendering.
     with open(path, "wb") as image:
-        image.write(b"\\x89PNG\\r\\n\\x1a\\n" + b"\\0" * 50_000)
+        image.write(b"\x89PNG\r\n\x1a\n" + b"\0" * 50_000)
     return path
 
 

@@ -1,5 +1,5 @@
-"""XPiX bot + spot: Arabic router, weekly briefing text, analyzer image (real headless Chromium), action runner against a
-fake platform, weekly schedule. Telegram itself is faked (nothing is sent). Plain script: python3 tests/test_bot_spot.py"""
+"""XPiX bot + spot: Arabic router, weekly briefing text, analyzer image, action runner against a fake platform, weekly schedule.
+The action-runner checks are browser-independent; Telegram itself is faked (nothing is sent)."""
 import datetime as dt
 import os
 import sys
@@ -67,7 +67,6 @@ X.ask_claude = lambda t, deep=False: "LLM: " + t
 import modules.spot_outlook as SO
 _orig_build = SO.build
 SO.build = lambda asset, candles=None: _orig_build(asset, get)
-from playwright.sync_api import sync_playwright
 
 
 class FakePlatform:
@@ -91,31 +90,24 @@ class FakePlatform:
         return out, None
 
 
-with sync_playwright() as pw:
-    try:
-        br = pw.chromium.launch()
-    except Exception:   # sandbox: the pre-installed browser of another Playwright version
-        br = pw.chromium.launch(executable_path="/opt/pw-browsers/chromium")
-    ctx = br.new_context()
-    p = FakePlatform(ctx)
-    X.handle(p, "ابعتلي صورة الدهب على الأسبوعي مع اليوت")
-    assert ("ind", "ew", True) in p.calls and ("shot", "HL:xyz:GOLD", "1W") in p.calls
-    assert sent[-1][0] == "photo" and "اليوت" in sent[-1][2] and "الأسبوعي" in sent[-1][2]
-    X.handle(p, "افتح التايم اند سيلز للبيتكوين")
-    assert ("panel", "tape") in p.calls and ("shot", "BTC-USDT", None) in p.calls
-    X.handle(p, "صورة DOGE")
-    assert "مش في قايمة المنصة" in sent[-1][1]
-    X.handle(p, "ازيك عامل ايه")
-    assert sent[-1] == ("text", "LLM: ازيك عامل ايه")
-    n = len(sent)
-    X.handle(p, "الدهب هيطلع الاسبوع الجاي؟")
-    ph = [s for s in sent[n:] if s[0] == "photo"]
-    assert ph and os.path.getsize(ph[0][1]) > 50_000 and "الدهب" in ph[0][2], sent[n:]
-    X.handle(p, "/spotchart GOLD")
-    assert sent[-1][0] == "photo" and "محلل السبوت" in sent[-1][2]
-    X.handle(p, "/help")
-    assert "أوامر XPiX" in sent[-1][1]
-    br.close()
+p = FakePlatform(None)
+X.handle(p, "ابعتلي صورة الدهب على الأسبوعي مع اليوت")
+assert ("ind", "ew", True) in p.calls and ("shot", "HL:xyz:GOLD", "1W") in p.calls
+assert sent[-1][0] == "photo" and "اليوت" in sent[-1][2] and "الأسبوعي" in sent[-1][2]
+X.handle(p, "افتح التايم اند سيلز للبيتكوين")
+assert ("panel", "tape") in p.calls and ("shot", "BTC-USDT", None) in p.calls
+X.handle(p, "صورة DOGE")
+assert "مش في قايمة المنصة" in sent[-1][1]
+X.handle(p, "ازيك عامل ايه")
+assert sent[-1] == ("text", "LLM: ازيك عامل ايه")
+n = len(sent)
+X.handle(p, "الدهب هيطلع الاسبوع الجاي؟")
+ph = [s for s in sent[n:] if s[0] == "photo"]
+assert ph and os.path.getsize(ph[0][1]) > 50_000 and "الدهب" in ph[0][2], sent[n:]
+X.handle(p, "/spotchart GOLD")
+assert sent[-1][0] == "photo" and "محلل السبوت" in sent[-1][2]
+X.handle(p, "/help")
+assert "أوامر XPiX" in sent[-1][1]
 
 # weekly schedule: once per ISO week, only on the day / after the hour
 st = os.path.join(tempfile.mkdtemp(), "s.json")

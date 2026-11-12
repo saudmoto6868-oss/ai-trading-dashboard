@@ -21,5 +21,9 @@ at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
 at.run()
 assert not at.exception and not at.error
 caps = [c.value for c in at.sidebar.caption if c.value.startswith("Build:") or "Build" in c.value]
-assert caps and (re.search(r"[0-9a-f]{7} · \d{4}-\d\d-\d\d", caps[0]) or caps[0].endswith("unknown")), caps
+assert caps and (
+    re.search(r"[0-9a-f]{7} · \d{4}-\d\d-\d\d", caps[0])
+    or re.fullmatch(r"Build: [0-9a-f]{7}", caps[0])  # documented no-git-metadata fallback
+    or caps[0].endswith("unknown")
+), caps
 print("ok build stamp:", caps[0])

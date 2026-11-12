@@ -16,7 +16,10 @@ XPIX_OUTLOOK_HOUR (Mac local time, default 20); state in ~/.xpix_bot_state.json 
 HONESTY: nothing here has been run against Telegram unless the owner says so; the XCMD part was tested live (tests/browser/xcmd_live.py)."""
 import os, subprocess, sys, time, json, pathlib
 import requests
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # optional screenshot runtime; pure bot commands remain importable
+    sync_playwright = None
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -387,6 +390,8 @@ def handle(p, text):
 def main():
     if not TOKEN or not OWNER:
         sys.exit("Set XPIX_BOT_TOKEN and XPIX_OWNER_CHAT_ID in the environment (never in the repo).")
+    if sync_playwright is None:
+        sys.exit("Playwright is required for the live screenshot bot. Install the Playwright extra and Chromium.")
     with sync_playwright() as pw:
         p = Platform(pw)
         off = 0

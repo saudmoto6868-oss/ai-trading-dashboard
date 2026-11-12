@@ -7,6 +7,7 @@ EXPECTED_IFRAME_FILES = (
     "modules/workspace.py",
     "modules/header_bar.py",
     "modules/tv_widget.py",
+    "modules/micro_foundations.py",
     "main.py",
 )
 

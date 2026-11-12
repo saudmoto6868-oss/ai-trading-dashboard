@@ -1,0 +1,1220 @@
+{
+  "schema_version": 1,
+  "registry_id": "tia_platform_knowledge_registry",
+  "status": "shared_research_guidance_not_execution",
+  "design": {
+    "single_source_of_truth": true,
+    "consumers": "all platform areas via read-only router contract",
+    "agents": "mastermind selects specialists based on page, feature, task and available data",
+    "missing_data": "must produce a blocked/limited explanation; never infer unavailable evidence",
+    "ui": "show concise guidance inline with expandable reasoning, source, limitations and next action"
+  },
+  "global_rules": [
+    "Use the same canonical school/strategy knowledge across the platform; do not duplicate or fork definitions per page.",
+    "Separate facts, observations, hypotheses, textbook heuristics and validated rules.",
+    "Every market observation must carry source, venue/instrument, timestamp, freshness, coverage and raw/derived status.",
+    "Do not merge spot and derivatives books or present one venue's liquidity as global liquidity.",
+    "Never infer institutional intent from OI, volume, DOM or a footprint pattern alone.",
+    "OHLCV cannot reconstruct true volume-at-price or bid/ask classified trade prints.",
+    "A pattern or indicator is not an entry signal by itself. Require regime, location, trigger, confirmation, invalidation and risk plan.",
+    "No probabilities or win-rate claims without a calibrated and sufficiently large evidence sample.",
+    "Use known_time as well as event/pivot time; never backdate a signal before the evidence was knowable.",
+    "No future leakage or repainting. Confirm higher-timeframe values and label intrabar vs bar-close observations.",
+    "Do not double-count correlated indicators or confirmations derived from the same underlying bars.",
+    "All candidate outputs are decision support only. No live order placement, account action or external publication without separate explicit approval."
+  ],
+  "schools": {
+    "price_action": {
+      "name": "Price Action & Market Structure",
+      "role": "primary_candidate",
+      "use_when": [
+        "swing structure",
+        "support resistance",
+        "breakout retest",
+        "range",
+        "candle at level"
+      ],
+      "limits": [
+        "subjective labels must become objective rules",
+        "confirmed pivots are delayed",
+        "not validated by a diagram"
+      ]
+    },
+    "trend": {
+      "name": "Trend Following & Regime",
+      "role": "primary_candidate",
+      "use_when": [
+        "trend regime",
+        "multi-timeframe bias",
+        "momentum continuation"
+      ],
+      "limits": [
+        "trend filters lag",
+        "separate trend and range regimes",
+        "test parameter stability"
+      ]
+    },
+    "sessions": {
+      "name": "Sessions & Liquidity Timing",
+      "role": "timing_context",
+      "use_when": [
+        "Asia London New York",
+        "opening range",
+        "kill zones",
+        "session highs/lows"
+      ],
+      "limits": [
+        "session windows are timezone and DST sensitive",
+        "timing alone is not direction"
+      ]
+    },
+    "smc_ict": {
+      "name": "SMC / ICT",
+      "role": "context_hypothesis",
+      "use_when": [
+        "liquidity sweep",
+        "BOS CHoCH",
+        "FVG IFVG",
+        "order block",
+        "OTE",
+        "AMD"
+      ],
+      "limits": [
+        "define each concept objectively",
+        "do not treat institutional narrative as observed fact",
+        "require invalidation and test"
+      ]
+    },
+    "elliott": {
+      "name": "Elliott Wave",
+      "role": "context_hypothesis",
+      "use_when": [
+        "impulse correction",
+        "wave 3 5 C",
+        "scenario alternatives"
+      ],
+      "limits": [
+        "multiple valid counts are common",
+        "maintain alternate count and invalidation",
+        "no deterministic count without rules"
+      ]
+    },
+    "gann": {
+      "name": "Gann Price-Time Geometry",
+      "role": "context_hypothesis",
+      "use_when": [
+        "Square of Nine",
+        "Gann Fan",
+        "angles",
+        "squares circles",
+        "time cycles"
+      ],
+      "limits": [
+        "anchor and known_time must be stable",
+        "calibrate price/time units",
+        "modern Square-of-Nine formulas are conventions unless source verified",
+        "no predictive claim before OOS testing"
+      ]
+    },
+    "harmonic": {
+      "name": "Harmonic Patterns",
+      "role": "context_hypothesis",
+      "use_when": [
+        "XABCD",
+        "Fibonacci ratio geometry",
+        "PRZ"
+      ],
+      "limits": [
+        "pivot confirmation and ratio tolerances required",
+        "PRZ is a zone not a reversal guarantee"
+      ]
+    },
+    "orderflow": {
+      "name": "Order Flow / Footprint",
+      "role": "execution_confirmation_gate",
+      "use_when": [
+        "bid ask footprint",
+        "delta CVD",
+        "imbalance",
+        "absorption",
+        "exhaustion"
+      ],
+      "requires_capabilities": [
+        "classified_trades"
+      ],
+      "limits": [
+        "must know venue and aggressor classification",
+        "snapshot/feed coverage and latency matter",
+        "never infer intent from one print"
+      ]
+    },
+    "volume_profile": {
+      "name": "Volume Profile & Auction Market Theory",
+      "role": "location_context",
+      "use_when": [
+        "POC VAH VAL",
+        "HVN LVN",
+        "value acceptance rejection",
+        "session profile"
+      ],
+      "requires_capabilities": [
+        "volume_at_price"
+      ],
+      "limits": [
+        "profile anchor/session and algorithm must be explicit",
+        "70% value area is convention not law",
+        "OHLCV is insufficient"
+      ]
+    },
+    "indicators": {
+      "name": "Technical Indicators",
+      "role": "derived_context",
+      "use_when": [
+        "RSI MACD ADX ATR VWAP SAR CCI divergence",
+        "indicator confluence"
+      ],
+      "limits": [
+        "document formula and parameters",
+        "avoid redundant correlated signals",
+        "indicator does not replace structure or risk"
+      ]
+    },
+    "elliott_time_cycles": {
+      "name": "Time/Cycle Research",
+      "role": "timing_hypothesis",
+      "use_when": [
+        "Gann cycles",
+        "calendar cycles",
+        "bar counts",
+        "seasonality"
+      ],
+      "limits": [
+        "separate calendar, trading and bar time",
+        "pre-register cycles and tolerances",
+        "no post-hoc squaring"
+      ]
+    },
+    "options": {
+      "name": "Options & Volatility",
+      "role": "risk_context",
+      "use_when": [
+        "IV skew term structure options positioning GEX"
+      ],
+      "requires_capabilities": [
+        "options_chain"
+      ],
+      "limits": [
+        "chain freshness and coverage required",
+        "GEX is model-dependent estimate",
+        "not a standalone directional signal"
+      ]
+    },
+    "macro_news": {
+      "name": "Macro, News & Events",
+      "role": "context",
+      "use_when": [
+        "economic calendar",
+        "central bank",
+        "macro regime",
+        "earnings news"
+      ],
+      "limits": [
+        "headline interpretation is not forecast",
+        "check timestamp, source and event risk"
+      ]
+    },
+    "risk": {
+      "name": "Risk & Trade Management",
+      "role": "execution_gate",
+      "use_when": [
+        "entry stop target sizing R multiple drawdown"
+      ],
+      "limits": [
+        "include costs and realistic fills",
+        "respect configured risk policy",
+        "no order without explicit approval"
+      ]
+    },
+    "validation": {
+      "name": "Quant Validation & Research Lab",
+      "role": "promotion_gate",
+      "use_when": [
+        "backtest",
+        "walk-forward",
+        "out-of-sample",
+        "parameter selection",
+        "evidence grade"
+      ],
+      "limits": [
+        "control data snooping and overfit",
+        "chronological split",
+        "negative results retained"
+      ]
+    },
+    "spot_investing": {
+      "name": "Spot Portfolio & Holding Horizons",
+      "role": "portfolio_decision_support",
+      "use_when": [
+        "spot accumulation",
+        "holdings review",
+        "day week month year horizon"
+      ],
+      "limits": [
+        "separate spot inventory from futures leverage",
+        "position sizing and portfolio exposure matter",
+        "not a promise of returns"
+      ]
+    }
+  },
+  "routes": {
+    "workspace_charts": {
+      "page": "Workspace",
+      "default_for_page": true,
+      "features": [
+        "charts",
+        "multi chart",
+        "drawing tools",
+        "watchlist",
+        "timeframes"
+      ],
+      "purpose": "Explain the current chart and route the user to the relevant school, setup and evidence without cluttering the chart.",
+      "schools": [
+        "price_action",
+        "trend",
+        "indicators",
+        "gann",
+        "elliott",
+        "harmonic",
+        "smc_ict"
+      ],
+      "thinking_steps": [
+        "Identify symbol, venue, instrument type and timeframe.",
+        "Read regime and higher-timeframe structure before local patterns.",
+        "Identify location: prior levels, range, VWAP/profile only when valid.",
+        "Read the active pattern/indicator and distinguish developing from confirmed.",
+        "Ask for independent trigger and invalidation; produce scenarios, not a command.",
+        "Link to the corresponding Academy lesson and Lab evidence."
+      ],
+      "required_outputs": [
+        "chart_context",
+        "active_structures",
+        "candidate_scenarios",
+        "confirmation_and_invalidation",
+        "data_quality",
+        "academy_links"
+      ],
+      "next_actions": [
+        "open relevant lesson",
+        "inspect alternate scenario",
+        "send candidate to Lab"
+      ],
+      "related_routes": [
+        "workspace_indicators",
+        "workspace_gann",
+        "workspace_patterns",
+        "workspace_orderflow",
+        "workspace_footprint"
+      ]
+    },
+    "workspace_indicators": {
+      "page": "Workspace",
+      "features": [
+        "indicators",
+        "ADX",
+        "RSI",
+        "MACD",
+        "CCI",
+        "SAR",
+        "divergence",
+        "VWAP",
+        "ATR"
+      ],
+      "purpose": "Make every indicator explainable, contextual and testable.",
+      "schools": [
+        "indicators",
+        "trend",
+        "price_action",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Name the indicator, formula, parameters and input timeframe.",
+        "Explain what it measures and what it cannot measure.",
+        "Check regime and location; distinguish trend, momentum, volatility and mean reversion roles.",
+        "Check whether the signal is confirmed or intrabar and whether it repaints.",
+        "Measure incremental value after removing correlated indicators.",
+        "Show a plain-language interpretation and invalidation."
+      ],
+      "required_outputs": [
+        "definition",
+        "parameters",
+        "current_reading",
+        "regime_role",
+        "limitations",
+        "confirmation",
+        "ablation_evidence"
+      ],
+      "next_actions": [
+        "open indicator map",
+        "run ablation in Trading Lab",
+        "link Academy lesson"
+      ],
+      "related_routes": [
+        "trading_lab_validation",
+        "learn_ai_lessons"
+      ]
+    },
+    "workspace_gann": {
+      "page": "Workspace",
+      "features": [
+        "Gann",
+        "Square of Nine",
+        "Gann Fan",
+        "Gann angles",
+        "Gann box",
+        "Gann square",
+        "Gann circles",
+        "time cycles"
+      ],
+      "purpose": "Interpret price-time geometry from a stable anchor and calibrated units.",
+      "schools": [
+        "gann",
+        "elliott_time_cycles",
+        "price_action",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Verify anchor price, pivot time, confirmation time and selection mode.",
+        "Verify instrument modifier, tick size, price unit, time unit and scale calibration.",
+        "Compute the selected Square/Fan/Cycle variant and expose formula metadata.",
+        "Check market structure and location at the projected level/time.",
+        "Wait for an independent confirmed trigger; define invalidation and target.",
+        "Log hypothesis and compare with swing-level and random-time baselines."
+      ],
+      "required_outputs": [
+        "anchor_record",
+        "formula_variant",
+        "price_time_scale",
+        "projected_levels",
+        "cycle_times",
+        "market_context",
+        "trigger_gate",
+        "invalidation",
+        "research_status"
+      ],
+      "next_actions": [
+        "open Gann Academy lesson",
+        "review original source and worked example",
+        "submit candidate to Lab"
+      ],
+      "related_routes": [
+        "spot_gann",
+        "radar_setups",
+        "trading_lab_validation",
+        "learn_ai_lessons"
+      ]
+    },
+    "workspace_patterns": {
+      "page": "Workspace",
+      "features": [
+        "patterns",
+        "candlestick patterns",
+        "chart patterns",
+        "head and shoulders",
+        "double top",
+        "triangle",
+        "wedge",
+        "flag",
+        "harmonic"
+      ],
+      "purpose": "Turn visual patterns into objective, confirmed structures with failure cases.",
+      "schools": [
+        "price_action",
+        "harmonic",
+        "elliott",
+        "smc_ict",
+        "trend",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Identify whether this is a candle, chart structure, harmonic geometry or wave hypothesis.",
+        "Define exact pivots, boundaries and tolerances.",
+        "Check regime and location; pattern names alone do not imply direction.",
+        "Define close-confirmation, breakout/retest trigger and time of knowability.",
+        "Set invalidation, stop and target math; include failed pattern examples.",
+        "Compare detector output with labeled examples and out-of-sample results."
+      ],
+      "required_outputs": [
+        "pattern_family",
+        "objective_definition",
+        "pivots_and_boundaries",
+        "confirmation",
+        "entry_trigger",
+        "invalidation",
+        "targets",
+        "sample_and_evidence"
+      ],
+      "next_actions": [
+        "open visual lesson",
+        "review canonical rule card",
+        "test detector in Lab"
+      ],
+      "related_routes": [
+        "radar_setups",
+        "trading_lab_validation",
+        "learn_ai_lessons"
+      ]
+    },
+    "workspace_orderflow": {
+      "page": "Workspace",
+      "features": [
+        "order flow",
+        "DOM",
+        "depth",
+        "time and sales",
+        "tape",
+        "CVD",
+        "OFI",
+        "liquidity heatmap"
+      ],
+      "purpose": "Read venue-specific executed flow and book state without confusing snapshots, trades and inferred intent.",
+      "schools": [
+        "orderflow",
+        "volume_profile",
+        "price_action",
+        "risk"
+      ],
+      "thinking_steps": [
+        "Identify venue, product type, feed timestamp, sequence health and freshness.",
+        "Separate executed trades, current book snapshots/deltas and persisted historical events.",
+        "Check bid/ask classification and calculate delta/CVD/OFI only from valid source semantics.",
+        "Look for absorption/imbalance only at a pre-defined price location.",
+        "Cross-check with price response, spread, depth changes and follow-through.",
+        "If data is missing/stale/partial, downgrade to limited and do not infer."
+      ],
+      "required_outputs": [
+        "venue_and_instrument",
+        "feed_health",
+        "trade_coverage",
+        "book_coverage",
+        "delta_cvd_ofi",
+        "candidate_events",
+        "price_response",
+        "limitations"
+      ],
+      "next_actions": [
+        "inspect feed diagnostics",
+        "review Order Flow lesson",
+        "record example for Lab"
+      ],
+      "related_routes": [
+        "workspace_footprint",
+        "radar_flow",
+        "radar_liquidity",
+        "trading_lab_validation"
+      ]
+    },
+    "workspace_footprint": {
+      "page": "Workspace",
+      "features": [
+        "footprint",
+        "bid ask",
+        "imbalance",
+        "absorption",
+        "exhaustion",
+        "stacked imbalance"
+      ],
+      "purpose": "Explain footprint cells and order-flow events with data provenance and context.",
+      "schools": [
+        "orderflow",
+        "price_action",
+        "volume_profile",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Confirm classified trade-print feed and aggressor-side methodology.",
+        "Confirm aggregation price step, timeframe, session and missing intervals.",
+        "Read diagonal bid/ask imbalance with threshold and minimum-volume context.",
+        "Distinguish passive absorption from exhaustion and simple low-volume prints.",
+        "Require price reaction and location; no single cell is an entry.",
+        "Log the event and evaluate forward outcome with realistic costs."
+      ],
+      "required_outputs": [
+        "feed_provenance",
+        "aggregation",
+        "bid_ask_cells",
+        "delta_and_imbalance",
+        "location",
+        "price_response",
+        "candidate_interpretation",
+        "confidence_limits"
+      ],
+      "next_actions": [
+        "review Footprint lesson",
+        "check raw trade samples",
+        "add labeled event to Lab"
+      ],
+      "related_routes": [
+        "workspace_orderflow",
+        "radar_flow",
+        "trading_lab_validation"
+      ]
+    },
+    "radar_pulse": {
+      "page": "Radar",
+      "default_for_page": true,
+      "features": [
+        "market pulse",
+        "breadth",
+        "relative strength",
+        "rotation",
+        "regime",
+        "screener",
+        "similar",
+        "correlation"
+      ],
+      "purpose": "Rank what deserves attention, not what must be traded.",
+      "schools": [
+        "trend",
+        "sessions",
+        "macro_news",
+        "indicators",
+        "spot_investing",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Check universe coverage, timestamp and freshness per venue.",
+        "Read breadth, relative strength, volatility and regime as separate features.",
+        "Compare peers and rotation without mixing spot/perp venues.",
+        "Identify event/news risk and data gaps.",
+        "Route top candidates to chart, flow, setup and Lab checks.",
+        "Explain why an asset is on the radar and what would invalidate attention."
+      ],
+      "required_outputs": [
+        "universe_coverage",
+        "freshness",
+        "regime",
+        "breadth",
+        "relative_strength",
+        "rotation",
+        "rank_reasons",
+        "next_checks"
+      ],
+      "next_actions": [
+        "open candidate chart",
+        "inspect venue flow",
+        "compare peer group"
+      ],
+      "related_routes": [
+        "radar_flow",
+        "radar_liquidity",
+        "radar_auction",
+        "radar_setups",
+        "spot_overview"
+      ]
+    },
+    "radar_flow": {
+      "page": "Radar",
+      "features": [
+        "flow",
+        "long short build up",
+        "short covering",
+        "long unwinding",
+        "CVD",
+        "OI",
+        "funding",
+        "premium"
+      ],
+      "purpose": "Separate executed pressure from derivative positioning and avoid overclaiming direction.",
+      "schools": [
+        "orderflow",
+        "risk",
+        "price_action",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Identify spot/perp/futures venue and data source.",
+        "Separate trades, CVD, OI, funding and premium; show formulas.",
+        "Classify build-up/unwinding only from joint price/OI conditions and disclose limitations.",
+        "Check price response and whether flow is stale or partial.",
+        "Use as confirmation at a pre-defined level, not as a direction oracle."
+      ],
+      "required_outputs": [
+        "venue",
+        "source_time",
+        "price_change",
+        "oi_change",
+        "funding",
+        "trade_delta",
+        "classification",
+        "limitations"
+      ],
+      "next_actions": [
+        "inspect DOM/tape in Workspace",
+        "check setup location",
+        "log evidence in Lab"
+      ],
+      "related_routes": [
+        "workspace_orderflow",
+        "workspace_footprint",
+        "radar_setups"
+      ]
+    },
+    "radar_liquidity": {
+      "page": "Radar",
+      "features": [
+        "liquidity",
+        "DOM",
+        "heatmap",
+        "sweeps",
+        "absorption",
+        "depth imbalance"
+      ],
+      "purpose": "Distinguish live book liquidity from persisted historical liquidity and candle volume.",
+      "schools": [
+        "orderflow",
+        "price_action",
+        "sessions",
+        "risk"
+      ],
+      "thinking_steps": [
+        "Verify venue-specific snapshot and sequence continuity.",
+        "Separate current DOM from persisted historical book events.",
+        "Map depth changes and sweeps to exact price/time.",
+        "Require trade prints and price response before calling absorption.",
+        "Never reconstruct historical DOM from candle volume."
+      ],
+      "required_outputs": [
+        "venue",
+        "book_timestamp",
+        "sequence_health",
+        "spread",
+        "depth",
+        "persisted_history_coverage",
+        "candidate_events"
+      ],
+      "next_actions": [
+        "open Order Flow Map",
+        "inspect Time & Sales",
+        "review liquidity lesson"
+      ],
+      "related_routes": [
+        "workspace_orderflow",
+        "workspace_footprint",
+        "radar_flow"
+      ]
+    },
+    "radar_auction": {
+      "page": "Radar",
+      "features": [
+        "auction",
+        "volume profile",
+        "POC",
+        "VAH",
+        "VAL",
+        "HVN",
+        "LVN",
+        "VWAP",
+        "acceptance",
+        "rejection"
+      ],
+      "purpose": "Map auction location and value migration only from correct volume semantics.",
+      "schools": [
+        "volume_profile",
+        "price_action",
+        "sessions",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Verify volume-at-price availability, venue and session.",
+        "Record profile anchor, range and value-area algorithm.",
+        "Mark POC/VAH/VAL/HVN/LVN with developing/fixed state.",
+        "Assess acceptance/rejection by closes, time and volume response.",
+        "Define retest and invalidation; test against ordinary support/resistance."
+      ],
+      "required_outputs": [
+        "volume_source",
+        "profile_anchor",
+        "session",
+        "algorithm",
+        "poc_vah_val",
+        "hvn_lvn",
+        "acceptance_rejection",
+        "data_status"
+      ],
+      "next_actions": [
+        "check volume-at-price provider",
+        "open Volume Profile lesson",
+        "test auction setup in Lab"
+      ],
+      "related_routes": [
+        "workspace_orderflow",
+        "trading_lab_validation",
+        "learn_ai_lessons"
+      ]
+    },
+    "radar_setups": {
+      "page": "Radar",
+      "features": [
+        "setups",
+        "signals",
+        "candidates",
+        "scanner",
+        "screener",
+        "entry trigger"
+      ],
+      "purpose": "Explain candidate setups through the platform's shared decision chain.",
+      "schools": [
+        "price_action",
+        "trend",
+        "sessions",
+        "smc_ict",
+        "elliott",
+        "gann",
+        "harmonic",
+        "orderflow",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Regime: trend/range/transition and volatility.",
+        "Higher-timeframe bias and structure.",
+        "Location: levels, liquidity, profile/VWAP only if data is valid.",
+        "Trigger: objective pattern/price action condition.",
+        "Order Flow gate: only if valid prints/book are present and required by setup.",
+        "Timing and event risk.",
+        "Plan: entry, stop, targets, costs, R multiple and invalidation.",
+        "Evidence: sample size, OOS state and limitations."
+      ],
+      "required_outputs": [
+        "decision_chain",
+        "candidate_or_confirmed",
+        "evidence_by_school",
+        "missing_gates",
+        "entry_stop_targets",
+        "costs",
+        "lab_status"
+      ],
+      "next_actions": [
+        "open setup card",
+        "inspect confirmation data",
+        "send to Trading Lab"
+      ],
+      "related_routes": [
+        "trading_lab_validation",
+        "learn_ai_lessons",
+        "tia_director"
+      ]
+    },
+    "spot_overview": {
+      "page": "Spot",
+      "default_for_page": true,
+      "features": [
+        "spot",
+        "crypto spot",
+        "watchlist",
+        "holdings",
+        "portfolio"
+      ],
+      "purpose": "Provide spot-specific research and portfolio context without importing futures assumptions.",
+      "schools": [
+        "spot_investing",
+        "trend",
+        "price_action",
+        "macro_news",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Confirm spot instrument, exchange and holdings basis.",
+        "Read day/week/month/year horizon independently.",
+        "Review trend, market structure, valuation/context and event risks.",
+        "Check liquidity and spot flow separately from derivatives positioning.",
+        "For holdings, evaluate hold/reduce/protect/exit against original thesis and portfolio exposure.",
+        "Show accumulation zone, invalidation and staged plan only as a research scenario."
+      ],
+      "required_outputs": [
+        "spot_venue",
+        "holdings_context",
+        "four_horizons",
+        "thesis",
+        "invalidation",
+        "portfolio_risk",
+        "data_freshness"
+      ],
+      "next_actions": [
+        "open Spot brain view",
+        "review holding ledger",
+        "compare horizon scenarios"
+      ],
+      "related_routes": [
+        "spot_gann",
+        "spot_elliott",
+        "spot_patterns",
+        "trading_lab_validation"
+      ]
+    },
+    "spot_gann": {
+      "page": "Spot",
+      "features": [
+        "Gann",
+        "Square of Nine",
+        "Gann Fan",
+        "price time cycles"
+      ],
+      "purpose": "Use Gann as a spot price/time context layer, not a buy/sell command.",
+      "schools": [
+        "gann",
+        "price_action",
+        "trend",
+        "spot_investing",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Use a confirmed anchor on the same spot venue and quote basis.",
+        "Apply a fixed multiplier and price/time calibration.",
+        "Project candidate levels/cycles; state formula variant.",
+        "Check spot trend, support/resistance and accumulation horizon.",
+        "Wait for price confirmation and define invalidation and staged risk.",
+        "Compare predictive value with plain swing levels."
+      ],
+      "required_outputs": [
+        "anchor",
+        "gann_levels",
+        "fan_calibration",
+        "cycle_windows",
+        "spot_context",
+        "confirmation",
+        "invalidation",
+        "research_status"
+      ],
+      "next_actions": [
+        "open Gann research card",
+        "compare daily/weekly levels",
+        "send hypothesis to Lab"
+      ],
+      "related_routes": [
+        "workspace_gann",
+        "spot_overview",
+        "trading_lab_validation"
+      ]
+    },
+    "spot_elliott": {
+      "page": "Spot",
+      "features": [
+        "Elliott",
+        "wave count",
+        "wave 3",
+        "wave 5",
+        "wave C"
+      ],
+      "purpose": "Provide alternate wave scenarios for spot holding horizons.",
+      "schools": [
+        "elliott",
+        "price_action",
+        "trend",
+        "spot_investing",
+        "risk"
+      ],
+      "thinking_steps": [
+        "Identify degree and timeframe; do not mix degrees.",
+        "Build primary and alternate counts.",
+        "Check hard wave rules and invalidation for each count.",
+        "Map likely correction/impulse scenarios to spot holding horizon.",
+        "Require price structure confirmation before adjusting holdings."
+      ],
+      "required_outputs": [
+        "degree",
+        "primary_count",
+        "alternate_count",
+        "invalidation",
+        "scenario_levels",
+        "horizon_fit"
+      ],
+      "next_actions": [
+        "open Elliott lesson",
+        "compare alternate count",
+        "review holdings risk"
+      ],
+      "related_routes": [
+        "spot_overview",
+        "radar_setups",
+        "learn_ai_lessons"
+      ]
+    },
+    "spot_patterns": {
+      "page": "Spot",
+      "features": [
+        "patterns",
+        "candlestick",
+        "chart patterns",
+        "harmonic"
+      ],
+      "purpose": "Use patterns as thesis context for spot entries and holding management.",
+      "schools": [
+        "price_action",
+        "harmonic",
+        "trend",
+        "spot_investing",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Classify candle vs chart vs harmonic pattern.",
+        "Define confirmed pivots and pattern completion.",
+        "Check higher timeframe location and regime.",
+        "Require close-confirmation and invalidation.",
+        "Build staged accumulation/protection scenarios; include costs."
+      ],
+      "required_outputs": [
+        "pattern_type",
+        "completion_state",
+        "context",
+        "confirmation",
+        "invalidation",
+        "staged_plan",
+        "evidence"
+      ],
+      "next_actions": [
+        "open visual lesson",
+        "inspect chart trigger",
+        "backtest pattern"
+      ],
+      "related_routes": [
+        "workspace_patterns",
+        "spot_overview",
+        "trading_lab_validation"
+      ]
+    },
+    "trading_lab_validation": {
+      "page": "Trading Lab",
+      "default_for_page": true,
+      "features": [
+        "backtest",
+        "validation",
+        "calibration",
+        "rotation",
+        "evidence",
+        "strategy lab",
+        "walk forward"
+      ],
+      "purpose": "Determine whether an idea adds measurable value after costs and out of sample.",
+      "schools": [
+        "validation",
+        "risk",
+        "price_action",
+        "trend",
+        "orderflow",
+        "gann",
+        "elliott",
+        "harmonic",
+        "indicators"
+      ],
+      "thinking_steps": [
+        "Freeze hypothesis, detector version, data universe and parameters.",
+        "Verify data quality, timestamps, survivorship and lookahead controls.",
+        "Define fills, spread, fees, slippage, funding and stop/target ordering.",
+        "Run baseline and ablation comparisons.",
+        "Use chronological train/validation/test and walk-forward.",
+        "Report sample size, expectancy, R distribution, drawdown, costs and parameter stability.",
+        "Keep failed/neutral results and do not promote without evidence gate."
+      ],
+      "required_outputs": [
+        "hypothesis_id",
+        "dataset_provenance",
+        "version",
+        "sample_size",
+        "cost_model",
+        "baseline_comparison",
+        "oos_metrics",
+        "limitations",
+        "promotion_decision"
+      ],
+      "next_actions": [
+        "open evidence ledger",
+        "run ablation",
+        "request independent review"
+      ],
+      "related_routes": [
+        "learn_ai_lessons",
+        "radar_setups",
+        "tia_director"
+      ]
+    },
+    "learn_ai_lessons": {
+      "page": "Learn and AI",
+      "default_for_page": true,
+      "features": [
+        "Learn",
+        "Academy",
+        "AI",
+        "lessons",
+        "schools",
+        "examples",
+        "AI tutor",
+        "research"
+      ],
+      "purpose": "Teach the same canonical platform knowledge and show its evidence state.",
+      "schools": [
+        "price_action",
+        "trend",
+        "sessions",
+        "smc_ict",
+        "elliott",
+        "gann",
+        "harmonic",
+        "orderflow",
+        "volume_profile",
+        "indicators",
+        "validation",
+        "risk"
+      ],
+      "thinking_steps": [
+        "Identify learner level and lesson objective.",
+        "Explain concept, terminology and source provenance.",
+        "Show valid, invalid and ambiguous examples.",
+        "Translate concepts into hard rules, soft rules, confirmation and invalidation.",
+        "Show related setups, platform features and required data.",
+        "Display lab status and uncertainty; offer a practice task."
+      ],
+      "required_outputs": [
+        "lesson_objective",
+        "source_links",
+        "concepts",
+        "worked_examples",
+        "counterexamples",
+        "setup_rules",
+        "related_features",
+        "evidence_status",
+        "practice"
+      ],
+      "next_actions": [
+        "open relevant school",
+        "compare examples",
+        "submit a question or lab hypothesis"
+      ],
+      "related_routes": [
+        "workspace_charts",
+        "workspace_gann",
+        "workspace_patterns",
+        "workspace_footprint",
+        "trading_lab_validation"
+      ]
+    },
+    "tia_director": {
+      "page": "TIA",
+      "default_for_page": true,
+      "features": [
+        "TIA",
+        "director",
+        "agents",
+        "team",
+        "memory",
+        "tasks",
+        "handoffs",
+        "session prep"
+      ],
+      "purpose": "Orchestrate specialists using shared knowledge and data-aware gates; remain auditable.",
+      "schools": [
+        "price_action",
+        "trend",
+        "sessions",
+        "smc_ict",
+        "elliott",
+        "gann",
+        "harmonic",
+        "orderflow",
+        "volume_profile",
+        "indicators",
+        "options",
+        "macro_news",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Parse objective, page context, instrument, horizon and permitted actions.",
+        "Select specialists and shared school cards based on task.",
+        "Check data capabilities and provenance before analysis.",
+        "Delegate bounded tasks with explicit inputs, output schema and completion criteria.",
+        "Synthesize agreements, disagreements, missing evidence and next actions.",
+        "Record sources, agent trace, decision rationale and unresolved questions.",
+        "Request human approval for external actions; never autonomously place orders."
+      ],
+      "required_outputs": [
+        "task_contract",
+        "specialists_selected",
+        "evidence_map",
+        "disagreements",
+        "missing_data",
+        "decision_summary",
+        "audit_trace",
+        "approval_requirements"
+      ],
+      "next_actions": [
+        "assign specialist task",
+        "open source lesson",
+        "send candidate to Lab"
+      ],
+      "related_routes": [
+        "radar_setups",
+        "trading_lab_validation",
+        "learn_ai_lessons"
+      ]
+    },
+    "orderflow_desk": {
+      "page": "Order Flow Desk",
+      "default_for_page": true,
+      "features": [
+        "Order Flow Desk",
+        "flow analysis",
+        "DOM",
+        "tape",
+        "footprint",
+        "delta",
+        "liquidity"
+      ],
+      "purpose": "Provide a source-aware flow interpretation while respecting the separate Order Flow code ownership boundary.",
+      "schools": [
+        "orderflow",
+        "volume_profile",
+        "price_action",
+        "sessions",
+        "risk",
+        "validation"
+      ],
+      "thinking_steps": [
+        "Use the Desk's own feed contract and venue; do not assume Radar/Spot data is interchangeable.",
+        "Check trade classification, book sequence health, timestamps and data gaps.",
+        "Separate footprint cells, CVD, DOM, liquidity events and derived labels.",
+        "Map events to a pre-defined price level and market structure.",
+        "State what the data supports and what it cannot prove.",
+        "Produce a proposal/evidence record for the shared brain; do not edit another stream's files."
+      ],
+      "required_outputs": [
+        "source_contract",
+        "feed_health",
+        "venue",
+        "event_metrics",
+        "price_context",
+        "limitations",
+        "proposal_or_evidence"
+      ],
+      "next_actions": [
+        "inspect raw feed",
+        "open Academy Order Flow lesson",
+        "submit validated rule to Lab"
+      ],
+      "related_routes": [
+        "workspace_footprint",
+        "radar_flow",
+        "radar_liquidity",
+        "trading_lab_validation"
+      ]
+    }
+  }
+}

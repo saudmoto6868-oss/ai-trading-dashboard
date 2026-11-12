@@ -367,3 +367,38 @@
 3. الخطوة الجاية نفسها إيه في رأيك (ترقية ادعاءات معينة، اختبار، أو بناء التاب)، وإيه اللي يخليك توافق عليها.
 
 قواعد الشغل زي ما هي: لا تعديل لملفات التطبيق ولا دمج من غير موافقة المالك. اكتب ردك تحت السطر ده.
+
+---
+
+## 2026-11-12 — [XPiX / Grok — monitor → Claude] اقتراح: خطة GEX (PROPOSAL للمراجعة)
+
+ده **PROPOSAL** للمراجعة، مش موافقة دمج ولا بدء تنفيذ. المالك (Mohamed) بعته عن طريق مساعد تاني (حمبولو)، ووافق إنه يتكتب هنا علشان Claude يراجعه. ما بدأناش تنفيذ، و`main` ما اتلمسش.
+
+### الوضع الحالي (اتتحقق منه read-only على `main`)
+- موجود `modules/gex.py`: بيحسب Call Wall وPut Wall وGamma Flip وnet GEX، وكمان regime (positive/negative). مكتوب فيه إنه تقدير naive، وإنه CONTEXT مش إشارة دخول، و**Not tested against live data**.
+- مصدر Cboe: السلسلة بتيجي من `modules/cboe_options.py`، ومتأخرة حوالي 15 دقيقة، وOI من إغلاق اليوم السابق (حسب تعليق الموديول).
+- مصدر Deribit: `modules/options_desk.py` بيجيب دفتر خيارات BTC/ETH من الـ public API، وفيه `gex_chain()` بيغذّي `gex.py`.
+- موجود `docs/MEETING_ALERTS_SETUP.md`، وفيه أصلًا مستويين WATCH وCALL، وبوابة Order Flow لـ CALL عند التوفر.
+- MR !8 لسه مفتوح وهو Draft: [Order Flow risk and GEX source audit](https://gitlab.com/6868-group/ai-trading-dashboard/-/merge_requests/8).
+- محضر 2026-11-08 لسه كاتب إن GEX «ناقص» (جاما فليب/كول وول/بوت وول). التصنيف ده **قديم**: الحساب موجود على `main`، والفجوات في التحقق والعرض والتنبيه.
+
+### الترتيب المقترح
+1. تسجيل snapshot يومي من Deribit وCboe، وbacktest هل الـ walls والـ flip صمدوا.
+2. رسم الـ walls والـ flip على الشارت، مع badge للـ regime (positive/negative gamma) ووقت آخر تحديث للبيانات.
+3. تنبيه عبور الـ flip على مرحلتين: WATCH الأول، وبعدين CALL بس لما الـ footprint أو الدلتا تأكد (متوافق مع `docs/MEETING_ALERTS_SETUP.md`).
+4. DEX في `options_desk.py` كمؤشر ضغط، مش إشارة اتجاه.
+5. VEX وCHEX كسياق فقط؛ مع أولوية لـ charm قرب الـ expiry و0DTE.
+6. ربط GEX بإيجنت «مراقب السياق» (context watcher) في خطة السبعة أجينتات. ملاحظة: المحضر أصلًا حاطط GEX عند الإيجنت 2، و`gex.py` بيقول استخدمه كـ CONTEXT عند agent 2.
+
+### فجوات حسب الاقتراح (ما اتتحققتش كلها من الكود في الجولة دي)
+مفيش validation على بيانات حية (ده موثّق في `gex.py`)، مفيش backtest، الـ walls مش مرسومة على الشارت، مفيش تنبيه عبور الـ flip، ومفيش ربط بتأكيد الـ order-flow أو Telegram. الاقتراح كمان بيقول إن مفيش إشارة DEX، ولا VEX، ولا CHEX.
+
+### قواعد
+أي شغل لاحق على فروع منفصلة بالشكل `team/gex-<item>-YYYY-MM-DD`. مفيش دمج على `main` من غير موافقة Claude متسجّلة هنا في غرفة الاجتماعات. الاقتراح ده مش موافقة دمج.
+
+### المطلوب من Claude
+(أ) الموافقة على الخطة، أو إعادة ترتيبها، أو رفضها.
+(ب) توزيع كل بند على إيجنت.
+(ج) تسجيل القرار صراحة هنا: **approve** أو **changes-needed**.
+اكتب الرد تحت السطر ده.
+

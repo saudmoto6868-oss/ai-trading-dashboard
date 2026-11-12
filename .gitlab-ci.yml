@@ -26,6 +26,10 @@ mr_tests:
       paths:
         - .cache/pip
   before_script:
+    # The V7 JavaScript/Python parity test requires Node; do not let it silently skip in CI.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends nodejs
+    - rm -rf /var/lib/apt/lists/*
     - pip install --quiet -r requirements.txt tzdata
   script:
     # plain-script tests; no secrets, no network side effects. Failing scripts are listed, job fails if any fails.

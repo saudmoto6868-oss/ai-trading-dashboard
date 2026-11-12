@@ -9,7 +9,7 @@ Status is against **the current v7 tree**. GC=F futures (yfinance), not spot XAU
 1. Work only under `/workspace/cfx`. Local files. **No GitLab push, no merge to `main`.** — **done** (honoured through v7).
 2. Standalone 3-letter indicator **CFX**, separate from TIA; new files/versions rather than overwriting TIA. — **done**.
 3. Do not rebuild from scratch each pass; copy forward and patch. — **done** (v7 built from v6, which restored v2).
-4. Never claim an edge. Backtest n=83, hit 37.35%, +0.238R after $0.30 spread; show numbers at n≥30, claim edge only at n≥100 and t>3 after costs. — **done** (disclaimers on chart, dashboard, log).
+4. Never claim an edge. Historical backtest n=83, hit 37.35%, +0.238R after $0.30 spread was measured under the former 1.5R gate; it is not current 2.0R performance. Keep it labeled historical and rerun before making current performance claims. Edge claims still require n≥100 and t>3 after costs. — **done** (historical disclaimer added; new 2.0R backtest remains open).
 5. rr1 minimum **2.0**. — **done 2026-11-12** (aligned with the owner-approved platform minimum R:R ≥ 1:2; engine `RR1_MIN`).
 6. Gmail read-only; outgoing mail only via DraftExternalMessage when asked. — **done** (not touched here).
 

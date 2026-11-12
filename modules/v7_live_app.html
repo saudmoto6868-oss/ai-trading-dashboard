@@ -18,15 +18,16 @@
  <select id="sym"></select><select id="tf"></select>
  <button id="ctr" title="Put the current candle back in the middle">Center on now</button><span id="px">-</span><span id="chg"></span><span id="live" class="dn">connecting...</span></div>
 <div id="grid"><div id="charts"><div id="chart"></div><div id="osc"></div><div id="macd"></div></div>
-<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
+<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Structure &amp; liquidity (closed candles)</h3><div id="struct">loading...</div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
 <div id="note">Live candles from public APIs (OKX for crypto, Hyperliquid xyz perpetuals for gold / silver) refreshed every 5 s. Indicators use the exact CFX v7 settings and are computed in this browser. Signals are research dots on CLOSED candles only, rule "variant B" (62 signals on gold futures Sep-Nov, 59.7% against the next 8 bars, p about 0.13): NOT an edge, NOT a recommendation, no orders. Perpetual prices differ slightly from futures / spot.</div>
 <script>/*LIB*/</script>
 <script>/*IND*/</script>
+<script>/*STRUCT*/</script>
 <script>
 (function(){
 const SYMS=[['BTC-USDT','okx','BTC-USDT'],['ETH-USDT','okx','ETH-USDT'],['SOL-USDT','okx','SOL-USDT'],['XRP-USDT','okx','XRP-USDT'],['DOGE-USDT','okx','DOGE-USDT'],['GOLD (Hyperliquid xyz perp)','hl','xyz:GOLD'],['SILVER (Hyperliquid xyz perp)','hl','xyz:SILVER']];
 const TFS={'5m':{okx:'5m',hl:'5m',sec:300},'15m':{okx:'15m',hl:'15m',sec:900},'1H':{okx:'1H',hl:'1h',sec:3600},'4H':{okx:'4H',hl:'4h',sec:14400},'1D':{okx:'1D',hl:'1d',sec:86400}};
-const $=id=>document.getElementById(id),I=window.V7IND,fin=Number.isFinite;
+const $=id=>document.getElementById(id),I=window.V7IND,S=window.V7STRUCT,fin=Number.isFinite;
 SYMS.forEach((s,i)=>$('sym').append(Object.assign(document.createElement('option'),{value:i,textContent:s[0]})));
 Object.keys(TFS).forEach(t=>$('tf').append(Object.assign(document.createElement('option'),{value:t,textContent:t})));
 $('tf').value='15m';
@@ -78,6 +79,21 @@ async function tick(){if(busy)return;busy=true;const s=SYMS[+$('sym').value],tf=
       row('Bars loaded',bars.length)+(bars.length<150?row('Note','fewer than 144 bars: SMA 144 not complete yet','dn'):'');
     const ls=sig[sig.length-1];$('sigs').innerHTML=row('Signals in window',sig.length+' (closed candles)')+(ls?row('Last',ls.side+' @ '+fmtT(bars[ls.i].time)+', '+(lastClosed-ls.i)+' bars ago',ls.side==='buy'?'up':'dn'):row('Last','none in this window'))+
       '<div class="r" style="display:block;font-size:10px;margin-top:4px">Research rule, not evidence: under 30 cases per setup it proves nothing, and the original sample was 59.7% against the move.</div>';
+    const closed=bars.length && bars[bars.length-1].closed===false ? bars.slice(0,-1) : bars;
+    const z=S.compute(closed),H=z.sw.H,Lo=z.sw.L,sh=H[H.length-1],sl=Lo[Lo.length-1];
+    const eh=z.eqh[z.eqh.length-1],el=z.eql[z.eql.length-1],fz=z.fvg[z.fvg.length-1],pd=z.prevDay,ote=z.ote;
+    const sessions=z.sessions.slice(-3).map(x=>x.name+' '+fmtT(closed[x.i0].time)+'–'+fmtT(closed[x.i1].time)).join(' | ');
+    $('struct').innerHTML=row('Bars used',closed.length+' closed')+
+      row('Last confirmed swing H / L',(sh?f2(sh.p):'-')+' / '+(sl?f2(sl.p):'-'))+
+      row('Structure trend',z.trend||'unconfirmed',z.trend==='up'?'up':z.trend==='down'?'dn':'')+
+      row('Latest BOS / CHoCH',z.events.length?z.events[z.events.length-1].type+' '+z.events[z.events.length-1].dir:'none')+
+      row('EQH / EQL',(eh?f2(eh.p):'-')+' / '+(el?f2(el.p):'-'))+
+      row('Unfilled FVGs',String(z.fvg.length)+(fz?' (latest '+fz.dir+' '+f2(fz.lo)+'–'+f2(fz.hi)+')':''))+
+      row('Premium / discount EQ',z.pd?f2(z.pd.eq):'-')+
+      row('OTE 62 / 70.5 / 79',ote?ote.dir+' '+f2(ote.p62)+' / '+f2(ote.p705)+' / '+f2(ote.p79):'-')+
+      row('Previous NY session H / L',pd?f2(pd.hi)+' / '+f2(pd.lo):'not enough history')+
+      row('Recent sessions',sessions||'none in loaded bars')+
+      '<div class="r" style="display:block;font-size:10px;margin-top:4px">Structure values are calculated from closed candles only. Research context; not entries or trade signals.</div>';
   }catch(e){$('live').textContent='ERROR: '+String(e&&e.message||e).slice(0,70);$('live').className='dn';}
   busy=false;}
 async function getFor(s,name){const tf=TFS[name];return s[1]==='okx'?getOKX(s[2],tf.okx):getHL(s[2],tf.hl,tf.sec);}

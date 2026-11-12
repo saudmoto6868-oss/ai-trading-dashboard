@@ -83,6 +83,7 @@ def _read(rel: str) -> str:
 
 LIVE_APP = os.path.join(ROOT, "modules", "v7_live_app.html")
 LIVE_IND = os.path.join(ROOT, "modules", "v7_live_ind.js")
+LIVE_STRUCT = os.path.join(ROOT, "modules", "v7_live_struct.js")
 LIVE_LIB = os.path.join(DASH, "vendor", "lightweight-charts.standalone.production.js")
 
 
@@ -93,12 +94,15 @@ def live_html() -> tuple:
             app = f.read()
         with open(LIVE_IND, encoding="utf-8") as f:
             ind = f.read()
+        with open(LIVE_STRUCT, encoding="utf-8") as f:
+            struct = f.read()
         with open(LIVE_LIB, encoding="utf-8") as f:
             lib = f.read()
-        if "/*LIB*/" not in app or "/*IND*/" not in app:
-            raise ValueError("v7_live_app.html lost its placeholders")
+        if "/*LIB*/" not in app or "/*IND*/" not in app or "/*STRUCT*/" not in app:
+            raise ValueError("v7_live_app.html lost one or more script placeholders")
         safe = lambda s: s.replace("</script", "<\\/script")
-        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)), ""
+        html = app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)).replace("/*STRUCT*/", safe(struct))
+        return html, ""
     except Exception as e:   # noqa: BLE001
         return "", f"{type(e).__name__}: {e}"
 

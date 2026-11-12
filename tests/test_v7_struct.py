@@ -5,6 +5,8 @@ import json
 import os
 import shutil
 import subprocess
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JS = os.path.join(ROOT, "modules", "v7_live_struct.js")
@@ -59,6 +61,39 @@ def _events(b, H, Lo, L=3):
     return ev, trend
 
 
+def _ny_session_day(sec):
+    dt = datetime.fromtimestamp(sec, timezone.utc).astimezone(ZoneInfo("America/New_York"))
+    if dt.hour >= 18:
+        dt += timedelta(days=1)
+    return dt.date().isoformat()
+
+
+def _prev_day(b):
+    if not b:
+        return None
+    today = _ny_session_day(b[-1]["time"])
+    prior, hi, lo = None, float("-inf"), float("inf")
+    for x in reversed(b):
+        key = _ny_session_day(x["time"])
+        if key == today:
+            continue
+        if prior is None:
+            prior = key
+        if key != prior:
+            break
+        hi, lo = max(hi, x["high"]), min(lo, x["low"])
+    return None if prior is None else {"hi": hi, "lo": lo, "sessionDate": prior}
+
+
+def _equal(sw, atr, n, max_back=150):
+    out, tol = [], 0.10 * atr
+    for a in range(len(sw)):
+        for c in range(a + 1, len(sw)):
+            if sw[a][0] >= n - max_back and sw[c][0] >= n - max_back and abs(sw[a][1] - sw[c][1]) <= tol:
+                out.append({"i1": sw[a][0], "i2": sw[c][0], "p": (sw[a][1] + sw[c][1]) / 2})
+    return out[-6:]
+
+
 def _fvgs(b, atr):
     out, n = [], len(b)
     for i in range(2, n):
@@ -102,6 +137,15 @@ def test_js_matches_python_definitions():
         if H and Lo:
             assert abs(res["pd"]["eq"] - (H[-1][1] + Lo[-1][1]) / 2) < 1e-9
             assert res["ote"]["dir"] == ("up" if H[-1][0] > Lo[-1][0] else "down")
+            span = H[-1][1] - Lo[-1][1]
+            expected = ([H[-1][1] - q * span for q in (0.62, 0.705, 0.79)]
+                        if H[-1][0] > Lo[-1][0]
+                        else [Lo[-1][1] + q * span for q in (0.62, 0.705, 0.79)])
+            assert all(abs(res["ote"][k] - v) < 1e-9 for k, v in zip(("p62", "p705", "p79"), expected))
+        assert res["prevDay"] == _prev_day(b)
+        for key, swings in (("eqh", H), ("eql", Lo)):
+            actual = [{"i1": x["i1"], "i2": x["i2"], "p": x["p"]} for x in res[key]]
+            assert actual == _equal(swings, _atr(b), len(b)), (key, actual, _equal(swings, _atr(b), len(b)))
 
 
 if __name__ == "__main__":

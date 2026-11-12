@@ -32,6 +32,18 @@ mr_tests:
     - fail=0; for t in tests/test_*.py; do echo "== $t"; python3 "$t" || { echo "FAILED $t"; fail=1; }; done; exit $fail
   allow_failure: true   # informative until the full suite is known green in CI
 
+
+# Required owner-approved CFX reward/risk gate (kept separate from legacy allow-failure tests).
+cfx_rr_policy:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 5m
+  before_script:
+    - pip install --quiet numpy pandas
+  script:
+    - python tests/test_cfx_rr_policy.py
+
 telegram_alerts:
   stage: test
   rules:

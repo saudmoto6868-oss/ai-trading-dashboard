@@ -8,6 +8,7 @@ EXPECTED_IFRAME_FILES = (
     "modules/header_bar.py",
     "modules/tv_widget.py",
     "modules/micro_foundations.py",
+    "modules/quant_edgemap.py",
     "main.py",
 )
 

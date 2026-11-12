@@ -19,7 +19,7 @@ body{display:flex;flex-direction:column}#grid{display:grid;grid-template-columns
  <select id="sym"></select><select id="tf"></select>
  <button id="ctr" title="Put the current candle back in the middle">Center on now</button><span class="tgs"></span><span id="px">-</span><span id="chg"></span><span id="live" class="dn">connecting...</span></div>
 <div id="grid"><div id="charts"><div id="cw"><div id="chart"></div><canvas id="ov"></canvas></div><div id="osc"></div><div id="macd"></div></div>
-<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
+<div id="side"><h3>Day plan (rule-based Director)</h3><div id="plan">loading...</div><h3>Live readout</h3><div id="read"></div><h3>Structure &amp; liquidity (closed candles)</h3><div id="struct">loading...</div><h3>Research signals (rule B)</h3><div id="sigs"></div></div></div>
 <div id="note" title="Live candles from OKX (crypto) / Hyperliquid xyz perps (gold, silver), 5 s refresh, CFX v7 settings, computed in your browser. Research dots = rule B on closed candles (62 signals, 59.7% against, p~0.13): NOT an edge, NOT a recommendation, no orders.">Live OKX / Hyperliquid, 5 s · CFX v7 settings · research only, not an edge, no orders (hover for details)</div>
 <script>/*LIB*/</script>
 <script>/*IND*/</script>
@@ -50,7 +50,7 @@ sm.createPriceLine({price:0,color:'#555',lineWidth:1,lineStyle:2,axisLabelVisibl
 let syncing=false;const link=(a,bs)=>a.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(syncing||!r)return;syncing=true;bs.forEach(b=>b.timeScale().setVisibleLogicalRange(r));syncing=false;});
 link(ch,[oc,mc]);
 new ResizeObserver(()=>{[[ch,'chart'],[oc,'osc'],[mc,'macd']].forEach(([c,e])=>c.applyOptions({width:$(e).clientWidth,height:$(e).clientHeight}));drawOv();}).observe($('charts'));
-const ST=window.V7STRUCT,TOG=[['sig','Signals',1],['sma','SMA 77/144',1],['ses','Sessions',1],['pd','PDH/PDL',1],['bos','BOS/CHoCH',1],['fvg','FVG',1],['eq','EQH/EQL',1],['mid','50%',1],['ote','OTE',0],['side','Panel',1]];
+const S=window.V7STRUCT,TOG=[['sig','Signals',1],['sma','SMA 77/144',1],['ses','Sessions',1],['pd','PDH/PDL',1],['bos','BOS/CHoCH',1],['fvg','FVG',1],['eq','EQH/EQL',1],['mid','50%',1],['ote','OTE',0],['side','Panel',1]];
 const on={};try{Object.assign(on,JSON.parse(localStorage.getItem('v7tog')||'{}'));}catch(e){}
 const tgs=document.querySelector('.tgs');TOG.forEach(([k,l,d])=>{if(!(k in on))on[k]=!!d;const lb=document.createElement('label');lb.className='tg';const c=document.createElement('input');c.type='checkbox';c.checked=on[k];c.onchange=()=>{on[k]=c.checked;try{localStorage.setItem('v7tog',JSON.stringify(on));}catch(e){}applyTog();};lb.append(c,l);tgs.append(lb);});
 let LB=[],LI=null,LS=null,PL=[];
@@ -87,7 +87,8 @@ async function tick(){if(busy)return;busy=true;const s=SYMS[+$('sym').value],tf=
     const feed=(series,data)=>{if(full)series.setData(data);else if(data.length)series.update(data[data.length-1]);};   // update() only accepts the last bar or a newer one: a new candle reloads everything
     feed(cs,bars.map(b=>({time:b.time,open:b.open,high:b.high,low:b.low,close:b.close})));feed(s77,pts(bars,ind.sma77));feed(s144,pts(bars,ind.sma144));
     feed(sk,pts(bars,ind.k));feed(sd,pts(bars,ind.d));feed(sr,pts(bars,ind.rsi));feed(sm,pts(bars,ind.macd));
-    LB=bars;LI=ind;LSIG=sig;LS=ST.compute(bars);levels();setMarks();
+    const closed=bars.length&&bars[bars.length-1].closed===false?bars.slice(0,-1):bars;   // structure from CLOSED candles only (indices stay valid: closed is a prefix of bars)
+    LB=bars;LI=ind;LSIG=sig;LS=S.compute(closed);levels();setMarks();
     if(first){center();first=false;}else if(vr){ch.timeScale().setVisibleLogicalRange(vr);}drawOv();
     const L=bars[bars.length-1],n=bars.length-1,chg=(L.close/bars[0].close-1)*100;
     $('px').textContent=L.close.toPrecision(L.close>=100?7:5);$('chg').textContent=(chg>=0?'+':'')+chg.toFixed(2)+'% over '+bars.length+' bars';$('chg').className=chg>=0?'up':'dn';
@@ -100,6 +101,14 @@ async function tick(){if(busy)return;busy=true;const s=SYMS[+$('sym').value],tf=
       row('Bars loaded',bars.length)+(bars.length<150?row('Note','fewer than 144 bars: SMA 144 not complete yet','dn'):'');
     const ls=sig[sig.length-1];$('sigs').innerHTML=row('Signals in window',sig.length+' (closed candles)')+(ls?row('Last',ls.side+' @ '+fmtT(bars[ls.i].time)+', '+(lastClosed-ls.i)+' bars ago',ls.side==='buy'?'up':'dn'):row('Last','none in this window'))+
       '<div class="r" style="display:block;font-size:10px;margin-top:4px">Research rule, not evidence: under 30 cases per setup it proves nothing, and the original sample was 59.7% against the move.</div>';
+    {const z=LS,H=z.sw.H,Lo=z.sw.L,sh=H[H.length-1],sl=Lo[Lo.length-1],eh=z.eqh[z.eqh.length-1],el=z.eql[z.eql.length-1],fz=z.fvg[z.fvg.length-1],pd=z.prevDay,ote=z.ote,ev=z.events[z.events.length-1];
+      const ses=z.sessions.slice(-3).map(x=>x.name+' '+fmtT(closed[x.i0].time)+'-'+fmtT(closed[x.i1].time)).join(' | ');
+      $('struct').innerHTML=row('Bars used',closed.length+' closed')+row('Last confirmed swing H / L',(sh?f2(sh.p):'-')+' / '+(sl?f2(sl.p):'-'))+
+        row('Structure trend',z.trend||'unconfirmed',z.trend==='up'?'up':z.trend==='down'?'dn':'')+row('Latest BOS / CHoCH',ev?ev.type+' '+ev.dir:'none')+
+        row('EQH / EQL',(eh?f2(eh.p):'-')+' / '+(el?f2(el.p):'-'))+row('Unfilled FVGs',String(z.fvg.length)+(fz?' (latest '+fz.dir+' '+f2(fz.lo)+'-'+f2(fz.hi)+')':''))+
+        row('Premium / discount EQ',z.pd?f2(z.pd.eq):'-')+row('OTE 62 / 70.5 / 79',ote?ote.dir+' '+f2(ote.p62)+' / '+f2(ote.p705)+' / '+f2(ote.p79):'-')+
+        row('Previous NY session H / L',pd?f2(pd.hi)+' / '+f2(pd.lo):'not enough history')+row('Recent sessions',ses||'none in loaded bars')+
+        '<div class="r" style="display:block;font-size:10px;margin-top:4px">Structure values come from closed candles only. Research context; not entries or trade signals.</div>';}
   }catch(e){$('live').textContent='ERROR: '+String(e&&e.message||e).slice(0,70);$('live').className='dn';}
   busy=false;}
 async function getFor(s,name){const tf=TFS[name];return s[1]==='okx'?getOKX(s[2],tf.okx):getHL(s[2],tf.hl,tf.sec);}

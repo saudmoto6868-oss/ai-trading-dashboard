@@ -20,7 +20,7 @@
   function atr14(b) { const n = b.length; if (n < 15) return NaN; let s = 0; for (let i = n - 14; i < n; i++) s += Math.max(b[i].high - b[i].low, Math.abs(b[i].high - b[i - 1].close), Math.abs(b[i].low - b[i - 1].close)); return s / 14; }
   function equal(sw, atr, key, maxBack, n) {
     const out = [], tol = 0.10 * atr; if (!fin(tol)) return out;
-    for (let a = 0; a < sw.length; a++) for (let c = a + 1; c < sw.length; c++) if (Math.abs(sw[a].p - sw[c].p) <= tol && sw[c].i >= n - maxBack) out.push({ type: key, i1: sw[a].i, i2: sw[c].i, p: (sw[a].p + sw[c].p) / 2 });
+    for (let a = 0; a < sw.length; a++) for (let c = a + 1; c < sw.length; c++) if (sw[a].i >= n - maxBack && sw[c].i >= n - maxBack && Math.abs(sw[a].p - sw[c].p) <= tol) out.push({ type: key, i1: sw[a].i, i2: sw[c].i, p: (sw[a].p + sw[c].p) / 2 });
     return out.slice(-6);
   }
   function fvgs(b, atr, maxAge) {
@@ -69,12 +69,24 @@
       });
       if (run) out.push(run);
     });
-    return out.slice(-9);
+    return out.sort((a, b) => a.i0 - b.i0).slice(-9);
+  }
+  function nySessionDay(sec) {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date(sec * 1000));
+    const v = k => +(p.find(x => x.type === k) || {}).value;
+    const hour = v('hour') % 24;
+    const d = new Date(Date.UTC(v('year'), v('month') - 1, v('day') + (hour >= 18 ? 1 : 0)));
+    return d.toISOString().slice(0, 10);
   }
   function prevDay(b) {
-    const day = t => Math.floor(t / 86400); if (!b.length) return null; const today = day(b[b.length - 1].time); let d = null, hi = -Infinity, lo = Infinity;
-    for (let i = b.length - 1; i >= 0; i--) { const k = day(b[i].time); if (k === today) continue; if (d === null) d = k; if (k !== d) break; hi = Math.max(hi, b[i].high); lo = Math.min(lo, b[i].low); }
-    return d === null ? null : { hi, lo };
+    if (!b.length) return null;
+    const today = nySessionDay(b[b.length - 1].time); let d = null, hi = -Infinity, lo = Infinity;
+    for (let i = b.length - 1; i >= 0; i--) {
+      const k = nySessionDay(b[i].time); if (k === today) continue;
+      if (d === null) d = k; if (k !== d) break;
+      hi = Math.max(hi, b[i].high); lo = Math.min(lo, b[i].low);
+    }
+    return d === null ? null : { hi, lo, sessionDate: d };
   }
   function compute(b) {
     const n = b.length, sw = swings(b, 3), atr = atr14(b), st = structure(b, sw);

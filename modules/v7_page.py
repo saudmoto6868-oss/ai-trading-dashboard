@@ -119,7 +119,6 @@ def _show_images(st) -> None:
 
 def render() -> None:
     import streamlit as st
-    import streamlit.components.v1 as components
     st.markdown("<style>.block-container{padding-top:2.2rem !important;padding-bottom:.5rem !important}</style>", unsafe_allow_html=True)
     view = st.radio("View", ["Live chart", "Snapshot dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
     st.caption("V7 research: live chart + tools (toggles inside the chart bar). Research only: not a recommendation, no orders; under 30 cases is not evidence.")
@@ -128,7 +127,7 @@ def render() -> None:
         if err:
             st.error(f"The live chart files could not be loaded: {err}")
         else:
-            components.html(html, height=920, scrolling=False)
+            st.iframe(html, height=920, alt="V7 live CFX chart with structure tools")
         return
     if view == "Snapshot dashboard":
         st.warning("Research snapshot of the CFX v7 chart on GC=F gold FUTURES (not spot XAUUSD), window 6-10 Nov 2026. The dots and alerts are the research rule 'variant B' "
@@ -137,7 +136,7 @@ def render() -> None:
         if err:
             st.error(f"The dashboard files could not be loaded: {err}")
         else:
-            components.html(html, height=900, scrolling=True)
+            st.iframe(html, height=900, alt="V7 CFX snapshot dashboard")
         return
     if view == "Chart images":
         for rel, cap in (("research/cfx/cfx_chart_real_v7.png", "Chart: price + SMA 144 / 77 + SMC/ICT overlays + session boxes"),

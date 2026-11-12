@@ -65,8 +65,19 @@ X.send_photo = lambda path, cap="": sent.append(("photo", path, cap))
 X.send_doc = lambda name, data, cap="": sent.append(("doc", name))
 X.ask_claude = lambda t, deep=False: "LLM: " + t
 import modules.spot_outlook as SO
+import modules.spot_dash as SD
 _orig_build = SO.build
 SO.build = lambda asset, candles=None: _orig_build(asset, get)
+
+
+def fake_to_png(html, path, ctx=None, width=1440):
+    # This test verifies bot routing/action handling, not Chromium rendering.
+    with open(path, "wb") as image:
+        image.write(b"\\x89PNG\\r\\n\\x1a\\n" + b"\\0" * 50_000)
+    return path
+
+
+SD.to_png = fake_to_png
 
 
 class FakePlatform:

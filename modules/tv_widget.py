@@ -14,6 +14,7 @@ def render_tv_chart(symbol: str, height: int = 500, interval: str = "60", key: s
     tv_symbol = TV_SYMBOL_MAP.get(symbol, symbol)
     cid = "tv_" + "".join(ch if ch.isalnum() else "_" for ch in f"{key}_{symbol}_{interval}")
     widget_html = f"""
+    <style>html,body{{margin:0;height:100%;overflow:hidden!important}}</style>
     <div class="tradingview-widget-container">
       <div id="{cid}"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>

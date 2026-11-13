@@ -73,7 +73,7 @@ def render() -> None:
             )
         with h2:
             st.subheader("H2 · Liquidity Projection")
-            st.warning("Not implemented")
+            st.info("Event builder exists (assumption-based; not run on real data)")
             st.write(
                 "Separate hypothesis: measure a completed impulse and project "
                 "from an independently identified liquidity reference."
@@ -92,7 +92,7 @@ def render() -> None:
             "Acquire broker XAUUSD spot M1/M5 OHLC + cost metadata",
             "Add matched controls and event de-clustering",
             "Add block bootstrap / permutation and untouched holdout",
-            "Implement H2 as an independent engine",
+            "Confirm H2 rules vs creator videos; run on real data",
             "Only then consider FX expansion",
         ]
         for item in items:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Causal event-study harness for two separate 2.6 hypotheses.
 
-This module currently implements H1 (retracement) only. H2 (liquidity
-projection) is deliberately not inferred from H1 and remains unimplemented.
+This module implements H1 (retracement). H2 (liquidity projection) is a
+separate builder in h2_liquidity.py; the two samples are never pooled.
 A touched limit level is a fill assumption, not proof of executable fills.
 """
 import argparse
@@ -144,6 +144,30 @@ def _fill_price(bar, side, limit_price):
     return max(limit_price, bar.open)
 
 
+def find_fill(bars, side, level, first_idx, last_idx):
+    """First bar in [first_idx, last_idx] that reaches a resting limit; (idx, price) or (None, None)."""
+    for idx in range(first_idx, last_idx + 1):
+        bar = bars[idx]
+        # A bar wholly past the limit (gap) still fills; _fill_price uses the open.
+        if (bar.low <= level) if side == "BUY" else (bar.high >= level):
+            return idx, _fill_price(bar, side, level)
+    return None, None
+
+
+def measure(bars, fill_idx, fill, side, span, horizon_bars, cost):
+    """MFE/MAE and forward returns after the fill bar, in units of the leg span."""
+    future = bars[fill_idx + 1:fill_idx + horizon_bars + 1]
+    sign = 1 if side == "BUY" else -1
+    mfe = max((bar.high - fill) * sign for bar in future) / span
+    mae = min((bar.low - fill) * sign for bar in future) / span
+    returns = {
+        str(horizon): round(((bars[fill_idx + horizon].close - fill) * sign - cost) / span, 8)
+        for horizon in HORIZONS
+        if horizon <= horizon_bars and fill_idx + horizon < len(bars)
+    }
+    return mfe, mae, returns
+
+
 def run_event_study(bars, ratios=RATIOS, left=3, right=3, wait_bars=80,
                     horizon_bars=40, cost=0.0):
     if not bars:
@@ -166,33 +190,15 @@ def run_event_study(bars, ratios=RATIOS, left=3, right=3, wait_bars=80,
         for ratio in ratios:
             level = end.price - span / ratio if side == "BUY" else end.price + span / ratio
             stop = min(len(bars) - 1, known_at + wait_bars)
-            fill_idx = None
-            fill = None
-            for idx in range(known_at + 1, stop + 1):
-                bar = bars[idx]
-                # A bar wholly past the limit (gap) still fills; _fill_price uses the open.
-                if (bar.low <= level) if side == "BUY" else (bar.high >= level):
-                    fill_idx = idx
-                    fill = _fill_price(bar, side, level)
-                    break
+            fill_idx, fill = find_fill(bars, side, level, known_at + 1, stop)
             if fill_idx is None or fill_idx + horizon_bars >= len(bars):
                 continue
 
-            future = bars[fill_idx + 1:fill_idx + horizon_bars + 1]
-            sign = 1 if side == "BUY" else -1
-            mfe = max((bar.high - fill) * sign for bar in future)
-            mae = min((bar.low - fill) * sign for bar in future)
-            returns = {
-                str(horizon): round(
-                    ((bars[fill_idx + horizon].close - fill) * sign - cost) / span, 8
-                )
-                for horizon in HORIZONS
-                if horizon <= horizon_bars and fill_idx + horizon < len(bars)
-            }
+            mfe, mae, returns = measure(bars, fill_idx, fill, side, span, horizon_bars, cost)
             events.append(Event(
                 float(ratio), side, bars[start.idx].dt, bars[end.idx].dt,
                 bars[known_at].dt, bars[fill_idx].dt, fill, span,
-                fill_idx - known_at, mfe / span, mae / span, returns,
+                fill_idx - known_at, mfe, mae, returns,
             ))
 
     events.sort(key=lambda event: (event.entry_time, event.ratio, event.side))
@@ -290,7 +296,7 @@ def main():
         },
         "metrics": summarize(events),
         "limitations": [
-            "H2 liquidity projection is not implemented in this harness",
+            "H2 liquidity projection lives in h2_liquidity.py; samples are never pooled with H1",
             "touch-based limit fill is a simulation assumption, not execution proof",
             "no verified stop-loss, take-profit, sizing or full P&L model",
             "70/30 event-tail summaries are descriptive, not out-of-sample validation",

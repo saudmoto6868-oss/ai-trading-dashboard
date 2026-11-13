@@ -10,7 +10,7 @@
 
 ## Hypotheses
 1. **H1 — Retracement entry:** for an up-leg L→H, candidate BUY = H − (H−L)/r; for a down-leg H→L, candidate SELL = L + (H−L)/r. Primary r=2.6; comparators 2.5, 2.618, 1/0.382 and 2.7.
-2. **H2 — Liquidity projection:** measure a completed impulse, divide its range by r, then project from an independently identified EQH/EQL or swept liquidity reference. H2 is not implemented by the current H1 event-study harness.
+2. **H2 — Liquidity projection:** measure a completed impulse, divide its range by r, then project from an independently identified EQH/EQL or swept liquidity reference. H2 is a separate event builder in `h2_liquidity.py` (run: `python3 research/strategies/2.6/h2_liquidity.py bars.csv --out DIR`; tests: `tests/test_two_six_h2.py`). Its pool / sweep / leg / zone rules are research assumptions documented in the module docstring; creator rules remain UNKNOWN. Not run on real XAUUSD data yet.
 3. ICT/SMC, Fibonacci, Gann, session, volatility and news filters remain optional experiments, not assumed rules.
 
 ## Evidence ledger
@@ -57,7 +57,7 @@ Cost is an absolute price amount per filled event, not pips. Supply a cost assum
 ## Required next steps
 1. Obtain broker XAUUSD spot M1/M5 OHLC data with timezone and cost metadata; never substitute synthetic bars.
 2. Recheck creator videos frame by frame after legitimate access or analysis credits return.
-3. Implement H2 separately, including explicit liquidity anchors, direction, sweep/trigger and causal timestamps.
+3. H2 builder done (assumption-based, synthetic-tested only); confirm its rules against the creator's videos and run it on real data.
 4. Add matched controls, event de-clustering, block bootstrap/permutation, walk-forward and an untouched final holdout.
 5. Add trade simulation only after creator SL/TP and invalidation rules are confirmed.
 6. Add FX only after the XAUUSD pipeline is stable; keep each broker feed and GC=F proxy separately labelled.

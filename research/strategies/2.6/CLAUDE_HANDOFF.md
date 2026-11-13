@@ -56,3 +56,10 @@ Commit `b4f370d4`:
 - Reject NaN/Infinity for cost and ratio inputs.
 - Exclude dual high/low pivot candles because OHLC bars cannot determine which extreme occurred first; add regression coverage.
 - These changes still require a real local/CI test run. GitLab CI jobs were blocked before runner startup by `ci_quota_exceeded`; this is infrastructure/quota, not a Python assertion result.
+
+## Claude review 2026-11-13 (MR !72 merged + H2)
+- Fixed: limit fill missed bars gapping wholly past the level; naive-timestamp test wrote a literal backslash-n; research-labs sidebar test expected 2 labs after the 2.6 UI merge.
+- Shared helpers `find_fill` / `measure` in `event_study.py` are used by H1 and H2.
+- H2 implemented in `h2_liquidity.py` (EQH/EQL pool -> wick sweep with close back inside -> latest reversal-direction leg -> zone = level +/- span/ratio -> limit fill). Rules are assumptions; creator rules UNKNOWN.
+- Tests: `python3 -m unittest tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 19 OK. Synthetic data only; no real XAUUSD run, no edge claim.
+- Still open: de-clustering, matched controls, block bootstrap, date-based holdout, real broker data, creator SL/TP.

@@ -1,125 +1,295 @@
 #!/usr/bin/env python3
-"""Causal event-study harness for the Matimatiki 2.6 hypothesis.
-Input CSV: datetime,open,high,low,close; optional volume. No network calls.
-Pivots become usable only after right_bars have closed. This is an event
-study, NOT a complete P&L backtest: creator SL/TP rules remain unverified.
+"""Causal event-study harness for two separate 2.6 hypotheses.
+
+This module currently implements H1 (retracement) only. H2 (liquidity
+projection) is deliberately not inferred from H1 and remains unimplemented.
+A touched limit level is a fill assumption, not proof of executable fills.
 """
-import argparse, csv, json
-from dataclasses import dataclass, asdict
+import argparse
+import csv
+import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
-RATIOS=(2.5,2.6,2.618,1/0.382,2.7)
-HORIZONS=(5,10,20,40)
+RATIOS = (2.5, 2.6, 2.618, 1 / 0.382, 2.7)
+HORIZONS = (5, 10, 20, 40)
+
 
 @dataclass
 class Bar:
-    dt:str; open:float; high:float; low:float; close:float; volume:float=0.0
+    dt: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float = 0.0
+
+
 @dataclass
 class Pivot:
-    idx:int; kind:str; price:float; known_at:int
+    idx: int
+    kind: str
+    price: float
+    known_at: int
+
+
 @dataclass
 class Event:
-    ratio:float; side:str; anchor_start:str; anchor_end:str
-    confirmation_time:str; entry_time:str; entry:float; leg_range:float
-    bars_to_fill:int; mfe_leg:float; mae_leg:float; returns_leg:dict
+    ratio: float
+    side: str
+    anchor_start: str
+    anchor_end: str
+    confirmation_time: str
+    entry_time: str
+    entry: float
+    leg_range: float
+    bars_to_fill: int
+    mfe_leg: float
+    mae_leg: float
+    returns_leg: dict
+
+
+def _parse_timestamp(value):
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid ISO-8601 datetime: {value!r}") from exc
+    return parsed
+
 
 def load_bars(path):
-    rows=[]
-    with open(path,newline="",encoding="utf-8-sig") as f:
-        rd=csv.DictReader(f); req={"datetime","open","high","low","close"}
-        if not req.issubset(set(rd.fieldnames or [])):
+    rows = []
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        required = {"datetime", "open", "high", "low", "close"}
+        if not required.issubset(set(reader.fieldnames or [])):
             raise ValueError("CSV requires datetime,open,high,low,close")
-        for r in rd:
-            b=Bar(str(r["datetime"]),float(r["open"]),float(r["high"]),
-                  float(r["low"]),float(r["close"]),float(r.get("volume") or 0))
-            if not (b.low<=min(b.open,b.close)<=max(b.open,b.close)<=b.high):
-                raise ValueError("Invalid OHLC at "+b.dt)
-            rows.append(b)
-    if len(rows)<100: raise ValueError("At least 100 bars required")
-    if any(rows[i].dt>=rows[i+1].dt for i in range(len(rows)-1)):
-        raise ValueError("Rows must be chronological and unique")
+        for line_number, row in enumerate(reader, start=2):
+            try:
+                dt = str(row["datetime"]).strip()
+                _parse_timestamp(dt)
+                bar = Bar(
+                    dt, float(row["open"]), float(row["high"]),
+                    float(row["low"]), float(row["close"]),
+                    float(row.get("volume") or 0),
+                )
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid data on CSV line {line_number}: {exc}") from exc
+            values = (bar.open, bar.high, bar.low, bar.close, bar.volume)
+            if not all(map(lambda x: x == x and abs(x) != float("inf"), values)):
+                raise ValueError(f"Non-finite OHLCV value at {bar.dt}")
+            if min(bar.open, bar.high, bar.low, bar.close) <= 0 or bar.volume < 0:
+                raise ValueError(f"Non-positive price or negative volume at {bar.dt}")
+            if not (bar.low <= min(bar.open, bar.close)
+                    <= max(bar.open, bar.close) <= bar.high):
+                raise ValueError("Invalid OHLC at " + bar.dt)
+            rows.append(bar)
+
+    if len(rows) < 100:
+        raise ValueError("At least 100 bars required")
+    timestamps = [_parse_timestamp(bar.dt) for bar in rows]
+    if any(timestamps[i] >= timestamps[i + 1] for i in range(len(rows) - 1)):
+        raise ValueError("Rows must have strictly increasing timestamps")
     return rows
 
-def confirmed_pivots(bars,left=3,right=3):
-    out=[]
-    for i in range(left,len(bars)-right):
-        w=bars[i-left:i+right+1]; h=bars[i].high; lo=bars[i].low
-        if h>=max(x.high for x in w) and sum(x.high==h for x in w)==1:
-            out.append(Pivot(i,"H",h,i+right))
-        if lo<=min(x.low for x in w) and sum(x.low==lo for x in w)==1:
-            out.append(Pivot(i,"L",lo,i+right))
-    out.sort(key=lambda p:(p.known_at,p.idx,p.kind))
-    clean=[]
-    for p in out:
-        if not clean or p.kind!=clean[-1].kind: clean.append(p); continue
-        prev=clean[-1]; better=p.price>prev.price if p.kind=="H" else p.price<prev.price
-        if better: clean[-1]=p
-    return clean
 
-def make_legs(pivots):
-    for a,b in zip(pivots,pivots[1:]):
-        if a.kind=="L" and b.kind=="H": yield "BUY",a,b,b.price-a.price
-        elif a.kind=="H" and b.kind=="L": yield "SELL",a,b,a.price-b.price
+def confirmed_pivots(bars, left=3, right=3):
+    """Return unique local extrema with the first observable index.
 
-def run_event_study(bars,ratios=RATIOS,left=3,right=3,wait_bars=80,
-                    horizon_bars=40,cost=0.0):
-    pivots=confirmed_pivots(bars,left,right); events=[]
-    for side,a,b,span in make_legs(pivots):
-        if span<=0 or b.known_at>=len(bars)-1: continue
-        known=b.known_at
-        for ratio in ratios:
-            entry=b.price-span/ratio if side=="BUY" else b.price+span/ratio
-            stop=min(len(bars)-1,known+wait_bars); fill=None
-            for j in range(known+1,stop+1):
-                if bars[j].low<=entry<=bars[j].high: fill=j; break
-            if fill is None or fill+horizon_bars>=len(bars): continue
-            win=bars[fill+1:fill+horizon_bars+1]; sign=1 if side=="BUY" else -1
-            mfe=max((x.high-entry)*sign for x in win)
-            mae=min((x.low-entry)*sign for x in win)
-            ret={str(h):round((bars[fill+h].close-entry)*sign-cost,8)
-                 for h in HORIZONS if fill+h<len(bars)}
-            events.append(Event(float(ratio),side,bars[a.idx].dt,bars[b.idx].dt,
-                bars[known].dt,bars[fill].dt,entry,span,fill-known,mfe/span,mae/span,ret))
-    events.sort(key=lambda e:(e.entry_time,e.ratio,e.side))
-    return events,pivots
-
-def summarize(events):
-    out={}
-    for ratio in sorted({e.ratio for e in events}):
-        g=sorted((e for e in events if e.ratio==ratio),key=lambda e:e.entry_time); cut=int(len(g)*.7)
-        for label,items in (("all",g),("in_sample",g[:cut]),("out_of_sample",g[cut:])):
-            vals=[e.returns_leg["20"] for e in items if "20" in e.returns_leg]
-            out.setdefault(str(ratio),{})[label]={
-                "n_filled":len(items),"n_20bar":len(vals),
-                "positive_20bar_pct":round(100*sum(v>0 for v in vals)/len(vals),2) if vals else None,
-                "mean_20bar_leg_units":round(sum(vals)/len(vals)/items[0].leg_range,5) if vals else None,
-                "median_mfe_leg":round(sorted(e.mfe_leg for e in items)[len(items)//2],5) if items else None,
-                "median_mae_leg":round(sorted(e.mae_leg for e in items)[len(items)//2],5) if items else None,
-                "mean_bars_to_fill":round(sum(e.bars_to_fill for e in items)/len(items),2) if items else None}
+    No retrospective same-side pivot replacement is performed: doing so can
+    select a later, more extreme pivot and rewrite an earlier swing.
+    """
+    if left < 1 or right < 1:
+        raise ValueError("left and right must be >= 1")
+    out = []
+    for idx in range(left, len(bars) - right):
+        window = bars[idx - left:idx + right + 1]
+        high, low = bars[idx].high, bars[idx].low
+        if high == max(bar.high for bar in window) and sum(
+            bar.high == high for bar in window
+        ) == 1:
+            out.append(Pivot(idx, "H", high, idx + right))
+        if low == min(bar.low for bar in window) and sum(
+            bar.low == low for bar in window
+        ) == 1:
+            out.append(Pivot(idx, "L", low, idx + right))
+    out.sort(key=lambda pivot: (pivot.known_at, pivot.idx, pivot.kind))
     return out
 
+
+def make_legs(pivots):
+    """Yield adjacent opposite-kind pivots; same-kind pairs are ignored."""
+    for first, second in zip(pivots, pivots[1:]):
+        if first.kind == "L" and second.kind == "H":
+            yield "BUY", first, second, second.price - first.price
+        elif first.kind == "H" and second.kind == "L":
+            yield "SELL", first, second, first.price - second.price
+
+
+def _fill_price(bar, side, limit_price):
+    # Conservative limit-order gap handling: a gap through the limit fills
+    # at the opening price (price improvement), otherwise at the limit.
+    if side == "BUY":
+        return min(limit_price, bar.open)
+    return max(limit_price, bar.open)
+
+
+def run_event_study(bars, ratios=RATIOS, left=3, right=3, wait_bars=80,
+                    horizon_bars=40, cost=0.0):
+    if not bars:
+        raise ValueError("bars cannot be empty")
+    if min(left, right, wait_bars, horizon_bars) < 1:
+        raise ValueError("left, right, wait_bars and horizon_bars must be >= 1")
+    if cost < 0:
+        raise ValueError("cost must be >= 0")
+    if not ratios or any(r <= 0 for r in ratios):
+        raise ValueError("ratios must be positive and non-empty")
+
+    pivots = confirmed_pivots(bars, left, right)
+    events = []
+    for side, start, end, span in make_legs(pivots):
+        if span <= 0:
+            continue
+        known_at = max(start.known_at, end.known_at)
+        if known_at >= len(bars) - 1:
+            continue
+        for ratio in ratios:
+            level = end.price - span / ratio if side == "BUY" else end.price + span / ratio
+            stop = min(len(bars) - 1, known_at + wait_bars)
+            fill_idx = None
+            fill = None
+            for idx in range(known_at + 1, stop + 1):
+                bar = bars[idx]
+                if bar.low <= level <= bar.high:
+                    fill_idx = idx
+                    fill = _fill_price(bar, side, level)
+                    break
+            if fill_idx is None or fill_idx + horizon_bars >= len(bars):
+                continue
+
+            future = bars[fill_idx + 1:fill_idx + horizon_bars + 1]
+            sign = 1 if side == "BUY" else -1
+            mfe = max((bar.high - fill) * sign for bar in future)
+            mae = min((bar.low - fill) * sign for bar in future)
+            returns = {
+                str(horizon): round(
+                    ((bars[fill_idx + horizon].close - fill) * sign - cost) / span, 8
+                )
+                for horizon in HORIZONS
+                if horizon <= horizon_bars and fill_idx + horizon < len(bars)
+            }
+            events.append(Event(
+                float(ratio), side, bars[start.idx].dt, bars[end.idx].dt,
+                bars[known_at].dt, bars[fill_idx].dt, fill, span,
+                fill_idx - known_at, mfe / span, mae / span, returns,
+            ))
+
+    events.sort(key=lambda event: (event.entry_time, event.ratio, event.side))
+    return events, pivots
+
+
+def _median(values):
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return round(ordered[middle], 5)
+    return round((ordered[middle - 1] + ordered[middle]) / 2, 5)
+
+
+def summarize(events):
+    """Descriptive metrics only; event-tail split is not an OOS validation."""
+    summary = {}
+    for ratio in sorted({event.ratio for event in events}):
+        group = sorted(
+            (event for event in events if event.ratio == ratio),
+            key=lambda event: event.entry_time,
+        )
+        split = int(len(group) * 0.7)
+        partitions = (
+            ("all", group),
+            ("early_70pct_descriptive", group[:split]),
+            ("late_30pct_descriptive_not_oos", group[split:]),
+        )
+        for label, items in partitions:
+            values = [event.returns_leg["20"] for event in items
+                      if "20" in event.returns_leg]
+            normalized_mfe = [event.mfe_leg for event in items]
+            normalized_mae = [event.mae_leg for event in items]
+            summary.setdefault(str(ratio), {})[label] = {
+                "n_filled": len(items),
+                "n_20bar": len(values),
+                "positive_20bar_pct": (
+                    round(100 * sum(value > 0 for value in values) / len(values), 2)
+                    if values else None
+                ),
+                "mean_20bar_return_leg_units": (
+                    round(sum(values) / len(values), 5) if values else None
+                ),
+                "median_mfe_leg": _median(normalized_mfe),
+                "median_mae_leg": _median(normalized_mae),
+                "mean_bars_to_fill": (
+                    round(sum(event.bars_to_fill for event in items) / len(items), 2)
+                    if items else None
+                ),
+            }
+    return summary
+
+
 def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument("csv"); ap.add_argument("--left",type=int,default=3)
-    ap.add_argument("--right",type=int,default=3); ap.add_argument("--wait-bars",type=int,default=80)
-    ap.add_argument("--horizon-bars",type=int,default=40); ap.add_argument("--cost",type=float,default=0.0)
-    ap.add_argument("--out",default="research/strategies/2.6/output")
-    a=ap.parse_args()
-    if min(a.left,a.right,a.wait_bars,a.horizon_bars)<1 or a.cost<0: ap.error("invalid parameters")
-    bars=load_bars(a.csv); events,pivots=run_event_study(bars,left=a.left,right=a.right,
-        wait_bars=a.wait_bars,horizon_bars=a.horizon_bars,cost=a.cost)
-    out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
-    fields=list(Event.__dataclass_fields__)
-    with (out/"events.csv").open("w",newline="",encoding="utf-8") as f:
-        w=csv.DictWriter(f,fieldnames=fields); w.writeheader()
-        for e in events: w.writerow(asdict(e))
-    report={"bars":len(bars),"pivots":len(pivots),"events":len(events),
-      "parameters":{"ratios":list(RATIOS),"left":a.left,"right":a.right,
-      "wait_bars":a.wait_bars,"horizon_bars":a.horizon_bars,"cost_absolute_price":a.cost},
-      "metrics":summarize(events),
-      "limitations":["event study only; no verified stop/target or position sizing",
-      "not a profitability claim","chronological event-tail split is provisional",
-      "reserve a separate untouched final holdout before tuning"]}
-    (out/"report.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
-    print(json.dumps({"bars":len(bars),"pivots":len(pivots),"events":len(events)},indent=2))
-if __name__=="__main__": main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("csv")
+    parser.add_argument("--left", type=int, default=3)
+    parser.add_argument("--right", type=int, default=3)
+    parser.add_argument("--wait-bars", type=int, default=80)
+    parser.add_argument("--horizon-bars", type=int, default=40)
+    parser.add_argument("--cost", type=float, default=0.0,
+                        help="absolute price cost per filled event (not pips)")
+    parser.add_argument("--out", default="research/strategies/2.6/output")
+    args = parser.parse_args()
+    if min(args.left, args.right, args.wait_bars, args.horizon_bars) < 1 or args.cost < 0:
+        parser.error("invalid parameters")
+
+    bars = load_bars(args.csv)
+    events, pivots = run_event_study(
+        bars, left=args.left, right=args.right,
+        wait_bars=args.wait_bars, horizon_bars=args.horizon_bars,
+        cost=args.cost,
+    )
+    output = Path(args.out)
+    output.mkdir(parents=True, exist_ok=True)
+    fields = list(Event.__dataclass_fields__)
+    with (output / "events.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for event in events:
+            writer.writerow(asdict(event))
+
+    report = {
+        "hypothesis": "H1_retracement_only",
+        "bars": len(bars),
+        "pivots": len(pivots),
+        "events": len(events),
+        "parameters": {
+            "ratios": list(RATIOS), "left": args.left, "right": args.right,
+            "wait_bars": args.wait_bars, "horizon_bars": args.horizon_bars,
+            "cost_absolute_price_per_fill": args.cost,
+        },
+        "metrics": summarize(events),
+        "limitations": [
+            "H2 liquidity projection is not implemented in this harness",
+            "touch-based limit fill is a simulation assumption, not execution proof",
+            "no verified stop-loss, take-profit, sizing or full P&L model",
+            "70/30 event-tail summaries are descriptive, not out-of-sample validation",
+            "overlapping events and dependence require separate statistical treatment",
+            "no broker spread, commission or slippage decomposition unless supplied in cost",
+        ],
+    }
+    (output / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print(json.dumps({"bars": len(bars), "pivots": len(pivots), "events": len(events)}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

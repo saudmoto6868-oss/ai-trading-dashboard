@@ -101,10 +101,19 @@ if not _auth_gate(L):
 # Monte Carlo lives in Trading > Journal; only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
-    _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
+    _lab_choice = st.radio(
+        L("Lab"),
+        ["—", "⬡ Micro · Foundations", "2.6 Strategy Intelligence"],
+        key="lab_choice",
+        label_visibility="collapsed",
+    )
     if _lab_choice == "⬡ Micro · Foundations":
         from modules.micro_foundations import render as _mf_render
         _mf_render()
+        st.stop()
+    if _lab_choice == "2.6 Strategy Intelligence":
+        from modules.two_six_lab import render as _two_six_render
+        _two_six_render()
         st.stop()
 
 # ---- Build stamp: which commit this running app was built from (so a stale deploy is visible at a glance) ----

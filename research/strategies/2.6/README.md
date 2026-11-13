@@ -63,5 +63,5 @@ The harness compares 2.5, 2.6, 2.618, 1/0.382 and 2.7. It records touches, time-
 7. Robustness: bootstrap confidence intervals, block bootstrap/permutation, parameter neighbourhood, walk-forward, multiple-testing correction. Project gate: n>=100 and net t>3 before any edge claim.
 8. Keep research-only. No live signals, XPIX, CFX, dashboard or execution wiring without a new owner instruction.
 
-## Current test status
+## Conversation archive\nSee CONVERSATION_LOG.md for the owner requests, decisions, current blockers, links to the branch/MR, and exact test/CI status.\n\n## Current test status
 Unit tests added for arithmetic, pivot confirmation delay, leg direction and comparator grid. **Not run on historical XAUUSD candles.** No accuracy, win rate, expectancy or profitability number is reported.

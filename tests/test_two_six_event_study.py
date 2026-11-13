@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 MODULE = Path(__file__).resolve().parents[1] / "research" / "strategies" / "2.6" / "event_study.py"
 SPEC = importlib.util.spec_from_file_location("two_six_event_study", MODULE)
 mod = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = mod
 SPEC.loader.exec_module(mod)
 
 Bar, Pivot = mod.Bar, mod.Pivot
@@ -62,8 +64,8 @@ class TwoSixTests(unittest.TestCase):
         self.assertEqual(result["n_20bar"], 2)
 
     def test_summary_does_not_label_event_tail_as_oos(self):
-        e = mod.Event(2.6, "BUY", "a", "b", "c", "d", 100, 10, 1, .2, -.1, {"20": .1})
-        result = mod.summarize([e])["2.6"]
+        event = mod.Event(2.6, "BUY", "a", "b", "c", "d", 100, 10, 1, .2, -.1, {"20": .1})
+        result = mod.summarize([event])["2.6"]
         self.assertIn("late_30pct_descriptive_not_oos", result)
         self.assertNotIn("out_of_sample", result)
 

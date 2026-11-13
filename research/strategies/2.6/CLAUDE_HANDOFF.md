@@ -1,29 +1,51 @@
-# Claude handoff — 2.6
+# Claude handoff — 2.6 Strategy Intelligence
 
-Review and continue this isolated research task. Do not merge, deploy, wire signals, or edit live strategy/dashboard modules.
+Owner-approved scope: **full / multi-market / research-only**. Continue on branch `research/strategy-2-6-2026-11-13` only.
 
 ## Read first
-- research/strategies/2.6/README.md
-- research/strategies/2.6/event_study.py
-- tests/test_two_six_event_study.py
-- docs/MEETING_ROOM.md entry for 2026-11-13
+- `research/strategies/2.6/README.md`
+- `research/strategies/2.6/IMPLEMENTATION_PLAN.md`
+- `research/strategies/2.6/ARCHITECTURE.md`
+- `research/strategies/2.6/CLAUDE_TASKS.md`
+- `research/strategies/2.6/event_study.py`
+- `tests/test_two_six_event_study.py`
+- `docs/MEETING_ROOM.md` entry for 2026-11-13
 
 ## Owner objective
-Determine whether Matimatiki 2.6 has a reproducible statistical edge on gold, improve test quality rather than tune for a prettier win rate, and preserve all evidence/links. Exact workstream name: **2.6**.
+Determine whether Matimatiki 2.6 has a reproducible statistical edge, improve test quality rather than tune for a prettier win rate, and preserve all evidence. The current event-study harness implements H1 retracement only; H2 liquidity projection remains separate and is not implemented.
 
-## Review checklist
-1. Audit pivot confirmation: no pivot or anchor may be used before right-side bars close.
-2. Check alternating-pivot selection and document ambiguous double pivots.
-3. Verify event timestamps, entry fill, horizon indexing, spread units and OHLC validation.
-4. Prevent overlapping/clustered events inflating effective sample size; add event de-clustering and block bootstrap.
-5. Keep retracement and liquidity-projection hypotheses separate.
-6. Obtain broker XAUUSD M1/M5 exports; GC=F is futures, not spot. Never reuse CFX n=83 as a 2.6 result.
-7. Confirm creator rules: anchor, wick/body, direction, stop, TP, invalidation, session and timeframe. Mark unverified rules.
-8. Pre-register 60/20/20 chronological train/validation/test; preserve an untouched final holdout. Compare r={2.5,2.6,2.618,1/0.382,2.7} without selecting on final test.
-9. Add spread, commission, slippage and realistic execution. Use worst-case if SL and TP fall in one candle.
-10. Report n, hit rate, expectancy R, profit factor, max drawdown, average R, confidence intervals, net t-stat and regime breakdowns. No edge claim unless n>=100 and net t>3 under project policy.
-11. Add reproducible tests and save raw-input provenance / SHA-256 hashes. No fabricated performance numbers.
-12. Append review results to workstream notes and reply in the MR.
+## Self-review changes already committed
+Commit `b4f370d4`:
+- Removed retrospective same-side pivot replacement, which could rewrite a swing using a later, more extreme pivot.
+- Added ISO-8601 timestamp parsing, strict chronological/unique timestamp validation, OHLC and positive-price checks.
+- Added gap-through-limit opening-price improvement assumption.
+- Corrected return normalization to normalize each event by its own leg range.
+- Renamed event-tail partitions as descriptive only; they are not OOS validation.
+- Explicitly labelled the harness H1-only and documented fill, overlap and cost limitations.
+- Expanded tests for these cases.
 
-## Known context
-1/2.6 = 38.4615%, close to but not equal to Fibonacci 38.2%. 13/5=2.6 and 89/34≈2.618; proximity does not prove creator derivation. Direct Gann/Square-of-Nine derivation is not established. See README.
+## Required immediate review
+1. Run: `python -m unittest tests/test_two_six_event_study.py -v` (or the repository's equivalent test discovery command).
+2. Inspect all changed lines and confirm dataclass import/test discovery works in the project's Python version.
+3. Check whether timestamp timezone-awareness should be enforced by the canonical dataset contract; mixed naive/aware timestamps must not be silently compared.
+4. Add regression coverage for event overlap, right-boundary censoring, insufficient horizon, zero/negative parameters, malformed numeric fields, and simultaneous high/low pivots.
+5. Verify the pivot sequence policy: adjacent same-kind pivots are intentionally retained; only opposite-kind adjacent pairs form legs. Do not reintroduce retrospective extrema replacement.
+6. Assess the gap-fill assumption and document its limitations; a bar touch is not guaranteed execution.
+7. Add event de-clustering and block bootstrap before interpreting sample size or significance.
+8. Keep the 70/30 event-tail summary descriptive. Implement a date-based 60/20/20 train/validation/untouched-test split only when event overlap and horizon leakage are handled.
+9. Implement H2 liquidity projection as a distinct event builder with explicit causal liquidity anchors, sweep, direction and trigger. Do not mix H1 and H2 samples.
+10. Report exact commands, tests and results. Distinguish a workflow/rules/CI quota failure from a Python assertion failure.
+
+## Research checklist
+- No pivot or anchor may be used before right-side bars close.
+- Prevent overlapping/clustered events inflating effective sample size.
+- Obtain broker XAUUSD spot M1/M5 exports; GC=F is futures, not spot. Never reuse CFX n=83 as a 2.6 result.
+- Confirm creator rules: anchor, wick/body, direction, stop, TP, invalidation, session and timeframe. Mark unverified rules as UNKNOWN.
+- Add spread, commission, slippage and realistic execution. Use worst-case if SL and TP fall in one candle.
+- Preserve an untouched final holdout; compare r={2.5,2.6,2.618,1/0.382,2.7} without selecting on final test.
+- No fabricated performance numbers or edge claims.
+
+## Hard boundaries
+- Do not modify/import CFX or XPIX logic, configs, registries, databases or UI.
+- Do not merge MR !70, deploy, add live broker connectivity, or place real orders.
+- Keep all work on the isolated 2.6 research branch and report back in MR !70.

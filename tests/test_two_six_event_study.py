@@ -1,10 +1,12 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1] / "research" / "strategies" / "2.6" / "event_study.py"
 SPEC = importlib.util.spec_from_file_location("two_six_event_study", MODULE)
 mod = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = mod
 SPEC.loader.exec_module(mod)
 Bar, confirmed_pivots, make_legs, RATIOS, Pivot = mod.Bar, mod.confirmed_pivots, mod.make_legs, mod.RATIOS, mod.Pivot
 

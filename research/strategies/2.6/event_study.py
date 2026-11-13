@@ -80,12 +80,13 @@ def run_event_study(bars,ratios=RATIOS,left=3,right=3,wait_bars=80,
                  for h in HORIZONS if fill+h<len(bars)}
             events.append(Event(float(ratio),side,bars[a.idx].dt,bars[b.idx].dt,
                 bars[known].dt,bars[fill].dt,entry,span,fill-known,mfe/span,mae/span,ret))
+    events.sort(key=lambda e:(e.entry_time,e.ratio,e.side))
     return events,pivots
 
 def summarize(events):
     out={}
     for ratio in sorted({e.ratio for e in events}):
-        g=[e for e in events if e.ratio==ratio]; cut=int(len(g)*.7)
+        g=sorted((e for e in events if e.ratio==ratio),key=lambda e:e.entry_time); cut=int(len(g)*.7)
         for label,items in (("all",g),("in_sample",g[:cut]),("out_of_sample",g[cut:])):
             vals=[e.returns_leg["20"] for e in items if "20" in e.returns_leg]
             out.setdefault(str(ratio),{})[label]={

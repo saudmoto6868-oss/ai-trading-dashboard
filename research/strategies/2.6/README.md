@@ -45,7 +45,7 @@ The repository contains CFX research on yfinance GC=F gold futures, not broker s
 ## Test harness
 Input CSV columns: datetime,open,high,low,close; optional volume.
 Example:
-    python -m research.strategies.two_6.event_study data/XAUUSD_M1.csv --left 3 --right 3 --wait-bars 80 --horizon-bars 40 --cost 0.30
+    python research/strategies/2.6/event_study.py data/XAUUSD_M1.csv --left 3 --right 3 --wait-bars 80 --horizon-bars 40 --cost 0.30
 Cost is absolute price per filled event, not pips; configure it to feed/account. Test separate datasets:
 - Broker XAUUSD spot M1 and M5 (primary).
 - GC=F futures only as a separately labelled proxy.

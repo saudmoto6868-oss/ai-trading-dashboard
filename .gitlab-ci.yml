@@ -106,3 +106,13 @@ risk_policy_tests:
     - python tests/test_horizons_sizing.py
     - python tests/test_desk_js.py
     - python tests/test_workspace_parts_sync.py
+
+# Required guard for the deprecated components.html API migration.
+streamlit_iframe_migration:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  timeout: 3m
+  script:
+    - python tests/test_streamlit_iframe_migration.py
+

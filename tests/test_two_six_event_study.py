@@ -95,9 +95,14 @@ class TwoSixTests(unittest.TestCase):
             mod.run_event_study(bars, ratios=[float("nan")])
 
     def test_dual_high_low_pivot_bar_is_excluded(self):
-        bars = [Bar(str(i), 10, 11, 9, 10) for i in range(9)]
+        bars = [
+            Bar(str(i), 10, high, low, 10)
+            for i, (high, low) in enumerate([
+                (11, 4), (11, 4), (15, 1), (11, 4), (11, 4),
+            ])
+        ]
         pivots = mod.confirmed_pivots(bars, left=1, right=1)
-        self.assertFalse(any(p.idx == 4 for p in pivots))
+        self.assertFalse(any(p.idx == 2 for p in pivots))
 
     def test_ratio_comparators(self):
         self.assertIn(2.6, mod.RATIOS)

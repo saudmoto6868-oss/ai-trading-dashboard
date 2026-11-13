@@ -67,8 +67,13 @@ Unit tests cover ratio arithmetic, pivot confirmation delay, no retrospective sa
 
 See `CONVERSATION_LOG.md` for owner decisions, constraints, branch/MR links and prior CI status.
 
-
 ## Data-contract hardening (2026-11-13)
 - Timestamps are now required to be timezone-aware ISO-8601 values; naive datetimes are rejected.
 - Non-finite cost and ratio parameters (NaN/Infinity) are rejected.
 - A candle that is simultaneously a unique local high and low is excluded from pivot output because OHLC data cannot establish the intrabar order. This is a conservative ambiguity policy, not a claim that such bars never occur.
+
+## Research Lab UI shell
+
+A first static research dashboard shell is available at [app/2_6_lab.html](app/2_6_lab.html). It intentionally shows no fabricated market prices, signals, or performance metrics. The chart panel remains empty until validated broker XAUUSD OHLC data is supplied. H1 and H2 status are displayed separately; H2 is explicitly marked as not implemented.
+
+The Streamlit page is wired into the dashboard sidebar under Research Labs as `2.6 Strategy Intelligence`. The HTML file remains a standalone visual preview. The page does not fetch market data or execute trades.

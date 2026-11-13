@@ -78,6 +78,27 @@ class TwoSixTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 mod.load_bars(path)
 
+    def test_naive_timestamp_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bars.csv"
+            rows = ["datetime,open,high,low,close"]
+            rows.extend([f"2026-01-01T00:{i // 60:02d}:{i % 60:02d},10,11,9,10" for i in range(100)])
+            path.write_text("\\n".join(rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "timezone"):
+                mod.load_bars(path)
+
+    def test_non_finite_cost_and_ratio_are_rejected(self):
+        bars = [Bar(str(i), 10, 11, 9, 10) for i in range(100)]
+        with self.assertRaisesRegex(ValueError, "cost"):
+            mod.run_event_study(bars, cost=float("nan"))
+        with self.assertRaisesRegex(ValueError, "ratios"):
+            mod.run_event_study(bars, ratios=[float("nan")])
+
+    def test_dual_high_low_pivot_bar_is_excluded(self):
+        bars = [Bar(str(i), 10, 11, 9, 10) for i in range(9)]
+        pivots = mod.confirmed_pivots(bars, left=1, right=1)
+        self.assertFalse(any(p.idx == 4 for p in pivots))
+
     def test_ratio_comparators(self):
         self.assertIn(2.6, mod.RATIOS)
         self.assertIn(2.618, mod.RATIOS)

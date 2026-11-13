@@ -49,3 +49,10 @@ Commit `b4f370d4`:
 - Do not modify/import CFX or XPIX logic, configs, registries, databases or UI.
 - Do not merge MR !70, deploy, add live broker connectivity, or place real orders.
 - Keep all work on the isolated 2.6 research branch and report back in MR !70.
+
+
+## Additional hardening committed for review
+- Require timezone-aware ISO-8601 timestamps; reject naive timestamps before chronological comparisons.
+- Reject NaN/Infinity for cost and ratio inputs.
+- Exclude dual high/low pivot candles because OHLC bars cannot determine which extreme occurred first; add regression coverage.
+- These changes still require a real local/CI test run. GitLab CI jobs were blocked before runner startup by `ci_quota_exceeded`; this is infrastructure/quota, not a Python assertion result.

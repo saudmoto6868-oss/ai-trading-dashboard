@@ -66,3 +66,9 @@ Cost is an absolute price amount per filled event, not pips. Supply a cost assum
 Unit tests cover ratio arithmetic, pivot confirmation delay, no retrospective same-side pivot replacement, leg direction, gap-fill assumption, per-event normalization, descriptive split labelling, and CSV timestamp/duplicate rejection. Passing unit tests do not establish market performance.
 
 See `CONVERSATION_LOG.md` for owner decisions, constraints, branch/MR links and prior CI status.
+
+
+## Data-contract hardening (2026-11-13)
+- Timestamps are now required to be timezone-aware ISO-8601 values; naive datetimes are rejected.
+- Non-finite cost and ratio parameters (NaN/Infinity) are rejected.
+- A candle that is simultaneously a unique local high and low is excluded from pivot output because OHLC data cannot establish the intrabar order. This is a conservative ambiguity policy, not a claim that such bars never occur.

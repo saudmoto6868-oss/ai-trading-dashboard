@@ -8,6 +8,7 @@ A touched limit level is a fill assumption, not proof of executable fills.
 import argparse
 import csv
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +56,8 @@ def _parse_timestamp(value):
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (TypeError, ValueError) as exc:
         raise ValueError(f"Invalid ISO-8601 datetime: {value!r}") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"Timestamp must include a timezone offset: {value!r}")
     return parsed
 
 
@@ -106,13 +109,19 @@ def confirmed_pivots(bars, left=3, right=3):
     for idx in range(left, len(bars) - right):
         window = bars[idx - left:idx + right + 1]
         high, low = bars[idx].high, bars[idx].low
-        if high == max(bar.high for bar in window) and sum(
+        is_high = high == max(bar.high for bar in window) and sum(
             bar.high == high for bar in window
-        ) == 1:
-            out.append(Pivot(idx, "H", high, idx + right))
-        if low == min(bar.low for bar in window) and sum(
+        ) == 1
+        is_low = low == min(bar.low for bar in window) and sum(
             bar.low == low for bar in window
-        ) == 1:
+        ) == 1
+        # OHLC bars do not reveal whether the high or low occurred first.
+        # Exclude dual-extreme bars rather than inventing an intrabar sequence.
+        if is_high and is_low:
+            continue
+        if is_high:
+            out.append(Pivot(idx, "H", high, idx + right))
+        if is_low:
             out.append(Pivot(idx, "L", low, idx + right))
     out.sort(key=lambda pivot: (pivot.known_at, pivot.idx, pivot.kind))
     return out
@@ -141,10 +150,10 @@ def run_event_study(bars, ratios=RATIOS, left=3, right=3, wait_bars=80,
         raise ValueError("bars cannot be empty")
     if min(left, right, wait_bars, horizon_bars) < 1:
         raise ValueError("left, right, wait_bars and horizon_bars must be >= 1")
-    if cost < 0:
-        raise ValueError("cost must be >= 0")
-    if not ratios or any(r <= 0 for r in ratios):
-        raise ValueError("ratios must be positive and non-empty")
+    if not math.isfinite(cost) or cost < 0:
+        raise ValueError("cost must be finite and >= 0")
+    if not ratios or any(not math.isfinite(r) or r <= 0 for r in ratios):
+        raise ValueError("ratios must be finite, positive and non-empty")
 
     pivots = confirmed_pivots(bars, left, right)
     events = []
@@ -249,7 +258,8 @@ def main():
                         help="absolute price cost per filled event (not pips)")
     parser.add_argument("--out", default="research/strategies/2.6/output")
     args = parser.parse_args()
-    if min(args.left, args.right, args.wait_bars, args.horizon_bars) < 1 or args.cost < 0:
+    if (min(args.left, args.right, args.wait_bars, args.horizon_bars) < 1
+            or not math.isfinite(args.cost) or args.cost < 0):
         parser.error("invalid parameters")
 
     bars = load_bars(args.csv)

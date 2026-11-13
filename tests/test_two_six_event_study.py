@@ -1,5 +1,12 @@
+import importlib.util
 import unittest
-from research.strategies.two_6.event_study import Bar, confirmed_pivots, make_legs, RATIOS, Pivot
+from pathlib import Path
+
+MODULE = Path(__file__).resolve().parents[1] / "research" / "strategies" / "2.6" / "event_study.py"
+SPEC = importlib.util.spec_from_file_location("two_six_event_study", MODULE)
+mod = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(mod)
+Bar, confirmed_pivots, make_legs, RATIOS, Pivot = mod.Bar, mod.confirmed_pivots, mod.make_legs, mod.RATIOS, mod.Pivot
 
 class TwoSixTests(unittest.TestCase):
     def test_ratio_math(self):

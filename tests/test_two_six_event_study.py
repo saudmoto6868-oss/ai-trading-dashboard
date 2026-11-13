@@ -56,6 +56,16 @@ class TwoSixTests(unittest.TestCase):
         self.assertEqual(mod._fill_price(Bar("t", 98, 101, 97, 100), "BUY", 99), 98)
         self.assertEqual(mod._fill_price(Bar("t", 102, 104, 101, 103), "SELL", 101), 102)
 
+    def test_bar_wholly_past_limit_fills_at_open(self):
+        flat = (100, 101, 99, 100)
+        rows = [flat] * 3 + [(100, 101, 90, 100)] + [flat] * 3 + [(100, 120, 99, 100)]
+        rows += [flat] * 3 + [(95, 96, 94, 95)] + [flat] * 88
+        bars = [Bar(str(i), *r) for i, r in enumerate(rows)]
+        events, _ = mod.run_event_study(bars, ratios=[2.6])
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].entry, 95)
+        self.assertEqual(events[0].bars_to_fill, 1)
+
     def test_summary_normalizes_each_event_by_its_own_leg(self):
         e1 = mod.Event(2.6, "BUY", "a", "b", "c", "d", 100, 10, 1, .2, -.1, {"20": .1})
         e2 = mod.Event(2.6, "BUY", "a", "b", "c", "e", 100, 20, 2, .4, -.2, {"20": .3})
@@ -83,7 +93,7 @@ class TwoSixTests(unittest.TestCase):
             path = Path(directory) / "bars.csv"
             rows = ["datetime,open,high,low,close"]
             rows.extend([f"2026-01-01T00:{i // 60:02d}:{i % 60:02d},10,11,9,10" for i in range(100)])
-            path.write_text("\\n".join(rows), encoding="utf-8")
+            path.write_text("\n".join(rows), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "timezone"):
                 mod.load_bars(path)
 

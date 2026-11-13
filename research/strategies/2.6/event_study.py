@@ -170,7 +170,8 @@ def run_event_study(bars, ratios=RATIOS, left=3, right=3, wait_bars=80,
             fill = None
             for idx in range(known_at + 1, stop + 1):
                 bar = bars[idx]
-                if bar.low <= level <= bar.high:
+                # A bar wholly past the limit (gap) still fills; _fill_price uses the open.
+                if (bar.low <= level) if side == "BUY" else (bar.high >= level):
                     fill_idx = idx
                     fill = _fill_price(bar, side, level)
                     break

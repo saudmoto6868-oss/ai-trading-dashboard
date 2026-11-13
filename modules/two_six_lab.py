@@ -3,8 +3,6 @@
 This UI intentionally exposes research status only. It does not create orders,
 fetch prices, or manufacture backtest metrics.
 """
-from pathlib import Path
-
 import streamlit as st
 
 

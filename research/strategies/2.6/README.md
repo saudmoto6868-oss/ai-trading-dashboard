@@ -76,4 +76,4 @@ See `CONVERSATION_LOG.md` for owner decisions, constraints, branch/MR links and 
 
 A first static research dashboard shell is available at [app/2_6_lab.html](app/2_6_lab.html). It intentionally shows no fabricated market prices, signals, or performance metrics. The chart panel remains empty until validated broker XAUUSD OHLC data is supplied. H1 and H2 status are displayed separately; H2 is explicitly marked as not implemented.
 
-Open the HTML file directly in a browser for a visual preview. This is not yet wired into the Streamlit navigation and does not change the main dashboard runtime.
+The Streamlit page is wired into the dashboard sidebar under Research Labs as `2.6 Strategy Intelligence`. The HTML file remains a standalone visual preview. The page does not fetch market data or execute trades.

@@ -48,4 +48,11 @@ at.session_state["lab_choice"] = "2.6 Strategy Intelligence"
 at.run()
 assert not at.exception and not at.error, [str(e.value)[:200] for e in at.exception]
 assert any("2.6 Strategy Intelligence" in t.value for t in at.title), [t.value for t in at.title]
+at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
+at.run()
+assert "2.6 Lab" in list(at.radio(key="page").options), list(at.radio(key="page").options)
+at.radio(key="page").set_value(19).run()
+assert not at.exception and not at.error, [str(e.value)[:200] for e in at.exception]
+assert any("2.6 Strategy Intelligence" in t.value for t in at.title), [t.value for t in at.title]
+print("ok 2.6 Lab top tab")
 print("ok research labs in the real app")

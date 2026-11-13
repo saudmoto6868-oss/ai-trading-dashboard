@@ -1,5 +1,5 @@
 """Research pages in the REAL app (AppTest, network blocked): the four Stats tabs (Monte Carlo, Edge Map, Robustness, Execution) and the sidebar lab (Micro) open without an
-exception; the sidebar offers ONLY Micro (Monte Carlo / Robustness live in Stats, no duplicates); the DEMO banner is injected into every mock page.
+exception; the sidebar offers ONLY Micro + 2.6 Strategy Intelligence (Monte Carlo / Robustness live in Stats, no duplicates); the DEMO banner is injected into every mock page.
 Run: PYTHONPATH=. python tests/test_research_labs_app.py"""
 import os
 import sys
@@ -40,8 +40,12 @@ for tab in ("Monte Carlo", "Edge Map", "Robustness", "Execution"):
 at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
 at.run()
 labs = [r for r in at.sidebar.radio if r.key == "lab_choice"]
-assert labs and list(labs[0].options) == ["—", "⬡ Micro · Foundations"], [list(r.options) for r in at.sidebar.radio]
+assert labs and list(labs[0].options) == ["—", "⬡ Micro · Foundations", "2.6 Strategy Intelligence"], [list(r.options) for r in at.sidebar.radio]
 at.session_state["lab_choice"] = "⬡ Micro · Foundations"
 at.run()
 assert not at.exception and not at.error
+at.session_state["lab_choice"] = "2.6 Strategy Intelligence"
+at.run()
+assert not at.exception and not at.error, [str(e.value)[:200] for e in at.exception]
+assert any("2.6 Strategy Intelligence" in t.value for t in at.title), [t.value for t in at.title]
 print("ok research labs in the real app")

@@ -627,7 +627,7 @@ consistency_rule, other_rules, inactivity_limit, account_type"""
         if api_key:
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
-                model=st.secrets.get("GUIDE_MODEL","claude-3-5-haiku-20241022"),
+                model=st.secrets.get("GUIDE_MODEL","claude-haiku-4-5-20251001"),
                 max_tokens=512,
                 messages=[{"role":"user","content":prompt}],
             )

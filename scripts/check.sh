@@ -3,6 +3,7 @@
 # Quiet: prints only failing tests (last 15 lines each) and a one-line summary.
 # Usage: bash scripts/check.sh [pattern]   e.g. bash scripts/check.sh spot
 cd "$(dirname "$0")/.." || exit 1
+export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 pat="${1:-}"
 fail=0; pass=0; failed=()
 python3 scripts/build_workspace.py --check >/dev/null 2>&1 || { echo "FAIL workspace parts out of sync -> python3 scripts/build_workspace.py"; fail=$((fail+1)); }

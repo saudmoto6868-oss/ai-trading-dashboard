@@ -52,7 +52,9 @@ def run():
             raise AssertionError("non-HTTP source URLs should be rejected")
         except ValueError:
             pass
-        assert search_records(topic="Liquidity", status="accepted", path=db)
+        # after return_to_review the record is back in "review" (REVIEW_DECISIONS), so the status filter must find it there, not under accepted
+        assert search_records(topic="Liquidity", status="review", path=db)
+        assert not search_records(topic="Liquidity", status="accepted", path=db)
         try:
             upsert_record({"title": "bad"}, db)
             raise AssertionError("required fields should be enforced")

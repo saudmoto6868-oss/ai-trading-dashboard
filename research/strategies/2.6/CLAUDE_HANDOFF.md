@@ -63,3 +63,9 @@ Commit `b4f370d4`:
 - H2 implemented in `h2_liquidity.py` (EQH/EQL pool -> wick sweep with close back inside -> latest reversal-direction leg -> zone = level +/- span/ratio -> limit fill). Rules are assumptions; creator rules UNKNOWN.
 - Tests: `python3 -m unittest tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 19 OK. Synthetic data only; no real XAUUSD run, no edge claim.
 - Still open: de-clustering, matched controls, block bootstrap, date-based holdout, real broker data, creator SL/TP.
+
+## Claude 2026-11-14 — Task 4 (evaluation protocol)
+- `evaluation.py`: `decluster` (per ratio, drop entries inside the previous kept forward window), `split_bounds` / `segment_of` (date-ordered 60/20/20 by bar index, purge events whose window crosses a boundary), `block_bootstrap_ci` (circular blocks), `matched_controls` (same side / span / horizon / segment, random entry at bar open), `evaluate` (per ratio: raw vs de-clustered n, purged, train / validation mean + CI + control mean + vs_control; **test locked unless `reveal_test=True`**; refuses mixed H1 / H2 events).
+- Tests: `python3 -m unittest tests/test_two_six_evaluation.py tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 24 OK. Synthetic only; no real XAUUSD run, no edge claim.
+- Still open: parameter-neighbourhood checks, report generator (Task 5), data contract (Task 3), broker XAUUSD export (owner), creator SL / TP rules (UNKNOWN).
+- Not merged to main; on branch `ccr-fba879d1-5edbbl` (GitHub). No CFX / XPIX changes, no deploy, no live trading.

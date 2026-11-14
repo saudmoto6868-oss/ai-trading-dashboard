@@ -69,3 +69,8 @@ Commit `b4f370d4`:
 - Tests: `python3 -m unittest tests/test_two_six_evaluation.py tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 24 OK. Synthetic only; no real XAUUSD run, no edge claim.
 - Still open: parameter-neighbourhood checks, report generator (Task 5), data contract (Task 3), broker XAUUSD export (owner), creator SL / TP rules (UNKNOWN).
 - Not merged to main; on branch `ccr-fba879d1-5edbbl` (GitHub). No CFX / XPIX changes, no deploy, no live trading.
+
+## Claude 2026-11-14 — Task 3 (dataset contract)
+- `dataset.py`: `build_manifest` (sha256, bars, UTC first / last, provider, symbol, asset class, timeframe, source tz, precision, contract size, spread / commission / slippage -> `cost_per_event` in price units, gap scan with weekend closes apart), `verify` (refuses a file whose bytes changed), CLI `python3 dataset.py FILE.csv --provider ... --symbol XAUUSD --timeframe 5m --spread 0.30 --write`. GC=F can never be labelled spot XAUUSD (and XAUUSD never as a futures proxy).
+- Tests: `python3 -m unittest tests/test_two_six_dataset.py tests/test_two_six_evaluation.py tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 28 OK. Synthetic only.
+- Owner next: broker XAUUSD export -> run the CLI with the real spread -> keep the manifest next to the CSV (CSV itself stays out of git).

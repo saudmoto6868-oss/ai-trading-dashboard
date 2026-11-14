@@ -384,3 +384,4 @@
 - **طلب Claude:** مراجعة causal pivots، event de-clustering، جودة البيانات، تكلفة التنفيذ، فصل فرضيتي retracement/projection، تثبيت قواعد SL/TP من المصدر، تنفيذ walk-forward وholdout واختبارات إحصائية، وتوثيق النتائج. لا يدمج أو يربط التنفيذ الحي دون أمر جديد.
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 4: `research/strategies/2.6/evaluation.py` (de-clustering + matched controls + block bootstrap + تقسيم 60/20/20 بالتاريخ مع purge، والـ test مقفول). 24 اختبار OK (داتا مصطنعة بس). على فرع `ccr-fba879d1-5edbbl`، مش على main. ناقص: داتا XAUUSD من البروكر + قواعد SL/TP من صاحب الاستراتيجية.
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 3: `research/strategies/2.6/dataset.py` (manifest + checksum + فحص الفجوات + التكاليف، GC=F مايتسماش XAUUSD). 28 اختبار OK (مصطنعة).
+- [2026-11-14] [Claude — حساب سعود] 2.6 Task 5: `research/strategies/2.6/report.py` (تقرير من الملف + الـ manifest، H1 و H2 منفصلين، الـ test مقفول). 30 اختبار OK (مصطنعة).

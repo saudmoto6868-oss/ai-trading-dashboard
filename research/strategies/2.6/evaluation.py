@@ -59,7 +59,7 @@ def block_bootstrap_ci(values, block=5, n_boot=2000, alpha=0.05, seed=0):
         return None
     if block < 1 or n_boot < 1 or not 0 < alpha < 1:
         raise ValueError("block and n_boot must be >= 1, 0 < alpha < 1")
-    block = min(block, n)
+    block = max(1, min(block, n // 2))   # a block as long as the sample would make every resample identical
     rng = random.Random(seed)
     means = []
     for _ in range(n_boot):

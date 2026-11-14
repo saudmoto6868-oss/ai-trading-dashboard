@@ -74,3 +74,8 @@ Commit `b4f370d4`:
 - `dataset.py`: `build_manifest` (sha256, bars, UTC first / last, provider, symbol, asset class, timeframe, source tz, precision, contract size, spread / commission / slippage -> `cost_per_event` in price units, gap scan with weekend closes apart), `verify` (refuses a file whose bytes changed), CLI `python3 dataset.py FILE.csv --provider ... --symbol XAUUSD --timeframe 5m --spread 0.30 --write`. GC=F can never be labelled spot XAUUSD (and XAUUSD never as a futures proxy).
 - Tests: `python3 -m unittest tests/test_two_six_dataset.py tests/test_two_six_evaluation.py tests/test_two_six_event_study.py tests/test_two_six_h2.py` -> 28 OK. Synthetic only.
 - Owner next: broker XAUUSD export -> run the CLI with the real spread -> keep the manifest next to the CSV (CSV itself stays out of git).
+
+## Claude 2026-11-14 — Task 5 (report)
+- `report.py`: `python3 report.py FILE.csv FILE.csv.manifest.json [--horizon 40] [--key 20] [--out report.md] [--reveal-test]`. Verifies the checksum, cost = manifest `cost_per_event`, runs H1 and H2 separately; per family: descriptive table (ratio x side: n, touch % for H1, positive %, median MFE / MAE, bars to fill) + evaluation table (raw / de-clustered / purged n, train / validation mean, block-bootstrap CI, control mean, vs control, "not evidence" under n 30); test locked. Same input -> identical report.
+- Fix in `evaluation.block_bootstrap_ci`: block capped at n // 2 (a block as long as the sample gave a zero-width CI on tiny samples).
+- Tests: 30 OK across the five `tests/test_two_six_*.py` files. Synthetic only.

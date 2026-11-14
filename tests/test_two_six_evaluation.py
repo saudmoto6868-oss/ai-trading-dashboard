@@ -46,6 +46,8 @@ class EvaluationTests(unittest.TestCase):
         lo, hi = ev.block_bootstrap_ci([0.0, 1.0] * 20, block=4, n_boot=500)
         self.assertLessEqual(lo, 0.5); self.assertGreaterEqual(hi, 0.5); self.assertLess(hi - lo, 0.5)
         self.assertEqual(ev.block_bootstrap_ci([0.3] * 10), (0.3, 0.3))
+        lo3, hi3 = ev.block_bootstrap_ci([-1.0, 0.0, 1.0], block=5, n_boot=500)
+        self.assertLess(lo3, hi3)   # tiny sample: CI must not collapse to one value
         self.assertEqual(ev.block_bootstrap_ci([0, 1, 2, 3], seed=7), ev.block_bootstrap_ci([0, 1, 2, 3], seed=7))
 
     def test_controls_flat_market_return_minus_cost(self):

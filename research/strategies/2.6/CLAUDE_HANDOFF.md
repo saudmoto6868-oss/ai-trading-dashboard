@@ -79,3 +79,9 @@ Commit `b4f370d4`:
 - `report.py`: `python3 report.py FILE.csv FILE.csv.manifest.json [--horizon 40] [--key 20] [--out report.md] [--reveal-test]`. Verifies the checksum, cost = manifest `cost_per_event`, runs H1 and H2 separately; per family: descriptive table (ratio x side: n, touch % for H1, positive %, median MFE / MAE, bars to fill) + evaluation table (raw / de-clustered / purged n, train / validation mean, block-bootstrap CI, control mean, vs control, "not evidence" under n 30); test locked. Same input -> identical report.
 - Fix in `evaluation.block_bootstrap_ci`: block capped at n // 2 (a block as long as the sample gave a zero-width CI on tiny samples).
 - Tests: 30 OK across the five `tests/test_two_six_*.py` files. Synthetic only.
+
+## Claude 2026-11-14 — Task 4 remainder (parameter neighbourhood) + Task 2
+- `evaluation.neighbourhood`: H1 or H2 re-run for pivot window 2..5 x wait_bars 40 / 80 / 120 at ratio 2.6; reports train / validation means and the share of settings (validation n >= 30) that are positive. Never reads the test segment; a stability check, not a parameter search. `report.py --neighbourhood` adds the two tables.
+- `docs/RULEBOOK.md` + `docs/EVENT_DEFINITIONS.md`: every rule tagged CODE / ASSUMPTION / UNKNOWN; 4 open questions for the creator.
+- Tests: 31 OK (five `tests/test_two_six_*.py`). Synthetic only.
+- Task 4 now complete in code. Left: Task 6 (FX adapter, only after a real XAUUSD baseline), Task 7 (UI, gated). Blocked on owner: broker XAUUSD export, creator SL / TP rules.

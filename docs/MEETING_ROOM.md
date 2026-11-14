@@ -386,3 +386,4 @@
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 3: `research/strategies/2.6/dataset.py` (manifest + checksum + فحص الفجوات + التكاليف، GC=F مايتسماش XAUUSD). 28 اختبار OK (مصطنعة).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 5: `research/strategies/2.6/report.py` (تقرير من الملف + الـ manifest، H1 و H2 منفصلين، الـ test مقفول). 30 اختبار OK (مصطنعة).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 2: `research/strategies/2.6/docs/RULEBOOK.md` + `EVENT_DEFINITIONS.md` (كل قاعدة: CODE / ASSUMPTION / UNKNOWN + 4 أسئلة لصاحب الاستراتيجية).
+- [2026-11-14] [Claude — حساب سعود] 2.6 Task 4 خلص: فحص ثبات الإعدادات (pivot 2..5 × wait 40/80/120) في `evaluation.py` + `report.py --neighbourhood`، من غير ما يلمس الـ test. 31 اختبار OK (مصطنعة).

@@ -132,3 +132,22 @@ def evaluate(bars, events, horizon_bars, cost, key, fracs=SPLITS, reveal_test=Fa
         report["ratios"][str(ratio)] = row
     report["note"] = "Research only. n < 30 per cell = not evidence. Ratios compared side by side: picking the best one is a multiple test."
     return report
+
+
+NEIGHBOURHOOD = {"pivot": (2, 3, 4, 5), "wait_bars": (40, 80, 120)}
+
+
+def neighbourhood(bars, run, cost, key, horizon_bars, ratio=2.6, grid=NEIGHBOURHOOD, seed=0):
+    """Stability check, not a search: re-run one family (`run` = run_event_study or run_h2) for each pivot window
+    (left = right) x wait_bars and report the train / validation mean for `ratio`. The test segment is never read.
+    An effect that exists only at one setting is curve fit; nothing here may be used to pick parameters for the test."""
+    rows = []
+    for p in grid["pivot"]:
+        for w in grid["wait_bars"]:
+            events, _ = run(bars, (ratio,), left=p, right=p, wait_bars=w, horizon_bars=horizon_bars, cost=cost)
+            r = evaluate(bars, events, horizon_bars, cost, key, seed=seed)["ratios"].get(str(float(ratio)))
+            rows.append({"pivot": p, "wait_bars": w, "n_declustered": r["n_declustered"] if r else 0,
+                         "train_mean": r["train"]["mean"] if r else None, "validation_mean": r["validation"]["mean"] if r else None,
+                         "validation_n": r["validation"]["n"] if r else 0})
+    signs = [x["validation_mean"] > 0 for x in rows if x["validation_mean"] is not None and x["validation_n"] >= 30]
+    return {"ratio": ratio, "rows": rows, "settings_with_n30": len(signs), "positive_share": (sum(signs) / len(signs)) if signs else None}

@@ -52,6 +52,19 @@ class ReportTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rp.build(path, m)
 
+    def test_neighbourhood_grid_never_reads_test(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = zigzag_csv(tmp)
+            m = ds.build_manifest(path, "Synthetic", "XAUUSD", "5m", spread=0.3)
+            md, _ = rp.build(path, m, with_neighbourhood=True)
+            self.assertIn("## H1 parameter neighbourhood", md); self.assertIn("## H2 parameter neighbourhood", md)
+            ev = sys.modules["evaluation"]; es = sys.modules["event_study"]
+            nb = ev.neighbourhood(ds.verify(path, m), es.run_event_study, 0.3, "20", 40)
+            self.assertEqual(len(nb["rows"]), 12)
+            self.assertTrue(all(set(r) == {"pivot", "wait_bars", "n_declustered", "train_mean", "validation_mean", "validation_n"} for r in nb["rows"]))
+            self.assertNotEqual(nb["rows"][0]["n_declustered"], None)
+            self.assertNotIn("neighbourhood", rp.build(path, m)[0])   # off by default
+
     def test_cli_out_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = zigzag_csv(tmp)

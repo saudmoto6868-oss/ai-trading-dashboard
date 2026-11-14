@@ -6,7 +6,7 @@
 قبل أي شغل، اقرأ بالترتيب:
 1. `CLAUDE.md`
 2. `docs/NEW_ACCOUNT_GUIDE.md`
-3. `docs/MEETING_ROOM.md` (أوامر المالك الجديدة)
+3. `docs/MEETING_ROOM.md` (أوامر المالك الجديدة) — أوّل 80 سطر + `tail -60` بس، مش الملف كله
 4. `docs/WHITEBOARD.md` (المهام والمسؤوليات)
 5. `docs/TASK_QUEUE.md`
 

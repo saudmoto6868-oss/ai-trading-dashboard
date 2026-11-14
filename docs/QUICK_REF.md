@@ -22,3 +22,7 @@
 - Don't switch model or add MCP servers mid-session (breaks the cache).
 - Pipe noisy output through `tail`/`grep`; use `head_limit` on searches.
 - Verbose exploration (>10K tokens of output) -> subagent; else inline.
+- Tests: run only the area you touched (`check.sh <name>`); full suite (~3.5 min) only before merging to main.
+- Never `cat`/Read a file >20 KB whole (MEETING_ROOM, PROJECT_STATUS, workspace_app.html): grep, then a range.
+- One exploration command per question; batch independent calls; don't re-check what already succeeded.
+- Reply short (owner rule). No long summaries of what you just did.

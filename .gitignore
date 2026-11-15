@@ -20,3 +20,6 @@ data/spot/
 
 # the brain (modules/brain.py): its memory lives in the GitHub Actions cache
 .brain_*
+
+# Auto activity log: written locally by the hook, never committed (owner decision on GitLab, 2026-11-12)
+docs/ACTIVITY_LOG_AUTO.md

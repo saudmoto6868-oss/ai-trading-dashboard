@@ -96,13 +96,13 @@ def _short(symbol):
     return s
 
 
-def heatmap_spec(points, tf, timeframes):
+def heatmap_spec(points, tf, timeframes, height: int = 460):
     """Vega-Lite spec: zone bands + labelled dots + dashed average line (no extra dependency)."""
     avg = round(sum(p["rsi"] for p in points) / len(points), 2) if points else None
     n = max((p["rank"] for p in points), default=1)
     bands = [{"label": b[0], "y0": b[1], "y1": b[2], "colour": b[3]} for b in BANDS]
     tooltip = [{"field": "full", "title": "Symbol"}, {"field": "rsi", "title": f"RSI {tf}"},
-               {"field": "band", "title": "Zone"}, {"field": "price", "title": "Last close", "format": ",.6~g"}]
+               {"field": "band", "title": "Zone"}, {"field": "state", "title": "State"}, {"field": "price", "title": "Last close", "format": ",.6~g"}]
     tooltip += [{"field": f"RSI {x}", "title": f"RSI {x}"} for x in timeframes if x != tf]
     x_scale = {"domain": [0, n + 1]}
     y_scale = {"domain": [0, 100]}
@@ -146,7 +146,7 @@ def heatmap_spec(points, tf, timeframes):
                                 "color": "#f5a524", "fontWeight": "bold"},
                        "encoding": {"y": {"field": "avg", "type": "quantitative", "scale": y_scale},
                                     "text": {"field": "label"}}})
-    return {"height": 460, "layer": layers, "config": {"view": {"stroke": None}}}, avg
+    return {"height": height, "layer": layers, "config": {"view": {"stroke": None}}}, avg
 
 
 def _symbols(asset_class: str, limit: int):
@@ -215,38 +215,48 @@ def _alignment(measures, timeframes):
     return "Mixed"
 
 
+_ALIGN_STYLE = {"Bullish alignment": "color:#1f9d6b;font-weight:700", "Bearish alignment": "color:#e5484d;font-weight:700"}
+
+
+def _band_chips(counts, avg, tf, n_points, n_symbols):
+    chips = [f'<span style="border:1px solid #f5a524;color:#f5a524;border-radius:10px;padding:1px 8px">'
+             f'Avg RSI {tf}: <b>{avg:.2f}</b></span>' if avg is not None else ""]
+    chips += [f'<span style="background:{b[3]}22;border:1px solid {b[3]};color:{b[3]};border-radius:10px;padding:1px 8px">'
+              f'{b[0]} {b[1]}–{b[2]}: <b>{counts[b[0]]}</b></span>' for b in BANDS]
+    chips.append(f'<span style="opacity:.7">{n_points}/{n_symbols} symbols on map</span>')
+    st.markdown('<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;margin:2px 0 6px">'
+                + "".join(chips) + "</div>", unsafe_allow_html=True)
+
+
 def render():
-    st.markdown("### RSI Heatmap Intelligence")
-    st.caption(
-        "Multi-timeframe momentum map · Wilder RSI(14) · closed candles only · "
-        "TIA/native market feeds · research only, not an execution signal"
-    )
-    c1, c2, c3 = st.columns([1.2, 1.35, 0.9])
-    with c1:
-        asset_class = st.selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market")
-    with c2:
-        timeframes = st.multiselect(
-            "Timeframes", TIMEFRAMES, default=["15m", "1h", "4h", "12h", "1d", "1w"],
-            key="rsi_hm_tfs",
-        )
-    with c3:
-        limit = st.selectbox("Symbols", (10, 25, 50, 100, 200), index=2, key="rsi_hm_limit")
+    from modules.rsi_setups import GROUPS, read_setup, setup_rank, groups_of
+    st.markdown("#### RSI Heatmap Intelligence")
+    f = st.columns([1.0, 2.2, 0.6, 0.7, 1.4, 1.3, 0.85])
+    asset_class = f[0].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market")
+    timeframes = f[1].multiselect("Timeframes", TIMEFRAMES, default=["15m", "1h", "4h", "12h", "1d", "1w"],
+                                  key="rsi_hm_tfs")
+    limit = f[2].selectbox("Symbols", (10, 25, 50, 100, 200), index=2, key="rsi_hm_limit")
     if not timeframes:
         st.info("Select at least one timeframe.")
         return
+    timeframes = [tf for tf in TIMEFRAMES if tf in timeframes]   # keep fast -> slow order
+    default_tf = "4h" if "4h" in timeframes else timeframes[0]
+    chart_tf = f[3].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf")
+    show = f[4].multiselect("Show", GROUPS, default=[], key="rsi_hm_show", placeholder="All states")
+    query = f[5].text_input("Search", key="rsi_hm_search", placeholder="BTC, gold, squeeze, ★…")
+    deep = f[6].toggle("Radar", value=True, key="rsi_hm_deep",
+                       help="Run the Radar strategies + chart patterns on the map timeframe (slower).")
 
     symbols, note = _symbols(asset_class, int(limit))
-    if note:
-        st.caption(note)
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
         return
 
     from modules.market_cache import fetch_frames
-    with st.spinner(f"Loading {len(symbols)} symbols across {len(timeframes)} timeframes…"):
+    with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
         frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
 
-    rows, detail = [], {}
+    rows, detail, setups = [], {}, {}
     for symbol in symbols:
         per_tf = {}
         for tf in timeframes:
@@ -257,15 +267,24 @@ def render():
             if measure:
                 per_tf[tf] = measure
         detail[symbol] = per_tf
-        row = {"Symbol": symbol}
-        prices = [per_tf[tf]["price"] for tf in reversed(timeframes) if tf in per_tf]
-        row["Last price"] = prices[0] if prices else "—"
-        row["MTF alignment"] = _alignment(per_tf, timeframes)
-        row["Available TFs"] = f"{len(per_tf)}/{len(timeframes)}"
+        try:
+            setup = read_setup(_closed_frame((frames.get(symbol) or {}).get(chart_tf)), deep=deep)
+        except Exception:
+            setup = None
+        setups[symbol] = setup
+        prices = [per_tf[tf]["price"] for tf in timeframes if tf in per_tf]
+        radar = (setup or {}).get("radar") or {}
+        row = {"Symbol": symbol, "Price": prices[0] if prices else None,
+               "State": setup["state"] if setup else "—", "Speed": setup["speed"] if setup else "",
+               "Regime": setup["regime"] if setup else "—",
+               "Radar": (f"{'★' * radar['stars']} {radar['direction']} {radar['icons']}".strip()
+                         if radar.get("stars") else ("·" if radar else "—")),
+               "Patterns": ", ".join(setup["patterns"][:2]) if setup and setup["patterns"] else ""}
         for tf in timeframes:
-            m = per_tf.get(tf)
-            row[f"RSI {tf}"] = m["rsi"] if m else "—"
-            row[f"Trend {tf}"] = m["trend"] if m else "—"
+            row[f"RSI {tf}"] = per_tf[tf]["rsi"] if tf in per_tf else None
+        row["MTF"] = _alignment(per_tf, timeframes)
+        row["_rank"] = setup_rank(setup)
+        row["_groups"] = groups_of(setup)
         rows.append(row)
 
     if not any(detail.values()):
@@ -275,72 +294,79 @@ def render():
                 st.json(errors)
         return
 
-    df = pd.DataFrame(rows)
-    rsi_cols = [f"RSI {tf}" for tf in timeframes]
-    analysed = sum(bool(x) for x in detail.values())
-    aligned = sum(x.get("MTF alignment") in ("Bullish alignment", "Bearish alignment") for x in rows)
-    default_tf = "4h" if "4h" in timeframes else timeframes[0]
-    chart_tf = st.radio("Heatmap timeframe", timeframes, index=timeframes.index(default_tf),
-                        horizontal=True, key="rsi_hm_chart_tf")
     points = heatmap_points(detail, symbols, chart_tf, timeframes)
-    spec, avg = heatmap_spec(points, chart_tf, timeframes)
+    for p in points:
+        s_ = setups.get(p["full"]) or {}
+        p["state"] = s_.get("state", "")
+        if s_.get("speed"):
+            p["symbol"] = f"{p['symbol']} {s_['speed']}"
+    spec, avg = heatmap_spec(points, chart_tf, timeframes, height=380)
     counts = {b[0]: sum(p["band"] == b[0] for p in points) for b in BANDS}
-    cols = st.columns(len(BANDS) + 1)
-    cols[0].metric(f"Avg RSI ({chart_tf})", f"{avg:.2f}" if avg is not None else "—",
-                   f"{len(points)} of {len(symbols)} symbols")
-    for col, band in zip(cols[1:], BANDS):
-        col.metric(f"{band[0]} ({band[1]}–{band[2]})", counts[band[0]])
-    if points:
-        st.vega_lite_chart(spec, use_container_width=True)
-    else:
-        st.info(f"No symbol has verified closed candles on {chart_tf}.")
-    st.caption(f"Symbols with data on any timeframe: {analysed}/{len(symbols)} · full MTF alignment: {aligned}")
 
-    # CoinGlass-style table: sorted by the heatmap timeframe, RSI cells coloured by band.
-    sort_col = f"RSI {chart_tf}"
-    df["_sort"] = pd.to_numeric(df[sort_col], errors="coerce")
-    df = df.sort_values("_sort", ascending=False, na_position="last").drop(columns="_sort")
-    show_trend = st.toggle("Show EMA 9/21 trend per timeframe", value=False, key="rsi_hm_trend")
-    keep = ["Symbol", "Last price"] + [c for tf in timeframes
-                                      for c in ([f"RSI {tf}", f"Trend {tf}"] if show_trend else [f"RSI {tf}"])]
-    keep += ["MTF alignment", "Available TFs"]
-    view = df[keep]
-    styled = view.style.map(_style_rsi, subset=rsi_cols).format(
-        lambda v: f"{v:.2f}" if isinstance(v, (int, float)) else v, subset=rsi_cols).format(
-        lambda v: f"{v:,.6g}" if isinstance(v, (int, float)) else v, subset=["Last price"])
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=min(38 * (len(view) + 1), 640))
-    available_symbols = [s for s in symbols if detail.get(s)]
-    selected = st.selectbox("Open symbol analysis", available_symbols, key="rsi_hm_symbol")
-    selected_data = detail.get(selected, {})
-    if selected_data:
-        st.markdown("#### Selected symbol · timeframe breakdown")
-        cards = st.columns(min(4, len(timeframes)))
+    df = pd.DataFrame(rows)
+    if show:
+        df = df[df["_groups"].map(lambda g: bool(g & set(show)))]
+    if query.strip():
+        q = query.strip().lower()
+        hay = df.drop(columns=["_groups", "_rank"]).astype(str).agg(" ".join, axis=1).str.lower()
+        df = df[hay.str.contains(q, regex=False)]
+    df = df.sort_values(["_rank", f"RSI {chart_tf}"], ascending=[False, False], na_position="last")
+
+    left, right = st.columns([1.15, 1])
+    with left:
+        _band_chips(counts, avg, chart_tf, len(points), len(symbols))
+        if points:
+            st.vega_lite_chart(spec, use_container_width=True)
+        else:
+            st.info(f"No symbol has verified closed candles on {chart_tf}.")
+    with right:
+        st.markdown(f"**Watch first · {chart_tf}** <span style='opacity:.6;font-size:12px'>"
+                    "Radar stars, fresh reversals / momentum / squeeze, speed</span>", unsafe_allow_html=True)
+        top = df[df["_rank"] > 0].head(10)
+        if top.empty:
+            st.caption("Nothing stands out with the current filters.")
+        else:
+            st.dataframe(top[["Symbol", "State", "Speed", "Radar", f"RSI {chart_tf}"]].style.map(
+                _style_rsi, subset=[f"RSI {chart_tf}"]).format("{:.2f}", subset=[f"RSI {chart_tf}"], na_rep="—"),
+                use_container_width=True, hide_index=True, height=380)
+
+    rsi_cols = [f"RSI {tf}" for tf in timeframes]
+    view = df.drop(columns=["_rank", "_groups"])
+    st.caption(f"{len(view)} of {len(rows)} symbols · sorted by setup, then RSI {chart_tf} · {note}".rstrip(" ·"))
+    st.dataframe(view.style.map(_style_rsi, subset=rsi_cols)
+                 .map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
+                 .format("{:.2f}", subset=rsi_cols, na_rep="—")
+                 .format("{:,.6g}", subset=["Price"], na_rep="—"),
+                 use_container_width=True, hide_index=True, height=360)
+
+    with st.expander("Symbol detail · TIA Director"):
+        available_symbols = [s for s in symbols if detail.get(s)]
+        selected = st.selectbox("Symbol", available_symbols, key="rsi_hm_symbol")
+        selected_data = detail.get(selected, {})
+        cards = st.columns(max(1, min(6, len(timeframes))))
         for i, tf in enumerate(timeframes):
             m = selected_data.get(tf)
             with cards[i % len(cards)]:
-                st.metric(f"RSI · {tf}", f"{m['rsi']:.2f}" if m else "Unavailable",
-                          m["zone"] if m else "No verified closed candles")
+                st.metric(f"RSI · {tf}", f"{m['rsi']:.2f}" if m else "—", rsi_band(m["rsi"]) if m else "No data",
+                          delta_color="off")
                 if m:
-                    st.caption(f"{m['trend']} · close {m['price']:,.6g}")
-                    st.caption(f"Last closed: {m['last_closed']}")
-
-    if st.button("Analyse selected symbol with TIA Director", key="rsi_hm_director"):
-        from modules.tia_intelligence import director_report
-        with st.spinner(f"Running TIA evidence review for {selected}…"):
-            report = director_report(selected, asset_class)
-        st.markdown("#### TIA Director")
-        st.write(report.get("stance", "UNAVAILABLE"), "·", report.get("confidence", "LOW"))
-        st.caption(report.get("director_summary", "No director summary returned."))
-        for warning in report.get("warnings", []):
-            st.warning(warning)
-        st.json({"technical": report.get("technical", {}), "flow": report.get("flow", {}),
-                 "sources": report.get("sources", {}), "options": report.get("options")})
+                    st.caption(f"{m['trend']} · {m['last_closed']}")
+        if st.button("Analyse with TIA Director", key="rsi_hm_director"):
+            from modules.tia_intelligence import director_report
+            with st.spinner(f"Running TIA evidence review for {selected}…"):
+                report = director_report(selected, asset_class)
+            st.write(report.get("stance", "UNAVAILABLE"), "·", report.get("confidence", "LOW"))
+            st.caption(report.get("director_summary", "No director summary returned."))
+            for warning in report.get("warnings", []):
+                st.warning(warning)
+            st.json({"technical": report.get("technical", {}), "flow": report.get("flow", {}),
+                     "sources": report.get("sources", {}), "options": report.get("options")})
 
     if errors:
-        with st.expander(f"Symbols/timeframes with unavailable data ({len(errors)})"):
+        with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):
             st.json(errors)
     st.caption(
-        "RSI is a momentum condition, not a buy/sell instruction. Overbought can persist in strong trends. "
-        "Confirm with market structure, volume/liquidity, verified order flow and risk rules. "
-        "EGX/Tadawul and some Yahoo-backed instruments may be delayed or unavailable."
+        "Wilder RSI(14), closed candles only, 250-bar warm-up. State = RSI phase + speed (● fast, ●● very fast over "
+        f"{3} candles) + regime; Radar = the platform's strategy detectors on the map timeframe. Order flow is not "
+        "included (it lives in the Workspace browser feed). A guide to where to look, not a buy/sell signal."
     )

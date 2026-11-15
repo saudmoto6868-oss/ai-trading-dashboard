@@ -457,6 +457,26 @@ Object.assign(CandleChart.prototype, {
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
+  paintS26(c, py){   // 2.6 strategy (s26Calc): measured leg, entry / stop / TP1 / TP2 lines, pool + sweep, fill (triangle) and exit (square). Provisional stop / targets, research only
+    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.s26;
+    const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
+    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!S.h1, h2:!!S.h2}); } catch(e){} this._s26 = {k:key, r}; }
+    const P = this._s26.r.slice(-Math.max(1, +S.show || 6)), px = +S.tx || 10, BL = "#4da3ff", RD = "#ff4d4f", f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6);
+    const seg = (i, j, v, col, dash, w) => { const xa = this.x(i), xb = this.x(j); if (xb < 0 || xa > this.W) return; const y = py(v); c.strokeStyle = col; c.lineWidth = w || 1; c.setLineDash(dash || []); c.beginPath(); c.moveTo(xa, y); c.lineTo(xb, y); c.stroke(); };
+    const tag = (j, v, col, t) => { const x = this.x(j) + 4; if (x < 0 || x > this.W) return; c.fillStyle = col; c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillText(t+" "+f(v), x, py(v)); };
+    const tri = (i, up, col) => { const x = this.x(i), y = up ? py(D[i].l) + 9 : py(D[i].h) - 9, s = 5; c.fillStyle = col; c.beginPath(); c.moveTo(x, up ? y - s : y + s); c.lineTo(x - s, up ? y + s : y - s); c.lineTo(x + s, up ? y + s : y - s); c.closePath(); c.fill(); };
+    c.save(); c.textBaseline = "middle";
+    P.forEach(p => { const buy = p.side === "BUY", a = p.anchors, ec = buy ? S.color : S.color2, end = p.exit != null ? p.exit : n - 1 + 4;
+      const la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4];
+      c.globalAlpha = .8; c.strokeStyle = "#8888ff"; c.lineWidth = 1; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(this.x(la), py(buy ? D[la].l : D[la].h)); c.lineTo(this.x(lb), py(buy ? D[lb].h : D[lb].l)); c.stroke();
+      if (p.kind === "H2"){ seg(a[0], a[2], p.tp1, "#f0b429", [3, 3]); c.fillStyle = "#f0b429"; c.beginPath(); c.arc(this.x(a[2]), py(buy ? D[a[2]].l : D[a[2]].h), 3.5, 0, 7); c.fill(); }
+      c.globalAlpha = 1; seg(p.known, end, p.entry, ec, S.dash ? S.dash.split(",").map(Number) : [], +S.w || 1.6); seg(p.known, end, p.stop, RD, [3, 3]); seg(p.known, end, p.tp1, BL, [2, 3]); seg(p.known, end, p.tp2, BL, [2, 3]);
+      tag(end, p.entry, ec, p.kind+" "+p.side); tag(end, p.stop, RD, "SL"); tag(end, p.tp1, BL, "TP1"); tag(end, p.tp2, BL, "TP2");
+      if (p.fill != null) tri(p.fill, buy, ec);
+      if (p.fill != null && p.exit != null){ const ok = p.status === "TP2", x = this.x(p.exit), y = py(ok ? p.tp2 : p.stop); c.fillStyle = ok ? BL : RD; c.fillRect(x - 3.5, y - 3.5, 7, 7);
+        c.font = "bold "+px+"px sans-serif"; c.textAlign = "center"; c.fillText({"TP2":"TP2", "stopped":"SL", "TP1 then stop":"TP1→SL"}[p.status] || p.status, x, y + (buy === ok ? -10 : 10)); } });
+    c.setLineDash([]); c.restore();
+  },
   paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc. Settings = the Pine script's settings (this.st.msb)
     const n = this.data.length; if (n < 20) return; const S = this.st.msb, zl = Math.max(2, Math.round(+S.zl) || 9), fib = isFinite(+S.fib) ? +S.fib : 0.237;
     const key = n+"|"+this.data[n-1].c+"|"+this.data[0].t+"|"+zl+"|"+fib; if (!this._msb || this._msb.k !== key){ let r = {zz:[], ev:[], boxes:[]}; try { r = msbCalc(this.data, zl, fib); } catch(e){} this._msb = {k:key, r}; }

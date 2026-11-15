@@ -27,8 +27,8 @@ def _base_price(ticker: str) -> float:
 
 def ohlc(ticker: str, interval: str = "1d", bars: int = 600) -> pd.DataFrame:
     rng = np.random.default_rng(_seed(ticker, interval))
-    step = {"1d": timedelta(days=1), "1h": timedelta(hours=1), "15m": timedelta(minutes=15), "5m": timedelta(minutes=5)}[interval]
-    vol = {"1d": 0.006, "1h": 0.0018, "15m": 0.0009, "5m": 0.0005}[interval]
+    step = {"1d": timedelta(days=1), "1h": timedelta(hours=1), "15m": timedelta(minutes=15), "5m": timedelta(minutes=5), "1m": timedelta(minutes=1)}[interval]
+    vol = {"1d": 0.006, "1h": 0.0018, "15m": 0.0009, "5m": 0.0005, "1m": 0.00025}[interval]
     if ticker == "^VIX":
         vol *= 6
     drift = rng.normal(0, vol / 8)

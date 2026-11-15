@@ -90,3 +90,69 @@ def routine(last: dict | None = None) -> dict:
              "الحساب الممول (Account 3) لصفقات A+++ فقط، ومع سقف ربح يومي."]
     return {"checks": checks, "rules": rules, "overnight": overnight, "calendar": cal["data"],
             "discipline": rs["discipline"], "time": now.isoformat()}
+
+
+# ---------------------------------------------------------------- markets tile status
+TILE_RANK = {"active": 0, "urgent": 1, "finished": 2, "waiting": 3, "none": 4}
+
+
+def _ts(s) -> float | None:
+    if not s:
+        return None
+    try:
+        d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    return d.timestamp()
+
+
+def tile_states(rows: list[dict], ideas: list[dict] | None = None, quotes: dict | None = None,
+                now: float | None = None, near_atr: float = 0.25, finished_h: float = 24.0) -> dict:
+    """One state per market for the Markets grid glow:
+    active   = an open paper trade on it
+    urgent   = a READY idea, or price within `near_atr` ATR of a pending entry (quotes = {sym: {price, atr}})
+    finished = a trade closed (win / loss / be) in the last `finished_h` hours
+    waiting  = a pending order or a PENDING / WATCH idea
+    none     = nothing on it.
+    The strongest state wins (active > urgent > finished > waiting)."""
+    now = now if now is not None else datetime.now(timezone.utc).timestamp()
+    quotes = quotes or {}
+    out: dict[str, dict] = {}
+
+    def put(sym, state, **kw):
+        cur = out.get(sym)
+        if cur is None or TILE_RANK[state] < TILE_RANK[cur["state"]]:
+            out[sym] = {"state": state, **kw}
+
+    def near(sym, entry):
+        q = quotes.get(sym) or {}
+        p, a = q.get("price"), q.get("atr")
+        return entry is not None and p is not None and a and abs(p - entry) <= near_atr * a
+
+    for r in rows:
+        st, sym = r.get("status"), r.get("symbol")
+        if not sym:
+            continue
+        if st == "open":
+            put(sym, "active", why="trade_open", direction=r.get("direction"), entry=r.get("entry"))
+        elif st == "pending":
+            put(sym, "urgent" if near(sym, r.get("entry")) else "waiting", why="trade_pending",
+                direction=r.get("direction"), entry=r.get("entry"))
+        elif st in ("win", "loss", "be"):
+            t = _ts(r.get("closed"))
+            if t is not None and now - t <= finished_h * 3600:
+                put(sym, "finished", why=st, direction=r.get("direction"), result_r=r.get("result_r"), closed=r.get("closed"))
+    for i in ideas or []:
+        sym, st = i.get("symbol"), i.get("status")
+        if not sym:
+            continue
+        if st == "READY":
+            put(sym, "urgent", why="idea_ready", direction=i.get("direction"), entry=i.get("entry"))
+        elif st in ("PENDING", "WATCH"):
+            put(sym, "urgent" if st == "PENDING" and near(sym, i.get("entry")) else "waiting",
+                why="idea_" + st.lower(), direction=i.get("direction"), entry=i.get("entry"))
+    for sym in UNIVERSE:
+        out.setdefault(sym, {"state": "none"})
+    return out

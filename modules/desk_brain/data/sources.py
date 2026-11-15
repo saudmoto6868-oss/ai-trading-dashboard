@@ -34,11 +34,11 @@ def _live() -> bool:
 
 
 # How far back each base interval goes (days) and how long a fetch stays fresh (seconds).
-_DAYS = {"1d": 3650, "1h": 59, "15m": 29, "5m": 29}
-_TTL = {"1d": 3600, "1h": 600, "15m": 120, "5m": 60}
+_DAYS = {"1d": 3650, "1h": 59, "15m": 29, "5m": 29, "1m": 6}
+_TTL = {"1d": 3600, "1h": 600, "15m": 120, "5m": 60, "1m": 30}
 # Derived timeframes are resampled from a base one, so they cost no extra request.
-_DERIVED = {"4h": ("1h", "4h"), "1w": ("1d", "W-SUN")}
-TIMEFRAMES = ["15m", "1h", "4h", "1d", "1w"]
+_DERIVED = {"30m": ("15m", "30min"), "4h": ("1h", "4h"), "1w": ("1d", "W-SUN")}
+TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]
 
 BROWSER_UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                             "(KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "application/json"}
@@ -109,7 +109,7 @@ def _binance(symbol: str, interval: str) -> pd.DataFrame:
 # A backup for cloud hosts that Yahoo throttles. Only markets whose quote direction matches our symbol are mapped.
 HL_XYZ = {"GC=F": "xyz:GOLD", "SI=F": "xyz:SILVER", "^GSPC": "xyz:SP500", "^NDX": "xyz:XYZ100",
           "EURUSD=X": "xyz:EUR", "GBPUSD=X": "xyz:GBP", "USDJPY=X": "xyz:JPY"}
-_HL_MS = {"1d": 86_400_000, "1h": 3_600_000, "15m": 900_000, "5m": 300_000}
+_HL_MS = {"1d": 86_400_000, "1h": 3_600_000, "15m": 900_000, "5m": 300_000, "1m": 60_000}
 
 
 def _hyperliquid(coin: str, interval: str) -> pd.DataFrame:
@@ -126,7 +126,7 @@ def _hyperliquid(coin: str, interval: str) -> pd.DataFrame:
 
 def _yfinance(ticker: str, interval: str) -> pd.DataFrame:
     import yfinance as yf
-    period = {"1d": "10y", "1h": "60d", "15m": "30d", "5m": "30d"}[interval]
+    period = {"1d": "10y", "1h": "60d", "15m": "30d", "5m": "30d", "1m": "7d"}[interval]
     with _net:
         df = yf.Ticker(ticker).history(period=period, interval=interval, auto_adjust=False)
     df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()

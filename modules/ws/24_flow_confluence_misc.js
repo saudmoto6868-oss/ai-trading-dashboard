@@ -303,17 +303,23 @@ Ws.defaults = () => {
   return Ws.builtinStandard(); };
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
-  const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
-  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
+  // A layout: keep symbols on the left, give the four charts a more compact 44% lane,
+  // and reserve a full-height 18% Setup Card lane for the explanation + clear BUY/SELL direction.
+  // DOM stays on the upper-right; Limits and Tape share the lower-right row.
+  const lw = r(W*0.12), chW = r(W*0.44), setupW = r(W*0.18), cw = r((chW - g)/2),
+    x1 = lw + g, x2 = x1 + cw + g, setupX = x1 + chW + g, rx = setupX + setupW + g,
+    rw = Math.max(160, W - rx), half = r((rw - g)/2), ch = r((H - g)/2), y2 = ch + g;
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center)
   return [
     ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
     ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],
     ["chart", {x:x2, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["chart", {x:x1, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"4H", ema:E}, OF)],
     ["chart", {x:x2, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"1D", ema:E}, OF)],
-    ["dom", {x:rx, y:0, w:pw, h:H}, {sym:S0, group:1}],
-    ["limits", {x:rx + pw + g, y:0, w:pw, h:H}, {sym:S0, group:1}],
-    ["tape", {x:rx + 2*(pw + g), y:0, w:rw - 2*(pw + g), h:H}, {sym:S0, group:1}],
+    ["setup", {x:setupX, y:0, w:setupW, h:H}, {group:1}],
+    ["dom", {x:rx, y:0, w:rw, h:ch}, {sym:S0, group:1}],
+    ["limits", {x:rx, y:y2, w:half, h:H - y2}, {sym:S0, group:1}],
+    ["tape", {x:rx + half + g, y:y2, w:rw - half - g, h:H - y2}, {sym:S0, group:1}],
   ]; };
 /* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */
 Ws.defaultsMobile = () => {

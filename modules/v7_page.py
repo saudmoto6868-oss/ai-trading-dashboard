@@ -85,6 +85,8 @@ LIVE_APP = os.path.join(ROOT, "modules", "v7_live_app.html")
 LIVE_IND = os.path.join(ROOT, "modules", "v7_live_ind.js")
 LIVE_STRUCT = os.path.join(ROOT, "modules", "v7_live_struct.js")
 LIVE_EXTRA = os.path.join(ROOT, "modules", "v7_live_extra.js")
+LIVE_SMC = os.path.join(ROOT, "modules", "v7_live_smc.js")
+LIVE_IND2 = os.path.join(ROOT, "modules", "v7_live_ind2.js")
 LIVE_LIB = os.path.join(DASH, "vendor", "lightweight-charts.standalone.production.js")
 
 
@@ -99,12 +101,16 @@ def live_html() -> tuple:
             struct = f.read()
         with open(LIVE_EXTRA, encoding="utf-8") as f:
             extra = f.read()
+        with open(LIVE_SMC, encoding="utf-8") as f:
+            smc = f.read()
+        with open(LIVE_IND2, encoding="utf-8") as f:
+            ind2 = f.read()
         with open(LIVE_LIB, encoding="utf-8") as f:
             lib = f.read()
-        if "/*LIB*/" not in app or "/*IND*/" not in app or "/*STRUCT*/" not in app or "/*EXTRA*/" not in app:
+        if "/*LIB*/" not in app or "/*IND*/" not in app or "/*STRUCT*/" not in app or "/*EXTRA*/" not in app or "/*SMC*/" not in app or "/*IND2*/" not in app:
             raise ValueError("v7_live_app.html lost its placeholders")
         safe = lambda s: s.replace("</script", "<\\/script")
-        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)).replace("/*STRUCT*/", safe(struct)).replace("/*EXTRA*/", safe(extra)), ""
+        return app.replace("/*LIB*/", safe(lib)).replace("/*IND*/", safe(ind)).replace("/*STRUCT*/", safe(struct)).replace("/*EXTRA*/", safe(extra)).replace("/*SMC*/", safe(smc)).replace("/*IND2*/", safe(ind2)), ""
     except Exception as e:   # noqa: BLE001
         return "", f"{type(e).__name__}: {e}"
 

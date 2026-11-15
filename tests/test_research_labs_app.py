@@ -50,8 +50,10 @@ assert not at.exception and not at.error, [str(e.value)[:200] for e in at.except
 assert any("2.6 Strategy" in t.value for t in at.title), [t.value for t in at.title]
 at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
 at.run()
-assert "2.6 Lab" in list(at.radio(key="page").options), list(at.radio(key="page").options)
-at.radio(key="page").set_value(19).run()
+# 2026-11-15: 2.6 Lab moved from the top bar into the Lab hub (sub-tab row, key hub_14)
+at.radio(key="page").set_value(14).run()
+assert "2.6 Lab" in list(at.radio(key="hub_14").options), list(at.radio(key="hub_14").options)
+at.radio(key="hub_14").set_value(19).run()
 assert not at.exception and not at.error, [str(e.value)[:200] for e in at.exception]
 assert any("2.6 Strategy" in t.value for t in at.title), [t.value for t in at.title]
 print("ok 2.6 Lab top tab")

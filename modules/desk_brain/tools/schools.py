@@ -352,4 +352,4 @@ def sentiment_tool(symbol: str) -> dict:
             "data": {"symbol": symbol, "crowd_proxy": round(crowd, 2), "rsi": round(r, 1), "move_z": round(z, 2),
                      "label": label, "retail_positioning": None},
             "look_at": f"مؤشر الحشد التقريبي {crowd:+.2f} ({label}): RSI {r:.0f} وحركة 20 يوم z={z:+.1f}. "
-                       "ده بديل تقريبي، مش نسب مراكز التجزئة الحقيقية (مش متاحة مجاناً). الحائط المتطرف إشارة عكسية."}
+                       "ده بديل تقريبي، مش نسب مراكز التجزئة الحقيقية (مش متاحة مجاناً). الحشد المتطرف إشارة عكسية."}

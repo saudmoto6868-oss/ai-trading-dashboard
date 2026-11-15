@@ -5,6 +5,9 @@ Only closed candles are used; unavailable feeds remain explicit.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
@@ -69,22 +72,6 @@ def rsi_band(value):
     return "Oversold"
 
 
-def heatmap_points(detail, symbols, tf, timeframes):
-    """One dot per symbol with data on tf; x = catalogue rank (volume order), like CoinGlass."""
-    points = []
-    for rank, symbol in enumerate(symbols, start=1):
-        per_tf = detail.get(symbol) or {}
-        m = per_tf.get(tf)
-        if not m:
-            continue
-        point = {"rank": rank, "symbol": _short(symbol), "full": symbol, "rsi": m["rsi"],
-                 "band": rsi_band(m["rsi"]), "price": m["price"]}
-        for other in timeframes:
-            point[f"RSI {other}"] = per_tf[other]["rsi"] if other in per_tf else None
-        points.append(point)
-    return points
-
-
 def _short(symbol):
     s = str(symbol)
     for prefix in ("HL:xyz:", "HL:", "Y:", "FH:"):
@@ -94,59 +81,6 @@ def _short(symbol):
         if s.endswith(suffix):
             s = s[: -len(suffix)]
     return s
-
-
-def heatmap_spec(points, tf, timeframes, height: int = 460):
-    """Vega-Lite spec: zone bands + labelled dots + dashed average line (no extra dependency)."""
-    avg = round(sum(p["rsi"] for p in points) / len(points), 2) if points else None
-    n = max((p["rank"] for p in points), default=1)
-    bands = [{"label": b[0], "y0": b[1], "y1": b[2], "colour": b[3]} for b in BANDS]
-    tooltip = [{"field": "full", "title": "Symbol"}, {"field": "rsi", "title": f"RSI {tf}"},
-               {"field": "band", "title": "Zone"}, {"field": "state", "title": "State"}, {"field": "price", "title": "Last close", "format": ",.6~g"}]
-    tooltip += [{"field": f"RSI {x}", "title": f"RSI {x}"} for x in timeframes if x != tf]
-    x_scale = {"domain": [0, n + 1]}
-    y_scale = {"domain": [0, 100]}
-    layers = [
-        {"data": {"values": bands}, "mark": {"type": "rect", "opacity": 0.13},
-         "encoding": {"y": {"field": "y0", "type": "quantitative", "scale": y_scale},
-                      "y2": {"field": "y1"},
-                      "color": {"field": "colour", "type": "nominal", "scale": None, "legend": None}}},
-        {"data": {"values": bands}, "mark": {"type": "text", "align": "right", "dx": -4, "fontSize": 11,
-                                              "opacity": 0.8, "x": "width"},
-         "encoding": {"y": {"field": "mid", "type": "quantitative", "scale": y_scale},
-                      "text": {"field": "label"},
-                      "color": {"field": "colour", "type": "nominal", "scale": None, "legend": None}},
-         "transform": [{"calculate": "(datum.y0 + datum.y1) / 2", "as": "mid"}]},
-        {"data": {"values": [{"y": v} for v in (30, 40, 60, 70)]},
-         "mark": {"type": "rule", "strokeDash": [2, 4], "opacity": 0.35},
-         "encoding": {"y": {"field": "y", "type": "quantitative", "scale": y_scale}}},
-        {"data": {"values": points}, "mark": {"type": "circle", "size": 90, "opacity": 0.95,
-                                               "stroke": "#111", "strokeWidth": 0.5},
-         "encoding": {"x": {"field": "rank", "type": "quantitative", "scale": x_scale,
-                            "axis": {"title": "Symbols (volume rank)", "labels": False, "ticks": False, "grid": False}},
-                      "y": {"field": "rsi", "type": "quantitative", "scale": y_scale,
-                            "axis": {"title": f"RSI(14) · {tf}", "values": [0, 30, 40, 50, 60, 70, 100]}},
-                      "color": {"field": "band", "type": "nominal",
-                                "scale": {"domain": [b[0] for b in BANDS], "range": [b[3] for b in BANDS]},
-                                "legend": {"orient": "bottom", "title": None}},
-                      "tooltip": tooltip}},
-        {"data": {"values": points}, "mark": {"type": "text", "dy": -11, "fontSize": 11, "fontWeight": "bold"},
-         "encoding": {"x": {"field": "rank", "type": "quantitative", "scale": x_scale},
-                      "y": {"field": "rsi", "type": "quantitative", "scale": y_scale},
-                      "text": {"field": "symbol"},
-                      "color": {"field": "band", "type": "nominal", "legend": None,
-                                "scale": {"domain": [b[0] for b in BANDS], "range": [b[3] for b in BANDS]}}}},
-    ]
-    if avg is not None:
-        layers.append({"data": {"values": [{"avg": avg, "label": f"Avg RSI {avg:.2f}"}]},
-                       "mark": {"type": "rule", "strokeDash": [6, 4], "strokeWidth": 1.5, "color": "#f5a524"},
-                       "encoding": {"y": {"field": "avg", "type": "quantitative", "scale": y_scale}}})
-        layers.append({"data": {"values": [{"avg": avg, "label": f"Avg RSI {avg:.2f}"}]},
-                       "mark": {"type": "text", "align": "left", "dx": 4, "dy": -6, "x": 0,
-                                "color": "#f5a524", "fontWeight": "bold"},
-                       "encoding": {"y": {"field": "avg", "type": "quantitative", "scale": y_scale},
-                                    "text": {"field": "label"}}})
-    return {"height": height, "layer": layers, "config": {"view": {"stroke": None}}}, avg
 
 
 def _symbols(asset_class: str, limit: int):
@@ -216,16 +150,8 @@ def _alignment(measures, timeframes):
 
 
 _ALIGN_STYLE = {"Bullish alignment": "color:#1f9d6b;font-weight:700", "Bearish alignment": "color:#e5484d;font-weight:700"}
-
-
-def _band_chips(counts, avg, tf, n_points, n_symbols):
-    chips = [f'<span style="border:1px solid #f5a524;color:#f5a524;border-radius:10px;padding:1px 8px">'
-             f'Avg RSI {tf}: <b>{avg:.2f}</b></span>' if avg is not None else ""]
-    chips += [f'<span style="background:{b[3]}22;border:1px solid {b[3]};color:{b[3]};border-radius:10px;padding:1px 8px">'
-              f'{b[0]} {b[1]}–{b[2]}: <b>{counts[b[0]]}</b></span>' for b in BANDS]
-    chips.append(f'<span style="opacity:.7">{n_points}/{n_symbols} symbols on map</span>')
-    st.markdown('<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;margin:2px 0 6px">'
-                + "".join(chips) + "</div>", unsafe_allow_html=True)
+TF_SECONDS = {"5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "12h": 43200, "1d": 86400, "1w": 604800}
+_BOARD = Path(__file__).with_name("rsi_board.html")
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -234,60 +160,123 @@ def _cached_flow(symbol):
     return fetch_flow(symbol)
 
 
-def _add_flow(rows, setups):
-    """Order-flow snapshot for the best-ranked symbols that have a prints feed; adjusts their rank."""
-    from concurrent.futures import ThreadPoolExecutor
-    from modules.rsi_flow import FLOW_TOP_N, agreement, feed_of, flow_read
-    for r in rows:
-        r["Flow"], r["Flow vs setup"] = "", ""
-    pick = [r for r in sorted(rows, key=lambda r: r["_rank"], reverse=True)
-            if r["_rank"] > 0 and feed_of(r["Symbol"])[0]][:FLOW_TOP_N]
-    if not pick:
-        return
-    with st.spinner(f"Order flow for {len(pick)} symbols…"), ThreadPoolExecutor(4) as pool:
-        flows = list(pool.map(_cached_flow, [r["Symbol"] for r in pick]))
-    for r, fl in zip(pick, flows):
-        read = flow_read(fl)
-        r["Flow"] = read["text"]
-        agree = agreement(setups.get(r["Symbol"]), read["vote"])
-        r["Flow vs setup"] = {"confirms": "✅ confirms", "against": "⚠️ against"}.get(agree, "")
-        r["_rank"] += 1.5 if agree == "confirms" else -1.0 if agree == "against" else 0.0
-        if agree == "confirms":
-            r["_groups"] = r["_groups"] | {"Flow confirms"}
+def _next_close_ms(last_closed, tf):
+    """Close time of the candle now forming = open of the last closed candle + 2 bars (None when unknown)."""
+    try:
+        t = pd.Timestamp(last_closed)
+        if t.year < 2000:
+            return None
+        t = t.tz_localize("UTC") if t.tzinfo is None else t.tz_convert("UTC")
+        return int(t.value // 1_000_000 + 2 * TF_SECONDS[tf] * 1000)
+    except Exception:
+        return None
+
+
+def _board_score(rec):
+    if not rec:
+        return -1
+    plan = rec.get("plan") or {}
+    return rec["conv"] + min(plan.get("rr", 0), 4) * 6 + (10 - 2 * rec["fresh"] if rec.get("fresh") is not None else 0)
+
+
+def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True):
+    """One record per symbol for the board (pure apart from the cached flow fetch)."""
+    from modules.rsi_confluence import read_symbol
+    from modules.rsi_flow import FLOW_TOP_N, feed_of, flow_read
+    closed = {s: _closed_frame((frames.get(s) or {}).get(chart_tf)) for s in symbols}
+    recs = {}
+    for s in symbols:
+        try:
+            recs[s] = read_symbol(closed[s], setups.get(s), 0, deep) if deep else None
+        except Exception:
+            recs[s] = None
+    flows = {}
+    if use_flow:
+        pick = [s for s in sorted(symbols, key=lambda s: _board_score(recs.get(s)), reverse=True)
+                if setups.get(s) and feed_of(s)[0]][:FLOW_TOP_N]
+        if pick:
+            from concurrent.futures import ThreadPoolExecutor
+            with st.spinner(f"Order flow for {len(pick)} symbols…"), ThreadPoolExecutor(4) as pool:
+                flows = dict(zip(pick, pool.map(_cached_flow, pick)))
+        for s, fl in flows.items():
+            vote = flow_read(fl)["vote"]
+            if deep and vote:
+                try:
+                    recs[s] = read_symbol(closed[s], setups.get(s), vote, deep)
+                except Exception:
+                    pass
+    items = []
+    for rank, s in enumerate(symbols, start=1):
+        per_tf, setup, rec = detail.get(s) or {}, setups.get(s) or {}, recs.get(s)
+        if not per_tf:
+            continue
+        m = per_tf.get(chart_tf)
+        fl = flows.get(s)
+        fr = flow_read(fl) if fl else None
+        it = {"sym": _short(s), "full": s, "rank": rank,
+              "price": next((per_tf[tf]["price"] for tf in timeframes if tf in per_tf), None),
+              "rsi": {tf: (per_tf[tf]["rsi"] if tf in per_tf else None) for tf in timeframes},
+              "rsi_map": m["rsi"] if m else None, "state": setup.get("state", "—"), "speed": setup.get("speed", ""),
+              "regime": setup.get("regime", "—"), "next_close": _next_close_ms(m["last_closed"], chart_tf) if m else None,
+              "flow": ({"buy": fr["parts"].get("buy_share"), "book": fr["parts"].get("imbalance"), "text": fr["text"]}
+                       if fr else ({} if use_flow else None)),
+              "verdict": setup.get("state", "—"), "dir": 0, "conv": None, "votes": None, "plan": None, "fresh": None}
+        if rec:
+            it.update({k: rec[k] for k in ("verdict", "dir", "conv", "bull", "bear", "bull_pct", "bear_pct", "fresh", "plan")})
+            it["votes"] = {sc: {"v": v["vote"], "n": v["names"][:4]} for sc, v in rec["votes"].items()}
+        items.append(it)
+    return items
+
+
+def board_html(items, chart_tf, timeframes):
+    from modules.rsi_confluence import SCHOOLS, SHORT
+    pts = [i["rsi_map"] for i in items if i["rsi_map"] is not None]
+    data = {"tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
+            "avg": round(sum(pts) / len(pts), 2) if pts else None,
+            "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS]}
+    blob = json.dumps(data, ensure_ascii=False, default=float).replace("</", "<\\/")
+    return _BOARD.read_text(encoding="utf-8").replace("__DATA__", blob)
 
 
 def render():
-    from modules.rsi_setups import GROUPS, read_setup, setup_rank, groups_of
-    st.markdown("#### RSI Heatmap Intelligence")
-    f = st.columns([1.0, 2.2, 0.6, 0.7, 1.4, 1.3, 0.85])
-    asset_class = f[0].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market")
-    timeframes = f[1].multiselect("Timeframes", TIMEFRAMES, default=["15m", "1h", "4h", "12h", "1d", "1w"],
-                                  key="rsi_hm_tfs")
-    limit = f[2].selectbox("Symbols", (10, 25, 50, 100, 200), index=2, key="rsi_hm_limit")
+    from modules.rsi_setups import read_setup
+    st.markdown("<style>div[data-testid='stHorizontalBlock']:has(.rsi-hm-title){align-items:center}</style>",
+                unsafe_allow_html=True)
+    f = st.columns([1.4, 0.8, 2.1, 0.65, 0.65, 0.78, 0.74, 0.72])
+    f[0].markdown("<div class='rsi-hm-title' style='font-weight:800;font-size:17px;white-space:nowrap'>"
+                  "RSI Heatmap Intelligence</div>", unsafe_allow_html=True)
+    asset_class = f[1].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
+    picked = f[2].multiselect("Timeframes", TIMEFRAMES, default=["15m", "1h", "4h", "12h", "1d", "1w"],
+                              key="rsi_hm_tfs", label_visibility="collapsed", placeholder="Timeframes")
+    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200), index=3, key="rsi_hm_limit",
+                           label_visibility="collapsed", format_func=lambda n: f"{n} sym")
+    timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
         st.info("Select at least one timeframe.")
         return
-    timeframes = [tf for tf in TIMEFRAMES if tf in timeframes]   # keep fast -> slow order
     default_tf = "4h" if "4h" in timeframes else timeframes[0]
-    chart_tf = f[3].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf")
-    show = f[4].multiselect("Show", GROUPS, default=[], key="rsi_hm_show", placeholder="All states")
-    query = f[5].text_input("Search", key="rsi_hm_search", placeholder="BTC, gold, squeeze, ★…")
-    deep = f[6].toggle("Radar", value=True, key="rsi_hm_deep",
-                       help="Run the Radar strategies + chart patterns on the map timeframe (slower).")
-    from modules.rsi_flow import FLOW_TOP_N
-    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow",
-                           help=f"Order-flow snapshot (OKX / Hyperliquid prints, book, funding) for the top {FLOW_TOP_N} setups.")
+    chart_tf = f[4].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
+                              label_visibility="collapsed", format_func=lambda t: f"Map {t}")
+    deep = f[5].toggle("Radar", value=True, key="rsi_hm_deep", help="All strategy schools + harmonics + chart patterns (slower).")
+    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow", help="Order-flow snapshot for the top 20 setups (OKX / Hyperliquid).")
+    live = f[7].selectbox("Live", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live", label_visibility="collapsed",
+                          format_func=lambda m: "Live off" if not m else f"Live {m} min")
+    if live:
+        try:
+            from streamlit_autorefresh import st_autorefresh
+            st_autorefresh(interval=live * 60_000, key="rsi_hm_autorefresh")
+        except Exception:
+            st.caption("streamlit-autorefresh not installed: Live is off.")
 
     symbols, note = _symbols(asset_class, int(limit))
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
         return
-
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
         frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
 
-    rows, detail, setups = [], {}, {}
+    detail, setups = {}, {}
     for symbol in symbols:
         per_tf = {}
         for tf in timeframes:
@@ -299,25 +288,9 @@ def render():
                 per_tf[tf] = measure
         detail[symbol] = per_tf
         try:
-            setup = read_setup(_closed_frame((frames.get(symbol) or {}).get(chart_tf)), deep=deep)
+            setups[symbol] = read_setup(_closed_frame((frames.get(symbol) or {}).get(chart_tf)))
         except Exception:
-            setup = None
-        setups[symbol] = setup
-        prices = [per_tf[tf]["price"] for tf in timeframes if tf in per_tf]
-        radar = (setup or {}).get("radar") or {}
-        row = {"Symbol": symbol, "Price": prices[0] if prices else None,
-               "State": setup["state"] if setup else "—", "Speed": setup["speed"] if setup else "",
-               "Regime": setup["regime"] if setup else "—",
-               "Radar": (f"{'★' * radar['stars']} {radar['direction']} {radar['icons']}".strip()
-                         if radar.get("stars") else ("·" if radar else "—")),
-               "Patterns": ", ".join(setup["patterns"][:2]) if setup and setup["patterns"] else ""}
-        for tf in timeframes:
-            row[f"RSI {tf}"] = per_tf[tf]["rsi"] if tf in per_tf else None
-        row["MTF"] = _alignment(per_tf, timeframes)
-        row["_rank"] = setup_rank(setup)
-        row["_groups"] = groups_of(setup)
-        rows.append(row)
-
+            setups[symbol] = None
     if not any(detail.values()):
         st.error("No symbols returned enough verified closed candles. Check the providers and selected timeframes.")
         if errors:
@@ -325,55 +298,18 @@ def render():
                 st.json(errors)
         return
 
-    if use_flow:
-        _add_flow(rows, setups)
-    points = heatmap_points(detail, symbols, chart_tf, timeframes)
-    for p in points:
-        s_ = setups.get(p["full"]) or {}
-        p["state"] = s_.get("state", "")
-        if s_.get("speed"):
-            p["symbol"] = f"{p['symbol']} {s_['speed']}"
-    spec, avg = heatmap_spec(points, chart_tf, timeframes, height=380)
-    counts = {b[0]: sum(p["band"] == b[0] for p in points) for b in BANDS}
+    with st.spinner("Reading every school on the map timeframe…" if deep else "Building the board…"):
+        items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
+    st.iframe(board_html(items, chart_tf, timeframes), height=660, alt="RSI heatmap map and setup board")
 
-    df = pd.DataFrame(rows)
-    if show:
-        df = df[df["_groups"].map(lambda g: bool(g & set(show)))]
-    if query.strip():
-        q = query.strip().lower()
-        hay = df.drop(columns=["_groups", "_rank"]).astype(str).agg(" ".join, axis=1).str.lower()
-        df = df[hay.str.contains(q, regex=False)]
-    df = df.sort_values(["_rank", f"RSI {chart_tf}"], ascending=[False, False], na_position="last")
-
-    left, right = st.columns([1.15, 1])
-    with left:
-        _band_chips(counts, avg, chart_tf, len(points), len(symbols))
-        if points:
-            st.vega_lite_chart(spec, use_container_width=True)
-        else:
-            st.info(f"No symbol has verified closed candles on {chart_tf}.")
-    with right:
-        st.markdown(f"**Watch first · {chart_tf}** <span style='opacity:.6;font-size:12px'>"
-                    "Radar stars, fresh reversals / momentum / squeeze, speed</span>", unsafe_allow_html=True)
-        top = df[df["_rank"] > 0].head(10)
-        if top.empty:
-            st.caption("Nothing stands out with the current filters.")
-        else:
-            st.dataframe(top[["Symbol", "State", "Speed", "Radar"] + (["Flow vs setup"] if use_flow else []) + [f"RSI {chart_tf}"]].style.map(
-                _style_rsi, subset=[f"RSI {chart_tf}"]).format("{:.2f}", subset=[f"RSI {chart_tf}"], na_rep="—"),
-                use_container_width=True, hide_index=True, height=380)
-
-    rsi_cols = [f"RSI {tf}" for tf in timeframes]
-    view = df.drop(columns=["_rank", "_groups"])
-    if use_flow:   # flow next to the Radar, not at the far right
-        lead = ["Symbol", "Price", "State", "Speed", "Regime", "Radar", "Flow", "Flow vs setup"]
-        view = view[lead + [c for c in view.columns if c not in lead]]
-    st.caption(f"{len(view)} of {len(rows)} symbols · sorted by setup, then RSI {chart_tf} · {note}".rstrip(" ·"))
-    st.dataframe(view.style.map(_style_rsi, subset=rsi_cols)
-                 .map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
-                 .format("{:.2f}", subset=rsi_cols, na_rep="—")
-                 .format("{:,.6g}", subset=["Price"], na_rep="—"),
-                 use_container_width=True, hide_index=True, height=360)
+    with st.expander(f"All symbols · RSI by timeframe ({len(items)})"):
+        rsi_cols = [f"RSI {tf}" for tf in timeframes]
+        table = pd.DataFrame([{"Symbol": i["full"], "Price": i["price"], "Verdict": i["verdict"],
+                               "Conviction": i["conv"], **{f"RSI {tf}": i["rsi"][tf] for tf in timeframes},
+                               "MTF": _alignment(detail[i["full"]], timeframes)} for i in items])
+        st.dataframe(table.style.map(_style_rsi, subset=rsi_cols).map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
+                     .format("{:.2f}", subset=rsi_cols, na_rep="—").format("{:,.6g}", subset=["Price"], na_rep="—"),
+                     use_container_width=True, hide_index=True, height=360)
 
     with st.expander("Symbol detail · TIA Director"):
         available_symbols = [s for s in symbols if detail.get(s)]
@@ -402,8 +338,8 @@ def render():
         with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):
             st.json(errors)
     st.caption(
-        "Wilder RSI(14), closed candles only, 250-bar warm-up. State = RSI phase + speed (● fast, ●● very fast over "
-        f"{3} candles) + regime; Radar = the platform's strategy detectors on the map timeframe. Flow = snapshot of the "
-        "last 500 prints, order book ±1 % and perp funding (OKX; Hyperliquid for HL: markets) for the top setups, "
-        "cached 60 s; Yahoo / EGX / Tadawul have no public prints. A guide to where to look, not a buy/sell signal."
+        f"{note + ' · ' if note else ''}Wilder RSI(14), closed candles, 250-bar warm-up. Conviction = net schools agreeing "
+        "out of 9 (Structure SMC/ICT, Liquidity, Imbalance FVG/OTE, Elliott, Fib/Harmonic, Trend, Momentum, Price action, "
+        "Order flow) - a count, not a probability. Plan = last close, stop beyond the nearest swing level (else 1.5 ATR), "
+        "target = next opposite level (else 2R). Footprint is not read here. A guide to where to look, not a trade order."
     )

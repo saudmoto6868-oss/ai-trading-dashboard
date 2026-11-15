@@ -1,6 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from modules.rsi_heatmap import rsi_wilder, rsi_zone, _measure, _alignment, rsi_band, heatmap_points, heatmap_spec, BANDS
+from modules.rsi_heatmap import rsi_wilder, rsi_zone, _measure, _alignment, rsi_band, BANDS, board_html, _next_close_ms
 
 
 def test_rsi_flat_market_is_neutral():
@@ -49,24 +49,17 @@ def test_rsi_band_five_coinglass_zones():
     assert [b[0] for b in BANDS] == ["Overbought", "Strong", "Neutral", "Weak", "Oversold"]
 
 
-def test_heatmap_points_keep_rank_and_skip_missing():
-    detail = {"BTC-USDT": {"4h": {"rsi": 72.0, "price": 1.0}, "1d": {"rsi": 55.0, "price": 1.0}},
-              "ETH-USDT": {"1d": {"rsi": 40.0, "price": 2.0}},
-              "Y:GC=F": {"4h": {"rsi": 25.0, "price": 3.0}}}
-    pts = heatmap_points(detail, ["BTC-USDT", "ETH-USDT", "Y:GC=F"], "4h", ["4h", "1d"])
-    assert [(p["rank"], p["symbol"], p["band"]) for p in pts] == [(1, "BTC", "Overbought"), (3, "GC=F", "Oversold")]
-    assert pts[0]["RSI 1d"] == 55.0 and pts[1]["RSI 1d"] is None
+def test_board_html_embeds_data_safely():
+    item = {"sym": "BTC", "full": "BTC-USDT", "rank": 1, "price": 1.0, "rsi": {"4h": 55.0}, "rsi_map": 55.0,
+            "state": "x</script><b>", "speed": "", "regime": "Trend", "next_close": None, "flow": None,
+            "verdict": "Long setup", "dir": 1, "conv": 44, "votes": None, "plan": None, "fresh": None}
+    html = board_html([item], "4h", ["4h"])
+    assert "__DATA__" not in html and "x<\\/script>" in html and '"avg": 55.0' in html
 
 
-def test_heatmap_spec_average_and_layers():
-    pts = [{"rank": 1, "symbol": "A", "full": "A", "rsi": 80.0, "band": "Overbought", "price": 1.0},
-           {"rank": 2, "symbol": "B", "full": "B", "rsi": 20.0, "band": "Oversold", "price": 1.0}]
-    spec, avg = heatmap_spec(pts, "4h", ["4h"])
-    assert avg == 50.0
-    marks = [l["mark"]["type"] for l in spec["layer"]]
-    assert marks.count("rect") == 1 and "circle" in marks and marks.count("rule") == 2
-    empty, none_avg = heatmap_spec([], "4h", ["4h"])
-    assert none_avg is None
+def test_next_close_from_last_closed_candle():
+    assert _next_close_ms("2026-11-15 08:00:00", "4h") == 1794729600000 + 2 * 4 * 3600 * 1000
+    assert _next_close_ms("18", "4h") is None
 
 
 if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`; without this nothing executes

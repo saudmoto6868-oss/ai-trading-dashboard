@@ -1,6 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from modules.rsi_flow import agreement, feed_of, fetch_flow, flow_read, setup_direction
+from modules.rsi_flow import feed_of, fetch_flow, flow_read
 
 
 def test_feed_of():
@@ -25,17 +25,6 @@ def test_flow_read_votes():
                "deriv": {"ok": True, "funding": 0.05}}
     assert flow_read(crowded)["vote"] == -1     # crowded longs lean bearish (spot_flow.reading rule)
     assert flow_read(None)["text"] == "—"
-
-
-def test_agreement_uses_phase_then_radar():
-    assert setup_direction({"phase": "rev_up"}) == 1
-    assert setup_direction({"phase": "mom_dn"}) == -1
-    assert setup_direction({"phase": "drift", "radar": {"direction": "bullish"}}) == 1
-    assert setup_direction({"phase": "squeeze", "radar": None}) == 0
-    assert agreement({"phase": "rev_up"}, 1) == "confirms"
-    assert agreement({"phase": "rev_up"}, -1) == "against"
-    assert agreement({"phase": "squeeze"}, 1) == ""
-    assert agreement({"phase": "rev_up"}, 0) == ""
 
 
 if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`

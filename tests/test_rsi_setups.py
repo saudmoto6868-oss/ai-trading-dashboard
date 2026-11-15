@@ -2,7 +2,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
-from modules.rsi_setups import rsi_phase, speed_dots, read_setup, setup_rank, groups_of
+from modules.rsi_setups import rsi_phase, speed_dots, read_setup
 
 
 def test_phase_reversals_and_momentum():
@@ -34,15 +34,13 @@ def _ohlcv(close):
 def test_read_setup_on_rally_is_overbought_and_ranked():
     rng = np.random.default_rng(1)
     up = 100 * np.exp(np.cumsum(np.r_[rng.normal(0, 0.003, 200), np.full(20, 0.01)]))
-    s = read_setup(_ohlcv(up), deep=False)
+    s = read_setup(_ohlcv(up))
     assert s["group"] == "Extended" and s["phase"] in ("ext_up", "stall_ob")
-    assert setup_rank(s) > 0 and "Extended" in groups_of(s)
 
 
 def test_read_setup_rejects_short_or_missing():
     assert read_setup(None) is None
     assert read_setup(_ohlcv([1.0] * 10)) is None
-    assert setup_rank(None) == -1.0 and groups_of(None) == set()
 
 
 if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`

@@ -14,9 +14,6 @@ BUY, SELL = 0.55, 0.45   # aggressor buy share thresholds (same as spot_flow.rea
 BOOK = 0.15              # book imbalance threshold
 CROWDED_LONG, CROWDED_SHORT = 0.03, -0.01   # funding % per 8 h (same as spot_flow.reading)
 
-BULL_PHASES = {"rev_up", "mom_up", "ext_up"}
-BEAR_PHASES = {"rev_down", "mom_dn", "ext_dn"}
-
 
 def feed_of(symbol: str):
     s = str(symbol)
@@ -93,23 +90,3 @@ def flow_read(fl: dict | None) -> dict:
     vote = (v > 0) - (v < 0)
     icon = "🟢" if vote > 0 else "🔴" if vote < 0 else "⚪"
     return {"vote": vote, "text": f"{icon} " + " · ".join(bits) if bits else "—", "parts": parts}
-
-
-def setup_direction(setup: dict | None) -> int:
-    """+1 bullish / -1 bearish / 0 none, from the RSI phase first, then the Radar direction."""
-    if not setup:
-        return 0
-    if setup.get("phase") in BULL_PHASES:
-        return 1
-    if setup.get("phase") in BEAR_PHASES:
-        return -1
-    d = (setup.get("radar") or {}).get("direction")
-    return 1 if d == "bullish" else -1 if d == "bearish" else 0
-
-
-def agreement(setup: dict | None, vote: int) -> str:
-    """'confirms' / 'against' / '' - does the order flow back the setup's side?"""
-    d = setup_direction(setup)
-    if not d or not vote:
-        return ""
-    return "confirms" if d == vote else "against"

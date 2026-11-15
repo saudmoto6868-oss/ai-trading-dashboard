@@ -3,8 +3,6 @@
 Combines what the platform already computes from closed candles, no new maths invented:
   - RSI phase + speed (CoinGlass-style speed dots): leaving overbought / oversold, crossing 60 / 40, extended
   - market regime (modules/regime.py): Trend, Squeeze (stand-by before expansion), Hi-Vol / Crash (fast move) ...
-  - Radar strategies (modules/scorer.py cached_detect + aggregate): stars, direction, strategy icons
-  - chart patterns (modules/patterns.py)
 A description to guide attention, not a trade instruction. Order flow lives in the browser (Workspace WebSocket)
 and is NOT read here.
 """
@@ -27,7 +25,6 @@ PHASES = {
     "squeeze": ("⏳ Stand-by: squeeze", "Stand-by"),
     "drift": ("· Neutral drift", "Neutral"),
 }
-GROUPS = ("Reversal", "Momentum", "Stand-by", "Extended", "Radar signal", "Flow confirms", "Neutral")
 
 
 def rsi_path(closes, period: int = 14, back: int = SPEED_LOOKBACK):
@@ -68,31 +65,8 @@ def rsi_phase(now, before, regime=None) -> str:
     return "drift"
 
 
-def _radar(df):
-    try:
-        from modules.scorer import aggregate, cached_detect, MAX_STARS
-        sigs, _ = cached_detect(df)
-        agg = aggregate(sigs)
-    except Exception:
-        return None
-    direction = agg.get("direction", "neutral")
-    if direction == "neutral":
-        return {"stars": 0, "max": MAX_STARS, "direction": "neutral", "icons": ""}
-    mine = [s for s in sigs if s.get("direction") == direction]
-    return {"stars": int(agg.get("stars") or 0), "max": MAX_STARS, "direction": direction,
-            "icons": "".join(dict.fromkeys(s.get("icon", "") for s in mine))}
-
-
-def _patterns(df):
-    try:
-        from modules.patterns import PATTERNS, find
-        return [PATTERNS[k][0] for k in find(df) if k in PATTERNS]
-    except Exception:
-        return []
-
-
-def read_setup(df, deep: bool = True) -> dict | None:
-    """df = closed candles of one symbol on the map timeframe. deep=False skips Radar + patterns (fast)."""
+def read_setup(df) -> dict | None:
+    """df = closed candles of one symbol on the map timeframe. Strategy schools are read in modules/rsi_confluence.py."""
     if df is None or len(df) < 20 or "close" not in df:
         return None
     now, before = rsi_path(df["close"].tolist())
@@ -105,28 +79,7 @@ def read_setup(df, deep: bool = True) -> dict | None:
     phase = rsi_phase(now, before, regime)
     out = {"phase": phase, "state": PHASES[phase][0], "group": PHASES[phase][1],
            "speed": speed_dots(now, before), "rsi_move": None if now is None or before is None else round(now - before, 2),
-           "regime": regime or "—", "radar": None, "patterns": []}
+           "regime": regime or "—"}
     if regime in ("Hi-Vol", "Crash") and not out["speed"]:
         out["speed"] = "●"   # volatility expansion counts as a fast move even when RSI is pinned
-    if deep and len(df) >= 60:
-        out["radar"] = _radar(df)
-        out["patterns"] = _patterns(df)
     return out
-
-
-def setup_rank(s: dict | None) -> float:
-    """Sort key, higher = look first: Radar stars, then fresh reversals / momentum / stand-by, then speed."""
-    if not s:
-        return -1.0
-    stars = (s.get("radar") or {}).get("stars", 0)
-    bonus = {"Reversal": 3, "Momentum": 2.5, "Stand-by": 2, "Extended": 1}.get(s["group"], 0)
-    return stars * 2 + bonus + len(s.get("speed", "")) * 0.5 + (0.5 if s.get("patterns") else 0)
-
-
-def groups_of(s: dict | None) -> set:
-    if not s:
-        return set()
-    g = {s["group"]}
-    if (s.get("radar") or {}).get("stars", 0) > 0:
-        g.add("Radar signal")
-    return g

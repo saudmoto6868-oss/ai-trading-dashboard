@@ -10,6 +10,7 @@
 - 2026-10-19 — تم إنشاء اللوحة.
 - 2026-11-04 — Item 27 (Prop Firms page 10) مكتملة. راجع MEETING_ROOM.md للتفاصيل.
 - 2026-11-06 — Item 29 (ويدجت تصنيف الصفقات `tclass`) خلص، mock-tested only. فرع `claude/trade-classification-scalp-swing-o4s4vh`.
+- 2026-11-15 — **مفتوحة:** تصليح عرض اللوحات الجانبية في Workspace ai-desk (`.term-grid.no-left` / `.no-right` في `desk/static/style.css`: 330px/220px القديمة بدل 236px/440px). التفاصيل في MEETING_ROOM.md (الخطوة الجاية).
 
 | 29 | ويدجت تصنيف الصفقات (سكالب/سوينج + ارتداد بالنقاط) | A | Claude Code (سعود) | **خلص (mock)** | 2026-11-06 | `modules/ws/24b_tclass.js`. محتاج من المالك: تجربة على أسعار حقيقية + تأكيد حجم النقطة لكل سوق. |
 | 27 | Prop Firms tracker — page 10 | A | Claude Code (سعود) | **خلص** | 2026-11-04 | `modules/prop_firms.py` + main.py + i18n. أمر للمالك: أضف تواريخ Ignite وPhoenix عبر Edit. |

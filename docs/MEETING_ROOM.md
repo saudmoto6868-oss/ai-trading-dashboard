@@ -426,7 +426,10 @@
 
 
 ## 2026-11-15 — A: تعديلات شارت الـWorkspace
-- الحالة: **شغال** على الفرع `team/workspace-chart-a-2026-11-15`.
-- النطاق المحدد: تخطيط الشارت ومساحة الشرح واتجاه الصفقة وقائمة الرموز فقط. لا تعديل على TIA Workspace أو Order Flow أو Spot أو أي بند آخر.
-- التنفيذ الجاري: تعديل `Ws.builtinStandard()` لإبقاء Watchlist يسارًا، وتصغير مساحة الشارتات إلى 44%، وإضافة Setup Card بطول المساحة (18%)، مع إبقاء DOM / Limits / Tape في الجانب الأيمن. إبراز BUY/SELL بصريًا داخل Setup Card.
-- الاختبار: تحديث `tests/browser/standard_layout_mock.js` للتحقق من 9 panels ومواقع watch/setup/chart/DOM. لم يُشغّل المتصفح بعد؛ النتائج غير مثبتة حتى التشغيل.
+- الحالة: **التنفيذ مكتمل على فرع مستقل، بانتظار مراجعة MR** — `team/workspace-chart-a-2026-11-15`.
+- النطاق المنفذ: تخطيط شارت الـWorkspace الرئيسي فقط؛ لم يتم تعديل TIA Workspace أو Order Flow أو Spot أو أي بند آخر.
+- التخطيط الجديد: Watchlist على الشمال (12%)؛ أربع شارتات مترابطة 5m / 15m / 4H / 1D في مساحة أصغر (44%)؛ Setup Card رأسي كامل لشرح الصفقة (18%)؛ DOM في أعلى اليمين وLimits + Time & Sales أسفلهما.
+- اتجاه الصفقة: تم إبراز BUY / SELL بسهم وشارة أكبر، بإطار وخلفية بلون الاتجاه، داخل Setup Card. الشارة تستند إلى اتجاه الـsetup الحالي ولا تنشئ إشارة جديدة.
+- التوافق: تم تحديث مصدر الجزء `modules/ws/24_flow_confluence_misc.js` ومصدر الشارة `modules/ws/14_journal_chain.js`، وإضافة اختيار صريح `A: charts + explanation` في قائمة Layout عبر `modules/ws/26_snap.js` حتى يستطيع صاحب التخطيط المحفوظ الوصول للتصميم الجديد دون الكتابة فوق تخطيطه الشخصي. تم تحديث الملف المولّد `modules/workspace_app.html` بالتغييرات نفسها.
+- الاختبارات: تم تحديث `tests/browser/standard_layout_mock.js` للتحقق من 9 panels، مواضع Watchlist / charts / Setup / DOM، واستعادة preset A. **لم يتم تشغيل Playwright أو `python3 scripts/build_workspace.py --check` في هذه البيئة**؛ لذلك لا تُسجّل الاختبارات كناجحة. كما لم يتم اختبار الشارت على بيانات حية أو واجهة Render.
+- النتيجة: تغييرات الكود والاختبار والتوثيق مرفوعة على الفرع أعلاه؛ Draft MR منفصل إلى `main`. لا merge ولا deploy.

@@ -13,12 +13,18 @@ instead of inventing numbers.
   absorption= a 1-minute bar with ≥2× average volume, heavily one-sided delta, but a body
               under 25% of the average range: aggressive orders were absorbed by passive ones
 
-Spoofing (walls that appear and vanish) needs a live depth stream; that is phase 2
-(WebSocket @depth). A single snapshot cannot detect it, so we don't claim to.
+Spoofing: a single snapshot cannot show it, so we keep a small ring buffer of recent book
+snapshots per symbol and run a conservative heuristic (detect_spoofing) over them. It is a
+heuristic on sampled snapshots (one per ~30 s fetch), not proof; reliable detection needs a
+real WebSocket @depth stream.
 """
 from __future__ import annotations
 
 import logging
+import time
+import zlib
+from collections import deque
+from statistics import median
 
 import numpy as np
 import pandas as pd
@@ -29,6 +35,109 @@ from ..data.cache import cached
 
 log = logging.getLogger("desk.orderflow")
 HOSTS = ["https://api.binance.com", "https://data-api.binance.vision"]
+
+
+_SNAP_MAX = 60
+_SNAPS: dict[str, deque] = {}
+_TRADES: dict[str, deque] = {}
+_TRADE_IDS: dict[str, set] = {}
+
+
+def _record(sym: str, book: dict, agg: list, ts: float | None = None) -> None:
+    """Append a book snapshot (deduped vs the previous one) and any new aggTrades for sym."""
+    ts = time.time() if ts is None else ts
+    snap = {"ts": ts, "bids": [list(x) for x in book["bids"]], "asks": [list(x) for x in book["asks"]]}
+    buf = _SNAPS.setdefault(sym, deque(maxlen=_SNAP_MAX))
+    if not buf or buf[-1]["bids"] != snap["bids"] or buf[-1]["asks"] != snap["asks"]:
+        buf.append(snap)
+    tb, seen = _TRADES.setdefault(sym, deque(maxlen=5000)), _TRADE_IDS.setdefault(sym, set())
+    for x in agg:
+        if x["a"] in seen:
+            continue
+        seen.add(x["a"])
+        tb.append({"ts": x["T"] / 1000.0, "price": float(x["p"]), "qty": float(x["q"]),
+                   "side": "sell" if x["m"] else "buy", "id": x["a"]})
+    if len(seen) > 20000:  # bound memory: keep only ids still in the trade buffer
+        seen.clear()
+        seen.update(t["id"] for t in tb)
+
+
+def detect_spoofing(snapshots: list[dict], trades: list[dict], mid_band_pct: float = 0.5) -> dict:
+    """Conservative spoof heuristic over time-ordered book snapshots. See module note."""
+    note = ("Heuristic on sampled book snapshots, not proof: walls pulled between samples, or "
+            "quotes that never rest long enough to be sampled, are invisible. A real depth "
+            "stream (WebSocket @depth) is needed for reliable detection.")
+    snaps = [s for s in snapshots if s.get("bids") and s.get("asks")]
+    if len(snaps) < 3:
+        return {"candidates": [], "flicker": 0, "verdict": "insufficient", "note": "needs more book snapshots"}
+    band = mid_band_pct / 100.0
+    # per snapshot: mid, {(side, price): qty} of walls, full qty maps
+    info = []
+    for s in snaps:
+        mid = (max(p for p, _ in s["bids"]) + min(p for p, _ in s["asks"])) / 2
+        qtys = {"bid": {float(p): float(q) for p, q in s["bids"]}, "ask": {float(p): float(q) for p, q in s["asks"]}}
+        allq = list(qtys["bid"].values()) + list(qtys["ask"].values())
+        med = median(allq) if allq else 0.0
+        walls = {}
+        for side in ("bid", "ask"):
+            for p, q in qtys[side].items():
+                if med > 0 and q >= 5 * med and abs(p - mid) / mid <= band:
+                    walls[(side, p)] = q
+        info.append({"ts": float(s["ts"]), "mid": mid, "qtys": qtys, "walls": walls})
+    keys = {k for i in info for k in i["walls"]}
+    candidates, flicker = [], 0
+    for side, price in sorted(keys):
+        runs, cur = [], None
+        for idx, i in enumerate(info):
+            if (side, price) in i["walls"]:
+                if cur is None:
+                    cur = [idx, idx]
+                    runs.append(cur)
+                else:
+                    cur[1] = idx
+            else:
+                cur = None
+        if len(runs) >= 2:
+            flicker += len(runs) - 1
+        for a, b in runs:
+            if b - a + 1 < 2 or b + 1 >= len(info):
+                continue  # too short, or still standing at the end (not removed)
+            size = max(info[j]["walls"][(side, price)] for j in range(a, b + 1))
+            after = info[b + 1]["qtys"][side].get(price, 0.0)
+            if after > 0.2 * size:
+                continue  # not pulled (drop <= 80%)
+            t0, t1 = info[a]["ts"], info[b + 1]["ts"]
+            near = min(abs(price - info[j]["mid"]) / info[j]["mid"] for j in range(a, b + 2))
+            if near > 0.001:
+                continue  # price never approached the wall: nothing to bait
+            want = "sell" if side == "bid" else "buy"  # aggressors that would eat the wall
+            filled = sum(float(t["qty"]) for t in trades
+                         if t0 <= float(t["ts"]) <= t1 and t.get("side") == want
+                         and (float(t["price"]) <= price if side == "bid" else float(t["price"]) >= price))
+            pct = filled / size
+            if pct < 0.2:
+                candidates.append({"side": side, "price": price, "size": round(size, 6),
+                                   "lived_s": round(info[b]["ts"] - t0, 1), "filled_pct": round(pct * 100, 1),
+                                   "ts_removed": t1})
+    if len(candidates) >= 2 or (candidates and flicker >= 2):
+        verdict = "likely"
+    elif candidates or flicker >= 3:
+        verdict = "possible"
+    else:
+        verdict = "none"
+    return {"candidates": candidates, "flicker": flicker, "verdict": verdict, "note": note}
+
+
+def _spoofing(sym: str, src: str, book: dict) -> dict:
+    if src == "demo":  # deterministic, never touches the live buffer
+        snaps = [{"ts": 1000.0 + 30 * i, **book} for i in range(5)]
+        out = detect_spoofing(snaps, [])
+        out["note"] = "DEMO: synthetic static snapshots, not real market data. " + out["note"]
+        return out
+    snaps = list(_SNAPS.get(sym, ()))
+    if len(snaps) < 3:
+        return {"verdict": "insufficient", "note": "needs more book snapshots"}
+    return detect_spoofing(snaps, list(_TRADES.get(sym, ())))
 
 
 def _get(path: str, params: dict):
@@ -44,7 +153,7 @@ def _get(path: str, params: dict):
 
 
 def _demo(sym: str) -> tuple[pd.DataFrame, list, dict]:
-    rng = np.random.default_rng(abs(hash(sym)) % 2**32)
+    rng = np.random.default_rng(zlib.crc32(sym.encode()))
     n = 240
     base = 90000.0 if sym.startswith("BTC") else 3200.0
     close = base * np.exp(np.cumsum(rng.normal(0, 0.0008, n)))
@@ -73,6 +182,10 @@ def _fetch(sym: str) -> tuple[pd.DataFrame, list, dict, str]:
                 trades = [(float(x["p"]), float(x["q"]), bool(x["m"])) for x in at]  # m=True → seller was aggressor
                 book = _get("/api/v3/depth", {"symbol": sym, "limit": 500})
                 book = {s: [[float(p), float(q)] for p, q in book[s]] for s in ("bids", "asks")}
+                try:
+                    _record(sym, book, at)
+                except Exception as e:  # never let bookkeeping break the tool
+                    log.warning("snapshot record failed for %s: %s", sym, e)
                 return k, trades, book, "binance"
             except Exception as e:
                 log.warning("binance failed for %s: %s", sym, e)
@@ -136,7 +249,7 @@ def orderflow_tool(symbol: str) -> dict:
     return {"tool": "orderflow", "title": f"Order Flow · Delta/Footprint · {symbol}", "source": [src],
             "data": {"symbol": symbol, "ok": True, "pair": sym, "last": last, "cvd_pct": round(cvd_pct, 1),
                      "recent_delta_pct": round(rec_pct, 1), "delta_bias": bias, "absorption": absorption,
-                     "poc": poc, "footprint": [r for r in footprint if abs(r["price"] - last) / last < 0.004][:40],
+                     "poc": poc, "spoofing": _spoofing(sym, src, book), "footprint": [r for r in footprint if abs(r["price"] - last) / last < 0.004][:40],
                      "walls": {"bid": bid_w, "ask": ask_w},
                      "chart": {"t": [int(x.timestamp()) for x in k.index], "o": k["Open"].tolist(), "h": k["High"].tolist(),
                                "l": k["Low"].tolist(), "c": k["Close"].tolist(), "delta": k["Delta"].round(4).tolist(),

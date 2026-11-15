@@ -1,0 +1,65 @@
+// Spot desk widget (owner 2026-11-15: bring Spot into the Workspace; each school keeps its own method).
+// Reads ONLY CFG.spot = docs/spot/snapshot.json (written daily by the spot workflow). Read-only: no orders, no fetches.
+// Views: Ideas (the desk's plans), Brain (4 horizons with reasons), Setups (live library with t / n), Markets, Log.
+Panel.prototype.build_spot = function(){
+  const S = this.state.sp = Object.assign({asset:"", view:"ideas"}, this.state.sp || {});
+  const snap = (typeof CFG !== "undefined" && CFG.spot) || {};
+  if (!document.getElementById("spCss")){ const st = el("style"); st.id = "spCss"; st.textContent =
+    ".spw .tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.spw .tb select{font-size:12px}"
+    +".spw .sum{font-size:12px;padding:5px 6px;margin:4px 0;border:1px solid var(--line);border-radius:6px;line-height:1.5}"
+    +".spw .cd{border:1px solid var(--line);border-inline-start:4px solid var(--vc,#888);border-radius:7px;padding:7px 9px;margin:6px 2px;font-size:12px;line-height:1.5}"
+    +".spw .hd{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.spw .vb{font-weight:800;font-size:11px;padding:1px 8px;border-radius:4px;color:#fff;background:var(--vc,#888)}"
+    +".spw .mut{color:var(--mut,#888);font-size:11px}.spw ul{margin:3px 0 0;padding-inline-start:16px}.spw .ev{color:#f0b90b;font-size:11px}"
+    +".spw table{width:100%;border-collapse:collapse;font-size:12px}.spw td,.spw th{border-bottom:1px solid var(--line);padding:3px 5px;text-align:start}";
+    document.head.appendChild(st); }
+  const wrap = el("div", "spw"); wrap.style.cssText = "height:100%;overflow:auto;padding:6px"; this.body.innerHTML = ""; this.body.appendChild(wrap);
+  wrap.classList.add("spw");
+  const brains = snap.brains || [], ideas = snap.ideas || [], setups = [];
+  brains.forEach(b => (b.setups || []).forEach(s => setups.push(Object.assign({asset:b.asset}, s))));
+  const assets = [...new Set([...brains.map(b => b.asset), ...ideas.map(i => i.asset), ...(snap.markets || []).map(m => m.asset)].filter(Boolean))];
+  const ar = lang === "ar";
+  const sel = el("select"); sel.innerHTML = `<option value="">${ar ? "كل الأسواق" : "All markets"}</option>` + assets.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("");
+  sel.value = assets.includes(S.asset) ? S.asset : ""; sel.onchange = () => { S.asset = sel.value; build(); };
+  const vsel = el("select"); const VIEWS = [["ideas", ar ? "الأفكار" : "Ideas"], ["brain", ar ? "العقل (4 مدد)" : "Brain (4 horizons)"], ["setups", ar ? "السيتابات + الدليل" : "Setups + evidence"], ["markets", ar ? "الأسواق" : "Markets"], ["log", ar ? "سجل التفكير" : "Thinking log"]];
+  vsel.innerHTML = VIEWS.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(""); vsel.value = S.view; vsel.onchange = () => { S.view = vsel.value; build(); };
+  const tb = el("div", "tb"); tb.append(sel, vsel); wrap.appendChild(tb);
+  const meta = el("div", "mut"); meta.textContent = snap.generated ? (ar ? "آخر تحديث: " : "Updated: ") + snap.generated + (ar ? " - قراءة فقط، مفيش أوامر" : " - read only, no orders") : (ar ? "مفيش لقطة لسه: شغّل ورك فلو السبوت مرة" : "No snapshot yet: run the Spot ideas workflow once");
+  wrap.appendChild(meta);
+  const body = el("div"); wrap.appendChild(body);
+  const sc = v => { const n = Number(v); return Number.isFinite(n) ? (n >= 0 ? "#2ea043" : "#f85149") : "#888"; };
+  const fp = v => (v == null || v === "") ? "-" : (typeof v === "number" ? fmtP(v) : esc(v));
+  const list = a => Array.isArray(a) && a.length ? "<ul>" + a.slice(0, 8).map(x => `<li>${esc(typeof x === "object" ? (x.text || x.label || JSON.stringify(x)) : x)}</li>`).join("") + "</ul>" : "";
+  const tg = a => Array.isArray(a) ? a.map(fp).join(" / ") : fp(a);
+  function build(){
+    const A = S.asset; let h = "";
+    if (S.view === "ideas"){
+      const L = A ? ideas.filter(i => i.asset === A) : ideas;
+      h = L.length ? L.map(i => `<div class="cd" style="--vc:${i.kind === "avoid" ? "#f85149" : "#2ea043"}"><div class="hd"><b>${esc(i.name || i.asset)}</b><span class="vb">${esc(i.title || i.kind || "")}</span><span class="mut">${esc(i.conf || "")}</span></div>`
+        + `<div>${ar ? "دخول" : "Entry"}: ${tg(i.entry)} | ${ar ? "وقف" : "Stop"}: ${fp(i.stop)} | ${ar ? "أهداف" : "Targets"}: ${tg(i.targets)} | R:R ${fp(i.rr)}</div>`
+        + list(i.pros || i.why) + list(i.cons || i.against) + "</div>").join("")
+        : `<div class="mut">${ar ? "مفيش أفكار للسوق ده دلوقتي (الديسك بيقول كده بصراحة)" : "No ideas for this market right now (the desk says so openly)"}</div>`;
+    } else if (S.view === "brain"){
+      const B = brains.filter(b => !A || b.asset === A);
+      h = B.length ? B.map(b => `<div class="cd"><div class="hd"><b>${esc(b.asset)}</b><span class="mut">${fp(b.price)}</span></div><div class="sum">${esc(b.head || "")}</div>`
+        + `<table><tr><th>${ar ? "المدة" : "Horizon"}</th><th>TF</th><th>${ar ? "الحكم" : "Verdict"}</th><th>${ar ? "النقاط" : "Score"}</th></tr>`
+        + Object.values(b.horizons || {}).map(z => `<tr><td>${esc(z.label || "")}</td><td>${esc(z.tf || "")}</td><td style="color:${sc(z.score)}">${esc(z.verdict_ar || z.verdict || "")}</td><td>${fp(z.score)}</td></tr>`).join("")
+        + `</table>${list(Object.values(b.horizons || {}).flatMap(z => (z.reasons || []).slice(0, 2)))}`
+        + (b.news ? `<div class="mut">${ar ? "نبرة الأخبار" : "News tilt"}: ${fp(b.news.score)}</div>` : "") + `</div>`).join("")
+        : `<div class="mut">${ar ? "مفيش عقل محسوب للسوق ده" : "No brain reading for this market"}</div>`;
+    } else if (S.view === "setups"){
+      const L = setups.filter(s => !A || s.asset === A);
+      h = L.length ? `<table><tr><th>${ar ? "الأصل" : "Asset"}</th><th>${ar ? "المدرسة" : "School"}</th><th>${ar ? "السيتاب" : "Setup"}</th><th>${ar ? "الجهة" : "Side"}</th><th>TF</th><th>${ar ? "الدليل" : "Evidence"}</th></tr>`
+        + L.map(s => `<tr><td>${esc(s.asset)}</td><td>${esc(s.school_ar || "")}</td><td>${esc(s.name || "")}</td><td>${esc(s.side || "")}</td><td>${esc(s.tf || "")}</td><td class="${s.ev_label ? "ev" : "mut"}">${esc(s.ev_label || (ar ? "لسه ماتقاسش - مش دليل" : "not tested - not evidence"))}</td></tr>`).join("") + "</table>"
+        : `<div class="mut">${ar ? "مفيش سيتابات حية دلوقتي" : "No live setups right now"}</div>`;
+    } else if (S.view === "markets"){
+      const M = (snap.markets || []).filter(m => !A || m.asset === A);
+      h = M.length ? `<table><tr><th>${ar ? "السوق" : "Market"}</th><th>${ar ? "السعر" : "Price"}</th><th>${ar ? "أسبوع %" : "Week %"}</th><th>${ar ? "الدرجة" : "Score"}</th><th>${ar ? "المنطقة" : "Zone"}</th><th>${ar ? "أفكار" : "Ideas"}</th></tr>`
+        + M.map(m => `<tr><td>${esc(m.name || m.asset)}</td><td>${fp(m.price)}</td><td style="color:${sc(m.wk)}">${Number(m.wk).toFixed(1)}</td><td>${fp(m.score)}</td><td>${esc(m.zone || "")}</td><td>${fp(m.n_ideas)}</td></tr>`).join("") + "</table>"
+        : `<div class="mut">${ar ? "مفيش بيانات أسواق" : "No market data"}</div>`;
+    } else {
+      h = list(snap.log || []) || `<div class="mut">${ar ? "السجل فاضي" : "Log is empty"}</div>`;
+    }
+    body.innerHTML = h;
+  }
+  build();
+};

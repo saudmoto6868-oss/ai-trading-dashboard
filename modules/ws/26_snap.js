@@ -87,13 +87,13 @@ function wsRecBtn(){
 /* widget menu: the native <select> stays (layouts, tests, XCMD use it) but is hidden on desktop; a styled menu opens from the "+ Widget" button:
    colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
 const WGROUPS = () => [
-  [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
+  [Lg("Decision","القرار"), "#f0b90b", ["tclass","spot","setup","chart","signals","alerts"]],
   [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["ofdesk","ofm","dom","tape","limits","risk"]],
   [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
   [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
   [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
   [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
-const WCODE = {ofdesk:"OFD", ofm:"MAP", tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+const WCODE = {ofdesk:"OFD", ofm:"MAP", tclass:"TC", spot:"SP", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
   fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
 const WNEW = new Set(["ofdesk", "ofm"]);   // gets a small NEW mark in the menu
 function wMenuBtn(sel){

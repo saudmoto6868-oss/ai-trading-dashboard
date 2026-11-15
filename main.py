@@ -3847,6 +3847,14 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
     st.stop()
 
+if PAGE == 21:   # AI Desk (owner 2026-11-15, Learn & AI hub): ai-desk folded in as modules/desk_brain - agent floor + gate, Watchlist engine, accounts. Paper only.
+    try:
+        from modules.desk_page import render as _desk_render
+        _desk_render(L)
+    except Exception as _dk_exc:
+        st.error(f"AI Desk: {type(_dk_exc).__name__}: {_dk_exc}")
+    st.stop()
+
 if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
     try:
         from modules.rsi_heatmap import render as _rsi_heatmap_render

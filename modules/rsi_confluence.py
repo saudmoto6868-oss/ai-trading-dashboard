@@ -125,6 +125,51 @@ def trade_plan(df, direction: int, levels=None):
             "risk_pct": round(100 * risk / close, 2), "reward_pct": round(100 * abs(target - close) / close, 2)}
 
 
+TAGS = ("Urgent", "Fresh", "MTF aligned", "Pullback", "Reversal", "Momentum", "Squeeze", "Divergence", "Fast move", "Volume spike")
+
+
+def derive_tags(item: dict, chart_tf: str, timeframes) -> tuple[list, str]:
+    """Setup tags from numbers already on the record (no new detectors) + the urgent reason ('' when calm).
+    Pullback = bigger timeframes trend one way while the map TF RSI is stretched the other way (buy the dip / sell the rip)."""
+    tags, d, conv = [], item.get("dir") or 0, item.get("conv") or 0
+    rsi, plan, fresh = item.get("rsi_map"), item.get("plan") or {}, item.get("fresh")
+    higher = [tf for tf in timeframes if timeframes.index(tf) > timeframes.index(chart_tf)] if chart_tf in timeframes else []
+    htf = [item.get("htf", {}).get(tf, 0) for tf in higher]
+    htf_side = (all(x > 0 for x in htf) - all(x < 0 for x in htf)) if htf and all(htf) else 0
+    trends = [v for v in item.get("htf", {}).values() if v]
+    if trends and len(trends) == len(timeframes) and abs(sum(trends)) == len(trends):
+        tags.append("MTF aligned")
+    if rsi is not None and htf_side > 0 and rsi <= 40:
+        tags.append("Pullback")
+    if rsi is not None and htf_side < 0 and rsi >= 60:
+        tags.append("Pullback")
+    phase = item.get("phase", "")
+    if phase in ("rev_up", "rev_down") or item.get("verdict", "").startswith(("Topping", "Basing")):
+        tags.append("Reversal")
+    if phase in ("mom_up", "mom_dn"):
+        tags.append("Momentum")
+    if item.get("regime") == "Squeeze":
+        tags.append("Squeeze")
+    if any("divergence" in n.lower() for v in (item.get("votes") or {}).values() for n in v.get("n", [])):
+        tags.append("Divergence")
+    if item.get("speed") == "●●":
+        tags.append("Fast move")
+    if (item.get("vol_x") or 0) >= 2:
+        tags.append("Volume spike")
+    if fresh is not None and fresh <= 2:
+        tags.append("Fresh")
+    urgent = ""
+    if d and conv >= 33 and plan.get("rr", 0) >= 1.5 and fresh is not None and fresh <= 1:
+        urgent = "fresh signal with conviction and R:R"
+    elif d and conv >= 44 and ("Pullback" in tags or "Reversal" in tags):
+        urgent = "high conviction at a turning point"
+    elif "Fast move" in tags and ("Momentum" in tags or "Reversal" in tags):
+        urgent = "fast RSI move through a band"
+    if urgent:
+        tags.insert(0, "Urgent")
+    return tags, urgent
+
+
 def read_symbol(df, setup: dict | None, flow_vote: int = 0, deep: bool = True) -> dict | None:
     """Full board record for one symbol on the map timeframe (df = closed candles)."""
     if df is None or len(df) < 20 or not setup:

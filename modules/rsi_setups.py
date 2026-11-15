@@ -35,6 +35,13 @@ def rsi_path(closes, period: int = 14, back: int = SPEED_LOOKBACK):
     return now, before
 
 
+def rsi_trail(closes, n: int = 6, period: int = 14):
+    """RSI of the last n closed candles, oldest first (the comet tail on the map)."""
+    values = [float(x) for x in closes]
+    out = [rsi_wilder(values[:len(values) - k] if k else values, period) for k in range(n - 1, -1, -1)]
+    return [x for x in out if x is not None]
+
+
 def speed_dots(now, before) -> str:
     """CoinGlass-style speed marker: ●● very fast, ● fast, '' calm (RSI points moved in SPEED_LOOKBACK candles)."""
     if now is None or before is None:

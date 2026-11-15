@@ -15,7 +15,7 @@ ASSET_CLASSES = (
     "Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds",
     "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)",
 )
-TIMEFRAMES = ("5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w")
+TIMEFRAMES = ("1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w")
 WARMUP_BARS = 250   # Wilder RSI converges after ~250 bars (StockCharts); fewer drifts from TradingView
 
 # CoinGlass-style bands, top to bottom: (label, low, high, colour)
@@ -150,7 +150,7 @@ def _alignment(measures, timeframes):
 
 
 _ALIGN_STYLE = {"Bullish alignment": "color:#1f9d6b;font-weight:700", "Bearish alignment": "color:#e5484d;font-weight:700"}
-TF_SECONDS = {"5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "12h": 43200, "1d": 86400, "1w": 604800}
+TF_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "12h": 43200, "1d": 86400, "1w": 604800}
 _BOARD = Path(__file__).with_name("rsi_board.html")
 
 
@@ -172,6 +172,26 @@ def _next_close_ms(last_closed, tf):
         return None
 
 
+def _extras(df):
+    """RSI trail, ATR % and volume vs its 20-candle average on the map timeframe (closed candles)."""
+    out = {"trail": [], "atr_pct": None, "vol_x": None}
+    if df is None or len(df) < 20:
+        return out
+    from modules.rsi_setups import rsi_trail
+    from modules.signals import atr_series
+    try:
+        out["trail"] = [round(x, 2) for x in rsi_trail(df["close"].tolist())]
+        if {"high", "low"} <= set(df.columns):
+            out["atr_pct"] = round(100 * float(atr_series(df).iloc[-1]) / float(df["close"].iloc[-1]), 2)
+        if "volume" in df.columns:
+            v = pd.to_numeric(df["volume"], errors="coerce")
+            base = float(v.iloc[-21:-1].mean())
+            out["vol_x"] = round(float(v.iloc[-1]) / base, 2) if base > 0 else None
+    except Exception:
+        pass
+    return out
+
+
 def _board_score(rec):
     if not rec:
         return -1
@@ -181,7 +201,7 @@ def _board_score(rec):
 
 def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True):
     """One record per symbol for the board (pure apart from the cached flow fetch)."""
-    from modules.rsi_confluence import read_symbol
+    from modules.rsi_confluence import derive_tags, read_symbol
     from modules.rsi_flow import FLOW_TOP_N, feed_of, flow_read
     closed = {s: _closed_frame((frames.get(s) or {}).get(chart_tf)) for s in symbols}
     recs = {}
@@ -224,31 +244,55 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
         if rec:
             it.update({k: rec[k] for k in ("verdict", "dir", "conv", "bull", "bear", "bull_pct", "bear_pct", "fresh", "plan")})
             it["votes"] = {sc: {"v": v["vote"], "n": v["names"][:4]} for sc, v in rec["votes"].items()}
+        it.update(_extras(closed.get(s)))
+        it["phase"] = setup.get("phase", "")
+        it["htf"] = {tf: (1 if per_tf[tf]["trend"] == "Bullish" else -1 if per_tf[tf]["trend"] == "Bearish" else 0)
+                     for tf in timeframes if tf in per_tf}
+        it["src"] = feed_of(s)[0] or ("yahoo" if s.startswith("Y:") else "other")
+        it["tags"], it["urgent"] = derive_tags(it, chart_tf, timeframes)
         items.append(it)
     return items
 
 
 def board_html(items, chart_tf, timeframes):
-    from modules.rsi_confluence import SCHOOLS, SHORT
+    from modules.rsi_confluence import SCHOOLS, SHORT, TAGS
     pts = [i["rsi_map"] for i in items if i["rsi_map"] is not None]
-    data = {"tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
+    src = {}
+    for i in items:
+        src[i.get("src", "other")] = src.get(i.get("src", "other"), 0) + 1
+    data = {"src": src, "flow_n": sum(1 for i in items if i.get("flow") and i["flow"].get("buy") is not None),
+            "built": pd.Timestamp.now(tz="UTC").strftime("%H:%M:%S UTC"), "tags": list(TAGS),
+            "tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
             "avg": round(sum(pts) / len(pts), 2) if pts else None,
             "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS]}
     blob = json.dumps(data, ensure_ascii=False, default=float).replace("</", "<\\/")
     return _BOARD.read_text(encoding="utf-8").replace("__DATA__", blob)
 
 
+_HEADER_CSS = """<style>
+.block-container{padding-top:2.2rem!important}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title){align-items:center;gap:6px;margin-bottom:-6px}
+.rsi-hm-title{font-weight:800;font-size:15px;white-space:nowrap;letter-spacing:.2px}
+.rsi-hm-title span{color:#f5a524;font-weight:600}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) div[data-baseweb='select']>div{min-height:30px;height:30px;font-size:12px;
+  border-radius:15px;background:#151a22;border-color:#2a3240}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) div[data-baseweb='select'] svg{width:14px}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) [data-testid='stButtonGroup'] button{min-height:26px;height:26px;padding:0 9px;
+  font-size:11.5px;border-radius:13px}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) [data-testid='stWidgetLabel'] p{font-size:11.5px}
+div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='checkbox']{gap:4px}
+</style>"""
+
+
 def render():
     from modules.rsi_setups import read_setup
-    st.markdown("<style>div[data-testid='stHorizontalBlock']:has(.rsi-hm-title){align-items:center}</style>",
-                unsafe_allow_html=True)
-    f = st.columns([1.4, 0.8, 2.1, 0.65, 0.65, 0.78, 0.74, 0.72])
-    f[0].markdown("<div class='rsi-hm-title' style='font-weight:800;font-size:17px;white-space:nowrap'>"
-                  "RSI Heatmap Intelligence</div>", unsafe_allow_html=True)
+    st.markdown(_HEADER_CSS, unsafe_allow_html=True)
+    f = st.columns([1.25, 0.8, 2.45, 0.62, 0.62, 0.72, 0.62, 0.66], gap="small")
+    f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap <span>Intelligence</span></div>", unsafe_allow_html=True)
     asset_class = f[1].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
-    picked = f[2].multiselect("Timeframes", TIMEFRAMES, default=["15m", "1h", "4h", "12h", "1d", "1w"],
-                              key="rsi_hm_tfs", label_visibility="collapsed", placeholder="Timeframes")
-    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200), index=3, key="rsi_hm_limit",
+    picked = f[2].pills("Timeframes", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
+                        key="rsi_hm_tfs", label_visibility="collapsed") or []
+    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
                            label_visibility="collapsed", format_func=lambda n: f"{n} sym")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
@@ -300,7 +344,7 @@ def render():
 
     with st.spinner("Reading every school on the map timeframe…" if deep else "Building the board…"):
         items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
-    st.iframe(board_html(items, chart_tf, timeframes), height=660, alt="RSI heatmap map and setup board")
+    st.iframe(board_html(items, chart_tf, timeframes), height=780, alt="RSI heatmap map and setup board")
 
     with st.expander(f"All symbols · RSI by timeframe ({len(items)})"):
         rsi_cols = [f"RSI {tf}" for tf in timeframes]

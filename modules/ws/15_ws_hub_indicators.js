@@ -291,7 +291,18 @@ function s26Calc(D, o){
   out.sort((x, y) => x.known - y.known); out.piv = piv; return out;   // piv: the confirmed swings, for the chart markers
 }
 // S26-END
-const S26_HTF = {};   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart
+const S26_HTF = {};
+function s26Score(D, R, p, big){   // 0-100 strength SCORE (not a probability): 50 + bigger-TF agreement (±20 each) + this chart's past TP2 rate vs the 1/3 break-even of a 2R plan (±20, n>=5) + sweep (+10) + leg size vs ATR14
+  let s = 50; const why = [];
+  big.forEach(H => { const q = H.live[H.live.length - 1]; if (!q) return; const ok = q.side === p.side; s += ok ? 20 : -20; why.push(H.tf+(ok ? "✓" : "✗")); });
+  const C = R.filter(q => q.fill != null && q.exit != null), w = C.filter(q => q.status === "TP2").length;
+  if (C.length >= 5){ const wr = w/C.length; s += Math.max(-20, Math.min(20, (wr - 1/3)*60)); why.push("win "+Math.round(wr*100)+"% n="+C.length); }
+  if (p.kind === "H2"){ s += 10; why.push("sweep"); }
+  const n = D.length, k = Math.min(14, n - 1); let atr = 0; for (let i = n - k; i < n; i++) atr += D[i].h - D[i].l; atr /= k || 1;
+  const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY", rng = Math.abs((buy ? D[lb].h : D[lb].l) - (buy ? D[la].l : D[la].h));
+  if (atr > 0){ const m = rng/atr; if (m >= 2 && m <= 8){ s += 10; why.push("leg "+m.toFixed(1)+"×ATR"); } else if (m < 1.5){ s -= 10; why.push("small leg"); } }
+  return {s:Math.max(0, Math.min(100, Math.round(s))), why};
+}   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart
 function msbCalc(D, zl, fibF){
   const n = D.length, NA = NaN; zl = Math.max(2, zl|0); fibF = +fibF;
   const hiP = [NA,NA,NA,NA,NA], hiI = [NA,NA,NA,NA,NA], loP = [NA,NA,NA,NA,NA], loI = [NA,NA,NA,NA,NA];

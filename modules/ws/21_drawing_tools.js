@@ -457,13 +457,13 @@ Object.assign(CandleChart.prototype, {
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
-  s26Htf(S){   // live (waiting / open) 2.6 setups of the two next bigger timeframes; fetched once per 2 min (5 min for 4H+) per symbol and settings, shared by every chart
-    if (!this.sym || !+S.mtf) return [];
-    const sec = TFSEC[this.tf] || 3600, up = ["5m","15m","1H","4H","1D","1W"].filter(t => TFSEC[t] > sec).slice(0, 2), opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2};
-    return up.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2].join(","), e = S26_HTF[k];
-      if (!e || (!e.busy && Date.now() - e.t > (TFSEC[H] >= 14400 ? 300000 : 120000))){
+  s26Mtf(S, all){   // 2.6 on other timeframes (1W -> 1m; all = the whole ladder for the table, else only the 2 next bigger ones): candles fetched once per 1-5 min per symbol + settings, shared by every chart
+    if (!this.sym || !+S.mtf) return []; const sec = TFSEC[this.tf] || 3600, opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2};
+    const L = ["1W","1D","4H","1H","15m","5m","1m"].filter(t => t !== this.tf), want = all ? L : L.filter(t => TFSEC[t] > sec).reverse().slice(0, 2);
+    return want.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2].join(","), e = S26_HTF[k], ttl = TFSEC[H] <= 300 ? 60000 : TFSEC[H] >= 14400 ? 300000 : 120000;
+      if (!e || (!e.busy && Date.now() - e.t > ttl)){
         S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
-        candlesTf(this.sym, H, true, 300).then(rows => { let v = null; try { v = {tf:H, rows, live:s26Calc(rows, opt).filter(p => p.status === "waiting" || p.status.startsWith("open")).slice(-2)}; } catch(err){} S26_HTF[k] = {t:Date.now(), v, busy:false}; this.draw(); })
+        candlesTf(this.sym, H, true, 300).then(rows => { let v = null; try { const R = s26Calc(rows, opt); v = {tf:H, rows, R, live:R.filter(p => p.status === "waiting" || p.status.startsWith("open")).slice(-2)}; } catch(err){} S26_HTF[k] = {t:Date.now(), v, busy:false}; this.draw(); })
           .catch(() => { S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:false}; });
       }
       return S26_HTF[k] && S26_HTF[k].v; }).filter(Boolean);
@@ -479,7 +479,7 @@ Object.assign(CandleChart.prototype, {
     const f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6), pc = (a, b) => { const v = (b - a)/a*100; return (v >= 0 ? "+" : "")+v.toFixed(2)+"%"; }, dash = d => c.setLineDash(d || []);
     const dur = b => { const s = b*sec; return s >= 86400 ? (s/86400).toFixed(1)+"d" : s >= 3600 ? Math.round(s/3600)+"h" : Math.round(s/60)+"m"; };
     const when = i => { const d = new Date(D[Math.max(0, Math.min(n - 1, i))].t); return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"); };
-    const HT = this.s26Htf(S), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
+    const MT = +S.mtfT ? this.s26Mtf(S, true) : [], HT = (MT.length ? MT : this.s26Mtf(S, false)).filter(H => TFSEC[H.tf] > sec).sort((a, b) => TFSEC[a.tf] - TFSEC[b.tf]).slice(0, 2), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
     const al = p => HT.map(H => { const q = H.live[H.live.length - 1]; return !q ? "" : H.tf+(q.side === p.side ? "✓" : "✗"); }).filter(Boolean).join(" ");
     const leg = p => { const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY";   // leg start / end bar and price (the swing low / high the 2.6 unit was measured on)
       return {la, lb, pa:buy ? D[la].l : D[la].h, pb:buy ? D[lb].h : D[lb].l}; };
@@ -509,7 +509,8 @@ Object.assign(CandleChart.prototype, {
       if (+S.lbl){ tin((y1 + y2)/2, y2 - y1, "TP2 "+f(p.tp2)+"  "+pc(p.entry, p.tp2)); tin((yE + y1)/2, y1 - yE, "TP1 "+f(p.tp1)+"  "+pc(p.entry, p.tp1)); tin((yE + yS)/2, yS - yE, "SL "+f(p.stop)+"  "+pc(p.entry, p.stop)); }
       const [lab, col] = STAGE[st] || [st, CK], u = Math.abs(p.entry - p.stop) || 1e-12, nowR = ((now - p.entry)*(buy ? 1 : -1))/u, left = Math.max(0, p.known + wait - (n - 1));
       const stage = wt ? lab+" "+left+" · "+dur(left) : (nowR >= 0 ? "+" : "")+nowR.toFixed(1)+"R"+(p.tp1_hit ? " · TP1 ✓" : "");
-      c.font = "bold "+px+"px sans-serif"; let txt = [p.kind, buy ? "L" : "S", "E "+f(p.entry), stage, +S.mtf ? al(p) : ""].filter(Boolean).join("  "), cw = c.measureText(txt).width + 10;
+      const sc = +S.str ? s26Score(D, R, p, HT).s : null;
+      c.font = "bold "+px+"px sans-serif"; let txt = [p.kind, buy ? "L" : "S", "E "+f(p.entry), stage, +S.mtf ? al(p) : "", sc != null ? "★"+sc : ""].filter(Boolean).join("  "), cw = c.measureText(txt).width + 10;
       if (cw > W + 30){ txt = [p.kind, buy ? "L" : "S", wt ? lab : stage].join(" "); cw = c.measureText(txt).width + 10; }
       const ch = px + 5, cx = Math.max(x0 + 2, Math.min(x1 - cw - 2, PR - cw - 2)); let cy = buy ? yE - ch - 2 : yE + 2;
       for (let t = 0; t < 4 && placed.some(r => cx < r[0] + r[2] && cx + cw > r[0] && cy < r[1] + r[3] && cy + ch > r[1]); t++) cy += (buy ? -1 : 1)*(ch + 2);
@@ -528,6 +529,13 @@ Object.assign(CandleChart.prototype, {
         [F.kind === "H1" ? `Entry = ${buy ? "H" : "L"} ${sg} u = ${f(F.kind === "H1" && F.fill == null ? F.entry : g.pb + (buy ? -u : u))}` : `Entry = pool ${buy ? "−" : "+"} u = ${f(F.tp1 + (buy ? -u : u))}`, "#e6e9ee"],
         [`SL = E ${sg} u  ${f(F.stop)}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
         [`${(STAGE[F.status] || [F.status])[0]} ${F.status === "waiting" ? Math.max(0, F.known + wait - (n - 1))+" bars left" : F.status}${HT.length ? "   "+al(F) : ""}`, "#9aa3ad"]];
+      if (+S.str){ const sc = s26Score(D, R, F, HT), bar = "▮".repeat(Math.round(sc.s/10))+"▯".repeat(10 - Math.round(sc.s/10)); L.push([`Strength ${sc.s}/100 ${bar}  ${sc.why.join(" · ")}`, sc.s >= 65 ? CR : sc.s <= 35 ? "#b98a8a" : "#c9a227"]); }
+      if (MT.length){ const g6 = v => (+v).toPrecision(6), rowOf = (tf, D2, R2, big) => { const q = R2.filter(liveSt).slice(-1)[0]; if (!q) return [`${tf.padEnd(4)} –`, "#6b7380"];
+          const a = q.anchors, la = q.kind === "H1" ? a[0] : a[3], lb = q.kind === "H1" ? a[1] : a[4], b2 = q.side === "BUY", pa = b2 ? D2[la].l : D2[la].h, pb = b2 ? D2[lb].h : D2[lb].l, uu = Math.abs(pb - pa)/ratio;
+          return [`${tf.padEnd(4)} ${b2 ? "L" : "S"} ${q.kind} ${b2 ? "L" : "H"} ${g6(pa)}→${b2 ? "H" : "L"} ${g6(pb)}  Δ${g6(Math.abs(pb - pa))}÷${ratio}=${g6(uu)}  E ${g6(q.entry)}  ${(STAGE[q.status] || [q.status])[0]}${+S.str ? "  ★"+s26Score(D2, R2, q, big).s : ""}`, tf === this.tf ? "#e0c46a" : b2 ? CR : "#b7bdc6"]; };
+        L.push(["TF   side  swing → swing     Δ ÷ ratio = u        entry      stage", "#7d8590"]);
+        const big = H => MT.filter(x => TFSEC[x.tf] > TFSEC[H]).sort((x, y) => TFSEC[x.tf] - TFSEC[y.tf]).slice(0, 2);
+        [...MT.map(x => ({tf:x.tf, D2:x.rows, R2:x.R})), {tf:this.tf, D2:D, R2:R}].sort((x, y) => TFSEC[y.tf] - TFSEC[x.tf]).forEach(x => L.push(rowOf(x.tf, x.D2, x.R2, big(x.tf)))); }
       c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16, h = L.length*lh + 10, pos = +S.ipos || 0;
       const X = pos % 2 ? PR - w - 8 : 8, Y = pos >= 2 ? PB - h - 8 : 22;
       c.globalAlpha = .88; c.fillStyle = "#11151b"; c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 6) : c.rect(X, Y, w, h); c.fill(); c.globalAlpha = 1; c.textAlign = "left";

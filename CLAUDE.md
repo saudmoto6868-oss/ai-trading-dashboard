@@ -2,7 +2,7 @@
 
 > **ابدأ من هنا:** اقرأ هذا الملف و`AGENTS.md` فقط كبداية. افتح `docs/AGENT_PROMPT.md` و`docs/NEW_ACCOUNT_GUIDE.md` و`docs/MEETING_ROOM.md` و`docs/WHITEBOARD.md` عند الحاجة للنطاق أو أوامر المالك أو المهمة المحددة؛ لا تعِد قراءة الملفات الأربعة كاملة في كل جلسة.
 
-Owner: Saud, Egyptian Arabic, short replies. Repo `saudmoto6868-oss/ai-trading-dashboard`.
+Owner: Saud, Egyptian Arabic, short replies. Repo `saudmoto6868-oss/ai-trading-dashboard`, push to `main`.
 Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, not the whole change log).
 
 ## Fast context and token rules (mandatory)

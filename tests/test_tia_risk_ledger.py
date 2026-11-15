@@ -32,7 +32,7 @@ def test_fx_stale_or_wrong_currency_fails_closed(spec):
 def test_tick_and_quantity_steps_enforced(spec):
     now = datetime.now(timezone.utc)
     fx = ConversionQuote("USD", "USD", 1, "test", now)
-    with pytest.raises(ValueError, match="tick"):
+    with pytest.raises(ValueError, match="increment"):
         size_trade(equity=10000, risk_pct=0.5, entry=2000.005, stop=1990,
                    side="long", spec=spec, fx_quote=fx, account_currency="USD", now=now)
 
@@ -190,3 +190,7 @@ def test_ledger_rejects_non_object_event_payload(tmp_path):
     with pytest.raises(ValueError, match="JSON object"):
         ledger.append_event(session_id=sid, event_id="bad", event_type="position_mark",
                             payload=["not", "an", "object"], created_at=now)
+
+
+if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`
+    raise SystemExit(pytest.main([__file__, "-q"]))

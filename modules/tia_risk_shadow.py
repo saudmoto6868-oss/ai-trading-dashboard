@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from modules.desk_risk import DeskDay, DeskRules
+from modules.risk_policy import risk_pct_for_setup
 from modules.tia_risk_engine import RiskPolicy, RiskSnapshot, assess_new_trade
 
 
@@ -72,10 +73,12 @@ def compare_legacy_and_tia(
         entry=entry, stop=stop, target=target, proposed_risk=proposed_risk,
         proposed_asset_class=proposed_asset_class,
     )
+    # legacy has no fixed risk_pct since the automatic policy; check() without a grade uses the base tier
+    legacy_risk_pct = risk_pct_for_setup()
     differences = []
     if old_allowed != new.allowed:
         differences.append("ALLOW_BLOCK_DISAGREEMENT")
-    if abs(legacy_rules.risk_pct - tia_policy.risk_per_trade_pct) > 1e-12:
+    if abs(legacy_risk_pct - tia_policy.risk_per_trade_pct) > 1e-12:
         differences.append("PER_TRADE_POLICY_DIFFERS")
     if abs(legacy_rules.daily_max_loss_pct - tia_policy.daily_loss_limit_pct) > 1e-12:
         differences.append("DAILY_LOSS_POLICY_DIFFERS")
@@ -97,7 +100,7 @@ def compare_legacy_and_tia(
         legacy_allowed=old_allowed, tia_allowed=new.allowed,
         decision_match=old_allowed == new.allowed,
         legacy_reasons=tuple(old_reasons), tia_reasons=new.reasons,
-        legacy_risk_pct=legacy_rules.risk_pct,
+        legacy_risk_pct=legacy_risk_pct,
         tia_policy_id=tia_policy.policy_id, tia_policy_version=tia_policy.version,
         differences=tuple(differences),
     )

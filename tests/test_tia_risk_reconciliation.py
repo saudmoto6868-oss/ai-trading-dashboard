@@ -73,3 +73,7 @@ def test_explicit_empty_broker_snapshot_is_not_replaced_by_fixture_position(now,
 def test_snapshot_complete_must_be_boolean(now):
     with pytest.raises(ValueError, match="explicit boolean"):
         BrokerPositionSnapshot("acct", "broker", now, (), 1)
+
+
+if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`
+    raise SystemExit(pytest.main([__file__, "-q"]))

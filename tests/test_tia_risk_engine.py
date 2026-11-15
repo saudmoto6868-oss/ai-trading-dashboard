@@ -114,3 +114,7 @@ def test_stopped_trade_count_requires_nonnegative_integer(bad):
 def test_risk_policy_rejects_boolean_percentages():
     with pytest.raises(ValueError, match="numeric value"):
         RiskPolicy("test", "1", True, 2.0, 1.0, 3)
+
+
+if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`
+    raise SystemExit(pytest.main([__file__, "-q"]))

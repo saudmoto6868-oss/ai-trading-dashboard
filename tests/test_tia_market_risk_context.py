@@ -97,3 +97,7 @@ def test_empty_or_nonfinite_book_depth_does_not_create_false_thin_book_flag():
     codes = {flag.code for flag in context.flags}
     assert "THIN_DISPLAYED_BOOK" not in codes
     assert "INVALID_PROVIDER_METRIC" in codes
+
+
+if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`
+    raise SystemExit(pytest.main([__file__, "-q"]))

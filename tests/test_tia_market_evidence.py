@@ -49,3 +49,7 @@ def test_metals_snapshot_discloses_perpetual_market_limitation(monkeypatch):
 def test_invalid_market_request_rejected(asset, cls):
     with pytest.raises(ValueError):
         bridge.collect_existing_orderflow(asset, cls)
+
+
+if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`
+    raise SystemExit(pytest.main([__file__, "-q"]))

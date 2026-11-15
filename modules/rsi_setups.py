@@ -27,7 +27,7 @@ PHASES = {
     "squeeze": ("⏳ Stand-by: squeeze", "Stand-by"),
     "drift": ("· Neutral drift", "Neutral"),
 }
-GROUPS = ("Reversal", "Momentum", "Stand-by", "Extended", "Radar signal", "Neutral")
+GROUPS = ("Reversal", "Momentum", "Stand-by", "Extended", "Radar signal", "Flow confirms", "Neutral")
 
 
 def rsi_path(closes, period: int = 14, back: int = SPEED_LOOKBACK):

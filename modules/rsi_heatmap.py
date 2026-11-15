@@ -228,6 +228,34 @@ def _band_chips(counts, avg, tf, n_points, n_symbols):
                 + "".join(chips) + "</div>", unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _cached_flow(symbol):
+    from modules.rsi_flow import fetch_flow
+    return fetch_flow(symbol)
+
+
+def _add_flow(rows, setups):
+    """Order-flow snapshot for the best-ranked symbols that have a prints feed; adjusts their rank."""
+    from concurrent.futures import ThreadPoolExecutor
+    from modules.rsi_flow import FLOW_TOP_N, agreement, feed_of, flow_read
+    for r in rows:
+        r["Flow"], r["Flow vs setup"] = "", ""
+    pick = [r for r in sorted(rows, key=lambda r: r["_rank"], reverse=True)
+            if r["_rank"] > 0 and feed_of(r["Symbol"])[0]][:FLOW_TOP_N]
+    if not pick:
+        return
+    with st.spinner(f"Order flow for {len(pick)} symbols…"), ThreadPoolExecutor(4) as pool:
+        flows = list(pool.map(_cached_flow, [r["Symbol"] for r in pick]))
+    for r, fl in zip(pick, flows):
+        read = flow_read(fl)
+        r["Flow"] = read["text"]
+        agree = agreement(setups.get(r["Symbol"]), read["vote"])
+        r["Flow vs setup"] = {"confirms": "✅ confirms", "against": "⚠️ against"}.get(agree, "")
+        r["_rank"] += 1.5 if agree == "confirms" else -1.0 if agree == "against" else 0.0
+        if agree == "confirms":
+            r["_groups"] = r["_groups"] | {"Flow confirms"}
+
+
 def render():
     from modules.rsi_setups import GROUPS, read_setup, setup_rank, groups_of
     st.markdown("#### RSI Heatmap Intelligence")
@@ -246,6 +274,9 @@ def render():
     query = f[5].text_input("Search", key="rsi_hm_search", placeholder="BTC, gold, squeeze, ★…")
     deep = f[6].toggle("Radar", value=True, key="rsi_hm_deep",
                        help="Run the Radar strategies + chart patterns on the map timeframe (slower).")
+    from modules.rsi_flow import FLOW_TOP_N
+    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow",
+                           help=f"Order-flow snapshot (OKX / Hyperliquid prints, book, funding) for the top {FLOW_TOP_N} setups.")
 
     symbols, note = _symbols(asset_class, int(limit))
     if not symbols:
@@ -294,6 +325,8 @@ def render():
                 st.json(errors)
         return
 
+    if use_flow:
+        _add_flow(rows, setups)
     points = heatmap_points(detail, symbols, chart_tf, timeframes)
     for p in points:
         s_ = setups.get(p["full"]) or {}
@@ -326,12 +359,15 @@ def render():
         if top.empty:
             st.caption("Nothing stands out with the current filters.")
         else:
-            st.dataframe(top[["Symbol", "State", "Speed", "Radar", f"RSI {chart_tf}"]].style.map(
+            st.dataframe(top[["Symbol", "State", "Speed", "Radar"] + (["Flow vs setup"] if use_flow else []) + [f"RSI {chart_tf}"]].style.map(
                 _style_rsi, subset=[f"RSI {chart_tf}"]).format("{:.2f}", subset=[f"RSI {chart_tf}"], na_rep="—"),
                 use_container_width=True, hide_index=True, height=380)
 
     rsi_cols = [f"RSI {tf}" for tf in timeframes]
     view = df.drop(columns=["_rank", "_groups"])
+    if use_flow:   # flow next to the Radar, not at the far right
+        lead = ["Symbol", "Price", "State", "Speed", "Regime", "Radar", "Flow", "Flow vs setup"]
+        view = view[lead + [c for c in view.columns if c not in lead]]
     st.caption(f"{len(view)} of {len(rows)} symbols · sorted by setup, then RSI {chart_tf} · {note}".rstrip(" ·"))
     st.dataframe(view.style.map(_style_rsi, subset=rsi_cols)
                  .map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
@@ -367,6 +403,7 @@ def render():
             st.json(errors)
     st.caption(
         "Wilder RSI(14), closed candles only, 250-bar warm-up. State = RSI phase + speed (● fast, ●● very fast over "
-        f"{3} candles) + regime; Radar = the platform's strategy detectors on the map timeframe. Order flow is not "
-        "included (it lives in the Workspace browser feed). A guide to where to look, not a buy/sell signal."
+        f"{3} candles) + regime; Radar = the platform's strategy detectors on the map timeframe. Flow = snapshot of the "
+        "last 500 prints, order book ±1 % and perp funding (OKX; Hyperliquid for HL: markets) for the top setups, "
+        "cached 60 s; Yahoo / EGX / Tadawul have no public prints. A guide to where to look, not a buy/sell signal."
     )

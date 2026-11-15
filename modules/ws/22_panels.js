@@ -6,6 +6,8 @@
   document.addEventListener("visibilitychange", wake); window.addEventListener("focus", wake); window.addEventListener("online", wake); window.addEventListener("pageshow", wake); }
 /* ---------------- widget panels ---------------- */
 const Ws = { panels:[], z:10, el:null, seq:1 };
+// keep every widget inside the workspace frame: a saved layout from a wider screen, or a drag / resize past the edge, used to leave a panel half off-screen or as a sliver
+Ws.fitRect = r => { const W = Ws.el ? Ws.el.clientWidth : 0, H = Ws.el ? Ws.el.clientHeight : 0; if (!(W > 0)) return r; r.w = Math.max(40, Math.min(r.w, W)); r.x = Math.max(0, Math.min(r.x, W - r.w)); if (H > 0){ r.h = Math.max(90, Math.min(r.h, H)); r.y = Math.max(0, Math.min(r.y, H - r.h)); } return r; };
 // the workspace frame is much taller than the screen: a maximised panel fits what is ON SCREEN (the visible slice), not the whole frame
 Ws.viewRect = () => { const full = {y:0, h:Ws.el.clientHeight}; try { const fe = window.frameElement; if (!fe) return full; const r = fe.getBoundingClientRect(), top = Math.max(0, -r.top), bot = Math.min(innerHeight, window.parent.innerHeight - r.top), off = Ws.el.offsetTop || 0, y0 = Math.max(top, off), y = y0 - off, h = Math.max(300, Math.min(Ws.el.clientHeight - y, bot - y0));
   return isFinite(h) && isFinite(y) ? {y:Math.max(0, Math.min(y, Ws.el.clientHeight - h)), h} : full; } catch(e){ return full; } };
@@ -53,7 +55,7 @@ class Panel {
   paint(){ const c = this.state.col, b = this.state.bg;
     this.head.style.background = c || ""; this.root.style.borderColor = c || ""; this.body.style.background = b || ""; }
   front(){ this.root.style.zIndex = ++Ws.z; Ws.panels.forEach(p => p.root.classList.toggle("focus", p === this)); }
-  apply(){ const r = this.rect, s = this.root.style; if (MOB){ s.height = MT5 ? "" : (this.max ? Math.round(mobH("chart")*1.25) : mobH(this.type))+"px"; return; }   // phones: MT5 = one widget fills the screen (CSS .mact); else stacked   // mobile: stacked, own height (desktop rects kept for the desktop)
+  apply(){ const r = this.rect, s = this.root.style; if (!MOB) Ws.fitRect(r); if (MOB){ s.height = MT5 ? "" : (this.max ? Math.round(mobH("chart")*1.25) : mobH(this.type))+"px"; return; }   // phones: MT5 = one widget fills the screen (CSS .mact); else stacked   // mobile: stacked, own height (desktop rects kept for the desktop)
     s.left = r.x+"px"; s.top = r.y+"px"; s.width = r.w+"px"; s.height = r.h+"px"; }
   toggleMax(){
     if (MOB && MT5) return;   // phones, MT5 layout: the widget is already full screen
@@ -69,7 +71,7 @@ class Panel {
       this.head.setPointerCapture(e.pointerId); this.root.classList.add("drag");
       const sx = e.clientX, sy = e.clientY, ox = this.rect.x, oy = this.rect.y;
       const mv = ev => {
-        this.rect.x = Math.max(-this.rect.w+80, Math.min(Ws.el.clientWidth-60, snap(ox+ev.clientX-sx)));
+        this.rect.x = Math.max(0, Math.min(Ws.el.clientWidth-this.rect.w, snap(ox+ev.clientX-sx)));
         this.rect.y = Math.max(0, Math.min(Ws.el.clientHeight-26, snap(oy+ev.clientY-sy))); this.apply();
       };
       const up = () => { this.head.removeEventListener("pointermove", mv); this.head.removeEventListener("pointerup", up); this.head.removeEventListener("pointercancel", up); this.root.classList.remove("drag"); Ws.save(); };

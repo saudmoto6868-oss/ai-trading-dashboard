@@ -20,7 +20,7 @@
 | 7 | إصلاح Order Flow داخل العمود المخصص | A | ChatGPT + Claude review | شغال | 2026-10-22 | PR #67؛ CI الأولي ناجح، أضيفت assertions لمسار paintCol بعد مراجعة Claude؛ متبقي CI بعد آخر commit واختبار متصفح/OKX. لا merge/deploy. |
 ## من محضر الترندات (مفتوح)
 
-- [ ] M1 تعليقات الفريق  
+- [x] M1 تعليقات الفريق — أُنجزت مراجعة ChatGPT وسُجل التعليق في MEETING_AI_TRENDS_TOOLS.md على الفرع team/ai-tools-m1-review-2026-11-15  
 - [ ] M2 اختيار فئة للتعمق  
 - [ ] M3 جدول مقارنة أدوات  
 - [ ] M4 قائمة رفض  

@@ -288,7 +288,7 @@ function s26Calc(D, o){
       legs.forEach(g => { if (g.side === side && g.at <= sw && (!best || g.at > best.at || (g.at === best.at && g.b.i > best.b.i))) best = g; });
       if (!best) return; const u = best.span / r, sg = side === "BUY" ? 1 : -1, e = P.lvl - sg*u;
       out.push(play("H2", side, sw, e, e - sg*u, P.lvl, P.lvl + sg*u, [P.a.i, P.b.i, sw, best.a.i, best.b.i])); }); }
-  out.sort((x, y) => x.known - y.known); return out;
+  out.sort((x, y) => x.known - y.known); out.piv = piv; return out;   // piv: the confirmed swings, for the chart markers
 }
 // S26-END
 const S26_HTF = {};   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart

@@ -1360,7 +1360,7 @@ function setupHtml(e){
   const ar = lang === "ar", long_ = e.direction === "bullish", col = long_ ? "#0ecb81" : "#f6465d", pl = e.plan || null, a = e.ana || null, pct = Math.round(100*e.score/Math.max(1, e.max));
   let rr = null; try { const r0 = Math.abs(pl.entry - pl.stop); rr = r0 ? Math.abs(pl.tps[0] - pl.entry)/r0 : null; } catch(x){}
   const H = t => '<div style="margin-top:9px;font-weight:700;color:#f0b90b">'+esc(t)+'</div>', li = arr => '<ul dir="rtl" style="margin:3px 0;padding-inline-start:16px;text-align:right;line-height:1.55">'+arr.map(x => '<li>'+esc(x)+'</li>').join("")+'</ul>';
-  let h = '<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b><span style="color:'+col+';font-weight:700">'+(long_ ? "▲ "+Lg("BUY","شراء") : "▼ "+Lg("SELL","بيع"))+'</span><span class="m">'+esc(ttTxt(e.ttype))+' · '+esc(e.tfk || "")+'</span><span style="margin-inline-start:auto;font-weight:700;color:'+(pct >= 70 ? col : "#eaecef")+'">'+e.score+'/'+e.max+' · '+pct+'%</span></div>';
+  let h = '<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">'+esc(e.symbol.replace(/-(USDT|USDC|SWAP)$/,""))+'</b><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid '+col+';border-radius:6px;background:'+(long_ ? "rgba(14,203,129,.13)" : "rgba(246,70,93,.13)")+';color:'+col+';font-size:14px;font-weight:800;letter-spacing:.02em">'+(long_ ? "▲ "+Lg("BUY","شراء") : "▼ "+Lg("SELL","بيع"))+'</span><span class="m">'+esc(ttTxt(e.ttype))+' · '+esc(e.tfk || "")+'</span><span style="margin-inline-start:auto;font-weight:700;color:'+(pct >= 70 ? col : "#eaecef")+'">'+e.score+'/'+e.max+' · '+pct+'%</span></div>';
   if (e.q != null && e.q > 0) h += '<div class="m" style="margin-top:2px">'+esc(Lg("Evidence quality","جودة الأدلة"))+': <b style="color:#eaecef">'+e.q+'/100</b>'+((e.qwhy || []).length ? ' · '+esc(e.qwhy.join(" · ")) : "")+'</div>';
   { const c = Ctx.cache[e.symbol]; if ((!c || Date.now() - c.t > 60000) && !Ctx.busy[e.symbol] && !/^(Y|FH):/.test(e.symbol)) Ctx.get(e.symbol).then(r => { if (r && r !== c) Setup.subs.forEach(f => f()); });   // re-draw only when a NEW snapshot arrived: a busy / Yahoo symbol resolved at once and looped draw -> get -> draw in microtasks (froze the page)
     const R = (Ws.radar && Ws.radar.d[e.symbol]) || null, fr = R && !R.err ? (R.verdict === "up" ? (long_ ? "ok" : "bad") : R.verdict === "down" ? (long_ ? "bad" : "ok") : "mid") : "na";
@@ -6449,17 +6449,23 @@ Ws.defaults = () => {
   return Ws.builtinStandard(); };
 Ws.builtinStandard = () => {
   const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
-  const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
-  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
+  // A layout: keep symbols on the left, give the four charts a more compact 44% lane,
+  // and reserve a full-height 18% Setup Card lane for the explanation + clear BUY/SELL direction.
+  // DOM stays on the upper-right; Limits and Tape share the lower-right row.
+  const lw = r(W*0.12), chW = r(W*0.44), setupW = r(W*0.18), cw = r((chW - g)/2),
+    x1 = lw + g, x2 = x1 + cw + g, setupX = x1 + chW + g, rx = setupX + setupW + g,
+    rw = Math.max(160, W - rx), half = r((rw - g)/2), ch = r((H - g)/2), y2 = ch + g;
+  const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center)
   return [
     ["watch", {x:0, y:0, w:lw, h:H}, {group:1}],
     ["chart", {x:x1, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"5m", ema:E}, OF)],
     ["chart", {x:x2, y:0, w:cw, h:ch}, Object.assign({sym:S0, group:1, tf:"15m", ema:E}, OF)],
     ["chart", {x:x1, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"4H", ema:E}, OF)],
     ["chart", {x:x2, y:y2, w:cw, h:H - y2}, Object.assign({sym:S0, group:1, tf:"1D", ema:E}, OF)],
-    ["dom", {x:rx, y:0, w:pw, h:H}, {sym:S0, group:1}],
-    ["limits", {x:rx + pw + g, y:0, w:pw, h:H}, {sym:S0, group:1}],
-    ["tape", {x:rx + 2*(pw + g), y:0, w:rw - 2*(pw + g), h:H}, {sym:S0, group:1}],
+    ["setup", {x:setupX, y:0, w:setupW, h:H}, {group:1}],
+    ["dom", {x:rx, y:0, w:rw, h:ch}, {sym:S0, group:1}],
+    ["limits", {x:rx, y:y2, w:half, h:H - y2}, {sym:S0, group:1}],
+    ["tape", {x:rx + half + g, y:y2, w:rw - half - g, h:H - y2}, {sym:S0, group:1}],
   ]; };
 /* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */
 Ws.defaultsMobile = () => {

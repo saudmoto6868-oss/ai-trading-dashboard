@@ -391,3 +391,11 @@
   6. أخبار + سنتمنت + أسهم.
   7. **في الآخر:** `GEMINI_API_KEY` في Render/Secrets وتشغيل الغرفة بموديل حقيقي (Gemini المجاني أو Ollama على الماك).
 - **قواعد:** مفيش صفقات حقيقية؛ الـ LLM مايعديش البوابة؛ مفيش أرقام مخترعة؛ «not evidence» تحت n=30؛ المفاتيح في Secrets بس؛ مفيش نسخ لمؤشرات TradingView المدفوعة (EIE, Alamri0096).
+
+### 2026-11-15 — [Claude — حساب سعود] تسليم قبل الريست
+- **بند 1 (دمج):** MR !74 (`feat/ai-desk-brain`): `modules/desk_brain/` + صفحة AI Desk (PAGE 21، hub Learn & AI). 8 اختبارات `tests/test_desk_page.py` OK (mock-tested only: ديمو + موديل وهمي). مستني مراجعة المالك. اللي فاضل: ربط الـ Watchlist بالـ Radar والأحجام بـ Prop Firms (بعد الدمج)، وتحديث `desk_brain` بآخر نسخة من ai-desk (الأخبار + spoofing + 1m/30m).
+- **بند 3 خلص:** `desk/manage.py` في ai-desk: إدارة ورقية كل 5 دقايق (fill، الوقف أولاً في الشمعة الغامضة، BE عند T1، trail 1.5×ATR، T2). داتا الديمو ماتتسجلش.
+- **بند 4 خلص (heuristic):** `detect_spoofing` في `desk/tools/orderflow.py` على لقطات دفتر كل ~30ث. مش دليل؛ محتاج depth stream حقيقي عشان يبقى موثوق.
+- **بند 6 جزئياً:** عناوين RSS مجانية (FXStreet, ForexLive, CoinDesk, Investing) + قاموس سنتمنت شفاف في `news_tool`. الأسهم لسه.
+- **ملاحظات المالك على UI اتنفذت في ai-desk:** Workspace بشكل المكتب وشارت المكتب نفسه (مؤشرات + أدوات رسم، XPiX Pro في تاب لوحده)، كل الفريمات 1m..1w، Markets: لحد 8 أعمدة + وميض 4 ألوان (شغالة / الحق / خلصت / انتظار) + فلاتر منسدلة. قواعده: كل تشارت حر ومش مربوط، مفيش شكل AI.
+- **لسه مفتوح:** بند 2 فحص Render لايف (الـ sandbox مايوصلش)؛ بند 5 Fib Monkey/CRT/SNR (معنى OF/TP/STDV يتسأل للمالك)؛ الأسهم؛ وفي الآخر GEMINI_API_KEY + تشغيل حقيقي للغرفة.

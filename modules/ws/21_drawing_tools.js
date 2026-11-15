@@ -468,47 +468,71 @@ Object.assign(CandleChart.prototype, {
       }
       return S26_HTF[k] && S26_HTF[k].v; }).filter(Boolean);
   },
-  paintS26(c, py){   // 2.6 strategy as calm position boxes (TradingView long / short style): target zone (entry -> TP1 -> TP2, blue) over stop zone (entry -> SL, grey), text inside,
-    // the box changes with the stage: waiting = faint + dashed + countdown bar, live = solid + current R, TP1 / TP2 = brighter blue, stopped = darker grey, expired = ghost. Extras (leg, path, bigger-TF lines) are off by default
-    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80;
+  paintS26(c, py){   // 2.6 strategy, calm and line-free: one equal-width box per setup (blue target zone over grey stop zone, colour only, small gap between boxes), live / waiting boxes
+    // with text + a chip, finished trades kept as muted history (win = blue, loss = grey), swing high / low markers, the measured range with its ÷ 2.6 unit, and a corner info tab with the maths. Every part has a switch in the settings
+    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80, ratio = +S.ratio || 2.6;
     const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
-    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio:+S.ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
-    const R = this._s26.r, P = R.slice(-Math.max(1, +S.show || 3)), px = +S.tx || 10, PR = this.PR, now = D[n-1].c, CR = S.color || "#4f8fd8", CK = S.color2 || "#8a94a3", FA = +S.fa || .16;
+    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
+    const R = this._s26.r, liveSt = p => p.status === "waiting" || p.status.startsWith("open"), closed = p => p.fill != null && !liveSt(p);
+    const act = R.filter(liveSt).slice(-Math.max(1, +S.show || 3)), hist = +S.hist ? R.filter(closed).slice(-Math.max(0, +S.histN || 8)) : [], P = [...hist, ...act].sort((a, b) => a.known - b.known);
+    const px = +S.tx || 10, PR = this.PR, PB = this.PB, now = D[n-1].c, CR = S.color || "#4f8fd8", CK = S.color2 || "#8a94a3", FA = +S.fa || .16, HA = +S.ha || .08, BW = Math.max(4, +S.bw || 24);
     const f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6), pc = (a, b) => { const v = (b - a)/a*100; return (v >= 0 ? "+" : "")+v.toFixed(2)+"%"; }, dash = d => c.setLineDash(d || []);
     const dur = b => { const s = b*sec; return s >= 86400 ? (s/86400).toFixed(1)+"d" : s >= 3600 ? Math.round(s/3600)+"h" : Math.round(s/60)+"m"; };
+    const when = i => { const d = new Date(D[Math.max(0, Math.min(n - 1, i))].t); return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"); };
     const HT = this.s26Htf(S), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
     const al = p => HT.map(H => { const q = H.live[H.live.length - 1]; return !q ? "" : H.tf+(q.side === p.side ? "✓" : "✗"); }).filter(Boolean).join(" ");
-    const STAGE = {waiting:["⏳", "#6b7a8f"], open:["LIVE", CR], "open (TP1 hit)":["TP1 ✓", CR], TP2:["TP2 ✓", CR], stopped:["SL", "#7d6262"], "TP1 then stop":["TP1→SL", "#7d6262"], expired:["EXP", "#4a4f57"]};
-    c.save(); c.beginPath(); c.rect(0, 0, PR, this.PB); c.clip(); c.textBaseline = "middle";
-    if (+S.htfL) HT.forEach(H => H.live.forEach(q => { const i0 = idxAt(H.rows[q.known].t), xa = this.x(i0); if (xa > PR) return; c.globalAlpha = .7; c.strokeStyle = "#a78bda"; c.lineWidth = 1; dash([6, 4]);
-      c.beginPath(); c.moveTo(xa, py(q.entry)); c.lineTo(PR, py(q.entry)); c.stroke(); dash(); c.globalAlpha = 1; c.fillStyle = "#a78bda"; c.font = px+"px sans-serif"; c.textAlign = "right"; c.fillText(H.tf+" "+(q.side === "BUY" ? "L" : "S")+" "+f(q.entry), PR - 3, py(q.entry) - px*.7); }));
-    const placed = [];   // chip rectangles already drawn: a new chip that would cover one moves away from the entry line
-    P.forEach(p => { const buy = p.side === "BUY", st = p.status, wt = st === "waiting", live = st.startsWith("open"), ex = st === "expired", bad = st === "stopped" || st === "TP1 then stop";
-      const i0 = p.known, i1 = wt ? p.known + wait : p.exit != null ? p.exit : n - 1 + 6, xa = this.x(i0), xb = this.x(i1), W = xb - xa; if (xb < 0 || xa > PR) return;
-      const yE = py(p.entry), yS = py(p.stop), y1 = py(p.tp1), y2 = py(p.tp2), k = ex ? .35 : wt ? .6 : 1;
-      const zone = (ya, yb, col, a) => { c.globalAlpha = Math.min(.6, a); c.fillStyle = col; c.fillRect(xa, Math.min(ya, yb), W, Math.abs(yb - ya)); };
-      zone(yE, y1, CR, FA*k*(p.tp1_hit || st === "TP2" ? 1.9 : 1)); zone(y1, y2, CR, FA*k*(st === "TP2" ? 1.9 : .65)); zone(yE, yS, CK, FA*k*(bad ? 2 : 1));
-      c.globalAlpha = ex ? .35 : .9; c.lineWidth = 1; dash(wt ? [5, 4] : []);
-      c.strokeStyle = CR; c.strokeRect(xa + .5, Math.min(yE, y2) + .5, W, Math.abs(y2 - yE)); c.strokeStyle = CK; c.strokeRect(xa + .5, Math.min(yE, yS) + .5, W, Math.abs(yS - yE));
-      dash([2, 3]); c.strokeStyle = CR; c.beginPath(); c.moveTo(xa, y1); c.lineTo(xb, y1); c.stroke(); dash();
-      c.strokeStyle = "#d5d9df"; c.lineWidth = 1.4; c.beginPath(); c.moveTo(xa, yE); c.lineTo(xb, yE); c.stroke(); c.globalAlpha = ex ? .45 : 1;
+    const leg = p => { const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY";   // leg start / end bar and price (the swing low / high the 2.6 unit was measured on)
+      return {la, lb, pa:buy ? D[la].l : D[la].h, pb:buy ? D[lb].h : D[lb].l}; };
+    const STAGE = {waiting:["⏳", "#5d6b7d"], open:["LIVE", CR], "open (TP1 hit)":["TP1 ✓", CR], TP2:["TP2 ✓", CR], stopped:["SL ✗", "#6e5a5a"], "TP1 then stop":["TP1→SL", "#6e5a5a"]};
+    c.save(); c.beginPath(); c.rect(0, 0, PR, PB); c.clip(); c.textBaseline = "middle"; dash();
+    // swing points: 1 = the legs of the boxes shown, 2 = every confirmed swing in view
+    if (+S.piv){ const pts = new Map(), add = (i, hi) => pts.set(i+(hi ? "H" : "L"), {i, hi, p:hi ? D[i].h : D[i].l});
+      if (+S.piv === 2) (R.piv || []).forEach(q => add(q.i, q.k === "H")); P.forEach(p => { const g = leg(p), buy = p.side === "BUY"; add(g.la, !buy); add(g.lb, buy); if (p.kind === "H2"){ add(p.anchors[0], !buy); add(p.anchors[1], !buy); } });
+      c.font = px+"px sans-serif"; c.textAlign = "center"; pts.forEach(q => { const x = this.x(q.i); if (x < 0 || x > PR) return; const y = py(q.p) + (q.hi ? -6 : 6);
+        c.fillStyle = q.hi ? CK : CR; c.beginPath(); c.moveTo(x, y + (q.hi ? 3 : -3)); c.lineTo(x - 4, y + (q.hi ? -3 : 3)); c.lineTo(x + 4, y + (q.hi ? -3 : 3)); c.closePath(); c.fill();
+        if (+S.pivL){ c.fillStyle = "#b9c0ca"; c.fillText((q.hi ? "H " : "L ")+f(q.p), x, y + (q.hi ? -px : px)); } }); }
+    if (+S.htfL) HT.forEach(H => H.live.forEach(q => { const xa = this.x(idxAt(H.rows[q.known].t)); if (xa > PR) return; c.globalAlpha = .55; c.fillStyle = "#a78bda"; c.fillRect(xa, py(q.entry) - .5, PR - xa, 1); c.globalAlpha = 1;
+      c.font = px+"px sans-serif"; c.textAlign = "right"; c.fillText(H.tf+" "+(q.side === "BUY" ? "L" : "S")+" "+f(q.entry), PR - 3, py(q.entry) - px*.7); }));
+    const placed = [], lanes = [];   // lanes: [start bar, end bar, low, high] of boxes already laid out; a box that would cover one in time AND price starts where that one ends
+    P.forEach(p => { let s0 = p.known; const lo = Math.min(p.stop, p.tp2), hi = Math.max(p.stop, p.tp2);   // finished trades stay on their own candle (muted, overlap is fine); live / waiting boxes step aside, at most one box width
+      if (liveSt(p)){ const o = lanes.find(L => s0 < L[1] && s0 + BW > L[0] && lo < L[3] && hi > L[2]); if (o && o[1] - p.known <= BW) s0 = o[1]; lanes.push([s0, s0 + BW, lo, hi]); } p._s0 = s0; });
+    P.forEach(p => { const buy = p.side === "BUY", st = p.status, wt = st === "waiting", live = liveSt(p), win = st === "TP2", x0 = this.x(p._s0) - this.bw/2, x1 = this.x(p._s0 + BW) - this.bw/2 - 1, W = x1 - x0;
+      if (x1 < 0 || x0 > PR) return; const yE = py(p.entry), yS = py(p.stop), y1 = py(p.tp1), y2 = py(p.tp2);
+      const zone = (ya, yb, col, a) => { c.globalAlpha = Math.min(.6, a); c.fillStyle = col; c.fillRect(x0, Math.min(ya, yb), W, Math.abs(yb - ya)); };
+      if (live){ const k = wt ? .6 : 1; zone(yE, y1, CR, FA*k*(p.tp1_hit ? 1.8 : 1)); zone(y1, y2, CR, FA*k*.6); zone(yE, yS, CK, FA*k); }
+      else { zone(yE, y1, CR, HA*(win || p.tp1_hit ? 1.7 : .8)); zone(y1, y2, CR, HA*(win ? 1.7 : .5)); zone(yE, yS, CK, HA*(win ? .8 : 1.7)); }
+      c.globalAlpha = 1;
+      if (p.fill != null){ const x = this.x(p.fill); if (x >= x0 && x <= x1){ c.fillStyle = live ? "#d5d9df" : "#8a919b"; c.beginPath(); c.arc(x, yE, 2.2, 0, 7); c.fill(); } }
+      if (!live){ if (W > 34){ c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = win ? hexA(CR, .9) : "#9a8f8f"; c.fillText(p.kind+" "+(buy ? "L" : "S")+" "+(win ? "✓ +2R" : st === "TP1 then stop" ? "◐ TP1→SL" : "✗ −1R"), x0 + 4, buy ? yE - px*.8 : yE + px*.8); } return; }
       c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e6e9ee";
-      const tin = (y, h, t) => { if (Math.abs(h) >= px + 2 && W > 70) c.fillText(t, xa + 5, y); };
+      const tin = (y, h, t) => { if (Math.abs(h) >= px + 2 && W > 70) c.fillText(t, x0 + 5, y); };
       if (+S.lbl){ tin((y1 + y2)/2, y2 - y1, "TP2 "+f(p.tp2)+"  "+pc(p.entry, p.tp2)); tin((yE + y1)/2, y1 - yE, "TP1 "+f(p.tp1)+"  "+pc(p.entry, p.tp1)); tin((yE + yS)/2, yS - yE, "SL "+f(p.stop)+"  "+pc(p.entry, p.stop)); }
-      const [lab, col] = STAGE[st] || [st, CK], u = Math.abs(p.entry - p.stop) || 1e-12, nowR = ((now - p.entry)*(buy ? 1 : -1))/u;
-      const chip = [p.kind, buy ? "L" : "S", "E "+f(p.entry), wt ? lab+" "+Math.max(0, p.known + wait - (n - 1))+" · "+dur(Math.max(0, p.known + wait - (n - 1))) : live ? lab+" "+(nowR >= 0 ? "+" : "")+nowR.toFixed(1)+"R" : lab, +S.mtf ? al(p) : ""].filter(Boolean).join("  ");
-      c.font = "bold "+px+"px sans-serif"; let txt = chip, cw = c.measureText(txt).width + 10;
-      if (cw > W + 30){ txt = [p.kind, buy ? "L" : "S", wt ? lab : live ? (nowR >= 0 ? "+" : "")+nowR.toFixed(1)+"R" : lab].join(" "); cw = c.measureText(txt).width + 10; }   // short box: short chip
-      const ch = px + 5, cx = Math.max(xa + 2, Math.min(xb - cw - 2, PR - cw - 2)); let cy = buy ? yE - ch - 2 : yE + 2;
+      const [lab, col] = STAGE[st] || [st, CK], u = Math.abs(p.entry - p.stop) || 1e-12, nowR = ((now - p.entry)*(buy ? 1 : -1))/u, left = Math.max(0, p.known + wait - (n - 1));
+      const stage = wt ? lab+" "+left+" · "+dur(left) : (nowR >= 0 ? "+" : "")+nowR.toFixed(1)+"R"+(p.tp1_hit ? " · TP1 ✓" : "");
+      c.font = "bold "+px+"px sans-serif"; let txt = [p.kind, buy ? "L" : "S", "E "+f(p.entry), stage, +S.mtf ? al(p) : ""].filter(Boolean).join("  "), cw = c.measureText(txt).width + 10;
+      if (cw > W + 30){ txt = [p.kind, buy ? "L" : "S", wt ? lab : stage].join(" "); cw = c.measureText(txt).width + 10; }
+      const ch = px + 5, cx = Math.max(x0 + 2, Math.min(x1 - cw - 2, PR - cw - 2)); let cy = buy ? yE - ch - 2 : yE + 2;
       for (let t = 0; t < 4 && placed.some(r => cx < r[0] + r[2] && cx + cw > r[0] && cy < r[1] + r[3] && cy + ch > r[1]); t++) cy += (buy ? -1 : 1)*(ch + 2);
-      placed.push([cx, cy, cw, ch]);
-      c.fillStyle = col; c.globalAlpha = ex ? .5 : .92; c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 3) : c.rect(cx, cy, cw, ch); c.fill(); c.globalAlpha = 1; c.fillStyle = "#fff"; c.textAlign = "left"; c.fillText(txt, cx + 5, cy + ch/2);
-      if (wt){ const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#c9a227"; c.globalAlpha = .8; c.fillRect(xa, buy ? Math.max(yE, yS) - 3 : Math.min(yE, yS), W*fr, 3); c.globalAlpha = 1; }   // countdown bar on the stop edge
-      if (p.fill != null){ const x = this.x(p.fill); c.fillStyle = "#d5d9df"; c.beginPath(); c.arc(x, yE, 2.5, 0, 7); c.fill(); }
-      if (+S.leg){ const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4]; c.globalAlpha = .6; c.strokeStyle = "#8a94a3"; c.lineWidth = 1; dash([3, 3]);
-        c.beginPath(); c.moveTo(this.x(la), py(buy ? D[la].l : D[la].h)); c.lineTo(this.x(lb), py(buy ? D[lb].h : D[lb].l)); c.stroke(); dash(); c.globalAlpha = 1;
-        if (p.kind === "H2"){ c.fillStyle = "#c9a227"; c.beginPath(); c.arc(this.x(a[2]), py(buy ? D[a[2]].l : D[a[2]].h), 3, 0, 7); c.fill(); } } });
-    if (+S.path){ const W8 = P.filter(p => p.status === "waiting"); if (W8.length){   // nearest waiting setup: thin path now -> entry -> TP2 and the expected time (median of this chart's past setups)
+      placed.push([cx, cy, cw, ch]); c.fillStyle = col; c.globalAlpha = .9; c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 3) : c.rect(cx, cy, cw, ch); c.fill(); c.globalAlpha = 1; c.fillStyle = "#fff"; c.fillText(txt, cx + 5, cy + ch/2);
+      if (wt){ const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#c9a227"; c.globalAlpha = .7; c.fillRect(x0, buy ? Math.max(yE, yS) - 3 : Math.min(yE, yS), W*fr, 3); c.globalAlpha = 1; } });
+    const F = act.length ? act[act.length - 1] : P[P.length - 1];   // the setup the range bar and the info tab explain
+    if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) + 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
+      if (x > 0 && x < PR){ c.strokeStyle = "#c9a227"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, ya); c.lineTo(x, yb); c.moveTo(x - 4, ya); c.lineTo(x + 4, ya); c.moveTo(x - 4, yb); c.lineTo(x + 4, yb); c.stroke();
+        const yu = py(F.kind === "H1" ? F.tp1 - (F.side === "BUY" ? u : -u) : F.entry); c.fillStyle = "#c9a227"; c.fillRect(x - 3, yu - 1, 6, 2);
+        c.font = "bold "+px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x + 6, (ya + yb)/2); } }
+    if (F && +S.info){ const g = leg(F), buy = F.side === "BUY", rng = Math.abs(g.pb - g.pa), u = rng/ratio, side = buy ? "LONG" : "SHORT", sg = buy ? "−" : "+";
+      const L = [[`2.6 · ${F.kind} ${side} · ${this.tf}`, buy ? CR : "#b7bdc6", true],
+        ...(F.kind === "H2" ? [[`${buy ? "Equal lows" : "Equal highs"}  ${f(F.tp1)}  (${when(F.anchors[0])} · ${when(F.anchors[1])})`, "#b7bdc6"], [`Swept  ${when(F.anchors[2])}`, "#b7bdc6"]] : []),
+        [`From  ${buy ? "swing L" : "swing H"}  ${f(g.pa)}  · ${when(g.la)}`, "#d5d9df"], [`To    ${buy ? "swing H" : "swing L"}  ${f(g.pb)}  · ${when(g.lb)}`, "#d5d9df"],
+        [`Range  Δ ${f(rng)}   ÷ ${ratio}  =  u ${f(u)}`, "#e0c46a"],
+        [F.kind === "H1" ? `Entry = ${buy ? "H" : "L"} ${sg} u = ${f(F.kind === "H1" && F.fill == null ? F.entry : g.pb + (buy ? -u : u))}` : `Entry = pool ${buy ? "−" : "+"} u = ${f(F.tp1 + (buy ? -u : u))}`, "#e6e9ee"],
+        [`SL = E ${sg} u  ${f(F.stop)}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
+        [`${(STAGE[F.status] || [F.status])[0]} ${F.status === "waiting" ? Math.max(0, F.known + wait - (n - 1))+" bars left" : F.status}${HT.length ? "   "+al(F) : ""}`, "#9aa3ad"]];
+      c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16, h = L.length*lh + 10, pos = +S.ipos || 0;
+      const X = pos % 2 ? PR - w - 8 : 8, Y = pos >= 2 ? PB - h - 8 : 22;
+      c.globalAlpha = .88; c.fillStyle = "#11151b"; c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 6) : c.rect(X, Y, w, h); c.fill(); c.globalAlpha = 1; c.textAlign = "left";
+      L.forEach((l, k) => { c.font = (l[2] ? "bold " : "")+px+"px ui-monospace,Menlo,monospace"; c.fillStyle = l[1]; c.fillText(l[0], X + 8, Y + 5 + lh*(k + .5)); }); }
+    if (+S.path){ const W8 = act.filter(p => p.status === "waiting"); if (W8.length){   // nearest waiting setup: thin path now -> entry -> TP2 and the expected time (median of this chart's past setups)
       const p = W8.reduce((b, q) => Math.abs(q.entry - now)/Math.abs(q.entry - q.stop) < Math.abs(b.entry - now)/Math.abs(b.entry - b.stop) ? q : b);
       const med = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
       const mF = med(R.filter(q => q.fill != null).map(q => q.fill - q.known)), mT = med(R.filter(q => q.status === "TP2").map(q => q.exit - q.fill));

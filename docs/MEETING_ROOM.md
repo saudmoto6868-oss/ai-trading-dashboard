@@ -173,3 +173,11 @@
 - اتعمل ويدجت `tclass` في الـWorkspace: تختار النوع (سكالب 1H←15m←5m، داي 4H←1H←15m، سوينج 1W←1D←4H، بوزشن 1M←1W←1D) والهدف بالنقاط (تلقائي = متوسط الارتداد المقاس، أو 50/100/120/200...). بيدي صفقات ارتداد من أقرب دعم/مقاومة، مع نسبة ضرب الهدف تاريخيًا وn. القوي بيروح للتنبيهات وكارت الصفقة والشريط والجورنال.
 - اتصلح تجميد قديم في كارت الصفقة (حلقة رسم أثناء تحميل سياق الأوردر بوك، ودايمًا مع رموز Yahoo).
 - mock-tested only. مش دليل ربح لحد 30 صفقة forward على الأقل.
+
+## [2026-11-15] [Claude Code — حساب سعود، جلسة الـ Spot desk] حالة الشغل للجلسة الثانية
+- **فرع GitLab جديد:** `feat/spot-desk-2026-11-15` اتعمل من `main` (commit `4b79d9a0`) عن طريق GitLab tools. **مفيش أي commit فيه لسه** والـ `main` ما اتلمسش.
+- **اللي موجود على GitLab `main` أصلًا:** `modules/spot_page.py` و`modules/spot_brain.py`.
+- **اللي ناقص على GitLab `main`:** `modules/spot_setups.py` (مكتبة الـ setups) و`scripts/spot_setups_lab.py` و`tests/test_spot_setups.py` وباقي شغل الـ setup library. محتاج يتنقل للفرع الجديد بعد مراجعة تعارضات مع الـ commits اللي دخلت `main` اليوم.
+- **الفرع المحلي/GitHub:** `claude/multi-asset-bot-plan-q8fhg8` على `8b13cb1`. الـ push لـ GitLab من الجهاز المحلي ما اتعملش (مفيش credentials في الـ sandbox، وصاحب المشروع رفض يدي التوكن). الأمر للمالك: `git push gitlab claude/multi-asset-bot-plan-q8fhg8:feat/spot-desk-2026-11-15`.
+- **قاعدة الفريق:** مفيش push مباشر على `main`؛ الشغل على فرع + PR draft؛ والدمج بس بسطر `[أمر المالك]`.
+- **المطلوب من الجلسة الثانية:** تراجع الفرق بين `main` والفرع المحلي، ثم تنقل `spot_setups.py` والـ lab والاختبارات للفرع الجديد، وتعمل `.gitlab-ci.yml` لمهام spot بـ schedule/web rules بس. الاختبارات الحالية mock-tested فقط.

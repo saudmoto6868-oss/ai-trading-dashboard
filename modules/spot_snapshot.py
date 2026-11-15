@@ -67,7 +67,14 @@ def build(desk: dict, brains: list | None = None, now: _dt.datetime | None = Non
         m = dict(m)
         m["spark"] = [_num(x) for x in (m.get("spark") or [])][-52:]
         markets.append(_jsonable(m))
-    return {"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "ideas": _jsonable(desk.get("ideas") or []),
+    classes = {}
+    try:   # market class per asset for the widget's class filter (metals / energy / forex / crypto)
+        from modules import spot_ideas
+        classes = {a: c for a, c, _n in spot_ideas.UNIVERSE}
+    except Exception:
+        pass
+    classes.update({m["asset"]: m.get("cls") for m in markets if m.get("cls")})
+    return {"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "classes": classes, "ideas": _jsonable(desk.get("ideas") or []),
             "markets": markets, "log": [str(x) for x in (desk.get("log") or [])][:80],
             "news": _jsonable(desk.get("news") or [])[:12], "risk_off": _num(desk.get("risk_off")) or 0,
             "brains": [_brain(b) for b in (brains or []) if isinstance(b, dict) and b.get("asset")]}

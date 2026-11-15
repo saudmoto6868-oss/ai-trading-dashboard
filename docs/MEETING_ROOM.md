@@ -26,6 +26,21 @@
 - [2026-10-28 23:15 UTC+3] [Claude — حساب Mohamed] **Item 25 step 3 مكتمل:** `modules/pipeline_wire.py` + `tests/test_pipeline_wire.py` (7 اختبارات تعدّي، mock-tested only) + wire في `modules/chart_scan.py` (import آمن — يرجع {} لو مفيش lab data). فرع `feat/pipeline-wire-winners` اتعمله push. **PR لازم يفتحه سعود:** https://github.com/saudmoto6868-oss/ai-trading-dashboard/pull/new/feat/pipeline-wire-winners — يمرج بعد `feat/pipeline-report-step2`. Step 4+ تحتاج GEMINI_API_KEY في repo Secrets.
 - [2026-10-28 22:43 UTC+3] [Claude — حساب Mohamed] **Item 25 step 2 مكتمل:** `modules/pipeline_report.py` + `tests/test_pipeline_report.py` (7 اختبارات تعدّي، mock-tested only). فرع `feat/pipeline-report-step2` اتعمله push على GitHub. **ترتيب merge الـ PRs المفتوحة (الأقدم أولًا — كلها بتلمس workspace_app.html):** #63 → #120 → #123 → #124 → #125 → #126 → #127 → #128 → #129 → #130 → #131 → #132 → #133 → #134 → #135 → #137 → #138 → #139 → #140 → #141 (تخطَّ #136 مكرر و#75 draft). **Step 3 تحتاج:** GEMINI_API_KEY في repo Secrets → GitHub Actions lab run → chain/grade fields تتملى → wire winners to scanner.
 
+## 2026-11-15 — ملخص الحالة (للمالك)
+**خلص:**
+- دمج ai-desk في الداشبورد: [MR !74](https://gitlab.com/6868-group/ai-trading-dashboard/-/merge_requests/74) (`modules/desk_brain/` + صفحة AI Desk، PAGE 21، hub Learn & AI). مستنية مراجعة المالك قبل الدمج.
+- ai-desk v0.7 على [6868-group/ai-desk](https://gitlab.com/6868-group/ai-desk) (main): إدارة الصفقة كل 5 دقايق (BE عند T1، trailing بـ ATR)، كشف spoofing تقريبي، عناوين أخبار RSS مجانية مع سنتمنت تقريبي، كل الفريمات 1m..1w، Workspace بشارت المكتب نفسه (مؤشرات + أدوات رسم، XPiX Pro في تاب لوحده)، Markets v2 (لحد 8 أعمدة، 4 ألوان حالة، فلاتر منسدلة). اختبارات ai-desk 62 ناجحة (ديمو).
+
+**مفتوح (بالترتيب):**
+1. مراجعة ودمج MR !74 (المالك).
+2. ربط Watchlist بالـ Radar والأحجام بـ Prop Firms (على فرع `feat/ai-desk-brain`).
+3. فحص الداتا اللايف على Render (البيئة بتاعتنا ما توصلش للمصادر، المالك يفتح الصفحة ويأكد).
+4. Fib Monkey / CRT / SNR: المالك يحدد معنى OF / TP / STDV.
+5. أخبار الأسهم والسنتمنت للأسهم (لسه).
+6. **آخر خطوة:** `GEMINI_API_KEY` في Render / Secrets، وبعدها تشغيل غرفة الوكلاء بموديل حقيقي.
+
+**حدود:** كل حاجة اتجربت بالـ mock أو الديمو. مفيش صفقات حقيقية. مفيش مفاتيح في الريبو.
+
 ## قبل ما تبدأ
 1. اقرأ الجزء ده كله، وأوامر المالك الجديدة.
 2. اقرأ `docs/WHITEBOARD.md` وشوف المهمة اللي عليك.

@@ -1,0 +1,118 @@
+[
+ {
+  "name": "Short-Term Reversal Strategy",
+  "name_ar": "استراتيجية الانعكاس القصير الأجل",
+  "source_url": "https://github.com/randomwalkhan/Short-Term-Reversal-Strategy",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "crypto",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من المتوسط المتحرك لمدة 20 فترة، وأوقف الخسارة عند مستوى 1% أعلى من نقطة الدخول، وحدد الهدف عند 2% أعلى من نقطة الدخول.",
+  "evidence": "medium",
+  "evidence_why": "تم اختبار الاستراتيجية على بيانات تاريخية، ولكن لم يتم تقديم تفاصيل عن حجم العينة.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "sma20",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-13"
+ },
+ {
+  "name": "VWAP Breakout",
+  "name_ar": "اختراق VWAP",
+  "source_url": "https://github.com/OpenByteInc/QuantDinger",
+  "school": "vwap",
+  "side": "long",
+  "markets": "NQ",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر VWAP، وأوقف الخسارة عند 0.5% تحت نقطة الدخول، وحدد الهدف عند 1% فوق نقطة الدخول.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو تفاصيل عن تكاليف التنفيذ.",
+  "rules": [
+   {
+    "a": "close",
+    "op": ">",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-13"
+ },
+ {
+  "name": "EMA Crossover",
+  "name_ar": "تقاطع المتوسطات المتحركة",
+  "source_url": "https://github.com/cloudQuant/backtrader",
+  "school": "ma",
+  "side": "long",
+  "markets": "crypto",
+  "timeframe": "15m",
+  "rules_text_ar": "ادخل عندما يتقاطع EMA9 فوق EMA21، وأوقف الخسارة عند 1% تحت نقطة الدخول، وحدد الهدف عند 2% فوق نقطة الدخول.",
+  "evidence": "medium",
+  "evidence_why": "تم تقديم نتائج اختبار على بيانات تاريخية، ولكن لم يتم تحديد حجم العينة.",
+  "rules": [
+   {
+    "a": "ema9",
+    "op": "xa",
+    "b": "ema21",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-13"
+ },
+ {
+  "name": "RSI Overbought Condition",
+  "name_ar": "حالة الشراء المفرط لـ RSI",
+  "source_url": "https://github.com/rolling-panda-san/notebooks",
+  "school": "other",
+  "side": "short",
+  "markets": "NQ",
+  "timeframe": "1h",
+  "rules_text_ar": "ادخل في صفقة بيع عندما يكون RSI14 فوق 70، وأوقف الخسارة عند 1.5% فوق نقطة الدخول، وحدد الهدف عند 3% تحت نقطة الدخول.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو تفاصيل عن تكاليف التنفيذ.",
+  "rules": [],
+  "day": "2026-11-13"
+ },
+ {
+  "name": "Daily Open Range Breakout",
+  "name_ar": "اختراق نطاق الفتح اليومي",
+  "source_url": "https://github.com/lukstei/trading-backtest",
+  "school": "session",
+  "side": "both",
+  "markets": "crypto",
+  "timeframe": "30m",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر نطاق الفتح اليومي، وأوقف الخسارة عند 1% تحت نقطة الدخول، وحدد الهدف عند 2% فوق نقطة الدخول.",
+  "evidence": "none",
+  "evidence_why": "لا توجد نتائج أو بيانات لدعم هذا الادعاء.",
+  "rules": [],
+  "day": "2026-11-13"
+ },
+ {
+  "name": "Mean Reversion on VWAP",
+  "name_ar": "العودة إلى المتوسط على VWAP",
+  "source_url": "https://github.com/fasiondog/hikyuu",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "NQ",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من VWAP، وأوقف الخسارة عند 0.5% أعلى من نقطة الدخول، وحدد الهدف عند 1% فوق نقطة الدخول.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو تفاصيل عن تكاليف التنفيذ.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-13"
+ }
+]

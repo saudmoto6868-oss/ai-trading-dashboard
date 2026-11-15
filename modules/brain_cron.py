@@ -51,6 +51,32 @@ def digest_slot(now_utc: datetime):
     return None
 
 
+AGENTS_FILE = Path(os.environ.get("BRAIN_AGENTS", ".brain_agents.jsonl"))
+AGENTS_DIR = os.environ.get("AGENT_RESULTS_DIR", "data/agent_results")   # Grok / TIA drop *.jsonl files here (docs/AGENT_CONTRACT.md)
+
+
+def _agent_results(sweeps=(), news=(), plans=()) -> list:
+    """This pass's findings as contract objects (modules/agent_result.py). Candle data is fetched on a 30-minute cron, so its quality is 'delayed', never 'live'; n = 0 (no graded sample)."""
+    from modules import agent_result as AR
+    out = []
+    for a in sweeps:
+        out.append(AR.make("level_scanner", "claude", a["symbol"], a["direction"], [{"what": f"swept {a['level_name']}", "value": a["level"], "unit": "price"}], "exchange candles", "delayed", 0, coverage="last 3 hourly candles", note="reversal hint, not an entry"))
+    for a in news:
+        out.append(AR.make("context_monitor", "claude", "*", "info", [{"what": a["title"]}], a["source"], "delayed", 0, coverage="RSS, last 3 h", note=", ".join(a.get("topics", []))))
+    for p in plans:
+        out.append(AR.make("confluence_confirmer", "claude", p["symbol"], p["direction"], [{"what": s} for s in p["schools"]] or [{"what": "chain agreement"}], "scanner", "delayed", 0, coverage=f"{p['horizon']} {p['tf']}", note=f"grade {p['grade']}"))
+    return out
+
+
+def horizon_slot(now_utc: datetime):
+    """The 4-hour mark (NY clock 00/04/08/12/16/20) this pass falls in, within the first 30 minutes; None otherwise. Returns 'YYYY-MM-DD-HH'."""
+    from modules.event_clock import NY
+    loc = now_utc.astimezone(NY)
+    if loc.hour % 4 == 0 and loc.minute < 30:
+        return loc.strftime("%Y-%m-%d-%H")
+    return None
+
+
 def review_due(now_utc: datetime):
     from modules.event_clock import NY
     loc = now_utc.astimezone(NY)
@@ -73,7 +99,12 @@ def build_top(fetch, syms, top: int = 7):
             calm[s] = daily_top.calm_stats(fetch(s, "1h"))
         except Exception:
             calm[s] = None
-    items = daily_top.rank(plans, smt, watch, calm, top=top)
+    from modules import brain
+    try:
+        weights = brain.school_weights(brain.load(), brain.load_graded())
+    except Exception:
+        weights = {}
+    items = daily_top.rank(plans, smt, watch, calm, top=top, weights=weights)
     return items, plans, watch, smt
 
 
@@ -82,6 +113,7 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
     from modules import brain, daily_top, day_plan, event_clock
     now = now_utc.timestamp()
     msgs = []
+    agent_log = []   # contract objects found in this pass (saved below, summarised in the daily review)
 
     def out(key, text):
         if key in sent:
@@ -120,12 +152,53 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
                 out(f"smt|{e['id']}", f"🔔 <b>SMT</b> {intermarket.chips([e], ar=True)[0]['label']} · {e['session']}\n{e['text_ar']}")
     except Exception:
         pass
+    # liquidity sweeps of previous day / week / month highs and lows and the Asian range (fresh: last 3 hourly candles)
+    try:
+        from modules import level_sweeps
+        found = level_sweeps.scan(syms, fetch)[:int(os.environ.get("BRAIN_MAX_SWEEPS", "4"))]
+        agent_log.extend(_agent_results(sweeps=found))
+        for a in found:
+            out(a["id"], level_sweeps.format_sweep(a))
+    except Exception as e:
+        msgs.append(f"(sweeps skipped: {type(e).__name__})")
+    # news from outside the calendar (RSS, tiers A / B / C); dedupe by normalized title
+    if os.environ.get("BRAIN_NEWS", "1") != "0":
+        try:
+            from modules import news_watch
+            items, _dead = news_watch.fetch_all(news_watch.default_fetch_text)
+            fresh = news_watch.alerts(items, now_utc)[:int(os.environ.get("BRAIN_MAX_NEWS", "3"))]
+            agent_log.extend(_agent_results(news=fresh))
+            for a in fresh:
+                out(a["id"], news_watch.format_news(a))
+        except Exception as e:
+            msgs.append(f"(news skipped: {type(e).__name__})")
+    # all-horizon scan (scalp / day / swing / position), A+ and A only, at the 4-hour marks of the New York clock
+    hs = horizon_slot(now_utc)
+    if hs and f"hz|{hs}" not in sent:
+        try:
+            from modules import horizons
+            plans = horizons.scan(syms, fetch)
+            agent_log.extend(_agent_results(plans=plans))
+            if plans or os.environ.get("BRAIN_HZ_EMPTY", "0") == "1":
+                out(f"hz|{hs}", horizons.format_digest(plans))
+            else:
+                sent[f"hz|{hs}"] = now
+            if plans and not dry:
+                brain.record([dict(p, points=len(p["schools"])) for p in plans], now)
+        except Exception as e:
+            msgs.append(f"(horizons skipped: {type(e).__name__})")
     slot = digest_slot(now_utc)
     if slot and f"top7|{slot[1]}|{slot[0]}" not in sent:
         items, _p, _w, _s = build_top(fetch, syms, int(os.environ.get("BRAIN_TOP", "7")))
         out(f"top7|{slot[1]}|{slot[0]}", daily_top.format_top(items, day_plan.session_clock(now_utc)))
         if not dry and items:
             brain.record(items, now)
+    if agent_log and not dry:
+        try:
+            from modules import agent_result
+            agent_result.save(agent_log, AGENTS_FILE)
+        except Exception as e:
+            msgs.append(f"(agent results not saved: {type(e).__name__})")
     # grade what is old enough, and review once after the New York close
     entries = brain.load()
     graded = brain.load_graded()
@@ -135,7 +208,13 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
             brain.save_graded(graded)
         rd = review_due(now_utc)
         if rd and entries and f"review|{rd}" not in sent:
-            out(f"review|{rd}", brain.review_text(entries, graded))
+            try:
+                from modules import agent_result
+                res = agent_result.load(AGENTS_FILE, rd) + agent_result.load_dir(AGENTS_DIR, rd)
+                block = agent_result.text(agent_result.summarize(res))
+            except Exception:
+                block = ""   # the review must go out even when the agents block cannot be built
+            out(f"review|{rd}", brain.review_text(entries, graded, agents=block))
     if log is not None:
         log.append(f"{len(msgs)} message(s)")
     return msgs

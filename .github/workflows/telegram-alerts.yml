@@ -2,7 +2,7 @@ name: Telegram alerts
 
 on:
   schedule:
-    - cron: "*/30 * * * *"      # every 30 minutes (GitHub may delay scheduled runs by several minutes)
+    - cron: "7 * * * *"         # hourly (was every 30 min; fewer runs after the 2026-11 suspension) (GitHub may delay scheduled runs by several minutes)
   workflow_dispatch: {}          # "Run workflow" button for a manual test
 
 permissions:

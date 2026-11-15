@@ -88,14 +88,14 @@ function wsRecBtn(){
    colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
 const WGROUPS = () => [
   [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
-  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["dom","tape","limits","risk"]],
+  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["ofdesk","ofm","dom","tape","limits","risk"]],
   [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
   [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
   [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
   [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
-const WCODE = {tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+const WCODE = {ofdesk:"OFD", ofm:"MAP", tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
   fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
-const WNEW = new Set(["tclass"]);   // gets a small NEW mark in the menu
+const WNEW = new Set(["ofdesk", "ofm"]);   // gets a small NEW mark in the menu
 function wMenuBtn(sel){
   if (!document.getElementById("wmCss")){ const st = el("style"); st.id = "wmCss"; st.textContent =
     "#wmBtn{font-weight:700;padding:2px 10px;border-radius:5px;border:1px solid #f0b90b;color:#f0b90b;background:rgba(240,185,11,.08);cursor:pointer}#wmBtn:hover,#wmBtn.on{background:#f0b90b;color:#000}"

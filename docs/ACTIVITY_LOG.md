@@ -13,6 +13,7 @@
 ## الصيغة
 | الوقت (UTC) | الذكاء / الحساب | الفعل | قرأ | غيّر | نسخ | بعت | استقبل | النتيجة |
 |---|---|---|---|---|---|---|---|---|
+| 2026-11-10 13:50 | Antigravity / Gemini | تنفيذ المهمة 2: كتابة اختبارات معزولة لبارامترات صفحة TIA | طلب Claude وتعليمات المالك، modules/tia_page.py، modules/tia_workspace.py | tests/test_tia_page_params.py، docs/sessions/antigravity-2026-11-10-tia-tests.md | — | branch team/antigravity-tests-2026-11-10 | تفاصيل المهمة 2 من Claude | تم إنشاء 10 اختبارات وحدة معزولة بالكامل تغطي tia_mkt وtia_sym وtia_run والـ warning وبنية ctrl وتخزين التقرير وحقن HTML للـ workspace؛ جميع الـ 10 اختبارات نجحت 10/10 بـ python3 وunittest بدون شبكة وبدون تشغيل Streamlit حي |
 
 | 2026-10-22 19:25 | ChatGPT | عزل إصلاح Order Flow عن تغييرات الكاش | PR #66، modules/workspace_app.html على main والفرع السابق | modules/workspace_app.html؛ tests/test_orderflow_render_policy.py؛ .github/workflows/orderflow-render-regression.yml | — | أنشأت فرعًا نظيفًا من main وأضفت إصلاح العرض واختبار CI | اكتشفت أن PR #66 الأصلي يحتوي تغييرات الكاش غير المتعلقة بالإصلاح؛ لا رد مراجعة نهائي من Claude حتى الآن | الفرع النظيف لا يتضمن تعديل TTL أو workflow الكاش؛ يلزم تشغيل CI ومراجعة المتصفح قبل الاعتماد؛ لا merge/deploy |
 
@@ -56,3 +57,4 @@
 | 2026-10-29 | Claude (جلسة Mohamed) | Plateau Lab: تقطيع OOS بنظام السوق + مكتبة regime_lib مشتركة + Regime Radar بقى مقروء | modules/hub_regime.py | modules/regime_lib.py، hub_plateau.py، hub_regime.py، hub_ui.py، tests، docs | — | commit محلي + bundle محدّث | شموع OKX حقيقية | اختبار + AppTest على BTC 1h |
 | 2026-10-29 | Claude (جلسة Mohamed) | ترجمة عربية لنصوص الـ Hub (167 مفتاح) + قوالب للجمل المحسوبة + إصلاح اتجاه الـ SVG في RTL | modules/i18n.py (الصيغة)، hub_*.py | modules/i18n.py، hub_ui.py، hub_*.py، tests/test_hub_i18n.py، docs | — | commit محلي + bundle محدّث | — | AppTest عربي لـ 6 تابات + معاينة بالعين |
 | 2026-11-06 | Claude Code (سعود) | ويدجت تصنيف الصفقات tclass (سكالب/داي/سوينج/بوزشن + ارتداد دعم/مقاومة بالنقاط) + إصلاح تجميد كارت الصفقة | modules/ws/24b_tclass.js, 14_journal_chain.js, 26_snap.js, 11_i18n | tests/test_tclass_js.py + tests/browser/tclass_mock.js (mock فقط) |
+| 2026-11-10 08:44 | Antigravity | رسالة موجهة لـ Claude في قاعة الاجتماعات بأمر المالك: "يا كلود أنا أنتجرافيتي، أعمل إيه؟" على فرع main | أمر المالك المباشر | docs/MEETING_ROOM.md، docs/ACTIVITY_LOG.md | — | — | — | كُتبت في قاعة الاجتماعات على main بانتظار توجيهات Claude |

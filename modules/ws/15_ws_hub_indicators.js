@@ -237,6 +237,72 @@ const rsiOf = (cl, L) => { let ag = 0, al = 0; return cl.map((v, i) => { if (!i)
 // ---- MSB: Market Structure Break + Order Block (OB) + Breaker/Mitigation Block (BB/MB) ----
 // Port of the TradingView script "Market Structure Break & Order Block" (c) EmreKb, Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/).
 // Same logic (zigzag pivots -> structure break confirmed by a fib factor -> OB / BB boxes, boxes die when price closes through them); not bit-exact with Pine (the "same pivots" guard uses the intended meaning).
+// S26-BEGIN: 2.6 strategy engine. Port of research/strategies/2.6 (H1 retracement, H2 liquidity sweep) + the provisional
+// trade plan of modules/two_six_chart.py (u = leg / ratio, stop = entry -/+ u, TP1 = 1R, TP2 = 2R, stop wins a same-candle tie).
+// Parity with the Python engine: tests/test_two_six_js_parity.py. Research only: it never sends an order.
+function s26Calc(D, o){
+  o = o || {}; const r = +o.ratio || 2.6, L = Math.max(1, (+o.sw | 0) || 5), wait = (+o.wait | 0) || 80, tol = o.tol != null ? +o.tol : 0.0005, n = D.length, out = [];
+  if (n < 2*L + 3) return out;
+  const piv = [];
+  for (let i = L; i < n - L; i++){
+    const hi = D[i].h, lo = D[i].l; let mx = -Infinity, mn = Infinity, ch = 0, cl = 0;
+    for (let j = i - L; j <= i + L; j++){ const b = D[j]; if (b.h > mx) mx = b.h; if (b.l < mn) mn = b.l; if (b.h === hi) ch++; if (b.l === lo) cl++; }
+    const isH = hi === mx && ch === 1, isL = lo === mn && cl === 1;
+    if (isH && isL) continue;   // OHLC cannot tell which extreme came first
+    if (isH) piv.push({i, k:"H", p:hi, at:i + L});
+    if (isL) piv.push({i, k:"L", p:lo, at:i + L});
+  }
+  piv.sort((a, b) => a.at - b.at || a.i - b.i || (a.k < b.k ? -1 : a.k > b.k ? 1 : 0));
+  const legs = [];
+  for (let j = 0; j + 1 < piv.length; j++){ const a = piv[j], b = piv[j+1];
+    if (a.k === "L" && b.k === "H" && b.p - a.p > 0) legs.push({side:"BUY", a, b, span:b.p - a.p, at:Math.max(a.at, b.at)});
+    else if (a.k === "H" && b.k === "L" && a.p - b.p > 0) legs.push({side:"SELL", a, b, span:a.p - b.p, at:Math.max(a.at, b.at)}); }
+  const fill = (side, lvl, f, l) => { for (let i = f; i <= l; i++){ const b = D[i]; if (side === "BUY" ? b.l <= lvl : b.h >= lvl) return [i, side === "BUY" ? Math.min(lvl, b.o) : Math.max(lvl, b.o)]; } return null; };
+  const play = (kind, side, known, e, s, t1, t2, anc) => {
+    const P = {kind, side, known, entry:e, stop:s, tp1:t1, tp2:t2, anchors:anc, fill:null, exit:null, tp1_hit:false, status:""};
+    const f = fill(side, e, known + 1, Math.min(n - 1, known + wait));
+    if (!f){ P.status = known + wait >= n - 1 ? "waiting" : "expired"; P.exit = P.status === "waiting" ? null : known + wait; return P; }
+    P.fill = f[0]; P.entry = f[1]; const buy = side === "BUY";
+    for (let i = f[0] + 1; i < n; i++){ const b = D[i];
+      if (buy ? b.l <= s : b.h >= s){ P.status = P.tp1_hit ? "TP1 then stop" : "stopped"; P.exit = i; return P; }
+      if (buy ? b.h >= t2 : b.l <= t2){ P.status = "TP2"; P.exit = i; return P; }
+      if (buy ? b.h >= t1 : b.l <= t1) P.tp1_hit = true; }
+    P.status = P.tp1_hit ? "open (TP1 hit)" : "open"; return P; };
+  if (o.h1 !== false) legs.forEach(g => { if (g.at >= n - 1) return; const u = g.span / r, sg = g.side === "BUY" ? 1 : -1, e = g.b.p - sg*u;
+    out.push(play("H1", g.side, g.at, e, e - sg*u, g.b.p, g.b.p + sg*u, [g.a.i, g.b.i])); });
+  if (o.h2 !== false){ const pools = [];
+    ["H","L"].forEach(k => { const Q = piv.filter(p => p.k === k).sort((a, b) => a.i - b.i);
+      for (let j = 0; j + 1 < Q.length; j++){ const a = Q[j], b = Q[j+1];
+        if (b.i - a.i > 100 || Math.abs(a.p - b.p) > tol * Math.max(a.p, b.p)) continue;
+        const lvl = k === "H" ? Math.max(a.p, b.p) : Math.min(a.p, b.p); let bad = false;
+        for (let i = a.i + 1; i < b.i; i++) if (k === "H" ? D[i].h >= lvl : D[i].l <= lvl){ bad = true; break; }
+        if (!bad) pools.push({k, lvl, a, b, at:Math.max(a.at, b.at)}); } });
+    pools.sort((x, y) => x.at - y.at || (x.k < y.k ? -1 : x.k > y.k ? 1 : 0));
+    const seen = new Set();
+    pools.forEach(P => { let sw = null;
+      for (let i = P.at + 1; i < Math.min(n, P.at + 201); i++){ const b = D[i];
+        if (P.k === "H"){ if (b.c >= P.lvl) break; if (b.h > P.lvl){ sw = i; break; } }
+        else { if (b.c <= P.lvl) break; if (b.l < P.lvl){ sw = i; break; } } }
+      if (sw === null || seen.has(P.k + sw)) return; seen.add(P.k + sw);
+      const side = P.k === "H" ? "SELL" : "BUY"; let best = null;
+      legs.forEach(g => { if (g.side === side && g.at <= sw && (!best || g.at > best.at || (g.at === best.at && g.b.i > best.b.i))) best = g; });
+      if (!best) return; const u = best.span / r, sg = side === "BUY" ? 1 : -1, e = P.lvl - sg*u;
+      out.push(play("H2", side, sw, e, e - sg*u, P.lvl, P.lvl + sg*u, [P.a.i, P.b.i, sw, best.a.i, best.b.i])); }); }
+  out.sort((x, y) => x.known - y.known); out.piv = piv; return out;   // piv: the confirmed swings, for the chart markers
+}
+// S26-END
+const S26_HTF = {};
+function s26Score(D, R, p, big){   // 0-100 strength SCORE (not a probability): 50 + bigger-TF agreement (±20 each) + this chart's past TP2 rate vs the 1/3 break-even of a 2R plan (±20, n>=5) + sweep (+10) + leg size vs ATR14
+  let s = 50; const why = [];
+  big.forEach(H => { const q = H.live[H.live.length - 1]; if (!q) return; const ok = q.side === p.side; s += ok ? 20 : -20; why.push(H.tf+(ok ? "✓" : "✗")); });
+  const C = R.filter(q => q.fill != null && q.exit != null), w = C.filter(q => q.status === "TP2").length;
+  if (C.length >= 5){ const wr = w/C.length; s += Math.max(-20, Math.min(20, (wr - 1/3)*60)); why.push("win "+Math.round(wr*100)+"% n="+C.length); }
+  if (p.kind === "H2"){ s += 10; why.push("sweep"); }
+  const n = D.length, k = Math.min(14, n - 1); let atr = 0; for (let i = n - k; i < n; i++) atr += D[i].h - D[i].l; atr /= k || 1;
+  const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY", rng = Math.abs((buy ? D[lb].h : D[lb].l) - (buy ? D[la].l : D[la].h));
+  if (atr > 0){ const m = rng/atr; if (m >= 2 && m <= 8){ s += 10; why.push("leg "+m.toFixed(1)+"×ATR"); } else if (m < 1.5){ s -= 10; why.push("small leg"); } }
+  return {s:Math.max(0, Math.min(100, Math.round(s))), why};
+}   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart
 function msbCalc(D, zl, fibF){
   const n = D.length, NA = NaN; zl = Math.max(2, zl|0); fibF = +fibF;
   const hiP = [NA,NA,NA,NA,NA], hiI = [NA,NA,NA,NA,NA], loP = [NA,NA,NA,NA,NA], loI = [NA,NA,NA,NA,NA];

@@ -1,11 +1,12 @@
 # 6868 X - agent memory (short; read this instead of re-exploring)
 
-> **أول حاجة لأي حساب أو ذكاء جديد:** اقرأ `docs/AGENT_PROMPT.md` ثم `docs/NEW_ACCOUNT_GUIDE.md` ثم `docs/MEETING_ROOM.md` و`docs/WHITEBOARD.md`. ماتشتغلش قبل ما تقرأهم.
+> **أول حاجة لأي حساب أو ذكاء جديد:** اقرأ `docs/AGENT_PROMPT.md` ثم `docs/NEW_ACCOUNT_GUIDE.md` ثم `docs/MEETING_ROOM.md` (أوّل 80 سطر + آخر 60 سطر بس: `tail -60`، مش الملف كله ~68KB) و`docs/WHITEBOARD.md`. ماتشتغلش قبل ما تقرأهم.
 
 Owner: Saud, Egyptian Arabic, short replies. Repo `saudmoto6868-oss/ai-trading-dashboard`, push to `main`.
 Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, not the whole change log).
 
 ## Working rules
+- Commands + conventions in 40 lines: `docs/QUICK_REF.md`. Run checks with `bash scripts/check.sh` (quiet; one command).
 - Work the priority table in order; update its row + change log after each item; small commits.
 - Honest: never invent prices / win rates; "not evidence" under n=30; say what was NOT tested.
 - Secrets only in Streamlit Secrets / env; never commit keys; a key pasted in chat = tell owner to rotate it.

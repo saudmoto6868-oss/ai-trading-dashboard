@@ -307,7 +307,7 @@ const Guide = {
   async goTo(get){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ this.point(r); this.flash(r); } return r; },   // scroll the target on screen if needed, point at it, spotlight it
   up(){ this.point(new DOMRect(innerWidth/2, this.view().t, 10, 10)); },
   flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
-  page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
+  page(i, name){ try { const P = window.parent, u = new URL(P.location.href); u.searchParams.set("page", i); P.location.href = u.href; return true; } catch(e){} return false; },   // fixed page index via ?page= (the tab bar order no longer matches the indexes)
   live: {
     chart(g){ const p = g.chart(); if (!p) return ""; const c = p.chart, d = c.data[c.data.length-1]; return d ? g.G(" Now: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" at "+d.c+".", " دلوقتي: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" على "+d.c+".") : ""; },
     vp(g){ const p = g.chart(); if (!p || !p.chart._vp2) return g.G(" Turn it on from Indicators > Volume profile.", " شغّله من المؤشرات ← Volume profile."); const v = p.chart._vp2, tb = v.f.dl.reduce((a,b) => a+b, 0);

@@ -4,9 +4,21 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/activity_hook.py\"" }
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/activity_hook.py\""
+          }
         ]
       }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Read(./**/__pycache__/**)",
+      "Read(./.streamlit/secrets.toml)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./data/spot/**)"
     ]
   }
 }

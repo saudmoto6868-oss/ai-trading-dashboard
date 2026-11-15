@@ -457,25 +457,76 @@ Object.assign(CandleChart.prototype, {
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
-  paintS26(c, py){   // 2.6 strategy (s26Calc): measured leg, entry / stop / TP1 / TP2 lines, pool + sweep, fill (triangle) and exit (square). Provisional stop / targets, research only
-    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.s26;
+  s26Htf(S){   // live (waiting / open) 2.6 setups of the two next bigger timeframes; fetched once per 2 min (5 min for 4H+) per symbol and settings, shared by every chart
+    if (!this.sym || !+S.mtf) return [];
+    const sec = TFSEC[this.tf] || 3600, up = ["5m","15m","1H","4H","1D","1W"].filter(t => TFSEC[t] > sec).slice(0, 2), opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2};
+    return up.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2].join(","), e = S26_HTF[k];
+      if (!e || (!e.busy && Date.now() - e.t > (TFSEC[H] >= 14400 ? 300000 : 120000))){
+        S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
+        candlesTf(this.sym, H, true, 300).then(rows => { let v = null; try { v = {tf:H, rows, live:s26Calc(rows, opt).filter(p => p.status === "waiting" || p.status.startsWith("open")).slice(-2)}; } catch(err){} S26_HTF[k] = {t:Date.now(), v, busy:false}; this.draw(); })
+          .catch(() => { S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:false}; });
+      }
+      return S26_HTF[k] && S26_HTF[k].v; }).filter(Boolean);
+  },
+  paintS26(c, py){   // 2.6 strategy (s26Calc): history = leg + entry / SL / TP lines, fill triangle, exit square; WAITING setups = gold dashed box (entry -> stop) with countdown,
+    // expected path (now -> entry -> TP2) and an "expected here" time line; OPEN setups = LIVE tag; bigger-timeframe live setups drawn in violet with an alignment check. Provisional stop / targets, research only
+    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.s26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80;
     const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
-    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!S.h1, h2:!!S.h2}); } catch(e){} this._s26 = {k:key, r}; }
-    const P = this._s26.r.slice(-Math.max(1, +S.show || 6)), px = +S.tx || 10, BL = "#4da3ff", RD = "#ff4d4f", f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6);
-    const seg = (i, j, v, col, dash, w) => { const xa = this.x(i), xb = this.x(j); if (xb < 0 || xa > this.W) return; const y = py(v); c.strokeStyle = col; c.lineWidth = w || 1; c.setLineDash(dash || []); c.beginPath(); c.moveTo(xa, y); c.lineTo(xb, y); c.stroke(); };
-    const tag = (j, v, col, t) => { const x = this.x(j) + 4; if (x < 0 || x > this.W) return; c.fillStyle = col; c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillText(t+" "+f(v), x, py(v)); };
+    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio:+S.ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
+    const R = this._s26.r, P = R.slice(-Math.max(1, +S.show || 6)), px = +S.tx || 10, BL = "#4da3ff", RD = "#ff4d4f", GD = "#f0b429", VI = "#c792ea", PR = this.PR;
+    const f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6), dash = d => c.setLineDash(d || []);
+    const med = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
+    const fillB = R.filter(p => p.fill != null).map(p => p.fill - p.known), tpB = R.filter(p => p.status === "TP2").map(p => p.exit - p.fill), mF = med(fillB), mT = med(tpB);
+    const dur = b => { const s = b*sec; return s >= 86400 ? (s/86400).toFixed(1)+"d" : s >= 3600 ? (s/3600).toFixed(s >= 36000 ? 0 : 1)+"h" : Math.round(s/60)+"m"; };
+    const hm = ms => { const d = new Date(ms); return (sec >= 14400 ? (d.getMonth()+1)+"/"+d.getDate()+" " : "")+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"); };
+    const seg = (i, j, v, col, d, w) => { const xa = this.x(i), xb = this.x(j); if (xb < 0 || xa > PR) return; const y = py(v); c.strokeStyle = col; c.lineWidth = w || 1; dash(d); c.beginPath(); c.moveTo(xa, y); c.lineTo(xb, y); c.stroke(); };
+    const tag = (j, v, col, t) => { const x = Math.min(this.x(j) + 4, PR - 4); if (x < 0) return; c.fillStyle = col; c.font = px+"px sans-serif"; c.textAlign = this.x(j) + 4 > PR - 4 ? "right" : "left"; c.fillText(t+" "+f(v), x, py(v)); };
     const tri = (i, up, col) => { const x = this.x(i), y = up ? py(D[i].l) + 9 : py(D[i].h) - 9, s = 5; c.fillStyle = col; c.beginPath(); c.moveTo(x, up ? y - s : y + s); c.lineTo(x - s, up ? y + s : y - s); c.lineTo(x + s, up ? y + s : y - s); c.closePath(); c.fill(); };
-    c.save(); c.textBaseline = "middle";
-    P.forEach(p => { const buy = p.side === "BUY", a = p.anchors, ec = buy ? S.color : S.color2, end = p.exit != null ? p.exit : n - 1 + 4;
+    const card = (x, y, lines, col, below) => {   // rounded label card: lines = [[text, colour], ...]; anchored at (x, y), above unless below
+      c.font = "bold "+px+"px sans-serif"; const lh = px + 4, w = Math.max(...lines.map(l => c.measureText(l[0]).width)) + 12, h = lines.length*lh + 6;
+      let X = Math.max(2, Math.min(x, PR - w - 2)), Y = below ? y + 4 : y - h - 4; Y = Math.max(2, Math.min(Y, this.PB - h - 2));
+      c.fillStyle = "rgba(14,12,6,.88)"; c.strokeStyle = col; c.lineWidth = 1; dash(); c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 4) : c.rect(X, Y, w, h); c.fill(); c.stroke();
+      c.textAlign = "left"; lines.forEach((l, k) => { c.fillStyle = l[1]; c.fillText(l[0], X + 6, Y + 3 + lh*(k + .5)); }); return {X, Y, w, h}; };
+    const HT = this.s26Htf(S), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
+    const align = p => HT.map(H => { const q = H.live[H.live.length - 1]; if (!q) return [H.tf+" –", "#8a94a3"];
+      const u = Math.abs(p.entry - p.stop), same = q.side === p.side && Math.abs(q.entry - p.entry) <= u;
+      return [H.tf+(q.side === p.side ? " ✓ " : " ✗ ")+q.side+(same ? " (same trade)" : ""), q.side === p.side ? "#0ecb81" : RD]; });
+    c.save(); c.beginPath(); c.rect(0, 0, PR, this.PB); c.clip(); c.textBaseline = "middle";
+    // bigger timeframes: their live setups as violet levels from where they were found to the right edge
+    HT.forEach(H => H.live.forEach(q => { const i0 = idxAt(H.rows[q.known].t), wt = q.status === "waiting", end = n - 1 + 6;
+      if (wt){ c.globalAlpha = .07; c.fillStyle = VI; const xa = this.x(i0), y1 = py(q.entry), y2 = py(q.stop); c.fillRect(xa, Math.min(y1, y2), this.x(end) - xa, Math.abs(y2 - y1)); c.globalAlpha = 1; }
+      seg(i0, end, q.entry, VI, [8, 3], 1.4); seg(i0, end, q.stop, VI, [2, 4]); seg(i0, end, q.tp2, VI, [2, 4]);
+      tag(end, q.entry, VI, H.tf+" "+q.kind+" "+q.side+(wt ? " ⏳" : " ● LIVE")); tag(end, q.stop, VI, H.tf+" SL"); tag(end, q.tp2, VI, H.tf+" TP2"); }));
+    const W8 = P.filter(p => p.status === "waiting"), main = W8.length ? W8.reduce((b, p) => Math.abs(p.entry - D[n-1].c)/Math.abs(p.entry - p.stop) < Math.abs(b.entry - D[n-1].c)/Math.abs(b.entry - b.stop) ? p : b) : null;   // the waiting setup nearest to price (in its own risk units) gets the path + time line
+    P.forEach(p => { const buy = p.side === "BUY", a = p.anchors, ec = buy ? S.color : S.color2, wt = p.status === "waiting", live = p.status.startsWith("open"), end = wt ? p.known + wait : p.exit != null ? p.exit : n - 1 + 4;
       const la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4];
-      c.globalAlpha = .8; c.strokeStyle = "#8888ff"; c.lineWidth = 1; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(this.x(la), py(buy ? D[la].l : D[la].h)); c.lineTo(this.x(lb), py(buy ? D[lb].h : D[lb].l)); c.stroke();
-      if (p.kind === "H2"){ seg(a[0], a[2], p.tp1, "#f0b429", [3, 3]); c.fillStyle = "#f0b429"; c.beginPath(); c.arc(this.x(a[2]), py(buy ? D[a[2]].l : D[a[2]].h), 3.5, 0, 7); c.fill(); }
-      c.globalAlpha = 1; seg(p.known, end, p.entry, ec, S.dash ? S.dash.split(",").map(Number) : [], +S.w || 1.6); seg(p.known, end, p.stop, RD, [3, 3]); seg(p.known, end, p.tp1, BL, [2, 3]); seg(p.known, end, p.tp2, BL, [2, 3]);
-      tag(end, p.entry, ec, p.kind+" "+p.side); tag(end, p.stop, RD, "SL"); tag(end, p.tp1, BL, "TP1"); tag(end, p.tp2, BL, "TP2");
+      c.globalAlpha = .8; c.strokeStyle = "#8888ff"; c.lineWidth = 1; dash([4, 3]); c.beginPath(); c.moveTo(this.x(la), py(buy ? D[la].l : D[la].h)); c.lineTo(this.x(lb), py(buy ? D[lb].h : D[lb].l)); c.stroke(); c.globalAlpha = 1;
+      if (p.kind === "H2"){ seg(a[0], a[2], p.tp1, GD, [3, 3]); c.fillStyle = GD; c.beginPath(); c.arc(this.x(a[2]), py(buy ? D[a[2]].l : D[a[2]].h), 3.5, 0, 7); c.fill(); }
+      if (wt){   // the waiting box: entry -> stop zone until the order expires, with a countdown card and the expected path
+        const xa = this.x(p.known), xb = this.x(end), y1 = py(p.entry), y2 = py(p.stop), left = p.known + wait - (n - 1);
+        c.fillStyle = hexA(GD, .10); c.fillRect(xa, Math.min(y1, y2), xb - xa, Math.abs(y2 - y1)); c.strokeStyle = GD; c.lineWidth = 1.5; dash([6, 4]); c.strokeRect(xa + .5, Math.min(y1, y2) + .5, xb - xa, Math.abs(y2 - y1));
+        seg(p.known, end, p.entry, ec, [], 2); seg(p.known, end, p.tp1, BL, [2, 3]); seg(p.known, end, p.tp2, BL, [2, 3]);
+        tag(end, p.entry, ec, "E"); tag(end, p.stop, RD, "SL"); tag(end, p.tp1, BL, "TP1"); tag(end, p.tp2, BL, "TP2");
+        const age = n - 1 - p.known, late = mF != null && age >= mF, fe = Math.max(1, mF != null ? Math.round(mF) - age : Math.round(left/2)), te = Math.max(1, mT != null ? Math.round(mT) : fe*2), xe = this.x(n - 1 + fe + te);
+        if (+S.path && p === main){ const x0 = this.x(n - 1), y0 = py(D[n-1].c), xm = this.x(n - 1 + fe), ym = py(p.entry), yt = py(p.tp2);
+          c.strokeStyle = GD; c.lineWidth = 1.6; dash([5, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(xm, ym); c.lineTo(xe, yt); c.stroke(); dash();
+          const ang = Math.atan2(yt - ym, xe - xm); c.fillStyle = GD; c.beginPath(); c.moveTo(xe, yt); c.lineTo(xe - 9*Math.cos(ang - .4), yt - 9*Math.sin(ang - .4)); c.lineTo(xe - 9*Math.cos(ang + .4), yt - 9*Math.sin(ang + .4)); c.closePath(); c.fill();
+          c.strokeStyle = hexA(GD, .7); c.lineWidth = 1; dash([2, 3]); c.beginPath(); c.moveTo(xe, 0); c.lineTo(xe, this.PB); c.stroke(); dash();
+          card(xe + 4, yt, [["◎ "+Lg("expected TP2 here", "المكان المتوقع للهدف"), GD], ["~ "+hm(D[n-1].t + (fe + te)*sec*1000)+" · "+f(p.tp2), "#eaecef"]], GD, !buy); }
+        const fill = mF == null ? "? (no history)" : late ? Lg("overdue (median ", "متأخر (الوسيط ")+dur(mF)+", n="+fillB.length+")" : "≈ "+dur(fe)+" (median, n="+fillB.length+")";
+        const C = card(xa, Math.min(y1, y2), [["⏳ 2.6 "+p.kind+" "+p.side+" LIMIT  "+f(p.entry), ec],
+          [Lg("expires in ", "ينتهي بعد ")+left+" "+Lg("bars", "شمعة")+" ("+dur(left)+")  ·  SL "+f(p.stop)+"  TP2 "+f(p.tp2), "#eaecef"],
+          ...(p === main ? [[Lg("fill ", "الدخول ")+fill+"  ·  TP2 ≈ "+(mT != null ? dur(te)+" (n="+tpB.length+")" : "?"), "#b7bdc6"]] : []),
+          ...(HT.length ? [[align(p).map(x => x[0]).join("   "), align(p).every(x => x[1] !== RD) ? "#0ecb81" : RD]] : [])], p === main ? GD : hexA(GD, .5), false);
+        const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#2b3139"; c.fillRect(C.X + 6, C.Y + C.h - 4, C.w - 12, 2); c.fillStyle = GD; c.fillRect(C.X + 6, C.Y + C.h - 4, (C.w - 12)*fr, 2);
+        return; }
+      seg(p.known, end, p.entry, ec, S.dash ? S.dash.split(",").map(Number) : [], +S.w || 1.6); seg(p.known, end, p.stop, RD, [3, 3]); seg(p.known, end, p.tp1, BL, [2, 3]); seg(p.known, end, p.tp2, BL, [2, 3]);
+      tag(end, p.entry, ec, p.kind+" "+p.side+(live ? " ● LIVE"+(p.tp1_hit ? " · TP1 ✓" : "") : "")); tag(end, p.stop, RD, "SL"); tag(end, p.tp1, BL, "TP1"); tag(end, p.tp2, BL, "TP2");
+      if (live && HT.length) card(this.x(p.fill), py(p.entry), align(p).map(x => [x[0], x[1]]), ec, buy);
       if (p.fill != null) tri(p.fill, buy, ec);
       if (p.fill != null && p.exit != null){ const ok = p.status === "TP2", x = this.x(p.exit), y = py(ok ? p.tp2 : p.stop); c.fillStyle = ok ? BL : RD; c.fillRect(x - 3.5, y - 3.5, 7, 7);
         c.font = "bold "+px+"px sans-serif"; c.textAlign = "center"; c.fillText({"TP2":"TP2", "stopped":"SL", "TP1 then stop":"TP1→SL"}[p.status] || p.status, x, y + (buy === ok ? -10 : 10)); } });
-    c.setLineDash([]); c.restore();
+    dash(); c.restore();
   },
   paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc. Settings = the Pine script's settings (this.st.msb)
     const n = this.data.length; if (n < 20) return; const S = this.st.msb, zl = Math.max(2, Math.round(+S.zl) || 9), fib = isFinite(+S.fib) ? +S.fib : 0.237;

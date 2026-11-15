@@ -291,6 +291,7 @@ function s26Calc(D, o){
   out.sort((x, y) => x.known - y.known); return out;
 }
 // S26-END
+const S26_HTF = {};   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart
 function msbCalc(D, zl, fibF){
   const n = D.length, NA = NaN; zl = Math.max(2, zl|0); fibF = +fibF;
   const hiP = [NA,NA,NA,NA,NA], hiI = [NA,NA,NA,NA,NA], loP = [NA,NA,NA,NA,NA], loI = [NA,NA,NA,NA,NA];

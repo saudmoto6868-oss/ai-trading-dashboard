@@ -63,6 +63,7 @@ def test_next_close_from_last_closed_candle():
 
 
 def test_resample_4h_to_12h_for_yahoo_feeds():
+    import pandas as pd
     from modules.market_cache import _resample_from
     t = pd.date_range("2026-11-01", periods=6, freq="4h")
     df = pd.DataFrame({"time": t, "open": 1.0, "high": 2.0, "low": 0.5, "close": [1, 2, 3, 4, 5, 6.0], "volume": 1.0})

@@ -36,7 +36,7 @@ assert all(r["net"] == round(r["avgR"] - sl.COST_R, 3) for r in ch if r.get("avg
 lk = [r for r in ch if r["side"].startswith(("loc / ", "no loc / "))]
 assert lk and sum(r["n"] for r in lk) == len(ev), "every event lands in exactly one loc / no loc row"
 pr = [r for r in rows if r["key"] == "*PREREG*"]
-assert len(pr) == 2 and all(r["n"] == 0 and not r["edge"] for r in pr), "before the freeze date nothing counts"
+assert len(pr) == 3 and all(r["n"] == 0 and not r["edge"] for r in pr), "before the freeze date nothing counts"
 assert all(e["ts"] > 0 for e in ev)
 # fabricated events: 150 winners with loc after the freeze, 50 before it (must not count), 20 without loc (must not count)
 mk = lambda ts, loc, r: {"key": "sess_amd", "ts": ts, "r": r, "base": -1.0, "ses": "London 07-12", "chain": {"loc": loc, "htf": True, "vol": True, "reg": True, "time": True}}
@@ -46,6 +46,13 @@ assert h1["n"] == 150 and h1["since"] == sl.PREREG_CUTOFF_MS, h1
 assert h1["avgR"] == 0.25 and h1["net"] == 0.15, h1
 assert h1["edge"] is True, h1                      # n 150, t vs random > 3, net > 0 in both halves
 assert {r["side"]: r for r in sl.prereg_rows([("1h", "X", fab[:60])])}["H1 sess_amd + loc"]["edge"] is False, "n < 100 never passes"
+# H3 (frozen 2026-11-16): ew_r2_d1, 1h series only, signals after its own cutoff only
+mk3 = lambda ts, r: {"key": "ew_r2_d1", "ts": ts, "r": r, "base": -1.0, "chain": {"loc": True, "htf": True, "vol": True, "reg": True, "time": True}}
+f3 = [mk3(sl.PREREG_H3_CUTOFF_MS + 1000 + i, 1.5 if i % 2 else -1.0) for i in range(150)] + [mk3(sl.PREREG_H3_CUTOFF_MS - 1000 - i, 1.5) for i in range(50)]
+_h3 = lambda evs: {r["side"]: r for r in sl.prereg_rows(evs)}["H3 ew_r2_d1 on 1h"]
+h3 = _h3([("1h", "X", f3), ("4h", "X", f3), ("15m", "X", f3)])
+assert h3["n"] == 150 and h3["since"] == sl.PREREG_H3_CUTOFF_MS and h3["edge"] is True, h3   # other timeframes and older signals never count
+assert _h3([("4h", "X", f3)])["n"] == 0 and _h3([("1h", "X", f3[:60])])["edge"] is False
 # stop study: hand-made candles (entry 100, ATR 1, target 2.25 ATR)
 _n = 60; _cl = np.full(_n, 100.0); _hi = _cl + 0.2; _lo = _cl - 0.2
 _lo[12] = 98.3; _hi[20] = 102.3                       # dips 1.7 ATR (through the 1.5 stop, inside 2.0) and THEN reaches the target

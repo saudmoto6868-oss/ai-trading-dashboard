@@ -31,10 +31,12 @@ ar = mtf.lines_ar(m, True); assert len(ar) == 4 and "متوافقة" in ar[-1] a
 
 # scorer: fetch plan + result carries mtf
 assert scorer.fetch_tfs("1d") == ["1d", "1w", "4h"] and scorer.fetch_tfs("1h") == ["1h", "1d", "1w"] and "4h" not in scorer.fetch_tfs("1m")
-# quality: swing aligned +8 / conflict -12; day trade untouched
+# quality: since 2026-11-16 trend agreement is information only (0 points; the lab does not support it); TREND_PTS = 1 restores +8 / -12; day trade untouched
 r = {"score": 4, "max_score": 7, "trade_type": "Swing", "context": {}, "against": [], "mtf": {"status": "aligned"}}
 e = {"plan": {"entry": 100, "stop": 98, "tps": [104]}}
 q_al, w_al = T.quality(r, e); r["mtf"]["status"] = "conflict"; q_co, w_co = T.quality(r, e)
-assert q_al - q_co == 20 and any("متوافقة" in w for w in w_al) and any("ضد" in w for w in w_co)
+assert q_al == q_co and any("متوافقة" in w for w in w_al) and any("ضد" in w for w in w_co)
+_rb = {**r, "context": {"agree": {"bias": True}}}; assert T.quality(_rb, e)[0] == T.quality({**r, "context": {"agree": {"bias": False}}}, e)[0], "day bias moves no points"
+T.TREND_PTS = 1.0; r["mtf"]["status"] = "aligned"; _a = T.quality(r, e)[0]; r["mtf"]["status"] = "conflict"; assert _a - T.quality(r, e)[0] == 20; T.TREND_PTS = 0.0
 r["trade_type"] = "Day Trade"; assert T.quality(r, e)[0] == T.quality({**r, "mtf": {"status": "aligned"}}, e)[0]
 print("mtf tests OK")

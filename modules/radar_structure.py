@@ -30,15 +30,52 @@ _LABELS = {
 }
 
 
+def _steps(name: str, direction: str, ctx: dict) -> list[str]:
+    """Three steps written from THIS chart's numbers (price, trend, swings, ATR), not from a template."""
+    if not ctx:
+        return ["No price context for this chart yet, so no levels are given.", "Open the chart to read the levels.", "Do not act on the name alone."]
+    c = ctx["close"]
+    f = lambda v: f"{v:,.4g}" if v is not None else "-"
+    trend = {"up": "rising (close above EMA20, EMA20 above EMA50)", "down": "falling (close below EMA20, EMA20 below EMA50)", "mixed": "mixed (EMAs not in order)"}[ctx["trend"]]
+    step1 = f"{name}: price {f(c)} moved {ctx['change_1']:+.2f}% on the last candle; trend {trend}."
+    atr = ctx.get("atr") or 0
+    if direction == "long":
+        lvl = ctx.get("resistance")
+        step2 = (f"Confirm above {f(lvl)}, the nearest swing high ({pct_txt(lvl, c)} away)." if lvl else
+                 "No swing high above price in the last 90 candles, so there is no nearby level to confirm against.")
+        sl = ctx.get("swing_low")
+        step3 = (f"Invalid below {f(sl)}, the last swing low ({pct_txt(sl, c)} away, {abs(c - sl) / atr:.1f} ATR)." if sl and atr else
+                 "No swing low to use as an invalidation level.")
+    elif direction == "short":
+        lvl = ctx.get("support")
+        step2 = (f"Confirm below {f(lvl)}, the nearest swing low ({pct_txt(lvl, c)} away)." if lvl else
+                 "No swing low below price in the last 90 candles, so there is no nearby level to confirm against.")
+        sh = ctx.get("swing_high")
+        step3 = (f"Invalid above {f(sh)}, the last swing high ({pct_txt(sh, c)} away, {abs(sh - c) / atr:.1f} ATR)." if sh and atr else
+                 "No swing high to use as an invalidation level.")
+    else:
+        step2 = (f"No clear direction from this reading. Nearest levels: support {f(ctx.get('support'))}, resistance {f(ctx.get('resistance'))}.")
+        step3 = "Wait for a candle that closes outside the nearest level before reading it as a bias."
+    return [step1, step2, step3]
+
+
+def pct_txt(level, price) -> str:
+    if not level or not price:
+        return "-"
+    return f"{(level / price - 1) * 100:+.2f}%"
+
+
 def read(d: dict) -> list[dict]:
-    """Structure items found on one chart result (the scanner dict: 'flags', 'sides')."""
+    """Structure items found on one chart result, each with three steps built from that chart's own numbers."""
     out = []
+    ctx = d.get("ctx") or {}
     for flag in d.get("flags") or []:
         lab = _LABELS.get(flag)
         if not lab:
             continue
-        group, name, steps = lab
-        out.append({"group": group, "name": name, "direction": direction_of(flag, d), "steps": steps})
+        group, name, _generic = lab
+        direction = direction_of(flag, d)
+        out.append({"group": group, "name": name, "direction": direction, "steps": _steps(name, direction, ctx)})
     return out
 
 

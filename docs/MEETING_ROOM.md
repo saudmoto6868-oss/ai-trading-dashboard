@@ -387,3 +387,4 @@
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 5: `research/strategies/2.6/report.py` (تقرير من الملف + الـ manifest، H1 و H2 منفصلين، الـ test مقفول). 30 اختبار OK (مصطنعة).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 2: `research/strategies/2.6/docs/RULEBOOK.md` + `EVENT_DEFINITIONS.md` (كل قاعدة: CODE / ASSUMPTION / UNKNOWN + 4 أسئلة لصاحب الاستراتيجية).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 4 خلص: فحص ثبات الإعدادات (pivot 2..5 × wait 40/80/120) في `evaluation.py` + `report.py --neighbourhood`، من غير ما يلمس الـ test. 31 اختبار OK (مصطنعة).
+- [2026-11-16] [Claude Fable — حساب سعود] مراجعة عامة بأمر المالك: التقرير `docs/sessions/fable-review-2026-11-16.md`. النتيجة: نسبة الفوز ~37.5% (التعادل بعد التكلفة ~44%)، 3 صفوف بس من 605 بتصمد، أقوى مرشح `ew_r2_d1` على 1h (n 173). بج ترجمة حالة المصدر اتصلح. محتاج قرار المالك: تسجيل H3، شيل مكافأة التوافق من جودة تليجرام، تشديد علامة edge. فرع `ccr-d065c0b2-xezbbv`، مفيش merge.

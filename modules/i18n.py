@@ -280,7 +280,7 @@ AR = {
     "loaded (the dashboard fetch is capped; long histories run in GitHub Actions)": "اتحملت (الداشبورد بيجيب عدد محدود؛ التاريخ الطويل على GitHub Actions)",
     # Technical Office v2 tabs / control room / work board / backtest / operations, Radar tab bar (2026-10-22)
     "Control room": "غرفة التحكم", "Work board": "لوحة المهام", "Backtest": "الباك تيست", "Operations": "التشغيل", "Lab results": "نتايج الـ lab",
-    "Charts": "الشارتات", "Heat map": "الخريطة الحرارية", "live": "مباشر", "down": "واقف", "key set": "المفتاح موجود", "no key": "مفيش مفتاح",
+    "Charts": "الشارتات", "Heat map": "الخريطة الحرارية", "live": "مباشر", "offline": "واقف", "key set": "المفتاح موجود", "no key": "مفيش مفتاح",
     "Telegram": "تليجرام", "Blocked tasks": "مهام واقفة", "Nothing has passed the evidence gate yet": "لسه مفيش حاجة عدّت بوابة الدليل",
     "info": "معلومة", "degraded": "متدهور", "blocked": "واقف", "every signal is a suggestion, not evidence": "كل إشارة اقتراح، مش دليل",
     "Hyperliquid is not answering": "Hyperliquid مش بيرد", "gold / oil / index charts stop updating": "شارتات الذهب والنفط والمؤشرات هتقف",

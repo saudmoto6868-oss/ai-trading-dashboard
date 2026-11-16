@@ -2825,12 +2825,14 @@ def _radar_filters(view):
     """ONE filter panel for every Radar view (owner 2026-10-23): universe, timeframe, side, indicators, strategies, patterns and the Finviz-style technical lists.
     Rendered on every run so its choices survive switching tabs; returns the settings dict."""
     st.markdown("""<style>
-.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
+.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:5px;padding:3px 6px 1px}
 .st-key-csf label p,.st-key-csf [data-testid="stWidgetLabel"] p{font-size:10px!important;color:#848e9c!important;margin:0 0 1px 0!important;text-transform:uppercase;letter-spacing:.03em}
-.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:26px!important;font-size:11px!important}
+.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:22px!important;font-size:10px!important;padding-top:0!important;padding-bottom:0!important}
 .st-key-csf [data-baseweb="select"] span,.st-key-csf [data-baseweb="tag"]{font-size:11px!important}
 .st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
-.st-key-csf [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;overflow-x:auto}.st-key-csf{font-size:10px}
+.st-key-csf [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;overflow-x:auto;align-items:center!important}.st-key-csf{font-size:10px}
+.st-key-csf [data-testid="stPopover"] button{min-height:22px!important;height:22px!important;padding:0 6px!important;font-size:10px!important}
+.st-key-csf [data-testid="stElementContainer"]{margin-bottom:0!important}
 .st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
@@ -2900,15 +2902,15 @@ def _radar_filters(view):
     with st.container(key="csfw"), st.container(key="csf"):
         rd = ss.get("radar_def", {})   # set from Technical Office > Scanner control
         _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
-        tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
-        top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
-        with top[1].popover(L("Save")):
+        top = st.columns([0.6, 1.5, 0.5, 0.8, 0.9, 0.7, 0.8, 0.7, 0.8, 0.7])
+        tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
+        top[1].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[2].popover(L("Save")):
             _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
             st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
             _m = ss.pop("rp_msg", None)
@@ -2918,7 +2920,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
+        with top[3].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2931,39 +2933,39 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
+        with top[4].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
             sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
             sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
             for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
+        with top[5].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
             sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
             for k_ in ("vol", "relvol", "turnover", "obv"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
+        with top[6].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
             sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
             sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
             for k_ in ("candle", "range"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+        with top[7].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
             for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
+        with top[8].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
             n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
             ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
             from modules.regime import REGIMES as _RG
             sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
-        top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        top[9].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     sel_mom = list(sel_mom_a) + list(sel_mom_v)
     quick = []
 

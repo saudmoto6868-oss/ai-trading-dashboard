@@ -7,7 +7,17 @@ u = leg range / ratio:
   H1 SELL (high -> low leg):  entry = low + u,  stop = entry + u, TP1 = low,  TP2 = low - u
   H2 SELL (equal highs swept): entry = pool + u, stop = entry + u, TP1 = pool, TP2 = pool - u
   H2 BUY  (equal lows swept):  entry = pool - u, stop = entry - u, TP1 = pool, TP2 = pool + u
-So TP1 = 1R and TP2 = 2R everywhere. A bar touching stop and a target counts as stop.
+So TP1 = 1R and TP2 = 2R for H1 / H2. A bar touching stop and a target counts as stop.
+
+P = the creator's method as shown in his Reels (DewFqk8inTf, DfopgmVi8Wu, frame by frame 2026-11-15):
+measure a REAL swing (swing high -> swing low or the reverse), divide the range by the ratio and
+project that unit BEYOND the swing the leg started from; the zone there is the entry, the far end of
+the leg is the target. Real swings = a zigzag of the confirmed pivots that only turns when price moves
+at least min_atr x ATR14 (same-side pivots merge into the more extreme one). Exits are PROVISIONAL:
+  P SELL (leg H -> L): entry = H + u, stop = entry + u/2, TP1 = H, TP2 = L
+  P BUY  (leg L -> H): entry = L - u, stop = entry - u/2, TP1 = L, TP2 = H
+One setup at a time: a waiting setup is cancelled when the next leg appears, and no new setup is
+taken while a trade is still open.
 """
 import importlib.util
 import json
@@ -37,14 +47,15 @@ def bars_from_df(df):
             for i, r in enumerate(df.itertuples(index=False))]
 
 
-def _play(bars, kind, side, known, entry, stop, tp1, tp2, wait, anchors):
+def _play(bars, kind, side, known, entry, stop, tp1, tp2, wait, anchors, cut=None):
     n = len(bars)
     s = {"kind": kind, "side": side, "known": known, "entry": entry, "stop": stop, "tp1": tp1,
          "tp2": tp2, "anchors": anchors, "fill": None, "exit": None, "tp1_hit": False}
-    fill, price = es.find_fill(bars, side, entry, known + 1, min(n - 1, known + wait))
+    end = min(n - 1, known + wait) if cut is None else min(n - 1, known + wait, cut)
+    fill, price = es.find_fill(bars, side, entry, known + 1, end)
     if fill is None:
-        s["status"] = "waiting" if known + wait >= n - 1 else "expired"
-        s["exit"] = None if s["status"] == "waiting" else known + wait   # chart lines stop at expiry
+        s["status"] = "waiting" if end == n - 1 and known + wait >= n - 1 else "expired"
+        s["exit"] = None if s["status"] == "waiting" else end   # chart lines stop at expiry
         return s
     s["fill"], s["entry"] = fill, price
     buy = side == "BUY"
@@ -62,12 +73,65 @@ def _play(bars, kind, side, known, entry, stop, tp1, tp2, wait, anchors):
     return s
 
 
-def setups(bars, ratio=2.6, left=3, right=3, wait=80, eq_tol=0.0005, use_h1=True, use_h2=True):
-    """Every H1 / H2 setup in the bars, oldest first, each with its provisional trade plan."""
+def atr14(bars):
+    """Wilder-style ATR(14); the first 14 bars use the running mean."""
+    out, a = [], 0.0
+    for i, b in enumerate(bars):
+        tr = b.high - b.low if i == 0 else max(b.high - b.low, abs(b.high - bars[i - 1].close),
+                                               abs(b.low - bars[i - 1].close))
+        a = (a * i + tr) / (i + 1) if i < 14 else (a * 13 + tr) / 14
+        out.append(a)
+    return out
+
+
+def real_legs(bars, pivots, min_atr=3.0):
+    """Zigzag legs (start pivot, end pivot) in the order they become known."""
+    atr, zz, legs = atr14(bars), [], []
+    for q in pivots:
+        if not zz:
+            zz.append(q)
+        elif q.kind == zz[-1].kind:
+            if (q.price > zz[-1].price) if q.kind == "H" else (q.price < zz[-1].price):
+                zz[-1] = q
+                if len(zz) >= 2:  # replace the leg that ended at the old extreme, never stack a second one
+                    if legs:
+                        legs[-1] = (zz[-2], q)
+                    else:
+                        legs.append((zz[-2], q))
+        elif abs(q.price - zz[-1].price) >= min_atr * atr[min(q.known_at, len(bars) - 1)]:
+            legs.append((zz[-1], q))
+            zz.append(q)
+    return legs
+
+
+def projection_setups(bars, pivots, ratio=2.6, wait=80, min_atr=3.0):
+    """The creator's 2.6 projection (kind P); see the module docstring."""
+    n, out, busy = len(bars), [], -1
+    legs = [(a, b) for a, b in real_legs(bars, pivots, min_atr) if b.known_at < n - 1]
+    for k, (a, b) in enumerate(legs):
+        known = b.known_at
+        if known <= busy:
+            continue
+        side = "SELL" if a.kind == "H" else "BUY"
+        sgn = 1 if side == "SELL" else -1
+        u = abs(a.price - b.price) / ratio
+        entry = a.price + sgn * u
+        cut = legs[k + 1][1].known_at if k + 1 < len(legs) else None
+        s = _play(bars, "P", side, known, entry, entry + sgn * u / 2, a.price, b.price, wait,
+                  [a.idx, b.idx], cut)
+        out.append(s)
+        if s["fill"] is not None:
+            busy = n if s["exit"] is None else s["exit"]
+    return out
+
+
+def setups(bars, ratio=2.6, left=3, right=3, wait=80, eq_tol=0.0005, use_h1=True, use_h2=True,
+           use_p=False, min_atr=3.0):
+    """Every H1 / H2 / P setup in the bars, oldest first, each with its provisional trade plan."""
     pivots = es.confirmed_pivots(bars, left, right)
     legs = [(side, a, b, span, max(a.known_at, b.known_at))
             for side, a, b, span in es.make_legs(pivots) if span > 0]
-    out = []
+    out = projection_setups(bars, pivots, ratio, wait, min_atr) if use_p else []
     if use_h1:
         for side, a, b, span, known in legs:
             if known >= len(bars) - 1:

@@ -40,4 +40,14 @@ for s in h1:   # every plan: TP1 = 1R, TP2 = 2R
 
 html = tc.chart_html(df, tc.setups(bars))
 assert "createChart" in html and "addCandlestickSeries" in html and html.count("</script>") == 2
+# regression: a same-kind extreme replaces the leg, never stacks a second leg from the same start
+F = (100, 101, 99, 100)
+rows = [F] * 3 + [(100, 110, 99, 100)] + [F] * 3 + [(100, 101, 90, 100)] + [F] * 3 \
+    + [(100, 108, 99, 100)] + [F] * 3 + [(100, 112, 99, 100)] + [F] * 3 + [(100, 101, 80, 100)] + [F] * 10
+zb = [tc.es.Bar(str(i), *r) for i, r in enumerate(rows)]
+zl = tc.real_legs(zb, tc.es.confirmed_pivots(zb, 3, 3), 3.0)
+starts = [a.idx for a, _ in zl]
+assert len(starts) == len(set(starts)), [(a.idx, b.idx) for a, b in zl]
+assert [(a.price, b.price) for a, b in zl] == [(110, 90), (90, 112), (112, 80)], zl
+
 print("ok two_six_chart")

@@ -458,9 +458,9 @@ Object.assign(CandleChart.prototype, {
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
   },
   s26Mtf(S, all){   // 2.6 on other timeframes (1W -> 1m; all = the whole ladder for the table, else only the 2 next bigger ones): candles fetched once per 1-5 min per symbol + settings, shared by every chart
-    if (!this.sym || !+S.mtf) return []; const sec = TFSEC[this.tf] || 3600, opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2};
+    if (!this.sym || !+S.mtf) return []; const sec = TFSEC[this.tf] || 3600, opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2, p:!!+S.p, minAtr:+S.minAtr};
     const L = ["1W","1D","4H","1H","15m","5m","1m"].filter(t => t !== this.tf), want = all ? L : L.filter(t => TFSEC[t] > sec).reverse().slice(0, 2);
-    return want.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2].join(","), e = S26_HTF[k], ttl = TFSEC[H] <= 300 ? 60000 : TFSEC[H] >= 14400 ? 300000 : 120000;
+    return want.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2, opt.p, opt.minAtr].join(","), e = S26_HTF[k], ttl = TFSEC[H] <= 300 ? 60000 : TFSEC[H] >= 14400 ? 300000 : 120000;
       if (!e || (!e.busy && Date.now() - e.t > ttl)){
         S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
         candlesTf(this.sym, H, true, 300).then(rows => { let v = null; try { const R = s26Calc(rows, opt); v = {tf:H, rows, R, live:R.filter(p => p.status === "waiting" || p.status.startsWith("open")).slice(-2)}; } catch(err){} S26_HTF[k] = {t:Date.now(), v, busy:false}; this.draw(); })
@@ -471,8 +471,8 @@ Object.assign(CandleChart.prototype, {
   paintS26(c, py){   // 2.6 strategy, calm and line-free: one equal-width box per setup (blue target zone over grey stop zone, colour only, small gap between boxes), live / waiting boxes
     // with text + a chip, finished trades kept as muted history (win = blue, loss = grey), swing high / low markers, the measured range with its ÷ 2.6 unit, and a corner info tab with the maths. Every part has a switch in the settings
     const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80, ratio = +S.ratio || 2.6;
-    const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
-    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
+    const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait, S.p, S.minAtr].join(",");
+    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2, p:!!+S.p, minAtr:+S.minAtr}); } catch(e){} this._s26 = {k:key, r}; }
     const R = this._s26.r, liveSt = p => p.status === "waiting" || p.status.startsWith("open"), closed = p => p.fill != null && !liveSt(p);
     const act = R.filter(liveSt).slice(-Math.max(1, +S.show || 3)), hist = +S.hist ? R.filter(closed).slice(-Math.max(0, +S.histN || 8)) : [], P = [...hist, ...act].sort((a, b) => a.known - b.known);
     const px = +S.tx || 10, PR = this.PR, PB = this.PB, now = D[n-1].c, CR = S.color || "#4f8fd8", CK = S.color2 || "#8a94a3", FA = +S.fa || .16, HA = +S.ha || .08, BW = Math.max(4, +S.bw || 24);
@@ -481,7 +481,7 @@ Object.assign(CandleChart.prototype, {
     const when = i => { const d = new Date(D[Math.max(0, Math.min(n - 1, i))].t); return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"); };
     const MT = +S.mtfT ? this.s26Mtf(S, true) : [], HT = (MT.length ? MT : this.s26Mtf(S, false)).filter(H => TFSEC[H.tf] > sec).sort((a, b) => TFSEC[a.tf] - TFSEC[b.tf]).slice(0, 2), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
     const al = p => HT.map(H => { const q = H.live[H.live.length - 1]; return !q ? "" : H.tf+(q.side === p.side ? "✓" : "✗"); }).filter(Boolean).join(" ");
-    const leg = p => { const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY";   // leg start / end bar and price (the swing low / high the 2.6 unit was measured on)
+    const leg = p => { const a = p.anchors, la = p.kind === "H2" ? a[3] : a[0], lb = p.kind === "H2" ? a[4] : a[1], buy = p.side === "BUY";   // leg start / end bar and price (the swing low / high the 2.6 unit was measured on)
       return {la, lb, pa:buy ? D[la].l : D[la].h, pb:buy ? D[lb].h : D[lb].l}; };
     const STAGE = {waiting:["⏳", "#5d6b7d"], open:["LIVE", CR], "open (TP1 hit)":["TP1 ✓", CR], TP2:["TP2 ✓", CR], stopped:["SL ✗", "#6e5a5a"], "TP1 then stop":["TP1→SL", "#6e5a5a"]};
     c.save(); c.beginPath(); c.rect(0, 0, PR, PB); c.clip(); c.textBaseline = "middle"; dash();
@@ -503,7 +503,7 @@ Object.assign(CandleChart.prototype, {
       else { zone(yE, y1, CR, HA*(win || p.tp1_hit ? 1.7 : .8)); zone(y1, y2, CR, HA*(win ? 1.7 : .5)); zone(yE, yS, CK, HA*(win ? .8 : 1.7)); }
       c.globalAlpha = 1;
       if (p.fill != null){ const x = this.x(p.fill); if (x >= x0 && x <= x1){ c.fillStyle = live ? "#d5d9df" : "#8a919b"; c.beginPath(); c.arc(x, yE, 2.2, 0, 7); c.fill(); } }
-      if (!live){ if (W > 34){ c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = win ? hexA(CR, .9) : "#9a8f8f"; c.fillText(p.kind+" "+(buy ? "L" : "S")+" "+(win ? "✓ +2R" : st === "TP1 then stop" ? "◐ TP1→SL" : "✗ −1R"), x0 + 4, buy ? yE - px*.8 : yE + px*.8); } return; }
+      if (!live){ if (W > 34){ c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = win ? hexA(CR, .9) : "#9a8f8f"; c.fillText(p.kind+" "+(buy ? "L" : "S")+" "+(win ? "✓ +"+(Math.abs(p.tp2 - p.entry)/(Math.abs(p.entry - p.stop) || 1e-12)).toFixed(1)+"R" : st === "TP1 then stop" ? "◐ TP1→SL" : "✗ −1R"), x0 + 4, buy ? yE - px*.8 : yE + px*.8); } return; }
       c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e6e9ee";
       const tin = (y, h, t) => { if (Math.abs(h) >= px + 2 && W > 70) c.fillText(t, x0 + 5, y); };
       if (+S.lbl){ tin((y1 + y2)/2, y2 - y1, "TP2 "+f(p.tp2)+"  "+pc(p.entry, p.tp2)); tin((yE + y1)/2, y1 - yE, "TP1 "+f(p.tp1)+"  "+pc(p.entry, p.tp1)); tin((yE + yS)/2, yS - yE, "SL "+f(p.stop)+"  "+pc(p.entry, p.stop)); }
@@ -517,21 +517,21 @@ Object.assign(CandleChart.prototype, {
       placed.push([cx, cy, cw, ch]); c.fillStyle = col; c.globalAlpha = .9; c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 3) : c.rect(cx, cy, cw, ch); c.fill(); c.globalAlpha = 1; c.fillStyle = "#fff"; c.fillText(txt, cx + 5, cy + ch/2);
       if (wt){ const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#c9a227"; c.globalAlpha = .7; c.fillRect(x0, buy ? Math.max(yE, yS) - 3 : Math.min(yE, yS), W*fr, 3); c.globalAlpha = 1; } });
     const F = act.length ? act[act.length - 1] : P[P.length - 1];   // the setup the range bar and the info tab explain
-    if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) + 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
+    if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) - 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
       if (x > 0 && x < PR){ c.strokeStyle = "#c9a227"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, ya); c.lineTo(x, yb); c.moveTo(x - 4, ya); c.lineTo(x + 4, ya); c.moveTo(x - 4, yb); c.lineTo(x + 4, yb); c.stroke();
         const yu = py(F.kind === "H1" ? F.tp1 - (F.side === "BUY" ? u : -u) : F.entry); c.fillStyle = "#c9a227"; c.fillRect(x - 3, yu - 1, 6, 2);
-        c.font = "bold "+px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x + 6, (ya + yb)/2); } }
+        c.font = "bold "+px+"px sans-serif"; c.textAlign = "right"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x - 6, (ya + yb)/2);   // left of the leg end: the trade box starts to its right } }
     if (F && +S.info){ const g = leg(F), buy = F.side === "BUY", rng = Math.abs(g.pb - g.pa), u = rng/ratio, side = buy ? "LONG" : "SHORT", sg = buy ? "−" : "+";
       const L = [[`2.6 · ${F.kind} ${side} · ${this.tf}`, buy ? CR : "#b7bdc6", true],
         ...(F.kind === "H2" ? [[`${buy ? "Equal lows" : "Equal highs"}  ${f(F.tp1)}  (${when(F.anchors[0])} · ${when(F.anchors[1])})`, "#b7bdc6"], [`Swept  ${when(F.anchors[2])}`, "#b7bdc6"]] : []),
         [`From  ${buy ? "swing L" : "swing H"}  ${f(g.pa)}  · ${when(g.la)}`, "#d5d9df"], [`To    ${buy ? "swing H" : "swing L"}  ${f(g.pb)}  · ${when(g.lb)}`, "#d5d9df"],
         [`Range  Δ ${f(rng)}   ÷ ${ratio}  =  u ${f(u)}`, "#e0c46a"],
-        [F.kind === "H1" ? `Entry = ${buy ? "H" : "L"} ${sg} u = ${f(F.kind === "H1" && F.fill == null ? F.entry : g.pb + (buy ? -u : u))}` : `Entry = pool ${buy ? "−" : "+"} u = ${f(F.tp1 + (buy ? -u : u))}`, "#e6e9ee"],
-        [`SL = E ${sg} u  ${f(F.stop)}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
+        [F.kind === "P" ? `Zone = swing ${buy ? "L − u" : "H + u"} = ${f(F.fill == null ? F.entry : g.pa + (buy ? -u : u))}   (target = swing ${buy ? "H" : "L"})` : F.kind === "H1" ? `Entry = ${buy ? "H" : "L"} ${sg} u = ${f(F.kind === "H1" && F.fill == null ? F.entry : g.pb + (buy ? -u : u))}` : `Entry = pool ${buy ? "−" : "+"} u = ${f(F.tp1 + (buy ? -u : u))}`, "#e6e9ee"],
+        [`SL ${f(F.stop)}${F.kind === "P" ? " (zone " + (buy ? "−" : "+") + " u/2)" : ""}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
         [`${(STAGE[F.status] || [F.status])[0]} ${F.status === "waiting" ? Math.max(0, F.known + wait - (n - 1))+" bars left" : F.status}${HT.length ? "   "+al(F) : ""}`, "#9aa3ad"]];
       if (+S.str){ const sc = s26Score(D, R, F, HT), bar = "▮".repeat(Math.round(sc.s/10))+"▯".repeat(10 - Math.round(sc.s/10)); L.push([`Strength ${sc.s}/100 ${bar}  ${sc.why.join(" · ")}`, sc.s >= 65 ? CR : sc.s <= 35 ? "#b98a8a" : "#c9a227"]); }
       if (MT.length){ const g6 = v => (+v).toPrecision(6), rowOf = (tf, D2, R2, big) => { const q = R2.filter(liveSt).slice(-1)[0]; if (!q) return [`${tf.padEnd(4)} –`, "#6b7380"];
-          const a = q.anchors, la = q.kind === "H1" ? a[0] : a[3], lb = q.kind === "H1" ? a[1] : a[4], b2 = q.side === "BUY", pa = b2 ? D2[la].l : D2[la].h, pb = b2 ? D2[lb].h : D2[lb].l, uu = Math.abs(pb - pa)/ratio;
+          const a = q.anchors, la = q.kind === "H2" ? a[3] : a[0], lb = q.kind === "H2" ? a[4] : a[1], b2 = q.side === "BUY", pa = b2 ? D2[la].l : D2[la].h, pb = b2 ? D2[lb].h : D2[lb].l, uu = Math.abs(pb - pa)/ratio;
           return [`${tf.padEnd(4)} ${b2 ? "L" : "S"} ${q.kind} ${b2 ? "L" : "H"} ${g6(pa)}→${b2 ? "H" : "L"} ${g6(pb)}  Δ${g6(Math.abs(pb - pa))}÷${ratio}=${g6(uu)}  E ${g6(q.entry)}  ${(STAGE[q.status] || [q.status])[0]}${+S.str ? "  ★"+s26Score(D2, R2, q, big).s : ""}`, tf === this.tf ? "#e0c46a" : b2 ? CR : "#b7bdc6"]; };
         L.push(["TF   side  swing → swing     Δ ÷ ratio = u        entry      stage", "#7d8590"]);
         const big = H => MT.filter(x => TFSEC[x.tf] > TFSEC[H]).sort((x, y) => TFSEC[x.tf] - TFSEC[y.tf]).slice(0, 2);

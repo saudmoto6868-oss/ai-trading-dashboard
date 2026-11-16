@@ -258,16 +258,29 @@ function s26Calc(D, o){
     if (a.k === "L" && b.k === "H" && b.p - a.p > 0) legs.push({side:"BUY", a, b, span:b.p - a.p, at:Math.max(a.at, b.at)});
     else if (a.k === "H" && b.k === "L" && a.p - b.p > 0) legs.push({side:"SELL", a, b, span:a.p - b.p, at:Math.max(a.at, b.at)}); }
   const fill = (side, lvl, f, l) => { for (let i = f; i <= l; i++){ const b = D[i]; if (side === "BUY" ? b.l <= lvl : b.h >= lvl) return [i, side === "BUY" ? Math.min(lvl, b.o) : Math.max(lvl, b.o)]; } return null; };
-  const play = (kind, side, known, e, s, t1, t2, anc) => {
+  const play = (kind, side, known, e, s, t1, t2, anc, cut) => {
     const P = {kind, side, known, entry:e, stop:s, tp1:t1, tp2:t2, anchors:anc, fill:null, exit:null, tp1_hit:false, status:""};
-    const f = fill(side, e, known + 1, Math.min(n - 1, known + wait));
-    if (!f){ P.status = known + wait >= n - 1 ? "waiting" : "expired"; P.exit = P.status === "waiting" ? null : known + wait; return P; }
+    const end = cut == null ? Math.min(n - 1, known + wait) : Math.min(n - 1, known + wait, cut), f = fill(side, e, known + 1, end);
+    if (!f){ P.status = end === n - 1 && known + wait >= n - 1 ? "waiting" : "expired"; P.exit = P.status === "waiting" ? null : end; return P; }
     P.fill = f[0]; P.entry = f[1]; const buy = side === "BUY";
     for (let i = f[0] + 1; i < n; i++){ const b = D[i];
       if (buy ? b.l <= s : b.h >= s){ P.status = P.tp1_hit ? "TP1 then stop" : "stopped"; P.exit = i; return P; }
       if (buy ? b.h >= t2 : b.l <= t2){ P.status = "TP2"; P.exit = i; return P; }
       if (buy ? b.h >= t1 : b.l <= t1) P.tp1_hit = true; }
     P.status = P.tp1_hit ? "open (TP1 hit)" : "open"; return P; };
+  if (o.p){   // P = the creator's method (Reels DewFqk8inTf, DfopgmVi8Wu): real zigzag swing, range / ratio projected BEYOND the leg's start; see modules/two_six_chart.py
+    const atr = [], mA = o.minAtr != null ? +o.minAtr : 3; let a = 0;
+    for (let i = 0; i < n; i++){ const b = D[i], tr = i ? Math.max(b.h - b.l, Math.abs(b.h - D[i-1].c), Math.abs(b.l - D[i-1].c)) : b.h - b.l; a = i < 14 ? (a*i + tr)/(i + 1) : (a*13 + tr)/14; atr.push(a); }
+    const zz = [], RL = [];
+    piv.forEach(q => { const z = zz[zz.length - 1];
+      if (!z) zz.push(q);
+      else if (q.k === z.k){ if (q.k === "H" ? q.p > z.p : q.p < z.p){ zz[zz.length - 1] = q; if (zz.length >= 2){ if (RL.length) RL[RL.length - 1] = [zz[zz.length - 2], q]; else RL.push([zz[zz.length - 2], q]); } } }
+      else if (Math.abs(q.p - z.p) >= mA*atr[Math.min(q.at, n - 1)]){ RL.push([z, q]); zz.push(q); } });
+    const LG = RL.filter(g => g[1].at < n - 1); let busy = -1;
+    LG.forEach(([A, B], k) => { const known = B.at; if (known <= busy) return;
+      const side = A.k === "H" ? "SELL" : "BUY", sg = side === "SELL" ? 1 : -1, u = Math.abs(A.p - B.p)/r, e = A.p + sg*u;
+      const P = play("P", side, known, e, e + sg*u/2, A.p, B.p, [A.i, B.i], k + 1 < LG.length ? LG[k+1][1].at : null); out.push(P);
+      if (P.fill != null) busy = P.exit == null ? n : P.exit; }); }
   if (o.h1 !== false) legs.forEach(g => { if (g.at >= n - 1) return; const u = g.span / r, sg = g.side === "BUY" ? 1 : -1, e = g.b.p - sg*u;
     out.push(play("H1", g.side, g.at, e, e - sg*u, g.b.p, g.b.p + sg*u, [g.a.i, g.b.i])); });
   if (o.h2 !== false){ const pools = [];
@@ -292,14 +305,14 @@ function s26Calc(D, o){
 }
 // S26-END
 const S26_HTF = {};
-function s26Score(D, R, p, big){   // 0-100 strength SCORE (not a probability): 50 + bigger-TF agreement (±20 each) + this chart's past TP2 rate vs the 1/3 break-even of a 2R plan (±20, n>=5) + sweep (+10) + leg size vs ATR14
+function s26Score(D, R, p, big){   // 0-100 strength SCORE (not a probability): 50 + bigger-TF agreement (±20 each) + this chart's past TP2 rate vs the break-even of this plan's TP2 (1/3 for a 2R plan) (±20, n>=5) + sweep (+10) + leg size vs ATR14
   let s = 50; const why = [];
   big.forEach(H => { const q = H.live[H.live.length - 1]; if (!q) return; const ok = q.side === p.side; s += ok ? 20 : -20; why.push(H.tf+(ok ? "✓" : "✗")); });
   const C = R.filter(q => q.fill != null && q.exit != null), w = C.filter(q => q.status === "TP2").length;
-  if (C.length >= 5){ const wr = w/C.length; s += Math.max(-20, Math.min(20, (wr - 1/3)*60)); why.push("win "+Math.round(wr*100)+"% n="+C.length); }
+  if (C.length >= 5){ const wr = w/C.length, be = 1/(1 + Math.abs(p.tp2 - p.entry)/(Math.abs(p.entry - p.stop) || 1e-12)); s += Math.max(-20, Math.min(20, (wr - be)*60)); why.push("win "+Math.round(wr*100)+"% n="+C.length); }
   if (p.kind === "H2"){ s += 10; why.push("sweep"); }
   const n = D.length, k = Math.min(14, n - 1); let atr = 0; for (let i = n - k; i < n; i++) atr += D[i].h - D[i].l; atr /= k || 1;
-  const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY", rng = Math.abs((buy ? D[lb].h : D[lb].l) - (buy ? D[la].l : D[la].h));
+  const a = p.anchors, la = p.kind === "H2" ? a[3] : a[0], lb = p.kind === "H2" ? a[4] : a[1], buy = p.side === "BUY", rng = Math.abs((buy ? D[lb].h : D[lb].l) - (buy ? D[la].l : D[la].h));
   if (atr > 0){ const m = rng/atr; if (m >= 2 && m <= 8){ s += 10; why.push("leg "+m.toFixed(1)+"×ATR"); } else if (m < 1.5){ s -= 10; why.push("small leg"); } }
   return {s:Math.max(0, Math.min(100, Math.round(s))), why};
 }   // "SYM|TF|settings" -> {t, v:{tf, rows, live}, busy}: bigger-timeframe 2.6 setups shared by every chart

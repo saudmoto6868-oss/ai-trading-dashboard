@@ -279,6 +279,7 @@ def score_mt5_group(symbols):
     return results, ("; ".join(errors) if errors else "")
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _peer_frames(symbols, tf):
     """Candles (timeframe `tf`) of the correlated markets needed for SMT divergence, fetched once for the whole list."""
     from modules.smt import peers_of
@@ -2338,6 +2339,7 @@ def _fv_with_ref(df, sym, ref_sym, ref_df):
     return m
 
 
+@st.cache_data(ttl=120, show_spinner=False)   # speed: every Radar rerun / page switch used to refetch all candles
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV

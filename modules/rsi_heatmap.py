@@ -201,6 +201,22 @@ def _board_score(rec):
     return rec["conv"] + min(plan.get("rr", 0), 4) * 6 + (10 - 2 * rec["fresh"] if rec.get("fresh") is not None else 0)
 
 
+def _candle_key(df):
+    """Last closed candle time: the board only needs recomputing when a new candle closes."""
+    try:
+        return str(df["time"].iloc[-1])
+    except Exception:
+        return "?"
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_read(sym, candle, chart_tf, deep, _df, vote=0):
+    """Strategy schools per symbol, cached per closed candle (Live refresh stops re-running all 9 schools)."""
+    from modules.rsi_confluence import read_symbol
+    from modules.rsi_setups import read_setup
+    return read_symbol(_df, read_setup(_df), vote, deep)
+
+
 def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True):
     """One record per symbol for the board (pure apart from the cached flow fetch)."""
     from modules.rsi_confluence import derive_tags, read_symbol
@@ -209,7 +225,7 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
     recs = {}
     for s in symbols:
         try:
-            recs[s] = read_symbol(closed[s], setups.get(s), 0, deep) if deep else None
+            recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s]) if deep else None
         except Exception:
             recs[s] = None
     flows = {}
@@ -224,7 +240,7 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
             vote = flow_read(fl)["vote"]
             if deep and vote:
                 try:
-                    recs[s] = read_symbol(closed[s], setups.get(s), vote, deep)
+                    recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s], vote)
                 except Exception:
                     pass
     top25 = set(sorted(recs, key=lambda s: _board_score(recs[s]), reverse=True)[:25])
@@ -340,9 +356,9 @@ def render():
     f = st.columns([1.0, 1.05, 3.4, 0.95, 0.95, 0.5], gap="small", vertical_alignment="center")
     f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap</div>", unsafe_allow_html=True)
     asset_class = f[1].selectbox("السوق", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
-    picked = f[2].pills("الفريمات", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
+    picked = f[2].pills("الفريمات", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "1d"],
                         key="rsi_hm_tfs", label_visibility="collapsed") or []
-    limit = f[3].selectbox("العملات", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
+    limit = f[3].selectbox("العملات", (10, 20, 30, 50, 100, 200, 300), index=1, key="rsi_hm_limit",
                            label_visibility="collapsed", format_func=lambda n: f"{n} عملة")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
@@ -354,7 +370,7 @@ def render():
     with f[5].popover("⚙"):
         deep = st.toggle("Radar: كل الاستراتيجيات", value=True, key="rsi_hm_deep",
                          help="كل مدارس الاستراتيجيات + هارمونيك + نماذج الشارت (أبطأ).")
-        use_flow = st.toggle("Flow: الأوردر فلو", value=True, key="rsi_hm_flow",
+        use_flow = st.toggle("Flow: الأوردر فلو", value=False, key="rsi_hm_flow",
                              help="لقطة الأوردر فلو لأفضل 20 setup (OKX / Hyperliquid).")
         live = st.selectbox("تحديث تلقائي", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live",
                             format_func=lambda m: "مقفول" if not m else f"كل {m} دقيقة")

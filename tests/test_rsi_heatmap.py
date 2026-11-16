@@ -62,6 +62,14 @@ def test_next_close_from_last_closed_candle():
     assert _next_close_ms("18", "4h") is None
 
 
+def test_resample_4h_to_12h_for_yahoo_feeds():
+    from modules.market_cache import _resample_from
+    t = pd.date_range("2026-11-01", periods=6, freq="4h")
+    df = pd.DataFrame({"time": t, "open": 1.0, "high": 2.0, "low": 0.5, "close": [1, 2, 3, 4, 5, 6.0], "volume": 1.0})
+    r = _resample_from(df, "12h", 10)
+    assert len(r) == 2 and r.iloc[0]["close"] == 3.0 and r.iloc[0]["high"] == 2.0 and r.iloc[0]["volume"] == 3.0
+
+
 if __name__ == "__main__":   # CI runs plain `python3 tests/x.py`; without this nothing executes
     _tests = [f for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     for _t in _tests:

@@ -34,6 +34,8 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
         if symbol.startswith("HL:"):   # Hyperliquid TradFi perps (gold, oil, S&P 500, EUR ...): public API, no key
             from modules.hl_feed import get_klines as _hl
             df = _hl(symbol, tf, limit)
+        elif symbol.startswith("Y:") and tf == "12h":   # Yahoo / Biquote have no 12h: build it from 4h (3 bars, 00:00 UTC)
+            df = _resample_from(get_klines(symbol, "4h", limit * 3 + 3), "12h", limit)
         elif symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
             from modules.yahoo_feed import get_yahoo_klines
             try:
@@ -65,6 +67,18 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
         if hit and now - hit[0] < ttl * MAX_STALE_FACTOR:
             return hit[1]
         raise
+
+
+def _resample_from(df, rule: str, limit: int):
+    """OHLCV candles resampled to a bigger timeframe; only complete-looking buckets with a close."""
+    import pandas as pd
+    d = df.copy()
+    d["time"] = pd.to_datetime(d["time"])
+    out = (d.set_index("time")
+             .resample(rule, origin="start_day")
+             .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+             .dropna(subset=["close"]).reset_index())
+    return out.tail(limit).reset_index(drop=True)
 
 
 def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):

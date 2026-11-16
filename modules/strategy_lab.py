@@ -28,6 +28,15 @@ from modules.harmonic import find_harmonics
 from modules.signals import BEAR, BULL, atr_series, detect_all
 from modules.smt import smt_signals, peers_of
 from modules.elliott_lab import DEGREES as EW_DEGREES, elliott_signals
+from modules.lab_stats import (
+    dedup_clusters, block_bootstrap, oos_split_by_date,
+    apply_bh_correction, aggregate_by_regime
+)
+from modules.portfolio_simulator import (
+    lab_to_portfolio_trades, PropRules, simulate_portfolio
+)
+from modules.market_costs import get_cost
+from scripts.archive_klines import get_klines_archive_first
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
@@ -37,8 +46,9 @@ BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
 GZ_BARS = {"15m": 5000, "1h": 5000, "4h": 3000, "1d": 1500}   # longer history for the Gann zone out-of-sample test (more trades)
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
 # round-trip cost per trade, in units of R (fees + spread + slippage). A rough planning number, not a broker quote:
-# 0.10R = a trade whose 1R stop is ~0.2 % away pays ~0.2 % in costs. Override with LAB_COST_R. Every "net" column uses it.
-COST_R = float(os.environ.get("LAB_COST_R", "0.10"))
+# Use per-market estimation via market_costs.get_cost(symbol, tf) instead of fixed COST_R.
+def _get_cost(symbol, tf):
+    return get_cost(symbol, tf, fallback=0.10)
 EDGE_N = 100   # smallest sample for the 'edge' flag (MIN_N = 30 only decides which rows are listed)
 TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
 # owner's market mix (2026-10-19): crypto ~25 %, the rest in priority order gold > oil > dollar (EUR / JPY / GBP as dollar proxies) > US indices > stocks.
@@ -66,12 +76,23 @@ for _d in EW_DEGREES:   # Elliott keys: all three hard rules (r3) or two of thre
 
 
 def _fetch(sym, tf, bars):
+    """Fetch klines from archive first, then merge live."""
     if sym.startswith("HL:"):
         from modules.hl_feed import get_klines
-        return get_klines(sym, tf, bars)
-    from modules.backtest_tf import _BAR, fetch_long
-    _BAR.setdefault("15m", "15m"); _BAR.setdefault("4h", "4H")
-    return fetch_long(sym, tf, bars)
+        live_fn = lambda s, tf: get_klines(s, tf, bars)
+    else:
+        from modules.backtest_tf import _BAR, fetch_long
+        _BAR.setdefault("15m", "15m"); _BAR.setdefault("4h", "4H")
+        live_fn = lambda s, tf: fetch_long(s, tf, bars)
+
+    return get_klines_archive_first(
+        symbol=sym,
+        tf=tf,
+        limit=bars,
+        live_fetcher=live_fn,
+        archive_path=ROOT / "data" / "kline_archive.json",
+        persist_live=True
+    )
 
 
 def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):

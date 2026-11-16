@@ -21,6 +21,8 @@ import sys
 import time
 from pathlib import Path
 
+from modules.broker_import import compute_mae_mfe
+
 PATH = Path(os.environ.get("SIGNAL_LOG", ".signal_log.jsonl"))
 DEDUPE_S = 4 * 3600            # same symbol+side+timeframe is logged once per 4 h (the same setup stays 'live' for several scans)
 MAX_BARS = 48                  # bars an open signal is followed before it expires

@@ -17,6 +17,8 @@ from config import OKX_CANDLES_URL
 from modules.arabic import tag_for
 from modules.risk_engine import build_trade_plan
 from modules.scorer import scan_symbol
+from modules.market_costs import get_cost
+from modules.lab_stats import simulate_limit_fill
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "tf_stats.json"
 TFS = ["1m", "1h", "1d", "1w"]
@@ -55,6 +57,11 @@ def fetch_long(symbol, tf, bars=1000, base_url=None, sleep=0.12):
 
 
 COST_PCT = float(os.environ.get("BT_COST_PCT", "0.001"))   # DECISIONS.md #2: 0.1 % of the price for the round trip (a planning estimate, not a measurement); in R it is COST_PCT x entry / stop distance
+
+
+def _get_cost_tf(symbol, tf):
+    """Use per-market cost estimation from market_costs."""
+    return get_cost(symbol, tf, fallback=0.10)
 
 
 def simulate(df, tf, stride=6, warm=120, min_score=1, scan=scan_symbol):

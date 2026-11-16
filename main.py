@@ -176,6 +176,26 @@ with st.sidebar.expander(L("Chart / Layout"), expanded=False):
     st.caption(L("Per-widget colours: use the two colour dots in each Workspace widget's title bar."))
 st.markdown(f"<style>.stApp{{background-color:{ui_bg}}} .stTabs [aria-selected='true']{{color:{ui_accent};border-bottom-color:{ui_accent}}}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
+# compact, square-cornered controls on every page (owner 2026-11-16): small dropdowns, inputs, buttons, tabs and labels
+COMPACT_CSS = """<style>
+[data-baseweb="select"]>div{min-height:24px!important;height:auto!important;border-radius:4px!important;background:#161a1e!important;border:1px solid #2b3139!important;box-shadow:none!important}
+[data-baseweb="select"] *{font-size:11px!important;color:#c9d1d9!important}
+[data-baseweb="select"] input{min-height:0!important;padding:0 4px!important}
+[data-baseweb="input"],[data-baseweb="base-input"]{background:#161a1e!important;border-radius:4px!important;border:1px solid #2b3139!important;min-height:24px!important}
+[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{font-size:11px!important;padding:2px 6px!important;min-height:22px!important;color:#c9d1d9!important}
+[data-testid="stWidgetLabel"] p,[data-testid="stWidgetLabel"] label{font-size:10px!important;line-height:12px!important;margin:0 0 1px 0!important;color:#848e9c!important}
+[data-testid="stPopover"] button,button[kind="secondary"],button[kind="tertiary"]{min-height:24px!important;height:24px!important;padding:0 8px!important;font-size:11px!important;border-radius:4px!important;border:1px solid #2b3139!important;background:#161a1e!important;color:#c9d1d9!important}
+button[data-baseweb="tab"]{font-size:12px!important;padding:4px 10px!important;min-height:0!important;height:30px!important}
+[data-baseweb="tab-list"]{gap:2px!important}
+[data-baseweb="tab-highlight"]{height:2px!important}
+[data-testid="stSegmentedControl"] button{min-height:22px!important;height:22px!important;font-size:11px!important;padding:0 8px!important;border-radius:4px!important}
+[data-testid="stVerticalBlock"]{gap:.5rem}
+[data-testid="stSelectbox"]>div>div,[data-testid="stNumberInput"]>div>div,[data-testid="stTextInput"]>div>div,[data-testid="stMultiSelect"]>div>div{background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;min-height:24px!important;box-shadow:none!important}
+[data-testid="stSelectbox"] span,[data-testid="stSelectbox"] input,[data-testid="stMultiSelect"] span,[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{color:#c9d1d9!important;font-size:11px!important;background:transparent!important}
+[data-testid="stNumberInput"] input{min-height:22px!important;padding:0 6px!important}
+[data-testid="stNumberInput"] button{background:#161a1e!important;color:#c9d1d9!important;border-left:1px solid #2b3139!important}
+</style>"""
+st.markdown(COMPACT_CSS, unsafe_allow_html=True)
 if _ui_lang() == "ar":   # Arabic: labels, captions and alerts right-to-left (charts, tables and numbers keep their own direction)
     st.markdown(RTL_CSS, unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
@@ -1106,11 +1126,8 @@ if _ac_msg:
 ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Workspace gets their candles embedded in the page (no live book / tape for them)
 
 
-def render_universe_controls():
-    """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
-    _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
-    from modules import ui_kit as _UK
-    st.markdown(kit_css(), unsafe_allow_html=True)
+def render_universe_controls(_u1, _u2, _u3):
+    """Asset class / Market / Universe size: drawn in the ONE Radar filter line (the caller passes the three columns)."""
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -2910,10 +2927,12 @@ def _radar_filters(view):
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([0.6, 1.5, 0.5, 0.8, 0.9, 0.7, 0.8, 0.7, 0.8, 0.7])
+        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.4, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8])
+        st.markdown(kit_css(), unsafe_allow_html=True)
+        render_universe_controls(top[1], top[2], top[3])   # Asset class / Market / Universe size, same line
         tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
-        top[1].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
-        with top[2].popover(L("Save")):
+        top[4].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[5].popover(L("Save")):
             _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
             st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
             _m = ss.pop("rp_msg", None)
@@ -2923,7 +2942,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[3].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
+        with top[6].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2936,39 +2955,39 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[4].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
+        with top[7].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
             sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
             sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
             for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[5].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
+        with top[8].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
             sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
             for k_ in ("vol", "relvol", "turnover", "obv"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[6].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
+        with top[9].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
             sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
             sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
             for k_ in ("candle", "range"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[7].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+        with top[10].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
             for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[8].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
+        with top[11].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
             n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
             ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
             from modules.regime import REGIMES as _RG
             sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
-        top[9].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        top[12].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     sel_mom = list(sel_mom_a) + list(sel_mom_v)
     quick = []
 
@@ -3614,8 +3633,6 @@ if PAGE == 1:   # cscan
             st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
         except Exception:
             pass
-        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
-            render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
         if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once

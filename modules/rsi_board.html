@@ -11,7 +11,9 @@
 .hd{display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .chip{border:1px solid var(--line);border-radius:10px;padding:0 7px;font-size:10.5px;white-space:nowrap}
 .tag{cursor:pointer;user-select:none}.tag.on{background:#2a2310;border-color:var(--amb);color:var(--amb)}
-#map{flex:1;min-height:0}#map svg{width:100%;height:100%;display:block}
+#map{min-height:0}#map svg{width:100%;height:100%;display:block}
+#chartbox{flex:0 0 44%;min-height:220px;border-top:1px solid var(--line);display:flex;flex-direction:column}
+#chwrap{flex:1;min-height:0;padding:4px 8px}#chwrap canvas{display:block}
 .bub{cursor:pointer;transition:transform .15s}.bub:hover,.bub.sel{transform:scale(1.8)}.dim{opacity:.13}
 .lbl{font-size:9.5px;font-weight:700;pointer-events:none}
 .pulse{animation:pu 1s ease-in-out infinite}@keyframes pu{0%,100%{opacity:.95}50%{opacity:.05}}
@@ -32,10 +34,24 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 #fbar{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;font-size:11px;color:var(--mut)}
 #fbar .ctl{height:26px}
 #fbar input[type=range]{width:90px;margin:0;accent-color:var(--amb)}
+#drw{position:absolute;inset:0;background:var(--panel);z-index:5;display:none;overflow:auto;direction:rtl;padding:8px}#drw.open{display:block}
+#drw h3{margin:0 0 4px;font-size:14px}.box{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:6px 0;background:#10151d}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}.kv b{display:block;font-size:13px;direction:ltr}.kv small{color:var(--mut);font-size:10px}
+.sig{display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:1px solid #1f2632}.sig .dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex:0 0 8px}
+.sig .tx{flex:1}.sig .nm{font-weight:700}.sig .ds{color:var(--mut);font-size:10.5px}
+.sch{margin:6px 0 2px;font-weight:800;font-size:11.5px}
+.btn{display:inline-block;border:1px solid var(--sel);border-radius:8px;padding:4px 10px;color:var(--txt);text-decoration:none;font-weight:700}
+#legend{position:absolute;inset:0;background:#0d1117f7;z-index:7;display:none;overflow:auto;padding:10px;direction:rtl;font-size:11.5px}
+#legend.open{display:block}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
+#toast{position:absolute;inset-inline-end:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
 </style></head><body>
 <div id="src"></div>
 <div id="app">
- <div class="pane"><div class="hd" id="mh"></div><div id="map"></div><div id="legend"></div></div>
+ <div class="pane"><div class="hd" id="mh"></div>
+  <div id="map" style="flex:1 1 56%;min-height:200px"></div>
+  <div id="chartbox"><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
+   <div id="chwrap"><canvas id="cv"></canvas></div></div>
+  <div id="legend"></div></div>
  <div class="pane"><div id="toast"></div><div id="drw"></div>
   <div class="bar">
    <input id="q" placeholder="ابحث: عملة، مدرسة، تاج…">
@@ -151,9 +167,7 @@ function openDrawer(full){
      <div><b style="color:var(--dn)">${fp(i.plan.stop)}</b><div class="sm">وقف (−${i.plan.risk_pct}%)</div></div>
      <div><b style="color:var(--up)">${fp(i.plan.target)}</b><div class="sm">هدف (+${i.plan.reward_pct}%)</div></div>
      <div><b>${i.plan.rr}R</b><div class="sm">نسبة العائد للمخاطرة</div></div></div>` : `<div class="box sm">مفيش اتجاه واضح، مفيش خطة.</div>`}
-   <div class="box">${i.svg ? i.svg : `<div class="sm">الشارت متاح لأفضل 25 عملة بس.</div>`}</div>
-   <div class="row2" style="margin:6px 0"><a class="btn" href="${esc(i.tv)}" target="_blank" rel="noopener">افتح الشارت على TradingView ↗</a>
-     <span class="sm">${esc(i.price != null ? "آخر سعر " + fp(i.price) : "")}</span></div>
+   <div class="sm" style="margin:6px 0">الشارت على الشمال تحت الخريطة.</div>
    <div class="box"><div class="sch">المدارس التسعة</div>
      ${bySchool.map(x => `<div><div class="sch" style="color:${VC(x.v)}">● ${esc(A("school", x.sc))} <span class="sm">${x.v > 0 ? "شراء" : x.v < 0 ? "بيع" : "هادية"}</span></div>
        ${x.rows.map(r => `<div class="sig"><span class="dot" style="background:${r.v > 0 ? "var(--up)" : "var(--dn)"}"></span><div class="tx"><div class="nm">${esc(r.n)} <span class="tags" style="display:inline"><span style="background:${r.c};color:#111">${esc(r.t)}</span></span></div><div class="ds">${esc(r.d)}</div></div></div>`).join("") || `<div class="sm">مفيش إشارة</div>`}</div>`).join("") || `<div class="sm">مفيش مدرسة بتقول حاجة على الفريم ده.</div>`}
@@ -202,6 +216,7 @@ function rows(){
   it.sort((a, b) => key(b) - key(a));
   const grp = (name, arr) => arr.length ? `<div class="grp">${name} · ${arr.length}</div>` + arr.map(tileHtml).join("") : "";
   const longs = it.filter(i => i.dir > 0), shorts = it.filter(i => i.dir < 0), flat = it.filter(i => !i.dir);
+  if (!sel || !it.some(x => x.full === sel)) select(it.length ? it[0].full : null, false);
   $("#list").innerHTML = (grp("شراء", longs) + grp("بيع", shorts) + grp("مفيش اتجاه", flat)) || `<div class="sm" style="padding:12px">مفيش نتايج بالفلاتر دي.</div>`;
   $("#cnt").textContent = `${it.length}/${D.items.length}`;
   const shown = new Set(it.map(i => i.full));
@@ -209,7 +224,7 @@ function rows(){
   $$(".tile").forEach(r => r.onclick = () => openDrawer(r.dataset.s));
 }
 function select(full, scroll){
-  sel = full;
+  sel = full; drawChart(full);
   $$(".it .bub").forEach(b => b.classList.toggle("sel", b.parentNode.dataset.s === full));
   $$(".tile").forEach(r => r.classList.toggle("sel", r.dataset.s === full));
   if (scroll){const r = document.querySelector(`.tile[data-s="${CSS.escape(full)}"]`); if (r) r.scrollIntoView({block: "center", behavior: "smooth"});}
@@ -230,6 +245,47 @@ $("#legend").innerHTML = `<div class="row2"><b style="font-size:13px">شرح ا�
  <h4>الخطة</h4><div>دخول = آخر إغلاق. وقف = ورا أقرب قاع أو قمة. هدف = المستوى اللي بعده. R:R = الربح المتوقع ÷ المخاطرة. R:R أقل من 1 = المخاطرة أكبر من الربح.</div>
  <h4>الألوان</h4><div>${D.bands.map(b => `<span style="color:${b.c}">● ${esc(A("band", b.name))} (${b.lo}–${b.hi})</span>`).join(" · ")}</div>
  <h4>تحذير</h4><div>ده دليل لمكان البحث، مش إشارة شراء أو بيع. التوافق عد مدارس مش نسبة نجاح.</div>`;
+
+
+// ---------- own chart under the map: candles, EMA 9/21, plan and nearest S/R (no external widget)
+function drawChart(full){
+  const cv = $("#cv"), wrap = $("#chwrap"), tt = $("#chtitle");
+  if (!cv || !wrap) return;
+  const i = D.items.find(x => x.full === full);
+  tt.innerHTML = i ? `<span style="display:flex;gap:6px;align-items:center;min-width:0"><b style="direction:ltr">${esc(i.full)}</b>
+     <span class="pill" style="background:${i.dir > 0 ? "var(--up)" : i.dir < 0 ? "var(--dn)" : "#4a5466"}">${esc(A("verdict", i.verdict || i.state))}</span>
+     <span class="sm">RSI ${i.rsi_map == null ? "—" : i.rsi_map.toFixed(1)} · توافق ${i.conv ?? "—"}</span></span>
+     <button class="ctl" onclick="openDrawer('${esc(i.full)}')">تفاصيل ↗</button>` : "";
+  const W = Math.max(260, wrap.clientWidth - 16), H = Math.max(140, wrap.clientHeight - 8), dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  g.font = "10px system-ui";
+  if (!i || !i.ohlc || !i.ohlc.length){ g.fillStyle = "#8b95a5"; g.fillText("مفيش شموع للعملة دي", 12, 20); return; }
+  const c = i.ohlc, n = c.length, closes = c.map(x => x[3]);
+  const ema = (arr, p) => {const k = 2 / (p + 1); let e = arr[0]; return arr.map(v => (e = v * k + e * (1 - k)));};
+  const e9 = ema(closes, 9), e21 = ema(closes, 21);
+  let lo = Math.min(...c.map(x => x[2])), hi = Math.max(...c.map(x => x[1]));
+  const levels = [...(i.lv || []).map(l => l.p)];
+  if (i.plan) levels.push(i.plan.entry, i.plan.stop, i.plan.target);
+  levels.forEach(p => {lo = Math.min(lo, p); hi = Math.max(hi, p);});
+  const pad = (hi - lo) * 0.06 || hi * 0.01; lo -= pad; hi += pad;
+  const L = 6, R = 78, T = 6, B = 6, pw = W - L - R, ph = H - T - B;
+  const X = k => L + pw * (k + 0.5) / n, Y = v => T + ph * (1 - (v - lo) / (hi - lo));
+  const cw = Math.max(2, pw / n * 0.62);
+  g.strokeStyle = "#1f2734"; g.lineWidth = 1;
+  for (let k = 0; k <= 4; k++){const v = lo + (hi - lo) * k / 4; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke();
+    g.fillStyle = "#6b7689"; g.fillText(fp(v), W - R + 4, Y(v) + 3);}
+  const hline = (v, col, dash, label) => {g.save(); g.setLineDash(dash); g.strokeStyle = col; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.restore();
+    g.fillStyle = col; g.fillText(label + " " + fp(v), W - R + 4, Y(v) + 3);};
+  (i.lv || []).forEach(l => hline(l.p, l.k === "R" ? "#e5484d" : "#1f9d6b", [2, 3], l.k === "R" ? "مقاومة" : "دعم"));
+  if (i.plan){hline(i.plan.entry, "#5b8def", [], "دخول"); hline(i.plan.stop, "#e5484d", [5, 4], "وقف"); hline(i.plan.target, "#1f9d6b", [5, 4], "هدف");}
+  const line = (arr, col) => {g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); arr.forEach((v, k) => k ? g.lineTo(X(k), Y(v)) : g.moveTo(X(k), Y(v))); g.stroke();};
+  line(e9, "#f5a524"); line(e21, "#b57cff");
+  c.forEach((x, k) => {const col = x[3] >= x[0] ? "#1f9d6b" : "#e5484d";
+    g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(X(k), Y(x[1])); g.lineTo(X(k), Y(x[2])); g.stroke();
+    g.fillStyle = col; const top = Y(Math.max(x[0], x[3])), bot = Y(Math.min(x[0], x[3])); g.fillRect(X(k) - cw / 2, top, cw, Math.max(1, bot - top));});
+  g.fillStyle = "#f5a524"; g.fillText("EMA9", L + 4, T + 10); g.fillStyle = "#b57cff"; g.fillText("EMA21", L + 40, T + 10);
+}
 
 // ---------- alarm
 let actx = null;
@@ -258,5 +314,5 @@ if (ui){$("#mc").value = ui.mc; $("#mcv").textContent = ui.mc; $("#so").value = 
 addEventListener("beforeunload", () => store.set("rsihm_ui", {mc: $("#mc").value, so: $("#so").value, mr: $("#mr").value}));
 setInterval(() => $$(".tm").forEach(el => {const i = D.items.find(x => x.full === el.dataset.s); if (i) el.textContent = timer(i);}), 1000);
 drawMap(); paintArm(); rows(); checkAlarm();
-let _rz; addEventListener("resize", () => {clearTimeout(_rz); _rz = setTimeout(() => {drawMap(); rows();}, 150);});
+let _rz; addEventListener("resize", () => {clearTimeout(_rz); _rz = setTimeout(() => {drawMap(); rows(); drawChart(sel);}, 150);});
 </script></body></html>

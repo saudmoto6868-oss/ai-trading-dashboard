@@ -295,22 +295,21 @@ def _sig_rows(rec, cap=12):
 
 
 def _detail(sym, rec, df, chart_tf, top25, setup):
-    """Drawer data: Arabic signal rows, harmonics / patterns, TradingView link and a candle chart for the top symbols."""
-    from modules.arabic import chart_svg, tv_link
+    """Drawer + chart data: Arabic signal rows, harmonics / patterns, last 50 candles and nearest S/R levels."""
     out = {"sigs": _sig_rows(rec), "harm": (rec or {}).get("harm", []), "pats": (rec or {}).get("pats", []),
-           "tv": tv_link(sym, chart_tf), "svg": ""}
+           "ohlc": [], "lv": []}
+    if df is None or len(df) < 10 or "open" not in df:
+        return out
+    tail = df[["open", "high", "low", "close"]].tail(50).astype(float).round(8).values.tolist()
+    out["ohlc"] = tail
     try:
-        plan = (rec or {}).get("plan")
-        if sym in top25 and df is not None and len(df) >= 10 and rec and rec.get("dir"):
-            from modules.signals import sr_levels
-            res, sup = sr_levels(df)
-            res_dict = {"symbol": sym, "trade_type": "", "direction": "bullish" if rec["dir"] > 0 else "bearish",
-                        "signals": rec.get("signals", []), "supports": sup, "resistances": res}
-            plan_dict = ({"entry": plan["entry"], "stop_loss": plan["stop"], "take_profits": [plan["target"]]}
-                         if plan else None)
-            out["svg"] = chart_svg(df, res_dict, plan_dict, bars=50, width=520, height=230, ar=True)
+        from modules.signals import sr_levels
+        res, sup = sr_levels(df)
+        last = float(df["close"].iloc[-1])
+        out["lv"] = ([{"p": float(x), "k": "R"} for x in sorted(res) if x > last][:2]
+                     + [{"p": float(x), "k": "S"} for x in sorted(sup, reverse=True) if x < last][:2])
     except Exception:
-        out["svg"] = ""
+        out["lv"] = []
     return out
 
 

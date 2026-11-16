@@ -1034,7 +1034,16 @@ def _chart_doc(symbols: tuple, lang: str, height: int) -> str:
     """The full Workspace app (charts, every indicator, footprint / order flow, Elliott, Gann, drawings, alerts) for the spot symbols.
     Cached: the same string is re-sent on reruns, so the frame does not reload and its live feeds keep running."""
     from modules.workspace import build_workspace_html
-    return build_workspace_html(list(symbols), [], lang, asset_cls="Crypto")
+    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto")
+    # chart widget only (owner 2026-11-16): own layout store, so the main Workspace layout is untouched; on first open the
+    # layout is one maximised chart on the first symbol. More widgets can still be added from "+ Widget".
+    doc = doc.replace('const LS = "ai_ws_v5";', 'const LS = "ai_ws_spot_v1";', 1)
+    boot = """<script>window.addEventListener('load',()=>setTimeout(()=>{try{
+if(localStorage.getItem('ai_ws_spot_one'))return;
+XCMD.layout('blank');XCMD.addPanel('chart');XCMD.setSymbol(%s);
+const p=Ws.panels[0];if(p&&!p.max)p.toggleMax();Ws.save();localStorage.setItem('ai_ws_spot_one','1');
+}catch(e){}},600));</script>""" % json.dumps(symbols[0])
+    return doc.replace("</body>", boot + "</body>", 1) if "</body>" in doc else doc + boot
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -1065,6 +1074,23 @@ def _tab_chart(d, cr) -> None:
         components.html(_chart_doc(tuple(syms), lg, hgt), height=hgt, scrolling=False)
     except Exception as e:
         st.error(T("Chart could not be built", "الشارت ماتبناش") + f": {type(e).__name__}: {e}")
+    try:   # the spot plan of this market as ONE horizontal strip (same engine as the Crypto / Metals plan card)
+        from modules import spot_data as _sd
+        _mk = {"GOLD": "gold", "SILVER": "silver"}.get(asset)
+        _my = next((v for k_, v in _sd.METAL_Y.items() if _mk and k_.lower() == _mk), None)
+        pl = _plan_for(_my or f"{asset}-USDT")
+    except Exception:
+        pl = {}
+    if pl.get("ok"):
+        k = st.columns(6)
+        k[0].metric(T("Plan score", "درجة الخطة"), pl.get("score"))
+        k[1].metric(T("Action", "الإجراء"), str(pl.get("action", "—")))
+        k[2].metric(T("Buy 1", "شراء 1"), _n(pl["buys"][0]) if pl.get("buys") else "—")
+        k[3].metric(T("Buy 2", "شراء 2"), _n(pl["buys"][1]) if len(pl.get("buys") or []) > 1 else "—")
+        k[4].metric(T("Target 1", "هدف 1"), _n(pl["sells"][0]) if pl.get("sells") else "—")
+        k[5].metric(T("Invalidation", "الإلغاء"), _n(pl.get("invalidation")))
+    else:
+        st.caption(T("Plan strip unavailable (data feed).", "شريط الخطة مش متاح (مصدر البيانات)."))
     st.markdown("**" + T(f"Live setups on {asset} (every school, with the lab verdict)", f"الإشارات الحية على {asset} (كل المدارس، مع حكم المعمل)") + "**")
     try:
         rows = _live_setups(asset)

@@ -865,6 +865,92 @@ def _tab_news(d):
                  "سكرابينج (قرارك) + مهمة أسبوعية تلخص كل حساب قال إيه وتوصياته. لحد كده القايمة لينكات بس."))
 
 
+_JCOLS = ["date", "asset", "entry", "stop", "target", "size", "result", "note"]
+
+
+def _tab_budget(d) -> None:
+    """Budget plan (owner 2026-11-16): fixed budget split into DCA / swing / reserve, swing sizer with loss cap,
+    monthly loss cap, trade journal and weekly review. Plan only - nothing here places an order."""
+    from modules import spot_budget as B
+    plan = {**B.DEFAULT_PLAN, **d.get("budget_plan", {})}
+    plan["split"] = {**B.DEFAULT_SPLIT, **plan.get("split", {})}
+    plan["dca_weights"] = {**B.DEFAULT_DCA_WEIGHTS, **plan.get("dca_weights", {})}
+    journal = d.get("journal", [])
+    st.caption(T("Plan only - nothing here places an order. The numbers are for your own review.",
+                 "خطة بس - مفيش هنا أمر بيتنفذ. الأرقام للمراجعة بتاعتك."))
+
+    budget = st.number_input(T("Budget (USD)", "الميزانية (دولار)"), min_value=0.0, value=float(plan["budget"]), step=50.0, key="bp_budget")
+    s = st.columns(3)
+    sp = {"dca": s[0].number_input("DCA %", 0.0, 100.0, float(plan["split"]["dca"]), key="bp_s_dca"),
+          "swing": s[1].number_input(T("Swing %", "سوينج %"), 0.0, 100.0, float(plan["split"]["swing"]), key="bp_s_swing"),
+          "reserve": s[2].number_input(T("Reserve %", "احتياطي %"), 0.0, 100.0, float(plan["split"]["reserve"]), key="bp_s_res")}
+    if abs(sum(sp.values()) - 100) > 0.01:
+        st.caption(T("The percentages do not add to 100 - they are normalised.", "النسب مش مجموعها 100 - بتتعدّل تلقائيًا."))
+    amounts = B.split_budget(budget, sp)
+    m = st.columns(3)
+    m[0].metric("DCA", f"${amounts['dca']:,.2f}")
+    m[1].metric(T("Swing", "سوينج"), f"${amounts['swing']:,.2f}")
+    m[2].metric(T("Reserve", "احتياطي"), f"${amounts['reserve']:,.2f}")
+
+    st.markdown("**" + T("DCA schedule", "جدول DCA") + "**")
+    w = st.columns(3)
+    weeks = int(w[0].number_input(T("Weeks", "عدد الأسابيع"), 1, 104, int(plan["dca_weeks"]), key="bp_weeks"))
+    wb = w[1].number_input("BTC %", 0.0, 100.0, float(plan["dca_weights"]["BTC"]), key="bp_w_btc")
+    we = w[2].number_input("ETH %", 0.0, 100.0, float(plan["dca_weights"]["ETH"]), key="bp_w_eth")
+    rows = B.dca_schedule(amounts["dca"], weeks, {"BTC": wb, "ETH": we})
+    if rows:
+        st.caption(T(f"Every week: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})",
+                     f"كل أسبوع: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})"))
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=240)
+
+    st.markdown("**" + T("Swing trade sizer (spot, long only)", "حاسبة صفقة السوينج (سبوت، شراء بس)") + "**")
+    r = st.columns(4)
+    coin = r[0].selectbox(T("Coin", "العملة"), ["BTC", "ETH"], key="bp_coin")
+    entry = r[1].number_input(T("Entry price", "سعر الدخول"), min_value=0.0, value=0.0, format="%.8f", key="bp_entry")
+    stop = r[2].number_input(T("Stop price", "سعر وقف الخسارة"), min_value=0.0, value=0.0, format="%.8f", key="bp_stop")
+    target = r[3].number_input(T("Target price", "سعر الهدف"), min_value=0.0, value=0.0, format="%.8f", key="bp_target")
+    rk = st.columns(2)
+    risk = rk[0].number_input(T("Max loss per trade (% of budget)", "أقصى خسارة للصفقة (% من الميزانية)"), 0.1, 5.0, float(plan["risk_pct"]), key="bp_risk")
+    mc = rk[1].number_input(T("Monthly loss cap (% of budget)", "حد الخسارة الشهرية (%)"), 0.5, 50.0, float(plan["monthly_cap_pct"]), key="bp_mcap")
+    stop_pct = B.stop_pct_from_prices(entry, stop)
+    if stop_pct is None:
+        st.info(T("Enter an entry price and a stop price below it.", "ادخل سعر دخول وسعر وقف أقل منه."))
+    else:
+        size = min(B.position_size(budget, risk, stop_pct), amounts["swing"])
+        loss = B.loss_at_stop(size, stop_pct)
+        rr = B.reward_risk(entry, stop, target)
+        a = st.columns(4)
+        a[0].metric(T("Stop distance", "مسافة الوقف"), f"{stop_pct:.2f}%")
+        a[1].metric(T("Position", "حجم المركز"), f"${size:,.2f}")
+        a[2].metric(T("Loss if stopped", "الخسارة لو اتوقف"), f"${loss:,.2f}")
+        a[3].metric(T("Reward : risk", "الربح : الخسارة"), "-" if rr is None else f"1 : {rr}")
+        st.caption(T(f"About {size / entry:.6f} {coin} before fees.", f"حوالي {size / entry:.6f} {coin} قبل الرسوم."))
+        if rr is None or rr < plan["min_rr"]:
+            st.warning(T(f"Reward to risk must be at least 1:{plan['min_rr']:g}.", f"نسبة الربح للخسارة لازم تكون 1:{plan['min_rr']:g} على الأقل."))
+        if B.open_count(journal) >= int(plan["max_open"]):
+            st.error(T(f"{plan['max_open']} swing trades are already open - close one first.", f"فيه {plan['max_open']} صفقات سوينج مفتوحة بالفعل - اقفل واحدة الأول."))
+        cap = B.monthly_cap(budget, mc)
+        if B.month_loss(journal, B.today_ym()) + loss > cap:
+            st.error(T(f"This trade would pass the monthly cap (${cap:,.2f}). Do not open it.",
+                       f"الصفقة دي هتعدّي حد الخسارة الشهرية (${cap:,.2f}). ماتفتحهاش."))
+
+    st.markdown("**" + T("Trade journal (every trade, open and closed)", "سجل الصفقات (كل صفقة، مفتوحة ومقفولة)") + "**")
+    st.caption(T("Result = profit (+) or loss (-) in USD when the trade is closed. Leave it empty while open.",
+                 "النتيجة = ربح (+) أو خسارة (-) بالدولار لما الصفقة تتقفل. سيبها فاضية لو لسه مفتوحة."))
+    df = pd.DataFrame(journal, columns=_JCOLS) if journal else pd.DataFrame(columns=_JCOLS)
+    edited = st.data_editor(df, num_rows="dynamic", hide_index=True, width="stretch", key="bp_journal")
+    st.markdown("**" + T("Weekly review (tick each week, not saved)", "المراجعة الأسبوعية (علّم كل أسبوع، مش بيتحفظ)") + "**")
+    for i, item in enumerate(B.WEEKLY_CHECKLIST):
+        st.checkbox(T(item, item), key=f"bp_chk_{i}")
+    if st.button(T("Save plan and journal", "احفظ الخطة والسجل"), key="bp_save"):
+        d["budget_plan"] = {"budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
+                            "risk_pct": risk, "monthly_cap_pct": mc, "max_open": plan["max_open"], "min_rr": plan["min_rr"]}
+        clean = edited.where(pd.notna(edited), None)
+        d["journal"] = [rec for rec in clean.to_dict("records") if str(rec.get("asset") or "").strip()]
+        if save(d, "budget plan"):
+            st.success(T("Saved.", "اتحفظ."))
+
+
 def render() -> None:
     d = load()
     st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
@@ -873,7 +959,8 @@ def render() -> None:
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
     tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
-                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات")])
+                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات"),
+                    T("Budget plan", "خطة الميزانية")])
     with tabs[0]:
         _tab_brain(d, px, met, cr, fx)
     with tabs[1]:
@@ -898,4 +985,6 @@ def render() -> None:
             st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
     with tabs[9]:
         _tab_library()
+    with tabs[10]:
+        _tab_budget(d)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

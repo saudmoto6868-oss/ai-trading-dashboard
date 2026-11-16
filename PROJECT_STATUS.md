@@ -271,3 +271,6 @@ Also pending on the **owner**: verify Forex / EGX / Tadawul / gold show after de
 
 ## 2026-11-09 — Unified risk tiers
 Owner-approved deterministic policy: 0.25% base for every engine; automatic 0.50% only for A+ with literal validation_passed=true and integer validation_n >= 30 closed out-of-sample trades for that setup/rule version. No user-selectable risk percentage. Daily cap 2%, three-stop lock, and R:R >= 1:2 unchanged. Implemented on branch `feat/unified-risk-policy-2026-11-09`; awaiting Claude review and test execution.
+
+## 2026-11-16 — Spot desk: Budget plan tab (owner request)
+New last tab "Budget plan" on the Spot page (`modules/spot_page.py` `_tab_budget`, math in `modules/spot_budget.py`): budget split DCA / swing / reserve (60/25/15 default), weekly DCA schedule (BTC/ETH weights), swing sizer (entry / stop / target -> position, loss at stop, reward:risk, max 2 open trades, monthly loss cap), trade journal (saved in the Spot store), weekly review checklist (not saved). Plan only: nothing places an order. Tests: `tests/test_spot_budget.py` (maths + AppTest with network blocked). Mock-tested only; not run against live exchanges.

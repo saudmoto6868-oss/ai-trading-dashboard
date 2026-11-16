@@ -1,0 +1,80 @@
+"""Budget plan (Spot desk tab 'Budget plan', owner 2026-11-16): split, DCA schedule, position size, loss caps, journal
+maths, and the tab rendering in AppTest with the network blocked. Plain script: python3 tests/test_spot_budget.py"""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from modules import spot_budget as B
+
+# split: 1000 at 60/25/15 -> 600 / 250 / 150; percentages are normalised when they do not add to 100
+assert B.split_budget(1000, B.DEFAULT_SPLIT) == {"dca": 600.0, "swing": 250.0, "reserve": 150.0}
+assert B.split_budget(1000, {"a": 30, "b": 30}) == {"a": 500.0, "b": 500.0}
+assert B.split_budget(0, B.DEFAULT_SPLIT) == {"dca": 0.0, "swing": 0.0, "reserve": 0.0}
+assert B.split_budget(-5, {"a": 1}) == {"a": 0.0}
+
+# DCA: 600 over 12 weeks = 50 a week, 60% BTC / 40% ETH = 30 / 20
+rows = B.dca_schedule(600, 12, {"BTC": 60, "ETH": 40})
+assert len(rows) == 12 and rows[0]["total"] == 50.0 and rows[0]["BTC"] == 30.0 and rows[0]["ETH"] == 20.0
+assert rows[-1]["week"] == 12
+assert B.dca_schedule(600, 0, {"BTC": 1}) == [] and B.dca_schedule(0, 12, {"BTC": 1}) == []
+
+# position size: risk 1% of 1000 = 10 USD; stop 5% below entry -> 200 USD position; loss at stop = 10
+assert B.position_size(1000, 1.0, 5.0) == 200.0
+assert B.loss_at_stop(200.0, 5.0) == 10.0
+assert B.position_size(1000, 1.0, 0) == 0.0 and B.position_size(0, 1.0, 5) == 0.0
+
+# stop distance and reward:risk for a long
+assert B.stop_pct_from_prices(100.0, 95.0) == 5.0
+assert B.stop_pct_from_prices(100.0, 105.0) is None          # stop above entry is not a long
+assert B.reward_risk(100.0, 95.0, 110.0) == 2.0               # +10 vs -5
+assert B.reward_risk(100.0, 95.0, 99.0) is None               # target below entry
+assert B.reward_risk(100.0, 0, 110.0) is None
+
+# monthly cap 5% of 1000 = 50
+assert B.monthly_cap(1000, 5) == 50.0
+
+# journal: open trades, month losses (only closed losses in that month count)
+journal = [
+    {"date": "2026-11-03", "asset": "BTC", "result": -12.5},
+    {"date": "2026-11-10", "asset": "ETH", "result": 30.0},
+    {"date": "2026-11-12", "asset": "ETH", "result": -20.0},
+    {"date": "2026-10-28", "asset": "BTC", "result": -40.0},   # October, not counted in November
+    {"date": "2026-11-14", "asset": "SOL", "result": None},    # open
+    {"date": "2026-11-15", "asset": "", "result": None},       # empty row, ignored
+]
+assert B.month_loss(journal, "2026-11") == 32.5
+assert B.month_loss(journal, "2026-10") == 40.0
+assert B.open_count(journal) == 1
+assert B.month_loss([{"date": "2026-11-01", "result": "x"}], "2026-11") == 0.0
+
+# page renders with the network blocked (AppTest), budget tab present and no exception
+import requests
+from unittest import mock
+from streamlit.testing.v1 import AppTest
+
+
+def boom(*a, **k):
+    raise requests.ConnectionError("blocked in test")
+
+
+with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
+    at = AppTest.from_string("""
+import modules.spot_page as sp, tempfile
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
+sp.render()
+""", default_timeout=90)
+    at.run()
+    assert not at.exception, at.exception
+    labels = [t.label for t in at.tabs]
+    assert any("Budget plan" in l or "خطة الميزانية" in l for l in labels), labels
+    # the swing sizer with a real setup: entry 100, stop 95, target 110 (budget 1000 -> size 200, capped at the 250 swing share)
+    at.session_state["bp_entry"] = 100.0
+    at.session_state["bp_stop"] = 95.0
+    at.session_state["bp_target"] = 110.0
+    at.run()
+    assert not at.exception, at.exception
+    at.session_state["ws_lang"] = "ar"
+    at.run()
+    assert not at.exception, at.exception
+print("spot budget tests: OK")

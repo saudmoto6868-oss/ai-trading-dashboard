@@ -78,3 +78,23 @@ sp.render()
     at.run()
     assert not at.exception, at.exception
 print("spot budget tests: OK")
+
+# options added 2026-11-16: market mode, ladders, rebalance, breakeven, lab table
+m = B.market_mode(13, 64656, 75000)
+assert m["mode"] == "accumulate" and m["dca_mult"] == 1.5 and m["swing_ok"] is False
+assert B.market_mode(50, 100, 90) == {"mode": "normal", "dca_mult": 1.0, "swing_ok": True, "above_200d": True, "fear_greed": 50.0}
+assert B.market_mode(80, 100, 90)["mode"] == "defend" and B.market_mode(80, 100, 90)["dca_mult"] == 0.5
+assert B.market_mode(None)["mode"] == "normal" and B.market_mode(None)["swing_ok"] is False     # unknown trend: no swing
+bl = B.buy_ladder(64000, 150)
+assert [r["usd"] for r in bl] == [45.0, 45.0, 60.0] and bl[0]["price"] == 57600.0 and B.buy_ladder(0, 150) == []
+sl = B.sell_ladder(100, 1)
+assert [r["price"] for r in sl] == [125.0, 150.0, 200.0] and sum(r["qty"] for r in sl) == 0.75
+rb = {r["asset"]: r["action_usd"] for r in B.rebalance({"BTC": 700, "ETH": 100, "USDT": 200}, {"BTC": 50, "ETH": 20, "USDT": 30})}
+assert rb == {"BTC": -200.0, "ETH": 100.0, "USDT": 100.0}
+assert B.rebalance({"BTC": 52, "USDT": 48}, {"BTC": 50, "USDT": 50})[0]["action_usd"] == 0.0     # inside the 5% band
+assert B.breakeven_gain_pct(70) == 233.3 and B.breakeven_gain_pct(100) is None
+tb = B.strategy_table({"a|1d": {"school": "X", "side": "buy", "n": 40, "mean_pct": 2, "base_pct": 0, "t": 3.2},
+                       "b|1w": {"school": "Y", "side": "exit", "n": 10, "mean_pct": 9, "base_pct": 0, "t": 5.0},
+                       "c|1d": {"school": "Z", "side": "buy", "n": 50, "mean_pct": -5, "base_pct": 0, "t": -3.5}})
+assert [r["setup"] for r in tb] == ["a", "c"] and tb[0]["verdict"] == "worked in the past" and tb[1]["verdict"] == "worse than normal"
+print("spot budget options: OK")

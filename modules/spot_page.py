@@ -865,6 +865,19 @@ def _tab_news(d):
                  "سكرابينج (قرارك) + مهمة أسبوعية تلخص كل حساب قال إيه وتوصياته. لحد كده القايمة لينكات بس."))
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _btc_200d() -> tuple[float | None, float | None]:
+    """(BTC last close, 200-day average) from the app's own candles; (None, None) when the feed is down."""
+    try:
+        from modules import spot_data
+        df = spot_data.candles("BTC-USDT", "1d", 260)
+        if df is None or len(df) < 200:
+            return None, None
+        return float(df["close"].iloc[-1]), float(df["close"].tail(200).mean())
+    except Exception:
+        return None, None
+
+
 _JCOLS = ["date", "asset", "entry", "stop", "target", "size", "result", "note"]
 
 
@@ -879,6 +892,20 @@ def _tab_budget(d) -> None:
     st.caption(T("Plan only - nothing here places an order. The numbers are for your own review.",
                  "خطة بس - مفيش هنا أمر بيتنفذ. الأرقام للمراجعة بتاعتك."))
 
+    st.markdown("**" + T("1. Market mode", "1. حالة السوق") + "**")
+    _px, _ma = _btc_200d()
+    mm = st.columns(4)
+    fg = mm[0].number_input(T("Fear & greed (0-100)", "مؤشر الخوف والجشع (0-100)"), 0, 100, int(plan.get("fear_greed", 50)), key="bp_fg",
+                            help=T("Type today's value (CoinMarketCap or alternative.me).", "اكتب قيمة النهارده (CoinMarketCap أو alternative.me)."))
+    bpx = mm[1].number_input(T("BTC price", "سعر BTC"), min_value=0.0, value=float(_px or 0.0), key="bp_btc")
+    bma = mm[2].number_input(T("BTC 200-day average", "متوسط 200 يوم لـ BTC"), min_value=0.0, value=float(_ma or 0.0), key="bp_ma")
+    M = B.market_mode(fg, bpx, bma)
+    _mname = {"accumulate": T("Accumulate (DCA only)", "تجميع (DCA بس)"), "normal": T("Normal", "عادي"), "defend": T("Defend (buy less, check sells)", "دفاع (اشتري أقل وراجع البيع)")}[M["mode"]]
+    mm[3].metric(T("Mode", "الوضع"), _mname, f"DCA ×{M['dca_mult']:g}")
+    st.caption(T("Swing trades allowed: ", "السوينج مسموح: ") + (T("yes", "أيوه") if M["swing_ok"] else T("no", "لأ"))
+               + T(" · The 200-day line is a reading only: as a buy / sell system it lost to holding BTC in a 3-year test (+16% vs +81%, 14 trades, not evidence).",
+                   " · خط الـ 200 يوم قراءة بس: كنظام شراء وبيع خسر قدام الاحتفاظ بـ BTC في اختبار 3 سنين (+16% مقابل +81%، 14 صفقة، مش دليل)."))
+    st.markdown("**" + T("2. Budget and DCA", "2. الميزانية و DCA") + "**")
     budget = st.number_input(T("Budget (USD)", "الميزانية (دولار)"), min_value=0.0, value=float(plan["budget"]), step=50.0, key="bp_budget")
     s = st.columns(3)
     sp = {"dca": s[0].number_input("DCA %", 0.0, 100.0, float(plan["split"]["dca"]), key="bp_s_dca"),
@@ -901,9 +928,57 @@ def _tab_budget(d) -> None:
     if rows:
         st.caption(T(f"Every week: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})",
                      f"كل أسبوع: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})"))
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=240)
+    if rows:
+        st.info(T(f"This week with the mode: ${rows[0]['total'] * M['dca_mult']:,.2f} (base ${rows[0]['total']:,.2f} × {M['dca_mult']:g}).",
+                  f"الأسبوع ده حسب الوضع: ${rows[0]['total'] * M['dca_mult']:,.2f} (الأساس ${rows[0]['total']:,.2f} × {M['dca_mult']:g})."))
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=200)
 
-    st.markdown("**" + T("Swing trade sizer (spot, long only)", "حاسبة صفقة السوينج (سبوت، شراء بس)") + "**")
+    st.markdown("**" + T("3. Dip-buy ladder (limit orders from the reserve)", "3. سلم الشراء في النزول (أوامر Limit من الاحتياطي)") + "**")
+    lc = st.columns(2)
+    lcoin = lc[0].selectbox(T("Coin", "العملة"), ["BTC", "ETH"], key="bp_lcoin")
+    lpx = lc[1].number_input(T("Current price", "السعر الحالي"), min_value=0.0, value=float(bpx if lcoin == "BTC" else 0.0), key="bp_lpx")
+    _bl = B.buy_ladder(lpx, amounts["reserve"])
+    if _bl:
+        st.dataframe(pd.DataFrame(_bl), hide_index=True, width="stretch")
+    else:
+        st.caption(T("Enter the current price to see the ladder.", "اكتب السعر الحالي عشان السلم يظهر."))
+
+    st.markdown("**" + T("4. Sell ladder (profit taking above your average cost)", "4. سلم البيع (جني أرباح فوق متوسط التكلفة)") + "**")
+    sc = st.columns(2)
+    s_cost = sc[0].number_input(T("Average cost", "متوسط التكلفة"), min_value=0.0, value=0.0, format="%.8f", key="bp_scost")
+    s_qty = sc[1].number_input(T("Quantity held", "الكمية"), min_value=0.0, value=0.0, format="%.8f", key="bp_sqty")
+    _sl = B.sell_ladder(s_cost, s_qty)
+    if _sl:
+        st.dataframe(pd.DataFrame(_sl), hide_index=True, width="stretch")
+        st.caption(T("25% of the position is kept after the last step.", "25% من المركز بيفضل بعد آخر درجة."))
+
+    st.markdown("**" + T("5. Rebalance (target shares, 5% band)", "5. إعادة التوازن (النسب المستهدفة، هامش 5%)") + "**")
+    rc = st.columns(3)
+    _vals = {"BTC": rc[0].number_input(T("BTC value (USD)", "قيمة BTC بالدولار"), min_value=0.0, value=0.0, key="bp_vbtc"),
+             "ETH": rc[1].number_input(T("ETH value (USD)", "قيمة ETH بالدولار"), min_value=0.0, value=0.0, key="bp_veth"),
+             "USDT": rc[2].number_input(T("Cash (USD)", "الكاش بالدولار"), min_value=0.0, value=0.0, key="bp_vusd")}
+    _core = sp["dca"] + sp["swing"]
+    _rb = B.rebalance(_vals, {"BTC": _core * wb / max(wb + we, 1e-9), "ETH": _core * we / max(wb + we, 1e-9), "USDT": sp["reserve"]})
+    if _rb:
+        st.dataframe(pd.DataFrame(_rb), hide_index=True, width="stretch")
+        st.caption(T("action_usd: + buy, - sell, 0 = inside the band (do nothing).", "action_usd: + شراء، - بيع، 0 = جوه الهامش (ماتعملش حاجة)."))
+
+    st.markdown("**" + T("6. Strategies tested by the platform lab", "6. الاستراتيجيات اللي معمل المنصة اختبرها") + "**")
+    from modules import spot_setups as _SS
+    _st = B.strategy_table(_SS.evidence())
+    if _st:
+        _f = st.radio(T("Show", "اعرض"), ["buy", "exit", "all"], horizontal=True, key="bp_stf", label_visibility="collapsed")
+        st.dataframe(pd.DataFrame([r for r in _st if _f == "all" or r["use as"] == _f]), hide_index=True, width="stretch", height=260)
+        st.caption(T("avg % = average move after the signal (1W: 8 weeks, 1D: 10 days); normal % = any week / day. 'worked' needs n >= 30 and t >= 3. "
+                     "Today no BUY setup passes; the tested signals are stronger as exit / avoid warnings.",
+                     "avg % = متوسط الحركة بعد الإشارة (أسبوعي: 8 أسابيع، يومي: 10 أيام)؛ normal % = أي أسبوع / يوم عادي. 'اشتغل' محتاج n >= 30 و t >= 3. "
+                     "النهارده مفيش إشارة شراء عدّت الشرط؛ الإشارات المختبرة أقوى كتحذير خروج / تجنب."))
+    else:
+        st.caption(T("No lab results file yet.", "لسه مفيش ملف نتايج المعمل."))
+
+    st.markdown("**" + T("7. Swing trade sizer (spot, long only)", "7. حاسبة صفقة السوينج (سبوت، شراء بس)") + "**")
+    if not M["swing_ok"]:
+        st.warning(T("Mode says no swing trades now (fear / below the 200-day line / greed).", "الوضع بيقول مفيش سوينج دلوقتي (خوف / تحت خط 200 يوم / جشع)."))
     r = st.columns(4)
     coin = r[0].selectbox(T("Coin", "العملة"), ["BTC", "ETH"], key="bp_coin")
     entry = r[1].number_input(T("Entry price", "سعر الدخول"), min_value=0.0, value=0.0, format="%.8f", key="bp_entry")
@@ -943,7 +1018,7 @@ def _tab_budget(d) -> None:
     for i, item in enumerate(B.WEEKLY_CHECKLIST):
         st.checkbox(T(item, item), key=f"bp_chk_{i}")
     if st.button(T("Save plan and journal", "احفظ الخطة والسجل"), key="bp_save"):
-        d["budget_plan"] = {"budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
+        d["budget_plan"] = {"fear_greed": int(fg), "budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
                             "risk_pct": risk, "monthly_cap_pct": mc, "max_open": plan["max_open"], "min_rr": plan["min_rr"]}
         clean = edited.where(pd.notna(edited), None)
         d["journal"] = [rec for rec in clean.to_dict("records") if str(rec.get("asset") or "").strip()]

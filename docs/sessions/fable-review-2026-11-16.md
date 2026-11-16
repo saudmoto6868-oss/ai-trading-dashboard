@@ -37,7 +37,7 @@
 | 1 | مصدر بيانات واقف (OKX / Hyperliquid) كان بيتكتب "هابط" بدل "واقف" بالعربي: مفتاح الترجمة `down` مكرر 3 مرات وآخر واحد بيكسب | **اتصلح** (مفتاح `offline`) + اختبار `tests/test_i18n_status.py` |
 | 2 | 11 مفتاح ترجمة تاني مكررين بقيم مختلفة في `i18n.py` (Strategy، signals، symbols، Where، What to do، Charts، Win rate، Playbook، Stats، AI، Workspace) — آخر قيمة بتكسب في كل الصفحات | مفتوح: محتاج قرار صياغة لكل واحد |
 | 3 | علامة `edge` في المعمل (`strategy_lab.py` سطر 370) مش بتشترط موجب بعد التكلفة، وبتقبل n ≥ 30 مع إن التعليق بيقول إن الاختبارات كتير | مفتوح: اقتراح نخليها n ≥ 100 + net > 0 زي بوابة الـ pre-reg |
-| 4 | `scripts/check.sh` محتاج streamlit / pandas-ta / playwright؛ من غيرهم 17 اختبار بيفشلوا بسبب البيئة مش الكود | ملاحظة: بعد تثبيت `requirements.txt` النتيجة في آخر الملف |
+| 4 | `scripts/check.sh` محتاج streamlit / pandas-ta / playwright؛ من غيرهم 17 اختبار بيفشلوا بسبب البيئة مش الكود | اتأكد: بعد تثبيت `requirements.txt` 16 من الـ17 نجحوا؛ `test_bot_spot` لسه محتاج مكتبة playwright بتاعة بايثون (مش في `requirements.txt`) |
 
 ## 4. المؤشرات
 

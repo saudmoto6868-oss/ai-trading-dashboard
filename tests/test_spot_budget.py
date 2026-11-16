@@ -98,3 +98,21 @@ tb = B.strategy_table({"a|1d": {"school": "X", "side": "buy", "n": 40, "mean_pct
                        "c|1d": {"school": "Z", "side": "buy", "n": 50, "mean_pct": -5, "base_pct": 0, "t": -3.5}})
 assert [r["setup"] for r in tb] == ["a", "c"] and tb[0]["verdict"] == "worked in the past" and tb[1]["verdict"] == "worse than normal"
 print("spot budget options: OK")
+
+# spot chart tab (2026-11-16): the Workspace document builds for the spot symbols, and the tab opens without an exception
+from modules.workspace import build_workspace_html
+import modules.spot_page as SP
+doc = build_workspace_html(SP.CHART_SYMS, [], "en", asset_cls="Crypto")
+assert len(doc) > 100000 and "BTC-USDT" in doc and "HL:xyz:GOLD" in doc
+with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
+    at = AppTest.from_string("""
+import modules.spot_page as sp, tempfile, streamlit as st
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
+st.session_state["spc_on"] = True
+sp.render()
+""", default_timeout=120)
+    at.run()
+    assert not at.exception, at.exception
+    assert any("Spot chart" in t.label or "شارت السبوت" in t.label for t in at.tabs)
+print("spot chart tab: OK")

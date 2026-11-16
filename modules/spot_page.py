@@ -1026,6 +1026,74 @@ def _tab_budget(d) -> None:
             st.success(T("Saved.", "اتحفظ."))
 
 
+CHART_SYMS = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "HL:xyz:GOLD", "HL:xyz:SILVER"]
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _chart_doc(symbols: tuple, lang: str, height: int) -> str:
+    """The full Workspace app (charts, every indicator, footprint / order flow, Elliott, Gann, drawings, alerts) for the spot symbols.
+    Cached: the same string is re-sent on reruns, so the frame does not reload and its live feeds keep running."""
+    from modules.workspace import build_workspace_html
+    return build_workspace_html(list(symbols), [], lang, asset_cls="Crypto")
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _live_setups(asset: str) -> list[dict]:
+    from modules import spot_dash, spot_setups
+    return spot_setups.scan(spot_dash.load_bundle(asset))
+
+
+def _tab_chart(d, cr) -> None:
+    """Spot chart desk (owner 2026-11-16): the Workspace chart inside the Spot page + this market's live setups, one click to alerts."""
+    import streamlit.components.v1 as components
+    try:
+        from modules.i18n import lang as _lang
+        lg = _lang()
+    except Exception:
+        lg = "en"
+    held = sorted({str(t.get("asset", "")).upper() for t in d.get("txs", []) if t.get("asset")})
+    okx = {r["base"] for r in (cr or [])}
+    syms = list(dict.fromkeys(CHART_SYMS + [f"{a}-USDT" for a in held if a in okx]))
+    c = st.columns([1.2, 1, 3])
+    asset = c[0].selectbox(T("Signals for", "الإشارات لـ"), [x.split("-")[0].split(":")[-1] for x in syms], key="spc_asset")
+    hgt = int(c[1].selectbox(T("Chart height", "ارتفاع الشارت"), [640, 760, 880, 1000], index=1, key="spc_h"))
+    c[2].caption(T("Inside the chart: + Widget adds charts, DOM, tape, footprint and order-flow panels; the indicator menu has Elliott, Gann, SMC, 2.6 and the rest; "
+                   "panels follow the same symbol. Nothing here places an order.",
+                   "جوه الشارت: + Widget بيضيف شارتات و DOM و Tape وفوت برنت وأوردر فلو؛ قايمة المؤشرات فيها إليوت وجان و SMC و 2.6 والباقي؛ "
+                   "البانلز بتمشي على نفس الرمز. مفيش هنا أي أمر بيتنفذ."))
+    try:
+        components.html(_chart_doc(tuple(syms), lg, hgt), height=hgt, scrolling=False)
+    except Exception as e:
+        st.error(T("Chart could not be built", "الشارت ماتبناش") + f": {type(e).__name__}: {e}")
+    st.markdown("**" + T(f"Live setups on {asset} (every school, with the lab verdict)", f"الإشارات الحية على {asset} (كل المدارس، مع حكم المعمل)") + "**")
+    try:
+        rows = _live_setups(asset)
+    except Exception as e:
+        rows = []
+        st.caption(T("Setups unavailable (data feed)", "الإشارات مش متاحة (مصدر البيانات)") + f": {type(e).__name__}")
+    if not rows:
+        st.caption(T("No live setup on this market now.", "مفيش إشارة حية على السوق ده دلوقتي."))
+        return
+    side = st.radio(T("Side", "النوع"), ["all", "buy", "exit"], horizontal=True, key="spc_side", label_visibility="collapsed")
+    rows = [r for r in rows if side == "all" or r["side"] == side]
+    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "الإشارة"): r["name"], T("Use", "الاستخدام"): r["side"], "TF": r["tf"],
+                                T("Entry", "دخول"): _n(r["entry"]), T("Stop", "وقف"): _n(r["stop"]), T("Target", "هدف"): _n(r["target"]),
+                                T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"]} for r in rows]), hide_index=True, width="stretch", height=260)
+    buys = [r for r in rows if r["side"] == "buy" and r.get("entry")]
+    if buys:
+        pick = st.selectbox(T("Make alerts from", "اعمل تنبيهات من"), range(len(buys)), format_func=lambda i: f"{buys[i]['name']} · {buys[i]['tf']} · {_n(buys[i]['entry'])}", key="spc_pick")
+        if st.button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="spc_add"):
+            r = buys[pick]
+            d["alerts"].append(C.new_alert(asset, "buy", r["entry"], r["name"]))
+            if r.get("stop"):
+                d["alerts"].append(C.new_alert(asset, "stop", r["stop"], r["name"]))
+            if r.get("target"):
+                d["alerts"].append(C.new_alert(asset, "sell", r["target"], r["name"]))
+            if save(d):
+                st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+                _notify(d, T(f"Alerts armed for {asset}: {r['name']} entry {_n(r['entry'])}", f"اتسجلت تنبيهات {asset}: {r['name']} دخول {_n(r['entry'])}"))
+
+
 def render() -> None:
     d = load()
     st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
@@ -1035,7 +1103,7 @@ def render() -> None:
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
     tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
                     T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات"),
-                    T("Budget plan", "خطة الميزانية")])
+                    T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت")])
     with tabs[0]:
         _tab_brain(d, px, met, cr, fx)
     with tabs[1]:
@@ -1062,4 +1130,10 @@ def render() -> None:
         _tab_library()
     with tabs[10]:
         _tab_budget(d)
+    with tabs[11]:   # heavy (the whole Workspace app): built only on request, like the analyzer
+        if st.session_state.get("spc_on") or st.button(T("Open the spot chart (full Workspace chart + live setups)", "افتح شارت السبوت (شارت الـ Workspace كامل + الإشارات الحية)"), key="spc_open"):
+            st.session_state["spc_on"] = True
+            _tab_chart(d, cr)
+        else:
+            st.caption(T("Not loaded until you open it.", "مش بيتحمّل غير لما تفتحه."))
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

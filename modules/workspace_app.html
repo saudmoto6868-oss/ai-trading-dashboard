@@ -4333,7 +4333,7 @@ class Panel {
     else if (this.state.ema){ const E = this.state.ema, S0 = this.state.st || {}, DC = {9:"#f0b90b", 21:"#4aa3ff", 50:"#b57cff"};   // older saves: the three fixed EMA lines
       this.chart.maL = [9,21,50].map(n => { const s = S0[n] || {}; return {on:!!E[n], type:"EMA", len:s.len || n, color:s.color || DC[n], w:s.w || 1.2, dash:s.dash || ""}; }); }
     if (this.state.ema) this.chart.ema = Object.assign({}, this.chart.ema, this.state.ema);
-    { const q = this.state.st && this.state.st.pos26; if (q && !("p" in q)) ["sw", "show", "h1", "h2"].forEach(k => delete q[k]); }   // saves from before the creator method (P): drop the old H1/H2 strategy settings
+    { const q = this.state.st && this.state.st.pos26; if (q && !("p" in q)) ["sw", "show", "h1", "h2"].forEach(k => delete q[k]); if (q && !("mode" in q)) q.mode = "box", q.bsw = 3, q.half = .25; }   // saves from before the creator method (P): drop the old H1/H2 strategy settings; before the box mode: default to boxes
     if (this.state.st) Object.keys(this.state.st).forEach(k => { if (this.chart.st[k]) Object.assign(this.chart.st[k], this.state.st[k]); });
     this.chart.lockR = null; this.chart.pal = this.state.pal || null; this.chart.dots = this.state.dots !== undefined ? !!this.state.dots : CFG.ui === "deerflow"; this.chart.onFree = () => this.chart.saveView(); if (this.state.locks || this.state.ac !== undefined){ delete this.state.locks; delete this.state.ac; Ws.save(); }   // old per-symbol price locks and the Auto-Center flag are dropped: the lock lives in each chart's per-tab view now this.chart.volOn = this.state.volOn !== false; this.chart.onSubOff = k => { this.state[k] = false; Ws.save(); };
     this.chart.onLLTbl = () => { this.state.llt = false; Ws.save(); };

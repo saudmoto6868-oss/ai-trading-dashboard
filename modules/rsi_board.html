@@ -17,73 +17,44 @@
 .pulse{animation:pu 1s ease-in-out infinite}@keyframes pu{0%,100%{opacity:.95}50%{opacity:.05}}
 #tip{position:fixed;pointer-events:none;background:#0a0d12f5;border:1px solid var(--line);border-radius:8px;padding:8px;width:270px;display:none;z-index:9;font-size:11px;direction:rtl}
 .row2{display:flex;justify-content:space-between;gap:8px;align-items:center}
-input,select,button{background:#0f141b;color:var(--txt);border:1px solid var(--line);border-radius:12px;font:inherit;font-size:11px;padding:2px 8px;height:24px}
-button{cursor:pointer}button.on{border-color:var(--amb);color:var(--amb)}.seg button{border-radius:0;margin-inline-start:-1px}
-.seg button:first-child{border-radius:12px 0 0 12px}.seg button:last-child{border-radius:0 12px 12px 0}.seg button.act{background:#22303f;border-color:var(--sel)}
-#list{flex:1;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;align-content:start}
-.grp{grid-column:1/-1;font-weight:800;font-size:11px;color:var(--mut);padding:4px 2px;border-bottom:1px solid var(--line)}
-.tile{position:relative;border-radius:8px;padding:7px;border:1px solid var(--line);cursor:pointer;min-height:118px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
-.tile:hover{border-color:var(--sel)}.tile.sel{outline:1px solid var(--sel)}
-.tile .hd2{display:flex;justify-content:space-between;align-items:center;gap:4px}
-.tile .nm{font-weight:800;font-size:13px;direction:ltr}.tile .px{font-size:10.5px;color:var(--mut);direction:ltr}
-.tile .cv{font-size:20px;font-weight:900;line-height:1}
-.tile .vd{font-size:10.5px;font-weight:700;border-radius:8px;padding:0 6px;color:#fff;align-self:flex-start}
-.tile .rs{font-size:10.5px;direction:ltr}
-.tile .bars{display:flex;align-items:flex-end;gap:2px;height:18px}.tile .bars i{flex:1;border-radius:2px 2px 0 0}
-.tile .tg{display:flex;flex-wrap:wrap;gap:2px}.tile .tg span{font-size:9px;border-radius:6px;padding:0 4px;background:#212a37;color:#c9d1dc}
-.tile.urg{animation:ub 1.1s ease-in-out infinite}
-.tile .arr{position:absolute;top:6px;inset-inline-end:6px;font-size:9px;letter-spacing:1px}
-.tile .fl{height:4px;background:var(--dn);border-radius:2px;overflow:hidden}.tile .fl i{display:block;height:100%;background:var(--up)}
-.r{padding:5px 7px;border-bottom:1px solid var(--line);cursor:pointer;border-inline-start:3px solid transparent}
-.r:hover{background:#19202b}.r.sel{background:#1b2535;border-inline-start-color:var(--sel)}
-.r.urg{animation:ub 1.1s ease-in-out infinite}@keyframes ub{0%,100%{border-inline-start-color:var(--amb);background:#241d0c}50%{border-inline-start-color:transparent;background:transparent}}
-.l1,.l3{display:flex;align-items:center;gap:6px}.l3{flex-wrap:wrap;row-gap:2px}.sym{font-weight:800;font-size:12.5px;direction:ltr}.sm{color:var(--mut);font-size:10.5px}
-.sp{flex:1}.big{font-size:15px;font-weight:800;min-width:26px;text-align:center}
-.pill{border-radius:9px;padding:0 7px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap}
-.l2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:3px 0}
-.meter{position:relative;height:10px;background:#202836;border-radius:3px;overflow:hidden}.meter i{position:absolute;top:0;bottom:0}
-.strip{display:grid;grid-template-columns:repeat(9,1fr);gap:1px}.strip div{height:10px;border-radius:2px;font-size:7.5px;text-align:center;line-height:10px;color:#fff;font-weight:700}
-.tags{display:flex;flex-wrap:wrap;gap:3px;margin:2px 0}.tags span{font-size:9.5px;border-radius:8px;padding:0 5px;background:#212a37;color:#c9d1dc}
-.tags span.u{background:var(--amb);color:#111;font-weight:800}
-.tfb{display:flex;align-items:flex-end;gap:1px;height:18px}.tfb div{width:6px;border-radius:2px 2px 0 0}
-.ar{display:flex;gap:1px;font-size:8px;line-height:8px}.plan{font-variant-numeric:tabular-nums;font-size:10.5px;direction:ltr}
-.rr{font-weight:800;border-radius:4px;padding:0 4px;color:#111}
-.gauge{width:46px;height:5px;background:var(--dn);border-radius:3px;overflow:hidden}.gauge i{display:block;height:100%;background:var(--up)}
-#drw{position:absolute;inset:0;background:var(--panel);z-index:5;display:none;overflow:auto;direction:rtl;padding:8px}
-#drw.open{display:block}#drw h3{margin:0 0 4px;font-size:14px}.box{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:6px 0;background:#10151d}
-.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}.kv b{display:block;font-size:13px;direction:ltr}.kv small{color:var(--mut);font-size:10px}
-.sig{display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:1px solid #1f2632}.sig .dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex:0 0 8px}
-.sig .tx{flex:1}.sig .nm{font-weight:700}.sig .ds{color:var(--mut);font-size:10.5px}
-.sch{margin:6px 0 2px;font-weight:800;font-size:11.5px}
-.btn{display:inline-block;border:1px solid var(--sel);border-radius:8px;padding:4px 10px;color:var(--txt);text-decoration:none;font-weight:700}
-#legend{position:absolute;inset:0;background:#0d1117f7;z-index:7;display:none;overflow:auto;padding:10px;direction:rtl;font-size:11.5px}
-#legend.open{display:block}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
-#toast{position:absolute;inset-inline-end:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
-details.flt{position:relative}details.flt summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:2px 9px;font-size:11px;display:inline-block}
-details.flt[open] .box2{display:flex}.box2{display:none;flex-wrap:wrap;gap:6px;align-items:center;background:#10151d;border:1px solid var(--line);border-radius:8px;padding:6px;margin-top:4px;position:absolute;z-index:6;inset-inline-start:0;min-width:260px}
+.bar{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+.ctl{height:26px;border:1px solid var(--line);border-radius:6px;background:#0f141b;color:var(--txt);font:inherit;font-size:11px;padding:0 8px;display:inline-flex;align-items:center;gap:4px}
+select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:var(--amb);color:var(--amb)}
+.seg{display:inline-flex;height:26px}.seg button{height:26px;border-radius:0;border:1px solid var(--line);background:#0f141b;color:var(--txt);font:inherit;font-size:11px;padding:0 10px;cursor:pointer}
+.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button+button{margin-inline-start:-1px}
+.seg button.act{background:#22303f;border-color:var(--sel);color:#fff}
+#q{flex:1;min-width:120px;height:26px;border:1px solid var(--line);border-radius:6px;background:#0f141b;color:var(--txt);font:inherit;font-size:11px;padding:0 8px}
+.sep{width:1px;height:18px;background:var(--line);flex:0 0 1px}
+#cnt{font-size:11px;color:var(--mut);direction:ltr}
+#tagbar{display:flex;align-items:center;gap:6px;height:34px;padding:0 8px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+#tagbar .ctl{flex:0 0 auto;height:24px}
+#tagbar .ctl.on{background:#2a2310}
+#fbar{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;font-size:11px;color:var(--mut)}
+#fbar .ctl{height:26px}
+#fbar input[type=range]{width:90px;margin:0;accent-color:var(--amb)}
 </style></head><body>
 <div id="src"></div>
 <div id="app">
  <div class="pane"><div class="hd" id="mh"></div><div id="map"></div><div id="legend"></div></div>
  <div class="pane"><div id="toast"></div><div id="drw"></div>
-  <div class="hd">
-   <input id="q" placeholder="ابحث: عملة، مدرسة، تاج…" style="flex:1;min-width:110px">
+  <div class="bar">
+   <input id="q" placeholder="ابحث: عملة، مدرسة، تاج…">
    <span class="seg"><button data-d="0" class="act">الكل</button><button data-d="1">شراء</button><button data-d="-1">بيع</button></span>
-   <select id="so" title="الترتيب"><option value="score">الأفضل</option><option value="conv">التوافق</option><option value="rr">R:R</option><option value="fresh">الأحدث</option><option value="rsi">RSI ↓</option><option value="rsiu">RSI ↑</option><option value="flow">الفلو</option><option value="vol">الفوليوم</option></select>
-   <button id="arm" title="تنبيه صوتي للعاجل وللتوافق ≥ الحد مع R:R ≥ 1.5">🔕</button>
-   <button id="lg">شرح</button>
-   <span class="sm" id="cnt"></span>
+   <span class="sep"></span>
+   <select id="so" class="ctl" title="الترتيب"><option value="score">الأفضل</option><option value="conv">التوافق</option><option value="rr">R:R</option><option value="fresh">الأحدث</option><option value="rsi">RSI ↓</option><option value="rsiu">RSI ↑</option><option value="flow">الفلو</option><option value="vol">الفوليوم</option></select>
+   <button id="arm" class="ctl" title="تنبيه صوتي للعاجل وللتوافق ≥ الحد مع R:R ≥ 1.5">🔕</button>
+   <button id="lg" class="ctl">شرح</button>
+   <span id="cnt"></span>
   </div>
-  <div class="hd" id="tagbar"></div>
-  <div class="hd">
-   <details class="flt"><summary>فلاتر ▾</summary>
-    <div class="box2">
-     <label class="sm">التوافق ≥ <input id="mc" type="range" min="0" max="100" step="5" value="0" style="width:80px;vertical-align:middle;height:12px"> <b id="mcv">0</b></label>
-     <label class="sm">R:R ≥ <select id="mr"><option>0</option><option>1</option><option>1.5</option><option>2</option><option>3</option></select></label>
-     <label class="sm">المدرسة <select id="sc"><option value="">أي مدرسة</option></select></label>
-     <label class="sm">جديدة خلال <select id="mf"><option value="99">أي وقت</option><option>0</option><option>1</option><option>2</option><option>5</option></select> شمعات</label>
-    </div>
-   </details>
+  <div id="tagbar"></div>
+  <div id="fbar">
+   <span>توافق ≥</span><input id="mc" type="range" min="0" max="100" step="5" value="0"><b id="mcv" style="color:var(--txt);direction:ltr;min-width:22px">0</b>
+   <span class="sep"></span>
+   <span>R:R ≥</span><select id="mr" class="ctl"><option>0</option><option>1</option><option>1.5</option><option>2</option><option>3</option></select>
+   <span class="sep"></span>
+   <span>مدرسة</span><select id="sc" class="ctl"><option value="">أي مدرسة</option></select>
+   <span class="sep"></span>
+   <span>جديدة خلال</span><select id="mf" class="ctl"><option value="99">أي وقت</option><option>0</option><option>1</option><option>2</option><option>5</option></select><span>شمعات</span>
   </div>
   <div id="list"></div>
  </div>
@@ -244,7 +215,7 @@ function select(full, scroll){
   if (scroll){const r = document.querySelector(`.tile[data-s="${CSS.escape(full)}"]`); if (r) r.scrollIntoView({block: "center", behavior: "smooth"});}
 }
 $("#tagbar").innerHTML = D.tags.map(t => {const n = D.items.filter(i => (i.tags || []).includes(t)).length;
-  return `<span class="chip tag" data-t="${t}" style="${n ? "" : "opacity:.4"}">${A("tag", t)} ${n}</span>`;}).join("");
+  return `<button class="ctl tag" data-t="${t}" style="${n ? "" : "opacity:.4"}">${A("tag", t)} ${n}</button>`;}).join("");
 $$(".tag").forEach(c => c.onclick = () => {const t = c.dataset.t; tagF.has(t) ? tagF.delete(t) : tagF.add(t); c.classList.toggle("on"); rows();});
 D.schools.forEach(s => $("#sc").insertAdjacentHTML("beforeend", `<option value="${s}">${A("school", s)}</option>`));
 $("#lg").onclick = () => $("#legend").classList.toggle("open");

@@ -415,38 +415,6 @@ def render():
         items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
     st.iframe(board_html(items, chart_tf, timeframes), height=780, alt="RSI heatmap map and setup board")
 
-    with st.expander(f"All symbols · RSI by timeframe ({len(items)})"):
-        rsi_cols = [f"RSI {tf}" for tf in timeframes]
-        table = pd.DataFrame([{"Symbol": i["full"], "Price": i["price"], "Verdict": i["verdict"],
-                               "Conviction": i["conv"], **{f"RSI {tf}": i["rsi"][tf] for tf in timeframes},
-                               "MTF": _alignment(detail[i["full"]], timeframes)} for i in items])
-        st.dataframe(table.style.map(_style_rsi, subset=rsi_cols).map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
-                     .format("{:.2f}", subset=rsi_cols, na_rep="—").format("{:,.6g}", subset=["Price"], na_rep="—"),
-                     use_container_width=True, hide_index=True, height=360)
-
-    with st.expander("Symbol detail · TIA Director"):
-        available_symbols = [s for s in symbols if detail.get(s)]
-        selected = st.selectbox("Symbol", available_symbols, key="rsi_hm_symbol")
-        selected_data = detail.get(selected, {})
-        cards = st.columns(max(1, min(6, len(timeframes))))
-        for i, tf in enumerate(timeframes):
-            m = selected_data.get(tf)
-            with cards[i % len(cards)]:
-                st.metric(f"RSI · {tf}", f"{m['rsi']:.2f}" if m else "—", rsi_band(m["rsi"]) if m else "No data",
-                          delta_color="off")
-                if m:
-                    st.caption(f"{m['trend']} · {m['last_closed']}")
-        if st.button("Analyse with TIA Director", key="rsi_hm_director"):
-            from modules.tia_intelligence import director_report
-            with st.spinner(f"Running TIA evidence review for {selected}…"):
-                report = director_report(selected, asset_class)
-            st.write(report.get("stance", "UNAVAILABLE"), "·", report.get("confidence", "LOW"))
-            st.caption(report.get("director_summary", "No director summary returned."))
-            for warning in report.get("warnings", []):
-                st.warning(warning)
-            st.json({"technical": report.get("technical", {}), "flow": report.get("flow", {}),
-                     "sources": report.get("sources", {}), "options": report.get("options")})
-
     if errors:
         with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):
             st.json(errors)

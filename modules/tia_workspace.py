@@ -7,8 +7,8 @@ from __future__ import annotations
 import streamlit as st
 from modules.workspace import build_workspace_html
 
+_TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
-
 
 def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None, ctrl: dict | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
@@ -454,9 +454,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + _TIA_WALLS_JS + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth","tiawalls"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiawalls:"WALLS", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v6")

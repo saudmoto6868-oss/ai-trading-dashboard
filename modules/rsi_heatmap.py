@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from modules import rsi_ar as _AR
+
 import pandas as pd
 import streamlit as st
 
@@ -225,6 +227,7 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
                     recs[s] = read_symbol(closed[s], setups.get(s), vote, deep)
                 except Exception:
                     pass
+    top25 = set(sorted(recs, key=lambda s: _board_score(recs[s]), reverse=True)[:25])
     items = []
     for rank, s in enumerate(symbols, start=1):
         per_tf, setup, rec = detail.get(s) or {}, setups.get(s) or {}, recs.get(s)
@@ -250,8 +253,49 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
                      for tf in timeframes if tf in per_tf}
         it["src"] = feed_of(s)[0] or ("yahoo" if s.startswith("Y:") else "other")
         it["tags"], it["urgent"] = derive_tags(it, chart_tf, timeframes)
+        it.update(_detail(s, rec, closed.get(s), chart_tf, top25, setup))
         items.append(it)
     return items
+
+
+def _sig_rows(rec, cap=12):
+    """Arabic signal rows for the drawer: matching side first, then the rest (English data, Arabic text)."""
+    from modules.arabic import signal_ar, tag_for
+    from modules.rsi_confluence import school_of
+    if not rec:
+        return []
+    side = rec.get("dir") or 0
+    sigs = sorted(rec.get("signals", []), key=lambda s: (s.get("direction") == "bullish") != (side > 0))
+    out = []
+    for s in sigs[:cap]:
+        try:
+            name, detail = signal_ar(s, True)
+        except Exception:
+            name, detail = s.get("name", ""), ""
+        t = tag_for(s, True)
+        out.append({"school": school_of(s), "n": name, "d": str(detail)[:200], "v": 1 if s.get("direction") == "bullish" else -1,
+                    "t": t[0], "c": t[1]})
+    return out
+
+
+def _detail(sym, rec, df, chart_tf, top25, setup):
+    """Drawer data: Arabic signal rows, harmonics / patterns, TradingView link and a candle chart for the top symbols."""
+    from modules.arabic import chart_svg, tv_link
+    out = {"sigs": _sig_rows(rec), "harm": (rec or {}).get("harm", []), "pats": (rec or {}).get("pats", []),
+           "tv": tv_link(sym, chart_tf), "svg": ""}
+    try:
+        plan = (rec or {}).get("plan")
+        if sym in top25 and df is not None and len(df) >= 10 and rec and rec.get("dir"):
+            from modules.signals import sr_levels
+            res, sup = sr_levels(df)
+            res_dict = {"symbol": sym, "trade_type": "", "direction": "bullish" if rec["dir"] > 0 else "bearish",
+                        "signals": rec.get("signals", []), "supports": sup, "resistances": res}
+            plan_dict = ({"entry": plan["entry"], "stop_loss": plan["stop"], "take_profits": [plan["target"]]}
+                         if plan else None)
+            out["svg"] = chart_svg(df, res_dict, plan_dict, bars=50, width=520, height=230, ar=True)
+    except Exception:
+        out["svg"] = ""
+    return out
 
 
 def board_html(items, chart_tf, timeframes):
@@ -264,7 +308,13 @@ def board_html(items, chart_tf, timeframes):
             "built": pd.Timestamp.now(tz="UTC").strftime("%H:%M:%S UTC"), "tags": list(TAGS),
             "tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
             "avg": round(sum(pts) / len(pts), 2) if pts else None,
-            "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS]}
+            "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS],
+            "ar": {"school": _AR.SCHOOL,
+                   "verdict": _AR.VERDICT,
+                   "phase": _AR.PHASE,
+                   "tag": _AR.TAG,
+                   "band": _AR.BAND,
+                   "regime": _AR.REGIME}}
     blob = json.dumps(data, ensure_ascii=False, default=float).replace("</", "<\\/")
     return _BOARD.read_text(encoding="utf-8").replace("__DATA__", blob)
 
@@ -287,24 +337,27 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 def render():
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
-    f = st.columns([1.25, 0.8, 2.45, 0.62, 0.62, 0.72, 0.62, 0.66], gap="small")
-    f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap <span>Intelligence</span></div>", unsafe_allow_html=True)
-    asset_class = f[1].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
-    picked = f[2].pills("Timeframes", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
+    f = st.columns([1.0, 1.05, 3.4, 0.95, 0.95, 0.5], gap="small", vertical_alignment="center")
+    f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap</div>", unsafe_allow_html=True)
+    asset_class = f[1].selectbox("السوق", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
+    picked = f[2].pills("الفريمات", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
                         key="rsi_hm_tfs", label_visibility="collapsed") or []
-    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
-                           label_visibility="collapsed", format_func=lambda n: f"{n} sym")
+    limit = f[3].selectbox("العملات", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
+                           label_visibility="collapsed", format_func=lambda n: f"{n} عملة")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
-        st.info("Select at least one timeframe.")
+        st.info("اختار فريم واحد على الأقل.")
         return
     default_tf = "4h" if "4h" in timeframes else timeframes[0]
-    chart_tf = f[4].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
-                              label_visibility="collapsed", format_func=lambda t: f"Map {t}")
-    deep = f[5].toggle("Radar", value=True, key="rsi_hm_deep", help="All strategy schools + harmonics + chart patterns (slower).")
-    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow", help="Order-flow snapshot for the top 20 setups (OKX / Hyperliquid).")
-    live = f[7].selectbox("Live", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live", label_visibility="collapsed",
-                          format_func=lambda m: "Live off" if not m else f"Live {m} min")
+    chart_tf = f[4].selectbox("فريم الخريطة", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
+                              label_visibility="collapsed", format_func=lambda t: f"خريطة {t}")
+    with f[5].popover("⚙"):
+        deep = st.toggle("Radar: كل الاستراتيجيات", value=True, key="rsi_hm_deep",
+                         help="كل مدارس الاستراتيجيات + هارمونيك + نماذج الشارت (أبطأ).")
+        use_flow = st.toggle("Flow: الأوردر فلو", value=True, key="rsi_hm_flow",
+                             help="لقطة الأوردر فلو لأفضل 20 setup (OKX / Hyperliquid).")
+        live = st.selectbox("تحديث تلقائي", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live",
+                            format_func=lambda m: "مقفول" if not m else f"كل {m} دقيقة")
     if live:
         try:
             from streamlit_autorefresh import st_autorefresh

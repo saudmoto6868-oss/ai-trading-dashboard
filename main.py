@@ -3145,7 +3145,9 @@ def render_chart_scanner(f):
                         , unsafe_allow_html=True)
                     _cv1.html(_lh, height=300, scrolling=False)
                     _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
-                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _tip_below + card_s + "</div>", unsafe_allow_html=True)
+                    from modules import radar_structure as _RS
+                    _struct = _RS.html_block(_RS.read(d_x))
+                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _struct + _tip_below + card_s + "</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(
                         f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "

@@ -471,6 +471,15 @@ Object.assign(CandleChart.prototype, {
   paintS26(c, py){   // 2.6 strategy, calm and line-free: one equal-width box per setup (blue target zone over grey stop zone, colour only, small gap between boxes), live / waiting boxes
     // with text + a chip, finished trades kept as muted history (win = blue, loss = grey), swing high / low markers, the measured range with its ÷ 2.6 unit, and a corner info tab with the maths. Every part has a switch in the settings
     const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80, ratio = +S.ratio || 2.6;
+    if (S.mode === "box"){   // reversal boxes: zone = leg origin -/+ range/2.6, half-ATR band, until first touch (no stop / target)
+      const B = s26Boxes(D, {ratio, sw:+S.bsw || 3, wait, half:S.half != null ? +S.half : .25, minAtr:+S.minAtr || 2}), PR = this.PR, PB = this.PB;
+      c.save(); c.beginPath(); c.rect(0, 0, PR, PB); c.clip(); c.textBaseline = "middle";
+      B.forEach(b => { const xa = this.x(b.start) - this.bw/2, xb = this.x(b.touched ? b.end : n - 1) + this.bw/2, y1 = py(b.top), y2 = py(b.bottom);
+        if (xb < 0 || xa > PR) return; const col = b.dir === "BUY" ? "#4f8fd8" : "#c0624f";
+        c.globalAlpha = b.touched ? .08 : .2; c.fillStyle = col; c.fillRect(xa, y1, xb - xa, y2 - y1); c.globalAlpha = 1;
+        c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(b.touched ? [3, 3] : []); c.strokeRect(xa, y1, xb - xa, y2 - y1); c.setLineDash([]);
+        if (+S.lbl){ c.font = "11px sans-serif"; c.fillStyle = col; c.textAlign = "left"; c.fillText((b.dir === "BUY" ? "BUY zone " : "SELL zone ") + (b.touched ? "touched " : "active ") + b.zone.toFixed(2), xa + 3, y1 - 7); } });
+      c.restore(); return; }
     const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait, S.p, S.minAtr].join(",");
     if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2, p:!!+S.p, minAtr:+S.minAtr}); } catch(e){} this._s26 = {k:key, r}; }
     const R = this._s26.r, liveSt = p => p.status === "waiting" || p.status.startsWith("open"), closed = p => p.fill != null && !liveSt(p);

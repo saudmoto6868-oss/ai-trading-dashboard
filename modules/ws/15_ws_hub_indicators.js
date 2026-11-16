@@ -303,6 +303,33 @@ function s26Calc(D, o){
       out.push(play("H2", side, sw, e, e - sg*u, P.lvl, P.lvl + sg*u, [P.a.i, P.b.i, sw, best.a.i, best.b.i])); }); }
   out.sort((x, y) => x.known - y.known); out.piv = piv; return out;   // piv: the confirmed swings, for the chart markers
 }
+// Reversal boxes (mirror of modules/two_six_chart.py reversal_boxes): zone = leg origin -/+ range/ratio, box = zone +/- half ATR,
+// active from leg confirmation until first touch or `wait` bars. Geometry only, no stop or target.
+function s26Boxes(D, o){
+  o = o || {}; const r = +o.ratio || 2.6, L = Math.max(1, (+o.sw | 0) || 5), wait = (+o.wait | 0) || 80, half = o.half != null ? +o.half : 0.25, mA = o.minAtr != null ? +o.minAtr : 2, n = D.length, out = [];
+  if (n < 2*L + 3) return out;
+  const piv = [];
+  for (let i = L; i < n - L; i++){
+    const hi = D[i].h, lo = D[i].l; let mx = -Infinity, mn = Infinity, ch = 0, cl = 0;
+    for (let j = i - L; j <= i + L; j++){ const b = D[j]; if (b.h > mx) mx = b.h; if (b.l < mn) mn = b.l; if (b.h === hi) ch++; if (b.l === lo) cl++; }
+    const isH = hi === mx && ch === 1, isL = lo === mn && cl === 1;
+    if (isH && isL) continue;   // same rule as s26Calc: OHLC cannot tell which extreme came first
+    if (isH) piv.push({k:"H", p:hi, i, at:i + L}); else if (isL) piv.push({k:"L", p:lo, i, at:i + L});
+  }
+  const atr = []; let a = 0;
+  for (let i = 0; i < n; i++){ const b = D[i], tr = i ? Math.max(b.h - b.l, Math.abs(b.h - D[i-1].c), Math.abs(b.l - D[i-1].c)) : b.h - b.l; a = i < 14 ? (a*i + tr)/(i + 1) : (a*13 + tr)/14; atr.push(a); }
+  const zz = [], RL = [];
+  piv.forEach(q => { const z = zz[zz.length - 1];
+    if (!z) zz.push(q);
+    else if (q.k === z.k){ if (q.k === "H" ? q.p > z.p : q.p < z.p){ zz[zz.length - 1] = q; if (zz.length >= 2){ if (RL.length) RL[RL.length - 1] = [zz[zz.length - 2], q]; else RL.push([zz[zz.length - 2], q]); } } }
+    else if (((z.k === "H") ? q.p < z.p : q.p > z.p) && Math.abs(q.p - z.p) >= mA*atr[Math.min(q.at, n - 1)]){ RL.push([z, q]); zz.push(q); } });
+  RL.forEach(([A, B]) => { const known = B.at; if (known >= n - 1) return;
+    const R = Math.abs(A.p - B.p), up = A.k === "L", zone = up ? A.p - R/r : A.p + R/r, h = half * atr[Math.min(known, n - 1)];
+    let touch = -1; for (let i = known + 1; i < Math.min(n, known + 1 + wait); i++){ const b = D[i]; if (b.l <= zone + h && b.h >= zone - h){ touch = i; break; } }
+    const end = touch >= 0 ? touch : Math.min(n - 1, known + wait);
+    out.push({dir: up ? "BUY" : "SELL", zone, top: zone + h, bottom: zone - h, start: known, end, touched: touch >= 0}); });
+  return out;
+}
 // S26-END
 const S26_HTF = {};
 function s26Score(D, R, p, big){   // 0-100 strength SCORE (not a probability): 50 + bigger-TF agreement (±20 each) + this chart's past TP2 rate vs the break-even of this plan's TP2 (1/3 for a 2R plan) (±20, n>=5) + sweep (+10) + leg size vs ATR14

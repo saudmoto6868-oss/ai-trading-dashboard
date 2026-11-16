@@ -2691,6 +2691,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintS26(c, py){   // 2.6 strategy, calm and line-free: one equal-width box per setup (blue target zone over grey stop zone, colour only, small gap between boxes), live / waiting boxes
     // with text + a chip, finished trades kept as muted history (win = blue, loss = grey), swing high / low markers, the measured range with its ÷ 2.6 unit, and a corner info tab with the maths. Every part has a switch in the settings
+    this._s26X = null;   // close-button hit box of the info table (set again below when the table is drawn)
     const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80, ratio = +S.ratio || 2.6;
     const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
     if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
@@ -2757,10 +2758,14 @@ Object.assign(CandleChart.prototype, {
         L.push(["TF   side  swing → swing     Δ ÷ ratio = u        entry      stage", "#7d8590"]);
         const big = H => MT.filter(x => TFSEC[x.tf] > TFSEC[H]).sort((x, y) => TFSEC[x.tf] - TFSEC[y.tf]).slice(0, 2);
         [...MT.map(x => ({tf:x.tf, D2:x.rows, R2:x.R})), {tf:this.tf, D2:D, R2:R}].sort((x, y) => TFSEC[y.tf] - TFSEC[x.tf]).forEach(x => L.push(rowOf(x.tf, x.D2, x.R2, big(x.tf)))); }
-      c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16, h = L.length*lh + 10, pos = +S.ipos || 0;
+      c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16 + 20, h = L.length*lh + 10, pos = +S.ipos || 0;   // +20: room for the × close button in the top-right corner
       const X = pos % 2 ? PR - w - 8 : 8, Y = pos >= 2 ? PB - h - 8 : 22;
       c.globalAlpha = .88; c.fillStyle = "#11151b"; c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 6) : c.rect(X, Y, w, h); c.fill(); c.globalAlpha = 1; c.textAlign = "left";
-      L.forEach((l, k) => { c.font = (l[2] ? "bold " : "")+px+"px ui-monospace,Menlo,monospace"; c.fillStyle = l[1]; c.fillText(l[0], X + 8, Y + 5 + lh*(k + .5)); }); }
+      L.forEach((l, k) => { c.font = (l[2] ? "bold " : "")+px+"px ui-monospace,Menlo,monospace"; c.fillStyle = l[1]; c.fillText(l[0], X + 8, Y + 5 + lh*(k + .5)); });
+      // × button: hides this info table (turns the "Info tab" setting off; back on from the 2.6 settings)
+      const xb = {x:X + w - 19, y:Y + 3, w:15, h:15}; this._s26X = xb;
+      c.save(); c.fillStyle = "#2a313b"; c.beginPath(); c.roundRect ? c.roundRect(xb.x, xb.y, xb.w, xb.h, 3) : c.rect(xb.x, xb.y, xb.w, xb.h); c.fill();
+      c.strokeStyle = "#c5ccd6"; c.lineWidth = 1.4; c.beginPath(); c.moveTo(xb.x + 4.5, xb.y + 4.5); c.lineTo(xb.x + xb.w - 4.5, xb.y + xb.h - 4.5); c.moveTo(xb.x + xb.w - 4.5, xb.y + 4.5); c.lineTo(xb.x + 4.5, xb.y + xb.h - 4.5); c.stroke(); c.restore(); }
     if (+S.path){ const W8 = act.filter(p => p.status === "waiting"); if (W8.length){   // nearest waiting setup: thin path now -> entry -> TP2 and the expected time (median of this chart's past setups)
       const p = W8.reduce((b, q) => Math.abs(q.entry - now)/Math.abs(q.entry - q.stop) < Math.abs(b.entry - now)/Math.abs(b.entry - b.stop) ? q : b);
       const med = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
@@ -3141,6 +3146,7 @@ Object.assign(CandleChart.prototype, {
     const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
     if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
+    const sx = this._s26X; if (sx && q.x >= sx.x && q.x <= sx.x+sx.w && q.y >= sx.y && q.y <= sx.y+sx.h){ this.st.pos26.info = 0; this._s26X = null; this.onSubH && this.onSubH(); this.draw(); return true; }   // 2.6 info table × : hide it (same save as the settings toggle)
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){

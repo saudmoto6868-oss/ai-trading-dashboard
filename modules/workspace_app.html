@@ -2790,7 +2790,7 @@ Object.assign(CandleChart.prototype, {
     if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) - 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
       if (x > 0 && x < PR){ c.strokeStyle = "#c9a227"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, ya); c.lineTo(x, yb); c.moveTo(x - 4, ya); c.lineTo(x + 4, ya); c.moveTo(x - 4, yb); c.lineTo(x + 4, yb); c.stroke();
         const yu = py(F.kind === "H1" ? F.tp1 - (F.side === "BUY" ? u : -u) : F.entry); c.fillStyle = "#c9a227"; c.fillRect(x - 3, yu - 1, 6, 2);
-        c.font = "bold "+px+"px sans-serif"; c.textAlign = "right"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x - 6, (ya + yb)/2);   // left of the leg end: the trade box starts to its right } }
+        c.font = "bold "+px+"px sans-serif"; c.textAlign = "right"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x - 6, (ya + yb)/2); } }   // label sits left of the leg end, the trade box starts to its right
     if (F && +S.info){ const g = leg(F), buy = F.side === "BUY", rng = Math.abs(g.pb - g.pa), u = rng/ratio, side = buy ? "LONG" : "SHORT", sg = buy ? "−" : "+";
       const L = [[`2.6 · ${F.kind} ${side} · ${this.tf}`, buy ? CR : "#b7bdc6", true],
         ...(F.kind === "H2" ? [[`${buy ? "Equal lows" : "Equal highs"}  ${f(F.tp1)}  (${when(F.anchors[0])} · ${when(F.anchors[1])})`, "#b7bdc6"], [`Swept  ${when(F.anchors[2])}`, "#b7bdc6"]] : []),

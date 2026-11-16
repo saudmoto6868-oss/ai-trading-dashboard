@@ -3638,7 +3638,18 @@ def render_smt_board():
 
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        # views merged (owner 2026-11-16): Screener + Signal list, and Similar charts + Correlation + Performance under "Compare"
+        _OLD_RV = {"Signal list": ("Screener", "Signal list"), "Similar charts": ("Compare", "Similar charts"), "Correlation": ("Compare", "Correlation"), "Performance": ("Compare", "Performance")}
+        if st.session_state.get("radar_view") in _OLD_RV:
+            _o = _OLD_RV[st.session_state["radar_view"]]
+            st.session_state["radar_view"] = _o[0]
+            st.session_state["radar_sub_s" if _o[0] == "Screener" else "radar_sub_c"] = _o[1]
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Screener", "Compare", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        _disp = _rv
+        if _rv == "Screener":
+            _disp = st.segmented_control(L("Screener"), ["Screener", "Signal list"], default="Screener", key="radar_sub_s", label_visibility="collapsed", format_func=L) or "Screener"
+        elif _rv == "Compare":
+            _disp = st.segmented_control(L("Compare"), ["Similar charts", "Correlation", "Performance"], default="Similar charts", key="radar_sub_c", label_visibility="collapsed", format_func=L) or "Similar charts"
         try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
             from modules import intermarket_ui as _IMU
             st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
@@ -3650,18 +3661,18 @@ if PAGE == 1:   # cscan
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
-        if _rv == "SMT pairs":
+        _rf = _radar_filters(_disp) if _rv not in ("SMT pairs", "Day plan") else None
+        if _disp == "SMT pairs":
             render_smt_board()
-        elif _rv == "Day plan":
+        elif _disp == "Day plan":
             render_day_plan(SCAN_SYMBOLS)
-        elif _rv == "Heat map":
+        elif _disp == "Heat map":
             render_market_map()
-        elif _rv == "Similar charts":
+        elif _disp == "Similar charts":
             render_radar_similar(_rf)
-        elif _rv in ("Performance", "Correlation", "Signal list"):
-            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv](_rf)
-        elif _rv == "Screener":
+        elif _disp in ("Performance", "Correlation", "Signal list"):
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_disp](_rf)
+        elif _disp == "Screener":
             render_radar_screener(_rf)
         else:
             render_chart_scanner(_rf)

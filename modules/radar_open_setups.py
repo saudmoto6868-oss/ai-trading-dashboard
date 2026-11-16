@@ -14,7 +14,7 @@ def _kind(flag: str) -> str | None:
     return None
 
 
-def _direction(flag: str, d: dict) -> str:
+def direction_of(flag: str, d: dict) -> str:
     """long / short from the scanner's own side tags first, then the flag name, else 'unclear' (never guessed)."""
     for s_ in (d.get("sides") or {}).get(flag, []) or []:
         if s_ in ("buy", "long", "bull"):
@@ -43,7 +43,7 @@ def open_setups(data: dict, shown: set | None = None) -> list[dict]:
             if not kind:
                 continue
             rows.append({"symbol": sym, "setup": kind, "flag": flag,
-                         "direction": _direction(flag, d),
+                         "direction": direction_of(flag, d),
                          "price": d.get("price"), "in_filter": bool(shown and sym in shown)})
     return rows
 

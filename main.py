@@ -3130,7 +3130,9 @@ def render_chart_scanner(f):
                 _chg = d_x.get("chg"); _vx = d_x.get("volx")
                 from modules.symbol_icon import icon as _sic
                 _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
-                _lh = _LIVE.live_card_html(sym, tf_x, 300) if _live_on else None
+                from modules import radar_open_setups as _OS2
+                _sigs = [{"text": k, "dir": _OS2.direction_of(k, d_x)} for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_"))]
+                _lh = _LIVE.live_card_html(sym, tf_x, 300, signals=_sigs) if _live_on else None
                 if _lh:
                     st.markdown(
                         f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
@@ -3142,7 +3144,8 @@ def render_chart_scanner(f):
                         + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
                         , unsafe_allow_html=True)
                     _cv1.html(_lh, height=300, scrolling=False)
-                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + card_s + "</div>", unsafe_allow_html=True)
+                    _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
+                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _tip_below + card_s + "</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(
                         f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "

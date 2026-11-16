@@ -32,13 +32,18 @@ def is_okx_spot(sym: str) -> bool:
     return bool(re.fullmatch(r"[A-Z0-9]{2,12}-[A-Z]{2,6}", sym or ""))
 
 
-def live_card_html(sym: str, tf: str, height_px: int = 300) -> str | None:
+def live_card_html(sym: str, tf: str, height_px: int = 300, signals: list | None = None) -> str | None:
     """Full HTML document for one live card, or None when the symbol has no OKX live feed."""
     if not is_okx_spot(sym):
         return None
     bar = OKX_BAR.get(tf, "1H")
     tfs = LIVE_TFS if tf in LIVE_TFS else [tf] + LIVE_TFS
-    cfg = {"sym": sym, "bar": bar, "tf": tf, "tfs": [[t, OKX_BAR.get(t, "1H")] for t in tfs], "rest": OKX_REST, "ws": OKX_WS}
+    sigs = [{"text": str(x.get("text", ""))[:40], "dir": x.get("dir", "unclear")} for x in (signals or [])][:6]
+    cfg = {"sym": sym, "bar": bar, "tf": tf, "tfs": [[t, OKX_BAR.get(t, "1H")] for t in tfs], "rest": OKX_REST, "ws": OKX_WS, "sigs": sigs}
+    alert_html = ""
+    if sigs:
+        chips = "".join(f"<span class='sg {html.escape(x['dir'])}'>{html.escape(x['dir'])} {html.escape(x['text'])}</span>" for x in sigs)
+        alert_html = f"<span id='alert' class='alert'>&#9888; {len(sigs)} signal{'s' if len(sigs) > 1 else ''}</span>{chips}"
     opts = "".join(f"<option value='{html.escape(t)}'{' selected' if t == tf else ''}>{html.escape(t)}</option>" for t in tfs)
     return f"""<!doctype html><html><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
@@ -50,11 +55,15 @@ html,body{{margin:0;background:#0b0e11;color:#c9d1d9;font:11px ui-monospace,Menl
 #dot.on{{background:#0ecb81}} #dot.off{{background:#f6465d}}
 select{{background:#161a1e;color:#c9d1d9;border:1px solid #2b3139;border-radius:3px;font:10px ui-monospace,monospace;padding:1px 2px}}
 #msg{{color:#848e9c;padding:4px}}
+.alert{{background:#3a1f1f;color:#f6465d;border-radius:3px;padding:0 5px;font-weight:700;animation:blink 1.2s steps(2,start) infinite}}
+.sg{{border-radius:3px;padding:0 4px;font-size:10px}} .sg.long{{background:#1e3a2a;color:#0ecb81}} .sg.short{{background:#3a1f1f;color:#f6465d}} .sg.unclear{{background:#24272e;color:#9aa3ad}}
+body.glow{{box-shadow:inset 0 0 0 1px #f0b90b}}
+@keyframes blink{{50%{{opacity:.45}}}}
 #c{{width:100%;height:{max(120, height_px - 26)}px}}
-</style></head><body>
+</style></head><body{' class="glow"' if sigs else ''}>
 <div id='bar'><span id='dot' title='live feed'></span><b>{html.escape(sym)}</b>
 <select id='tf' aria-label='timeframe'>{opts}</select>
-<span id='px'>-</span><span id='chg'></span><span id='ts' style='color:#5e6673'></span></div>
+<span id='px'>-</span><span id='chg'></span><span id='ts' style='color:#5e6673'></span>{alert_html}</div>
 <div id='c'></div><div id='msg'></div>
 <script src='{LWC_URL}'></script>
 <script>
@@ -73,6 +82,15 @@ function paintPrice(p, ts) {{
   if (ts) tsEl.textContent = new Date(ts).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
   if (priceLine) series.removePriceLine(priceLine);
   priceLine = series.createPriceLine({{price: p, color: '#f0b90b', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'last'}});
+}}
+function applyMarkers() {{
+  if (!series || !lastBar || !CFG.sigs.length) return;
+  const long = CFG.sigs.some(x => x.dir === 'long'), short = CFG.sigs.some(x => x.dir === 'short');
+  const m = [];
+  if (long) m.push({{time: lastBar.time, position: 'belowBar', color: '#0ecb81', shape: 'arrowUp', text: 'LONG'}});
+  if (short) m.push({{time: lastBar.time, position: 'aboveBar', color: '#f6465d', shape: 'arrowDown', text: 'SHORT'}});
+  if (!long && !short) m.push({{time: lastBar.time, position: 'aboveBar', color: '#f0b90b', shape: 'circle', text: 'SIGNAL'}});
+  series.setMarkers(m);
 }}
 function ensureChart() {{
   if (chart) return;
@@ -97,6 +115,7 @@ async function loadHistory(bar, id) {{
   ensureChart();
   series.setData(rows);
   lastBar = rows[rows.length - 1];
+  applyMarkers();
   openPrice = rows[0] ? rows[0].open : null;
   chart.timeScale().fitContent();
   paintPrice(lastBar.close, lastBar.time * 1000);

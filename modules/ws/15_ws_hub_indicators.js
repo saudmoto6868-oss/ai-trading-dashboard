@@ -275,7 +275,7 @@ function s26Calc(D, o){
     piv.forEach(q => { const z = zz[zz.length - 1];
       if (!z) zz.push(q);
       else if (q.k === z.k){ if (q.k === "H" ? q.p > z.p : q.p < z.p){ zz[zz.length - 1] = q; if (zz.length >= 2){ if (RL.length) RL[RL.length - 1] = [zz[zz.length - 2], q]; else RL.push([zz[zz.length - 2], q]); } } }
-      else if (Math.abs(q.p - z.p) >= mA*atr[Math.min(q.at, n - 1)]){ RL.push([z, q]); zz.push(q); } });
+      else if (((z.k === "H") ? q.p < z.p : q.p > z.p) && Math.abs(q.p - z.p) >= mA*atr[Math.min(q.at, n - 1)]){ RL.push([z, q]); zz.push(q); } });
     const LG = RL.filter(g => g[1].at < n - 1); let busy = -1;
     LG.forEach(([A, B], k) => { const known = B.at; if (known <= busy) return;
       const side = A.k === "H" ? "SELL" : "BUY", sg = side === "SELL" ? 1 : -1, u = Math.abs(A.p - B.p)/r, e = A.p + sg*u;

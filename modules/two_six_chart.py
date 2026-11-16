@@ -98,7 +98,8 @@ def real_legs(bars, pivots, min_atr=3.0):
                         legs[-1] = (zz[-2], q)
                     else:
                         legs.append((zz[-2], q))
-        elif abs(q.price - zz[-1].price) >= min_atr * atr[min(q.known_at, len(bars) - 1)]:
+        elif ((q.price < zz[-1].price) if zz[-1].kind == "H" else (q.price > zz[-1].price)) and \
+                abs(q.price - zz[-1].price) >= min_atr * atr[min(q.known_at, len(bars) - 1)]:  # reversal must go the other way
             legs.append((zz[-1], q))
             zz.append(q)
     return legs

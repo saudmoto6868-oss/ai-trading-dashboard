@@ -2830,6 +2830,7 @@ def _radar_filters(view):
 .st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:26px!important;font-size:11px!important}
 .st-key-csf [data-baseweb="select"] span,.st-key-csf [data-baseweb="tag"]{font-size:11px!important}
 .st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
+.st-key-csf [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;overflow-x:auto}.st-key-csf{font-size:10px}
 .st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
@@ -3052,16 +3053,25 @@ def render_chart_scanner(f):
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
     _dn = _rs.get("dn", 0)
-    st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
-        (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
-        (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
-        (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
-        (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
-         L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
-        (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
-         L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
-        (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
-    ]), unsafe_allow_html=True)
+    with st.expander(L('Summary (KPIs)'), expanded=False):   # collapsed by default: the charts start higher on the page
+        st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+            (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
+            (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
+            (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
+            (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+             L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+            (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
+             L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+            (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
+        ]), unsafe_allow_html=True)
+    from modules import radar_open_setups as _OS
+    _orows = _OS.open_setups(data, {s_ for s_, _d in shown})
+    with st.expander(L("Open setups: harmonic + OTE, with direction") + f" ({len(_orows)})", expanded=bool(_orows)):
+        _sm = _OS.summary(_orows)
+        st.caption(f"long {_sm['long']} · short {_sm['short']} · unclear {_sm['unclear']} · in the Radar filter {_sm['in_filter']}. "
+                   "2.6 boxes and harmonic target prices are not in the scanner data yet (read-only, no orders).")
+        if _orows:
+            st.dataframe(pd.DataFrame(_orows), hide_index=True, width="stretch", height=240)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -3092,6 +3102,9 @@ def render_chart_scanner(f):
             _lad_main = dict(zip(_lt, _ex2.map(lambda t_: _htf_trend(_symt, t_), _lt)))
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
+    from modules import radar_live as _LIVE
+    import streamlit.components.v1 as _cv1
+    _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
@@ -3117,18 +3130,33 @@ def render_chart_scanner(f):
                 _chg = d_x.get("chg"); _vx = d_x.get("volx")
                 from modules.symbol_icon import icon as _sic
                 _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
-                st.markdown(
-                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                    f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
-                    f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
-                    + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
-                    + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
-                    + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
-                    + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
-                    f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
-                    + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
-                    f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
-                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>", unsafe_allow_html=True)
+                _lh = _LIVE.live_card_html(sym, tf_x, 300) if _live_on else None
+                if _lh:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        , unsafe_allow_html=True)
+                    _cv1.html(_lh, height=300, scrolling=False)
+                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + card_s + "</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
+                        + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
+                        f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
+                        f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>"
+                        , unsafe_allow_html=True)
                 _an = False
                 if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
                     with st.popover("⋯", use_container_width=True):

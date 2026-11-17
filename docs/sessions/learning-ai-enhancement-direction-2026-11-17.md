@@ -100,3 +100,20 @@ These are the material to build on; do not duplicate their content into a new da
 - Main SHA: `da6ad692c011e12354a958063fed487aff095c27` (rechecked 2026-11-17).
 - Working branch: `feat/learning-ai-enhancement`, created from that SHA.
 - CI quota issue remains unresolved; test execution must be reported separately from source review.
+
+
+## Implemented first slice — MR !81
+
+- MR: https://gitlab.com/6868-group/ai-trading-dashboard/-/merge_requests/81
+- Branch: `feat/learning-ai-enhancement`
+- Added optional selection of one existing Academy Path lesson in Mr X (AI PAGE 5).
+- Mr X receives bounded lesson context only: ID/title/school/evidence grade, short concept, evidence note, up to three steps and up to three references.
+- Chart context remains the existing compact computed summary; raw candles are not passed to the model.
+- Reuses the existing provider, caps and cache; cache key now includes a fingerprint of the selected lesson context.
+- Application language is passed from the current i18n setting.
+- Added `tests/test_ai_page_academy_context.py` for canonical path loading and bounded/evidence-aware context.
+- No new Academy page, lesson catalog, provider or database was created.
+
+### Pipeline result
+
+MR pipeline `3078847264` was created and immediately failed before runner startup. Jobs `streamlit_iframe_migration`, `risk_policy_tests`, `v7_structure_parity` and `mr_tests` all report `ci_quota_exceeded`; all have null `started_at`. No test command ran and no passing test is claimed.

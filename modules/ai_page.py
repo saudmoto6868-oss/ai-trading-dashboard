@@ -46,7 +46,9 @@ def _lesson_context(lesson):
         "school": str(lesson.get("school", ""))[:80],
         "evidence_grade": str(lesson.get("grade", ""))[:40],
         "concept": str(lesson.get("idea", ""))[:420],
+        "evidence_note": str(lesson.get("grade_note", ""))[:180],
         "key_steps": [str(x)[:120] for x in (lesson.get("steps") or [])[:3]],
+        "references": [str(x)[:100] for x in (lesson.get("refs") or [])[:3]],
         "caveat": "Educational context only; a lesson or hypothesis is not empirical validation.",
     }
 
@@ -82,7 +84,12 @@ def render_ai_page(symbols, L):
     msgs.append({"role": "user", "text": q})
     with st.chat_message("user"):
         st.markdown(q)
-    ctx = {"lang": "ar", "page": "AI analyst", "sym": sym, "tf": tf}
+    try:
+        from modules.i18n import lang as app_lang
+        language = app_lang()
+    except Exception:
+        language = "ar"
+    ctx = {"lang": language, "page": "AI analyst", "sym": sym, "tf": tf}
     if lesson_id:
         ctx["academy_lesson"] = _lesson_context(lesson_by_id[lesson_id])
     try:

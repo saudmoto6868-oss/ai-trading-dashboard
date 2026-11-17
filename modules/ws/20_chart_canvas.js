@@ -273,6 +273,7 @@ class CandleChart {
     if (this.kz) this.paintKZ(c, py, i0, i1, PB);
     if (this.kzsOn) this.paintKZS(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGann(c, py, i0, i1, PB);
+    if (this.gannOn) this.paintGannOffset(c, py, i0, i1, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);
     if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); }   // the card lives under the order-flow column (paintCol)

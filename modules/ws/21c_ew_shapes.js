@@ -79,3 +79,33 @@ Object.assign(CandleChart.prototype, {
     return T ? Lg("Shape: "+T[0], "الشكل: "+T[1]) : null;
   }
 });
+
+Object.assign(CandleChart.prototype, {
+  paintEWfib(c, py, w){   // Elliott Fibonacci zone of the newest full impulse: 0.5 / 0.618 / 0.764 / 0.854 from the wave-5 end over the wave-1 range (our measurement)
+    if (!w || !w.pts || w.pts.length < 6) return;
+    const p0 = w.pts[0].p, p1 = w.pts[1].p, p5 = w.pts[5], rng = p1 - p0; if (!rng) return;
+    const x0 = this.x(p5.i), PR = this.PR, col = "#b57cff";
+    c.save(); c.setLineDash([3,3]); c.strokeStyle = col; c.fillStyle = col; c.globalAlpha = .75; c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle";
+    for (const lvl of [0.5, 0.618, 0.764, 0.854]){
+      const pr = p5.p - lvl*rng, y = py(pr); c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke();
+      c.fillText(lvl.toFixed(3), Math.min(PR - 34, x0 + 4), y - 7);
+    }
+    c.restore();
+  },
+  paintGannOffset(c, py, i0, i1, PB){   // Gann offset lines (our definition): 15 / 45 / 60 deg from the last swing axis, 1 unit = ATR per bar
+    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3); if (z.length < 2) return;
+    const a = z[z.length-2], b = z[z.length-1]; const bars = b.i - a.i; if (!bars) return;
+    const slope = (b.p - a.p)/bars, dir = slope >= 0 ? 1 : -1;
+    const d = this.data.slice(Math.max(0, this.data.length - 14)); const unit = d.reduce((s, r) => s + (r.h - r.l), 0)/Math.max(1, d.length); if (!unit) return;
+    const base = Math.atan2(Math.abs(slope), unit), PR = this.PR, col = "#f7b500";
+    c.save(); c.setLineDash([5,4]); c.strokeStyle = col; c.globalAlpha = .7; c.lineWidth = 1; c.font = "10px sans-serif"; c.fillStyle = col;
+    for (const off of [15, 45, 60]){
+      const ang = base + off*Math.PI/180; if (ang >= Math.PI/2) continue;
+      const x0 = this.x(b.i), y0 = py(b.p), bwPx = Math.max(1e-9, this.bw), barsToEdge = (PR - x0)/bwPx;
+      const pEnd = b.p + dir*Math.tan(ang)*unit*barsToEdge;   // price at the right edge, same slope in scaled units
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(PR, py(pEnd)); c.stroke();
+      c.fillText(off+"°", Math.min(PR - 28, x0 + 6), y0 - 6);
+    }
+    c.restore();
+  }
+});

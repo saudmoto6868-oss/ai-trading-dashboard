@@ -83,15 +83,20 @@ const TCE = {
   rsi(v, n){ n = n || 14; const o = new Array(v.length).fill(NaN); let g = 0, l = 0; for (let i = 1; i < v.length; i++){ const d = v[i] - v[i-1], up = Math.max(d, 0), dn = Math.max(-d, 0);
       if (i <= n){ g += up; l += dn; if (i === n){ g /= n; l /= n; o[i] = l ? 100 - 100/(1 + g/l) : 100; } } else { g = (g*(n-1) + up)/n; l = (l*(n-1) + dn)/n; o[i] = l ? 100 - 100/(1 + g/l) : 100; } } return o; },
   // VWAP anchored at each UTC day start (crypto / perpetuals trade 24h) with +-1 / +-2 standard-deviation bands; no volume -> equal weights
-  vwapSession(rows){ const n = rows.length, vw = new Array(n), sd = new Array(n); let day = null, pv = 0, vv = 0, p2 = 0;
-    for (let i = 0; i < n; i++){ const r = rows[i], d = Math.floor((r.t || 0)/864e5); if (d !== day){ day = d; pv = 0; vv = 0; p2 = 0; }
+  // anchor "rth" = the US cash open 09:30 New York (indices / stocks): the session id is the New York date of (time - 9h30)
+  nyOff(t){ const k = Math.floor(t/864e5); this._ny = this._ny || {}; if (this._ny[k] != null) return this._ny[k];
+    let off = -5*3600e3; try { const f = new Intl.DateTimeFormat("en-US", {timeZone:"America/New_York", hour:"2-digit", hour12:false}).formatToParts(new Date(k*864e5 + 12*3600e3)), h = +f.find(x => x.type === "hour").value % 24; off = (h - 12)*3600e3; } catch(e){}
+    return (this._ny[k] = off); },
+  sessId(t, anchor){ return anchor === "rth" ? Math.floor((t + this.nyOff(t) - 9.5*3600e3)/864e5) : Math.floor(t/864e5); },
+  vwapSession(rows, anchor){ const n = rows.length, vw = new Array(n), sd = new Array(n); let day = null, pv = 0, vv = 0, p2 = 0;
+    for (let i = 0; i < n; i++){ const r = rows[i], d = this.sessId(r.t || 0, anchor); if (d !== day){ day = d; pv = 0; vv = 0; p2 = 0; }
       const tp = (r.h + r.l + r.c)/3, v = r.v > 0 ? r.v : 1; pv += tp*v; vv += v; p2 += tp*tp*v; vw[i] = pv/vv; sd[i] = Math.sqrt(Math.max(0, p2/vv - vw[i]*vw[i])); }
     return {vw, sd}; },
   // previous UTC day high / low, today's open, this week's open (Monday 00:00 UTC), from intraday rows -> {pdh, pdl, dopen, wopen} (null when not enough days)
   dayLevels(rows){ const n = rows.length; if (!n || !rows[0].t) return {}; const days = new Map(); rows.forEach(r => { const d = Math.floor(r.t/864e5), x = days.get(d); if (!x) days.set(d, {o:r.o, h:r.h, l:r.l}); else { x.h = Math.max(x.h, r.h); x.l = Math.min(x.l, r.l); } });
     const ks = [...days.keys()].sort((a, b) => a - b), today = ks[ks.length-1], prev = ks.length > 1 ? days.get(ks[ks.length-2]) : null, wk = d => Math.floor((d + 3)/7);   // epoch day 0 = Thursday -> +3 makes weeks start on Monday
     const w0 = ks.find(d => wk(d) === wk(today)); return {pdh:prev ? prev.h : null, pdl:prev ? prev.l : null, dopen:days.get(today).o, wopen:w0 != null ? days.get(w0).o : null}; },
-  indicators(rows){ const c = rows.map(r => r.c), v = this.vwapSession(rows), L = this.dayLevels(rows);
+  indicators(rows, anchor){ const c = rows.map(r => r.c), v = this.vwapSession(rows, anchor), L = this.dayLevels(rows);
     const I = {close:c, open:rows.map(r => r.o), high:rows.map(r => r.h), low:rows.map(r => r.l), ema9:this.ema(c, 9), ema21:this.ema(c, 21), ema50:this.ema(c, 50), ema200:this.ema(c, 200),
       sma20:this.sma(c, 20), sma50:this.sma(c, 50), rsi14:this.rsi(c, 14), vwap:v.vw, vwapU1:v.vw.map((x, i) => x + v.sd[i]), vwapL1:v.vw.map((x, i) => x - v.sd[i]),
       vwapU2:v.vw.map((x, i) => x + 2*v.sd[i]), vwapL2:v.vw.map((x, i) => x - 2*v.sd[i])};
@@ -167,7 +172,12 @@ const TCE = {
     if (verdict === "TAKE" && worst && worst[0] >= 2){ verdict = "WAIT"; second.push(["Downgraded to WAIT: the strongest objection is heavy ("+worst[1]+")", "نزلت لـ«استنى»: أقوى اعتراض تقيل ("+worst[2]+")"]); }
     if (verdict === "WAIT" && !idea.now) second.push(["Limit order at "+entry.toPrecision(6)+": price has not reached the zone", "أمر معلّق عند "+entry.toPrecision(6)+": السعر لسه ماوصلش للمنطقة"]);
     const pct = Math.max(0, Math.min(100, Math.round((score + 4)/12*100)));
-    return {pros, cons, vetoes, second, score, pct, verdict, plan:{entry, stop, tps}, rr, pts:pt(tps[0] - entry), blocked: blocked ? ob : null};
+    // A+ (Academy checklist): a TAKE with the higher timeframe behind it, a trigger on the entry timeframe, >= 2 independent confirmations,
+    // R:R >= 2 with a clear path to the target, and no regime / journal objection -> grade A+; other TAKE = A, WAIT = B, SKIP = C
+    const conf = (c.confl ? c.confl.length : 0) + (c.vpAt ? 1 : 0) + (c.hist && c.hist.n >= 10 && c.hist.hitPct >= 0.55 ? 1 : 0) + (c.setupB && c.setupB.available && c.setupB.bias === want ? 1 : 0);
+    const aplus = verdict === "TAKE" && !!(c.bias && c.bias.available && c.bias.bias === want) && !!c.trig && conf >= (["elliott","harmonic","smt"].includes(idea.det) ? 3 : 2) && rr >= 2 && !ob && score >= 5 && !c.regime_bad && !(c.jr && c.jr.done >= 10 && c.jr.avgR < 0);
+    const grade = aplus ? "A+" : verdict === "TAKE" ? "A" : verdict === "WAIT" ? "B" : "C";
+    return {pros, cons, vetoes, second, score, pct, verdict, grade, conf, plan:{entry, stop, tps}, rr, pts:pt(tps[0] - entry), blocked: blocked ? ob : null};
   },
   /* live candidates for one symbol + style. setupRows: candles of the setup tf; levels: SR.compute(setupRows); biasRows: higher tf; entryRows: lower tf (optional).
      targetPts: 0 = Auto. -> [{side, level, touches, entry, stop, tps, now, pts, ps, st, bias, rej, score, max, why[]}] */
@@ -280,13 +290,23 @@ const TC = {
     if (on("scanner")) readyList(true).filter(e => e.symbol === sym && e.ttype === style && e.src !== "tclass").forEach(e =>
       mk("scanner", e.direction === "bullish" ? 1 : -1, e.plan.entry, e.plan.stop, Math.abs(px - e.plan.entry) <= a*0.5, e.plan.entry, Lg("Scanner: ","السكانر: ")+(e.tags || []).slice(0, 3).map(t => tagTxt(t[0])).join(" · "), e.plan.tps));
     const I_ = TCE.indicators(R), li = n - 1, intraday = style === "Scalp" || style === "Day Trade";
-    if (on("vwap") && intraday){ const vw = I_.vwap[li], sdv = (I_.vwapU2[li] - vw)/2;
-      if (sdv > 0){
-        if (px <= I_.vwapL2[li]) mk("vwap", 1, px, px - Math.max(a, sdv), true, vw, Lg("VWAP −2σ: back to VWAP","VWAP −2σ: رجوع للـVWAP"), [vw, I_.vwapU1[li]]);
-        if (px >= I_.vwapU2[li]) mk("vwap", -1, px, px + Math.max(a, sdv), true, vw, Lg("VWAP +2σ: back to VWAP","VWAP +2σ: رجوع للـVWAP"), [vw, I_.vwapL1[li]]);
-        const e = I_.ema21, up = e[li] > e[li-5], dn = e[li] < e[li-5];
-        if (up && px > vw && R[li].l <= vw + a*0.2 && px - vw <= a*0.6) mk("vwap", 1, px, vw - a*0.6, true, vw, Lg("Pullback to VWAP in an uptrend","رجوع لـVWAP في ترند صاعد"));
-        if (dn && px < vw && R[li].h >= vw - a*0.2 && vw - px <= a*0.6) mk("vwap", -1, px, vw + a*0.6, true, vw, Lg("Pullback to VWAP in a downtrend","رجوع لـVWAP في ترند هابط")); } }
+    /* VWAP school (owner options): side long / short / both; anchor UTC day or the 09:30 New York cash open; stretch measured in sigma, points or ATR;
+       optional "wait for the reclaim" (a close back over the previous bar's high / under its low) and the 10:00-11:30 New York window (sources: fades fail in
+       9:30-10:00 and on trend days). Target = the VWAP, stop 1 ATR beyond the extreme. Untested: the journal keeps the record. */
+    if (on("vwap") && intraday){ const V = Object.assign({side:"both", anchor:"auto", mode:"sigma", k:2, trig:true, win:false}, opt.vw || {});
+      const idx = /^(HL:xyz:(SP500|XYZ100|JP225|KR200)|Y:\^|FH:(SPX|NAS|US30))/.test(sym) || symClass(sym) === "Stocks", anchor = V.anchor === "auto" ? (idx ? "rth" : "utc") : V.anchor;
+      const IV = anchor === "utc" ? I_ : TCE.indicators(R, anchor), vw = IV.vwap[li], sdv = (IV.vwapU2[li] - vw)/2, dist = V.mode === "points" ? V.k*ps : V.mode === "atr" ? V.k*a : V.k*sdv;
+      let inWin = true; if (V.win){ try { const f = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false}).formatToParts(new Date(R[li].t)), m = (+f.find(x => x.type === "hour").value % 24)*60 + +f.find(x => x.type === "minute").value; inWin = m >= 600 && m <= 690; } catch(e){} }
+      const E = st.entry, eL = E.length - 1, recl = sd => E.length > 2 && (sd > 0 ? E[eL].c > E[eL-1].h : E[eL].c < E[eL-1].l);
+      const tag = (V.mode === "points" ? V.k+Lg(" pts"," نقطة") : V.mode === "atr" ? V.k+" ATR" : V.k+"σ")+(anchor === "rth" ? " · NY 09:30" : "");
+      if (sdv > 0 && inWin){
+        [[1, "long"], [-1, "short"]].forEach(([sd, nm]) => { if (V.side !== "both" && V.side !== nm) return;
+          if (sd*(vw - px) < dist) return;   // not stretched enough from the VWAP
+          const ext = sd > 0 ? Math.min(...R.slice(-3).map(r => r.l)) : Math.max(...R.slice(-3).map(r => r.h)), ok = !V.trig || recl(sd);
+          mk("vwap", sd, px, ext - sd*a, ok, vw, (sd > 0 ? Lg("Under VWAP by ","تحت الـVWAP بـ") : Lg("Over VWAP by ","فوق الـVWAP بـ"))+tag+(ok ? "" : Lg(" (wait for the reclaim)"," (استنى الريكليم)")), [vw, vw + sd*sdv]); });
+        if (V.mode === "sigma"){ const e = IV.ema21, up = e[li] > e[li-5], dn = e[li] < e[li-5];
+          if (V.side !== "short" && up && px > vw && R[li].l <= vw + a*0.2 && px - vw <= a*0.6) mk("vwap", 1, px, vw - a*0.6, true, vw, Lg("Pullback to VWAP in an uptrend","رجوع لـVWAP في ترند صاعد"));
+          if (V.side !== "long" && dn && px < vw && R[li].h >= vw - a*0.2 && vw - px <= a*0.6) mk("vwap", -1, px, vw + a*0.6, true, vw, Lg("Pullback to VWAP in a downtrend","رجوع لـVWAP في ترند هابط")); } } }
     if (on("ma") && n > 60){ const e9 = I_.ema9, e21 = I_.ema21, e50 = I_.ema50, e200 = I_.ema200, lo5 = Math.min(...R.slice(-5).map(r => r.l)), hi5 = Math.max(...R.slice(-5).map(r => r.h));
       for (let k = li; k > li - 3; k--){
         if (e9[k-1] <= e21[k-1] && e9[k] > e21[k] && px > e200[li]){ mk("ma", 1, px, lo5 - a*0.2, true, e21[li], Lg("EMA 9/21 cross up, above EMA200","تقاطع EMA 9/21 لفوق، فوق EMA200")); break; }
@@ -313,7 +333,7 @@ const TC = {
       const tS = entStruct.find(b => b.side === s), tR = TCE.rejection(st.entry, s), trig = tS ? tS.kind+" "+S.entry : tR ? Lg("rejection candle","شمعة رفض") : "";
       const confl = [...new Set(I.ideas.filter(o => o !== idea && o.side === s && o.det !== idea.det && Math.abs(o.entry - idea.entry) <= X.a).map(o => this.detName(o.det)))];
       const vn = X.nodes.find(x => Math.abs(x.p - idea.entry) <= X.a*0.3), late = idea.now && idea.level != null ? Math.max(0, s*(X.px - idea.level))/Math.max(1e-12, Math.abs(idea.tps[0] - idea.level)) : 0;
-      const c = {tf:{bias:S.bias, setup:S.setup, entry:S.entry}, ps:X.ps, atr:X.a, levels, bias, setupB, trig, confl, vpAt:vn ? vn.src : "", hist, late:late > 0.4 ? late : 0, regime:reg,
+      const c = {tf:{bias:S.bias, setup:S.setup, entry:S.entry}, ps:X.ps, atr:X.a, levels, bias, setupB, trig, confl, vpAt:vn ? vn.src : "", hist, late:late > 0.4 ? late : 0, regime:reg, regime_bad:reg === "chop" || reg === "hivol" || reg === "crash",
         news:nw ? (nw.country+" "+(nw.title || "")) : "", openSame:open.some(t => t.symbol === sym && t.dir === dir), openOpp:open.some(t => t.symbol === sym && t.dir !== dir),
         classOpen:open.filter(t => t.symbol !== sym && symClass(t.symbol) === cls && t.dir === dir).length, jr:this.record(style, idea.det), scalp:style === "Scalp", ses};
       return Object.assign({}, idea, {j:TCE.judge(idea, c), hist}); });
@@ -336,17 +356,33 @@ const TC = {
   // an idea as a card in the scanner's shape: Alerts / Setup Card / Ready / Signals / strip / journal read it unchanged
   card(sym, style, x, r){
     const S = TCE.STYLES[style], j = x.j, long_ = x.side > 0, V = {TAKE:"ادخل", WAIT:"استنى", SKIP:"ماتدخلش"};
-    const ar = ["القرار: "+V[j.verdict]+" · "+x.label+" · النتيجة "+j.score, "ترابط الفريمات: "+S.bias+" ← "+S.setup+" ← "+S.entry]
+    const ar = ["القرار: "+V[j.verdict]+" · الدرجة "+j.grade+" · "+x.label+" · النتيجة "+j.score, "ترابط الفريمات: "+S.bias+" ← "+S.setup+" ← "+S.entry]
       .concat(j.pros.map(p => "✔ "+p[2]), j.cons.map(p => "✘ "+p[2]), j.vetoes.map(p => "⛔ "+p[1]), j.second.map(p => "↻ "+p[1]));
     return {symbol:sym, direction:long_ ? "bullish" : "bearish", ttype:style, tfk:S.tfk, tfc:S.entry, score:Math.round(j.pct/10), max:10, src:"tclass", det:x.det, verdict:j.verdict,
       plan:{entry:j.plan.entry, stop:j.plan.stop, tps:j.plan.tps}, zones:[{lo:Math.min(x.entry, x.stop), hi:Math.max(x.entry, x.stop), dir:long_ ? "bullish" : "bearish"}],
-      tags:[[this.detKey(x.det), "#f0b90b", "#000", x.label], [j.pts+Lg(" pts"," نقطة"), "#4aa3ff", "#000", "target in points"]], spark:r.spark, ana:{sig:ar}, j, pts:j.pts, ps:r.ps, label:x.label};
+      tags:[[this.detKey(x.det), "#f0b90b", "#000", x.label], [j.pts+Lg(" pts"," نقطة"), "#4aa3ff", "#000", "target in points"]].concat(j.grade === "A+" ? [["A+", "#f0b90b", "#000", "A+ setup: higher timeframe + trigger + 2 confirmations + R:R >= 2 + clear path"]] : []), spark:r.spark, ana:{sig:ar}, j, pts:j.pts, ps:r.ps, label:x.label};
   },
   // TAKE + price at the zone -> Alerts (never replaces a stronger card of the same symbol / side / type)
   push(style){ Object.keys(this.res).filter(k => k.startsWith(style+"|")).forEach(k => { const r = this.res[k], x = r.ideas && r.ideas[0]; if (!x || x.j.verdict !== "TAKE" || !x.now) return;
       const sym = k.slice(style.length + 1), c = this.card(sym, style, x, r), g = c.symbol+"|"+c.direction+"|"+c.ttype, old = Alerts.list.find(a => a.card && a.card.symbol+"|"+a.card.direction+"|"+a.card.ttype === g);
       if (old && old.card.src !== "tclass" && old.card.score/Math.max(1, old.card.max) >= c.score/c.max) return;
       Alerts.add("tc|"+g+"|"+c.plan.stop.toPrecision(6), "scan", sym, sym+" · "+(c.direction === "bullish" ? "Long" : "Short")+" · "+ttTxt(style)+" · "+x.label+" · "+c.pts+Lg(" pts"," نقطة"), c.direction === "bullish" ? "#0ecb81" : "#f6465d", c); }); },
+  // VWAP school options popover (side, anchor, distance, reclaim, window) + the owner's Nasdaq preset
+  vwPanel(anchorEl, S, onChange){ const old = document.getElementById("tcVw"); if (old){ old.remove(); return; }
+    const m = el("div"); m.id = "tcVw"; m.dir = lang === "ar" ? "rtl" : "ltr"; m.style.cssText = "position:fixed;z-index:99999;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:grid;gap:6px;max-width:96vw";
+    m.onpointerdown = ev => ev.stopPropagation(); const V = S.vw, row = (lbl, node) => { const r = el("label"); r.style.cssText = "display:flex;gap:8px;align-items:center;justify-content:space-between"; r.append(document.createTextNode(lbl), node); m.append(r); };
+    const sl = (opts, k) => { const x = el("select"); opts.forEach(([v, l]) => x.append(Object.assign(el("option"), {value:String(v), textContent:l}))); x.value = String(V[k]); x.onchange = () => { V[k] = x.value; onChange(); }; return x; };
+    row(Lg("Side","الاتجاه"), sl([["both",Lg("Long + short","شراء + بيع")],["long",Lg("Long only","شراء بس")],["short",Lg("Short only","بيع بس")]], "side"));
+    row(Lg("VWAP starts at","الـVWAP يبدأ من"), sl([["auto",Lg("Auto (indices NY 09:30, else UTC)","تلقائي (المؤشرات 9:30 نيويورك، الباقي UTC)")],["rth",Lg("NY cash open 09:30","افتتاح نيويورك 9:30")],["utc",Lg("UTC day","يوم UTC")]], "anchor"));
+    row(Lg("Distance in","المسافة بـ"), sl([["sigma","σ"],["points",Lg("points","نقاط")],["atr","ATR"]], "mode"));
+    const kk = el("input"); kk.type = "number"; kk.step = "any"; kk.value = V.k; kk.style.width = "80px"; kk.onchange = () => { V.k = +kk.value || 2; onChange(); }; row(Lg("At least","على الأقل"), kk);
+    const ck = k => { const x = el("input"); x.type = "checkbox"; x.checked = !!V[k]; x.onchange = () => { V[k] = x.checked; onChange(); }; return x; };
+    row(Lg("Wait for the reclaim candle","استنى شمعة الريكليم"), ck("trig")); row(Lg("Only 10:00-11:30 New York","بس 10:00-11:30 نيويورك"), ck("win"));
+    const pre = el("button", null, esc(Lg("Preset: Nasdaq long, 25 pts, NY 09:30, reclaim, 10-11:30","جاهز: ناسداك شراء، 25 نقطة، 9:30 نيويورك، ريكليم، 10-11:30")));
+    pre.onclick = () => { Object.assign(V, {side:"long", anchor:"rth", mode:"points", k:25, trig:true, win:true}); m.remove(); onChange(); }; m.append(pre);
+    m.append(el("div", "m", esc(Lg("Untested: the sources show vendor / forum numbers only; the journal keeps the real record.","مش متجربة: المصادر فيها أرقام بياعين ومنتديات بس؛ الجورنال بيسجل الحقيقي."))));
+    document.body.append(m); const r = anchorEl.getBoundingClientRect(); m.style.top = (r.bottom + 4)+"px"; m.style.left = Math.max(6, Math.min(r.left, innerWidth - m.offsetWidth - 6))+"px";
+    setTimeout(() => document.addEventListener("pointerdown", function h(ev){ if (!m.contains(ev.target) && ev.target !== anchorEl){ m.remove(); document.removeEventListener("pointerdown", h, true); } }, true), 0); },
   // next kill zone / session (New York time, the same clock as Ctx.session) -> {name, in}
   nextSession(){ try { const f = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hour12:false}).formatToParts(new Date()), m = (+f.find(x => x.type === "hour").value % 24)*60 + +f.find(x => x.type === "minute").value;
       const L = [["London KZ", 120], ["NY AM KZ", 420], ["NY PM KZ", 810], ["Asia", 1200]].map(([nm, st]) => [nm, (st - m + 1440) % 1440]).sort((a, b) => a[1] - b[1])[0], h = Math.floor(L[1]/60), mm = L[1] % 60;
@@ -411,7 +447,7 @@ Panel.prototype.build_tclass = function(){
     mk([["chart",Lg("Chart symbol","رمز الشارت")],["watch",Lg("Watchlist","الووتش ليست")]], "uni"),
     mk([["All",Lg("All classes","كل الفئات")]].concat(CLS_LIST.map(c => [c, catL(c)])), "cls"),
     mk([[5,"5"],[10,"10"],[20,"20"],[40,"40"]].map(([v, l]) => [v, Lg("max ","أقصى ")+l]), "max", true, Lg("How many symbols to study","كام رمز يتدرس")),
-    mk([["take",Lg("Show: TAKE","اعرض: ادخل")],["tw",Lg("Show: TAKE + WAIT","اعرض: ادخل + استنى")],["all",Lg("Show: all (with rejected)","اعرض: الكل (مع المرفوض)")]], "show"),
+    mk([["aplus",Lg("Show: A+ only","اعرض: A+ بس")],["take",Lg("Show: TAKE","اعرض: ادخل")],["tw",Lg("Show: TAKE + WAIT","اعرض: ادخل + استنى")],["all",Lg("Show: all (with rejected)","اعرض: الكل (مع المرفوض)")]], "show"),
     mk([["both",Lg("Long + short","شراء + بيع")],["long",Lg("Long only","شراء بس")],["short",Lg("Short only","بيع بس")]], "dir"));
   const schB = stop_(el("button")), schTxt = () => { schB.textContent = Lg("Schools: ","المدارس: ")+(S.dets.length === TC.DETS.length ? Lg("all","الكل") : S.dets.length)+" ▾"; }; schTxt();
   schB.onclick = e => { e.stopPropagation(); const old = document.getElementById("tcSch"); if (old){ old.remove(); return; }
@@ -425,18 +461,21 @@ Panel.prototype.build_tclass = function(){
   pc.onchange = () => { S.push = pc.checked; Ws.save(); };
   const myB = stop_(el("button", null, "★ "+Lg("My strategies","استراتيجياتي"))); myB.title = Lg("Add your own rules (e.g. price 25 points under VWAP, EMA cross ...): they are judged like every other school","ضيف قواعدك (مثلًا السعر تحت الـVWAP بـ25 نقطة، تقاطع متوسطات ...): بتتحكم عليها زي أي مدرسة");
   myB.onclick = e => { e.stopPropagation(); TC.editor(myB, () => go(true)); };
-  tb.append(schB, myB, rf, pu);
+  const vwB = stop_(el("button", null, "VWAP ⚙")); vwB.title = Lg("VWAP school options: long / short / both, anchor, distance, reclaim, time window","إعدادات مدرسة الـVWAP: شراء / بيع / الاتنين، البداية، المسافة، الريكليم، وقت الجلسة");
+  vwB.onclick = e => { e.stopPropagation(); TC.vwPanel(vwB, S, () => { Ws.save(); go(true); }); };
+  tb.append(schB, vwB, myB, rf, pu);
   const sum = el("div","sum"), box = el("div"); this.body.append(tb, sum, box);
   const chartSym = () => { const ch = Ws.panels.find(p => p.type === "chart"); return ch ? ch.state.sym : SYMS[0]; };
   const syms = () => (S.uni === "watch" ? SYMS.slice() : [chartSym()]).filter(s => S.cls === "All" || symClass(s) === S.cls).slice(0, S.max || 20);
-  const go = force => { TC.run(S.style, syms(), {targetPts:S.tgt, dets:S.dets}, force); draw(); };
+  S.vw = Object.assign({side:"both", anchor:"auto", mode:"sigma", k:2, trig:true, win:false}, S.vw || {});
+  const go = force => { TC.run(S.style, syms(), {targetPts:S.tgt, dets:S.dets, vw:S.vw}, force); draw(); };
   rf.onclick = () => go(true);
   const VC = {TAKE:"#0ecb81", WAIT:"#f0b90b", SKIP:"#848e9c"}, VT = {TAKE:Lg("TAKE","ادخل"), WAIT:Lg("WAIT","استنى"), SKIP:Lg("SKIP","ماتدخلش")}, L2 = x => ar ? x[2] : x[1], L1 = x => ar ? x[1] : x[0];
-  const dirOk = x => S.dir === "both" || (S.dir === "long" ? x.side > 0 : x.side < 0), showOk = v => S.show === "all" || v === "TAKE" || (S.show === "tw" && v === "WAIT");
+  const dirOk = x => S.dir === "both" || (S.dir === "long" ? x.side > 0 : x.side < 0), showOk = (v, g) => S.show === "all" || (S.show === "aplus" ? g === "A+" : v === "TAKE" || (S.show === "tw" && v === "WAIT"));
   const cardHtml = (sym, r, x, i, alt) => { const j = x.j, St = TCE.STYLES[S.style], long_ = x.side > 0, pl = j.plan, ok = b => b ? '<b class="g">✓</b>' : '<b class="r">✗</b>';
     const bOk = j.pros.some(p => /^Bias/.test(p[1])), bBad = j.cons.some(p => /^Bias timeframe/.test(p[1])), sOk = j.pros.some(p => /^Setup/.test(p[1])), eOk = j.pros.some(p => /^Entry/.test(p[1]));
     const li = (a, f) => a.length ? '<ul>'+a.map(f).join("")+'</ul>' : '<div class="m">–</div>';
-    return '<div class="cd" data-s="'+esc(sym)+'" data-i="'+i+'" style="--vc:'+VC[j.verdict]+'"><div class="hd"><span class="vb">'+VT[j.verdict]+'</span><b style="font-size:14px">'+esc(sym.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+'</b>'
+    return '<div class="cd" data-s="'+esc(sym)+'" data-i="'+i+'" style="--vc:'+VC[j.verdict]+'"><div class="hd"><span class="vb">'+VT[j.verdict]+'</span>'+(j.grade === "A+" ? '<span class="vb" style="background:linear-gradient(135deg,#f0b90b,#ffe08a);box-shadow:0 0 8px #f0b90b">A+</span>' : '<span class="m" style="font-weight:800">'+j.grade+'</span>')+'<b style="font-size:14px">'+esc(sym.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+'</b>'
       +'<b style="color:'+(long_ ? "#0ecb81" : "#f6465d")+'">'+(long_ ? "▲ "+esc(T("long")) : "▼ "+esc(T("short")))+'</b><span class="ch">'+esc(x.label)+'</span><span class="m">'+esc(Lg("score ","النتيجة "))+j.score+' · '+j.pct+'%</span></div>'
       +'<div class="stk">'+St.bias+' '+(bOk ? ok(1) : bBad ? ok(0) : '<b class="m">~</b>')+' → '+St.setup+' '+(sOk ? ok(1) : '<b class="m">~</b>')+' → '+St.entry+' '+(eOk ? ok(1) : '<b class="m">~</b>')+'</div>'
       +'<div>'+esc(Lg("Entry ","دخول "))+'<b>'+fmtP(pl.entry)+'</b> · '+esc(Lg("Stop ","ستوب "))+'<b class="r">'+fmtP(pl.stop)+'</b> · '+esc(Lg("Target ","هدف "))+'<b class="g">'+fmtP(pl.tps[0])+'</b> ('+j.pts+Lg(" pts"," نقطة")+') · R:R <b>'+j.rr.toFixed(1)+'</b>'+(j.blocked ? ' <b class="r">⚠ '+esc(Lg("blocked by ","مسدود بـ"))+esc(j.blocked.src)+'</b>' : "")+(x.now ? "" : ' · <span class="b">'+esc(Lg("limit","أمر معلّق"))+'</span>')+'</div>'
@@ -447,14 +486,14 @@ Panel.prototype.build_tclass = function(){
       +(alt ? '<div class="ru">'+esc(Lg("Compared with: ","اتقارنت بـ: "))+alt+'</div>' : "")+'</div>'; };
   const draw = () => {
     const keys = syms(), res = keys.map(s => [s, TC.res[S.style+"|"+s]]).filter(([, r]) => r), St = TCE.STYLES[S.style], fr = TC.record(S.style);
-    let nI = 0, cnt = {TAKE:0, WAIT:0, SKIP:0}; const why = {}, errs = [], notes = [];
+    let nI = 0, nAp = 0, cnt = {TAKE:0, WAIT:0, SKIP:0}; const why = {}, errs = [], notes = [];
     res.forEach(([s, r]) => { if (r.err){ errs.push(s.replace(/^HL:xyz:|^Y:/, "")+": "+r.err); return; } (r.notes || []).forEach(n => notes.push(s.replace(/^HL:xyz:|^Y:|-USDT.*$/g, "")+": "+n));
-      r.ideas.forEach(x => { nI++; cnt[x.j.verdict]++; if (x.j.verdict !== "TAKE"){ const w = x.j.vetoes[0] ? L1(x.j.vetoes[0]) : (x.j.cons.slice().sort((a, b) => b[0] - a[0])[0] || [0, "", ""]); const t = typeof w === "string" ? w : L2(w); if (t){ const k = t.replace(/\s*\(.*$/, "").replace(/\b\d[\d.,]*\b(?![A-Za-z])/g, "#").slice(0, 50).trim(); why[k] = (why[k] || 0) + 1; } } }); });
+      r.ideas.forEach(x => { nI++; cnt[x.j.verdict]++; if (x.j.grade === "A+") nAp++; if (x.j.verdict !== "TAKE"){ const w = x.j.vetoes[0] ? L1(x.j.vetoes[0]) : (x.j.cons.slice().sort((a, b) => b[0] - a[0])[0] || [0, "", ""]); const t = typeof w === "string" ? w : L2(w); if (t){ const k = t.replace(/\s*\(.*$/, "").replace(/\b\d[\d.,]*\b(?![A-Za-z])/g, "#").slice(0, 50).trim(); why[k] = (why[k] || 0) + 1; } } }); });
     const top = Object.entries(why).sort((a, b) => b[1] - a[1]).slice(0, 4);
     const open = (Journal.list || []).filter(t => t.status === "open");
     sum.innerHTML = '<b style="color:#f0b90b">'+esc(ttTxt(S.style))+'</b> · '+St.bias+' → '+St.setup+' → '+St.entry+' · '+esc(Lg("target ","الهدف "))+(S.tgt ? S.tgt+Lg(" pts"," نقطة") : Lg("Auto","تلقائي"))
       +(TC.busy ? ' · <b class="b">'+esc(Lg("studying ","بيدرس "))+esc(TC.prog)+'</b>' : '')
-      +'<br>'+esc(Lg("Studied ","اتدرس "))+res.length+'/'+keys.length+' '+esc(Lg("symbols","رمز"))+' · '+nI+' '+esc(Lg("ideas","فكرة"))+' · <b class="g">'+cnt.TAKE+' '+VT.TAKE+'</b> · <b style="color:#f0b90b">'+cnt.WAIT+' '+VT.WAIT+'</b> · <span class="m">'+cnt.SKIP+' '+VT.SKIP+'</span>'
+      +'<br>'+esc(Lg("Studied ","اتدرس "))+res.length+'/'+keys.length+' '+esc(Lg("symbols","رمز"))+' · '+nI+' '+esc(Lg("ideas","فكرة"))+' · <b class="g">'+cnt.TAKE+' '+VT.TAKE+'</b> · <b style="color:#f0b90b">'+cnt.WAIT+' '+VT.WAIT+'</b> · <span class="m">'+cnt.SKIP+' '+VT.SKIP+'</span> · <b style="color:#f0b90b">A+ '+nAp+'</b>'
       +' · '+esc(Lg("open trades in the journal: ","صفقات مفتوحة في الجورنال: "))+open.length
       +(top.length ? '<br><span class="m">'+esc(Lg("Most common reasons not to enter: ","أكتر أسباب الرفض: "))+top.map(([k, n]) => esc(k)+" ("+n+")").join(" · ")+'</span>' : "")
       +(errs.length ? '<br><span class="r">'+esc(errs.slice(0, 3).join(" · "))+(errs.length > 3 ? " +"+(errs.length - 3) : "")+'</span>' : "")
@@ -472,7 +511,7 @@ Panel.prototype.build_tclass = function(){
       sum.innerHTML += '<br><span class="m">📚 '+esc(Lg("Schools in your journal (","المدارس في الجورنال ("))+esc(ttTxt(S.style))+'): '+(lb.length ? lb.map(([d, r]) => esc(Lg(d[1], d[2]))+" "+r.done+" · "+Math.round(100*r.win/r.done)+"% · "+(r.avgR >= 0 ? "+" : "")+r.avgR.toFixed(2)+"R").join(" | ")
         +esc(Lg(" — the engine adds / removes weight from a school after 10 closed trades; under 30 = not evidence"," — المحرك بيزوّد / يقلل وزن المدرسة بعد 10 صفقات مقفولة؛ أقل من 30 = مش دليل")) : esc(Lg("no closed trades yet","لسه مفيش صفقات مقفولة")))+'</span>'; }
     let h = "", shown = 0;
-    list.forEach(([s, r, ids]) => { const x = ids[0]; if (!showOk(x.j.verdict)) return; shown++;
+    list.forEach(([s, r, ids]) => { const x = ids[0]; if (!showOk(x.j.verdict, x.j.grade)) return; shown++;
       const others = ids.slice(1, 4).map(o => esc(o.label)+" ("+VT[o.j.verdict]+", "+o.j.score+")").join(" · ");
       h += cardHtml(s, r, x, 0, others ? others+esc(Lg(" — lower score after the same checks"," — نتيجتهم أقل بعد نفس الفحص")) : "");
       if (ids.length > 1 && S.show === "all") h += '<details style="margin:0 4px 6px"><summary>'+esc(Lg("All ideas on ","كل الأفكار على "))+esc(s)+' ('+ids.length+')</summary>'+ids.slice(1).map((o, k) => cardHtml(s, r, o, k + 1, "")).join("")+'</details>'; });

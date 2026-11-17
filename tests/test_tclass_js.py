@@ -76,6 +76,9 @@ out.empty = TCE.rulesOk([], I, li, 1);
 out.rsi = [TCE.rsi([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], 14)[15], TCE.sma([1,2,3,4], 2)[3]];
 const hourly = []; for (let i = 0; i < 48; i++) hourly.push({t:day0 + i*3600e3, o:i, h:i + 1, l:i - 1, c:i, v:1});
 out.dl2 = TCE.dayLevels(hourly);
+// 09:30 New York anchor: 2026-11-06 is EST (UTC-5): 14:29 UTC belongs to the previous session, 14:30 starts a new one; 2026-07-06 is EDT (UTC-4): 13:30 UTC
+const T0 = Date.UTC(2026, 10, 6, 14, 29), T1 = Date.UTC(2026, 10, 6, 14, 30), S0 = Date.UTC(2026, 6, 6, 13, 29), S1 = Date.UTC(2026, 6, 6, 13, 30);
+out.rth = [TCE.sessId(T1, "rth") - TCE.sessId(T0, "rth"), TCE.sessId(S1, "rth") - TCE.sessId(S0, "rth"), TCE.sessId(T0, "utc") === TCE.sessId(T1, "utc")];
 process.stdout.write(JSON.stringify(out));
 """
 r = subprocess.run(["node", "-e", js], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
@@ -114,4 +117,5 @@ assert o["nq"] is True and o["nqNo"] is True, (o["nq"], o["nqNo"])          # la
 assert o["xa"] == [True, False, True] and o["empty"] is False, o["xa"]
 assert o["rsi"][0] == 100 and o["rsi"][1] == 3.5, o["rsi"]
 assert o["dl2"]["pdh"] == 24 and o["dl2"]["pdl"] == -1 and o["dl2"]["dopen"] == 24, o["dl2"]   # hours 0-23 = yesterday (high 23+1, low 0-1), today opens at 24
+assert o["rth"] == [1, 1, True], o["rth"]   # the NY 09:30 anchor follows daylight saving
 print("ok tclass engine: %d events (%d long / %d short), median bounce %.2f, auto target %s pts" % (o["n"], o["longs"], o["shorts"], o["st"]["median"], c[0]["autoPts"]))

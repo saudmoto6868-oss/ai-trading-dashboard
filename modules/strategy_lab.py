@@ -303,6 +303,20 @@ def stop_rows(all_events):
     return out
 
 
+def var_htf_rows(vht):
+    """Exit variant x timeframe x trend side (with / against the 100-bar trend), every detector pooled. If the with-trend
+    deficit on 1h / 1m (and against on 4h) keeps its sign under every exit, the exit is not the cause."""
+    out = []
+    for (n, tf, tr), rs in sorted(vht.items()):
+        if tr == "flat" or len(rs) < MIN_N:
+            continue
+        x = np.asarray(rs, float); sd = x.std(ddof=1) if len(x) > 2 else 0.0
+        out.append({"key": "*VARHTF*", "school": "exit", "tf": tf, "side": f"{n} trend-{tr}", "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
+                    "avgR": round(float(x.mean()), 3), "net": round(float(x.mean()) - COST_R, 3), "sumR": round(float(x.sum()), 1),
+                    "t": round(float(x.mean() / (sd / np.sqrt(len(x)))), 2) if sd > 0 else 0.0})
+    return out
+
+
 def summarize(all_events, all_bars):
     per = defaultdict(list); base = defaultdict(list)
     for tf, sym, ev in all_events:
@@ -324,15 +338,17 @@ def summarize(all_events, all_bars):
     rows = [chain_row(k, *v) for k, v in chain.items()]
     rows += prereg_rows(all_events)
     rows += stop_rows(all_events)
-    var = defaultdict(list)
+    var = defaultdict(list); vht = defaultdict(list)
     for tf, sym, ev in all_events:
         for e in ev:
             for n, r in (e.get("var") or {}).items():
                 var[(n, "all")].append(r); var[(n, e["key"])].append(r)
+                vht[(n, tf, e["trend"])].append(r)   # docs/PREREG_2026-11-01.md side finding: is the htf with/against sign flip driven by the 1.5 ATR / RR 1.5 exit?
     for (n, k), rs in var.items():
         x = np.asarray(rs, float); se = 1.0 / np.sqrt(max(len(x), 1))
         rows.append({"key": "*VAR*" if k == "all" else k, "school": "exit", "tf": "all", "side": n, "n": len(x), "win": round(100 * float((x > 0).mean()), 1),
                      "avgR": round(float(x.mean()), 3), "net": round(float(x.mean()) - COST_R, 3), "sumR": round(float(x.sum()), 1), "t": round(float(x.mean() / (x.std(ddof=1) * se)) if len(x) > 2 and x.std() > 0 else 0.0, 2)})
+    rows += var_htf_rows(vht)
     # Build IS/OOS split per (key, tf, side) using the oos flag stored in each event
     per_is = defaultdict(list); per_oos = defaultdict(list)
     for tf, sym, ev in all_events:
@@ -535,6 +551,17 @@ def report(rows, conflicts, cfl, meta, gann=None, lunar=None, gzone=None):
               f"Costs: {COST_R}R per trade assumed (net column = avg R - costs). Costs are a planning estimate, not measured.", "",
               "| exit | n | win % | avg R | net avg R (after costs) | total R | t |", "|---|---|---|---|---|---|---|"]
         L += [f"| {r['side']} | {r['n']} | {r['win']} | {r['avgR']} | {r['net']} | {r['sumR']} | {r['t']:+.2f} |" for r in vr if r["key"] == "*VAR*"]
+        vh = [r for r in vr if r["key"] == "*VARHTF*"]
+        if vh:
+            L += ["", "## Exit variant x timeframe x trend (is the htf sign flip caused by the exit? docs/PREREG_2026-11-01.md)", "",
+                  "Same entries, every detector pooled. If 'with' stays below 'against' on 1h / 1m under every exit, the exit is not the cause.", "",
+                  "| tf | exit | with n | with avg R | with t | against n | against avg R | against t |", "|---|---|---|---|---|---|---|---|"]
+            ix = {(r["tf"], r["side"]): r for r in vh}
+            for tf in sorted({r["tf"] for r in vh}):
+                for n in VARIANTS:
+                    w, a = ix.get((tf, n + " trend-with")), ix.get((tf, n + " trend-against"))
+                    if w and a:
+                        L.append(f"| {tf} | {n} | {w['n']} | {w['avgR']} | {w['t']:+.2f} | {a['n']} | {a['avgR']} | {a['t']:+.2f} |")
     return "\n".join(L) + "\n"
 
 

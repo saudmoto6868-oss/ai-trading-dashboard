@@ -49,6 +49,13 @@ function candles(bar, limit) {   // OKX shape, newest first; a clean range with 
       dets2: [...new Set(SYMS.flatMap(s => ((TC.res["Day Trade|" + s] || {}).ideas || []).map(x => x.det)))] }; });
   console.log('ui2', JSON.stringify(ui2));
   ok = ok && ["vwap", "ma", "session", "custom"].every(k => ui2.dets.includes(k)) && ui2.hasNq && ui2.saved.includes("EMA test") && ui2.saved.length === 2 && ui2.session && ui2.board;
+  // VWAP options panel: Nasdaq preset sets long only / 25 pts / NY 09:30 / reclaim / window; "A+ only" filter exists
+  const vw = await p.evaluate(async () => { const pn = Ws.panels.find(x => x.type === "tclass"); [...pn.body.querySelectorAll("button")].find(b => /VWAP/.test(b.textContent)).click();
+    const m = document.getElementById("tcVw"), pre = [...m.querySelectorAll("button")].find(b => /Nasdaq|ناسداك/.test(b.textContent)); pre.click();
+    await new Promise(r => setTimeout(r, 100)); const shows = [...pn.body.querySelectorAll("select")].flatMap(x => [...x.options].map(o => o.value));
+    return { vw: pn.state.tc.vw, aplus: shows.includes("aplus"), grades: [...new Set(Object.values(TC.res).flatMap(r => (r.ideas || []).map(x => x.j.grade)))] }; });
+  console.log('vwap', JSON.stringify(vw));
+  ok = ok && vw.vw.side === "long" && vw.vw.k === 25 && vw.vw.anchor === "rth" && vw.vw.trig && vw.vw.win && vw.aplus && vw.grades.length >= 1 && vw.grades.every(g => ["A+","A","B","C"].includes(g));
   // harmonic school: a hand-built bullish Gartley (X 100, A 110, B 103.82, C 107.6, D 102.14) -> TC.harm gives a valid long
   const hm = await p.evaluate(() => { const piv = [[0, 104], [40, 100], [60, 110], [75, 103.82], [88, 107.6], [104, 102.14]], rows = [];
     for (let i = 0; i <= 104; i++){ let k = 0; while (piv[k+1][0] < i) k++; const [i0, p0] = piv[k], [i1, p1] = piv[k+1], c = p0 + (p1 - p0)*(i - i0)/(i1 - i0) + 0.03*Math.sin(i*12.9898), o = rows.length ? rows[rows.length-1].c : c, w = 0.08*(1 + 0.5*Math.abs(Math.sin(i*7.31)));

@@ -159,7 +159,9 @@ def render(br: dict, markets: list | None = None) -> str:
                + _tile("اليوت · جان", f'<div class="ln">اليوت أسبوعي: <b class="a">{e({"impulse_up": "دافعة صاعدة", "impulse_down": "دافعة هابطة", "abc": "تصحيح ABC"}.get(ew, "—"))}</b></div>'
                        f'<div class="ln">جان: دورة {gn.get("tsp", "—")} أسبوع · الانعكاس بعد {gn.get("bars_to_turn", "—")}</div>'
                        f'<div class="ln">مربع التسعة الأقرب: {" / ".join(f(v) for v in sorted((w1.get("gann") or {}).get("sq9", []), key=lambda v: abs(v - (px or 0)))[:2])}</div>')
-               + _tile("الوصفات الشغالة النهارده", f'<div class="ln">{e(pats)}</div>') + "</div>")
+               + _tile("السيت أبات الشغالة دلوقتي", "".join(
+                   f'<div class="ln">{"🟢" if x["side"] == "buy" else "🔴"} <b>{e(x["tf"])}</b> {e(x["name"][:58])}<div class="s">{e(x["ev_label"])}</div></div>'
+                   for x in (br.get("setups") or [])[:7]) or f'<div class="ln">{e(pats)}</div>', f'{len(br.get("setups") or [])}') + "</div>")
     out.append('</div><div class="col">')
     # right column: KPI tiles 2 cols + rings + amber bars
     dv = fl.get("deriv") or {}

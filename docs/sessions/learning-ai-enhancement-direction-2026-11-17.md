@@ -147,3 +147,9 @@ SMC / ICT, Gann, Elliott, Harmonic, VWAP, sessions and other schools remain cont
 - The explainer explicitly says contextual schools do not override risk controls or Lab evidence.
 - This is an instructional integration only; it does not alter scanner logic, signal generation, execution, risk settings, or PAGE 12.
 
+
+### Canonical implementation detail
+- The seven-step sequence is now exposed by `modules.academy.decision_sequence()` with stable IDs and Arabic/English labels.
+- PAGE 7 renders that canonical helper rather than maintaining a second copy of the wording in `main.py`.
+- Added `tests/test_academy_decision_sequence.py` to cover stable order/IDs and English overlay selection.
+- This keeps the decision model reusable by future Academy / Mr X integration without duplicating definitions.

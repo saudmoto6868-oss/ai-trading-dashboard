@@ -194,6 +194,32 @@ def _path_overlay(d: dict) -> dict:
     return {**d, "levels": levels, "lessons": lessons}
 
 
+
+def decision_sequence() -> list:
+    """Canonical project learning sequence shared by Academy views; schools are contextual lenses, not standalone signals."""
+    if _en():
+        steps = [
+            ("regime", "Market regime", "Trend, range, or transition?"),
+            ("htf_bias", "Higher-timeframe bias", "Set directional context before looking for an entry."),
+            ("structure", "Market structure", "Read swing structure and define invalidation."),
+            ("location", "Location", "Wait for a meaningful level or zone; avoid chasing price."),
+            ("trigger", "Entry trigger", "Require a closed-bar trigger and a clear invalidation point."),
+            ("order_flow", "Order-flow confirmation", "Use order flow as an execution filter at the prepared location, not as a standalone strategy."),
+            ("session_risk", "Session and risk gate", "Check session context, position risk, daily limits, and planned reward-to-risk before execution."),
+        ]
+    else:
+        steps = [
+            ("regime", "حالة السوق", "ترند ولا نطاق ولا مرحلة انتقال؟"),
+            ("htf_bias", "اتجاه الفريم الأكبر", "حدد السياق الاتجاهي قبل البحث عن دخول."),
+            ("structure", "هيكل السوق", "اقرأ القمم والقيعان وحدد نقطة إبطال الفكرة."),
+            ("location", "موقع السعر", "انتظر مستوى أو منطقة لها معنى؛ لا تطارد السعر."),
+            ("trigger", "محفز الدخول", "اشترط تأكيد إغلاق الشمعة ونقطة إبطال واضحة."),
+            ("order_flow", "تأكيد تدفق الأوامر", "استخدمه كفلتر تنفيذ عند المنطقة المحددة، وليس كنظام مستقل."),
+            ("session_risk", "الجلسة وبوابة المخاطر", "راجع توقيت الجلسة ومخاطرة الصفقة والحدود اليومية والعائد إلى المخاطرة قبل التنفيذ."),
+        ]
+    return [{"id": sid, "title": title, "detail": detail} for sid, title, detail in steps]
+
+
 def learning_path(path: Path = PATH_FILE) -> dict:
     """-> {'levels': [...], 'lessons': [...]} in teaching order. A lesson missing a field, with an unknown diagram, a bad level, or a quiz whose answer index is
     out of range is dropped, so the page never shows a half-built lesson. Every lesson carries 'grade_label' (the grade word in the site language)."""

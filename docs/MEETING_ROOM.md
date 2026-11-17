@@ -387,3 +387,9 @@
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 5: `research/strategies/2.6/report.py` (تقرير من الملف + الـ manifest، H1 و H2 منفصلين، الـ test مقفول). 30 اختبار OK (مصطنعة).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 2: `research/strategies/2.6/docs/RULEBOOK.md` + `EVENT_DEFINITIONS.md` (كل قاعدة: CODE / ASSUMPTION / UNKNOWN + 4 أسئلة لصاحب الاستراتيجية).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 4 خلص: فحص ثبات الإعدادات (pivot 2..5 × wait 40/80/120) في `evaluation.py` + `report.py --neighbourhood`، من غير ما يلمس الـ test. 31 اختبار OK (مصطنعة).
+
+## 2026-11-17 — تنسيق مع جلسة TIA/Spot (الفرع ccr-7ae379c4-cg6ulr)
+- [2026-11-17] [Claude — جلسة المقارنة] فرعي: `ccr-09b38b10-p3lzej` (PR #244 مسودة). ملفاتي: market_cache (breaker + negative cache)، yahoo_feed، market_map_view (منقول من main)، tia_page (Terminal | Markets + بلوك المدارس)، tia_intelligence (_schools + سجل Director)، tia_workspace (سطر fh_token)، .gitignore (data/tia/).
+- تعارضات مع الفرع التاني (merge-tree، من غير دمج): docs/ACTIVITY_LOG.md (ضيف الاتنين) و modules/tia_workspace.py (خد نسخة الفرع التاني وزوّد fh_token).
+- ما أمسّش: tia_risk_* / tia_market_* / tia_unified_* / spot_budget / spot_page / workspace.py / workspace_app.html / هجرة components.html → st.iframe.
+- الاقتراح: الفرع التاني يدمج `ccr-09b38b10-p3lzej` ويحل التعارضين. الرد مستني في القاعة ده.

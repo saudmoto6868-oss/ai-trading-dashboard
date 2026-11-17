@@ -111,6 +111,14 @@ def analyze_symbol(symbol: str, asset_class: str, timeframes=("15m", "1h", "4h",
             result["sources"]["options"] = {"status": "unavailable", "reason": str(exc)[:160]}
     else:
         result["sources"]["options"] = {"status": "not_applicable", "reason": "No verified options chain adapter for this underlying"}
+    # Holdings (2026-11-17): what the owner already holds in the spot ledger (read-only, average-cost, same math as the desk).
+    try:
+        result["holdings"] = _holdings(symbol)
+        result["sources"]["holdings"] = {"status": "available" if result["holdings"].get("held") else "not_held",
+                                         "provider": "spot ledger (read-only)"}
+    except Exception as exc:
+        result["holdings"] = {"held": None, "why": str(exc)[:160]}
+        result["sources"]["holdings"] = {"status": "unavailable", "reason": str(exc)[:160]}
     # Desk schools (2026-11-17): the same per-timeframe engine as the Spot desk (trend, Elliott, SMC/ICT, Gann) on 1D / 1W / 1M.
     # Shown as its own block; it does not change the stance yet (needs a forward test before it may vote).
     try:
@@ -212,3 +220,28 @@ def log_report(report: dict) -> None:
             fh.write(json.dumps(row, default=str) + "\n")
     except Exception:
         pass   # logging must never break the page
+
+
+_HOLD_CACHE: dict = {"t": 0.0, "txs": []}
+
+
+def _ledger_txs() -> list:
+    """Spot ledger rows, cached 5 min (the store may be GitHub-backed, so do not read it on every Director run)."""
+    import time
+    if time.time() - _HOLD_CACHE["t"] < 300:
+        return _HOLD_CACHE["txs"]
+    from modules.spot_store import get_store
+    d = get_store().load() or {}
+    _HOLD_CACHE.update(t=time.time(), txs=list(d.get("txs") or []))
+    return _HOLD_CACHE["txs"]
+
+
+def _holdings(symbol: str) -> dict:
+    """Position of the symbol's base asset in the spot ledger. Empty / not held is a valid answer."""
+    from modules import spot_core as C
+    base = symbol.split("-")[0].upper()
+    pos = [p for p in C.positions(_ledger_txs()) if str(p.get("asset", "")).upper() == base and float(p.get("qty") or 0) > 0]
+    if not pos:
+        return {"held": False, "asset": base}
+    p = pos[0]
+    return {"held": True, "asset": base, "qty": p.get("qty"), "avg_usd": p.get("avg_usd"), "unreal_pct": p.get("unreal_pct")}

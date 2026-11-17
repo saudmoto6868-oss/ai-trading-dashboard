@@ -57,6 +57,11 @@ def render_tia():
                     st.metric(tf.upper(), item.get("trend", "—"), f"RSI {item.get('rsi14', '—')} · {item.get('return20_pct', '—')}% / 20 bars")
                 else:
                     st.metric(tf.upper(), "UNAVAILABLE")
+        hold = report.get("holdings") or {}
+        if hold.get("held"):
+            st.info(f"Spot ledger: you hold {hold.get('qty')} {hold.get('asset')} at an average of {hold.get('avg_usd')} USD (unrealised {hold.get('unreal_pct')}%). The Director does not change this position.")
+        elif hold.get("held") is False:
+            st.caption(f"Spot ledger: no open {hold.get('asset')} position.")
         sch = report.get("schools") or {}
         if sch.get("ok"):
             import pandas as pd

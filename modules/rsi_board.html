@@ -53,14 +53,14 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 #legend{padding:10px;direction:rtl;font-size:11.5px}
 #tp-flt #tagbar{flex:1 1 100%;flex-wrap:wrap;height:auto;padding:0;border:0;white-space:normal;overflow:visible}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
 #toast{position:absolute;inset-inline-end:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
-#list{flex:1;min-height:0;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;align-content:start}
+#list{flex:1;min-height:0;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(136px,1fr));gap:5px;align-content:start}
 .bar{flex:0 0 36px}
 .grp{grid-column:1/-1;font-weight:800;font-size:11px;color:var(--mut);padding:4px 2px;border-bottom:1px solid var(--line);direction:rtl}
-.tile{position:relative;border-radius:8px;padding:7px;border:1px solid var(--line);cursor:pointer;min-height:118px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.tile{position:relative;border-radius:8px;padding:6px;border:1px solid var(--line);cursor:pointer;min-height:98px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
 .tile:hover{border-color:var(--sel)}.tile.sel{outline:1px solid var(--sel)}
 .tile .hd2{display:flex;justify-content:space-between;align-items:center;gap:4px}
 .tile .nm{font-weight:800;font-size:13px;direction:ltr}
-.tile .cv{font-size:20px;font-weight:900;line-height:1}
+.tile .cv{font-size:18px;font-weight:900;line-height:1}.tile .cv small{font-size:9px;font-weight:400;color:var(--mut);margin-inline-start:3px}
 .tile .vd{font-size:10.5px;font-weight:700;border-radius:8px;padding:0 6px;color:#fff;align-self:flex-start}
 .tile .rs{font-size:10.5px;direction:ltr}
 .tile .bars{display:flex;align-items:flex-end;gap:2px;height:18px}.tile .bars i{flex:1;border-radius:2px 2px 0 0}
@@ -241,7 +241,7 @@ function tileHtml(i){
   return `<div class="tile${sel === i.full ? " sel" : ""}${i.urgent ? " urg" : ""}" data-s="${esc(i.full)}" style="background:${col}14;border-color:${i.urgent ? "var(--amb)" : col + "55"}">
    <div class="hd2"><span class="nm">${esc(i.sym)}</span><span class="sm" style="direction:ltr">${fp(i.price)}</span></div>
    <div class="arr">${arrows(i)}</div>
-   <div class="hd2"><span class="cv" style="color:${pc}">${i.conv ?? "—"}</span><span class="rs" style="color:${col}">RSI ${i.rsi_map == null ? "—" : i.rsi_map.toFixed(0)}</span></div>
+   <div class="hd2"><span class="cv" style="color:${pc}">${i.conv ?? "—"}<small>توافق</small></span><span class="rs" style="color:${col}">RSI ${i.rsi_map == null ? "—" : i.rsi_map.toFixed(0)}</span></div>
    <span class="vd" style="background:${pc}">${esc(A("verdict", i.verdict || i.state))}</span>
    <div class="bars">${bars}</div>
    ${flow}

@@ -34,45 +34,79 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 #fbar{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;font-size:11px;color:var(--mut)}
 #fbar .ctl{height:26px}
 #fbar input[type=range]{width:90px;margin:0;accent-color:var(--amb)}
-#drw{position:absolute;inset:0;background:var(--panel);z-index:5;display:none;overflow:auto;direction:rtl;padding:8px}#drw.open{display:block}
+#drw{direction:rtl;padding:8px}
+#tabs{display:flex;border-bottom:1px solid var(--line);direction:rtl}
+#tabs button{flex:1;height:32px;border:0;border-bottom:2px solid transparent;background:none;color:var(--mut);font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+#tabs button.act{color:var(--amb);border-bottom-color:var(--amb);background:#151b24}
+#tabs b{font-weight:400;font-size:10.5px;color:var(--mut);direction:ltr;display:inline-block}
+.hint{padding:3px 8px;font-size:10.5px;color:var(--mut);border-bottom:1px solid var(--line);direction:rtl;line-height:1.5}
+.tp{display:none;flex:1;min-height:0;flex-direction:column;overflow:auto}.tp.act{display:flex}
+.frow{padding:8px 10px;border-bottom:1px solid var(--line);direction:rtl;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.frow label{font-weight:700;font-size:12px;min-width:110px}.frow small{color:var(--mut);font-size:10.5px;flex:1 1 100%}
+.frow .fc{display:inline-flex;align-items:center;gap:6px}.frow input[type=range]{width:150px;accent-color:var(--amb)}#mcv{direction:ltr;min-width:24px}
 #drw h3{margin:0 0 4px;font-size:14px}.box{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:6px 0;background:#10151d}
 .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}.kv b{display:block;font-size:13px;direction:ltr}.kv small{color:var(--mut);font-size:10px}
 .sig{display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:1px solid #1f2632}.sig .dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex:0 0 8px}
 .sig .tx{flex:1}.sig .nm{font-weight:700}.sig .ds{color:var(--mut);font-size:10.5px}
 .sch{margin:6px 0 2px;font-weight:800;font-size:11.5px}
 .btn{display:inline-block;border:1px solid var(--sel);border-radius:8px;padding:4px 10px;color:var(--txt);text-decoration:none;font-weight:700}
-#legend{position:absolute;inset:0;background:#0d1117f7;z-index:7;display:none;overflow:auto;padding:10px;direction:rtl;font-size:11.5px}
-#legend.open{display:block}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
+#legend{padding:10px;direction:rtl;font-size:11.5px}
+#tp-flt #tagbar{flex:1 1 100%;flex-wrap:wrap;height:auto;padding:0;border:0;white-space:normal;overflow:visible}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
 #toast{position:absolute;inset-inline-end:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
+#list{flex:1;min-height:0;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;align-content:start}
+.bar{flex:0 0 36px}
+.grp{grid-column:1/-1;font-weight:800;font-size:11px;color:var(--mut);padding:4px 2px;border-bottom:1px solid var(--line);direction:rtl}
+.tile{position:relative;border-radius:8px;padding:7px;border:1px solid var(--line);cursor:pointer;min-height:118px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.tile:hover{border-color:var(--sel)}.tile.sel{outline:1px solid var(--sel)}
+.tile .hd2{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.tile .nm{font-weight:800;font-size:13px;direction:ltr}
+.tile .cv{font-size:20px;font-weight:900;line-height:1}
+.tile .vd{font-size:10.5px;font-weight:700;border-radius:8px;padding:0 6px;color:#fff;align-self:flex-start}
+.tile .rs{font-size:10.5px;direction:ltr}
+.tile .bars{display:flex;align-items:flex-end;gap:2px;height:18px}.tile .bars i{flex:1;border-radius:2px 2px 0 0}
+.tile .tg{display:flex;flex-wrap:wrap;gap:2px}.tile .tg span{font-size:9px;border-radius:6px;padding:0 4px;background:#212a37;color:#c9d1dc}
+.tile.urg{animation:ub 1.1s ease-in-out infinite}
+.tile .arr{position:absolute;top:22px;inset-inline-end:6px;font-size:9px;letter-spacing:1px}
+.tile .fl{height:4px;background:var(--dn);border-radius:2px;overflow:hidden}.tile .fl i{display:block;height:100%;background:var(--up)}
+.sm{color:var(--mut);font-size:10.5px}
+.pill{border-radius:9px;padding:0 7px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin:2px 0}.tags span{font-size:9.5px;border-radius:8px;padding:0 5px;background:#212a37;color:#c9d1dc}
+.tags span.u{background:var(--amb);color:#111;font-weight:800}
+.tfb{display:flex;align-items:flex-end;gap:1px;height:18px}.tfb div{width:6px;border-radius:2px 2px 0 0}
+.plan{font-variant-numeric:tabular-nums;font-size:10.5px;direction:ltr}
+@keyframes ub{0%,100%{box-shadow:inset 0 0 0 1px var(--amb)}50%{box-shadow:none}}
 </style></head><body>
 <div id="src"></div>
 <div id="app">
  <div class="pane"><div class="hd" id="mh"></div>
-  <div id="map" style="flex:1 1 56%;min-height:200px"></div>
+  <div class="hint">الخريطة: كل نقطة عملة. فوق الخط 70 = تشبع شراء، تحت 30 = تشبع بيع. اضغط على نقطة عشان تفتح تفاصيلها.</div>
+  <div id="map" style="flex:1 1 52%;min-height:200px"></div>
   <div id="chartbox"><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
    <div id="chwrap"><canvas id="cv"></canvas></div></div>
-  <div id="legend"></div></div>
- <div class="pane"><div id="toast"></div><div id="drw"></div>
+  </div>
+ <div class="pane"><div id="toast"></div>
+  <div id="tabs"><button data-t="opp" class="act">① الفرص <b id="cnt"></b></button><button data-t="det">② تفاصيل العملة</button><button data-t="flt">③ الفلاتر <b id="fn"></b></button><button data-t="hlp">④ الشرح</button></div>
+  <div class="hint" id="hint"></div>
+  <div class="tp act" id="tp-opp">
   <div class="bar">
    <input id="q" placeholder="ابحث: عملة، مدرسة، تاج…">
    <span class="seg"><button data-d="0" class="act">الكل</button><button data-d="1">شراء</button><button data-d="-1">بيع</button></span>
    <span class="sep"></span>
    <select id="so" class="ctl" title="الترتيب"><option value="score">الأفضل</option><option value="conv">التوافق</option><option value="rr">R:R</option><option value="fresh">الأحدث</option><option value="rsi">RSI ↓</option><option value="rsiu">RSI ↑</option><option value="flow">الفلو</option><option value="vol">الفوليوم</option></select>
    <button id="arm" class="ctl" title="تنبيه صوتي للعاجل وللتوافق ≥ الحد مع R:R ≥ 1.5">🔕</button>
-   <button id="lg" class="ctl">شرح</button>
-   <span id="cnt"></span>
-  </div>
-  <div id="tagbar"></div>
-  <div id="fbar">
-   <span>توافق ≥</span><input id="mc" type="range" min="0" max="100" step="5" value="0"><b id="mcv" style="color:var(--txt);direction:ltr;min-width:22px">0</b>
-   <span class="sep"></span>
-   <span>R:R ≥</span><select id="mr" class="ctl"><option>0</option><option>1</option><option>1.5</option><option>2</option><option>3</option></select>
-   <span class="sep"></span>
-   <span>مدرسة</span><select id="sc" class="ctl"><option value="">أي مدرسة</option></select>
-   <span class="sep"></span>
-   <span>جديدة خلال</span><select id="mf" class="ctl"><option value="99">أي وقت</option><option>0</option><option>1</option><option>2</option><option>5</option></select><span>شمعات</span>
   </div>
   <div id="list"></div>
+  </div>
+  <div class="tp" id="tp-det"><div id="drw"></div></div>
+  <div class="tp" id="tp-flt">
+   <div class="frow"><label>أقل توافق</label><span class="fc"><input id="mc" type="range" min="0" max="100" step="5" value="0"><b id="mcv">0</b></span><small>التوافق = نسبة المدارس المتفقة على نفس الاتجاه (من 100). 33 = 3 مدارس من 9.</small></div>
+   <div class="frow"><label>أقل R:R</label><span class="fc"><select id="mr" class="ctl"><option>0</option><option>1</option><option>1.5</option><option>2</option><option>3</option></select></span><small>الربح المتوقع ÷ المخاطرة. أقل من 1 = المخاطرة أكبر من الربح.</small></div>
+   <div class="frow"><label>مدرسة معينة</label><span class="fc"><select id="sc" class="ctl"><option value="">أي مدرسة</option></select></span><small>اعرض بس العملات اللي المدرسة دي متفقة مع اتجاهها.</small></div>
+   <div class="frow"><label>عمر الإشارة</label><span class="fc"><select id="mf" class="ctl"><option value="99">أي وقت</option><option value="0">الشمعة الحالية</option><option value="1">آخر شمعة</option><option value="2">آخر شمعتين</option><option value="5">آخر 5 شمعات</option></select></span><small>الإشارة الجديدة أحسن من القديمة.</small></div>
+   <div class="frow"><label>نوع الفرصة (تاجات)</label><small>اضغط على تاج أو أكتر. الرقم = عدد العملات اللي عليها التاج.</small><div id="tagbar"></div></div>
+   <div class="frow"><button id="rst" class="ctl">امسح كل الفلاتر</button> <button class="ctl" onclick="tab('opp')">شوف النتيجة في الفرص ←</button></div>
+  </div>
+  <div class="tp" id="tp-hlp"><div id="legend"></div></div>
  </div>
 </div>
 <div id="tip"></div>
@@ -153,7 +187,7 @@ function openDrawer(full){
   const rsiRows = D.timeframes.map(tf => {const v = i.rsi[tf], b = BAND(v);
     return `<div class="row2"><span class="sm">${tf}</span><span class="tfb" style="height:10px;flex:1;margin:0 8px"><div style="height:${v == null ? 2 : Math.max(2, v / 100 * 10)}px;width:100%;background:${b ? b.c : "#333"}"></div></span><b style="direction:ltr;color:${b ? b.c : "inherit"}">${v == null ? "—" : v.toFixed(1)}</b><span class="sm">${b ? esc(A("band", b.name)) : ""}</span></div>`;}).join("");
   $("#drw").innerHTML = `
-   <div class="row2"><h3 style="direction:ltr">${esc(i.full)}</h3><button onclick="closeDrawer()">✕ إغلاق</button></div>
+   <div class="row2"><h3 style="direction:ltr">${esc(i.full)}</h3><button class="ctl" onclick="closeDrawer()">رجوع للفرص ←</button></div>
    <div class="row2"><span class="pill" style="background:${VC(i.dir)};font-size:12px">${esc(A("verdict", i.verdict || "No edge"))}</span><span class="sm">${esc(A("phase", i.phase))} · ${esc(A("regime", i.regime))}</span></div>
    ${i.urgent ? `<div class="box" style="border-color:var(--amb);color:var(--amb);font-weight:700">● عاجل: ${esc(i.urgent)}</div>` : ""}
    <div class="box kv">
@@ -167,7 +201,7 @@ function openDrawer(full){
      <div><b style="color:var(--dn)">${fp(i.plan.stop)}</b><div class="sm">وقف (−${i.plan.risk_pct}%)</div></div>
      <div><b style="color:var(--up)">${fp(i.plan.target)}</b><div class="sm">هدف (+${i.plan.reward_pct}%)</div></div>
      <div><b>${i.plan.rr}R</b><div class="sm">نسبة العائد للمخاطرة</div></div></div>` : `<div class="box sm">مفيش اتجاه واضح، مفيش خطة.</div>`}
-   <div class="sm" style="margin:6px 0">الشارت على الشمال تحت الخريطة.</div>
+   <div class="sm" style="margin:6px 0">الشارت بتاع العملة دي تحت الخريطة.</div>
    <div class="box"><div class="sch">المدارس التسعة</div>
      ${bySchool.map(x => `<div><div class="sch" style="color:${VC(x.v)}">● ${esc(A("school", x.sc))} <span class="sm">${x.v > 0 ? "شراء" : x.v < 0 ? "بيع" : "هادية"}</span></div>
        ${x.rows.map(r => `<div class="sig"><span class="dot" style="background:${r.v > 0 ? "var(--up)" : "var(--dn)"}"></span><div class="tx"><div class="nm">${esc(r.n)} <span class="tags" style="display:inline"><span style="background:${r.c};color:#111">${esc(r.t)}</span></span></div><div class="ds">${esc(r.d)}</div></div></div>`).join("") || `<div class="sm">مفيش إشارة</div>`}</div>`).join("") || `<div class="sm">مفيش مدرسة بتقول حاجة على الفريم ده.</div>`}
@@ -177,9 +211,18 @@ function openDrawer(full){
    <div class="box"><div class="sch">الأوردر فلو</div><div class="sm">${i.flow ? esc(i.flow.text) : "مفيش مصدر أوردر فلو للعملة دي"}</div></div>
    <div class="box"><div class="sch">التاجات</div><div class="tags">${(i.tags || []).map(t => `<span class="${t === "Urgent" ? "u" : ""}">${esc(A("tag", t))}</span>`).join("") || "<span class='sm'>مفيش</span>"}</div></div>
    <div class="sm" style="padding:4px 0">الأرقام ومدارس الاستراتيجيات ليها وزن متساوي. التوافق عد مدارس، مش نسبة نجاح. ده دليل لمكان البحث، مش أمر بيع أو شراء.</div>`;
-  $("#drw").classList.add("open");
+  tab("det");
 }
-function closeDrawer(){$("#drw").classList.remove("open"); openFull = null;}
+function closeDrawer(){openFull = null; tab("opp");}
+const HINT = {opp: "كل مربع = عملة. الرقم الكبير = التوافق (كام مدرسة من 9 متفقة). الأعمدة الصغيرة = RSI على كل فريم. اضغط على مربع عشان تفتح تفاصيله والشارت.",
+  det: "كل حاجة عن العملة المختارة: الحكم، خطة الدخول والوقف والهدف، وكل مدرسة قالت إيه وليه.",
+  flt: "صفّي الفرص. أي فلتر هنا بيتطبق على تاب الفرص وعلى الخريطة مع بعض.",
+  hlp: "معنى كل رمز ولون على الشاشة."};
+function tab(t){
+  $$("#tabs button").forEach(b => b.classList.toggle("act", b.dataset.t === t));
+  $$(".tp").forEach(p => p.classList.toggle("act", p.id === "tp-" + t));
+  $("#hint").textContent = HINT[t];
+}
 
 // ---------- board
 function timer(i){
@@ -219,6 +262,7 @@ function rows(){
   if (!sel || !it.some(x => x.full === sel)) select(it.length ? it[0].full : null, false);
   $("#list").innerHTML = (grp("شراء", longs) + grp("بيع", shorts) + grp("مفيش اتجاه", flat)) || `<div class="sm" style="padding:12px">مفيش نتايج بالفلاتر دي.</div>`;
   $("#cnt").textContent = `${it.length}/${D.items.length}`;
+  const nf = (mc > 0) + (mr > 0) + (mf !== 99) + !!sc + tagF.size; $("#fn").textContent = nf ? `(${nf} شغال)` : ""; $("#fn").style.color = nf ? "var(--amb)" : "";
   const shown = new Set(it.map(i => i.full));
   $$(".it").forEach(g => g.classList.toggle("dim", !shown.has(g.dataset.s)));
   $$(".tile").forEach(r => r.onclick = () => openDrawer(r.dataset.s));
@@ -233,8 +277,9 @@ $("#tagbar").innerHTML = D.tags.map(t => {const n = D.items.filter(i => (i.tags 
   return `<button class="ctl tag" data-t="${t}" style="${n ? "" : "opacity:.4"}">${A("tag", t)} ${n}</button>`;}).join("");
 $$(".tag").forEach(c => c.onclick = () => {const t = c.dataset.t; tagF.has(t) ? tagF.delete(t) : tagF.add(t); c.classList.toggle("on"); rows();});
 D.schools.forEach(s => $("#sc").insertAdjacentHTML("beforeend", `<option value="${s}">${A("school", s)}</option>`));
-$("#lg").onclick = () => $("#legend").classList.toggle("open");
-$("#legend").innerHTML = `<div class="row2"><b style="font-size:13px">شرح الشاشة</b><button onclick="$('#legend').classList.remove('open')">✕</button></div>
+$$("#tabs button").forEach(b => b.onclick = () => (b.dataset.t === "det" && sel) ? openDrawer(sel) : tab(b.dataset.t));
+$("#rst").onclick = () => {$("#mc").value = 0; $("#mcv").textContent = "0"; $("#mr").value = "0"; $("#mf").value = "99"; $("#sc").value = ""; tagF.clear(); $$(".tag").forEach(c => c.classList.remove("on")); rows();};
+$("#legend").innerHTML = `<h4>إزاي تستخدم الشاشة (3 خطوات)</h4><div>1) بص على الخريطة: مين في تشبع شراء أو بيع. 2) افتح تاب الفرص: أعلى توافق فوق. 3) اضغط على عملة: التفاصيل في تاب ② والشارت تحت الخريطة.</div>
  <h4>الدايرة حوالين كل نقطة</h4><div>كل قطاع = مدرسة من 9. أخضر = بتقول شراء، أحمر = بتقول بيع، رمادي = هادية. الدايرة اللي كلها ملونة = توافق عالي.</div>
  <h4>حجم النقطة</h4><div>كل ما النقطة أكبر، التوافق أعلى (عدد المدارس المتفقة).</div>
  <h4>الذيل المنقط</h4><div>آخر 6 شمعات من الـ RSI على فريم الخريطة، عشان تعرف العملة جاية منين.</div>
@@ -313,6 +358,6 @@ const ui = store.get("rsihm_ui", null);
 if (ui){$("#mc").value = ui.mc; $("#mcv").textContent = ui.mc; $("#so").value = ui.so; $("#mr").value = ui.mr || "0";}
 addEventListener("beforeunload", () => store.set("rsihm_ui", {mc: $("#mc").value, so: $("#so").value, mr: $("#mr").value}));
 setInterval(() => $$(".tm").forEach(el => {const i = D.items.find(x => x.full === el.dataset.s); if (i) el.textContent = timer(i);}), 1000);
-drawMap(); paintArm(); rows(); checkAlarm();
+tab("opp"); drawMap(); paintArm(); rows(); checkAlarm();
 let _rz; addEventListener("resize", () => {clearTimeout(_rz); _rz = setTimeout(() => {drawMap(); rows(); drawChart(sel);}, 150);});
 </script></body></html>

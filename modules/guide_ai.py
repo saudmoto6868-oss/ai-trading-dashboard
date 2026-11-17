@@ -230,7 +230,8 @@ def answer(req: dict, hist: list) -> dict:
         if hist:   # follow-up questions depend on the chat, so they are not cached
             out = _call(q, ctx_txt, hist, model)
         else:
-            key = hashlib.sha1((q.lower() + "|" + str(ctx.get("lang")) + "|" + str(ctx.get("sym")) + "|" + str(ctx.get("tf")) + "|" + str((ctx.get("academy_lesson") or {}).get("id", ""))).encode()).hexdigest()
+            lesson_sig = hashlib.sha1(json.dumps(ctx.get("academy_lesson") or {}, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
+            key = hashlib.sha1((q.lower() + "|" + str(ctx.get("lang")) + "|" + str(ctx.get("sym")) + "|" + str(ctx.get("tf")) + "|" + lesson_sig).encode()).hexdigest()
             out = _cached(key, model, q, ctx_txt)
     except Exception as e:   # network / key / rate limit: the browser falls back to the offline guide
         code = getattr(getattr(e, "response", None), "status_code", None) or getattr(e, "status_code", None)

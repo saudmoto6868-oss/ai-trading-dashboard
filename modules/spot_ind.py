@@ -222,6 +222,14 @@ def dealing_range(piv, px: float):
 
 # ---------------------------------------------------------------- Elliott / Fibonacci
 def elliott(df: pd.DataFrame):
+    """Elliott count (see _elliott_core) + 'shape': the newest correction / diagonal / W-X-Y label (modules/elliott_shapes)."""
+    out = _elliott_core(df)
+    from modules.elliott_shapes import classify_tail
+    out["shape"] = classify_tail([p for _, p, _ in out.get("pivots", [])])
+    return out
+
+
+def _elliott_core(df: pd.DataFrame):
     """Last 5-leg impulse candidate (labels 0-5) when the rules hold, else the last ABC; Fibonacci targets for the next leg."""
     from modules.elliott_lab import impulse_rules
     from modules.harmonic import vol_dev, zigzag
@@ -302,6 +310,11 @@ def analyse(df: pd.DataFrame) -> dict:
     liq = liquidity(piv, a_last, len(d) - 120)
     dr = dealing_range(piv, px)
     ew = elliott(d)
+    try:
+        from modules.harmonic import find_harmonics
+        hm = find_harmonics(d, max_age=12)
+    except Exception:
+        hm = []
     gn = gann(d, piv)
     long_ok = len(d) >= 200
     votes = {}
@@ -317,7 +330,7 @@ def analyse(df: pd.DataFrame) -> dict:
     if ew.get("kind") in ("impulse_up", "impulse_down") and len(ew["labels"]) > 6:   # impulse done, ABC running: against it
         votes["elliott"] = -votes["elliott"]
     strength = float(ad[-1]) if np.isfinite(ad[-1]) else None
-    return {"ok": True, "n": len(d), "px": px, "time": d["time"], "o": d["open"].to_numpy(float), "h": h, "l": l_, "c": c.to_numpy(float),
+    return {"ok": True, "harmonic": (hm[0] if hm else None), "n": len(d), "px": px, "time": d["time"], "o": d["open"].to_numpy(float), "h": h, "l": l_, "c": c.to_numpy(float),
             "e20": e20, "e50": e50, "e200": e200 if long_ok else None, "rsi": r, "macd": m, "signal": sg, "hist": hist,
             "adx": strength, "pdi": float(pdi[-1]) if np.isfinite(pdi[-1]) else None, "mdi": float(mdi[-1]) if np.isfinite(mdi[-1]) else None,
             "pctb": float(pb[-1]) if np.isfinite(pb[-1]) else None, "bbw": float(bw[-1]) if np.isfinite(bw[-1]) else None,

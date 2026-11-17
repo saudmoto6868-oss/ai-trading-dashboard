@@ -5,7 +5,7 @@ Original Workspace layouts, drawings and preferences remain untouched.
 """
 from __future__ import annotations
 import streamlit.components.v1 as components
-from modules.workspace import build_workspace_html
+from modules.workspace import build_workspace_html, _fh_token
 
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
@@ -14,7 +14,7 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
-                               ui_theme="gold", ui_mat="steel")
+                               ui_theme="gold", ui_mat="steel", fh_token=_fh_token())   # 2026-11-17: same FX websocket token the desk Workspace gets
 
     # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.
     import json

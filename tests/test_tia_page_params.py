@@ -49,6 +49,8 @@ class MockStreamlit:
         self.write = MagicMock()
         self.metric = MagicMock()
         self.json = MagicMock()
+        # 2026-11-17: TIA view switch (Terminal | Markets); the mock returns the default so the Terminal path runs
+        self.segmented_control = lambda *a, **k: k.get("default")
 
     @contextlib.contextmanager
     def spinner(self, text=""):

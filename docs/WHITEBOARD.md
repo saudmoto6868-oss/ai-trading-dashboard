@@ -28,3 +28,4 @@
 
 
 | 30 | TIA institutional terminal — parent-company layer | A | ChatGPT | شغال — branch only | 2026-11-09 | `team/tia-intelligence-terminal-2026-11-09`; page index 12 placed between Radar and Workspace; first shell + foundation spec. Review requested; no merge/deploy. |
+| 31 | سرعة مكتب التداول + TIA: cache فشل + قاطع دائرة للمصادر + TIA Markets tab | A | Claude Code (سعود) | **شغال — mock-tested only** | 2026-11-17 | `modules/market_cache.py` (negative cache 30 ث، breaker 3 فشل → 120 ث، لا retry لمصدر موقوف)، `yahoo_feed` يرمي ConnectionError، `modules/market_map_view.py` (نُقل من main.py)، TIA: تبويب Markets + fh_token. قياس AppTest بشبكة مقفولة: Radar 114→3 طلب، Spot 225→71. محتاج قياس على الشبكة الحقيقية. |

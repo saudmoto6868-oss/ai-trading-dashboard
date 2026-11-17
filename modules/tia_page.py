@@ -10,6 +10,12 @@ import streamlit as st
 def render_tia():
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
+    # 2026-11-17: one view runs at a time (same pattern as Technical Office): Terminal (default) or Markets (the desk's market map)
+    view = st.segmented_control("TIA view", ["Terminal", "Markets"], default="Terminal", key="tia_view", label_visibility="collapsed")
+    if view == "Markets":
+        from modules.market_map_view import render_market_map
+        render_market_map()
+        return
     qp = st.query_params
     market = qp.get("tia_mkt") if qp.get("tia_mkt") in CLASSES else CLASSES[0]
     catalog = symbols_for_class(market, top=60)

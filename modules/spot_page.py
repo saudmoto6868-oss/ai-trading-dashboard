@@ -880,6 +880,14 @@ def _tab_budget(d) -> None:
                + T(" · The 200-day line is a reading only: as a buy / sell system it lost to holding BTC in a 3-year test (+16% vs +81%, 14 trades, not evidence).",
                    " · خط الـ 200 يوم قراءة بس: كنظام شراء وبيع خسر قدام الاحتفاظ بـ BTC في اختبار 3 سنين (+16% مقابل +81%، 14 صفقة، مش دليل)."))
     st.markdown("**" + T("2. Budget and DCA", "2. الميزانية و DCA") + "**")
+
+    def _apply_strategy():   # fills the split boxes before they are drawn
+        sp_ = B.STRATEGIES[st.session_state["bp_strat"]]["split"]
+        st.session_state["bp_s_dca"], st.session_state["bp_s_swing"], st.session_state["bp_s_res"] = sp_["dca"], sp_["swing"], sp_["reserve"]
+    _names = list(B.STRATEGIES)
+    _cur = plan.get("strategy") if plan.get("strategy") in _names else _names[0]
+    _pick = st.selectbox(T("Strategy", "الاستراتيجية"), _names, index=_names.index(_cur), key="bp_strat", on_change=_apply_strategy)
+    st.caption(T(B.STRATEGIES[_pick]["en"], B.STRATEGIES[_pick]["ar"]) + T(" You can still change the percentages below.", " وتقدر تغير النسب تحت."))
     budget = st.number_input(T("Budget (USD)", "الميزانية (دولار)"), min_value=0.0, value=float(plan["budget"]), step=50.0, key="bp_budget")
     s = st.columns(3)
     sp = {"dca": s[0].number_input("DCA %", 0.0, 100.0, float(plan["split"]["dca"]), key="bp_s_dca"),
@@ -995,7 +1003,7 @@ def _tab_budget(d) -> None:
     for i, item in enumerate(B.WEEKLY_CHECKLIST):
         st.checkbox(T(item, item), key=f"bp_chk_{i}")
     if st.button(T("Save plan and journal", "احفظ الخطة والسجل"), key="bp_save"):
-        d["budget_plan"] = {"fear_greed": int(fg), "budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
+        d["budget_plan"] = {"strategy": _pick, "fear_greed": int(fg), "budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
                             "risk_pct": risk, "monthly_cap_pct": mc, "max_open": plan["max_open"], "min_rr": plan["min_rr"]}
         clean = edited.where(pd.notna(edited), None)
         d["journal"] = [rec for rec in clean.to_dict("records") if str(rec.get("asset") or "").strip()]
@@ -1097,6 +1105,139 @@ def _tab_chart(d, cr) -> None:
                 _notify(d, T(f"Alerts armed for {asset}: {r['name']} entry {_n(r['entry'])}", f"اتسجلت تنبيهات {asset}: {r['name']} دخول {_n(r['entry'])}"))
 
 
+def _tab_library():
+    """Every setup of every school the spot desk knows + its weekly lab evidence (modules/spot_setups.py)."""
+    from modules import spot_setups as SS
+    rows = SS.library()
+    run = "—"
+    try:
+        run = json.loads(SS.EVIDENCE.read_text(encoding="utf8")).get("run", "—")
+    except Exception:
+        pass
+    st.caption(T(f"{len(rows)} setups. Weekly lab (Mondays): every setup on 1W and 1D, walk-forward on 18 markets; 'worked' needs n >= 30 and t >= 3. Last run: {run}",
+                 f"{len(rows)} سيت أب. المعمل الأسبوعي (كل اتنين): كل سيت أب على الأسبوعي واليومي على 18 سوق من غير ما يشوف المستقبل؛ «اشتغل» محتاج 30 مرة على الأقل و t ≥ 3. آخر تشغيل: {run}"))
+    schools = sorted({r["school"] for r in rows})
+    pick = st.multiselect(T("Schools", "المدارس"), schools, default=schools, key="sp_lib_sch")
+    q = st.text_input(T("Search", "بحث"), key="sp_lib_q").strip().lower()
+    show = [r for r in rows if r["school"] in pick and (not q or q in (r["name"] + r["id"] + r.get("why", "")).lower())]
+    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Side", "النوع"): r["side"], T("Source", "المصدر"): r["source"],
+                                T("Evidence", "النتيجة"): " · ".join(f"{k}: {v}" for k, v in r["evidence"].items()), T("Meaning", "معناه"): r.get("why", "")} for r in show]),
+                 hide_index=True, width="stretch", height=520)
+    st.caption(T("Adding a setup = one rule in spot_setups.py (CATALOG + spot_only); the next Monday lab measures it automatically. New ideas are reviewed by the school-review job (topic 'spot_setups').",
+                 "إضافة سيت أب = قاعدة واحدة في spot_setups.py (CATALOG + spot_only)، ومعمل الاتنين اللي بعده بيقيسه لوحده. الأفكار الجديدة بتتراجع في مهمة مراجعة المدارس (موضوع spot_setups)."))
+
+
+# ---------------------------------------------------------------- signals board (owner 2026-11-17)
+# spot strategy -> which schools' setups it reads (None = every school) and which side
+SIGNAL_STRATEGIES = {
+    "All setups": (None, None),
+    "Value / cycle accumulation": (("Cycle value", "Classic"), "buy"),
+    "Reversal (divergence, harmonic, Elliott)": (("Momentum / divergence", "Harmonic", "Elliott wave", "Fibonacci"), "buy"),
+    "Trend following": (("Trend (MA)", "Trend (hedge fund)", "Levels / breakouts"), "buy"),
+    "Smart money (SMC / ICT, liquidity)": (("SMC / ICT", "Liquidity"), "buy"),
+    "Gann price + time": (("Gann",), None),
+    "Exit / take-profit warnings": (None, "exit"),
+}
+
+
+def _board_assets(d) -> list[str]:
+    from modules import spot_ideas
+    held = [str(t.get("asset", "")).upper() for t in d.get("txs", []) if t.get("asset")]
+    al = [str(a.get("asset", "")).upper() for a in d.get("alerts", [])]
+    return list(dict.fromkeys([u[0] for u in spot_ideas.UNIVERSE] + ["XRP", "BNB"] + held + al))
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _board_scan(assets: tuple) -> tuple[list, list]:
+    """Live setups of every school on every market, side by side. -> (rows, markets that failed)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(a):
+        try:
+            return a, _live_setups(a), None
+        except Exception as e:
+            return a, [], type(e).__name__
+    rows, bad = [], []
+    with ThreadPoolExecutor(4) as ex:
+        for a, got, err in ex.map(one, assets):
+            if err:
+                bad.append(f"{a} ({err})")
+            rows += [{**r, "asset": a} for r in got]
+    return rows, bad
+
+
+def _lab_ok(r) -> bool:
+    return not str(r.get("ev_label", "")).startswith("كان أسوأ")
+
+
+def _tab_signals(d, px) -> None:
+    """Every live setup from every school on every spot market + the setups behind each alert. Read only."""
+    assets = _board_assets(d)
+    c = st.columns([2, 1.2, 1, 1])
+    strat = c[0].selectbox(T("Spot strategy", "استراتيجية السبوت"), list(SIGNAL_STRATEGIES), key="sg_strat",
+                           help=T("Each strategy reads the setups of its own schools.", "كل استراتيجية بتقرا إشارات المدارس بتاعتها."))
+    tfs = c[1].multiselect("TF", ["1mo", "1w", "1d", "4h"], default=["1w", "1d"], key="sg_tf")
+    hide_bad = c[2].toggle(T("Hide setups the lab found worse", "اخفي اللي المعمل لقاه أسوأ"), value=True, key="sg_hide")
+    go = c[3].button(T("Scan the markets", "امسح الأسواق"), key="sg_go")
+    if go:
+        st.session_state["sg_on"] = True
+    if not st.session_state.get("sg_on"):
+        st.caption(T(f"Not scanned yet: {len(assets)} markets, every school. Press the button (first scan can take a minute; cached 15 min).",
+                     f"لسه ماتمسحش: {len(assets)} سوق، كل المدارس. دوس الزرار (أول مسح ممكن ياخد دقيقة؛ بيتخزن 15 دقيقة)."))
+        return
+    with st.spinner(T("Scanning every market...", "بمسح كل الأسواق...")):
+        rows, bad = _board_scan(tuple(assets))
+    if bad:
+        st.caption(T("No data for: ", "مفيش داتا لـ: ") + ", ".join(bad))
+    schools, side = SIGNAL_STRATEGIES[strat]
+    show = [r for r in rows if (not schools or any(str(r.get("school", "")).startswith(s_) for s_ in schools)) and (not side or r["side"] == side)
+            and (not tfs or r["tf"] in tfs) and (not hide_bad or _lab_ok(r))]
+    by = {}
+    for r in show:
+        by.setdefault(r["asset"], []).append(r)
+    st.markdown("**" + T(f"{len(show)} live setups on {len(by)} markets", f"{len(show)} إشارة حية على {len(by)} سوق") + "**")
+    if show:
+        st.dataframe(pd.DataFrame([{T("Market", "السوق"): r["asset"], T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Use", "الاستخدام"): r["side"],
+                                    "TF": r["tf"], T("Entry", "دخول"): _n(r["entry"]), T("Stop", "وقف"): _n(r["stop"]), T("Target", "هدف"): _n(r["target"]),
+                                    T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"]} for r in show]), hide_index=True, width="stretch", height=340)
+        buys = [r for r in show if r["side"] == "buy" and r.get("entry")]
+        if buys:
+            a2 = st.columns([3, 1])
+            i = a2[0].selectbox(T("Make alerts from", "اعمل تنبيهات من"), range(len(buys)), key="sg_pick",
+                                format_func=lambda k: f"{buys[k]['asset']} · {buys[k]['name']} · {buys[k]['tf']} · {_n(buys[k]['entry'])}")
+            if a2[1].button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="sg_add"):
+                r = buys[i]
+                d["alerts"].append(C.new_alert(r["asset"], "buy", r["entry"], r["name"]))
+                if r.get("stop"):
+                    d["alerts"].append(C.new_alert(r["asset"], "stop", r["stop"], r["name"]))
+                if r.get("target"):
+                    d["alerts"].append(C.new_alert(r["asset"], "sell", r["target"], r["name"]))
+                if save(d):
+                    st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+    else:
+        st.caption(T("No live setup matches this strategy now.", "مفيش إشارة حية مطابقة للاستراتيجية دي دلوقتي."))
+    # the setups behind every alert: fired first, then armed
+    al = sorted(d.get("alerts", []), key=lambda a: (a.get("fired_at") is None, str(a.get("fired_at") or "")), reverse=False)
+    st.markdown("**" + T("Alerts and the setups behind them", "التنبيهات والسيت أبات اللي وراها") + "**")
+    if not al:
+        st.caption(T("No alerts yet.", "لسه مفيش تنبيهات."))
+        return
+    allby = {}
+    for r in rows:
+        if _lab_ok(r):
+            allby.setdefault(r["asset"], []).append(r)
+    out = []
+    for a in al[:60]:
+        live = allby.get(a["asset"], [])
+        same = [r for r in live if (a["kind"] == "buy") == (r["side"] == "buy")]
+        out.append({T("Status", "الحالة"): T("FIRED", "اتضرب") if a.get("fired_at") else T("armed", "شغال"), T("Market", "السوق"): a["asset"],
+                    T("Alert", "التنبيه"): f"{a['kind']} @ {_n(a['price'])}", T("Now", "السعر"): _n((px or {}).get(a["asset"])),
+                    T("Note", "ملاحظة"): a.get("note", ""), T("When", "إمتى"): str(a.get("fired_at") or "")[:16],
+                    T("Live setups (same side)", "سيت أبات حية (نفس الاتجاه)"): " · ".join(f"{r['name']} {r['tf']}" for r in same[:5]) or "—",
+                    T("Schools", "المدارس"): ", ".join(sorted({str(r['school']) for r in same})[:5]) or "—"})
+    st.dataframe(pd.DataFrame(out), hide_index=True, width="stretch", height=280)
+
+
 def render() -> None:
     d = load()
     st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
@@ -1106,7 +1247,7 @@ def render() -> None:
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
     tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
                     T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
-                    T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت")])
+                    T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"), T("Signals & alarms", "الإشارات والتنبيهات")])
     with tabs[0]:
         _tab_brain(d, px, met, cr, fx)
     with tabs[1]:
@@ -1137,4 +1278,8 @@ def render() -> None:
             _tab_chart(d, cr)
         else:
             st.caption(T("Not loaded until you open it.", "مش بيتحمّل غير لما تفتحه."))
+    with tabs[11]:
+        _tab_library()
+    with tabs[12]:
+        _tab_signals(d, px)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

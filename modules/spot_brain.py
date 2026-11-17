@@ -65,8 +65,22 @@ def _levels(r: dict, px: float) -> dict:
     return {"entry": (lo, hi), "stop": stop, "target": tgt, "rr": rr}
 
 
+TF_HZ = {"4h": "day", "1d": "week", "1w": "month", "1mo": "year"}
+
+
+def setup_vote(setups: list | None, key: str) -> tuple[float | None, list[str]]:
+    """Net live setups on this horizon (buy - exit, setups the lab found WORSE than normal are ignored) -> vote + line."""
+    rel = [x for x in (setups or []) if TF_HZ.get(x["tf"]) == key and not str(x.get("ev_label", "")).startswith("كان أسوأ")]
+    if not rel:
+        return None, []
+    nb = sum(1 for x in rel if x["side"] == "buy")
+    ne = len(rel) - nb
+    schools = sorted({x["school_ar"] for x in rel if x["side"] == "buy"})
+    return float(np.sign(nb - ne)), [f"سيت أبات شغالة: {nb} شراء / {ne} خروج" + (f" ({'، '.join(schools[:4])})" if schools else "")]
+
+
 def think(b: dict, flow: dict | None = None, cot: dict | None = None, news: dict | None = None, ideas: list | None = None,
-          holdings: list | None = None) -> dict:
+          holdings: list | None = None, setups: list | None = None) -> dict:
     from modules import spot_flow, spot_inst
     R = b["reads"]
     px = b.get("price") or next((r["px"] for r in R.values() if r.get("ok")), None)
@@ -80,11 +94,14 @@ def think(b: dict, flow: dict | None = None, cot: dict | None = None, news: dict
     hz = {}
 
     def pack(key, parts, reasons, tf):
+        sv, sl = setup_vote(setups, key)
+        parts = list(parts) + [(1.5, sv)]
+        reasons = list(reasons) + sl
         num = sum(w * v for w, v in parts if v is not None)
         den = sum(w for w, v in parts if v is not None)
         sc = round(100 * num / den) if den else 0
         k, ar = verdict(sc)
-        hz[key] = {"label": H[key][0], "tf": tf, "score": sc, "verdict": k, "verdict_ar": ar, "reasons": reasons[:5], **_levels(R.get(tf), px)}
+        hz[key] = {"label": H[key][0], "tf": tf, "score": sc, "verdict": k, "verdict_ar": ar, "reasons": reasons[:6], **_levels(R.get(tf), px)}
 
     # day
     r4 = R.get("4h")
@@ -145,7 +162,7 @@ def think(b: dict, flow: dict | None = None, cot: dict | None = None, news: dict
     else:
         head = "مفيش ميزة واضحة على أي مدة - الاستنى قرار"
     return {"asset": b["symbol"], "price": px, "horizons": hz, "head": head, "flow": fr, "inst": cr, "news": nt, "guard": guard,
-            "ideas": [i for i in (ideas or [])], "stats": st}
+            "ideas": [i for i in (ideas or [])], "stats": st, "setups": setups or []}
 
 
 def run(asset: str, cls: str, name: str, candles=None, holdings=None, news_items=None, flow=None, cot=None) -> dict:
@@ -157,7 +174,12 @@ def run(asset: str, cls: str, name: str, candles=None, holdings=None, news_items
     fl = spot_flow.fetch(asset, cls) if flow is None else flow
     ct = spot_inst.fetch(asset) if cot is None else cot
     ideas, log = spot_ideas.build(asset, cls, name, b, nt)
-    out = think(b, fl, ct, nt, ideas, holdings)
+    from modules import spot_setups
+    try:
+        setups = spot_setups.scan(b, fl, ct)
+    except Exception as e:
+        setups, log = [], log + [f"مكتبة السيت أبات: {type(e).__name__}"]
+    out = think(b, fl, ct, nt, ideas, holdings, setups)
     out.update({"name": name, "cls": cls, "bundle": b, "raw_flow": fl, "raw_cot": ct, "log": log, "tagged": tagged[:8]})
     return out
 

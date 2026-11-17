@@ -117,3 +117,33 @@ These are the material to build on; do not duplicate their content into a new da
 ### Pipeline result
 
 MR pipeline `3078847264` was created and immediately failed before runner startup. Jobs `streamlit_iframe_migration`, `risk_policy_tests`, `v7_structure_parity` and `mr_tests` all report `ci_quota_exceeded`; all have null `started_at`. No test command ran and no passing test is claimed.
+
+
+## Cross-conversation research synthesis — applied to the existing Academy
+
+The recovered XPiX decisions reinforce that the Academy must teach the shared decision process rather than present a collection of disconnected indicator schools.
+
+### Unified decision sequence
+1. Market regime (trend / range / transition).
+2. Higher-timeframe directional bias.
+3. Market structure and invalidation.
+4. Location (level / zone / liquidity context).
+5. Entry trigger (confirmed on closed bars; no future leakage).
+6. Order-flow confirmation at the prepared location.
+7. Session context and risk gate.
+
+SMC / ICT, Gann, Elliott, Harmonic, VWAP, sessions and other schools remain contextual lenses. They do not independently authorize a trade or override the decision sequence. The order-flow layer is an execution confirmation gate, not a standalone strategy.
+
+### Related project work to reuse, not duplicate
+- XPIX SHIX / M7: treat its planned modules as a source of tool mappings and validation requirements; do not claim the port is complete until its own branch and tests establish that.
+- Lab 2.6: reuse the existing research and test artifacts; do not create a second Lab or infer validated status from strategy notes.
+- RSI Heatmap: treat regime / momentum / timeframe confluence as a discovery and context surface, not an entry signal or proof of edge.
+- Risk policy from prior project decisions: teach the risk gate as mandatory; the exact numeric limits must be read from the canonical risk configuration before being displayed as live policy.
+- Anti-repaint, closed-bar confirmation, no future leakage, signal deduplication, data-quality checks, out-of-sample / walk-forward and cost-aware measurement are explicit quality topics across the learning path.
+
+### Implemented UI slice
+- PAGE 7 Path now contains a collapsed “Unified trade-decision sequence” explainer above the existing course.
+- It reuses the current Academy surface and language function; no new page, school, lesson database, provider, or AI client was added.
+- The explainer explicitly says contextual schools do not override risk controls or Lab evidence.
+- This is an instructional integration only; it does not alter scanner logic, signal generation, execution, risk settings, or PAGE 12.
+

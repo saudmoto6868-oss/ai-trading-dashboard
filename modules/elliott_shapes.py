@@ -130,3 +130,26 @@ def wxy_shape(p0, p1, p2, p3, p4, p5, p6, p7):
     if not w_zz and not y_zz:
         return "double_three", info
     return "double_combo", info
+
+
+def classify_tail(prices):
+    """Label the newest pivots of an alternating price list: W-X-Y (last 8), triangle / impulse (last 6), ABC (last 4).
+
+    Same order as the JS port (EWSHAPE block in the Workspace). Returns a shape name or None.
+    """
+    p = list(prices)
+    n = len(p)
+    if n >= 8:
+        name, _ = wxy_shape(*p[-8:])
+        if name:
+            return name
+    if n >= 6:
+        q = p[-6:]
+        name = triangle_shape(*q) or impulse_shape(*q)
+        if name:
+            return name
+    if n >= 4:
+        name, _ = abc_shape(*p[-4:])
+        if name:
+            return name
+    return None

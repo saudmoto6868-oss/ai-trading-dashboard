@@ -245,7 +245,7 @@ def test_tia_workspace_html_structure():
         "</body></html>"
     )
 
-    mock_components = MagicMock()
+    mock_iframe = MagicMock()   # st.iframe replaced components.html in modules/tia_workspace.py
     mock_build_workspace_html = MagicMock(return_value=base_html)
 
     ctrl_sample = {
@@ -257,13 +257,13 @@ def test_tia_workspace_html_structure():
     }
 
     # Force options_desk import error to test fallback handling
-    with patch.object(tw, "components", mock_components), \
+    with patch.object(tw.st, "iframe", mock_iframe), \
          patch.object(tw, "build_workspace_html", mock_build_workspace_html), \
          patch.dict("sys.modules", {"modules.options_desk": None}):
         tw.render_tia_workspace(height=920, universe="Crypto", symbols=["BTC-USDT"], ctrl=ctrl_sample)
 
-    mock_components.html.assert_called_once()
-    rendered_doc = mock_components.html.call_args[0][0]
+    mock_iframe.assert_called_once()
+    rendered_doc = mock_iframe.call_args[0][0]
 
     # Verify TIA-specific markers are present
     assert "window.TIA_CTRL" in rendered_doc

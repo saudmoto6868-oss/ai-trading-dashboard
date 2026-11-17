@@ -6,7 +6,7 @@ Regime classification via ADX/ATR/BB, Markout Decay, Plateau Surface heatmap.
 from __future__ import annotations
 from pathlib import Path
 
-import streamlit.components.v1 as _components
+import streamlit as st
 
 _TEMPLATE = Path(__file__).with_name("veles_robustness.html")
 
@@ -14,4 +14,4 @@ _TEMPLATE = Path(__file__).with_name("veles_robustness.html")
 def render() -> None:
     """Called from main.py to display the Robustness Lab page."""
     _html = _TEMPLATE.read_text(encoding="utf-8")
-    _components.html(_html, height=900, scrolling=True)
+    st.iframe(_html, height=900, alt="Veles Robustness Lab interactive matrix")

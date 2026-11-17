@@ -71,3 +71,15 @@ Nothing is promoted to "A+++" until it passes: n >= 100, t > 3, positive in both
 
 ### Decision
 Nothing is wired into the scanner. Next (measured): (1) pre-register `sess_amd`+loc and `ohl_open`/Late and re-test on candles after 2026-11-01 only; (2) test why `htf`-with underperforms (is it the 1.5 ATR / RR 1.5 exit, or mean reversion in these symbols); (3) journal keeps collecting grade + layers.
+
+## Pre-registered re-test (lab run 2026-11-13, local Mac run on real OKX candles, only signals after 2026-11-01)
+Gate (frozen 2026-11-01): n >= 100, t vs random direction > 3, net (avgR - 0.10R) > 0 overall AND in both time halves.
+| Hypothesis | n | win % | avgR | net | t | first half | second half | Pass |
+|---|---|---|---|---|---|---|---|---|
+| H1 `sess_amd` + loc | 107 | 39.3 | +0.058 | -0.042 | 0.66 | -0.066 (n 53) | -0.018 (n 54) | **no** |
+| H2 `ohl_open` + Late 20-24 | 313 | 42.5 | +0.071 | -0.029 | -1.14 | +0.001 (n 156) | -0.059 (n 157) | **no** |
+
+### Decision
+Both pre-registered hypotheses **fail** on fresh candles: net of cost they lose, t is far below 3, and the halves do not hold up.
+They were selection noise from ~1,257 rows. Drop both; nothing is wired into the scanner. Still open: (2) why `htf`-with underperforms; (3) journal data.
+Not tested: real fills / slippage, other stop / RR settings.

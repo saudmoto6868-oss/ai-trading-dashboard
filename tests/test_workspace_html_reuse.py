@@ -9,6 +9,7 @@ sent = []
 state = {}
 fake_st = types.ModuleType("streamlit")
 fake_st.session_state = state
+fake_st.iframe = lambda doc, height=None, alt=None, **kw: sent.append(doc)   # workspace.py uses st.iframe since the 2026-11-12 migration
 fake_components = types.ModuleType("streamlit.components.v1")
 fake_components.html = lambda doc, height=None, scrolling=None: sent.append(doc)
 sys.modules["streamlit"] = fake_st

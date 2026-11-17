@@ -4,17 +4,57 @@ Uses the existing browser-side chart/widget engine with a TIA-only storage names
 Original Workspace layouts, drawings and preferences remain untouched.
 """
 from __future__ import annotations
-import streamlit.components.v1 as components
+import streamlit as st
 from modules.workspace import build_workspace_html, _fh_token
 
+_TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
+# TIA widget names (owner 2026-11-17): capital title in Arabic / English, plus a small one-line description under it
+_TIA_NAMES_JS = """
+(function(){
+  const NM = {
+    en: {tiapulse:"TIA Pulse", tiasources:"TIA Sources", tiaheat:"TIA Heatmap", tiaoptions:"TIA Options", tiacorr:"TIA Correlation", tiaradial:"TIA Radial",
+         tiafunded:"TIA Funding", tiaring:"TIA Ring", tiaagents:"TIA Agents", tiaplan:"TIA Plan", tiaconf:"TIA Confluence", tiahealth:"TIA Health",
+         tiawalls:"TIA Walls", tiaport:"TIA Portfolio"},
+    ar: {tiapulse:"نبض TIA", tiasources:"مصادر TIA", tiaheat:"خريطة TIA", tiaoptions:"أوبشنز TIA", tiacorr:"ارتباط TIA", tiaradial:"راديال TIA",
+         tiafunded:"تمويل TIA", tiaring:"حلقة TIA", tiaagents:"الوكلاء", tiaplan:"خطة TIA", tiaconf:"تأكيد TIA", tiahealth:"صحة TIA",
+         tiawalls:"جدران TIA", tiaport:"محفظة TIA"}
+  };
+  const SUB = {
+    en: {tiapulse:"Live ticker snapshot, provider coverage", tiasources:"Feed connection health (this browser)", tiaheat:"Heat of the market, by asset",
+         tiaoptions:"Option walls and positioning", tiacorr:"How the markets move together", tiaradial:"Radial view of the setup",
+         tiafunded:"Prop-firm rules and limits", tiaring:"Ring of the main signals", tiaagents:"Seven specialists, each with its own evidence",
+         tiaplan:"Trade plan and levels", tiaconf:"Confluence of the signals", tiahealth:"Data and provider health", tiawalls:"Liquidity walls (live)",
+         tiaport:"Portfolio view"},
+    ar: {tiapulse:"لقطة حية للأسعار وتغطية المزودين", tiasources:"صحة اتصال المصادر (المتصفح ده)", tiaheat:"حرارة السوق لكل أصل",
+         tiaoptions:"جدران الأوبشنز والمراكز", tiacorr:"إزاي الأسواق بتتحرك مع بعض", tiaradial:"عرض دائري للإعداد",
+         tiafunded:"قواعد وحدود شركة التمويل", tiaring:"حلقة الإشارات الأساسية", tiaagents:"سبعة متخصصين، كل واحد بأدلته",
+         tiaplan:"خطة الصفقة والمستويات", tiaconf:"تجمع الإشارات", tiahealth:"صحة الداتا والمزودين", tiawalls:"جدران السيولة (حي)",
+         tiaport:"عرض المحفظة"}
+  };
+  const L2 = () => (typeof lang !== "undefined" && lang === "ar") ? "ar" : "en";
+  Object.keys(NM.en).forEach(k => {
+    I18N.en[k] = NM.en[k]; I18N.ar = I18N.ar || {}; I18N.ar[k] = NM.ar[k];
+  });
+  const orig = Panel.prototype.setTitle;
+  Panel.prototype.setTitle = function(){
+    orig.call(this);
+    const l = L2();
+    if (NM[l][this.type]) {
+      const sub = SUB[l][this.type] || "";
+      this.ttl.innerHTML = '<b style="font-size:13px;letter-spacing:.02em">' + esc(NM[l][this.type]) + '</b>' +
+        (sub ? ' <span style="font-size:10px;opacity:.62;font-weight:400">' + esc(sub) + '</span>' : '');
+    }
+  };
+})();
+"""
 
 def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None, ctrl: dict | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
-                               ui_theme="gold", ui_mat="steel", fh_token=_fh_token())   # 2026-11-17: same FX websocket token the desk Workspace gets
+                               ui_theme="gold", ui_mat="steel", fh_token=_fh_token())   # same FX websocket token the desk Workspace gets
 
     # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.
     import json
@@ -454,9 +494,9 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + "\nconst WGROUPS = () => [");
-    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
-    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiaport:"PORT", "@std"');
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + _TIA_WALLS_JS + _TIA_NAMES_JS + "\nconst WGROUPS = () => [");
+    doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth","tiawalls"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
+    doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiawalls:"WALLS", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.
     # tia_ws_v2: a fresh key, so browsers that already saved the old Workspace-copy layout (v1) start from the TIA layout below.
     doc = doc.replace("ai_ws_v5", "tia_ws_v6")
@@ -496,4 +536,4 @@ Ws.builtinStandard = () => {
         ":root{--panel0:#0e1114;--dot:#1b2027;--bg:#0b0e11;--panel:#161a1e;--panel2:#1e2329;--line:#2b3139;--txt:#eaecef;--mut:#848e9c;--grn:#0ecb81;--red:#f6465d;--gold:#f0b90b;--blue:#4aa3ff;--vio:#b57cff}",
         ":root{--panel0:#0d0c0a;--dot:#282117;--bg:#090a0c;--panel:#141311;--panel2:#201d18;--line:#51432c;--txt:#eee6d7;--mut:#a99d89;--grn:#31c48d;--red:#e66a67;--gold:#d6ad62;--blue:#78a9d1;--vio:#b59acb}"
     )
-    components.html(doc, height=height, scrolling=False)
+    st.iframe(doc, height=height, alt="TIA Command Workspace")

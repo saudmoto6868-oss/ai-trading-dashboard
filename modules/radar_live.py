@@ -7,7 +7,7 @@ What the card does
 - Only OKX spot symbols ("BASE-USDT") get the live card. Yahoo ("Y:") and Hyperliquid ("HL:") symbols keep the
   server-side picture (see main.py), because they have no OKX feed.
 
-Nothing here places an order. The page is a plain HTML document shown with st.components.v1.html."""
+Nothing here places an order. The page is a plain HTML document shown with st.iframe."""
 from __future__ import annotations
 
 import html

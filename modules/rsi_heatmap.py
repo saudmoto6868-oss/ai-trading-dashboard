@@ -300,7 +300,7 @@ def _detail(sym, rec, df, chart_tf, top25, setup):
            "ohlc": [], "lv": []}
     if df is None or len(df) < 10 or "open" not in df:
         return out
-    tail = df[["open", "high", "low", "close"]].tail(50).astype(float).round(8).values.tolist()
+    tail = df[["open", "high", "low", "close"]].tail(120).astype(float).round(8).values.tolist()
     out["ohlc"] = tail
     try:
         from modules.signals import sr_levels

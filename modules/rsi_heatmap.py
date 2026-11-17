@@ -13,9 +13,10 @@ from modules import rsi_ar as _AR
 import pandas as pd
 import streamlit as st
 
+ALL_MARKETS = "All markets · Top 10"
 ASSET_CLASSES = (
     "Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds",
-    "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)",
+    "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)", ALL_MARKETS,
 )
 TIMEFRAMES = ("1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w")
 WARMUP_BARS = 250   # Wilder RSI converges after ~250 bars (StockCharts); fewer drifts from TradingView
@@ -380,7 +381,18 @@ def render():
         except Exception:
             st.caption("streamlit-autorefresh not installed: Live is off.")
 
-    symbols, note = _symbols(asset_class, int(limit))
+    if asset_class == ALL_MARKETS:   # top 10 of every market (Options skipped: no candle feed), one board
+        symbols, parts = [], []
+        for cls in ASSET_CLASSES:
+            if cls in (ALL_MARKETS, "Options"):
+                continue
+            got, _ = _symbols(cls, 10)
+            symbols += got
+            parts.append(f"{cls} {len(got)}")
+        symbols = list(dict.fromkeys(symbols))
+        note = "Top 10 per market: " + " · ".join(parts) + " (the العملات box is ignored here)"
+    else:
+        symbols, note = _symbols(asset_class, int(limit))
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
         return

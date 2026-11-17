@@ -530,12 +530,6 @@ Object.assign(CandleChart.prototype, {
         [`SL = E ${sg} u  ${f(F.stop)}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
         [`${(STAGE[F.status] || [F.status])[0]} ${F.status === "waiting" ? Math.max(0, F.known + wait - (n - 1))+" bars left" : F.status}${HT.length ? "   "+al(F) : ""}`, "#9aa3ad"]];
       if (+S.str){ const sc = s26Score(D, R, F, HT), bar = "▮".repeat(Math.round(sc.s/10))+"▯".repeat(10 - Math.round(sc.s/10)); L.push([`Strength ${sc.s}/100 ${bar}  ${sc.why.join(" · ")}`, sc.s >= 65 ? CR : sc.s <= 35 ? "#b98a8a" : "#c9a227"]); }
-      if (MT.length){ const g6 = v => (+v).toPrecision(6), rowOf = (tf, D2, R2, big) => { const q = R2.filter(liveSt).slice(-1)[0]; if (!q) return [`${tf.padEnd(4)} –`, "#6b7380"];
-          const a = q.anchors, la = q.kind === "H1" ? a[0] : a[3], lb = q.kind === "H1" ? a[1] : a[4], b2 = q.side === "BUY", pa = b2 ? D2[la].l : D2[la].h, pb = b2 ? D2[lb].h : D2[lb].l, uu = Math.abs(pb - pa)/ratio;
-          return [`${tf.padEnd(4)} ${b2 ? "L" : "S"} ${q.kind} ${b2 ? "L" : "H"} ${g6(pa)}→${b2 ? "H" : "L"} ${g6(pb)}  Δ${g6(Math.abs(pb - pa))}÷${ratio}=${g6(uu)}  E ${g6(q.entry)}  ${(STAGE[q.status] || [q.status])[0]}${+S.str ? "  ★"+s26Score(D2, R2, q, big).s : ""}`, tf === this.tf ? "#e0c46a" : b2 ? CR : "#b7bdc6"]; };
-        L.push(["TF   side  swing → swing     Δ ÷ ratio = u        entry      stage", "#7d8590"]);
-        const big = H => MT.filter(x => TFSEC[x.tf] > TFSEC[H]).sort((x, y) => TFSEC[x.tf] - TFSEC[y.tf]).slice(0, 2);
-        [...MT.map(x => ({tf:x.tf, D2:x.rows, R2:x.R})), {tf:this.tf, D2:D, R2:R}].sort((x, y) => TFSEC[y.tf] - TFSEC[x.tf]).forEach(x => L.push(rowOf(x.tf, x.D2, x.R2, big(x.tf)))); }
       c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16, h = L.length*lh + 10, pos = +S.ipos || 0;
       const X = pos % 2 ? PR - w - 8 : 8, Y = pos >= 2 ? PB - h - 8 : 22;
       c.globalAlpha = .88; c.fillStyle = "#11151b"; c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 6) : c.rect(X, Y, w, h); c.fill(); c.globalAlpha = 1; c.textAlign = "left";

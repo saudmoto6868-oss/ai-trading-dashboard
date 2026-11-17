@@ -176,6 +176,37 @@ with st.sidebar.expander(L("Chart / Layout"), expanded=False):
     st.caption(L("Per-widget colours: use the two colour dots in each Workspace widget's title bar."))
 st.markdown(f"<style>.stApp{{background-color:{ui_bg}}} .stTabs [aria-selected='true']{{color:{ui_accent};border-bottom-color:{ui_accent}}}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
+# compact, square-cornered controls on every page (owner 2026-11-16): small dropdowns, inputs, buttons, tabs and labels
+COMPACT_CSS = """<style>
+[data-baseweb="select"]>div{min-height:24px!important;height:auto!important;border-radius:4px!important;background:#161a1e!important;border:1px solid #2b3139!important;box-shadow:none!important}
+[data-baseweb="select"] *{font-size:11px!important;color:#c9d1d9!important}
+[data-baseweb="select"] input{min-height:0!important;padding:0 4px!important}
+[data-baseweb="input"],[data-baseweb="base-input"]{background:#161a1e!important;border-radius:4px!important;border:1px solid #2b3139!important;min-height:24px!important}
+[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{font-size:11px!important;padding:2px 6px!important;min-height:22px!important;color:#c9d1d9!important}
+[data-testid="stWidgetLabel"] p,[data-testid="stWidgetLabel"] label{font-size:10px!important;line-height:12px!important;margin:0 0 1px 0!important;color:#848e9c!important}
+[data-testid="stPopover"] button,button[kind="secondary"],button[kind="tertiary"]{min-height:24px!important;height:24px!important;padding:0 8px!important;font-size:11px!important;border-radius:4px!important;border:1px solid #2b3139!important;background:#161a1e!important;color:#c9d1d9!important}
+button[data-baseweb="tab"]{font-size:12px!important;padding:4px 10px!important;min-height:0!important;height:30px!important}
+[data-baseweb="tab-list"]{gap:2px!important}
+[data-baseweb="tab-highlight"]{height:2px!important}
+[data-testid="stSegmentedControl"] button{min-height:22px!important;height:22px!important;font-size:11px!important;padding:0 8px!important;border-radius:4px!important}
+[data-testid="stVerticalBlock"]{gap:.5rem}
+[data-testid="stSelectbox"]>div>div,[data-testid="stNumberInput"]>div>div,[data-testid="stTextInput"]>div>div,[data-testid="stMultiSelect"]>div>div{background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;min-height:24px!important;box-shadow:none!important}
+[data-testid="stSelectbox"] span,[data-testid="stSelectbox"] input,[data-testid="stMultiSelect"] span,[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{color:#c9d1d9!important;font-size:11px!important;background:transparent!important}
+[data-testid="stNumberInput"] input{min-height:22px!important;padding:0 6px!important}
+[data-testid="stNumberInput"] button{background:#161a1e!important;color:#c9d1d9!important;border-left:1px solid #2b3139!important}
+[data-testid="stSegmentedControl"]>div,[data-testid="stSegmentedControl"] [role="radiogroup"]{background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;padding:2px!important}
+[data-testid="stSegmentedControl"] button{background:transparent!important;color:#9aa3ad!important;border:0!important;border-radius:3px!important;font-size:11px!important;min-height:22px!important;height:22px!important;padding:0 8px!important}
+[data-testid="stSegmentedControl"] button[aria-checked="true"],[data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:#2b3139!important;color:#eaecef!important}
+button[role="tab"]{background:transparent!important;color:#9aa3ad!important;font-size:12px!important;padding:2px 10px!important;border:0!important;border-radius:0!important}
+button[role="tab"][aria-selected="true"]{color:#eaecef!important;box-shadow:inset 0 -2px 0 #f0b90b!important}
+[data-baseweb="tab-border"]{background:#2b3139!important}
+[data-testid="stPills"] button,[data-testid="stPills"] div[role="button"]{background:#161a1e!important;border:1px solid #2b3139!important;color:#9aa3ad!important;font-size:11px!important;min-height:22px!important;padding:0 8px!important;border-radius:4px!important}
+[data-testid="stPills"] button[aria-checked="true"],[data-testid="stPills"] div[aria-checked="true"]{background:#2b3139!important;color:#eaecef!important}
+[data-testid="stButtonGroup"] button,[role="radio"]{background:#161a1e!important;color:#9aa3ad!important;border:1px solid #2b3139!important;border-radius:3px!important;font-size:11px!important;min-height:22px!important;height:22px!important;padding:0 8px!important;box-shadow:none!important}
+[data-testid="stButtonGroup"] button[aria-checked="true"],[role="radio"][aria-checked="true"]{background:#2b3139!important;color:#eaecef!important;border-color:#f0b90b!important}
+[data-testid="stButtonGroup"] [role="radiogroup"]{gap:2px!important}
+</style>"""
+st.markdown(COMPACT_CSS, unsafe_allow_html=True)
 if _ui_lang() == "ar":   # Arabic: labels, captions and alerts right-to-left (charts, tables and numbers keep their own direction)
     st.markdown(RTL_CSS, unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
@@ -279,6 +310,7 @@ def score_mt5_group(symbols):
     return results, ("; ".join(errors) if errors else "")
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _peer_frames(symbols, tf):
     """Candles (timeframe `tf`) of the correlated markets needed for SMT divergence, fetched once for the whole list."""
     from modules.smt import peers_of
@@ -1105,11 +1137,8 @@ if _ac_msg:
 ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Workspace gets their candles embedded in the page (no live book / tape for them)
 
 
-def render_universe_controls():
-    """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
-    _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
-    from modules import ui_kit as _UK
-    st.markdown(kit_css(), unsafe_allow_html=True)
+def render_universe_controls(_u1, _u2, _u3):
+    """Asset class / Market / Universe size: drawn in the ONE Radar filter line (the caller passes the three columns)."""
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -2338,9 +2367,11 @@ def _fv_with_ref(df, sym, ref_sym, ref_df):
     return m
 
 
+@st.cache_data(ttl=120, show_spinner=False)   # speed: every Radar rerun / page switch used to refetch all candles
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
+    from modules import radar_context as _RC
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260, workers=8)
     pfr = _peer_frames(symbols, tf)
     out = {}
@@ -2357,7 +2388,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
-        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "ctx": _RC.context(df), "price": float(df["close"].iloc[-1]),
                     "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
@@ -2825,11 +2856,14 @@ def _radar_filters(view):
     """ONE filter panel for every Radar view (owner 2026-10-23): universe, timeframe, side, indicators, strategies, patterns and the Finviz-style technical lists.
     Rendered on every run so its choices survive switching tabs; returns the settings dict."""
     st.markdown("""<style>
-.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
+.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:5px;padding:3px 6px 1px}
 .st-key-csf label p,.st-key-csf [data-testid="stWidgetLabel"] p{font-size:10px!important;color:#848e9c!important;margin:0 0 1px 0!important;text-transform:uppercase;letter-spacing:.03em}
-.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:26px!important;font-size:11px!important}
+.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:22px!important;font-size:10px!important;padding-top:0!important;padding-bottom:0!important}
 .st-key-csf [data-baseweb="select"] span,.st-key-csf [data-baseweb="tag"]{font-size:11px!important}
 .st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
+.st-key-csf [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;overflow-x:auto;align-items:center!important}.st-key-csf{font-size:10px}
+.st-key-csf [data-testid="stPopover"] button{min-height:22px!important;height:22px!important;padding:0 6px!important;font-size:10px!important}
+.st-key-csf [data-testid="stElementContainer"]{margin-bottom:0!important}
 .st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
@@ -2899,15 +2933,17 @@ def _radar_filters(view):
     with st.container(key="csfw"), st.container(key="csf"):
         rd = ss.get("radar_def", {})   # set from Technical Office > Scanner control
         _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
-        tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
-        top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
-        with top[1].popover(L("Save")):
+        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.4, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8])
+        st.markdown(kit_css(), unsafe_allow_html=True)
+        render_universe_controls(top[1], top[2], top[3])   # Asset class / Market / Universe size, same line
+        tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
+        top[4].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[5].popover(L("Save")):
             _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
             st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
             _m = ss.pop("rp_msg", None)
@@ -2917,7 +2953,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
+        with top[6].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2930,39 +2966,39 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
+        with top[7].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
             sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
             sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
             for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
+        with top[8].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
             sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
             for k_ in ("vol", "relvol", "turnover", "obv"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
+        with top[9].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
             sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
             sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
             for k_ in ("candle", "range"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+        with top[10].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
             for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
+        with top[11].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
             n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
             ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
             from modules.regime import REGIMES as _RG
             sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
-        top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        top[12].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     sel_mom = list(sel_mom_a) + list(sel_mom_v)
     quick = []
 
@@ -3052,16 +3088,25 @@ def render_chart_scanner(f):
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
     _dn = _rs.get("dn", 0)
-    st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
-        (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
-        (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
-        (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
-        (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
-         L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
-        (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
-         L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
-        (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
-    ]), unsafe_allow_html=True)
+    with st.expander(L('Summary (KPIs)'), expanded=False):   # collapsed by default: the charts start higher on the page
+        st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+            (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
+            (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
+            (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
+            (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+             L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+            (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
+             L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+            (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
+        ]), unsafe_allow_html=True)
+    from modules import radar_open_setups as _OS
+    _orows = _OS.open_setups(data, {s_ for s_, _d in shown})
+    with st.expander(L("Open setups: harmonic + OTE, with direction") + f" ({len(_orows)})", expanded=bool(_orows)):
+        _sm = _OS.summary(_orows)
+        st.caption(f"long {_sm['long']} · short {_sm['short']} · unclear {_sm['unclear']} · in the Radar filter {_sm['in_filter']}. "
+                   "2.6 boxes and harmonic target prices are not in the scanner data yet (read-only, no orders).")
+        if _orows:
+            st.dataframe(pd.DataFrame(_orows), hide_index=True, width="stretch", height=240)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -3092,6 +3137,9 @@ def render_chart_scanner(f):
             _lad_main = dict(zip(_lt, _ex2.map(lambda t_: _htf_trend(_symt, t_), _lt)))
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
+    from modules import radar_live as _LIVE
+    import streamlit.components.v1 as _cv1
+    _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
@@ -3117,18 +3165,38 @@ def render_chart_scanner(f):
                 _chg = d_x.get("chg"); _vx = d_x.get("volx")
                 from modules.symbol_icon import icon as _sic
                 _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
-                st.markdown(
-                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                    f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
-                    f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
-                    + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
-                    + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
-                    + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
-                    + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
-                    f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
-                    + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
-                    f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
-                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>", unsafe_allow_html=True)
+                from modules import radar_open_setups as _OS2
+                _sigs = [{"text": k, "dir": _OS2.direction_of(k, d_x)} for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_"))]
+                _lh = _LIVE.live_card_html(sym, tf_x, 300, signals=_sigs) if _live_on else None
+                if _lh:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        , unsafe_allow_html=True)
+                    _cv1.html(_lh, height=300, scrolling=False)
+                    _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
+                    from modules import radar_structure as _RS
+                    _struct = _RS.html_block(_RS.read(d_x))
+                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _struct + _tip_below + card_s + "</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
+                        + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
+                        f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
+                        f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>"
+                        , unsafe_allow_html=True)
                 _an = False
                 if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
                     with st.popover("⋯", use_container_width=True):
@@ -3570,32 +3638,41 @@ def render_smt_board():
 
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        # views merged (owner 2026-11-16): Screener + Signal list, and Similar charts + Correlation + Performance under "Compare"
+        _OLD_RV = {"Signal list": ("Screener", "Signal list"), "Similar charts": ("Compare", "Similar charts"), "Correlation": ("Compare", "Correlation"), "Performance": ("Compare", "Performance")}
+        if st.session_state.get("radar_view") in _OLD_RV:
+            _o = _OLD_RV[st.session_state["radar_view"]]
+            st.session_state["radar_view"] = _o[0]
+            st.session_state["radar_sub_s" if _o[0] == "Screener" else "radar_sub_c"] = _o[1]
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Screener", "Compare", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        _disp = _rv
+        if _rv == "Screener":
+            _disp = st.segmented_control(L("Screener"), ["Screener", "Signal list"], default="Screener", key="radar_sub_s", label_visibility="collapsed", format_func=L) or "Screener"
+        elif _rv == "Compare":
+            _disp = st.segmented_control(L("Compare"), ["Similar charts", "Correlation", "Performance"], default="Similar charts", key="radar_sub_c", label_visibility="collapsed", format_func=L) or "Similar charts"
         try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
             from modules import intermarket_ui as _IMU
             st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
         except Exception:
             pass
-        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
-            render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
         if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
-        if _rv == "SMT pairs":
+        _rf = _radar_filters(_disp) if _rv not in ("SMT pairs", "Day plan") else None
+        if _disp == "SMT pairs":
             render_smt_board()
-        elif _rv == "Day plan":
+        elif _disp == "Day plan":
             render_day_plan(SCAN_SYMBOLS)
-        elif _rv == "Heat map":
+        elif _disp == "Heat map":
             render_market_map()
-        elif _rv == "Similar charts":
+        elif _disp == "Similar charts":
             render_radar_similar(_rf)
-        elif _rv in ("Performance", "Correlation", "Signal list"):
-            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv](_rf)
-        elif _rv == "Screener":
+        elif _disp in ("Performance", "Correlation", "Signal list"):
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_disp](_rf)
+        elif _disp == "Screener":
             render_radar_screener(_rf)
         else:
             render_chart_scanner(_rf)

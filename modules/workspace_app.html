@@ -4034,8 +4034,23 @@ const EWShape = {
     if (!wz && !yz) return "double_three";
     return "double_combo";
   },
+  triple(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11){   // triple_zigzag / triple_three / triple_combo, or null (same rules as triple_shape)
+    const s = p1 > p0 ? 1 : -1, wL = Math.abs(p3 - p0), yL = Math.abs(p7 - p4);
+    if (wL === 0 || yL === 0) return null;
+    const x1 = Math.abs(p4 - p3)/wL, x2 = Math.abs(p8 - p7)/yL;
+    if (x1 < 0.382 || x1 > 1.0 || x2 < 0.382 || x2 > 1.0) return null;
+    if (s*(p4 - p3) >= 0 || s*(p8 - p7) >= 0) return null;
+    if (s*(p7 - p4) <= 0 || s*(p11 - p8) <= 0) return null;
+    const w = this.abc(p0, p1, p2, p3), y = this.abc(p4, p5, p6, p7), z = this.abc(p8, p9, p10, p11);
+    if (!w || !y || !z) return null;
+    const k = [w === "zigzag", y === "zigzag", z === "zigzag"];
+    if (k.every(Boolean)) return "triple_zigzag";
+    if (!k.some(Boolean)) return "triple_three";
+    return "triple_combo";
+  },
   tail(p){   // same order as Python classify_tail
     const n = p.length;
+    if (n >= 12){ const t = this.triple(...p.slice(n-12)); if (t) return t; }
     if (n >= 8){ const w = this.wxy(...p.slice(n-8)); if (w) return w; }
     if (n >= 6){ const q = p.slice(n-6); const t = this.tri(...q) || this.impulse(...q); if (t) return t; }
     if (n >= 4){ const a = this.abc(...p.slice(n-4)); if (a) return a; }
@@ -4051,7 +4066,8 @@ Object.assign(CandleChart.prototype, {
       running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"],
       contracting:["contracting triangle","مثلث متقارب"], expanding:["expanding triangle","مثلث متسع"],
       double_zigzag:["double zigzag (W-X-Y)","زيجزاج مزدوج (W-X-Y)"], double_three:["double three (W-X-Y)","ثلاثي مزدوج (W-X-Y)"],
-      double_combo:["combo (W-X-Y)","مركب (W-X-Y)"]}[name];
+      double_combo:["combo (W-X-Y)","مركب (W-X-Y)"], triple_zigzag:["triple zigzag (W-X-Y-X-Z)","زيجزاج ثلاثي (W-X-Y-X-Z)"],
+      triple_three:["triple three (W-X-Y-X-Z)","ثلاثي ثلاثي (W-X-Y-X-Z)"], triple_combo:["triple combo (W-X-Y-X-Z)","ثلاثي مركب (W-X-Y-X-Z)"]}[name];
     return T ? Lg("Shape: "+T[0], "الشكل: "+T[1]) : null;
   }
 });

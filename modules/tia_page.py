@@ -57,6 +57,15 @@ def render_tia():
                     st.metric(tf.upper(), item.get("trend", "—"), f"RSI {item.get('rsi14', '—')} · {item.get('return20_pct', '—')}% / 20 bars")
                 else:
                     st.metric(tf.upper(), "UNAVAILABLE")
+        sch = report.get("schools") or {}
+        if sch.get("ok"):
+            import pandas as pd
+            st.markdown(f"**Desk schools (1D / 1W / 1M)** · score {sch.get('score')} · {sch.get('action', '')}")
+            rows = [{k: v for k, v in r.items() if k in ("tf", "regime", "trend") or str(k).startswith("v_")} for r in sch.get("rows", [])]
+            if rows:
+                st.dataframe(pd.DataFrame(rows), hide_index=True)
+        else:
+            st.caption("Desk schools unavailable: " + str(sch.get("why", "not run")))
         src = report.get("sources") or {}
         st.caption("Source coverage: " + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
         for warning in report.get("warnings", []):

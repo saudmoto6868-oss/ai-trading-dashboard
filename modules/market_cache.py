@@ -63,6 +63,15 @@ def _note(src: str, ok: bool, exc: BaseException | None = None) -> None:
                 st[0], st[1] = 0, _now() + BREAK_FOR
 
 
+def _note_any(src: str, exc: BaseException) -> None:
+    """Count every failure of a source whose errors are not typed as transport errors (Biquote only: its symbols are gated)."""
+    with _lock:
+        st = _src.setdefault(src, [0, 0.0])
+        st[0] += 1
+        if st[0] >= BREAK_AFTER:
+            st[0], st[1] = 0, _now() + BREAK_FOR
+
+
 def _fetch_raw(symbol: str, tf: str, limit: int):
     src = _source(symbol)
     if symbol.startswith("HL:"):   # Hyperliquid TradFi perps (gold, oil, S&P 500, EUR ...): public API, no key
@@ -92,10 +101,15 @@ def _fetch_raw(symbol: str, tf: str, limit: int):
             errs.append("Yahoo paused after repeated failures")
         df = None
         if biquote_feed.symbol_for(symbol):   # forex / gold / silver: keyless Biquote feed first
-            try:
-                df = biquote_feed.get_klines(symbol, tf, limit)
-            except Exception as be:
-                errs.append(str(be))
+            if source_paused("BIQUOTE"):
+                errs.append("Biquote paused after repeated failures")
+            else:
+                try:
+                    df = biquote_feed.get_klines(symbol, tf, limit)
+                    _note("BIQUOTE", True)
+                except Exception as be:
+                    _note_any("BIQUOTE", be)   # the package wraps its network errors, so every failure counts for this source
+                    errs.append(str(be))
         if df is None and tf in ("1d", "1w") and av_feed.pair(symbol):
             try:
                 df = av_feed.get_fx_klines(symbol, tf, limit)

@@ -96,4 +96,22 @@ frames, errors = mc.fetch_frames(["P4", "P5"], ["1h", "4h"], workers=2)
 assert frames["P4"] == {} and "P4" in errors and sleeps == [], (sleeps, errors)
 print("ok fetch_frames skips backoff while paused")
 
+# 7. Biquote (forex / gold fallback): any failure counts; after BREAK_AFTER it is skipped
+from modules import biquote_feed as bq, yahoo_feed as yf  # noqa: E402
+reset()
+bq_calls = {"n": 0}
+def bq_fail(symbol, tf, limit):
+    bq_calls["n"] += 1
+    raise RuntimeError("biquote down")
+bq.get_klines = bq_fail
+bq.symbol_for = lambda s: "EURUSD"
+def yahoo_down(sym, tf, limit=300):
+    raise requests.exceptions.ConnectionError("yahoo down")
+yf.get_yahoo_klines = yahoo_down
+for s in ["Y:EURUSD=X", "Y:GBPUSD=X", "Y:XAUUSD=X"]:
+    raises(lambda s=s: mc.get_klines(s, "1h"))
+assert mc.source_paused("BIQUOTE") and bq_calls["n"] == 3, (bq_calls, mc._src)
+raises(lambda: mc.get_klines("Y:AUDUSD=X", "1h"))
+assert bq_calls["n"] == 3, "paused Biquote must not be called"
+print("ok biquote behind the breaker")
 print("ALL OK")

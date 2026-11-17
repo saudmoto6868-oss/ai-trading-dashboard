@@ -6,6 +6,8 @@ and explicitly reports unavailable modules. Human remains in control.
 """
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -109,6 +111,16 @@ def analyze_symbol(symbol: str, asset_class: str, timeframes=("15m", "1h", "4h",
             result["sources"]["options"] = {"status": "unavailable", "reason": str(exc)[:160]}
     else:
         result["sources"]["options"] = {"status": "not_applicable", "reason": "No verified options chain adapter for this underlying"}
+    # Desk schools (2026-11-17): the same per-timeframe engine as the Spot desk (trend, Elliott, SMC/ICT, Gann) on 1D / 1W / 1M.
+    # Shown as its own block; it does not change the stance yet (needs a forward test before it may vote).
+    try:
+        result["schools"] = _schools(symbol)
+        result["sources"]["schools"] = {"status": "available" if result["schools"].get("ok") else "unavailable",
+                                        "provider": "candles via market_cache; spot_plan engine",
+                                        "reason": "" if result["schools"].get("ok") else result["schools"].get("why", "")}
+    except Exception as exc:
+        result["schools"] = {"ok": False, "why": str(exc)[:160]}
+        result["sources"]["schools"] = {"status": "unavailable", "reason": str(exc)[:160]}
     # Evidence votes: one vote per timeframe, plus order-flow only when a real adapter returned valid measurements.
     votes = []
     for tf, tech in result["technical"].items():
@@ -146,7 +158,9 @@ def analyze_symbol(symbol: str, asset_class: str, timeframes=("15m", "1h", "4h",
 def director_report(symbol: str, asset_class: str) -> dict:
     """Safe UI wrapper: always returns a structured status instead of breaking the page."""
     try:
-        return analyze_symbol(symbol, asset_class)
+        report = analyze_symbol(symbol, asset_class)
+        log_report(report)
+        return report
     except Exception as exc:
         return {"symbol": symbol, "asset_class": asset_class, "stance": "UNAVAILABLE", "confidence": "LOW",
                 "score": 0, "director_summary": "Director could not complete analysis.",
@@ -166,3 +180,35 @@ def symbols_for_class(asset_class: str, top: int = 60) -> dict[str, Any]:
         return {"symbols": syms, "note": note or "", "kind": "market"}
     except Exception as exc:
         return {"symbols": [], "note": f"{type(exc).__name__}: {str(exc)[:160]}", "kind": "market"}
+
+
+def _schools(symbol: str) -> dict:
+    """spot_plan.plan on 1D / 1W / 1M candles; keeps the parts TIA shows (score, action, per-timeframe school votes)."""
+    from modules.market_cache import get_klines
+    from modules import spot_plan
+    frames = {}
+    for tf in ("1d", "1w", "1mo"):
+        try:
+            frames[tf] = get_klines(symbol, tf, 300)
+        except Exception:
+            frames[tf] = None
+    p = spot_plan.plan(frames)
+    if not p.get("ok"):
+        return {"ok": False, "why": p.get("why", "not enough candles")}
+    return {"ok": True, "score": p.get("score"), "action": p.get("action"), "rows": p.get("rows", [])}
+
+
+LOG_PATH = os.environ.get("TIA_DIRECTOR_LOG", "data/tia/director_log.jsonl")
+
+
+def log_report(report: dict) -> None:
+    """Append every Director run to a local JSON-lines file, so later it can be checked against what happened (no conclusions from n<30)."""
+    try:
+        os.makedirs(os.path.dirname(LOG_PATH) or ".", exist_ok=True)
+        row = {"asof_utc": report.get("asof_utc"), "symbol": report.get("symbol"), "asset_class": report.get("asset_class"),
+               "stance": report.get("stance"), "score": report.get("score"), "confidence": report.get("confidence"),
+               "schools_score": (report.get("schools") or {}).get("score"), "schools_action": (report.get("schools") or {}).get("action")}
+        with open(LOG_PATH, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, default=str) + "\n")
+    except Exception:
+        pass   # logging must never break the page

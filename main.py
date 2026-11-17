@@ -3178,6 +3178,22 @@ def _academy_path():
     by_level = {lv["id"]: [x for x in ls if x["level"] == lv["id"]] for lv in lvs}
     n_done = sum(1 for x in ls if x["id"] in done)
     nxt = next((x for x in ls if x["id"] not in done), ls[0])
+
+    # One shared decision sequence across the existing schools and project tools.
+    # The schools remain lenses/context; none is promoted to a standalone entry signal.
+    with st.expander(L("Unified trade-decision sequence"), expanded=False):
+        _decision_steps = [
+            ("1", L("Market regime"), L("Trend, range, or transition?")),
+            ("2", L("Higher-timeframe bias"), L("Set directional context before looking for an entry.")),
+            ("3", L("Market structure"), L("Read swing structure and define invalidation.")),
+            ("4", L("Location"), L("Wait for a meaningful level or zone; avoid chasing price.")),
+            ("5", L("Entry trigger"), L("Require a closed-bar trigger and a clear invalidation point.")),
+            ("6", L("Order-flow confirmation"), L("Use order flow as an execution filter at the prepared location, not as a standalone strategy.")),
+            ("7", L("Session and risk gate"), L("Check session context, position risk, daily limits, and planned reward-to-risk before execution.")),
+        ]
+        for _step_no, _step_title, _step_note in _decision_steps:
+            st.markdown(f"**{_step_no}. {_step_title}** — {_step_note}")
+        st.caption(L("SMC / ICT, Gann, Elliott, Harmonic, VWAP, and session concepts are contextual lenses within this sequence. They do not override risk controls or measured Lab evidence. A lesson or visual example is not empirical validation."))
     st.markdown("""<style>
 .st-key-acpath{--fs:15.5px}
 .st-key-acpath [data-testid="stWidgetLabel"] p,.st-key-acpath label p{font-size:12px!important}

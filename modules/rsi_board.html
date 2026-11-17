@@ -309,9 +309,9 @@ function drawChart(full){
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   g.font = "10px system-ui";
   if (!i || !i.ohlc || !i.ohlc.length){ g.fillStyle = "#8b95a5"; g.fillText("مفيش شموع للعملة دي", 12, 20); return; }
+  const ema = (arr, p) => {const k = 2 / (p + 1); let e = arr[0]; return arr.map(v => (e = v * k + e * (1 - k)));};
   const all = i.ohlc, allC = all.map(x => x[3]), e9all = ema(allC, 9), e21all = ema(allC, 21);
   const from = Math.max(0, all.length - cz), c = all.slice(from), n = c.length;
-  const ema = (arr, p) => {const k = 2 / (p + 1); let e = arr[0]; return arr.map(v => (e = v * k + e * (1 - k)));};
   const e9 = e9all.slice(from), e21 = e21all.slice(from);
   let lo = Math.min(...c.map(x => x[2])), hi = Math.max(...c.map(x => x[1]));
   const levels = [...(i.lv || []).map(l => l.p)];

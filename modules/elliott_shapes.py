@@ -45,7 +45,7 @@ def abc_shape(a0, a1, a2, a3):
 
     if b_ret <= 0 or b_ret > 1.5:                # B must go back against A, not absurdly far
         return None, info
-    if not b_beyond and b_ret >= ZZ_B_MIN and c_beyond:
+    if not b_beyond and ZZ_B_MIN <= b_ret < FLAT_B_LO and c_beyond:   # zigzag: B shallower than a flat's B
         return "zigzag", info
     if FLAT_B_LO <= b_ret <= FLAT_B_HI and abs(a3 - a1) / lenA <= FLAT_C_TOL:
         return "regular_flat", info
@@ -89,3 +89,44 @@ def triangle_shape(p0, p1, p2, p3, p4, p5):
     if all(legs[k + 1] >= legs[k] * TRI_GROW for k in range(4)):
         return "expanding"
     return None
+
+
+# --- double / triple structures: W-X-Y (X is the connecting counter-leg) ---
+X_RET_MIN = 0.382           # X retraces at least 38.2 % of W (connector must be a real counter-move)
+X_RET_MAX = 1.0             # ... and does not go past the start of W
+
+
+def wxy_shape(p0, p1, p2, p3, p4, p5, p6, p7):
+    """Eight pivots: W = p0..p3 (three legs), X = p3->p4 (one leg back), Y = p4..p7 (three legs).
+
+    Returns (name, info). name:
+      'double_zigzag' - W and Y are both zig-zags
+      'double_three'  - W and Y are both flats
+      'double_combo'  - one zig-zag, one flat
+      None            - not a W-X-Y in this sense
+    W's direction is taken from p1 vs p0; Y must continue it, X must go against it.
+    """
+    s = 1 if p1 > p0 else -1
+    w_len = abs(p3 - p0)
+    if w_len == 0:
+        return None, {}
+    x_len = abs(p4 - p3)
+    x_ret = x_len / w_len
+    info = {"x_ret": round(x_ret, 3)}
+    if s * (p4 - p3) >= 0 or s * (p7 - p4) <= 0:                 # X must go back, Y must go on
+        return None, info
+    if not (X_RET_MIN <= x_ret <= X_RET_MAX):
+        return None, info
+    if s * (p3 - p0) <= 0:                                        # W must move in its own direction
+        return None, info
+    w_name, w_info = abc_shape(p0, p1, p2, p3)
+    y_name, y_info = abc_shape(p4, p5, p6, p7)
+    info.update({"w": w_name, "y": y_name})
+    if w_name is None or y_name is None:
+        return None, info
+    w_zz, y_zz = w_name == "zigzag", y_name == "zigzag"
+    if w_zz and y_zz:
+        return "double_zigzag", info
+    if not w_zz and not y_zz:
+        return "double_three", info
+    return "double_combo", info

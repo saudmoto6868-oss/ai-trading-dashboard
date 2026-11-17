@@ -153,3 +153,10 @@ SMC / ICT, Gann, Elliott, Harmonic, VWAP, sessions and other schools remain cont
 - PAGE 7 renders that canonical helper rather than maintaining a second copy of the wording in `main.py`.
 - Added `tests/test_academy_decision_sequence.py` to cover stable order/IDs and English overlay selection.
 - This keeps the decision model reusable by future Academy / Mr X integration without duplicating definitions.
+
+### Matimatiki 2.6 — reused existing research, not promoted to a lesson
+- Added the existing Matimatiki 2.6 workstream to Academy References in Arabic and English using stable source ID `matimatiki-26` and claim ID `m26-01`.
+- Preserved its unverified status and linked the existing session report, isolated research README and 2026-11-15 backtest report.
+- The reference explicitly separates the 14-candle and time-cycle material, records the 34-trade positive exploratory variant and the distinct negative Hyperliquid indicator-plan test, and warns that their rules/data differ.
+- No duplicate 2.6 Lab, approved lesson, strategy engine, or live trading logic was created.
+- The Academy references loader overlays the English source/claim text by stable ID; Arabic originals remain intact.

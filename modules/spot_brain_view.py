@@ -152,11 +152,13 @@ def render(br: dict, markets: list | None = None) -> str:
         dots = "".join(f'<span title="{k}" class="dot" style="background:{A if v > 0 else "#a7adb8" if v < 0 else L};margin:0 2px"></span>' for k, v in r["votes"].items())
         votes.append(f"<tr><td>{nm}</td><td>{dots}</td></tr>")
     ew = (w1.get("elliott") or {}).get("kind")
+    from modules.elliott_shapes import SHAPE_AR
     gn = ((w1.get("gann") or {}).get("fit") or {})
     pats = ", ".join(sorted({i["title"] for i in br.get("ideas", [])})) or "—"
     out.append('<div class="row" style="grid-template-columns:1fr 1fr 1fr">'
                + _tile("المدارس · MA RSI MACD SMC ICT اليوت", f"<table>{''.join(votes)}</table>")
                + _tile("اليوت · جان", f'<div class="ln">اليوت أسبوعي: <b class="a">{e({"impulse_up": "دافعة صاعدة", "impulse_down": "دافعة هابطة", "abc": "تصحيح ABC"}.get(ew, "—"))}</b></div>'
+                       f'<div class="ln">شكل: <b class="a">{e(SHAPE_AR.get((w1.get("elliott") or {}).get("shape"), "—"))}</b> · هارمونيك: <b class="a">{e(((w1.get("harmonic") or {}).get("name")) or "—")}</b> (وصف فقط)</div>'
                        f'<div class="ln">جان: دورة {gn.get("tsp", "—")} أسبوع · الانعكاس بعد {gn.get("bars_to_turn", "—")}</div>'
                        f'<div class="ln">مربع التسعة الأقرب: {" / ".join(f(v) for v in sorted((w1.get("gann") or {}).get("sq9", []), key=lambda v: abs(v - (px or 0)))[:2])}</div>')
                + _tile("السيت أبات الشغالة دلوقتي", "".join(

@@ -153,3 +153,9 @@ def classify_tail(prices):
         if name:
             return name
     return None
+
+
+SHAPE_AR = {"zigzag": "تصحيح زيجزاج (ABC)", "regular_flat": "فلات عادي", "expanded_flat": "فلات ممتد",
+            "running_flat": "فلات جاري", "impulse": "دافعة 1-5", "ending_diagonal": "دياجونال نهائي",
+            "contracting": "مثلث متقارب", "expanding": "مثلث متسع", "double_zigzag": "زيجزاج مزدوج (W-X-Y)",
+            "double_three": "ثلاثي مزدوج (W-X-Y)", "double_combo": "مركب (W-X-Y)"}

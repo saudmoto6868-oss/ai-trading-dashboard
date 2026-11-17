@@ -19,4 +19,15 @@ except ValueError:
     pass
 levels = g.square_of_nine_levels(100, 2)
 assert len(levels) >= 2 and all(isinstance(x, float) for x in levels), levels
+# offset from a prior axis (our definition): offset 0 = the axis itself
+axis = 2.0                                   # axis rises 2 price units per bar, unit 1 -> axis angle atan(2) ~ 63.4 deg
+assert abs(g.offset_from_axis_price(100, 10, axis, 0, 1.0) - (100 + 2.0 * 10)) < 1e-9
+# 45 deg offset from a 45-deg axis (1x1, unit 1) -> 90 deg, not allowed (must stay under 90)
+try:
+    g.offset_from_axis_price(100, 10, 1.0, 45, 1.0); raise SystemExit("90 deg offset accepted")
+except ValueError:
+    pass
+# 15 deg offset from a 45-deg axis -> 60 deg line
+got = g.offset_from_axis_price(100, 10, 1.0, 15, 1.0)
+assert abs(got - (100 + math.tan(math.radians(60)) * 10)) < 1e-9, got
 print("test_gann_geom: OK")

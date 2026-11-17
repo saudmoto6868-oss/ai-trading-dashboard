@@ -586,7 +586,7 @@ const HARM_TOL = 0.10;   // ratio tolerance: 6 % found almost nothing on live-li
 const HARM_RULES = {
   "Gartley":{b:[.618,.618],c:[.382,.886],d:[.786,.786]}, "Bat":{b:[.382,.5],c:[.382,.886],d:[.886,.886]},
   "Butterfly":{b:[.786,.786],c:[.382,.886],d:[1.272,1.618]}, "Crab":{b:[.382,.618],c:[.382,.886],d:[1.618,1.618]},
-  "Cypher":{b:[.382,.618],cx:[1.13,1.414],d:[.786,.786]}};
+  "Cypher":{b:[.382,.618],cx:[1.272,1.414],d:[.786,.786]}};
 const harmIn = (v, r) => v >= r[0]*(1-HARM_TOL) && v <= r[1]*(1+HARM_TOL);
 function harmCheck(X, A, B, C, D){   // mirrors modules/harmonic.py
   const xa = Math.abs(A-X), ab = Math.abs(A-B); if (xa <= 0 || ab <= 0) return null;

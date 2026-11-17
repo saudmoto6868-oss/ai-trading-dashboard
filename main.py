@@ -3138,7 +3138,6 @@ def render_chart_scanner(f):
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
     from modules import radar_live as _LIVE
-    import streamlit.components.v1 as _cv1
     _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
@@ -3178,7 +3177,7 @@ def render_chart_scanner(f):
                         + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
                         + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
                         , unsafe_allow_html=True)
-                    _cv1.html(_lh, height=300, scrolling=False)
+                    st.iframe(_lh, height=300, alt=f"Live chart {sym}")
                     _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
                     from modules import radar_structure as _RS
                     _struct = _RS.html_block(_RS.read(d_x))

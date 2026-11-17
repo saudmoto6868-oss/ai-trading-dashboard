@@ -1039,7 +1039,6 @@ def _live_setups(asset: str) -> list[dict]:
 
 def _tab_chart(d, cr) -> None:
     """Spot chart desk (owner 2026-11-16): the Workspace chart inside the Spot page + this market's live setups, one click to alerts."""
-    import streamlit.components.v1 as components
     try:
         from modules.i18n import lang as _lang
         lg = _lang()
@@ -1056,7 +1055,7 @@ def _tab_chart(d, cr) -> None:
                    "جوه الشارت: + Widget بيضيف شارتات و DOM و Tape وفوت برنت وأوردر فلو؛ قايمة المؤشرات فيها إليوت وجان و SMC و 2.6 والباقي؛ "
                    "البانلز بتمشي على نفس الرمز. مفيش هنا أي أمر بيتنفذ."))
     try:
-        components.html(_chart_doc(tuple(syms), lg, hgt), height=hgt, scrolling=False)
+        st.iframe(_chart_doc(tuple(syms), lg, hgt), height=hgt, alt="Spot chart")
     except Exception as e:
         st.error(T("Chart could not be built", "الشارت ماتبناش") + f": {type(e).__name__}: {e}")
     try:   # the spot plan of this market as ONE horizontal strip (same engine as the Crypto / Metals plan card)

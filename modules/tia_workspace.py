@@ -10,6 +10,46 @@ from modules.workspace import build_workspace_html
 _TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
+# TIA widget names (owner 2026-11-17): capital title in Arabic / English, plus a small one-line description under it
+_TIA_NAMES_JS = """
+(function(){
+  const NM = {
+    en: {tiapulse:"TIA Pulse", tiasources:"TIA Sources", tiaheat:"TIA Heatmap", tiaoptions:"TIA Options", tiacorr:"TIA Correlation", tiaradial:"TIA Radial",
+         tiafunded:"TIA Funding", tiaring:"TIA Ring", tiaagents:"TIA Agents", tiaplan:"TIA Plan", tiaconf:"TIA Confluence", tiahealth:"TIA Health",
+         tiawalls:"TIA Walls", tiaport:"TIA Portfolio"},
+    ar: {tiapulse:"نبض TIA", tiasources:"مصادر TIA", tiaheat:"خريطة TIA", tiaoptions:"أوبشنز TIA", tiacorr:"ارتباط TIA", tiaradial:"راديال TIA",
+         tiafunded:"تمويل TIA", tiaring:"حلقة TIA", tiaagents:"الوكلاء", tiaplan:"خطة TIA", tiaconf:"تأكيد TIA", tiahealth:"صحة TIA",
+         tiawalls:"جدران TIA", tiaport:"محفظة TIA"}
+  };
+  const SUB = {
+    en: {tiapulse:"Live ticker snapshot, provider coverage", tiasources:"Feed connection health (this browser)", tiaheat:"Heat of the market, by asset",
+         tiaoptions:"Option walls and positioning", tiacorr:"How the markets move together", tiaradial:"Radial view of the setup",
+         tiafunded:"Prop-firm rules and limits", tiaring:"Ring of the main signals", tiaagents:"Seven specialists, each with its own evidence",
+         tiaplan:"Trade plan and levels", tiaconf:"Confluence of the signals", tiahealth:"Data and provider health", tiawalls:"Liquidity walls (live)",
+         tiaport:"Portfolio view"},
+    ar: {tiapulse:"لقطة حية للأسعار وتغطية المزودين", tiasources:"صحة اتصال المصادر (المتصفح ده)", tiaheat:"حرارة السوق لكل أصل",
+         tiaoptions:"جدران الأوبشنز والمراكز", tiacorr:"إزاي الأسواق بتتحرك مع بعض", tiaradial:"عرض دائري للإعداد",
+         tiafunded:"قواعد وحدود شركة التمويل", tiaring:"حلقة الإشارات الأساسية", tiaagents:"سبعة متخصصين، كل واحد بأدلته",
+         tiaplan:"خطة الصفقة والمستويات", tiaconf:"تجمع الإشارات", tiahealth:"صحة الداتا والمزودين", tiawalls:"جدران السيولة (حي)",
+         tiaport:"عرض المحفظة"}
+  };
+  const L2 = () => (typeof lang !== "undefined" && lang === "ar") ? "ar" : "en";
+  Object.keys(NM.en).forEach(k => {
+    I18N.en[k] = NM.en[k]; I18N.ar = I18N.ar || {}; I18N.ar[k] = NM.ar[k];
+  });
+  const orig = Panel.prototype.setTitle;
+  Panel.prototype.setTitle = function(){
+    orig.call(this);
+    const l = L2();
+    if (NM[l][this.type]) {
+      const sub = SUB[l][this.type] || "";
+      this.ttl.innerHTML = '<b style="font-size:13px;letter-spacing:.02em">' + esc(NM[l][this.type]) + '</b>' +
+        (sub ? ' <span style="font-size:10px;opacity:.62;font-weight:400">' + esc(sub) + '</span>' : '');
+    }
+  };
+})();
+"""
+
 def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None, ctrl: dict | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
@@ -454,7 +494,7 @@ Panel.prototype.build_tiasources = function(){
   draw(); this._tiaSourceTimer=setInterval(draw,2000); this.unsubs.push(()=>clearInterval(this._tiaSourceTimer));
 };
 ''';
-    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + _TIA_WALLS_JS + "\nconst WGROUPS = () => [");
+    doc = doc.replace("const WGROUPS = () => [", tia_panels + tia_new_panels + tia_extra_panels + tia_radial_panel + tia_funded_panel + tia_ring_panel + tia_agents_panel + tia_plan_panel + tia_conf_panel + tia_health_panel + _TIA_WALLS_JS + _TIA_NAMES_JS + "\nconst WGROUPS = () => [");
     doc = doc.replace('[Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]', '[Lg("TIA Intelligence","استخبارات TIA"), "#d6ad62", ["tiapulse","tiasources","tiaheat","tiaoptions","tiacorr","tiaradial","tiaport","tiafunded","tiaring","tiaagents","tiaplan","tiaconf","tiahealth","tiawalls"]], [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]');
     doc = doc.replace('settings:"SET", "@std"', 'settings:"SET", tiapulse:"PULSE", tiasources:"SRC", tiaheat:"HEAT", tiaoptions:"OPT", tiacorr:"CORR", tiaradial:"RADIAL", tiafunded:"FUND", tiaring:"RING", tiaagents:"AGENTS", tiaplan:"PLAN", tiaconf:"CONF", tiahealth:"HEALTH", tiawalls:"WALLS", tiaport:"PORT", "@std"');
     # Isolate all localStorage/sessionStorage keys from the original Workspace.

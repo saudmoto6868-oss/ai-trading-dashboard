@@ -28,3 +28,6 @@
 
 
 | 30 | TIA institutional terminal — parent-company layer | A | ChatGPT | شغال — branch only | 2026-11-09 | `team/tia-intelligence-terminal-2026-11-09`; page index 12 placed between Radar and Workspace; first shell + foundation spec. Review requested; no merge/deploy. |
+
+
+| 31 | دراسة تنافسية لـ15 منصة وخطة التفوق لـXPiX | A | ChatGPT | **مكتمل — دراسة مكتبية / مراجعة المالك مطلوبة** | 2026-11-17 | `docs/COMPETITIVE_INTELLIGENCE_2026-11-17.md`؛ ملفات المنافسين، نقاط القوة/الضعف، الفجوات، خارطة الطريق، الأمن والحوكمة وKPIs وقرارات شراء مقابل بناء. لا اختبارات منتجات حية ولا شراء ولا تداول ولا دمج/نشر. أمر المالك 2026-11-17؛ اعتماد الأولويات قبل التنفيذ. |

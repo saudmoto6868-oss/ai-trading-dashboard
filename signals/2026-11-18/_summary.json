@@ -1,0 +1,1105 @@
+[
+  {
+    "key": "gold",
+    "last": 3780.89990234375,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 4097.2001953125,
+      "sl": 3701.922767857143,
+      "tp1": 4143.39990234,
+      "tp2": 4232.249178637433,
+      "rr1": 0.11687919374732819,
+      "rr2": 0.3416561987724066,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 4094.4000244140625,
+      "sl": 4172.508408028739,
+      "tp1": 3989.10009766,
+      "tp2": 3900.250821362567,
+      "rr1": 1.3481257949662286,
+      "rr2": 2.485638468839285,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Gann",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 1.3",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 3855.199951171875,
+      "weekly": 3869.699951171875,
+      "h4": 3789.699951171875
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 3851.39990234375,
+        "low": 3778.199951171875
+      },
+      "London": {
+        "high": 3881.89990234375,
+        "low": 3839.199951171875
+      },
+      "NY": {
+        "high": 3894.0,
+        "low": 3839.199951171875
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "حساسية لعوائد الدولار قدام محضر الفيد",
+      "مزاد سندات 20 سنة 20:00 القاهرة"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "btc",
+    "last": 64578.12109375,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 65401.69140625,
+      "sl": 62282.90703125,
+      "tp1": 73720.1171875,
+      "tp2": 76830.28125,
+      "rr1": 2.6672013134123747,
+      "rr2": 3.6644373158211647,
+      "poi": "Breakout-retest R",
+      "schools": [
+        "SMC",
+        "Gann",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "BOS صعودي ثم ريتست المستوى المكسور على 1س مع FVG داعم",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 73842.29296875,
+      "sl": 75133.80576171874,
+      "tp1": 64514.606155,
+      "tp2": 58917.994066750005,
+      "rr1": 7.222295330353524,
+      "rr2": 11.555672528565637,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Gann",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 7.2",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 64875.8046875,
+      "weekly": 65305.0625,
+      "h4": 64353.4296875
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 64930.75,
+        "low": 64062.48046875
+      },
+      "London": {
+        "high": 65100.0,
+        "low": 64004.94140625
+      },
+      "NY": {
+        "high": 65356.55859375,
+        "low": 63278.41015625
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "مخاطرة عالية قدام محضر الفيد",
+      "سيولة كريبتو ضعيفة نسبيًا"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "eth",
+    "last": 1808.9300537109375,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 0.0,
+      "sl": 0.0,
+      "tp1": 0.0,
+      "tp2": 0.0,
+      "rr1": 0.0,
+      "rr2": 0.0,
+      "poi": "",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "no clean bull setup / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 2126.2393798828125,
+      "sl": 2174.2911363874164,
+      "tp1": 1798.312799,
+      "tp2": 1601.5568504703126,
+      "rr1": 6.824445238570906,
+      "rr2": 10.919112381713449,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Harmonic",
+        "Elliott",
+        "Gann",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Harmonic) وRR 6.8",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1822.5738525390625,
+      "weekly": 1835.4952392578125,
+      "h4": 1802.8800048828125
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1824.56005859375,
+        "low": 1795.75
+      },
+      "London": {
+        "high": 1832.27001953125,
+        "low": 1784.52001953125
+      },
+      "NY": {
+        "high": 1830.9000244140625,
+        "low": 1750.949951171875
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "يتبع BTC + حساسية لمحضر الفيد"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": []
+  },
+  {
+    "key": "bnb",
+    "last": 591.8800048828125,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 619.3920288085938,
+      "sl": 572.5372314453125,
+      "tp1": 702.61334229,
+      "tp2": 722.61999512,
+      "rr1": 1.7761535246041718,
+      "rr2": 2.2031461476835457,
+      "poi": "Breakout-retest R",
+      "schools": [
+        "SMC",
+        "Gann",
+        "Patterns",
+        "ICT"
+      ],
+      "trigger": "BOS صعودي ثم ريتست المستوى المكسور على 1س مع FVG داعم",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 751.4082641601562,
+      "sl": 764.3162231445312,
+      "tp1": 718.14300537,
+      "tp2": 696.3823852528125,
+      "rr1": 2.5771122166117557,
+      "rr2": 4.262941877484446,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Gann",
+        "Patterns",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 2.6",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 596.0160522460938,
+      "weekly": 595.989013671875,
+      "h4": 590.739990234375
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 597.27001953125,
+        "low": 589.3699951171875
+      },
+      "London": {
+        "high": 594.1699829101562,
+        "low": 586.25
+      },
+      "NY": {
+        "high": 594.1699829101562,
+        "low": 580.280029296875
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "بيتا عالية مع البيتكوين"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": [
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "xrp",
+    "last": 0.9833999872207642,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 1.1274549961090088,
+      "sl": 0.9354794876916068,
+      "tp1": 1.246941,
+      "tp2": 1.27732599,
+      "rr1": 0.6224023307764829,
+      "rr2": 0.7806776766812089,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.2909885048866272,
+      "sl": 1.3442451272692,
+      "tp1": 1.25727797,
+      "tp2": 1.203367408029698,
+      "rr1": 0.6329829677230573,
+      "rr2": 1.6452619962921537,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Patterns",
+        "CRT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 0.6",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 0.9828072786331177,
+      "weekly": 0.9746130108833313,
+      "h4": 0.9761999845504761
+    },
+    "open_pos": {
+      "vs_daily": "Premium",
+      "vs_weekly": "Premium",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 0.9886000156402588,
+        "low": 0.9690999984741211
+      },
+      "London": {
+        "high": 0.9783999919891357,
+        "low": 0.9519000053405762
+      },
+      "NY": {
+        "high": 0.9785000085830688,
+        "low": 0.9455999732017517
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "حساسية للمخاطرة الكلية"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Doji"
+    ],
+    "chart_pats": [
+      "قمة مزدوجة"
+    ]
+  },
+  {
+    "key": "eurusd",
+    "last": 1.0981770753860474,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 1.1270145177841187,
+      "sl": 1.0919503586632864,
+      "tp1": 1.14709195,
+      "tp2": 1.15794349,
+      "rr1": 0.5725912931975332,
+      "rr2": 0.8820679859824713,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.1023536324501038,
+      "sl": 1.1042141165052142,
+      "tp1": 1.09696031,
+      "tp2": 1.05066693,
+      "rr1": 2.8988813074152575,
+      "rr2": 27.781319763601186,
+      "poi": "Bearish FVG",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Patterns",
+        "CISD",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "confirmed",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 2.9",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1.1001100540161133,
+      "weekly": 1.1026208400726318,
+      "h4": 1.0991426706314087
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1.0998680591583252,
+        "low": 1.0981770753860474
+      },
+      "London": {
+        "high": 1.1013215780258179,
+        "low": 1.0972130298614502
+      },
+      "NY": {
+        "high": 1.1025358438491821,
+        "low": 1.0972130298614502
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "CPI الأوروبي النهائي ظهرًا + الدولار قدام المحضر"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": [
+      "قمة مزدوجة",
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "usdjpy",
+    "last": 159.28799438476562,
+    "rec": "bull",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": true,
+      "entry": 159.16399383544922,
+      "sl": 158.65898154122488,
+      "tp1": 160.17599487,
+      "tp2": 160.99955651114817,
+      "rr1": 2.003913659379602,
+      "rr2": 3.6346890891403407,
+      "poi": "Bullish FVG",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD صعودي على 15م/1س بعد كنس سيولة بيع + إغلاق فوق مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن السعر في خصم + توافق (ICT, SMC, Elliott) وRR 2.0",
+      "weak": "",
+      "prob": 78.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 159.656005859375,
+      "sl": 159.89302041190012,
+      "tp1": 157.55499268,
+      "tp2": 156.294384772375,
+      "rr1": 8.864490205310432,
+      "rr2": 14.183184328496692,
+      "poi": "Bearish FVG",
+      "schools": [
+        "SMC",
+        "CISD",
+        "ICT"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "weak": "أضعف: أهداف البائعين أبعد أو التأكيدات أقل قبل البيانات",
+      "prob": 22.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 159.38999938964844,
+      "weekly": 159.77000427246094,
+      "h4": 159.38099670410156
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 159.65199279785156,
+        "low": 159.13400268554688
+      },
+      "London": {
+        "high": 159.47000122070312,
+        "low": 158.86000061035156
+      },
+      "NY": {
+        "high": 159.47000122070312,
+        "low": 159.1179962158203
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "فروقات الفائدة فيد/BOJ",
+      "حساس لمحضر الفيد وعوائد الخزانة"
+    ],
+    "htf_trend": "bull",
+    "candle_pats": [],
+    "chart_pats": [
+      "قاع مزدوج"
+    ]
+  },
+  {
+    "key": "gbpusd",
+    "last": 1.3190523386001587,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 1.3287270069122314,
+      "sl": 1.3118958643504552,
+      "tp1": 1.34174156,
+      "tp2": 1.35023832,
+      "rr1": 0.7732424011026331,
+      "rr2": 1.278066121109401,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1.3258824348449707,
+      "sl": 1.3285417812211173,
+      "tp1": 1.31863487,
+      "tp2": 1.3105838364690834,
+      "rr1": 2.7253181119912946,
+      "rr2": 5.752766361354894,
+      "poi": "Bearish FVG",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Patterns",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 2.7",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1.3209341764450073,
+      "weekly": 1.3217722177505493,
+      "h4": 1.3198705911636353
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1.3207945823669434,
+        "low": 1.3189306259155273
+      },
+      "London": {
+        "high": 1.3204632997512817,
+        "low": 1.3175925016403198
+      },
+      "NY": {
+        "high": 1.3227338790893555,
+        "low": 1.3175925016403198
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "حساس لـ CPI البريطاني عند افتتاح لندن"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": [
+      "قمة مزدوجة"
+    ]
+  },
+  {
+    "key": "silver",
+    "last": 45.904998779296875,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 0.0,
+      "sl": 0.0,
+      "tp1": 0.0,
+      "tp2": 0.0,
+      "rr1": 0.0,
+      "rr2": 0.0,
+      "poi": "",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "no clean bull setup / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 51.61549949645996,
+      "sl": 52.14072549002511,
+      "tp1": 48.54999924,
+      "tp2": 45.68500137,
+      "rr1": 5.836535689431196,
+      "rr2": 11.29132639876537,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "Elliott",
+        "SMC",
+        "SMT",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, Elliott, SMC) وRR 5.8",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 47.40999984741211,
+      "weekly": 47.83000183105469,
+      "h4": 45.8650016784668
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 47.38999938964844,
+        "low": 45.685001373291016
+      },
+      "London": {
+        "high": 47.8650016784668,
+        "low": 47.1349983215332
+      },
+      "NY": {
+        "high": 47.90999984741211,
+        "low": 46.974998474121094
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "يتبع الذهب + طلب صناعي"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "platinum",
+    "last": 1399.4000244140625,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 0.0,
+      "sl": 0.0,
+      "tp1": 0.0,
+      "tp2": 0.0,
+      "rr1": 0.0,
+      "rr2": 0.0,
+      "poi": "",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "no clean bull setup / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 1439.8499755859375,
+      "sl": 1454.1242850167412,
+      "tp1": 1396.0,
+      "tp2": 1368.440717424665,
+      "rr1": 3.071950751698723,
+      "rr2": 5.0026418796255525,
+      "poi": "Bearish FVG",
+      "schools": [
+        "ICT",
+        "Elliott",
+        "SMC",
+        "Gann",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, Elliott, SMC) وRR 3.1",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 1423.699951171875,
+      "weekly": 1448.0,
+      "h4": 1404.4000244140625
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 1430.4000244140625,
+        "low": 1396.0
+      },
+      "London": {
+        "high": 1471.5,
+        "low": 1426.4000244140625
+      },
+      "NY": {
+        "high": 1447.0999755859375,
+        "low": 1416.5
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "صناعي + تحوط محدود"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "copper",
+    "last": 5.825500011444092,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 6.251999855041504,
+      "sl": 5.728442914145333,
+      "tp1": 6.2585001,
+      "tp2": 6.444527,
+      "rr1": 0.012415545379590717,
+      "rr2": 0.367729142562694,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 6.330749988555908,
+      "sl": 6.438198282037463,
+      "tp1": 6.18100023,
+      "tp2": 5.81599998,
+      "rr1": 1.3936913626423977,
+      "rr2": 4.790676444240366,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "ICT",
+        "SMC",
+        "Elliott",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (ICT, SMC, Elliott) وRR 1.4",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 6.001500129699707,
+      "weekly": 6.051000118255615,
+      "h4": 5.888999938964844
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Discount"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 6.026500225067139,
+        "low": 5.815999984741211
+      },
+      "London": {
+        "high": 5.998000144958496,
+        "low": 5.946000099182129
+      },
+      "NY": {
+        "high": 6.011000156402588,
+        "low": 5.946000099182129
+      }
+    },
+    "judas": null,
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "نمو الصين/دولار",
+      "حساس للمخاطرة وإيا المخزونات"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "ndx",
+    "last": 27223.75,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 28697.0,
+      "sl": 26432.764285714286,
+      "tp1": 29764.75,
+      "tp2": 30654.60892857143,
+      "rr1": 0.4715719274558113,
+      "rr2": 0.8645782398980424,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 28488.375,
+      "sl": 29117.30982142857,
+      "tp1": 27182.516572,
+      "tp2": 26292.65764342857,
+      "rr1": 2.0763016826351817,
+      "rr2": 3.49116837192135,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Gann",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 2.1",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 27382.0,
+      "weekly": 28062.5,
+      "h4": 27200.0
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 27485.25,
+        "low": 27093.0
+      },
+      "London": {
+        "high": 27467.75,
+        "low": 27085.0
+      },
+      "NY": {
+        "high": 27432.25,
+        "low": 26658.5
+      }
+    },
+    "judas": "London Judas sweep أسفل آسيا ثم ارتداد",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "أسهم نمو حساسة للعوائد قدام محضر الفيد"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [],
+    "chart_pats": []
+  },
+  {
+    "key": "spx",
+    "last": 7378.5,
+    "rec": "bear",
+    "rec_prob": 78.0,
+    "alt_prob": 22.0,
+    "bull": {
+      "valid": false,
+      "entry": 7674.75,
+      "sl": 7245.157142857143,
+      "tp1": 7746.25,
+      "tp2": 7896.260714285714,
+      "rr1": 0.16643665929534626,
+      "rr2": 0.5156294165572055,
+      "poi": "Breakout-retest R",
+      "schools": [],
+      "trigger": "",
+      "ltf": "pending",
+      "note": "bull RR weak / wait",
+      "reason": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "weak": "أضعف: إما POI بعيد/RR أضعف أو ضد اتجاه HTF/الماكرو قدام محضر الفيد",
+      "prob": 22.0
+    },
+    "bear": {
+      "valid": true,
+      "entry": 7665.375,
+      "sl": 7771.251785714286,
+      "tp1": 7470.75,
+      "tp2": 7357.041076,
+      "rr1": 1.8382216525273656,
+      "rr2": 2.912195736958388,
+      "poi": "Bearish OB (premium)",
+      "schools": [
+        "SMC",
+        "ICT",
+        "Elliott",
+        "Gann",
+        "Fundamentals"
+      ],
+      "trigger": "CISD هبوطي على 15م/1س بعد كنس سيولة شراء + إغلاق تحت مستوى CISD",
+      "ltf": "pending",
+      "note": "",
+      "reason": "مرشّح لأن التجميع في البريميوم + توافق مدارس (SMC, ICT, Elliott) وRR 1.8",
+      "weak": "",
+      "prob": 78.0
+    },
+    "mirror_ok": true,
+    "opens": {
+      "daily": 7406.0,
+      "weekly": 7577.25,
+      "h4": 7375.75
+    },
+    "open_pos": {
+      "vs_daily": "Discount",
+      "vs_weekly": "Discount",
+      "vs_h4": "Premium"
+    },
+    "sessions": {
+      "Asia": {
+        "high": 7415.5,
+        "low": 7363.25
+      },
+      "London": {
+        "high": 7456.0,
+        "low": 7395.25
+      },
+      "NY": {
+        "high": 7442.0,
+        "low": 7308.0
+      }
+    },
+    "judas": "London Judas sweep أعلى آسيا ثم هبوط",
+    "fund": [
+      "محضر فOMC اليوم 21:00 القاهرة (مش قرار فائدة)",
+      "CPI البريطاني 09:00 مع افتتاح لندن؛ إسكان أمريكي 15:30",
+      "مؤشر كلي يوم محضر الفيد وبيانات الإسكان"
+    ],
+    "htf_trend": "bear",
+    "candle_pats": [
+      "Inside bar"
+    ],
+    "chart_pats": []
+  }
+]

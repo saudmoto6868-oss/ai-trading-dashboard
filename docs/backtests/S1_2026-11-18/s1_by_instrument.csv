@@ -1,0 +1,15 @@
+tf,ins,n,win,avgR,t,verdict,med_risk_pts,reach100,reach150,reach200
+1m,BTC,442,56.3,0.085,1.62,experimental,60.7,36.2,19.9,10.9
+1m,ETH,397,52.1,-0.134,-2.51,experimental,2.8,0.0,0.0,0.0
+1m,EURUSD,14,71.4,0.025,0.11,experimental,3.6,0.0,0.0,0.0
+1m,GOLD,197,53.3,-0.194,-2.54,experimental,22.0,2.0,0.5,0.0
+1m,NDX,423,47.5,-0.103,-1.97,experimental,17.0,2.8,0.9,0.5
+1m,SILVER,186,50.5,-0.27,-3.48,experimental,8.8,0.0,0.0,0.0
+1m,SPX,411,51.6,-0.141,-2.62,experimental,3.2,0.0,0.0,0.0
+5m,BTC,718,51.0,-0.017,-0.43,experimental,117.2,52.6,37.6,29.8
+5m,ETH,644,47.7,-0.138,-3.47,experimental,4.7,0.0,0.0,0.0
+5m,EURUSD,244,47.1,-0.28,-4.7,experimental,5.4,0.0,0.0,0.0
+5m,GOLD,512,47.9,-0.143,-3.03,experimental,40.0,12.7,4.1,0.6
+5m,NDX,709,50.9,-0.019,-0.48,experimental,28.2,9.4,3.9,2.4
+5m,SILVER,486,45.7,-0.261,-5.68,experimental,13.0,0.0,0.0,0.0
+5m,SPX,723,46.1,-0.196,-5.09,experimental,4.8,0.0,0.0,0.0

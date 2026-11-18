@@ -1,0 +1,165 @@
+{
+ "note": "Filter (gate) test on the 6,106 S1 trades, 18 Nov 2026. net = after spread+1 tick. Lab rule approved only if n>=100 and t>3 (net).",
+ "gates": {
+  "all": {
+   "net": {
+    "n": 6106,
+    "win": 49.6,
+    "avgR": -0.119,
+    "t": -8.91,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 6106,
+    "win": 50.0,
+    "avgR": 0.025,
+    "t": 1.85,
+    "verdict": "experimental"
+   }
+  },
+  "bias_ok": {
+   "net": {
+    "n": 3146,
+    "win": 50.7,
+    "avgR": -0.084,
+    "t": -4.47,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 3146,
+    "win": 51.2,
+    "avgR": 0.057,
+    "t": 3.05,
+    "verdict": "approved"
+   }
+  },
+  "bias_against": {
+   "net": {
+    "n": 2960,
+    "win": 48.3,
+    "avgR": -0.157,
+    "t": -8.21,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 2960,
+    "win": 48.8,
+    "avgR": -0.009,
+    "t": -0.49,
+    "verdict": "experimental"
+   }
+  },
+  "kill_zone": {
+   "net": {
+    "n": 1621,
+    "win": 52.7,
+    "avgR": -0.06,
+    "t": -2.29,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 1621,
+    "win": 53.1,
+    "avgR": 0.083,
+    "t": 3.17,
+    "verdict": "approved"
+   }
+  },
+  "outside_kz": {
+   "net": {
+    "n": 4485,
+    "win": 48.5,
+    "avgR": -0.141,
+    "t": -9.03,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 4485,
+    "win": 48.9,
+    "avgR": 0.004,
+    "t": 0.25,
+    "verdict": "experimental"
+   }
+  },
+  "chase_ext_gt_2.5atr1h": {
+   "net": {
+    "n": 168,
+    "win": 45.8,
+    "avgR": -0.201,
+    "t": -2.54,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 168,
+    "win": 45.8,
+    "avgR": -0.078,
+    "t": -1.01,
+    "verdict": "experimental"
+   }
+  },
+  "fade_stretch_gt_2atr1h": {
+   "net": {
+    "n": 1112,
+    "win": 46.1,
+    "avgR": -0.176,
+    "t": -5.74,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 1112,
+    "win": 46.7,
+    "avgR": -0.049,
+    "t": -1.59,
+    "verdict": "experimental"
+   }
+  },
+  "cost_le_0.08R": {
+   "net": {
+    "n": 2203,
+    "win": 49.0,
+    "avgR": -0.05,
+    "t": -2.32,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 2203,
+    "win": 49.1,
+    "avgR": -0.005,
+    "t": -0.25,
+    "verdict": "experimental"
+   }
+  },
+  "cost_gt_0.08R": {
+   "net": {
+    "n": 3903,
+    "win": 49.9,
+    "avgR": -0.159,
+    "t": -9.3,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 3903,
+    "win": 50.6,
+    "avgR": 0.042,
+    "t": 2.46,
+    "verdict": "experimental"
+   }
+  },
+  "all_S1_gates": {
+   "net": {
+    "n": 304,
+    "win": 50.7,
+    "avgR": 0.04,
+    "t": 0.65,
+    "verdict": "experimental"
+   },
+   "gross": {
+    "n": 304,
+    "win": 50.7,
+    "avgR": 0.085,
+    "t": 1.38,
+    "verdict": "experimental"
+   }
+  }
+ }
+}

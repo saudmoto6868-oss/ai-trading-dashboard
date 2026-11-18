@@ -1,0 +1,1522 @@
+{
+ "label": "7-sample illustration, not evidence (lab rule n>=100, t>3); rescue rules chosen with hindsight",
+ "signal_cairo": "2026-11-18 14:43",
+ "eval_cairo": "2026-11-18 17:33",
+ "source": "modules/market_cache.fetch_frames (Hyperliquid/OKX) only",
+ "desk_project": "https://gitlab.com/6868-group/ai-desk",
+ "indicators_at_signal": [
+  {
+   "key": "eth",
+   "name": "ETH",
+   "dec": 2,
+   "entry": 1807.92,
+   "sl": 1813.5911219853042,
+   "tps": [
+    1799.4133170220439,
+    1793.7421950367398,
+    1787.03
+   ],
+   "zone": [
+    1805.63,
+    1810.21
+   ],
+   "last": 1789.52,
+   "atr15": 6.762243970608261,
+   "atr1h": 15.89615716699847,
+   "status": "NOT TRIGGERED",
+   "R": 0.0,
+   "desk_structure": {
+    "ema20_1h": 1808.9204827849776,
+    "ema50_1h": 1814.5259587143303,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 1.22,
+    "entry_zone": [
+     1800.9724042014784,
+     1816.8685613684768
+    ],
+    "wait_extended": false,
+    "our_entry_vs_ema20_atr1h": -0.06,
+    "fractal_high_1h": 1819.9,
+    "desk_stop": 1823.0792314333999
+   },
+   "fib_1h": {
+    "H": 1866.75,
+    "L": 1751.54,
+    "H_time": "16:00",
+    "eq50": 1809.145,
+    "ote": [
+     1822.9702,
+     1842.5559
+    ],
+    "entry_ret": 0.489,
+    "price_ret": 0.33,
+    "ext1272": 1720.20288,
+    "ext1618": 1680.34022
+   },
+   "topdown": {
+    "PDH": 1836.06,
+    "PDL": 1755.8,
+    "PD_mid": 1795.9299999999998,
+    "day_open": null,
+    "last_below_PDL": false,
+    "entry_vs_PDmid": "premium"
+   },
+   "wyckoff": {
+    "range": [
+     2174.0,
+     2579.98
+    ],
+    "width_atr": 3.9,
+    "spring": false,
+    "upthrust": false,
+    "sow": true,
+    "vol_ratio_5_60": 1.32,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [
+     1785.63
+    ],
+    "prev_15m_high": 1805.85,
+    "prev_1h_high": 1806.95,
+    "prev_1h_low": 1795.45,
+    "prev_4h_from_1h": [
+     1817.55,
+     1795.45
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 1808.7807837739422,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 1773.7265,
+    "vah": 1827.608,
+    "val": 1772.67
+   },
+   "adx": {
+    "adx15": 16.5,
+    "pdi15": 17.8,
+    "ndi15": 26.1,
+    "adx1h": 13.1,
+    "pdi1h": 16.7,
+    "ndi1h": 23.4
+   },
+   "momentum": {
+    "agree": true,
+    "rsi15": 39.9,
+    "macd_hist15": -1.1171667913595136,
+    "divergence": null,
+    "why": "RSI15 40, MACD hist <0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.02,
+    "bbwidth_pctile": 0.31,
+    "squeeze": false,
+    "why": "ATR15 at 2% pctile, BB width 31% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 1836.06,
+    "impulse_low": 1795.45,
+    "impulse_high_time": "01:00",
+    "zone_retracement": 0.307,
+    "price_retracement_at_signal": 0.1,
+    "ext_1272": 1784.40408,
+    "ext_1618": 1770.35302,
+    "why": "zone at 31% retracement of 15m leg 1836.06->1795.45"
+   },
+   "mt5": {
+    "psar15_at_signal": "down",
+    "psar15_value": 1807.4188058708285,
+    "psar15_flips_after": [
+     [
+      "16:30",
+      "up"
+     ],
+     [
+      "16:45",
+      "down"
+     ]
+    ],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 1817.55
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 49.0
+   },
+   "kz_sniper_5m": [],
+   "gann": {
+    "1H": "start 1866.8 · step 2.0 · down · near 1778.1@135, 1807.6@90, 1748.5@180",
+    "4H": "start 2450.8 · step 100.0 · down · near 1858.2@135, 1660.7@180, 2055.7@90",
+    "1D": "start 1504.4 · step 25.0 · up · near 1832.8@135, 1723.3@90, 1942.3@180"
+   },
+   "elliott": {
+    "5m": "▼ forming: wave 3 next (الموجة 4 داخلة في الموجة 1)",
+    "1H": "▼ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1D": "▼ impulse 1-2-3-4-5 + ABC"
+   },
+   "harmonic": {
+    "5m": "▼ Butterfly (done) PRZ 1805.9–1813.9",
+    "1H": "▲ Butterfly (forming) PRZ 1646.7–1668.6",
+    "4H": "▲ Butterfly (forming) PRZ 1646.7–1668.6",
+    "1D": "▼ Cypher (done) PRZ 2451.0–2451.0"
+   },
+   "skeptic": {
+    "extended_gt_2atr15": true,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": false,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 1800.74,
+    "max_high_t": "15:10",
+    "min_low": 1755.8,
+    "min_low_t": "16:45",
+    "last": 1771.63
+   }
+  },
+  {
+   "key": "copper",
+   "name": "COPPER",
+   "dec": 4,
+   "entry": 5.85245,
+   "sl": 5.865,
+   "tps": [
+    5.833625,
+    5.821075,
+    5.8156
+   ],
+   "zone": [
+    5.8489,
+    5.856
+   ],
+   "last": 5.838,
+   "atr15": 0.01751025302918549,
+   "atr1h": 0.035547239433828225,
+   "status": "NOT TRIGGERED",
+   "R": 0.0,
+   "desk_structure": {
+    "ema20_1h": 5.961967701215898,
+    "ema50_1h": 6.031436948707108,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 3.49,
+    "entry_zone": [
+     5.944194081498984,
+     5.9797413209328125
+    ],
+    "wait_extended": true,
+    "our_entry_vs_ema20_atr1h": -3.08,
+    "fractal_high_1h": 6.1627,
+    "desk_stop": 6.169809447886766
+   },
+   "fib_1h": {
+    "H": 6.1859,
+    "L": 5.8156,
+    "H_time": "01:00",
+    "eq50": 6.00075,
+    "ote": [
+     6.045186,
+     6.108137
+    ],
+    "entry_ret": 0.1,
+    "price_ret": 0.06,
+    "ext1272": 5.7148784,
+    "ext1618": 5.5867546
+   },
+   "topdown": {
+    "PDH": 6.1627,
+    "PDL": 6.0445,
+    "PD_mid": 6.1036,
+    "day_open": 6.1018,
+    "last_below_PDL": true,
+    "entry_vs_PDmid": "discount"
+   },
+   "wyckoff": {
+    "range": [
+     6.1967,
+     6.7921
+    ],
+    "width_atr": 5.2,
+    "spring": false,
+    "upthrust": false,
+    "sow": false,
+    "vol_ratio_5_60": 0.69,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [],
+    "prev_15m_high": 5.8648,
+    "prev_1h_high": 5.8581,
+    "prev_1h_low": 5.8264,
+    "prev_4h_from_1h": [
+     5.8825,
+     5.8156
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 5.946925182937179,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 5.92406875,
+    "vah": 6.09328,
+    "val": 5.832955
+   },
+   "adx": {
+    "adx15": 41.7,
+    "pdi15": 22.3,
+    "ndi15": 28.1,
+    "adx1h": 30.0,
+    "pdi1h": 14.4,
+    "ndi1h": 40.7
+   },
+   "momentum": {
+    "agree": false,
+    "rsi15": 42.8,
+    "macd_hist15": 0.008592374240359843,
+    "divergence": null,
+    "why": "RSI15 43, MACD hist >0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.89,
+    "bbwidth_pctile": 0.77,
+    "squeeze": false,
+    "why": "ATR15 at 89% pctile, BB width 77% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 6.1627,
+    "impulse_low": 5.8156,
+    "impulse_high_time": "01:00",
+    "zone_retracement": 0.106,
+    "price_retracement_at_signal": 0.113,
+    "ext_1272": 5.7211888,
+    "ext_1618": 5.6010922,
+    "why": "zone at 11% retracement of 15m leg 6.1627->5.8156"
+   },
+   "mt5": {
+    "psar15_at_signal": "up",
+    "psar15_value": 5.8269212346769415,
+    "psar15_flips_after": [
+     [
+      "14:45",
+      "down"
+     ]
+    ],
+    "ribbon15": "mixed",
+    "last_fractal_high15": 5.8507
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 42.2
+   },
+   "kz_sniper_5m": [],
+   "gann": {
+    "1H": "start 6.2762 · step 0.0025 · up · near 5.8465@315, 5.7852@360, 5.9079@270",
+    "4H": "start 6.5291 · step 0.0050 · down · near 5.8264@360, 5.9142@315, 5.7435@405",
+    "1D": "start 6.8831 · step 0.1000 · down · near 5.7886@135, 6.1535@90, 5.4238@180"
+   },
+   "elliott": {
+    "5m": "▼ impulse 1-2-3-4-5 + ABC",
+    "1H": "▲ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 4 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1D": "▼ forming: wave 3 next (الموجة 4 داخلة في الموجة 1)"
+   },
+   "harmonic": {
+    "5m": "▲ Cypher (done) PRZ 6.0565–6.0565",
+    "1H": "▲ Gartley (done) PRZ 6.2432–6.2576",
+    "4H": null,
+    "1D": "▼ Bat (done) PRZ 6.5545–6.5943"
+   },
+   "skeptic": {
+    "extended_gt_2atr15": false,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": true,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 5.8495,
+    "max_high_t": "14:45",
+    "min_low": 5.6434,
+    "min_low_t": "16:05",
+    "last": 5.7345
+   }
+  },
+  {
+   "key": "bnb",
+   "name": "BNB",
+   "dec": 2,
+   "entry": 589.71,
+   "sl": 590.850863628382,
+   "tps": [
+    587.9987045574271,
+    586.8578409290453,
+    585.72
+   ],
+   "zone": [
+    589.2400000000001,
+    590.18
+   ],
+   "last": 588.3,
+   "atr15": 1.3417272567639917,
+   "atr1h": 3.377142839331195,
+   "status": "STOPPED",
+   "R": -1.0,
+   "desk_structure": {
+    "ema20_1h": 591.6551154348747,
+    "ema50_1h": 592.6168775710132,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 0.99,
+    "entry_zone": [
+     589.9665440152091,
+     593.3436868545402
+    ],
+    "wait_extended": false,
+    "our_entry_vs_ema20_atr1h": -0.58,
+    "fractal_high_1h": 594.49,
+    "desk_stop": 595.1654285678662
+   },
+   "fib_1h": {
+    "H": 599.63,
+    "L": 580.85,
+    "H_time": "11:00",
+    "eq50": 590.24,
+    "ote": [
+     592.4936,
+     595.6862
+    ],
+    "entry_ret": 0.472,
+    "price_ret": 0.397,
+    "ext1272": 575.74184,
+    "ext1618": 569.24396
+   },
+   "topdown": {
+    "PDH": 599.48,
+    "PDL": 583.0,
+    "PD_mid": 591.24,
+    "day_open": null,
+    "last_below_PDL": false,
+    "entry_vs_PDmid": "discount"
+   },
+   "wyckoff": {
+    "range": [
+     678.13,
+     762.25
+    ],
+    "width_atr": 3.5,
+    "spring": false,
+    "upthrust": false,
+    "sow": false,
+    "vol_ratio_5_60": 0.89,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [
+     586.9,
+     584.4
+    ],
+    "prev_15m_high": 591.0,
+    "prev_1h_high": 590.38,
+    "prev_1h_low": 588.74,
+    "prev_4h_from_1h": [
+     593.92,
+     588.38
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 592.2632639826451,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 592.726625,
+    "vah": 597.15125,
+    "val": 585.04175
+   },
+   "adx": {
+    "adx15": 22.7,
+    "pdi15": 17.1,
+    "ndi15": 26.9,
+    "adx1h": 14.5,
+    "pdi1h": 16.0,
+    "ndi1h": 24.0
+   },
+   "momentum": {
+    "agree": true,
+    "rsi15": 39.8,
+    "macd_hist15": -0.13725794389802426,
+    "divergence": null,
+    "why": "RSI15 40, MACD hist <0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.01,
+    "bbwidth_pctile": 0.23,
+    "squeeze": false,
+    "why": "ATR15 at 1% pctile, BB width 23% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 599.48,
+    "impulse_low": 588.38,
+    "impulse_high_time": "01:00",
+    "zone_retracement": 0.12,
+    "price_retracement_at_signal": 0.12,
+    "ext_1272": 585.3608,
+    "ext_1618": 581.5201999999999,
+    "why": "zone at 12% retracement of 15m leg 599.48->588.38"
+   },
+   "mt5": {
+    "psar15_at_signal": "down",
+    "psar15_value": 591.4003616349329,
+    "psar15_flips_after": [
+     [
+      "15:30",
+      "up"
+     ],
+     [
+      "16:30",
+      "down"
+     ]
+    ],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 594.49
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 49.0
+   },
+   "kz_sniper_5m": [
+    {
+     "t": "16:30",
+     "side": "sell",
+     "entry": 587.45,
+     "stop": 591.23,
+     "swept": 590.62
+    }
+   ],
+   "gann": {
+    "1H": "start 692.64 · step 20.00 · down · near 594.94@90, 546.09@135, 643.79@45",
+    "4H": "start 705.80 · step 1.00 · up · near 591.75@405, 579.97@450, 603.53@360",
+    "1D": "start 745.80 · step 10.00 · down · near 593.08@180, 554.90@225, 631.26@135"
+   },
+   "elliott": {
+    "5m": "▲ forming: wave 4 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1H": "▼ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1D": "▼ forming: wave 4 next (الموجة 2 عدّت بداية الموجة 1)"
+   },
+   "harmonic": {
+    "5m": null,
+    "1H": null,
+    "4H": null,
+    "1D": "▲ Butterfly (done) PRZ 531.96–535.60"
+   },
+   "skeptic": {
+    "extended_gt_2atr15": false,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": true,
+    "sell_below_POC": false,
+    "obstacle_before_T2": [
+     586.9
+    ]
+   },
+   "post": {
+    "max_high": 591.23,
+    "max_high_t": "16:30",
+    "min_low": 583.05,
+    "min_low_t": "16:40",
+    "last": 586.19
+   }
+  },
+  {
+   "key": "eurusd",
+   "name": "EURUSD",
+   "dec": 5,
+   "entry": 1.0973,
+   "sl": 1.0977599999999998,
+   "tps": [
+    1.09661,
+    1.0961500000000002,
+    1.0956900000000003
+   ],
+   "zone": [
+    1.0972,
+    1.0974
+   ],
+   "last": 1.0964,
+   "atr15": 0.00044376865218832004,
+   "atr1h": 0.0009977288969163056,
+   "status": "STOPPED",
+   "R": -1.0,
+   "desk_structure": {
+    "ema20_1h": 1.0990662967316265,
+    "ema50_1h": 1.1001963473214318,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 2.67,
+    "entry_zone": [
+     1.0985674322831682,
+     1.0995651611800847
+    ],
+    "wait_extended": true,
+    "our_entry_vs_ema20_atr1h": -1.77,
+    "fractal_high_1h": 1.1001,
+    "desk_stop": 1.1002995457793834
+   },
+   "fib_1h": {
+    "H": 1.1044,
+    "L": 1.0965,
+    "H_time": "22:00",
+    "eq50": 1.10045,
+    "ote": [
+     1.101398,
+     1.102741
+    ],
+    "entry_ret": 0.101,
+    "price_ret": -0.013,
+    "ext1272": 1.0943512,
+    "ext1618": 1.0916178
+   },
+   "topdown": {
+    "PDH": 1.1031,
+    "PDL": 1.0975,
+    "PD_mid": 1.1002999999999998,
+    "day_open": 1.1,
+    "last_below_PDL": true,
+    "entry_vs_PDmid": "discount"
+   },
+   "wyckoff": {
+    "range": [
+     1.1108,
+     1.1281
+    ],
+    "width_atr": 3.1,
+    "spring": false,
+    "upthrust": false,
+    "sow": false,
+    "vol_ratio_5_60": 0.73,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [],
+    "prev_15m_high": 1.0973,
+    "prev_1h_high": 1.098,
+    "prev_1h_low": 1.0968,
+    "prev_4h_from_1h": [
+     1.0985,
+     1.0965
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 1.0976534684584398,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 1.0974075,
+    "vah": 1.102935,
+    "val": 1.096995
+   },
+   "adx": {
+    "adx15": 37.1,
+    "pdi15": 19.2,
+    "ndi15": 37.7,
+    "adx1h": 34.1,
+    "pdi1h": 8.9,
+    "ndi1h": 37.6
+   },
+   "momentum": {
+    "agree": false,
+    "rsi15": 37.6,
+    "macd_hist15": 2.7213671404362552e-05,
+    "divergence": null,
+    "why": "RSI15 38, MACD hist >0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.34,
+    "bbwidth_pctile": 0.47,
+    "squeeze": false,
+    "why": "ATR15 at 34% pctile, BB width 47% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 1.1019,
+    "impulse_low": 1.0965,
+    "impulse_high_time": "00:15",
+    "zone_retracement": 0.148,
+    "price_retracement_at_signal": 0.13,
+    "ext_1272": 1.0950312,
+    "ext_1618": 1.0931628,
+    "why": "zone at 15% retracement of 15m leg 1.1019->1.0965"
+   },
+   "mt5": {
+    "psar15_at_signal": "down",
+    "psar15_value": 1.09804852,
+    "psar15_flips_after": [
+     [
+      "15:15",
+      "up"
+     ]
+    ],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 1.098
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 53.3
+   },
+   "kz_sniper_5m": [],
+   "gann": {
+    "1H": "start 1.1116 · step 0.0002 · down · near 1.0969@90, 1.0895@135, 1.1042@45",
+    "4H": "start 1.1136 · step 0.0005 · up · near 1.1021@45, 1.0905@90, 1.1136@0",
+    "1D": "start 1.1353 · step 0.0003 · down · near 1.0938@225, 1.1021@180, 1.0855@270"
+   },
+   "elliott": {
+    "5m": "▼ impulse 1-2-3-4-5 + AB",
+    "1H": "▼ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 5 next",
+    "1D": "▼ impulse 1-2-3-4-5 + ABC"
+   },
+   "harmonic": {
+    "5m": null,
+    "1H": null,
+    "4H": null,
+    "1D": null
+   },
+   "skeptic": {
+    "extended_gt_2atr15": true,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": true,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 1.0988,
+    "max_high_t": "16:45",
+    "min_low": 1.0961,
+    "min_low_t": "14:45",
+    "last": 1.0976
+   }
+  },
+  {
+   "key": "btc",
+   "name": "BTC",
+   "dec": 0,
+   "entry": 64451.75,
+   "sl": 64583.41412730158,
+   "tps": [
+    64254.25380904763,
+    64122.58968174606,
+    63910.0
+   ],
+   "zone": [
+    64347.5,
+    64556.0
+   ],
+   "last": 63980.6,
+   "atr15": 182.7608486771752,
+   "atr1h": 453.1798710055205,
+   "status": "NOT TRIGGERED",
+   "R": 0.0,
+   "desk_structure": {
+    "ema20_1h": 64509.38709615747,
+    "ema50_1h": 64686.307920811945,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 1.17,
+    "entry_zone": [
+     64282.797160654714,
+     64735.97703166023
+    ],
+    "wait_extended": false,
+    "our_entry_vs_ema20_atr1h": -0.13,
+    "fractal_high_1h": 64960.1,
+    "desk_stop": 65050.7359742011
+   },
+   "fib_1h": {
+    "H": 66134.2,
+    "L": 63336.9,
+    "H_time": "11:00",
+    "eq50": 64735.55,
+    "ote": [
+     65071.225999999995,
+     65546.76699999999
+    ],
+    "entry_ret": 0.399,
+    "price_ret": 0.23,
+    "ext1272": 62576.034400000004,
+    "ext1618": 61608.168600000005
+   },
+   "topdown": {
+    "PDH": 65277.9,
+    "PDL": 63077.1,
+    "PD_mid": 64177.5,
+    "day_open": null,
+    "last_below_PDL": false,
+    "entry_vs_PDmid": "premium"
+   },
+   "wyckoff": {
+    "range": [
+     74887.9,
+     84899.6
+    ],
+    "width_atr": 3.8,
+    "spring": false,
+    "upthrust": false,
+    "sow": true,
+    "vol_ratio_5_60": 1.63,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [],
+    "prev_15m_high": 64391.5,
+    "prev_1h_high": 64373.0,
+    "prev_1h_low": 64110.7,
+    "prev_4h_from_1h": [
+     64883.3,
+     64110.7
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 64494.89304923448,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 63890.25,
+    "vah": 65128.700000000004,
+    "val": 63705.8
+   },
+   "adx": {
+    "adx15": 20.1,
+    "pdi15": 17.7,
+    "ndi15": 26.7,
+    "adx1h": 10.9,
+    "pdi1h": 18.6,
+    "ndi1h": 20.6
+   },
+   "momentum": {
+    "agree": true,
+    "rsi15": 39.2,
+    "macd_hist15": -36.608876082566525,
+    "divergence": null,
+    "why": "RSI15 39, MACD hist <0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.0,
+    "bbwidth_pctile": 0.55,
+    "squeeze": false,
+    "why": "ATR15 at 0% pctile, BB width 55% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 65277.9,
+    "impulse_low": 64109.6,
+    "impulse_high_time": "01:00",
+    "zone_retracement": 0.293,
+    "price_retracement_at_signal": 0.113,
+    "ext_1272": 63791.8224,
+    "ext_1618": 63387.590599999996,
+    "why": "zone at 29% retracement of 15m leg 65277.9->64109.6"
+   },
+   "mt5": {
+    "psar15_at_signal": "down",
+    "psar15_value": 64634.56701188898,
+    "psar15_flips_after": [],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 64811.7
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 50.0
+   },
+   "kz_sniper_5m": [],
+   "gann": {
+    "1H": "start 74803.3 · step 200.0 · down · near 63799.6@270, 65633.5@225, 61965.6@315",
+    "4H": "start 84899.6 · step 500.0 · down · near 63845.9@315, 66853.5@270, 60838.2@360",
+    "1D": "start 82842.0 · step 250.0 · up · near 63738.0@405, 65638.5@360, 61837.6@450"
+   },
+   "elliott": {
+    "5m": "▼ impulse 1-2-3-4-5 + A",
+    "1H": "▼ forming: wave 3 next (الموجة 4 داخلة في الموجة 1)",
+    "4H": "▼ forming: wave 5 next",
+    "1D": "▼ forming: wave 4 next (الموجة 2 عدّت بداية الموجة 1)"
+   },
+   "harmonic": {
+    "5m": null,
+    "1H": "▼ Bat (forming) PRZ 69035.9–69529.1",
+    "4H": null,
+    "1D": null
+   },
+   "skeptic": {
+    "extended_gt_2atr15": true,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": false,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 64193.0,
+    "max_high_t": "15:30",
+    "min_low": 63077.1,
+    "min_low_t": "16:40",
+    "last": 63554.5
+   }
+  },
+  {
+   "key": "gold",
+   "name": "GOLD",
+   "dec": 2,
+   "entry": 3777.0,
+   "sl": 3783.3497886491887,
+   "tps": [
+    3767.475317026217,
+    3761.1255283770283,
+    3754.7757397278397
+   ],
+   "zone": [
+    3774.4,
+    3779.6
+   ],
+   "last": 3754.5,
+   "atr15": 7.499577298377837,
+   "atr1h": 15.321366241346052,
+   "status": "STOPPED",
+   "R": -1.0,
+   "desk_structure": {
+    "ema20_1h": 3805.985019174999,
+    "ema50_1h": 3832.875276993408,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 3.36,
+    "entry_zone": [
+     3798.3243360543256,
+     3813.645702295672
+    ],
+    "wait_extended": true,
+    "our_entry_vs_ema20_atr1h": -1.89,
+    "fractal_high_1h": 3787.8,
+    "desk_stop": 3790.8642732482695
+   },
+   "fib_1h": {
+    "H": 3898.9,
+    "L": 3759.6,
+    "H_time": "01:00",
+    "eq50": 3829.25,
+    "ote": [
+     3845.966,
+     3869.647
+    ],
+    "entry_ret": 0.125,
+    "price_ret": -0.037,
+    "ext1272": 3721.7104,
+    "ext1618": 3673.5126
+   },
+   "topdown": {
+    "PDH": 3893.6,
+    "PDL": 3839.5,
+    "PD_mid": 3866.55,
+    "day_open": 3850.4,
+    "last_below_PDL": true,
+    "entry_vs_PDmid": "discount"
+   },
+   "wyckoff": {
+    "range": [
+     3875.0,
+     4216.9
+    ],
+    "width_atr": 4.5,
+    "spring": false,
+    "upthrust": false,
+    "sow": true,
+    "vol_ratio_5_60": 1.26,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [],
+    "prev_15m_high": 3774.5,
+    "prev_1h_high": 3774.8,
+    "prev_1h_low": 3761.7,
+    "prev_4h_from_1h": [
+     3787.8,
+     3759.6
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 3789.6776457453248,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 3781.375,
+    "vah": 3883.5499999999997,
+    "val": 3766.2999999999997
+   },
+   "adx": {
+    "adx15": 30.0,
+    "pdi15": 20.6,
+    "ndi15": 25.4,
+    "adx1h": 33.2,
+    "pdi1h": 12.6,
+    "ndi1h": 33.9
+   },
+   "momentum": {
+    "agree": false,
+    "rsi15": 42.1,
+    "macd_hist15": 1.0311777013235393,
+    "divergence": "bullish RSI divergence 07:00->10:15 (21->30)",
+    "why": "RSI15 42, MACD hist >0, bullish RSI divergence 07:00->10:15 (21->30)"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.54,
+    "bbwidth_pctile": 0.32,
+    "squeeze": false,
+    "why": "ATR15 at 54% pctile, BB width 32% pctile, no squeeze (expansion)"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 3859.3,
+    "impulse_low": 3759.6,
+    "impulse_high_time": "23:30",
+    "zone_retracement": 0.175,
+    "price_retracement_at_signal": 0.087,
+    "ext_1272": 3732.4815999999996,
+    "ext_1618": 3697.9853999999996,
+    "why": "zone at 17% retracement of 15m leg 3859.3->3759.6"
+   },
+   "mt5": {
+    "psar15_at_signal": "down",
+    "psar15_value": 3782.7304999808002,
+    "psar15_flips_after": [
+     [
+      "15:15",
+      "up"
+     ],
+     [
+      "17:00",
+      "down"
+     ]
+    ],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 3774.9
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [
+     [
+      "15:55",
+      3784.1
+     ]
+    ],
+    "buy_marks": [],
+    "stoch_at_signal": 55.9
+   },
+   "kz_sniper_5m": [],
+   "gann": {
+    "1H": "start 4030.0 · step 2.5 · up · near 3736.4@270, 3785.3@225, 3687.4@315",
+    "4H": "start 4077.3 · step 2.5 · down · near 3732.7@315, 3781.9@270, 3683.5@360",
+    "1D": "start 5464.3 · step 20.0 · down · near 3816.1@495, 3680.8@540, 3951.4@450"
+   },
+   "elliott": {
+    "5m": "▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1H": "▼ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1D": "▼ impulse 1-2-3-4-5 + ABC"
+   },
+   "harmonic": {
+    "5m": null,
+    "1H": null,
+    "4H": "▼ Cypher (done) PRZ 4129.4–4129.4",
+    "1D": null
+   },
+   "skeptic": {
+    "extended_gt_2atr15": true,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": true,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 3792.2,
+    "max_high_t": "15:50",
+    "min_low": 3745.4,
+    "min_low_t": "14:55",
+    "last": 3760.1
+   }
+  },
+  {
+   "key": "silver",
+   "name": "SILVER",
+   "dec": 3,
+   "entry": 45.973,
+   "sl": 46.19054925403826,
+   "tps": [
+    45.64667611894261,
+    45.42912686490435,
+    44.999
+   ],
+   "zone": [
+    45.852999999999994,
+    46.093
+   ],
+   "last": 45.372,
+   "atr15": 0.19509850807650664,
+   "atr1h": 0.3607151454176843,
+   "status": "TP2 HIT · running",
+   "R": 2.5,
+   "desk_structure": {
+    "ema20_1h": 46.4440062267037,
+    "ema50_1h": 46.98778712690374,
+    "trend": "down",
+    "ext_from_ema20_atr1h": 2.97,
+    "entry_zone": [
+     46.263648653994856,
+     46.62436379941254
+    ],
+    "wait_extended": true,
+    "our_entry_vs_ema20_atr1h": -1.31,
+    "fractal_high_1h": 46.456,
+    "desk_stop": 46.52814302908354
+   },
+   "fib_1h": {
+    "H": 49.063,
+    "L": 45.61,
+    "H_time": "01:00",
+    "eq50": 47.3365,
+    "ote": [
+     47.75086,
+     48.33787
+    ],
+    "entry_ret": 0.105,
+    "price_ret": -0.069,
+    "ext1272": 44.670784,
+    "ext1618": 43.476046
+   },
+   "topdown": {
+    "PDH": 48.036,
+    "PDL": 46.868,
+    "PD_mid": 47.452,
+    "day_open": 47.489,
+    "last_below_PDL": true,
+    "entry_vs_PDmid": "discount"
+   },
+   "wyckoff": {
+    "range": [
+     48.636,
+     61.449
+    ],
+    "width_atr": 6.9,
+    "spring": false,
+    "upthrust": false,
+    "sow": false,
+    "vol_ratio_5_60": 1.05,
+    "phase": "Markdown (SOW)"
+   },
+   "liquidity": {
+    "equal_lows_1h_below": [],
+    "prev_15m_high": 45.891,
+    "prev_1h_high": 45.901,
+    "prev_1h_low": 45.615,
+    "prev_4h_from_1h": [
+     46.049,
+     45.61
+    ]
+   },
+   "vwap": {
+    "vwap_at_signal": 46.09498927887589,
+    "entry_vs_vwap": "below",
+    "price_vs_vwap": "below"
+   },
+   "vp": {
+    "poc": 45.9393125,
+    "vah": 47.825375,
+    "val": 45.72975
+   },
+   "adx": {
+    "adx15": 20.5,
+    "pdi15": 18.0,
+    "ndi15": 21.0,
+    "adx1h": 27.2,
+    "pdi1h": 12.5,
+    "ndi1h": 29.3
+   },
+   "momentum": {
+    "agree": false,
+    "rsi15": 43.4,
+    "macd_hist15": 0.016782397034093413,
+    "divergence": null,
+    "why": "RSI15 43, MACD hist >0"
+   },
+   "volatility": {
+    "agree": null,
+    "atr15_pctile": 0.52,
+    "bbwidth_pctile": 0.27,
+    "squeeze": true,
+    "why": "ATR15 at 52% pctile, BB width 27% pctile, squeeze ON"
+   },
+   "fib15": {
+    "agree": false,
+    "impulse_high": 47.661,
+    "impulse_low": 45.61,
+    "impulse_high_time": "23:30",
+    "zone_retracement": 0.177,
+    "price_retracement_at_signal": 0.069,
+    "ext_1272": 45.052127999999996,
+    "ext_1618": 44.342482,
+    "why": "zone at 18% retracement of 15m leg 47.661->45.61"
+   },
+   "mt5": {
+    "psar15_at_signal": "up",
+    "psar15_value": 45.615,
+    "psar15_flips_after": [
+     [
+      "14:30",
+      "down"
+     ],
+     [
+      "15:45",
+      "up"
+     ],
+     [
+      "16:30",
+      "down"
+     ]
+    ],
+    "ribbon15": "bear stacked",
+    "last_fractal_high15": 45.901
+   },
+   "scalp_zones_5m": {
+    "sell_marks": [],
+    "buy_marks": [],
+    "stoch_at_signal": 44.6
+   },
+   "kz_sniper_5m": [
+    {
+     "t": "15:00",
+     "side": "buy",
+     "entry": 45.451,
+     "stop": 45.179,
+     "swept": 45.213
+    }
+   ],
+   "gann": {
+    "1H": "start 51.199 · step 0.050 · up · near 45.774@315, 44.999@360, 46.549@270",
+    "4H": "start 61.449 · step 1.000 · down · near 44.352@225, 47.771@180, 40.932@270",
+    "1D": "start 65.000 · step 0.500 · up · near 44.196@360, 46.797@315, 49.397@270"
+   },
+   "elliott": {
+    "5m": "▼ forming: wave 3 next (الموجة 2 عدّت بداية الموجة 1)",
+    "1H": "▼ impulse 1-2-3-4-5 + ABC",
+    "4H": "▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1)",
+    "1D": "▼ impulse 1-2-3-4-5 + ABC"
+   },
+   "harmonic": {
+    "5m": null,
+    "1H": "▲ Butterfly (done) PRZ 44.790–45.347",
+    "4H": null,
+    "1D": "▼ Butterfly (done) PRZ 65.649–66.297"
+   },
+   "skeptic": {
+    "extended_gt_2atr15": true,
+    "rsi_oversold": false,
+    "sell_in_discount_PD": true,
+    "sell_below_POC": false,
+    "obstacle_before_T2": []
+   },
+   "post": {
+    "max_high": 45.997,
+    "max_high_t": "15:55",
+    "min_low": 45.081,
+    "min_low_t": "17:20",
+    "last": 45.257
+   }
+  }
+ ],
+ "rescue_whatif": {
+  "eth": {
+   "continuation_psar_ribbon": {
+    "entry": 1790.36,
+    "stop": 1802.0924487941218,
+    "risk": 11.732448794121865,
+    "tps": [
+     1772.761326808817,
+     1761.0288780146952,
+     1755.1626536176343
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.0
+    ],
+    "start": "16:00",
+    "hits": [
+     "16:35",
+     "16:40",
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 2.5,
+    "R_thirds": 1.92,
+    "status": "open (marked)",
+    "trigger_15m_bar": "15:45",
+    "lower_high": 1800.74
+   }
+  },
+  "copper": {
+   "psar_flip_at_zone_edge": {
+    "entry": 5.8327,
+    "stop": 5.854202050605837,
+    "risk": 0.021502050605836764,
+    "tps": [
+     5.800446924091245,
+     5.778944873485408,
+     5.757442822879572
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.5
+    ],
+    "start": "15:00",
+    "hits": [
+     "15:20",
+     "16:05",
+     "16:05"
+    ],
+    "stop_time": null,
+    "R_highest_tp": 3.5,
+    "R_thirds": 2.5,
+    "status": "closed",
+    "bar": "14:45 (closes 15:00)"
+   },
+   "zone_edge_limit": {
+    "entry": 5.8489,
+    "stop": 5.865,
+    "risk": 0.01609999999999978,
+    "tps": [
+     5.824750000000001,
+     5.808650000000001,
+     5.792550000000001
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.5
+    ],
+    "start": "14:45",
+    "hits": [
+     "15:00",
+     "15:00",
+     "15:30"
+    ],
+    "stop_time": null,
+    "R_highest_tp": 3.5,
+    "R_thirds": 2.5,
+    "status": "closed"
+   }
+  },
+  "bnb": {
+   "exit_before_us_open_16_25": {
+    "exit": 590.02,
+    "R": -0.27
+   },
+   "desk_structure_stop": {
+    "entry": 589.71,
+    "stop": 595.1654285678662,
+    "risk": 5.455428567866193,
+    "tps": [
+     586.9,
+     573.3437142964015
+    ],
+    "rr": [
+     0.52,
+     3.0
+    ],
+    "start": "14:50",
+    "hits": [
+     "16:35",
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 0.52,
+    "R_thirds": 0.67,
+    "status": "open (marked)"
+   },
+   "kz_sniper_reentry_16_30": {
+    "entry": 587.45,
+    "stop": 591.3641727256764,
+    "risk": 3.9141727256763943,
+    "tps": [
+     586.9,
+     581.5787409114855
+    ],
+    "rr": [
+     0.14,
+     1.5
+    ],
+    "start": "16:35",
+    "hits": [
+     "16:35",
+     null
+    ],
+    "stop_time": "16:50",
+    "R_highest_tp": 0.14,
+    "R_thirds": 0.07,
+    "status": "closed",
+    "swept": 590.62
+   },
+   "confluence_cluster_stop": {
+    "entry": 589.71,
+    "stop": 592.8607977256764,
+    "risk": 3.150797725676398,
+    "tps": [
+     584.9838034114855,
+     581.833005685809,
+     578.6822079601327
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.5
+    ],
+    "start": "14:50",
+    "hits": [
+     "16:35",
+     null,
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 1.5,
+    "R_thirds": 1.46,
+    "status": "open (marked)"
+   }
+  },
+  "eurusd": {},
+  "btc": {
+   "continuation_psar_ribbon": {
+    "entry": 63936.7,
+    "stop": 64229.552169735434,
+    "risk": 292.8521697354372,
+    "tps": [
+     63497.421745396845,
+     63204.5695756614,
+     63058.143490793685
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.0
+    ],
+    "start": "16:00",
+    "hits": [
+     "16:35",
+     "16:40",
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 2.5,
+    "R_thirds": 1.8,
+    "status": "open (marked)",
+    "trigger_15m_bar": "15:45",
+    "lower_high": 64193.0
+   }
+  },
+  "gold": {
+   "scalp_zone_sell_15_55": {
+    "entry": 3784.1,
+    "stop": 3794.0748943245944,
+    "risk": 9.974894324594516,
+    "tps": [
+     3769.1376585131084,
+     3759.1627641885134,
+     3749.1878698639193
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.5
+    ],
+    "start": "16:00",
+    "hits": [
+     "16:35",
+     "17:05",
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 2.5,
+    "R_thirds": 2.04,
+    "status": "open (marked)"
+   },
+   "psar15_state": {
+    "flipped_up": "15:15 (before the 15:30 fill)",
+    "flipped_down": "17:00"
+   },
+   "vwap_gann_stop": {
+    "entry": 3777.0,
+    "stop": 3793.4274343945135,
+    "risk": 16.42743439451351,
+    "tps": [
+     3752.3588484082297,
+     3735.931414013716,
+     3719.5039796192027
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     3.5
+    ],
+    "start": "15:30",
+    "hits": [
+     null,
+     null,
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 0.85,
+    "R_thirds": 0.85,
+    "status": "open (marked)"
+   }
+  },
+  "silver": {
+   "thirds_BE": {
+    "entry": 45.973,
+    "stop": 46.19054925403826,
+    "risk": 0.21754925403826064,
+    "tps": [
+     45.64667611894261,
+     45.42912686490435,
+     44.999
+    ],
+    "rr": [
+     1.5,
+     2.5,
+     4.48
+    ],
+    "start": "16:00",
+    "hits": [
+     "16:15",
+     "16:30",
+     null
+    ],
+    "stop_time": null,
+    "R_highest_tp": 2.5,
+    "R_thirds": 2.42,
+    "status": "open (marked)"
+   }
+  }
+ }
+}

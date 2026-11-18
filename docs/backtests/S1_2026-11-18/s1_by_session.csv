@@ -1,0 +1,11 @@
+tf,sess,n,win,avgR,t,verdict
+1m,Asia,361,55.1,-0.013,-0.23,experimental
+1m,London KZ,313,53.4,-0.113,-1.94,experimental
+1m,NY AM KZ,301,56.1,0.01,0.16,experimental
+1m,NY PM,155,52.3,-0.03,-0.33,experimental
+1m,other,940,49.1,-0.174,-4.97,experimental
+5m,Asia,747,45.5,-0.181,-4.83,experimental
+5m,London KZ,466,51.9,-0.048,-0.96,experimental
+5m,NY AM KZ,541,51.0,-0.079,-1.78,experimental
+5m,NY PM,387,47.5,-0.161,-3.05,experimental
+5m,other,1895,47.9,-0.138,-5.91,experimental

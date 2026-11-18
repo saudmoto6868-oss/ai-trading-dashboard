@@ -1,0 +1,2407 @@
+{
+ "title": "Top-7 post-mortem what-if, 2026-11-18 (signal 14:43 Cairo)",
+ "label": "7-sample illustration, NOT evidence (lab rule n>=100, t>3)",
+ "data_source": "modules/market_cache.fetch_frames only (Hyperliquid xyz perps for metals/FX, OKX for crypto); 5m bars from 14:45 Cairo; 1m only for same-bar ties",
+ "R_conventions": {
+  "R": "highest target hit, -1 if stopped, mark-to-last if open",
+  "R_partial": "1/3 at each target, remainder at stop or marked to last"
+ },
+ "generated_cairo": "2026-11-18 16:58",
+ "postmortem": {
+  "generated_cairo": "2026-11-18 16:58",
+  "signal_cairo": "2026-11-18 14:43",
+  "note": "7-sample illustration only, not evidence (lab rule n>=100, t>3). Data: modules/market_cache (Hyperliquid/OKX) only.",
+  "trades": [
+   {
+    "key": "eth",
+    "name": "ETH",
+    "dec": 2,
+    "entry": 1807.92,
+    "sl": 1813.5911219853042,
+    "tp": [
+     1799.4133170220439,
+     1793.7421950367398,
+     1787.03
+    ],
+    "rr3": 3.683574441553796,
+    "zone": [
+     1805.63,
+     1810.21
+    ],
+    "last_signal": 1789.52,
+    "live_now": 1775.08,
+    "status_now": "NOT TRIGGERED",
+    "R_now": 0.0,
+    "atr15": 6.762243970608261,
+    "atr1h": 13.75571428571428,
+    "spread": 0.5,
+    "tick": 0.01,
+    "wick5_med": 0.650000000000091,
+    "wick5_p90": 2.242000000000007,
+    "risk": 5.671121985304126,
+    "risk_atr15": 0.8386449838179989,
+    "risk_atr1h": 0.41227390068676806,
+    "risk_ticks": 567.1121985304126,
+    "risk_spreads": 11.342243970608251,
+    "risk_vs_wick_p90": 2.529492410929575,
+    "pad_beyond_zone": 3.381121985304162,
+    "pad_atr15": 0.5000000000000047,
+    "sl_flag": true,
+    "dist_atr_at_signal": 2.720990262991801,
+    "swing1h_above_zone": 1819.9,
+    "swing1h_time": "07:00",
+    "signal_below_tp": [
+     true,
+     true,
+     false
+    ],
+    "fill": null,
+    "stop_time": null,
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 1800.74,
+    "max_high_time": "15:10",
+    "min_low_after": 1755.8,
+    "min_low_time": "16:45",
+    "closest_to_entry_atr": 1.061777722189196,
+    "closest_to_entry_pct": 0.39714146643657144,
+    "whatif": {
+     "baseline": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "baseline_BE_after_T1": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "no rejection bar in zone"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "filtered out (dist 2.7 ATR)"
+     }
+    }
+   },
+   {
+    "key": "copper",
+    "name": "COPPER",
+    "dec": 4,
+    "entry": 5.85245,
+    "sl": 5.865,
+    "tp": [
+     5.833625,
+     5.821075,
+     5.8156
+    ],
+    "rr3": 2.9362549800796884,
+    "zone": [
+     5.8489,
+     5.856
+    ],
+    "last_signal": 5.838,
+    "live_now": 5.7544,
+    "status_now": "NOT TRIGGERED",
+    "R_now": 0.0,
+    "atr15": 0.01751025302918549,
+    "atr1h": 0.043171428571428576,
+    "spread": 0.003,
+    "tick": 0.0005,
+    "wick5_med": 0.0,
+    "wick5_p90": 0.003310000000000279,
+    "risk": 0.012550000000000061,
+    "risk_atr15": 0.7167229382169492,
+    "risk_atr1h": 0.29070152217074924,
+    "risk_ticks": 25.100000000000122,
+    "risk_spreads": 4.183333333333354,
+    "risk_vs_wick_p90": 3.7915407854981886,
+    "pad_beyond_zone": 0.009000000000000341,
+    "pad_atr15": 0.513984577207391,
+    "sl_flag": true,
+    "dist_atr_at_signal": 0.8252307934051728,
+    "swing1h_above_zone": 6.0932,
+    "swing1h_time": "12:00",
+    "signal_below_tp": [
+     false,
+     false,
+     false
+    ],
+    "fill": null,
+    "stop_time": null,
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 5.8495,
+    "max_high_time": "14:45",
+    "min_low_after": 5.6434,
+    "min_low_time": "16:05",
+    "closest_to_entry_atr": 0.168472722529096,
+    "closest_to_entry_pct": 0.050406240121662386,
+    "whatif": {
+     "baseline": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "baseline_BE_after_T1": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "no rejection bar in zone"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": true,
+      "fill": "14:45",
+      "stop_time": null,
+      "hits": [
+       "15:00",
+       "15:00",
+       "15:20"
+      ],
+      "R": 2.94,
+      "R_partial": 2.31,
+      "status": "TP3",
+      "risk": 0.0161,
+      "mfe_R": 3.16,
+      "ambiguous": false,
+      "stop": 5.865,
+      "entry": 5.8489,
+      "tps": [
+       5.82475,
+       5.80865,
+       5.801626
+      ]
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     }
+    }
+   },
+   {
+    "key": "bnb",
+    "name": "BNB",
+    "dec": 2,
+    "entry": 589.71,
+    "sl": 590.850863628382,
+    "tp": [
+     587.9987045574271,
+     586.8578409290453,
+     585.72
+    ],
+    "rr3": 3.4973505165197043,
+    "zone": [
+     589.2400000000001,
+     590.18
+    ],
+    "last_signal": 588.3,
+    "live_now": 587.61,
+    "status_now": "STOPPED",
+    "R_now": -1.0,
+    "atr15": 1.3417272567639917,
+    "atr1h": 3.016428571428573,
+    "spread": 0.1,
+    "tick": 0.01,
+    "wick5_med": 0.10000000000002274,
+    "wick5_p90": 0.3910000000000877,
+    "risk": 1.1408636283819078,
+    "risk_atr15": 0.8502947395832657,
+    "risk_atr1h": 0.37821668949435716,
+    "risk_ticks": 114.08636283819078,
+    "risk_spreads": 11.408636283819078,
+    "risk_vs_wick_p90": 2.9178097912574215,
+    "pad_beyond_zone": 0.6708636283819942,
+    "pad_atr15": 0.4999999999999988,
+    "sl_flag": true,
+    "dist_atr_at_signal": 1.0508842187500549,
+    "swing1h_above_zone": 594.49,
+    "swing1h_time": "09:00",
+    "signal_below_tp": [
+     false,
+     false,
+     false
+    ],
+    "fill": "14:50",
+    "stop_time": "16:30",
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 591.23,
+    "max_high_time": "16:30",
+    "min_low_after": 583.05,
+    "min_low_time": "16:40",
+    "closest_to_entry_atr": 0.0,
+    "closest_to_entry_pct": 0.0,
+    "beyond_stop": 0.379136371618074,
+    "beyond_stop_atr15": 0.28257335438834547,
+    "beyond_stop_R": 0.33232400629320163,
+    "mae_R": 1.3323240062932016,
+    "low_after_stop": 583.05,
+    "low_after_stop_time": "16:40",
+    "targets_reached_after_stop": [
+     true,
+     true,
+     true
+    ],
+    "stop_kind": "stop-hunt wick then move to targets",
+    "whatif": {
+     "baseline": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.140864,
+      "mfe_R": 0.89,
+      "ambiguous": false,
+      "stop": 590.850864,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     },
+     "baseline_BE_after_T1": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.140864,
+      "mfe_R": 0.89,
+      "ambiguous": false,
+      "stop": 590.850864,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.341727,
+      "mfe_R": 0.76,
+      "ambiguous": false,
+      "stop": 591.051727,
+      "entry": 589.71,
+      "tps": [
+       587.697409,
+       586.355682,
+       585.017509
+      ]
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.341727,
+      "mfe_R": 0.76,
+      "ambiguous": false,
+      "stop": 591.051727,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": null,
+      "hits": [
+       "16:35",
+       "16:35",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 1.68,
+      "status": "TP2 open",
+      "risk": 2.012591,
+      "mfe_R": 3.31,
+      "ambiguous": false,
+      "stop": 591.722591,
+      "entry": 589.71,
+      "tps": [
+       586.691114,
+       584.678523,
+       582.671264
+      ]
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": null,
+      "hits": [
+       "16:30",
+       "16:35",
+       "16:35"
+      ],
+      "R": 1.98,
+      "R_partial": 1.42,
+      "status": "TP3",
+      "risk": 2.012591,
+      "mfe_R": 3.12,
+      "ambiguous": false,
+      "stop": 591.722591,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": 0.41,
+      "R_partial": 0.41,
+      "status": "open",
+      "risk": 5.115432,
+      "mfe_R": 1.3,
+      "ambiguous": false,
+      "stop": 594.825432,
+      "entry": 589.71,
+      "tps": [
+       582.036852,
+       576.92142,
+       571.819542
+      ]
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": null,
+      "hits": [
+       "16:30",
+       "16:35",
+       "16:35"
+      ],
+      "R": 0.78,
+      "R_partial": 0.56,
+      "status": "TP3",
+      "risk": 5.115432,
+      "mfe_R": 1.23,
+      "ambiguous": false,
+      "stop": 594.825432,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.341727,
+      "mfe_R": 0.22,
+      "ambiguous": false,
+      "stop": 590.451727,
+      "entry": 589.11,
+      "tps": [
+       587.097409,
+       585.755682,
+       584.417509
+      ],
+      "confirm_bar": "15:00"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.610864,
+      "mfe_R": 0.34,
+      "ambiguous": false,
+      "stop": 590.850864,
+      "entry": 589.24,
+      "tps": [
+       586.823705,
+       585.212841,
+       583.606245
+      ]
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": true,
+      "fill": "14:50",
+      "stop_time": "16:30",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 1.140864,
+      "mfe_R": 0.89,
+      "ambiguous": false,
+      "stop": 590.850864,
+      "entry": 589.71,
+      "tps": [
+       587.998705,
+       586.857841,
+       585.72
+      ]
+     }
+    }
+   },
+   {
+    "key": "eurusd",
+    "name": "EURUSD",
+    "dec": 5,
+    "entry": 1.0973,
+    "sl": 1.0977599999999998,
+    "tp": [
+     1.09661,
+     1.0961500000000002,
+     1.0956900000000003
+    ],
+    "rr3": 3.5,
+    "zone": [
+     1.0972,
+     1.0974
+    ],
+    "last_signal": 1.0964,
+    "live_now": 1.0982,
+    "status_now": "STOPPED",
+    "R_now": -1.0,
+    "atr15": 0.00044376865218832004,
+    "atr1h": 0.0008928571428572031,
+    "spread": 0.00012,
+    "tick": 1e-05,
+    "wick5_med": 0.0,
+    "wick5_p90": 9.999999999998899e-05,
+    "risk": 0.00045999999999990493,
+    "risk_atr15": 1.0365761478003113,
+    "risk_atr1h": 0.5151999999998588,
+    "risk_ticks": 45.999999999990486,
+    "risk_spreads": 3.833333333332541,
+    "risk_vs_wick_p90": 4.5999999999995556,
+    "pad_beyond_zone": 0.00035999999999991594,
+    "pad_atr15": 0.8112335069741349,
+    "sl_flag": true,
+    "dist_atr_at_signal": 2.028083767435587,
+    "swing1h_above_zone": 1.1019,
+    "swing1h_time": "00:00",
+    "signal_below_tp": [
+     true,
+     false,
+     false
+    ],
+    "fill": "15:05",
+    "stop_time": "15:20",
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 1.0988,
+    "max_high_time": "16:45",
+    "min_low_after": 1.0961,
+    "min_low_time": "14:45",
+    "closest_to_entry_atr": 0.0,
+    "closest_to_entry_pct": 0.0,
+    "beyond_stop": 0.001040000000000152,
+    "beyond_stop_atr15": 2.3435634645928345,
+    "beyond_stop_R": 2.2608695652181887,
+    "mae_R": 3.2608695652181887,
+    "low_after_stop": 1.0972,
+    "low_after_stop_time": "16:15",
+    "targets_reached_after_stop": [
+     false,
+     false,
+     false
+    ],
+    "stop_kind": "true reversal / trend against",
+    "whatif": {
+     "baseline": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:20",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.00046,
+      "mfe_R": 0.0,
+      "ambiguous": false,
+      "stop": 1.09776,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "baseline_BE_after_T1": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:20",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.00046,
+      "mfe_R": 0.0,
+      "ambiguous": false,
+      "stop": 1.09776,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:20",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.00046,
+      "mfe_R": 0.0,
+      "ambiguous": false,
+      "stop": 1.09776,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:20",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.00046,
+      "mfe_R": 0.0,
+      "ambiguous": false,
+      "stop": 1.09776,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "16:35",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.000666,
+      "mfe_R": 0.15,
+      "ambiguous": false,
+      "stop": 1.097966,
+      "entry": 1.0973,
+      "tps": [
+       1.096302,
+       1.095636,
+       1.09497
+      ]
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "16:35",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.000666,
+      "mfe_R": 0.15,
+      "ambiguous": false,
+      "stop": 1.097966,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -0.19,
+      "R_partial": -0.19,
+      "status": "open",
+      "risk": 0.004711,
+      "mfe_R": 0.02,
+      "ambiguous": false,
+      "stop": 1.102011,
+      "entry": 1.0973,
+      "tps": [
+       1.090234,
+       1.085523,
+       1.080812
+      ]
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -0.19,
+      "R_partial": -0.19,
+      "status": "open",
+      "risk": 0.004711,
+      "mfe_R": 0.02,
+      "ambiguous": false,
+      "stop": 1.102011,
+      "entry": 1.0973,
+      "tps": [
+       1.09661,
+       1.09615,
+       1.09569
+      ]
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "no rejection bar in zone"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": true,
+      "fill": "15:05",
+      "stop_time": "15:20",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 0.00056,
+      "mfe_R": 0.0,
+      "ambiguous": false,
+      "stop": 1.09776,
+      "entry": 1.0972,
+      "tps": [
+       1.09636,
+       1.0958,
+       1.09524
+      ]
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "filtered out (dist 2.0 ATR)"
+     }
+    }
+   },
+   {
+    "key": "btc",
+    "name": "BTC",
+    "dec": 0,
+    "entry": 64451.75,
+    "sl": 64583.41412730158,
+    "tp": [
+     64254.25380904763,
+     64122.58968174606,
+     63910.0
+    ],
+    "rr3": 4.114636318206235,
+    "zone": [
+     64347.5,
+     64556.0
+    ],
+    "last_signal": 63980.6,
+    "live_now": 63640.0,
+    "status_now": "NOT TRIGGERED",
+    "R_now": 0.0,
+    "atr15": 182.7608486771752,
+    "atr1h": 406.0,
+    "spread": 5.0,
+    "tick": 0.1,
+    "wick5_med": 20.399999999997817,
+    "wick5_p90": 61.70999999999767,
+    "risk": 131.66412730157754,
+    "risk_atr15": 0.7204175744124837,
+    "risk_atr1h": 0.32429588005314663,
+    "risk_ticks": 1316.6412730157754,
+    "risk_spreads": 26.332825460315508,
+    "risk_vs_wick_p90": 2.1335946734983393,
+    "pad_beyond_zone": 27.414127301577537,
+    "pad_atr15": 0.15000000000000688,
+    "sl_flag": false,
+    "dist_atr_at_signal": 2.5779591384598493,
+    "swing1h_above_zone": 64960.1,
+    "swing1h_time": "09:00",
+    "signal_below_tp": [
+     true,
+     true,
+     false
+    ],
+    "fill": null,
+    "stop_time": null,
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 64193.0,
+    "max_high_time": "15:30",
+    "min_low_after": 63077.1,
+    "min_low_time": "16:40",
+    "closest_to_entry_atr": 1.4157846271388812,
+    "closest_to_entry_pct": 0.40146311000089213,
+    "whatif": {
+     "baseline": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "baseline_BE_after_T1": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "no rejection bar in zone"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "not filled"
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "filtered out (dist 2.6 ATR)"
+     }
+    }
+   },
+   {
+    "key": "gold",
+    "name": "GOLD",
+    "dec": 2,
+    "entry": 3777.0,
+    "sl": 3783.3497886491887,
+    "tp": [
+     3767.475317026217,
+     3761.1255283770283,
+     3754.7757397278397
+    ],
+    "rr3": 3.5,
+    "zone": [
+     3774.4,
+     3779.6
+    ],
+    "last_signal": 3754.5,
+    "live_now": 3766.4,
+    "status_now": "STOPPED",
+    "R_now": -1.0,
+    "atr15": 7.499577298377837,
+    "atr1h": 16.114285714285774,
+    "spread": 0.5,
+    "tick": 0.1,
+    "wick5_med": 0.1999999999998181,
+    "wick5_p90": 1.7999999999997272,
+    "risk": 6.3497886491886675,
+    "risk_atr15": 0.8466862059761863,
+    "risk_atr1h": 0.3940471679461038,
+    "risk_ticks": 63.497886491886675,
+    "risk_spreads": 12.699577298377335,
+    "risk_vs_wick_p90": 3.5276603606609056,
+    "pad_beyond_zone": 3.7497886491887584,
+    "pad_atr15": 0.4999999999999787,
+    "sl_flag": true,
+    "dist_atr_at_signal": 3.0001690901788245,
+    "swing1h_above_zone": 3889.4,
+    "swing1h_time": "07:00",
+    "signal_below_tp": [
+     true,
+     true,
+     true
+    ],
+    "fill": "15:30",
+    "stop_time": "15:40",
+    "tp_times": [
+     null,
+     null,
+     null
+    ],
+    "max_high_after": 3792.2,
+    "max_high_time": "15:50",
+    "min_low_after": 3745.4,
+    "min_low_time": "14:55",
+    "closest_to_entry_atr": 0.0,
+    "closest_to_entry_pct": 0.0,
+    "beyond_stop": 8.85021135081115,
+    "beyond_stop_atr15": 1.1800946905001508,
+    "beyond_stop_R": 1.393780461014552,
+    "mae_R": 2.393780461014552,
+    "low_after_stop": 3765.7,
+    "low_after_stop_time": "16:55",
+    "targets_reached_after_stop": [
+     true,
+     false,
+     false
+    ],
+    "stop_kind": "stop run then targets",
+    "whatif": {
+     "baseline": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:40",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 6.349789,
+      "mfe_R": 0.09,
+      "ambiguous": false,
+      "stop": 3783.349789,
+      "entry": 3777.0,
+      "tps": [
+       3767.475317,
+       3761.125528,
+       3754.77574
+      ]
+     },
+     "baseline_BE_after_T1": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:40",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 6.349789,
+      "mfe_R": 0.09,
+      "ambiguous": false,
+      "stop": 3783.349789,
+      "entry": 3777.0,
+      "tps": [
+       3767.475317,
+       3761.125528,
+       3754.77574
+      ]
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:40",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 7.499577,
+      "mfe_R": 0.08,
+      "ambiguous": false,
+      "stop": 3784.499577,
+      "entry": 3777.0,
+      "tps": [
+       3765.750634,
+       3758.251057,
+       3750.751479
+      ]
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:40",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 7.499577,
+      "mfe_R": 0.08,
+      "ambiguous": false,
+      "stop": 3784.499577,
+      "entry": 3777.0,
+      "tps": [
+       3767.475317,
+       3761.125528,
+       3754.77574
+      ]
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:45",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 11.249366,
+      "mfe_R": 0.05,
+      "ambiguous": false,
+      "stop": 3788.249366,
+      "entry": 3777.0,
+      "tps": [
+       3760.125951,
+       3748.876585,
+       3737.627219
+      ]
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": "15:45",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 11.249366,
+      "mfe_R": 0.05,
+      "ambiguous": false,
+      "stop": 3788.249366,
+      "entry": 3777.0,
+      "tps": [
+       3767.475317,
+       3761.125528,
+       3754.77574
+      ]
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": 0.09,
+      "R_partial": 0.09,
+      "status": "open",
+      "risk": 114.274894,
+      "mfe_R": 0.1,
+      "ambiguous": false,
+      "stop": 3891.274894,
+      "entry": 3777.0,
+      "tps": [
+       3605.587659,
+       3491.312764,
+       3377.03787
+      ]
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": true,
+      "fill": "15:30",
+      "stop_time": null,
+      "hits": [
+       "16:35",
+       null,
+       null
+      ],
+      "R": 0.08,
+      "R_partial": 0.09,
+      "status": "TP1 open",
+      "risk": 114.274894,
+      "mfe_R": 0.1,
+      "ambiguous": false,
+      "stop": 3891.274894,
+      "entry": 3777.0,
+      "tps": [
+       3767.475317,
+       3761.125528,
+       3754.77574
+      ]
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": true,
+      "fill": "16:35",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": 0.44,
+      "R_partial": 0.44,
+      "status": "open",
+      "risk": 11.274894,
+      "mfe_R": 0.51,
+      "ambiguous": false,
+      "stop": 3782.674894,
+      "entry": 3771.4,
+      "tps": [
+       3754.487659,
+       3743.212764,
+       3731.93787
+      ],
+      "confirm_bar": "16:30"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": true,
+      "fill": "15:25",
+      "stop_time": "15:40",
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": -1.0,
+      "R_partial": -1.0,
+      "status": "stop",
+      "risk": 8.949789,
+      "mfe_R": 0.32,
+      "ambiguous": false,
+      "stop": 3783.349789,
+      "entry": 3774.4,
+      "tps": [
+       3760.975317,
+       3752.025528,
+       3743.07574
+      ]
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "filtered out (dist 3.0 ATR)"
+     }
+    }
+   },
+   {
+    "key": "silver",
+    "name": "SILVER",
+    "dec": 3,
+    "entry": 45.973,
+    "sl": 46.19054925403826,
+    "tp": [
+     45.64667611894261,
+     45.42912686490435,
+     44.999
+    ],
+    "rr3": 4.4771470456464915,
+    "zone": [
+     45.852999999999994,
+     46.093
+    ],
+    "last_signal": 45.372,
+    "live_now": 45.302,
+    "status_now": "TP2 HIT · running",
+    "R_now": 2.5,
+    "atr15": 0.19509850807650664,
+    "atr1h": 0.3841428571428577,
+    "spread": 0.025,
+    "tick": 0.005,
+    "wick5_med": 0.014999999999997016,
+    "wick5_p90": 0.0532000000000039,
+    "risk": 0.21754925403826064,
+    "risk_atr15": 1.1150738987350435,
+    "risk_atr1h": 0.5663238297760589,
+    "risk_ticks": 43.50985080765213,
+    "risk_spreads": 8.701970161530426,
+    "risk_vs_wick_p90": 4.089271692448209,
+    "pad_beyond_zone": 0.0975492540382561,
+    "pad_atr15": 0.5000000000000142,
+    "sl_flag": true,
+    "dist_atr_at_signal": 3.080495109497817,
+    "swing1h_above_zone": 47.661,
+    "swing1h_time": "23:00",
+    "signal_below_tp": [
+     true,
+     true,
+     false
+    ],
+    "fill": "15:55",
+    "stop_time": null,
+    "tp_times": [
+     "16:15",
+     "16:30",
+     null
+    ],
+    "max_high_after": 45.997,
+    "max_high_time": "15:55",
+    "min_low_after": 45.105,
+    "min_low_time": "16:35",
+    "closest_to_entry_atr": 0.0,
+    "closest_to_entry_pct": 0.0,
+    "whatif": {
+     "baseline": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.36,
+      "status": "TP2 open",
+      "risk": 0.217549,
+      "mfe_R": 3.99,
+      "ambiguous": false,
+      "stop": 46.190549,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "baseline_BE_after_T1": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.36,
+      "status": "TP2 open",
+      "risk": 0.217549,
+      "mfe_R": 3.99,
+      "ambiguous": false,
+      "stop": 46.190549,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "stop_1.0ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.36,
+      "status": "TP2 open",
+      "risk": 0.217549,
+      "mfe_R": 3.99,
+      "ambiguous": false,
+      "stop": 46.190549,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "stop_1.0ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.36,
+      "status": "TP2 open",
+      "risk": 0.217549,
+      "mfe_R": 3.99,
+      "ambiguous": false,
+      "stop": 46.190549,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "stop_1.5ATR15_sameRmultiples": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:30",
+       "16:35",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.1,
+      "status": "TP2 open",
+      "risk": 0.292648,
+      "mfe_R": 2.97,
+      "ambiguous": false,
+      "stop": 46.265648,
+      "entry": 45.973,
+      "tps": [
+       45.534028,
+       45.241381,
+       44.662773
+      ]
+     },
+     "stop_1.5ATR15_fixedTargets": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 1.86,
+      "R_partial": 1.76,
+      "status": "TP2 open",
+      "risk": 0.292648,
+      "mfe_R": 2.97,
+      "ambiguous": false,
+      "stop": 46.265648,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "stop_1Hswing+0.25ATR_sameRmultiples": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "R": 0.39,
+      "R_partial": 0.39,
+      "status": "open",
+      "risk": 1.736775,
+      "mfe_R": 0.5,
+      "ambiguous": false,
+      "stop": 47.709775,
+      "entry": 45.973,
+      "tps": [
+       43.367838,
+       41.631063,
+       38.197205
+      ]
+     },
+     "stop_1Hswing+0.25ATR_fixedTargets": {
+      "filled": true,
+      "fill": "15:55",
+      "stop_time": null,
+      "hits": [
+       "16:15",
+       "16:30",
+       null
+      ],
+      "R": 0.31,
+      "R_partial": 0.3,
+      "status": "TP2 open",
+      "risk": 1.736775,
+      "mfe_R": 0.5,
+      "ambiguous": false,
+      "stop": 47.709775,
+      "entry": 45.973,
+      "tps": [
+       45.646676,
+       45.429127,
+       44.999
+      ]
+     },
+     "confirm_5m_rejection_1ATRmin": {
+      "filled": true,
+      "fill": "16:05",
+      "stop_time": null,
+      "hits": [
+       "16:30",
+       "16:35",
+       null
+      ],
+      "R": 2.5,
+      "R_partial": 2.24,
+      "status": "TP2 open",
+      "risk": 0.195099,
+      "mfe_R": 3.72,
+      "ambiguous": false,
+      "stop": 46.026099,
+      "entry": 45.831,
+      "tps": [
+       45.538352,
+       45.343254,
+       44.957515
+      ],
+      "confirm_bar": "16:00"
+     },
+     "entry_at_zone_edge_sameStop_sameRmultiples": {
+      "filled": true,
+      "fill": "15:10",
+      "stop_time": null,
+      "hits": [
+       "16:35",
+       null,
+       null
+      ],
+      "R": 1.5,
+      "R_partial": 1.59,
+      "status": "TP1 open",
+      "risk": 0.337549,
+      "mfe_R": 2.22,
+      "ambiguous": false,
+      "stop": 46.190549,
+      "entry": 45.853,
+      "tps": [
+       45.346676,
+       45.009127,
+       44.341742
+      ]
+     },
+     "filter_dist<=1.5ATR_expiry2h": {
+      "filled": false,
+      "R": 0.0,
+      "R_partial": 0.0,
+      "status": "filtered out (dist 3.1 ATR)"
+     }
+    }
+   }
+  ],
+  "totals": {
+   "baseline": {
+    "R_sum": -0.5,
+    "R_partial_sum": -0.64,
+    "filled": 4,
+    "n": 7
+   },
+   "baseline_BE_after_T1": {
+    "R_sum": -0.5,
+    "R_partial_sum": -0.64,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1.0ATR15_sameRmultiples": {
+    "R_sum": -0.5,
+    "R_partial_sum": -0.64,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1.0ATR15_fixedTargets": {
+    "R_sum": -0.5,
+    "R_partial_sum": -0.64,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1.5ATR15_sameRmultiples": {
+    "R_sum": 3.0,
+    "R_partial_sum": 1.78,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1.5ATR15_fixedTargets": {
+    "R_sum": 1.84,
+    "R_partial_sum": 1.18,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1Hswing+0.25ATR_sameRmultiples": {
+    "R_sum": 0.7,
+    "R_partial_sum": 0.7,
+    "filled": 4,
+    "n": 7
+   },
+   "stop_1Hswing+0.25ATR_fixedTargets": {
+    "R_sum": 0.98,
+    "R_partial_sum": 0.76,
+    "filled": 4,
+    "n": 7
+   },
+   "confirm_5m_rejection_1ATRmin": {
+    "R_sum": 1.94,
+    "R_partial_sum": 1.68,
+    "filled": 3,
+    "n": 7
+   },
+   "entry_at_zone_edge_sameStop_sameRmultiples": {
+    "R_sum": 1.44,
+    "R_partial_sum": 0.9,
+    "filled": 5,
+    "n": 7
+   },
+   "filter_dist<=1.5ATR_expiry2h": {
+    "R_sum": -1.0,
+    "R_partial_sum": -1.0,
+    "filled": 1,
+    "n": 7
+   }
+  }
+ },
+ "schools_and_T8": {
+  "generated_cairo": "2026-11-18 16:57",
+  "trades": [
+   {
+    "key": "eth",
+    "name": "ETH",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1) | 1D: ▼ impulse 1-2-3-4-5 + ABC"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 1836.06,
+      "impulse_low": 1795.45,
+      "impulse_high_time": "01:00",
+      "zone_retracement": 0.307,
+      "price_retracement_at_signal": 0.1,
+      "ext_1272": 1784.40408,
+      "ext_1618": 1770.35302,
+      "why": "zone at 31% retracement of 15m leg 1836.06->1795.45"
+     },
+     "momentum": {
+      "agree": true,
+      "rsi15": 39.9,
+      "macd_hist15": -1.1171667913595136,
+      "divergence": null,
+      "why": "RSI15 40, MACD hist <0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.02,
+      "bbwidth_pctile": 0.31,
+      "squeeze": false,
+      "why": "ATR15 at 2% pctile, BB width 31% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "True",
+      "poc": 1773.7265,
+      "vah": 1827.608,
+      "val": 1772.67,
+      "why": "24h VP: POC 1773.73, VA 1772.67-1827.61; zone inside VA above POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": true,
+      "why": "Harmonic 5m Butterfly (done) PRZ at entry"
+     },
+     "gann": {
+      "agree": true,
+      "why": "Gann 1H 1807.6 at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "F1 distance 2.7 ATR15 > 2.0"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "F1 distance 2.7 ATR15 > 2.0"
+     }
+    }
+   },
+   {
+    "key": "copper",
+    "name": "COPPER",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▲ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 4 next (الموجة 3 ما عدّتش نهاية الموجة 1) | 1D: ▼ forming: wave 3 next (الموجة 4 داخلة في الموجة 1)"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 6.1627,
+      "impulse_low": 5.8156,
+      "impulse_high_time": "01:00",
+      "zone_retracement": 0.106,
+      "price_retracement_at_signal": 0.113,
+      "ext_1272": 5.7211888,
+      "ext_1618": 5.6010922,
+      "why": "zone at 11% retracement of 15m leg 6.1627->5.8156"
+     },
+     "momentum": {
+      "agree": false,
+      "rsi15": 42.8,
+      "macd_hist15": 0.008592374240359843,
+      "divergence": null,
+      "why": "RSI15 43, MACD hist >0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.89,
+      "bbwidth_pctile": 0.77,
+      "squeeze": false,
+      "why": "ATR15 at 89% pctile, BB width 77% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "False",
+      "poc": 5.92406875,
+      "vah": 6.09328,
+      "val": 5.832955,
+      "why": "24h VP: POC 5.92407, VA 5.83296-6.09328; zone below POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": true,
+      "why": "Gann 1H 5.8465 at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "no 5m rejection close inside 2h expiry"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     }
+    }
+   },
+   {
+    "key": "bnb",
+    "name": "BNB",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1) | 1D: ▼ forming: wave 4 next (الموجة 2 عدّت بداية الموجة 1)"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 599.48,
+      "impulse_low": 588.38,
+      "impulse_high_time": "01:00",
+      "zone_retracement": 0.12,
+      "price_retracement_at_signal": 0.12,
+      "ext_1272": 585.3608,
+      "ext_1618": 581.5201999999999,
+      "why": "zone at 12% retracement of 15m leg 599.48->588.38"
+     },
+     "momentum": {
+      "agree": true,
+      "rsi15": 39.8,
+      "macd_hist15": -0.13725794389802426,
+      "divergence": null,
+      "why": "RSI15 40, MACD hist <0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.01,
+      "bbwidth_pctile": 0.23,
+      "squeeze": false,
+      "why": "ATR15 at 1% pctile, BB width 23% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "False",
+      "poc": 592.726625,
+      "vah": 597.15125,
+      "val": 585.04175,
+      "why": "24h VP: POC 592.727, VA 585.042-597.151; zone below POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": false,
+      "why": "no Gann level at entry"
+     }
+    },
+    "t8": {
+     "taken": true,
+     "confirm_bar": "15:00",
+     "entry": 589.11,
+     "stop": 590.850863628382,
+     "risk_atr15": 1.3,
+     "risk_ticks": 174,
+     "tps": [
+      586.4987045574271,
+      584.7578409290452,
+      583.8874091148542
+     ],
+     "rr": [
+      1.5,
+      2.5,
+      3.0
+     ],
+     "hits": [
+      null,
+      null,
+      null
+     ],
+     "exit_time": "16:30",
+     "exit_px": 590.850863628382,
+     "R": -1.0,
+     "status": "closed",
+     "notes": []
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": true,
+      "confirm_bar": "15:00",
+      "entry": 589.11,
+      "stop": 590.850863628382,
+      "risk_atr15": 1.3,
+      "risk_ticks": 174,
+      "tps": [
+       586.4987045574271,
+       584.7578409290452,
+       583.8874091148542
+      ],
+      "rr": [
+       1.5,
+       2.5,
+       3.0
+      ],
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "exit_time": "16:30",
+      "exit_px": 590.850863628382,
+      "R": -1.0,
+      "status": "closed",
+      "notes": []
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": true,
+      "confirm_bar": "15:00",
+      "entry": 589.11,
+      "stop": 591.122590885146,
+      "risk_atr15": 1.5,
+      "risk_ticks": 201,
+      "tps": [
+       586.091113672281,
+       584.0785227871351,
+       583.0722273445621
+      ],
+      "rr": [
+       1.5,
+       2.5,
+       3.0
+      ],
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "exit_time": "16:30",
+      "exit_px": 591.122590885146,
+      "R": -1.0,
+      "status": "closed",
+      "notes": []
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": true,
+      "confirm_bar": "15:00",
+      "entry": 589.11,
+      "stop": 591.122590885146,
+      "risk_atr15": 1.5,
+      "risk_ticks": 201,
+      "tps": [
+       586.091113672281,
+       584.0785227871351,
+       583.0722273445621
+      ],
+      "rr": [
+       1.5,
+       2.5,
+       3.0
+      ],
+      "hits": [
+       null,
+       null,
+       null
+      ],
+      "exit_time": "16:30",
+      "exit_px": 591.122590885146,
+      "R": -1.0,
+      "status": "closed",
+      "notes": []
+     }
+    }
+   },
+   {
+    "key": "eurusd",
+    "name": "EURUSD",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 5 next | 1D: ▼ impulse 1-2-3-4-5 + ABC"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 1.1019,
+      "impulse_low": 1.0965,
+      "impulse_high_time": "00:15",
+      "zone_retracement": 0.148,
+      "price_retracement_at_signal": 0.13,
+      "ext_1272": 1.0950312,
+      "ext_1618": 1.0931628,
+      "why": "zone at 15% retracement of 15m leg 1.1019->1.0965"
+     },
+     "momentum": {
+      "agree": false,
+      "rsi15": 37.6,
+      "macd_hist15": 2.7213671404362552e-05,
+      "divergence": null,
+      "why": "RSI15 38, MACD hist >0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.34,
+      "bbwidth_pctile": 0.47,
+      "squeeze": false,
+      "why": "ATR15 at 34% pctile, BB width 47% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "False",
+      "poc": 1.0974075,
+      "vah": 1.102935,
+      "val": 1.096995,
+      "why": "24h VP: POC 1.09741, VA 1.09699-1.10293; zone below POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": false,
+      "why": "no Gann level at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "F1 distance 2.0 ATR15 > 2.0"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": false,
+      "why": "zone invalidated 15:20 before a rejection (high > zone+1 ATR)"
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": false,
+      "why": "zone invalidated 15:20 before a rejection (high > zone+1 ATR)"
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "F1 distance 2.0 ATR15 > 2.0"
+     }
+    }
+   },
+   {
+    "key": "btc",
+    "name": "BTC",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ forming: wave 3 next (الموجة 4 داخلة في الموجة 1) | 4H: ▼ forming: wave 5 next | 1D: ▼ forming: wave 4 next (الموجة 2 عدّت بداية الموجة 1)"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 65277.9,
+      "impulse_low": 64109.6,
+      "impulse_high_time": "01:00",
+      "zone_retracement": 0.293,
+      "price_retracement_at_signal": 0.113,
+      "ext_1272": 63791.8224,
+      "ext_1618": 63387.590599999996,
+      "why": "zone at 29% retracement of 15m leg 65277.9->64109.6"
+     },
+     "momentum": {
+      "agree": true,
+      "rsi15": 39.2,
+      "macd_hist15": -36.608876082566525,
+      "divergence": null,
+      "why": "RSI15 39, MACD hist <0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.0,
+      "bbwidth_pctile": 0.55,
+      "squeeze": false,
+      "why": "ATR15 at 0% pctile, BB width 55% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "True",
+      "poc": 63890.25,
+      "vah": 65128.700000000004,
+      "val": 63705.8,
+      "why": "24h VP: POC 63890.2, VA 63705.8-65128.7; zone inside VA above POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": false,
+      "why": "no Gann level at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "F1 distance 2.6 ATR15 > 2.0"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": false,
+      "why": "no 5m rejection close inside 2h expiry"
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "F1 distance 2.6 ATR15 > 2.0"
+     }
+    }
+   },
+   {
+    "key": "gold",
+    "name": "GOLD",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1) | 1D: ▼ impulse 1-2-3-4-5 + ABC"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 3859.3,
+      "impulse_low": 3759.6,
+      "impulse_high_time": "23:30",
+      "zone_retracement": 0.175,
+      "price_retracement_at_signal": 0.087,
+      "ext_1272": 3732.4815999999996,
+      "ext_1618": 3697.9853999999996,
+      "why": "zone at 17% retracement of 15m leg 3859.3->3759.6"
+     },
+     "momentum": {
+      "agree": false,
+      "rsi15": 42.1,
+      "macd_hist15": 1.0311777013235393,
+      "divergence": "bullish RSI divergence 07:00->10:15 (21->30)",
+      "why": "RSI15 42, MACD hist >0, bullish RSI divergence 07:00->10:15 (21->30)"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.54,
+      "bbwidth_pctile": 0.32,
+      "squeeze": false,
+      "why": "ATR15 at 54% pctile, BB width 32% pctile, no squeeze (expansion)"
+     },
+     "liquidity": {
+      "agree": "False",
+      "poc": 3781.375,
+      "vah": 3883.5499999999997,
+      "val": 3766.2999999999997,
+      "why": "24h VP: POC 3781.38, VA 3766.3-3883.55; zone below POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": false,
+      "why": "no Gann level at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "F1 distance 3.0 ATR15 > 2.0"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": false,
+      "why": "F2 momentum exhausted (RSI15<30 or bullish divergence)"
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": false,
+      "why": "F2 momentum exhausted (RSI15<30 or bullish divergence)"
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "F1 distance 3.0 ATR15 > 2.0"
+     }
+    }
+   },
+   {
+    "key": "silver",
+    "name": "SILVER",
+    "schools": {
+     "price_action": {
+      "agree": true,
+      "why": "BOS/CHoCH 15m bearish, EMA bias D/4H/1H = BEAR/BEAR/BEAR"
+     },
+     "elliott": {
+      "agree": true,
+      "why": "1H: ▼ impulse 1-2-3-4-5 + ABC | 4H: ▼ forming: wave 3 next (الموجة 3 ما عدّتش نهاية الموجة 1) | 1D: ▼ impulse 1-2-3-4-5 + ABC"
+     },
+     "fibonacci": {
+      "agree": false,
+      "impulse_high": 47.661,
+      "impulse_low": 45.61,
+      "impulse_high_time": "23:30",
+      "zone_retracement": 0.177,
+      "price_retracement_at_signal": 0.069,
+      "ext_1272": 45.052127999999996,
+      "ext_1618": 44.342482,
+      "why": "zone at 18% retracement of 15m leg 47.661->45.61"
+     },
+     "momentum": {
+      "agree": false,
+      "rsi15": 43.4,
+      "macd_hist15": 0.016782397034093413,
+      "divergence": null,
+      "why": "RSI15 43, MACD hist >0"
+     },
+     "volatility": {
+      "agree": null,
+      "atr15_pctile": 0.52,
+      "bbwidth_pctile": 0.27,
+      "squeeze": true,
+      "why": "ATR15 at 52% pctile, BB width 27% pctile, squeeze ON"
+     },
+     "liquidity": {
+      "agree": "True",
+      "poc": 45.9393125,
+      "vah": 47.825375,
+      "val": 45.72975,
+      "why": "24h VP: POC 45.9393, VA 45.7298-47.8254; zone inside VA above POC",
+      "funding_oi": "not exposed by modules/market_cache (Workspace UI has OKX liquidations/OI widgets live only; no history at 14:43)"
+     },
+     "session": {
+      "agree": true,
+      "why": "14:43 Cairo = inside NY AM kill zone (07-10 NY = 14:00-17:00 Cairo, per Workspace kz)"
+     },
+     "harmonic": {
+      "agree": false,
+      "why": "no bearish PRZ at entry"
+     },
+     "gann": {
+      "agree": false,
+      "why": "no Gann level at entry"
+     }
+    },
+    "t8": {
+     "taken": false,
+     "why": "F1 distance 3.1 ATR15 > 2.0"
+    },
+    "t8_variants": {
+     "B_no_dist_filter": {
+      "taken": true,
+      "confirm_bar": "16:00",
+      "entry": 45.831,
+      "stop": 46.19054925403826,
+      "risk_atr15": 1.84,
+      "risk_ticks": 72,
+      "tps": [
+       45.29167611894262,
+       44.93212686490436,
+       44.75235223788523
+      ],
+      "rr": [
+       1.5,
+       2.5,
+       3.0
+      ],
+      "hits": [
+       "16:35",
+       null,
+       null
+      ],
+      "exit_time": null,
+      "exit_px": null,
+      "R": 1.48,
+      "status": "open (marked to last)",
+      "notes": []
+     },
+     "C_no_dist_stop1.5ATR": {
+      "taken": true,
+      "confirm_bar": "16:00",
+      "entry": 45.831,
+      "stop": 46.19054925403826,
+      "risk_atr15": 1.84,
+      "risk_ticks": 72,
+      "tps": [
+       45.29167611894262,
+       44.93212686490436,
+       44.75235223788523
+      ],
+      "rr": [
+       1.5,
+       2.5,
+       3.0
+      ],
+      "hits": [
+       "16:35",
+       null,
+       null
+      ],
+      "exit_time": null,
+      "exit_px": null,
+      "R": 1.48,
+      "status": "open (marked to last)",
+      "notes": []
+     },
+     "D_dist2_stop1.5ATR": {
+      "taken": false,
+      "why": "F1 distance 3.1 ATR15 > 2.0"
+     }
+    }
+   }
+  ],
+  "summary": {
+   "t8_trades_taken": 1,
+   "t8_R_sum_1R_each": -1.0,
+   "note_cap": "with a 2R cap on the same-direction cluster each taken trade risks 1.00R -> portfolio -1.00R",
+   "baseline_T7": -0.5,
+   "label": "7-sample illustration, not evidence (lab rule n>=100, t>3)",
+   "variant_B_no_dist_filter": {
+    "taken": 2,
+    "R_sum_1R_each": 0.48,
+    "R_with_2R_cluster_cap": 0.48
+   },
+   "variant_C_no_dist_stop1.5ATR": {
+    "taken": 2,
+    "R_sum_1R_each": 0.48,
+    "R_with_2R_cluster_cap": 0.48
+   },
+   "variant_D_dist2_stop1.5ATR": {
+    "taken": 1,
+    "R_sum_1R_each": -1.0,
+    "R_with_2R_cluster_cap": -1.0
+   },
+   "A_with_2R_cluster_cap": -1.0
+  }
+ }
+}

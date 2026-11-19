@@ -104,6 +104,8 @@ assert not b["errors"] and all(b["reads"][tf]["ok"] for tf in D.TFS) and "ETH / 
 for ar in (True, False):
     h = D.render(b, ar)
     assert h.count("<svg") >= 10 and "RSI 14" in h and "MACD" in h and ("مصفوفة التوافق" if ar else "Confluence matrix") in h
+    assert ("الشكل" if ar else "shape") in h           # Elliott shape column (added 2026-11-17)
+    assert all(r["elliott"].get("shape", None) is None or isinstance(r["elliott"]["shape"], str) for r in b["reads"].values() if r.get("ok"))
     assert "nan" not in h.replace("Fibonacci", "").lower().split("<style>")[0] or True
 assert 'dir="rtl"' in D.render(b, True) and 'dir="rtl"' not in D.render(b, False)
 print("test_spot_analyzer OK")

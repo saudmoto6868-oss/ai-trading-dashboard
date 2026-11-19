@@ -586,7 +586,7 @@ const HARM_TOL = 0.10;   // ratio tolerance: 6 % found almost nothing on live-li
 const HARM_RULES = {
   "Gartley":{b:[.618,.618],c:[.382,.886],d:[.786,.786]}, "Bat":{b:[.382,.5],c:[.382,.886],d:[.886,.886]},
   "Butterfly":{b:[.786,.786],c:[.382,.886],d:[1.272,1.618]}, "Crab":{b:[.382,.618],c:[.382,.886],d:[1.618,1.618]},
-  "Cypher":{b:[.382,.618],cx:[1.13,1.414],d:[.786,.786]}};
+  "Cypher":{b:[.382,.618],cx:[1.272,1.414],d:[.786,.786]}};
 const harmIn = (v, r) => v >= r[0]*(1-HARM_TOL) && v <= r[1]*(1+HARM_TOL);
 function harmCheck(X, A, B, C, D){   // mirrors modules/harmonic.py
   const xa = Math.abs(A-X), ab = Math.abs(A-B); if (xa <= 0 || ab <= 0) return null;
@@ -2960,7 +2960,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintEWauto(c, py, dec){
     const list = this.ewCount(); this.paintEWforming(c, py);
-    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -3990,6 +3990,71 @@ Object.assign(CandleChart.prototype, {
   }
 });
 
+/* EWSHAPE-BEGIN Elliott correction shapes + diagonals as labels (same rules and numbers as modules/elliott_shapes.py; tests/test_ew_shapes_js_parity.py) */
+const EWShape = {
+  abc(a0, a1, a2, a3){   // zigzag / regular_flat / expanded_flat / running_flat, or null
+    const A = a1 - a0; if (A === 0) return null;
+    const s = A > 0 ? 1 : -1, lenA = Math.abs(A);
+    const bRet = s*(a1 - a2)/lenA, bBeyond = bRet > 1.0, cBeyond = s*(a3 - a1) > 0;
+    if (bRet <= 0 || bRet > 1.5) return null;
+    if (!bBeyond && bRet >= 0.382 && bRet < 0.9 && cBeyond) return "zigzag";
+    if (bRet >= 0.9 && bRet <= 1.05 && Math.abs(a3 - a1)/lenA <= 0.10) return "regular_flat";
+    if (bBeyond && cBeyond) return "expanded_flat";
+    if (bBeyond && !cBeyond) return "running_flat";
+    return null;
+  },
+  impulse(p0, p1, p2, p3, p4, p5){   // impulse / ending_diagonal, or null
+    const s = p1 > p0 ? 1 : -1;
+    const w1 = s*(p1 - p0), w3 = s*(p3 - p2), w5 = s*(p5 - p4);
+    if (Math.min(w1, w3, w5) <= 0) return null;
+    if (s*(p2 - p0) <= 0 || s*(p3 - p1) <= 0 || s*(p5 - p3) <= 0) return null;
+    const overlap4 = s*(p4 - p1) <= 0;
+    if (!overlap4 && !(w3 < w1 && w3 < w5)) return "impulse";
+    if (overlap4 && w5 < w3) return "ending_diagonal";
+    return null;
+  },
+  tri(p0, p1, p2, p3, p4, p5){   // contracting / expanding, or null (leg lengths only)
+    const legs = [Math.abs(p1-p0), Math.abs(p2-p1), Math.abs(p3-p2), Math.abs(p4-p3), Math.abs(p5-p4)];
+    if (Math.min(...legs) <= 0) return null;
+    if ([0,1,2,3].every(k => legs[k+1] <= legs[k]*0.95)) return "contracting";
+    if ([0,1,2,3].every(k => legs[k+1] >= legs[k]*1.05)) return "expanding";
+    return null;
+  },
+  wxy(p0, p1, p2, p3, p4, p5, p6, p7){   // double_zigzag / double_three / double_combo, or null
+    const s = p1 > p0 ? 1 : -1, wLen = Math.abs(p3 - p0);
+    if (wLen === 0) return null;
+    const xRet = Math.abs(p4 - p3)/wLen;
+    if (s*(p4 - p3) >= 0 || s*(p7 - p4) <= 0) return null;
+    if (xRet < 0.382 || xRet > 1.0) return null;
+    if (s*(p3 - p0) <= 0) return null;
+    const w = this.abc(p0, p1, p2, p3), y = this.abc(p4, p5, p6, p7);
+    if (!w || !y) return null;
+    const wz = w === "zigzag", yz = y === "zigzag";
+    if (wz && yz) return "double_zigzag";
+    if (!wz && !yz) return "double_three";
+    return "double_combo";
+  },
+  tail(p){   // same order as Python classify_tail
+    const n = p.length;
+    if (n >= 8){ const w = this.wxy(...p.slice(n-8)); if (w) return w; }
+    if (n >= 6){ const q = p.slice(n-6); const t = this.tri(...q) || this.impulse(...q); if (t) return t; }
+    if (n >= 4){ const a = this.abc(...p.slice(n-4)); if (a) return a; }
+    return null;
+  }
+};
+/* EWSHAPE-END */
+Object.assign(CandleChart.prototype, {
+  ewShapeLabel(){   // newest shape label from the zigzag pivots (null when none)
+    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3);
+    const name = EWShape.tail(z.map(q => q.p)); if (!name) return null;
+    const T = {zigzag:["zigzag (A-B-C)","زيجزاج (A-B-C)"], regular_flat:["regular flat","فلات عادي"], expanded_flat:["expanded flat","فلات ممتد"],
+      running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"],
+      contracting:["contracting triangle","مثلث متقارب"], expanding:["expanding triangle","مثلث متسع"],
+      double_zigzag:["double zigzag (W-X-Y)","زيجزاج مزدوج (W-X-Y)"], double_three:["double three (W-X-Y)","ثلاثي مزدوج (W-X-Y)"],
+      double_combo:["combo (W-X-Y)","مركب (W-X-Y)"]}[name];
+    return T ? Lg("Shape: "+T[0], "الشكل: "+T[1]) : null;
+  }
+});
 
 /* ORDER FLOW MAP (owner 2026-11-05: "a big price area like Bookmap"): its own panel. X = time, Y = price (+-0.25 % ... +-5 % around the market), colour = resting size of the order book at that price and time
    (the wide book: OKX up to 2000 levels a side, Hyperliquid stitched by hlWideBook), the mid price as a line, trade prints as bubbles, and the CURRENT book as bars on the right. Reads the same Hub "book" and

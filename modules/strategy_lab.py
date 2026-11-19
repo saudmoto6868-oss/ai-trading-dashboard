@@ -7,7 +7,7 @@ Method (one rule for every strategy so they can be compared):
   * baseline = a random direction at the same bars with the same stop / target (break-even win rate at 1.5R is 40%);
   * one sample per key per COOLDOWN bars (a setup stays 'live' for several bars);
   * conflicts = two detectors pointing opposite ways on the same bar; confluence = how many distinct families agree.
-  * 'edge' needs n >= 30, avg R above 0 AND about 3 standard errors above the random baseline (many detectors are tested at once,
+  * 'edge' needs n >= 100, avg R above 0 AFTER the cost (COST_R) AND about 3 standard errors above the random baseline (many detectors are tested at once,
     so a looser bar would flag one by pure luck - the random-walk self-test did exactly that at 2 sigma).
 No costs / slippage / funding: real results are worse. Small n (< 30) is printed but never ranked.
 Run:  python -m modules.strategy_lab [SYMBOLS...]   -> data/strategy_lab.json + STRATEGY_LAB.md
@@ -28,6 +28,15 @@ from modules.harmonic import find_harmonics
 from modules.signals import BEAR, BULL, atr_series, detect_all
 from modules.smt import smt_signals, peers_of
 from modules.elliott_lab import DEGREES as EW_DEGREES, elliott_signals
+from modules.lab_stats import (
+    dedup_clusters, block_bootstrap, oos_split_by_date,
+    apply_bh_correction, aggregate_by_regime
+)
+from modules.portfolio_simulator import (
+    lab_to_portfolio_trades, PropRules, simulate_portfolio
+)
+from modules.market_costs import get_cost
+from scripts.archive_klines import get_klines_archive_first
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
@@ -37,8 +46,10 @@ BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
 GZ_BARS = {"15m": 5000, "1h": 5000, "4h": 3000, "1d": 1500}   # longer history for the Gann zone out-of-sample test (more trades)
 STOP_ATR, RR, WIN, COOLDOWN, MIN_N = 1.5, 1.5, 400, 6, 30
 # round-trip cost per trade, in units of R (fees + spread + slippage). A rough planning number, not a broker quote:
-# 0.10R = a trade whose 1R stop is ~0.2 % away pays ~0.2 % in costs. Override with LAB_COST_R. Every "net" column uses it.
-COST_R = float(os.environ.get("LAB_COST_R", "0.10"))
+# Use per-market estimation via market_costs.get_cost(symbol, tf) instead of fixed COST_R.
+def _get_cost(symbol, tf):
+    return get_cost(symbol, tf, fallback=0.10)
+EDGE_N = 100   # smallest sample for the 'edge' flag (MIN_N = 30 only decides which rows are listed)
 TREND_N = 100   # trend = sign of the return over the last 100 bars (time-series momentum); "with" = signal on the trend side
 # owner's market mix (2026-10-19): crypto ~25 %, the rest in priority order gold > oil > dollar (EUR / JPY / GBP as dollar proxies) > US indices > stocks.
 # Hyperliquid xyz perps are used for TradFi (no key, 24/7 perpetuals). Stocks: add ids here once verified on the xyz list (see hl_feed.symbols("Stocks")).
@@ -65,12 +76,23 @@ for _d in EW_DEGREES:   # Elliott keys: all three hard rules (r3) or two of thre
 
 
 def _fetch(sym, tf, bars):
+    """Fetch klines from archive first, then merge live."""
     if sym.startswith("HL:"):
         from modules.hl_feed import get_klines
-        return get_klines(sym, tf, bars)
-    from modules.backtest_tf import _BAR, fetch_long
-    _BAR.setdefault("15m", "15m"); _BAR.setdefault("4h", "4H")
-    return fetch_long(sym, tf, bars)
+        live_fn = lambda s, tf: get_klines(s, tf, bars)
+    else:
+        from modules.backtest_tf import _BAR, fetch_long
+        _BAR.setdefault("15m", "15m"); _BAR.setdefault("4h", "4H")
+        live_fn = lambda s, tf: fetch_long(s, tf, bars)
+
+    return get_klines_archive_first(
+        symbol=sym,
+        tf=tf,
+        limit=bars,
+        live_fetcher=live_fn,
+        archive_path=ROOT / "data" / "kline_archive.json",
+        persist_live=True
+    )
 
 
 def _outcome(hi, lo, cl, i, d, stop_d, H, rr=None, be=False):
@@ -256,13 +278,20 @@ def chain_row(name, rs, base, ins, oos):
 PREREG_CUTOFF_MS = 1793509500000
 PREREG = {"H1 sess_amd + loc": lambda e: e["key"] == "sess_amd" and bool(e["chain"]["loc"]),
           "H2 ohl_open + Late 20-24": lambda e: e["key"] == "ohl_open" and e.get("ses") == "Late 20-24"}
+# H3 (frozen 2026-11-16, docs/PREREG_2026-11-01.md): picked from the lab run built 2026-11-15 11:14 UTC (one of 3 rows that survive a Benjamini-Hochberg 5 % correction
+# over 605 rows), so only signals AFTER that build count, and only on the 1h series. Same gate, never re-tuned.
+PREREG_H3_CUTOFF_MS = 1794741264000
+PREREG["H3 ew_r2_d1 on 1h"] = lambda e: e["key"] == "ew_r2_d1"
+PREREG_SINCE = {"H3 ew_r2_d1 on 1h": PREREG_H3_CUTOFF_MS}   # per-hypothesis cutoff (default PREREG_CUTOFF_MS)
+PREREG_TF = {"H3 ew_r2_d1 on 1h": "1h"}                     # per-hypothesis timeframe (default: every timeframe)
 PREREG_GATE = {"n": 100, "t": 3.0}   # pass = n >= 100, t vs random direction > 3, net (after COST_R) > 0 in the whole sample AND in both time halves
 
 
 def prereg_rows(all_events):
     out = []
     for name, f in PREREG.items():
-        ev = [e for _tf, _sym, evs in all_events for e in evs if e.get("ts", 0) > PREREG_CUTOFF_MS and "chain" in e and f(e)]
+        cut = PREREG_SINCE.get(name, PREREG_CUTOFF_MS); only_tf = PREREG_TF.get(name)
+        ev = [e for _tf, _sym, evs in all_events if only_tf in (None, _tf) for e in evs if e.get("ts", 0) > cut and "chain" in e and f(e)]
         ev.sort(key=lambda e: e["ts"]); h = len(ev) // 2
         r = np.array([e["r"] for e in ev], float); b = np.array([e["base"] for e in ev], float)
         net = lambda a: round(float(a.mean()) - COST_R, 3) if len(a) else None
@@ -271,7 +300,7 @@ def prereg_rows(all_events):
         ok = bool(len(r) >= PREREG_GATE["n"] and t > PREREG_GATE["t"] and (net(r) or -1) > 0 and (n1 or -1) > 0 and (n2 or -1) > 0)
         out.append({"key": "*PREREG*", "school": "Pre-registered", "tf": "all", "side": name, "n": len(r), "win": round(100 * float((r >= RR - 1e-9).mean()), 1) if len(r) else None,
                     "avgR": round(float(r.mean()), 3) if len(r) else None, "net": net(r), "t": round(t, 2), "is_n": h, "is_avgR": net(r[:h]), "oos_n": len(r) - h, "oos_avgR": net(r[h:]),
-                    "edge": ok, "since": PREREG_CUTOFF_MS})
+                    "edge": ok, "since": cut})
     return out
 
 
@@ -367,7 +396,9 @@ def summarize(all_events, all_bars):
         se = 1.0 / np.sqrt(max(s["n"], 1))          # rough: R std ~ 1.2, so 2*se*1.2 ~ 95% band of avgR
         rows.append({"key": k, "school": SCHOOL.get(k, "Other"), "tf": tf, "side": side, **s, "base_win": b.get("win"), "base_avgR": b.get("avgR"),
                      "t": t, "is_n": len(ins), "is_avgR": is_stat.get("avgR"), "oos_n": len(oos_rs), "oos_avgR": oos_stat.get("avgR"),
-                     "edge": bool(s["n"] >= MIN_N and t > 3 and (oos_stat.get("avgR") or 0) > 0 and (is_stat.get("avgR") or 0) > 0)})   # t>3: ~35 detectors tested at once
+                     "net": round(s["avgR"] - COST_R, 3) if s.get("avgR") is not None else None,
+                     # edge (tightened 2026-11-16, same bar as the pre-registered gate): n >= 100, t > 3 vs random, above zero AFTER the cost, both halves positive
+                     "edge": bool(s["n"] >= EDGE_N and t > 3 and (s.get("avgR") or 0) - COST_R > 0 and (oos_stat.get("avgR") or 0) > 0 and (is_stat.get("avgR") or 0) > 0)})
     # conflicts: detectors pointing opposite ways on the same bar
     conf, co = defaultdict(int), defaultdict(int)
     for tf, sym, bars in all_bars:

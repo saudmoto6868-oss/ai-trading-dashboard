@@ -34,6 +34,12 @@ def creds() -> tuple[str, str]:
     return _secret("TELEGRAM_BOT_TOKEN"), _secret("TELEGRAM_CHAT_ID")
 
 
+# Trend-agreement points (day bias, swing timeframes). 0 since 2026-11-16: the lab does not support them - trading WITH the bigger trend is not better than
+# against it (pooled t -4.55, n 37,781) and the sign flips by timeframe (docs/PREREG_2026-11-01.md side finding). The lines still show as information;
+# they just no longer move the score. TG_TREND_PTS=1 restores the old +10 / -12 and +8 / -12.
+TREND_PTS = float(os.environ.get("TG_TREND_PTS", "0") or 0)
+
+
 def quality(r: dict, e: dict) -> tuple[int, list[str]]:
     """r = scanner result, e = scan_entry -> (0-100 evidence score, short reasons)."""
     mx = max(1, int(r.get("max_score") or e.get("max") or 1))
@@ -46,7 +52,7 @@ def quality(r: dict, e: dict) -> tuple[int, list[str]]:
     if ev is not None:
         q = max(0.0, min(60.0, 30.0 + 150.0 * ev)); why.append(f"معمل: {ev:+.2f}R")
     ag = ((r.get("context") or {}).get("agree")) or {}
-    for key, good, bad, label in (("bias", 10, -12, "اتجاه اليوم"), ("pd", 8, -10, "بريميوم/ديسكاونت")):
+    for key, good, bad, label in (("bias", 10 * TREND_PTS, -12 * TREND_PTS, "اتجاه اليوم"), ("pd", 8, -10, "بريميوم/ديسكاونت")):
         v = ag.get(key)
         if v is True:
             q += good; why.append("✓ " + label)
@@ -59,9 +65,9 @@ def quality(r: dict, e: dict) -> tuple[int, list[str]]:
     m = r.get("mtf") or {}   # swing / position trades: do weekly + daily + 4H back the side?
     if m.get("status") and r.get("trade_type") in ("Swing", "Position"):
         if m["status"] == "aligned":
-            q += 8; why.append("✓ فريمات السوينج متوافقة")
+            q += 8 * TREND_PTS; why.append("✓ فريمات السوينج متوافقة")
         elif m["status"] == "conflict":
-            q -= 12; why.append("✗ الأسبوعي/اليومي ضد الاتجاه")
+            q -= 12 * TREND_PTS; why.append("✗ الأسبوعي/اليومي ضد الاتجاه")
     ag_n = len(r.get("against") or [])
     if ag_n:
         q -= min(15, 5 * ag_n); why.append(f"⚠ {ag_n} إشارة عكسية")

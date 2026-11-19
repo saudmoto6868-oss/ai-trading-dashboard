@@ -1380,8 +1380,8 @@ def _office_overview():
     fred = _has_secret("FRED_API_KEY"); tg = _has_secret("TELEGRAM_BOT_TOKEN")
     b = s.get("best") or {}
     st.markdown(U.CSS, unsafe_allow_html=True)
-    st.markdown(U.chips([(L("OKX"), L("live") if src.get("OKX") else L("down"), "ok" if src.get("OKX") else "bad"),
-                         (L("Hyperliquid"), L("live") if src.get("Hyperliquid") else L("down"), "ok" if src.get("Hyperliquid") else "bad"),
+    st.markdown(U.chips([(L("OKX"), L("live") if src.get("OKX") else L("offline"), "ok" if src.get("OKX") else "bad"),
+                         (L("Hyperliquid"), L("live") if src.get("Hyperliquid") else L("offline"), "ok" if src.get("Hyperliquid") else "bad"),
                          ("FRED", L("key set") if fred else L("no key"), "ok" if fred else "off"),
                          (L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
                          (L("Last lab run"), s.get("built") or "-", "info"),
@@ -1398,7 +1398,7 @@ def _office_overview():
             _ar = _ui_lang() == "ar"
             al.append((t.get("title_ar") if _ar and t.get("title_ar") else t["title"], L("blocked"), "bad", t.get("next_ar") if _ar and t.get("next_ar") else t.get("next", "")))
     if not src.get("Hyperliquid", True):
-        al.append((L("Hyperliquid is not answering"), L("down"), "bad", L("gold / oil / index charts stop updating")))
+        al.append((L("Hyperliquid is not answering"), L("offline"), "bad", L("gold / oil / index charts stop updating")))
     st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
                 L("n >= 100 · t > 3 · net > 0 · both halves positive, after 0.1R"), L("groups passed")) +
                 U.alerts(L("Alerts"), al[:5]) +
@@ -3504,7 +3504,7 @@ def render_info_strip():
     built = (_OK.summary(_OK.load()) or {}).get("built") or "-"
     dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
     items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
-    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
+    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L("offline"))}" for n in ("OKX", "Hyperliquid")]
     items.append(f"{html.escape(L('Last lab run'))} {html.escape(str(built))}")
     items.append(html.escape(L("No automatic orders")))
     st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"

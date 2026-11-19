@@ -23,3 +23,7 @@ data/spot/
 
 # Claude Code activity hook writes this on every tool call: local only, never commit (commit spam got the GitHub account suspended)
 docs/ACTIVITY_LOG_AUTO.md
+
+# Archive: weekly kline snapshots (modules/archive_klines.py) + broker XAUUSD data (Task 1 & 10)
+data/kline_archive.json
+data/xauusd_exness_m1.csv

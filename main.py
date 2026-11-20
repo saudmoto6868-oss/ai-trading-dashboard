@@ -1167,10 +1167,10 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab"]   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap"]   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
 _HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 18, 19], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
-_PAGE_ORDER = [0, 1, 11, 12, 13, 14, 15]   # 2026-11-15: V7 (18) and 2.6 Lab (19) moved from the top bar into the Lab hub as sub-tabs (owner asked for fewer top tabs; revert = move 18, 19 back to _PAGE_ORDER)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
+_PAGE_ORDER = [0, 1, 11, 12, 20, 13, 14, 15]   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
 
 def _nav_to(i):
@@ -2411,50 +2411,7 @@ def _cs_result(sym: str, tf: str):
     return r
 
 
-def render_market_map():
-    """Market map of the Hyperliquid TradFi markets (xyz): change tiles, breadth, and strength by asset class."""
-    from modules.hl_feed import markets as _hl_markets
-    from modules.market_map import board, breadth, by_class
-    try:
-        rows = _hl_markets()
-    except Exception as e:
-        st.warning(L("Market map: Hyperliquid did not answer") + f" ({type(e).__name__})")
-        return
-    df = board(rows)
-    if df.empty:
-        st.caption(L("Market map: no markets with a reference price right now."))
-        return
-    from modules.market_map import apply_filters as _mm_filter
-    _all = df
-    fc = st.columns([2.4, 0.8, 1, 1, 1.2, 1.2])
-    _cls_opts = sorted(_all["cls"].unique())
-    sel_cls = fc[0].pills(L("Class"), _cls_opts, selection_mode="multi", key="hm_cls", label_visibility="collapsed") or []
-    top_n = int(fc[1].number_input(L("Top N by volume"), 0, 300, 0, 10, key="hm_top", help=L("0 = all markets")))
-    direction = fc[2].selectbox(L("Direction"), ["all", "up", "down"], key="hm_dir", format_func=lambda k: {"all": L("All"), "up": L("Up"), "down": L("Down")}[k])
-    min_abs = float(fc[3].number_input(L("Min |change| %"), 0.0, 50.0, 0.0, 0.5, key="hm_abs"))
-    q = fc[4].text_input(L("Search"), key="hm_q", label_visibility="collapsed", placeholder=L("Search"))
-    sort = fc[5].selectbox(L("Sort"), ["vol", "chg", "chg_abs", "rel"], key="hm_sort", format_func=lambda k: {"vol": L("Volume"), "chg": L("Change"), "chg_abs": L("Biggest move"), "rel": L("vs class")}[k])
-    df = _mm_filter(_all, sel_cls, top_n, direction, min_abs, q, sort)
-    if df.empty:
-        st.info(f"{L('No markets match these filters.')} ({len(_all)} {L('markets')})")
-        return
-    bd = breadth(df)
-    st.markdown(f"**{L('Market map')}** · {L('markets')}: {bd['n']} · {L('up')}: {bd['up_share']*100:.0f}% · "
-                f"{L('down')}: {bd['down_share']*100:.0f}% · {L('median change')}: {bd['median_chg']:+.2f}%")
-    st.caption(L("Tile colour = change vs the previous day; tile size = 24h volume (no market cap is available for these markets). "
-                 "Breadth and strength describe the move, they do not predict it."))
-    tiles = []
-    for _, r in df.iterrows():
-        g = max(-8.0, min(8.0, r["chg"])) / 8.0
-        bg = f"rgba(14,203,129,{abs(g)*0.85+0.1:.2f})" if g >= 0 else f"rgba(246,70,93,{abs(g)*0.85+0.1:.2f})"
-        size = 0.7 + 0.6 * (r["vol"] / df["vol"].max()) ** 0.5
-        tiles.append(f"<div title='{r['name']} · {r['cls']} · {r['chg']:+.2f}% · vs class {r['rel']:+.2f}%' "
-                     f"style='flex:{size:.2f} 1 110px;min-height:56px;background:{bg};border-radius:4px;padding:4px 6px;"
-                     f"font:12px ui-monospace,Menlo,monospace;color:#eaecef'><b>{r['name']}</b><br>{r['chg']:+.2f}%</div>")
-    st.markdown("<div style='display:flex;flex-wrap:wrap;gap:4px'>" + "".join(tiles) + "</div>", unsafe_allow_html=True)
-    cls = by_class(df)
-    st.dataframe(cls.rename(columns={"cls": L("Class"), "n": L("Markets"), "avg_chg": L("Avg change %"), "up_share": L("Share up")}).round(3),
-                 hide_index=True)
+from modules.market_map_view import render_market_map  # noqa: E402  (moved 2026-11-17; same view for the desk and TIA)
 
 
 def _clear_cs_filters():
@@ -3138,7 +3095,6 @@ def render_chart_scanner(f):
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
     from modules import radar_live as _LIVE
-    import streamlit.components.v1 as _cv1
     _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
@@ -3178,7 +3134,7 @@ def render_chart_scanner(f):
                         + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
                         + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
                         , unsafe_allow_html=True)
-                    _cv1.html(_lh, height=300, scrolling=False)
+                    st.iframe(_lh, height=300, alt=f"Live chart {sym}")
                     _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
                     from modules import radar_structure as _RS
                     _struct = _RS.html_block(_RS.read(d_x))
@@ -3868,10 +3824,9 @@ if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution an
                         (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
                         st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
                                        "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
-                import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
-                    _components.html(_html, height=900, scrolling=True)
+                    st.iframe(_html, height=900, alt="QuantStats performance report")
                 else:
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:
@@ -3923,6 +3878,14 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         _two_six_render()
     except Exception as _ts_exc:
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
+    st.stop()
+
+if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
+    try:
+        from modules.rsi_heatmap import render as _rsi_heatmap_render
+        _rsi_heatmap_render()
+    except Exception as _rsi_hm_exc:
+        st.error(f"RSI Heatmap: {type(_rsi_hm_exc).__name__}: {_rsi_hm_exc}")
     st.stop()
 
 if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX

@@ -10,6 +10,12 @@ import streamlit as st
 def render_tia():
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
+    # 2026-11-17: one view runs at a time (same pattern as Technical Office): Terminal (default) or Markets (the desk's market map)
+    view = st.segmented_control("TIA view", ["Terminal", "Markets"], default="Terminal", key="tia_view", label_visibility="collapsed")
+    if view == "Markets":
+        from modules.market_map_view import render_market_map
+        render_market_map()
+        return
     qp = st.query_params
     market = qp.get("tia_mkt") if qp.get("tia_mkt") in CLASSES else CLASSES[0]
     catalog = symbols_for_class(market, top=60)
@@ -51,6 +57,20 @@ def render_tia():
                     st.metric(tf.upper(), item.get("trend", "—"), f"RSI {item.get('rsi14', '—')} · {item.get('return20_pct', '—')}% / 20 bars")
                 else:
                     st.metric(tf.upper(), "UNAVAILABLE")
+        hold = report.get("holdings") or {}
+        if hold.get("held"):
+            st.info(f"Spot ledger: you hold {hold.get('qty')} {hold.get('asset')} at an average of {hold.get('avg_usd')} USD (unrealised {hold.get('unreal_pct')}%). The Director does not change this position.")
+        elif hold.get("held") is False:
+            st.caption(f"Spot ledger: no open {hold.get('asset')} position.")
+        sch = report.get("schools") or {}
+        if sch.get("ok"):
+            import pandas as pd
+            st.markdown(f"**Desk schools (1D / 1W / 1M)** · score {sch.get('score')} · {sch.get('action', '')}")
+            rows = [{k: v for k, v in r.items() if k in ("tf", "regime", "trend") or str(k).startswith("v_")} for r in sch.get("rows", [])]
+            if rows:
+                st.dataframe(pd.DataFrame(rows), hide_index=True)
+        else:
+            st.caption("Desk schools unavailable: " + str(sch.get("why", "not run")))
         src = report.get("sources") or {}
         st.caption("Source coverage: " + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
         for warning in report.get("warnings", []):

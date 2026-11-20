@@ -291,7 +291,7 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
-    import streamlit.components.v1 as components
+    import streamlit as st
 
     # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
     # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
@@ -299,9 +299,8 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
         doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
-        import streamlit as st
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
-    components.html(doc, height=height, scrolling=False)
+    st.iframe(doc, height=height, alt="Live market workspace")
 
 
 WS_HTML_REFRESH_SECS = 180   # send new page data at most this often (when the scan is idle)

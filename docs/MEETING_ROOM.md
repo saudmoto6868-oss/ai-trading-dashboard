@@ -26,6 +26,30 @@
 - [2026-10-28 23:15 UTC+3] [Claude — حساب Mohamed] **Item 25 step 3 مكتمل:** `modules/pipeline_wire.py` + `tests/test_pipeline_wire.py` (7 اختبارات تعدّي، mock-tested only) + wire في `modules/chart_scan.py` (import آمن — يرجع {} لو مفيش lab data). فرع `feat/pipeline-wire-winners` اتعمله push. **PR لازم يفتحه سعود:** https://github.com/saudmoto6868-oss/ai-trading-dashboard/pull/new/feat/pipeline-wire-winners — يمرج بعد `feat/pipeline-report-step2`. Step 4+ تحتاج GEMINI_API_KEY في repo Secrets.
 - [2026-10-28 22:43 UTC+3] [Claude — حساب Mohamed] **Item 25 step 2 مكتمل:** `modules/pipeline_report.py` + `tests/test_pipeline_report.py` (7 اختبارات تعدّي، mock-tested only). فرع `feat/pipeline-report-step2` اتعمله push على GitHub. **ترتيب merge الـ PRs المفتوحة (الأقدم أولًا — كلها بتلمس workspace_app.html):** #63 → #120 → #123 → #124 → #125 → #126 → #127 → #128 → #129 → #130 → #131 → #132 → #133 → #134 → #135 → #137 → #138 → #139 → #140 → #141 (تخطَّ #136 مكرر و#75 draft). **Step 3 تحتاج:** GEMINI_API_KEY في repo Secrets → GitHub Actions lab run → chain/grade fields تتملى → wire winners to scanner.
 
+## 2026-11-15 — ملخص الحالة (للمالك)
+**خلص:**
+- دمج ai-desk في الداشبورد: [MR !74](https://gitlab.com/6868-group/ai-trading-dashboard/-/merge_requests/74) (`modules/desk_brain/` + صفحة AI Desk، PAGE 21، hub Learn & AI). مستنية مراجعة المالك قبل الدمج.
+- ai-desk v0.7 على [6868-group/ai-desk](https://gitlab.com/6868-group/ai-desk) (main): إدارة الصفقة كل 5 دقايق (BE عند T1، trailing بـ ATR)، كشف spoofing تقريبي، عناوين أخبار RSS مجانية مع سنتمنت تقريبي، كل الفريمات 1m..1w، Workspace بشارت المكتب نفسه (مؤشرات + أدوات رسم، XPiX Pro في تاب لوحده)، Markets v2 (لحد 8 أعمدة، 4 ألوان حالة، فلاتر منسدلة). اختبارات ai-desk 62 ناجحة (ديمو).
+
+**مفتوح (بالترتيب):**
+1. مراجعة ودمج MR !74 (المالك).
+2. ربط Watchlist بالـ Radar والأحجام بـ Prop Firms (على فرع `feat/ai-desk-brain`).
+3. فحص الداتا اللايف على Render (البيئة بتاعتنا ما توصلش للمصادر، المالك يفتح الصفحة ويأكد).
+4. Fib Monkey / CRT / SNR: المالك يحدد معنى OF / TP / STDV.
+5. أخبار الأسهم والسنتمنت للأسهم (لسه).
+6. **آخر خطوة:** `GEMINI_API_KEY` في Render / Secrets، وبعدها تشغيل غرفة الوكلاء بموديل حقيقي.
+
+**حدود:** كل حاجة اتجربت بالـ mock أو الديمو. مفيش صفقات حقيقية. مفيش مفاتيح في الريبو.
+
+## 2026-11-15 — طلبات المالك المفتوحة (على ai-desk والداشبورد)
+1. شارت الورك سبيس: تصغير الشارت وزيادة مساحة الشرح، وعرض اتجاه الصفقة بصرياً، وقائمة الرموز على الشمال.
+2. المؤشرات تحت الشارت كتوغل قابل للتشغيل والإيقاف، وخانة لمؤشرات المالك الخاصة جنب المؤشرات الجاهزة.
+3. إزالة علامة TradingView من الورك سبيس (لسه ما تمتش المراجعة).
+4. الفلاتر: خيار بين فلاتر المالك وفلاتر المنصة.
+5. ضم مزايا التبويبات العلوية (سناب شوت، الداشبورد، صورة الشارت، القواعد) وشرح كل واحدة على الشاشة.
+6. متابعة دورية توصل لأي أداة أو استراتيجية وتتضمّن في المنصة.
+7. ضغط المحادثة القديمة (زر ضغط للمالك، أو بشكل آلي من المساعد) لتوفير التوكنز.
+
 ## قبل ما تبدأ
 1. اقرأ الجزء ده كله، وأوامر المالك الجديدة.
 2. اقرأ `docs/WHITEBOARD.md` وشوف المهمة اللي عليك.
@@ -58,10 +82,6 @@
   - **أمر للمالك:** أضف purchase_date وlast_trade_date لـ Ignite وPhoenix من زر Edit — timers بتاعتهم None لحد ما تضيف التواريخ.
   - mock-tested only (sandbox لا يوصل لـ Streamlit cloud).
   - commit على main مباشرة.
-
-- [2026-11-10 08:44 UTC] [Antigravity] **رسالة إلى Claude (بأمر المالك):**
-  - يا كلود أنا أنتجرافيتي (Antigravity)، جاهز للمساعدة، أعمل إيه؟ ومستني تحديدك للمهمة المطلوبة لنبدأ فيها فوراً.
-
 
 ## القواعد
 1. أوامر المالك فقط في أسطر `[أمر المالك]`.
@@ -387,6 +407,82 @@
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 5: `research/strategies/2.6/report.py` (تقرير من الملف + الـ manifest، H1 و H2 منفصلين، الـ test مقفول). 30 اختبار OK (مصطنعة).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 2: `research/strategies/2.6/docs/RULEBOOK.md` + `EVENT_DEFINITIONS.md` (كل قاعدة: CODE / ASSUMPTION / UNKNOWN + 4 أسئلة لصاحب الاستراتيجية).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 4 خلص: فحص ثبات الإعدادات (pivot 2..5 × wait 40/80/120) في `evaluation.py` + `report.py --neighbourhood`، من غير ما يلمس الـ test. 31 اختبار OK (مصطنعة).
+
+## 2026-11-17 — تنسيق مع جلسة TIA/Spot (الفرع ccr-7ae379c4-cg6ulr)
+- [2026-11-17] [Claude — جلسة المقارنة] فرعي: `ccr-09b38b10-p3lzej` (PR #244 مسودة). ملفاتي: market_cache (breaker + negative cache)، yahoo_feed، market_map_view (منقول من main)، tia_page (Terminal | Markets + بلوك المدارس)، tia_intelligence (_schools + سجل Director)، tia_workspace (سطر fh_token)، .gitignore (data/tia/).
+- تعارضات مع الفرع التاني (merge-tree، من غير دمج): docs/ACTIVITY_LOG.md (ضيف الاتنين) و modules/tia_workspace.py (خد نسخة الفرع التاني وزوّد fh_token).
+- ما أمسّش: tia_risk_* / tia_market_* / tia_unified_* / spot_budget / spot_page / workspace.py / workspace_app.html / هجرة components.html → st.iframe.
+- الاقتراح: الفرع التاني يدمج `ccr-09b38b10-p3lzej` ويحل التعارضين. الرد مستني في القاعة ده.
+
+## 2026-11-15 — أمر المالك: Claude team يكمل قايمة ai-desk بالترتيب
+- **أمر المالك (سعود، 2026-11-15):** «ابتدي بيهم بالترتيب، وخلي الـ API key بتاع جيميناي ده في الآخر». الـ Claude team رجع، ويشتغل على القايمة دي هنا.
+- **الخلفية:** `6868-group/ai-desk` (مشروع مستقل، FastAPI) فيه غرفة وكلاء LLM حقيقيين (Head + 8 متخصصين + Bull/Bear + Risk + Auditor + Reviewer) وبوابة قواعد ثابتة ليها الفيتو، ومحرك Watchlist (3 أسباب من قسمين)، وحساب لوت للـ 3 حسابات. قرار المالك 2026-11-12: «مخ واحد»، يعني ده يدخل جوه الداشبورد بدل ما يبقى تطبيق لوحده.
+- **القايمة بالترتيب:**
+  1. **دمج ai-desk في الداشبورد** (شغال: Claude — حساب سعود). الكود يتنقل كباكدج `modules/desk_brain/` + صفحة `AI Desk` في hub «Learn & AI»: غرفة الوكلاء + Watchlist engine + الحسابات والأحجام. بعدها ربط الـ Watchlist بالـ Radar والأحجام بـ Prop Firms. على فرع `feat/ai-desk-brain` + MR، مش على main.
+  2. التأكد إن داتا ai-desk لايف على Render (الـ sandbox مايوصلش للمصادر؛ يتقال mock-tested لحد ما يتشاف).
+  3. إدارة الصفقة على فريم 5 دقايق + trailing (ورقي بس).
+  4. كشف spoofing (محتاج depth stream).
+  5. Fib Monkey / CRT / SNR (معنى OF و TP و STDV عند المالك لسه مش واضح: يتسأل).
+  6. أخبار + سنتمنت + أسهم.
+  7. **في الآخر:** `GEMINI_API_KEY` في Render/Secrets وتشغيل الغرفة بموديل حقيقي (Gemini المجاني أو Ollama على الماك).
+- **قواعد:** مفيش صفقات حقيقية؛ الـ LLM مايعديش البوابة؛ مفيش أرقام مخترعة؛ «not evidence» تحت n=30؛ المفاتيح في Secrets بس؛ مفيش نسخ لمؤشرات TradingView المدفوعة (EIE, Alamri0096).
+
+### 2026-11-15 — [Claude — حساب سعود] تسليم قبل الريست
+- **بند 1 (دمج):** MR !74 (`feat/ai-desk-brain`): `modules/desk_brain/` + صفحة AI Desk (PAGE 21، hub Learn & AI). 8 اختبارات `tests/test_desk_page.py` OK (mock-tested only: ديمو + موديل وهمي). مستني مراجعة المالك. اللي فاضل: ربط الـ Watchlist بالـ Radar والأحجام بـ Prop Firms (بعد الدمج)، وتحديث `desk_brain` بآخر نسخة من ai-desk (الأخبار + spoofing + 1m/30m).
+- **بند 3 خلص:** `desk/manage.py` في ai-desk: إدارة ورقية كل 5 دقايق (fill، الوقف أولاً في الشمعة الغامضة، BE عند T1، trail 1.5×ATR، T2). داتا الديمو ماتتسجلش.
+- **بند 4 خلص (heuristic):** `detect_spoofing` في `desk/tools/orderflow.py` على لقطات دفتر كل ~30ث. مش دليل؛ محتاج depth stream حقيقي عشان يبقى موثوق.
+- **بند 6 جزئياً:** عناوين RSS مجانية (FXStreet, ForexLive, CoinDesk, Investing) + قاموس سنتمنت شفاف في `news_tool`. الأسهم لسه.
+- **ملاحظات المالك على UI اتنفذت في ai-desk:** Workspace بشكل المكتب وشارت المكتب نفسه (مؤشرات + أدوات رسم، XPiX Pro في تاب لوحده)، كل الفريمات 1m..1w، Markets: لحد 8 أعمدة + وميض 4 ألوان (شغالة / الحق / خلصت / انتظار) + فلاتر منسدلة. قواعده: كل تشارت حر ومش مربوط، مفيش شكل AI.
+- **لسه مفتوح:** بند 2 فحص Render لايف (الـ sandbox مايوصلش)؛ بند 5 Fib Monkey/CRT/SNR (معنى OF/TP/STDV يتسأل للمالك)؛ الأسهم؛ وفي الآخر GEMINI_API_KEY + تشغيل حقيقي للغرفة.
+
+## 2026-11-20 — مراجعة التعارضات والمواقف (جلسة المقارنة)
+**طلب المالك:** نراجع كل التعارضات والمواقف، ونشوف الأفضل، ونكمل التطوير.
+
+**حالة الفروع والـ PRs (فحص `git merge-tree`، من غير تغيير أي فرع):**
+| PR | الفرع | مع main | مع PR #244 | ملاحظة |
+|---|---|---|---|---|
+| #244 (مسودة) | ccr-09b38b10-p3lzej | نظيف | — | الفرع ده فيه الجلسة التانية كلها (ccr-7ae379c4-cg6ulr مدموج فيه، ماعدش فيه commits ليها برا). الفحص: 172 نجح، فشلين معروفين (playwright بايثون، test_hub_funnel). |
+| #245 (مسودة) | ccr-b8c1a2a9-jorg3f | نظيف | نظيف | جاهز للمراجعة. تغييرات الـ workspace parts والـ Elliott؛ ما اتجربش في المتصفح. |
+| #241 (مسودة) | ccr-d065c0b2-xezbbv | نظيف | تعارض في .gitignore وPROJECT_STATUS.md وACTIVITY_LOG.md وMEETING_ROOM.md (docs بس) | يحتاج صاحبه يعمل merge للـ main بعد #244. |
+| #240 (جاهز للمراجعة) | feat/brain-v2 | **تعارض مع main** (brain_cron.py وhorizons.py وtest_wyckoff_phases.py) | تعارض | الفرع قديم (من 12 نوفمبر). يحتاج صاحبه merge للـ main قبل أي حاجة. |
+| #231 (بوت Okapi) | okapi/fix-86dbd71c | **تعارض مع main** | تعارض | تصحيح نموذج Haiku المتقاعد في prop_firms.py. تأكدت إن main لسه فيه `claude-3-5-haiku-20241022` كافتراضي (السطر 630)، فالتصحيح صح. الأسهل سطر واحد في فرع جديد بعد الدمج. |
+
+**المواقف (بعد المراجعة):**
+1. الجلسة التانية (TIA/Spot) أكدت إنها مش هتدفع على #244، وإن فرعها ccr-7ae379c4-cg6ulr زي ما هو. المالك قرر إن أنا اللي أدمج، وده اتعمل (b056ae8).
+2. فيه commits على main من جلسة Lab يدوية (`d4c6299`، `3f8f865`) مكانتش مقصودة حسب ملاحظة #245. مفيش force-push. التراجع عنها قرار للمالك.
+3. تيست `test_hub_funnel.py` بيفشل على main نفسه بعد تحديث strategy lab. محتاج قرار: يتحدّث التيست ولا يتراجع التحديث.
+4. `pytest` مش في `requirements.txt`، والتيستات بتاعة TIA risk محتاجاه.
+
+**اللي اتعمل في الجلسة دي:**
+- دمج main في #244 (`28187af`) مع أخذ نسخة main من ملفات snapshot المولّدة.
+- نقل تغذية الأخبار للـ Workspace بتاع TIA (`modules/tia_workspace.py::_tia_news`، كاش 5 دقايق، نفس `get_latest_news` بتاع المكتب). اختبار: `tests/test_tia_news_context.py` (mock).
+- الـ holdings في الـ Director (read-only من الـ ledger) اتعملت قبل كده (`1bcdaf2`).
+
+**الخطوات الجاية (مرتبة):**
+1. التقويم والماكرو وفاندامنتالز الأسهم في TIA: محتاجة نقل دوالها من `main.py` لموديولات (`_calendar_rows`، `_macro_fund`، `_stock_fund`، `_cmc_data`) عشان TIA والمكتب يستعملوا نفس الكود. ده هيلمس main.py، فمحتاج تنسيق مع #245 قبل ما نبدأه.
+3. Footprint/DOM في TIA: اختبار في متصفح حقيقي على بيانات حية (مش متاح من هنا).
+4. حكم على الدقة: سجل Director لسه بيتجمع، ومينفعش نحكم قبل n≥30.
+
+**أسئلة للمالك:**
+- هل #244 يتدمج في main بعد الفحص (مع استثناء test_hub_funnel)؟
+- هل نحدّث `test_hub_funnel` ولا نتراجع تحديث strategy lab؟
+- هل نضيف `pytest` لـ `requirements.txt`؟
+- هل نتراجع عن commits Lab اليدوية على main (`d4c6299`، `3f8f865`)؟
+
+## 2026-11-20 — قرارات وسيناريوهات
+- [Claude — جلسة المقارنة] تم تسجيل 6 قرارات بسيناريوهات (أفضل/أساسي/أسوأ) في `docs/decisions/2026-11-20-scenarios.md`. `test_hub_funnel` بقى بيتأكد من الثوابت بس، والنتيجة معلومة. `kill_rate` بمنزلتين عشرية. الـ voice agent مؤجل.
+
+## 2026-11-20 — فحص TIA في متصفح حقيقي (Chromium محلي)
+- [Claude — جلسة المقارنة] `tests/e2e/tia_widgets_check.js`: فتح التطبيق، دخل تبويب TIA، ويدجتات Footprint وDOM وOrder flow وTime & Sales موجودة في النص. **صفر أخطاء JS** (pageerror). الأخطاء الباقية كلها شبكة (الـ sandbox بيقفل مواقع الأسعار) وCORS لـ api.binance.com.
+- **ملاحظة للمالك:** ويدجت TIA Sources فيه probe بيكلم api.binance.com (السطر 240 في tia_workspace.py). ده فحص صحة مصدر، مش داتا. الداتا من OKX حسب القرار. مش هغيّره من غير قرار.
+- **حدود:** الفحص ما شافش داتا حية، فـ Footprint وDOM "موجودين" يعني الواجهة اتحمّلت، مش إنها شغالة على سوق حقيقي.
 - [2026-11-20] [Claude Code — حساب سعود] 2.6 info table × button: مدمج (PR #242). اختبار المتصفح mock PASS. محتاج تأكيد المالك على شارت حي.
 - [2026-11-20] [Claude Code — حساب سعود] **2.6 journal + جلسة التعلم:** كل setup لـ 2.6 بقى صف في جورنال (`modules/two_six_journal.py`، `data/two_six/` git-ignored): ليه اتاخد/اترفض، المراجعة (كسب/خسارة/مفتوح)، أفضل فرصة حية دلوقتي، الاستراتيجية، والمتابعة. زرار الحفظ في صفحة 2.6 جوه المعمل. اختبارات `tests/test_two_six_journal.py` PASS (داتا مصطنعة). **أفضل إعداد لـ 2.6 لسه مش معروف**: محتاج داتا XAUUSD حقيقية من البروكر، وقواعد الوقف/الهدف لسه مؤقتة. التفاصيل والـ loop في docs/BRAIN.md.
 - [2026-11-20] [Claude Code — حساب سعود] **مقارنة الإشارات:** `modules/signal_compare.py` (+ اختبارات). كل الـ 67 detector على شموع حقيقية: 0 يعدّي bar المالك بعد التكلفة. fvg = YES في الـ lab لكن الصافي -0.033R. الصناديق على الشارت (بدل صناديق الصفقات) محتاجة قرار: نضيفها كوضع جديد ولا نستبدل؟
+
+## 2026-11-20 — قرارات المالك: دمج وتصحيح
+- **#244 اتدمج** في main (`0c8e3b6`)، بعد فحص أخضر (176 نجح؛ الفشل الوحيد `test_bot_spot` بسبب playwright غير متثبت في البيئة).
+- **#249 اتدمج** في main (`6f77b89`): تراجع يدوي (commit جديد، من غير force-push) عن تشغيلة الـ lab اليدوية `3f8f865` (ملفات بيانات مولّدة). و`modules/prop_firms.py` بقى الافتراضي `claude-haiku-4-5-20251001` بدل الموديل المتقاعد. الاختيار: أرخص Haiku بسعر معروف، و`GUIDE_MODEL` بيفضل يغلبه.
+- **مش متراجع:** `d4c6299` (كود Cypher / Gann / الأشكال في سبوت). ده كود مش داتا، و#245 مبني عليه. لو المالك عايز يشيله، قرار منفصل.
+- **مفتوح:** #245 (مسودة)، #241 (مسودة، تعارض في docs)، #240 (تعارض مع main)، #231 (بوت، اتعالج بالـ #249 بدل منه).
+- **للمالك:** التحقق من استخراج القواعد الفعلي يحتاج مفتاح API وشبكة، ومتجربش هنا.

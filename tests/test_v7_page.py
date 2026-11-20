@@ -78,8 +78,8 @@ def test_live_html_builds():
     if not os.path.exists(V.LIVE_LIB):
         print("skip live html (chart library absent)"); return
     html, err = V.live_html()
-    assert err == "" and "V7IND" in html and "createChart" in html, err
-    assert "/*LIB*/" not in html and "/*IND*/" not in html and 'src="' not in html, "everything must be inlined"
+    assert err == "" and "V7IND" in html and "V7STRUCT" in html and "createChart" in html, err
+    assert "/*LIB*/" not in html and "/*IND*/" not in html and "/*STRUCT*/" not in html and 'src="' not in html, "everything must be inlined"
     print("ok live html")
 
 

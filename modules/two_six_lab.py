@@ -5,7 +5,6 @@ Research only: it never places orders. Stop / target rules are provisional
 """
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 SYMBOLS = {"Gold (Hyperliquid)": "HL:xyz:GOLD", "Gold futures (Yahoo GC=F)": "Y:GC=F",
            "Silver (Hyperliquid)": "HL:xyz:SILVER", "BTC": "BTC-USDT"}
@@ -73,7 +72,7 @@ def render() -> None:
     if df is not None and len(df) >= 50:
         plays = tc.setups(tc.bars_from_df(df), ratio=ratio, left=swing, right=swing, use_h1=use_h1, use_h2=use_h2)
         shown = plays[-show:]
-        components.html(tc.chart_html(df, shown), height=580)
+        st.iframe(tc.chart_html(df, shown), height=580, alt="2.6 chart")
         times = list(df["time"])
         rows = [{"time": times[p["known"]], "type": p["kind"], "side": p["side"], "status": p["status"],
                  "entry": round(p["entry"], 2), "stop": round(p["stop"], 2),

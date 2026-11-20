@@ -26,3 +26,5 @@
 - Never `cat`/Read a file >20 KB whole (MEETING_ROOM, PROJECT_STATUS, workspace_app.html): grep, then a range.
 - One exploration command per question; batch independent calls; don't re-check what already succeeded.
 - Reply short (owner rule). No long summaries of what you just did.
+
+- Tests need pytest: `pip install -r requirements-dev.txt` (pytest is kept out of requirements.txt so the deploy stays light).

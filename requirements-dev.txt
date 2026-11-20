@@ -1,0 +1,3 @@
+# Developer / test requirements. The Streamlit deploy stays on requirements.txt (same precedent as requirements-extra.txt).
+-r requirements.txt
+pytest>=8

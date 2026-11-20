@@ -476,3 +476,4 @@
 - [Claude — جلسة المقارنة] `tests/e2e/tia_widgets_check.js`: فتح التطبيق، دخل تبويب TIA، ويدجتات Footprint وDOM وOrder flow وTime & Sales موجودة في النص. **صفر أخطاء JS** (pageerror). الأخطاء الباقية كلها شبكة (الـ sandbox بيقفل مواقع الأسعار) وCORS لـ api.binance.com.
 - **ملاحظة للمالك:** ويدجت TIA Sources فيه probe بيكلم api.binance.com (السطر 240 في tia_workspace.py). ده فحص صحة مصدر، مش داتا. الداتا من OKX حسب القرار. مش هغيّره من غير قرار.
 - **حدود:** الفحص ما شافش داتا حية، فـ Footprint وDOM "موجودين" يعني الواجهة اتحمّلت، مش إنها شغالة على سوق حقيقي.
+- [2026-11-20] [Claude Code — حساب سعود] 2.6 info table × button: مدمج (PR #242). اختبار المتصفح mock PASS. محتاج تأكيد المالك على شارت حي.

@@ -60,7 +60,9 @@ const EWShape = {
     const n = p.length;
     if (n >= 12){ const t = this.triple(...p.slice(n-12)); if (t) return t; }
     if (n >= 8){ const w = this.wxy(...p.slice(n-8)); if (w) return w; }
-    if (n >= 6){ const q = p.slice(n-6); const t = this.tri(...q) || this.impulse(...q); if (t) return t; }
+    if (n >= 6){ const q = p.slice(n-6); let t = this.tri(...q) || this.impulse(...q);
+      if (t === "ending_diagonal" && n >= 8){ const sd = q[1] > q[0] ? 1 : -1; if (sd*(q[0] - p[n-8]) < 0) t = "leading_diagonal"; }   // same rule as Python diagonal_kind
+      if (t) return t; }
     if (n >= 4){ const a = this.abc(...p.slice(n-4)); if (a) return a; }
     return null;
   }
@@ -71,7 +73,7 @@ Object.assign(CandleChart.prototype, {
     const z = this.ewZZ();
     const name = EWShape.tail(z.map(q => q.p)); if (!name) return null;
     const T = {zigzag:["zigzag (A-B-C)","زيجزاج (A-B-C)"], regular_flat:["regular flat","فلات عادي"], expanded_flat:["expanded flat","فلات ممتد"],
-      running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"],
+      running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"], leading_diagonal:["leading diagonal","دياجونال بادئ"],
       contracting:["contracting triangle","مثلث متقارب"], expanding:["expanding triangle","مثلث متسع"],
       double_zigzag:["double zigzag (W-X-Y)","زيجزاج مزدوج (W-X-Y)"], double_three:["double three (W-X-Y)","ثلاثي مزدوج (W-X-Y)"],
       double_combo:["combo (W-X-Y)","مركب (W-X-Y)"], triple_zigzag:["triple zigzag (W-X-Y-X-Z)","زيجزاج ثلاثي (W-X-Y-X-Z)"],
@@ -119,17 +121,19 @@ const EW_WAVE_TEXT = {
   "5": ["wave 5: last push, often shows weakening momentum", "موجة 5: آخر دفعة، غالباً الزخم بيضعف"]
 };
 Object.assign(CandleChart.prototype, {
-  paintEWdiag(c, py, w){   // ending diagonal: draw its two converging lines (highs 1-3-5, lows 0-2-4) and say what it is
-    if (!w || !w.pts || w.pts.length < 6) return;
-    const P = w.pts.map(q => ({x: this.x(q.i), y: py(q.p)})), shape = EWShape.impulse(...w.pts.map(q => q.p));
-    if (shape !== "ending_diagonal") return;
-    const PR = this.PR, col = w.up ? "#0ecb81" : "#f6465d";
+  paintEWdiag(c, py){   // leading or ending diagonal on the newest six pivots: draw its two converging lines and say which one
+    const z = this.ewZZ(); if (z.length < 6) return;
+    const name = EWShape.tail(z.map(q => q.p)); if (name !== "ending_diagonal" && name !== "leading_diagonal") return;
+    const Q = z.slice(-6), P = Q.map(q => ({x: this.x(q.i), y: py(q.p)})), up = Q[1].p > Q[0].p;
+    const PR = this.PR, col = up ? "#0ecb81" : "#f6465d";
     const line = (a, b) => { const dx = b.x - a.x || 1e-9, m = (b.y - a.y)/dx; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(PR, a.y + m*(PR - a.x)); c.stroke(); };
     c.save(); c.setLineDash([6,4]); c.strokeStyle = col; c.globalAlpha = .8; c.lineWidth = 1;
-    line(P[1], P[3]); line(P[3], P[5]);   // upper trendline through the highs 1, 3, 5
-    line(P[0], P[2]); line(P[2], P[4]);   // lower trendline through the lows 0, 2, 4
+    line(P[1], P[3]); line(P[3], P[5]);   // the pivots 1, 3, 5
+    line(P[0], P[2]); line(P[2], P[4]);   // the pivots 0, 2, 4
     c.restore();
-    this.indNote(c, 5, Lg("Ending diagonal: lines converge, wave 5 is inside the wedge", "دياجونال نهائي: الخطوط بتتقارب، موجة 5 جوه الوتد"));
+    this.indNote(c, 5, name === "leading_diagonal"
+      ? Lg("Leading diagonal: a wedge that starts a move (wave 1 or A)", "دياجونال بادئ: وتد بيبدأ حركة (موجة 1 أو A)")
+      : Lg("Ending diagonal: a wedge that ends a move (wave 5 or C)", "دياجونال نهائي: وتد بينهي حركة (موجة 5 أو C)"));
   },
   ewWaveCaption(c, w, n){   // one line per wave: what it is and what to expect (teaching text, not a forecast)
     if (!w || !w.pts || w.pts.length < 2) return;
@@ -234,5 +238,5 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   }
 });
-function EWShape_AR_OR_EN(name){ const AR = {zigzag:"زيجزاج ABC", regular_flat:"فلات عادي", expanded_flat:"فلات ممتد", running_flat:"فلات جاري", impulse:"دافعة 1-5", ending_diagonal:"دياجونال نهائي", contracting:"مثلث متقارب", expanding:"مثلث متسع", double_zigzag:"زيجزاج مزدوج", double_three:"ثلاثي مزدوج", double_combo:"مركب W-X-Y", triple_zigzag:"زيجزاج ثلاثي", triple_three:"ثلاثي ثلاثي", triple_combo:"ثلاثي مركب"}; return Lg(name.replace(/_/g," "), AR[name] || name); }
+function EWShape_AR_OR_EN(name){ const AR = {zigzag:"زيجزاج ABC", regular_flat:"فلات عادي", expanded_flat:"فلات ممتد", running_flat:"فلات جاري", impulse:"دافعة 1-5", ending_diagonal:"دياجونال نهائي", leading_diagonal:"دياجونال بادئ", contracting:"مثلث متقارب", expanding:"مثلث متسع", double_zigzag:"زيجزاج مزدوج", double_three:"ثلاثي مزدوج", double_combo:"مركب W-X-Y", triple_zigzag:"زيجزاج ثلاثي", triple_three:"ثلاثي ثلاثي", triple_combo:"ثلاثي مركب"}; return Lg(name.replace(/_/g," "), AR[name] || name); }
 /* EWMTF-END */

@@ -132,6 +132,15 @@ def wxy_shape(p0, p1, p2, p3, p4, p5, p6, p7):
     return "double_combo", info
 
 
+def diagonal_kind(prior, p0, p1, p2, p3, p4, p5):
+    """A diagonal is 'leading' (wave 1 / A: it starts a move) or 'ending' (wave 5 / C: it ends one).
+    Our measurable reading: look at the same-kind pivot before the diagonal's start (prior). If price came INTO p0
+    against the diagonal's direction (a lower low before an up diagonal), the diagonal starts a new move -> leading.
+    Otherwise it continues the move that was already running -> ending."""
+    s = 1 if p1 > p0 else -1
+    return "leading_diagonal" if s * (p0 - prior) < 0 else "ending_diagonal"
+
+
 def classify_tail(prices):
     """Label the newest pivots of an alternating price list: triple W-X-Y (last 12), W-X-Y (last 8), triangle / impulse (last 6), ABC (last 4).
 
@@ -150,6 +159,8 @@ def classify_tail(prices):
     if n >= 6:
         q = p[-6:]
         name = triangle_shape(*q) or impulse_shape(*q)
+        if name == "ending_diagonal" and n >= 8:
+            name = diagonal_kind(p[-8], *q)
         if name:
             return name
     if n >= 4:
@@ -160,7 +171,7 @@ def classify_tail(prices):
 
 
 SHAPE_AR = {"zigzag": "تصحيح زيجزاج (ABC)", "regular_flat": "فلات عادي", "expanded_flat": "فلات ممتد",
-            "running_flat": "فلات جاري", "impulse": "دافعة 1-5", "ending_diagonal": "دياجونال نهائي",
+            "running_flat": "فلات جاري", "impulse": "دافعة 1-5", "ending_diagonal": "دياجونال نهائي", "leading_diagonal": "دياجونال بادئ",
             "contracting": "مثلث متقارب", "expanding": "مثلث متسع", "double_zigzag": "زيجزاج مزدوج (W-X-Y)",
             "double_three": "ثلاثي مزدوج (W-X-Y)", "double_combo": "مركب (W-X-Y)"}
 

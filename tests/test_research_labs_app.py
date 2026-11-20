@@ -35,9 +35,16 @@ for tab in ("Monte Carlo", "Edge Map", "Robustness", "Execution"):
     at.run()
     assert not at.exception, (tab, [str(e.value)[:200] for e in at.exception])
     assert not at.error, (tab, [str(e.value)[:200] for e in at.error])
-    if tab == "Robustness":   # real lab rows -> a table (or the honest "no data" note), never the mock page
-        assert at.dataframe or any("strategy_lab.json" in str(i.value) for i in at.info), "Robustness shows neither the lab table nor the no-data note"
     print("ok stats tab:", tab)
+
+at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)   # Robustness (real lab rows) lives in Research Hub > Plateau & regime
+at.session_state["page"] = 9
+at.session_state["hub_tab"] = "Plateau & regime"
+at.run()
+assert not at.exception and not at.error, ([str(e.value)[:200] for e in at.exception], [str(e.value)[:200] for e in at.error])
+assert any("Strategy robustness" in str(h.value) or "متانة الاستراتيجيات" in str(h.value) for h in at.subheader), [str(h.value) for h in at.subheader]
+assert at.dataframe or any("strategy_lab.json" in str(i.value) for i in at.info), "Robustness shows neither the lab table nor the no-data note"
+print("ok research hub: robustness on real lab rows")
 
 at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
 at.run()

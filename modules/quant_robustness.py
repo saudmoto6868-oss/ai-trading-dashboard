@@ -1,4 +1,4 @@
-"""Robustness tab (Stats page): strategy x market-context grid built from the REAL lab rows (data/strategy_lab.json), no invented numbers.
+"""Robustness part of Research Hub > Plateau & regime (was a Stats tab until 2026-11-09): strategy x market-context grid built from the REAL lab rows (data/strategy_lab.json), no invented numbers.
 
 Columns = contexts the weekly lab already splits every detector by: trend side (100-bar trend: with / flat / against) and session (UTC).
 A cell = that detector's lab trades in that context: n, win %, avg R (gross), net R (avg R minus the planning cost COST_R), t vs a random
@@ -80,9 +80,11 @@ def _txt(c: dict) -> str:
     return s + (" ⭐" if c["verdict"] == "edge" else " ⚠" if c["verdict"] == "not_evidence" else "")
 
 
-def render() -> None:
+def render(st=None, L=None) -> None:
+    """Research Hub part (group 'Plateau & regime'): render(st, L) like the hub_* tabs; texts use lab_shared.t, so L is not needed."""
     import pandas as pd
-    import streamlit as st
+    if st is None:
+        import streamlit as st
 
     st.subheader(t("متانة الاستراتيجيات — من صفقات المختبر الحقيقية", "Strategy robustness - from the real lab trades"))
     mx = build_matrix(_all_rows())

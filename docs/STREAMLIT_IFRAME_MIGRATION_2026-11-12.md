@@ -9,7 +9,7 @@ The project pins Streamlit 1.66.0. The deprecated `components.html()` API was re
 - `modules/quant_edgemap.py`
 - `modules/quant_execution.py`
 - `modules/quant_montecarlo.py`
-- `modules/quant_robustness.py`
+- `modules/quant_robustness.py` (no longer: since 2026-11-20 it is a native Streamlit table of the real lab rows, no iframe)
 - `modules/spot_page.py` (four embeds)
 - `modules/tia_workspace.py`
 - `modules/veles_robustness.py`

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "6868-brain": {
+      "command": "python3",
+      "args": ["tools/mcp_6868/server.py"]
+    }
+  }
+}

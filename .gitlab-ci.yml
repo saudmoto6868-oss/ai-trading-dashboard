@@ -116,3 +116,63 @@ streamlit_iframe_migration:
   script:
     - python tests/test_streamlit_iframe_migration.py
 
+# ---- Spot desk (owner 2026-11-15). Schedules on the default branch only, plus the manual Run pipeline button on main.
+# Feature branches never run these. Variables go in Settings > CI/CD > Variables (masked), never in this file.
+spot_setup_lab:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  timeout: 60m
+  cache:
+    - key: pip-312
+      paths:
+        - .cache/pip
+  before_script:
+    - pip install --quiet -r requirements.txt
+  script:
+    - python scripts/spot_setups_lab.py --telegram
+  artifacts:
+    when: always
+    paths:
+      - data/spot_setup_evidence.json
+    expire_in: 90 days
+
+spot_ideas_daily:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  timeout: 30m
+  cache:
+    - key: pip-312
+      paths:
+        - .cache/pip
+  before_script:
+    - pip install --quiet -r requirements.txt playwright
+    - python -m playwright install --with-deps chromium
+  script:
+    - python scripts/spot_ideas_daily.py
+  artifacts:
+    when: always
+    paths:
+      - spot_ideas.png
+      - brain_*.png
+    expire_in: 30 days
+
+spot_desk_alerts:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  timeout: 10m
+  resource_group: spot-alerts
+  cache:
+    - key: pip-312
+      paths:
+        - .cache/pip
+  before_script:
+    - pip install --quiet -r requirements.txt
+  script:
+    - python -m modules.spot_alerts_cron
+

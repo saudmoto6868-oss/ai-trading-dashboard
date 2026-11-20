@@ -21,6 +21,7 @@ class CandleChart {
       pos26:{color:"#4f8fd8",color2:"#8a94a3",w:1.4,dash:"",ratio:2.6,sw:5,show:3,h1:1,h2:1,wait:80,tx:10,fa:.16,lbl:1,mtf:1,htfL:0,leg:0,path:0,hist:1,histN:8,ha:.08,bw:24,piv:1,pivL:1,meas:1,info:1,ipos:1,mtfT:1,str:1,trd:1,zn:0,arw:0},   // 2.6 position boxes (was s26 with green / red: new key so the calm colours apply to saved layouts too)
       msb:{color:"#0ecb81",color2:"#f6465d",w:2,dash:"",zl:9,zz:1,fib:0.237,tx:10,del:1,fa:0.3,obuF:"#0ecb81",obuB:"#0ecb81",obuT:"#0ecb81",obeF:"#f6465d",obeB:"#f6465d",obeT:"#f6465d",bbuF:"#0ecb81",bbuB:"#0ecb81",bbuT:"#0ecb81",bbeF:"#f6465d",bbeB:"#f6465d",bbeT:"#f6465d"}, gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
+      dcandle:{tf:"1D",n:1,w:26,gap:6,off:8,lbl:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; XH_CHARTS.add(this); this.W = 0; this.H = 0;
     const cv = this.cv;
     window.addEventListener("pagehide", () => { try { this.saveView(); } catch(e){} }); document.addEventListener("visibilitychange", () => { if (document.hidden){ try { this.saveView(); } catch(e){} } });   // flush on tab close / refresh
@@ -316,7 +317,7 @@ class CandleChart {
     if (this.msbOn) this.paintMsb(c, py, i0, i1);
     if (this.s26On) this.paintS26(c, py);
     if (this.mt5On) this.paintMt5(c, py, i0, i1);
-    if (this.dcOn) this.paintDayCandle(c, py);   // 2026-11-20: today as one big candle, fixed at the right edge
+    if (this.dcOn) this.paintHtfCandles(c, py);   // 2026-11-20: higher-timeframe candles (default: today as one big candle), fixed at the right edge
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);

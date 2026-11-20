@@ -284,7 +284,7 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 </style>"""
 
 
-def render():
+def render():   # 2026-11-20: opens light (30 symbols, Radar + Flow off); the heavy parts are one click away
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
     f = st.columns([1.25, 0.8, 2.45, 0.62, 0.62, 0.72, 0.62, 0.66], gap="small")
@@ -292,7 +292,7 @@ def render():
     asset_class = f[1].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
     picked = f[2].pills("Timeframes", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
                         key="rsi_hm_tfs", label_visibility="collapsed") or []
-    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
+    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200, 300), index=2, key="rsi_hm_limit",
                            label_visibility="collapsed", format_func=lambda n: f"{n} sym")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
@@ -301,8 +301,8 @@ def render():
     default_tf = "4h" if "4h" in timeframes else timeframes[0]
     chart_tf = f[4].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
                               label_visibility="collapsed", format_func=lambda t: f"Map {t}")
-    deep = f[5].toggle("Radar", value=True, key="rsi_hm_deep", help="All strategy schools + harmonics + chart patterns (slower).")
-    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow", help="Order-flow snapshot for the top 20 setups (OKX / Hyperliquid).")
+    deep = f[5].toggle("Radar", value=False, key="rsi_hm_deep", help="All strategy schools + harmonics + chart patterns (slower).")
+    use_flow = f[6].toggle("Flow", value=False, key="rsi_hm_flow", help="Order-flow snapshot for the top 20 setups (OKX / Hyperliquid).")
     live = f[7].selectbox("Live", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live", label_visibility="collapsed",
                           format_func=lambda m: "Live off" if not m else f"Live {m} min")
     if live:

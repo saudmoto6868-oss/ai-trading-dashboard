@@ -5,6 +5,12 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    "No verified symbols are currently available for this tab. No placeholder prices will be shown.": "مفيش رموز متحققة متاحة للتاب ده دلوقتي. مش هيتعرض أي سعر وهمي.",
+    "Director: collecting evidence and reconciling sources…": "المدير: بيجمع الأدلة ويوفّق بين المصادر…",
+    "TIA Intelligence Director": "مدير استخبارات TIA",
+    "Source coverage: ": "تغطية المصادر: ",
+    "Evidence and provenance": "الأدلة والمصدر",
+    "Research bias only. No order execution. Conflicting or unavailable evidence reduces confidence.": "انحياز للبحث فقط. مفيش تنفيذ أوامر. الأدلة المتعارضة أو الناقصة بتقلل الثقة.",
     "View": "عرض",
     "Live chart": "شارت حي",
     "Snapshot dashboard": "لوحة اللقطة",

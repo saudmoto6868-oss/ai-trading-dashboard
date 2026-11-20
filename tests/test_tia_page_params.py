@@ -200,8 +200,8 @@ def test_ctrl_structure_and_selected_first_in_symbols():
     assert ctrl["symbols"] == symbols
     assert ctrl["selected"] == "BTC-USDT"
     assert "agents" in ctrl
-    assert ctrl["agents"]["ran"] is False
-    assert ctrl["agents"]["stance"] is None
+    assert ctrl["agents"]["ran"] is True   # the Director now runs by itself on the first visit (owner 2026-11-17)
+    assert ctrl["agents"]["stance"] == "BULLISH"   # the auto-run result (mocked) is shown
 
 
 def test_cached_report_reflects_in_ctrl_and_renders_ui():

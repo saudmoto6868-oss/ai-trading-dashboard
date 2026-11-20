@@ -7,6 +7,34 @@ from __future__ import annotations
 import streamlit as st
 
 
+def _L(text: str) -> str:
+    """Arabic when the app language is Arabic (shared table in modules/i18n.py)."""
+    from modules.i18n import L
+    return L(text)
+
+
+import time as _time
+
+
+def _now() -> float:
+    return _time.time()
+
+
+def _stale(at) -> bool:
+    return not at or (_time.time() - float(at)) > 300
+
+
+def _bucket(force: bool) -> int:
+    return int(_time.time() // 300) + (1 if force else 0)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _director_cached(symbol: str, market: str, bucket: int) -> dict:
+    """Director report shared by every visitor for 5 minutes (bucket changes on a forced run)."""
+    from modules.tia_intelligence import director_report
+    return director_report(symbol, market)
+
+
 def render_tia():
     from modules.asset_classes import CLASSES
     from modules.tia_intelligence import symbols_for_class, director_report
@@ -15,15 +43,20 @@ def render_tia():
     catalog = symbols_for_class(market, top=60)
     symbols = catalog.get("symbols") or []
     if not symbols:
-        st.warning("No verified symbols are currently available for this tab. No placeholder prices will be shown.")
+        st.warning(_L("No verified symbols are currently available for this tab. No placeholder prices will be shown."))
         return
     selected = qp.get("tia_sym") if qp.get("tia_sym") in symbols else symbols[0]
     key = f"tia_director_{market}_{selected}"
-    if qp.get("tia_run"):
-        with st.spinner("Collecting available market evidence and reconciling sources…"):
-            st.session_state[key] = director_report(selected, market)
+    # Director runs by itself (owner 2026-11-17): on the first visit of a symbol / market, and again when the cached report is older than
+    # 5 minutes. The button in the toolbar (tia_run) forces a fresh run.
+    force = bool(qp.get("tia_run"))
+    if force or key not in st.session_state or ((key + "|at") in st.session_state and _stale(st.session_state[key + "|at"])):
+        with st.spinner(_L("Director: collecting evidence and reconciling sources…")):
+            st.session_state[key] = _director_cached(selected, market, _bucket(force))
+            st.session_state[key + "|at"] = _now()
         try:
-            del st.query_params["tia_run"]   # a reload must not run the Director again
+            if force:
+                del st.query_params["tia_run"]   # a reload must not run the Director again
         except Exception:
             pass
     report = st.session_state.get(key)
@@ -39,7 +72,7 @@ def render_tia():
         st.caption(catalog["note"])
 
     if report:
-        st.markdown("### TIA Intelligence Director")
+        st.markdown("### " + _L("TIA Intelligence Director"))
         stance = report.get("stance", "UNAVAILABLE")
         st.subheader(stance)
         st.write(report.get("director_summary", ""))
@@ -52,9 +85,9 @@ def render_tia():
                 else:
                     st.metric(tf.upper(), "UNAVAILABLE")
         src = report.get("sources") or {}
-        st.caption("Source coverage: " + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
+        st.caption(_L("Source coverage: ") + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
         for warning in report.get("warnings", []):
             st.warning(warning)
-        with st.expander("Evidence and provenance"):
+        with st.expander(_L("Evidence and provenance")):
             st.json({"sources": src, "technical": technical, "flow": report.get("flow"), "options": report.get("options")})
-        st.caption("Research bias only. No order execution. Conflicting or unavailable evidence reduces confidence.")
+        st.caption(_L("Research bias only. No order execution. Conflicting or unavailable evidence reduces confidence."))

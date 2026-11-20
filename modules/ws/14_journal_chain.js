@@ -104,6 +104,20 @@ const RegimeCtx = {   // market regime of a setup's symbol on its own timeframe 
     return o; }
 };
 const Setup = {sel:null, subs:new Set(), pick(e){ this.sel = e; this.subs.forEach(f => f()); }};   // the setup shown by the Setup Card widget (clicked chip / newest alert / best live setup)
+/* Higher-timeframe arm of a setup (docs/PREREG_2026-11-20_HTF_AND_RISK.md, same definition as research/htf_arms): trend = sign of the
+   last 20 closed bars' return (flat if |return| < 1 ATR14), location = position in the last 20 closed bars' range.
+   Result 2026-11-20 (44,939 lab signals, 1h): against the DAILY trend from mid-range (A_mid) was the worst arm (-0.25R net, passed the
+   gate); on 4H, against its trend at the range edge (A_ext, a pullback) was the least bad. No arm was profitable after cost. */
+const HtfArm = { c:{}, busy:{},
+  arm(rows, d){ const k = rows.slice(0, -1); if (k.length < 35) return null;   // closed bars only (the last one is still open)
+    const w = k.slice(-20), c = k.map(x => x.c), n = c.length, ret = c[n-1] - c[n-21];
+    let atr = 0; for (let i = n-14; i < n; i++) atr += Math.max(k[i].h - k[i].l, Math.abs(k[i].h - k[i-1].c), Math.abs(k[i].l - k[i-1].c)); atr /= 14;
+    const tr = Math.abs(ret) < atr ? 0 : Math.sign(ret), hh = Math.max(...w.map(x => x.h)), ll = Math.min(...w.map(x => x.l)), pos = hh > ll ? (c[n-1] - ll)/(hh - ll) : .5;
+    return tr === 0 ? "F" : tr === d ? "W" : ((d > 0 ? pos <= 1/3 : pos >= 2/3) ? "A_ext" : "A_mid"); },
+  get(sym, tf, d){ const key = sym+"|"+tf, e = this.c[key];
+    if ((!e || Date.now() - e.t > 15*60000) && !this.busy[key]){ this.busy[key] = true;
+      candlesTf(sym, tf, true, 60).then(rows => { this.c[key] = {t:Date.now(), rows}; this.busy[key] = false; Setup.subs.forEach(f => f()); }).catch(() => { this.busy[key] = false; }); }
+    return e ? this.arm(e.rows || [], d) : null; } };
 function setupHtml(e){
   const ar = lang === "ar", long_ = e.direction === "bullish", col = long_ ? "#0ecb81" : "#f6465d", pl = e.plan || null, a = e.ana || null, pct = Math.round(100*e.score/Math.max(1, e.max));
   let rr = null; try { const r0 = Math.abs(pl.entry - pl.stop); rr = r0 ? Math.abs(pl.tps[0] - pl.entry)/r0 : null; } catch(x){}
@@ -120,7 +134,11 @@ function setupHtml(e){
       (() => { const rg = RegimeCtx.get(e.symbol, TFC_ALL[e.tfk] || "1H"), v = rg && rg.v; return [v && v.regime ? "mid" : "na", Lg("Market regime (now, this timeframe)","حالة السوق (دلوقتي، نفس الفريم)"), v && v.regime ? v.regime.toUpperCase()+(v.adx != null ? " · ADX "+Math.round(v.adx) : "") : (rg && rg.busy ? "…" : "–")]; })(),
       [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
       [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"],
-      (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })()];
+      (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })(),
+      (() => { const d = long_ ? 1 : -1, a1 = HtfArm.get(e.symbol, "1D", d), a4 = HtfArm.get(e.symbol, "4H", d);   // evidence 2026-11-20: docs/DECISION_HTF_AND_RISK_2026-11-20.md
+        const nm = {W:Lg("with trend","مع الترند"), A_ext:Lg("against, at range edge","ضد الترند عند طرف المدى"), A_mid:Lg("against, mid-range","ضد الترند من نص المدى"), F:Lg("flat","بدون ترند")};
+        const k = !a1 ? "na" : a1 === "A_mid" ? "bad" : a1 === "W" ? "ok" : "mid";
+        return [k, Lg("Daily / 4H position (tested)","موقع اليومي / 4س (مُختبر)"), !a1 ? "–" : "1D "+nm[a1]+(a4 ? " · 4H "+nm[a4] : "")+(a1 === "A_mid" ? " · "+Lg("worst arm in the test (-0.25R)","أسوأ حالة في الاختبار (-0.25R)") : a4 === "A_ext" ? " · "+Lg("4H pullback: least bad","تصحيح 4س: الأقل خسارة") : "")]; })()];
     h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
   if ((e.lab || []).length){   // backtest beside the signal (owner 2026-11-20): weekly-lab row per detector, net of cost; never a promise

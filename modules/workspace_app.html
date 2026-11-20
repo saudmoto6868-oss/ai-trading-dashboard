@@ -1356,6 +1356,20 @@ const RegimeCtx = {   // market regime of a setup's symbol on its own timeframe 
     return o; }
 };
 const Setup = {sel:null, subs:new Set(), pick(e){ this.sel = e; this.subs.forEach(f => f()); }};   // the setup shown by the Setup Card widget (clicked chip / newest alert / best live setup)
+/* Higher-timeframe arm of a setup (docs/PREREG_2026-11-20_HTF_AND_RISK.md, same definition as research/htf_arms): trend = sign of the
+   last 20 closed bars' return (flat if |return| < 1 ATR14), location = position in the last 20 closed bars' range.
+   Result 2026-11-20 (44,939 lab signals, 1h): against the DAILY trend from mid-range (A_mid) was the worst arm (-0.25R net, passed the
+   gate); on 4H, against its trend at the range edge (A_ext, a pullback) was the least bad. No arm was profitable after cost. */
+const HtfArm = { c:{}, busy:{},
+  arm(rows, d){ const k = rows.slice(0, -1); if (k.length < 35) return null;   // closed bars only (the last one is still open)
+    const w = k.slice(-20), c = k.map(x => x.c), n = c.length, ret = c[n-1] - c[n-21];
+    let atr = 0; for (let i = n-14; i < n; i++) atr += Math.max(k[i].h - k[i].l, Math.abs(k[i].h - k[i-1].c), Math.abs(k[i].l - k[i-1].c)); atr /= 14;
+    const tr = Math.abs(ret) < atr ? 0 : Math.sign(ret), hh = Math.max(...w.map(x => x.h)), ll = Math.min(...w.map(x => x.l)), pos = hh > ll ? (c[n-1] - ll)/(hh - ll) : .5;
+    return tr === 0 ? "F" : tr === d ? "W" : ((d > 0 ? pos <= 1/3 : pos >= 2/3) ? "A_ext" : "A_mid"); },
+  get(sym, tf, d){ const key = sym+"|"+tf, e = this.c[key];
+    if ((!e || Date.now() - e.t > 15*60000) && !this.busy[key]){ this.busy[key] = true;
+      candlesTf(sym, tf, true, 60).then(rows => { this.c[key] = {t:Date.now(), rows}; this.busy[key] = false; Setup.subs.forEach(f => f()); }).catch(() => { this.busy[key] = false; }); }
+    return e ? this.arm(e.rows || [], d) : null; } };
 function setupHtml(e){
   const ar = lang === "ar", long_ = e.direction === "bullish", col = long_ ? "#0ecb81" : "#f6465d", pl = e.plan || null, a = e.ana || null, pct = Math.round(100*e.score/Math.max(1, e.max));
   let rr = null; try { const r0 = Math.abs(pl.entry - pl.stop); rr = r0 ? Math.abs(pl.tps[0] - pl.entry)/r0 : null; } catch(x){}
@@ -1372,7 +1386,11 @@ function setupHtml(e){
       (() => { const rg = RegimeCtx.get(e.symbol, TFC_ALL[e.tfk] || "1H"), v = rg && rg.v; return [v && v.regime ? "mid" : "na", Lg("Market regime (now, this timeframe)","حالة السوق (دلوقتي، نفس الفريم)"), v && v.regime ? v.regime.toUpperCase()+(v.adx != null ? " · ADX "+Math.round(v.adx) : "") : (rg && rg.busy ? "…" : "–")]; })(),
       [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
       [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"],
-      (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })()];
+      (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })(),
+      (() => { const d = long_ ? 1 : -1, a1 = HtfArm.get(e.symbol, "1D", d), a4 = HtfArm.get(e.symbol, "4H", d);   // evidence 2026-11-20: docs/DECISION_HTF_AND_RISK_2026-11-20.md
+        const nm = {W:Lg("with trend","مع الترند"), A_ext:Lg("against, at range edge","ضد الترند عند طرف المدى"), A_mid:Lg("against, mid-range","ضد الترند من نص المدى"), F:Lg("flat","بدون ترند")};
+        const k = !a1 ? "na" : a1 === "A_mid" ? "bad" : a1 === "W" ? "ok" : "mid";
+        return [k, Lg("Daily / 4H position (tested)","موقع اليومي / 4س (مُختبر)"), !a1 ? "–" : "1D "+nm[a1]+(a4 ? " · 4H "+nm[a4] : "")+(a1 === "A_mid" ? " · "+Lg("worst arm in the test (-0.25R)","أسوأ حالة في الاختبار (-0.25R)") : a4 === "A_ext" ? " · "+Lg("4H pullback: least bad","تصحيح 4س: الأقل خسارة") : "")]; })()];
     h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
   if ((e.lab || []).length){   // backtest beside the signal (owner 2026-11-20): weekly-lab row per detector, net of cost; never a promise
@@ -1741,7 +1759,15 @@ class CandleChart {
     this.cv.style.width = hw+"px"; this.cv.style.height = hh+"px";
     this.ctx.setTransform(dpr,0,0,dpr,0,0); this.paint();   // paint NOW, not draw(): ResizeObserver runs after the frame's rAF callbacks, so a rAF-deferred repaint leaves one blank canvas frame on screen = the blink
   }
+  /* REPLAY (owner 2026-11-20, like TradingView bar replay): the view shows candles 0..n-1 only, so every indicator / signal / drawing
+     recomputes on the past bars; live candles keep arriving into rp.full and are shown again on rpStop. */
+  liveData(){ return this.rp ? this.rp.full : this.data; }
+  rpStart(){ if (this.rp || this.data.length < 80) return; this.rp = {full:this.data, n:Math.max(60, this.data.length - Math.max(30, Math.round(this.PR/this.bw/2)))}; this.rpView(); }
+  rpStep(k){ const R = this.rp; if (!R) return; R.n = Math.min(R.full.length, Math.max(60, R.n + k)); this.rpView(); }
+  rpStop(){ const R = this.rp; if (!R) return; this.rp = null; this.data = R.full; this.calcEma(); this.r = this.data.length - 1 + Math.round(0.3*this.PR/this.bw); this.clampR(); this.draw(); this.onReplay && this.onReplay(null); }
+  rpView(){ const R = this.rp; this.data = R.full.slice(0, R.n); this.calcEma(); this.r = R.n - 1 + Math.round(0.3*this.PR/this.bw); this.clampR(); this.draw(); this.onReplay && this.onReplay(R); }
   setData(arr, fit){
+    if (this.rp){ if (fit){ this.rp = null; this.onReplay && this.onReplay(null); } else { this.rp.full = arr; this.onReplay && this.onReplay(this.rp); return; } }   // replay: a fresh load (new symbol / timeframe, fit) ends it; a refresh is kept aside
     this.data = arr; this.calcEma();
     if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
@@ -4123,6 +4149,16 @@ class Panel {
     this.lockSync = () => {};   // 2026-11-09 owner: no Manual / Auto button - the price scale is set on open / Fit and then moves only when you zoom or drag the price axis
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
+    const rpB = el("button", null, "⏪"); rpB.title = Lg("Replay: step the chart back in time, candle by candle (indicators and signals recompute on the past bars only)","إعادة تشغيل: ارجع بالشارت لورا وامشي شمعة شمعة (المؤشرات والإشارات بتتحسب على الشموع اللي فاتت بس)");
+    const rpBar = el("span"); rpBar.style.cssText = "display:none;gap:3px;align-items:center"; const rpL = el("span","m"); rpL.style.cssText = "font-family:ui-monospace,Menlo,monospace;font-size:11px";
+    const rb = (txt, tip, fn) => { const b_ = el("button", null, txt); b_.title = tip; b_.onclick = fn; rpBar.append(b_); return b_; };
+    let rpT = null; const rpPlay = () => { if (rpT){ clearInterval(rpT); rpT = null; return; } rpT = setInterval(() => { const R = this.chart.rp; if (!R || R.n >= R.full.length){ clearInterval(rpT); rpT = null; return; } this.chart.rpStep(1); }, 700); };
+    rb("◀◀", Lg("back 10 candles","ارجع 10 شموع"), () => this.chart.rpStep(-10)); rb("◀", Lg("back 1 candle","ارجع شمعة"), () => this.chart.rpStep(-1));
+    rb("▶", Lg("forward 1 candle","قدّم شمعة"), () => this.chart.rpStep(1)); rb("⏯", Lg("play / pause","تشغيل / إيقاف"), rpPlay); rb("▶▶", Lg("forward 10 candles","قدّم 10 شموع"), () => this.chart.rpStep(10));
+    rb("✕", Lg("leave replay (back to live)","اخرج من الإعادة (رجوع للايف)"), () => { if (rpT){ clearInterval(rpT); rpT = null; } this.chart.rpStop(); }); rpBar.append(rpL);
+    this.chart.onReplay = R => { rpBar.style.display = R ? "inline-flex" : "none"; rpB.classList.toggle("on", !!R); if (R){ const k = R.full[R.n-1]; rpL.textContent = (R.n)+"/"+R.full.length+" · "+(k ? new Date(k.t).toISOString().slice(0,16).replace("T"," ")+" UTC" : ""); } };
+    rpB.onclick = () => this.chart.rp ? this.chart.rpStop() : this.chart.rpStart();
+    tb.append(rpB, rpBar);
     tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
@@ -4467,10 +4503,10 @@ class Panel {
     this.updEl.textContent = (src === "ws" ? "● WS " : "● ") + hms(Date.now());
   }
   liveTick(row){
-    const ch = this.chart; if (!ch.data.length) return;
-    const last = ch.data[ch.data.length-1];
-    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); ch.drawSoon(); this.showPx(row.c, "ws");
+    const ch = this.chart, D = ch.liveData(); if (!D.length) return;   // replay on: live candles go to the hidden full series, the view stays where the user stepped
+    const last = D[D.length-1];
+    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) D.push(row); else return;
+    if (!ch.rp){ ch.calcEma(); ch.drawSoon(); } this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
@@ -4547,9 +4583,9 @@ class Panel {
         const ch = this.chart, doApply = !(firstB && hist && ch.data.length);
         (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => {
           if (seen.has(r.id)) return; seen.add(r.id); if (!doApply) return;
-          const b = Math.floor(r.t/(sec*1000))*sec*1000, last = ch.data[ch.data.length-1];
+          const D = ch.liveData(), b = Math.floor(r.t/(sec*1000))*sec*1000, last = D[D.length-1];
           if (last && b === last.t){ last.h = Math.max(last.h, r.p); last.l = Math.min(last.l, r.p); last.c = r.p; last.v += r.q; }
-          else if (!last || b > last.t) ch.data.push({t:b, o:r.p, h:r.p, l:r.p, c:r.p, v:r.q});
+          else if (!last || b > last.t) D.push({t:b, o:r.p, h:r.p, l:r.p, c:r.p, v:r.q});
         });
         firstB = false; if (ch.data.length){ ch.calcEma(); if (ch.data.length < 3) ch.fit(); else if (!ch.r) { if (!ch.restoreView()) ch.fit(); else ch.draw(); } else ch.draw(); this.showPx(ch.data[ch.data.length-1].c, "rest"); }
       }));
@@ -4574,9 +4610,9 @@ class Panel {
     }));
     this.wsUnsubs.push(WSX.sub("public", {channel:"tickers", instId:sym}, data => {
       if (tok !== this.tok || !this.chart.data.length) return;
-      const px = +data[0].last, ch = this.chart, last = ch.data[ch.data.length-1];
+      const px = +data[0].last, ch = this.chart, D = ch.liveData(), last = D[D.length-1];
       if (!(px > 0)) return;
-      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); ch.calcEma(); ch.drawSoon(); this.showPx(px, "ws");
+      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); if (!ch.rp){ ch.calcEma(); ch.drawSoon(); } this.showPx(px, "ws");
     }));
     this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     if (subMin){ this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; }; return; }
@@ -4645,7 +4681,7 @@ class Panel {
       if (tok === this.tok){
         const rows = this.parseC(d);
         if (!rows.length) this.noMore = true;
-        else { const ch = this.chart; ch.r += rows.length; ch.setData(rows.concat(ch.data), false); }
+        else { const ch = this.chart; if (ch.rp) ch.rp.n += rows.length; ch.r += rows.length; ch.setData(rows.concat(ch.liveData()), false); if (ch.rp) ch.rpView(); }
       }
     } catch(e){ this.noMore = true; }
     this.loadingMore = false;

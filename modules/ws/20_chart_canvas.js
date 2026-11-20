@@ -55,7 +55,15 @@ class CandleChart {
     this.cv.style.width = hw+"px"; this.cv.style.height = hh+"px";
     this.ctx.setTransform(dpr,0,0,dpr,0,0); this.paint();   // paint NOW, not draw(): ResizeObserver runs after the frame's rAF callbacks, so a rAF-deferred repaint leaves one blank canvas frame on screen = the blink
   }
+  /* REPLAY (owner 2026-11-20, like TradingView bar replay): the view shows candles 0..n-1 only, so every indicator / signal / drawing
+     recomputes on the past bars; live candles keep arriving into rp.full and are shown again on rpStop. */
+  liveData(){ return this.rp ? this.rp.full : this.data; }
+  rpStart(){ if (this.rp || this.data.length < 80) return; this.rp = {full:this.data, n:Math.max(60, this.data.length - Math.max(30, Math.round(this.PR/this.bw/2)))}; this.rpView(); }
+  rpStep(k){ const R = this.rp; if (!R) return; R.n = Math.min(R.full.length, Math.max(60, R.n + k)); this.rpView(); }
+  rpStop(){ const R = this.rp; if (!R) return; this.rp = null; this.data = R.full; this.calcEma(); this.r = this.data.length - 1 + Math.round(0.3*this.PR/this.bw); this.clampR(); this.draw(); this.onReplay && this.onReplay(null); }
+  rpView(){ const R = this.rp; this.data = R.full.slice(0, R.n); this.calcEma(); this.r = R.n - 1 + Math.round(0.3*this.PR/this.bw); this.clampR(); this.draw(); this.onReplay && this.onReplay(R); }
   setData(arr, fit){
+    if (this.rp){ if (fit){ this.rp = null; this.onReplay && this.onReplay(null); } else { this.rp.full = arr; this.onReplay && this.onReplay(this.rp); return; } }   // replay: a fresh load (new symbol / timeframe, fit) ends it; a refresh is kept aside
     this.data = arr; this.calcEma();
     if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it

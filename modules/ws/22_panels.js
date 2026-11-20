@@ -187,6 +187,16 @@ class Panel {
     this.lockSync = () => {};   // 2026-11-09 owner: no Manual / Auto button - the price scale is set on open / Fit and then moves only when you zoom or drag the price axis
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
+    const rpB = el("button", null, "⏪"); rpB.title = Lg("Replay: step the chart back in time, candle by candle (indicators and signals recompute on the past bars only)","إعادة تشغيل: ارجع بالشارت لورا وامشي شمعة شمعة (المؤشرات والإشارات بتتحسب على الشموع اللي فاتت بس)");
+    const rpBar = el("span"); rpBar.style.cssText = "display:none;gap:3px;align-items:center"; const rpL = el("span","m"); rpL.style.cssText = "font-family:ui-monospace,Menlo,monospace;font-size:11px";
+    const rb = (txt, tip, fn) => { const b_ = el("button", null, txt); b_.title = tip; b_.onclick = fn; rpBar.append(b_); return b_; };
+    let rpT = null; const rpPlay = () => { if (rpT){ clearInterval(rpT); rpT = null; return; } rpT = setInterval(() => { const R = this.chart.rp; if (!R || R.n >= R.full.length){ clearInterval(rpT); rpT = null; return; } this.chart.rpStep(1); }, 700); };
+    rb("◀◀", Lg("back 10 candles","ارجع 10 شموع"), () => this.chart.rpStep(-10)); rb("◀", Lg("back 1 candle","ارجع شمعة"), () => this.chart.rpStep(-1));
+    rb("▶", Lg("forward 1 candle","قدّم شمعة"), () => this.chart.rpStep(1)); rb("⏯", Lg("play / pause","تشغيل / إيقاف"), rpPlay); rb("▶▶", Lg("forward 10 candles","قدّم 10 شموع"), () => this.chart.rpStep(10));
+    rb("✕", Lg("leave replay (back to live)","اخرج من الإعادة (رجوع للايف)"), () => { if (rpT){ clearInterval(rpT); rpT = null; } this.chart.rpStop(); }); rpBar.append(rpL);
+    this.chart.onReplay = R => { rpBar.style.display = R ? "inline-flex" : "none"; rpB.classList.toggle("on", !!R); if (R){ const k = R.full[R.n-1]; rpL.textContent = (R.n)+"/"+R.full.length+" · "+(k ? new Date(k.t).toISOString().slice(0,16).replace("T"," ")+" UTC" : ""); } };
+    rpB.onclick = () => this.chart.rp ? this.chart.rpStop() : this.chart.rpStart();
+    tb.append(rpB, rpBar);
     tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
@@ -531,10 +541,10 @@ class Panel {
     this.updEl.textContent = (src === "ws" ? "● WS " : "● ") + hms(Date.now());
   }
   liveTick(row){
-    const ch = this.chart; if (!ch.data.length) return;
-    const last = ch.data[ch.data.length-1];
-    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) ch.data.push(row); else return;
-    ch.calcEma(); ch.drawSoon(); this.showPx(row.c, "ws");
+    const ch = this.chart, D = ch.liveData(); if (!D.length) return;   // replay on: live candles go to the hidden full series, the view stays where the user stepped
+    const last = D[D.length-1];
+    if (row.t === last.t) Object.assign(last, row); else if (row.t > last.t) D.push(row); else return;
+    if (!ch.rp){ ch.calcEma(); ch.drawSoon(); } this.showPx(row.c, "ws");
   }
   parseC(rows){ return rows.map(x => ({t:+x[0], o:+x[1], h:+x[2], l:+x[3], c:+x[4], v:+x[5]})).reverse(); }
   resub(){
@@ -611,9 +621,9 @@ class Panel {
         const ch = this.chart, doApply = !(firstB && hist && ch.data.length);
         (p.rows || []).slice().sort((a,b) => a.t-b.t).forEach(r => {
           if (seen.has(r.id)) return; seen.add(r.id); if (!doApply) return;
-          const b = Math.floor(r.t/(sec*1000))*sec*1000, last = ch.data[ch.data.length-1];
+          const D = ch.liveData(), b = Math.floor(r.t/(sec*1000))*sec*1000, last = D[D.length-1];
           if (last && b === last.t){ last.h = Math.max(last.h, r.p); last.l = Math.min(last.l, r.p); last.c = r.p; last.v += r.q; }
-          else if (!last || b > last.t) ch.data.push({t:b, o:r.p, h:r.p, l:r.p, c:r.p, v:r.q});
+          else if (!last || b > last.t) D.push({t:b, o:r.p, h:r.p, l:r.p, c:r.p, v:r.q});
         });
         firstB = false; if (ch.data.length){ ch.calcEma(); if (ch.data.length < 3) ch.fit(); else if (!ch.r) { if (!ch.restoreView()) ch.fit(); else ch.draw(); } else ch.draw(); this.showPx(ch.data[ch.data.length-1].c, "rest"); }
       }));
@@ -638,9 +648,9 @@ class Panel {
     }));
     this.wsUnsubs.push(WSX.sub("public", {channel:"tickers", instId:sym}, data => {
       if (tok !== this.tok || !this.chart.data.length) return;
-      const px = +data[0].last, ch = this.chart, last = ch.data[ch.data.length-1];
+      const px = +data[0].last, ch = this.chart, D = ch.liveData(), last = D[D.length-1];
       if (!(px > 0)) return;
-      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); ch.calcEma(); ch.drawSoon(); this.showPx(px, "ws");
+      last.c = px; last.h = Math.max(last.h, px); last.l = Math.min(last.l, px); if (!ch.rp){ ch.calcEma(); ch.drawSoon(); } this.showPx(px, "ws");
     }));
     this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; };
     if (subMin){ this.unwatch = () => { (this.wsUnsubs||[]).forEach(u => u()); this.wsUnsubs = []; }; return; }
@@ -709,7 +719,7 @@ class Panel {
       if (tok === this.tok){
         const rows = this.parseC(d);
         if (!rows.length) this.noMore = true;
-        else { const ch = this.chart; ch.r += rows.length; ch.setData(rows.concat(ch.data), false); }
+        else { const ch = this.chart; if (ch.rp) ch.rp.n += rows.length; ch.r += rows.length; ch.setData(rows.concat(ch.liveData()), false); if (ch.rp) ch.rpView(); }
       }
     } catch(e){ this.noMore = true; }
     this.loadingMore = false;

@@ -7470,7 +7470,10 @@ Panel.prototype.build_ofdesk = function(){
 // Reads ONLY CFG.spot = docs/spot/snapshot.json (written daily by the spot workflow). Read-only: no orders, no fetches.
 // Views: Ideas (the desk's plans), Brain (4 horizons with reasons), Setups (live library with t / n), Markets, Log.
 Panel.prototype.build_spot = function(){
-  const S = this.state.sp = Object.assign({asset:"", view:"ideas", cls:""}, this.state.sp || {});
+  const S = this.state.sp = Object.assign({asset:"", view:"ideas", cls:"", hz:"all"}, this.state.sp || {});
+  // horizons from the Spot desk (owner 2026-11-20): the desk works on daily / weekly / monthly / yearly; no scalp timeframe exists in Spot data
+  const HZ_OPTS = [["all", "الكل"], ["day", "يومي (4H)"], ["week", "أسبوعي (1D)"], ["month", "شهري (1W)"], ["year", "سنوي (1M)"]];
+  const HZ_OF_TF = {"4H":"day","4h":"day","1D":"week","1d":"week","1W":"month","1w":"month","1M":"year","1mo":"year","1Mutc":"year"};
   const snap = (typeof CFG !== "undefined" && CFG.spot) || {};
   if (!document.getElementById("spCss")){ const st = el("style"); st.id = "spCss"; st.textContent =
     ".spw .tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.spw .tb select{font-size:12px}"
@@ -7495,7 +7498,10 @@ Panel.prototype.build_spot = function(){
   sel.value = shown.includes(S.asset) ? S.asset : ""; S.asset = sel.value; sel.onchange = () => { S.asset = sel.value; build(); };
   const vsel = el("select"); const VIEWS = [["ideas", ar ? "الأفكار" : "Ideas"], ["brain", ar ? "العقل (4 مدد)" : "Brain (4 horizons)"], ["setups", ar ? "السيتابات + الدليل" : "Setups + evidence"], ["markets", ar ? "الأسواق" : "Markets"], ["log", ar ? "سجل التفكير" : "Thinking log"]];
   vsel.innerHTML = VIEWS.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(""); vsel.value = S.view; vsel.onchange = () => { S.view = vsel.value; build(); };
-  const tb = el("div", "tb"); tb.append(cls, sel, vsel); wrap.appendChild(tb);
+  const hsel = el("select"); hsel.innerHTML = HZ_OPTS.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(""); hsel.value = S.hz;
+  hsel.onchange = () => { S.hz = hsel.value; build(); };
+  const tb = el("div", "tb"); tb.append(cls, sel, hsel, vsel); wrap.appendChild(tb);
+  const scalpNote = el("div", "mut"); scalpNote.textContent = ar ? "سكالب (دقايق / ساعة) مش موجود في داتا السبوت: أقل فريم 4 ساعات" : "Scalp (minutes / 1H) is not in Spot data: the lowest frame is 4H"; wrap.appendChild(scalpNote);
   // the brain's one-line verdict stays on top, whatever view is open (owner 2026-11-15)
   const headBar = el("div", "sum"); wrap.appendChild(headBar);
   const heads = (A => A ? brains.filter(b => b.asset === A) : brains.filter(b => !S.cls || clsOf(b.asset) === S.cls))(S.asset);
@@ -7519,14 +7525,15 @@ Panel.prototype.build_spot = function(){
         : `<div class="mut">${ar ? "مفيش أفكار للسوق ده دلوقتي (الديسك بيقول كده بصراحة)" : "No ideas for this market right now (the desk says so openly)"}</div>`;
     } else if (S.view === "brain"){
       const B = brains.filter(b => (!A || b.asset === A) && (!S.cls || clsOf(b.asset) === S.cls));
+      const HK = S.hz === "all" ? null : S.hz;
       h = B.length ? B.map(b => `<div class="cd"><div class="hd"><b>${esc(b.asset)}</b><span class="mut">${fp(b.price)}</span></div><div class="sum">${esc(b.head || "")}</div>`
         + `<table><tr><th>${ar ? "المدة" : "Horizon"}</th><th>TF</th><th>${ar ? "الحكم" : "Verdict"}</th><th>${ar ? "النقاط" : "Score"}</th></tr>`
-        + Object.values(b.horizons || {}).map(z => `<tr><td>${esc(z.label || "")}</td><td>${esc(z.tf || "")}</td><td style="color:${sc(z.score)}">${esc(z.verdict_ar || z.verdict || "")}</td><td>${fp(z.score)}</td></tr>`).join("")
-        + `</table>${list(Object.values(b.horizons || {}).flatMap(z => (z.reasons || []).slice(0, 2)))}`
+        + Object.entries(b.horizons || {}).filter(([k]) => !HK || k === HK).map(([k, z]) => `<tr style="${HK && k === HK ? "font-weight:700" : ""}"><td>${esc(z.label || "")}</td><td>${esc(z.tf || "")}</td><td style="color:${sc(z.score)}">${esc(z.verdict_ar || z.verdict || "")}</td><td>${fp(z.score)}</td></tr>`).join("")
+        + `</table>${list(Object.entries(b.horizons || {}).filter(([k]) => !HK || k === HK).flatMap(([k, z]) => (z.reasons || []).slice(0, 2)))}`
         + (b.news ? `<div class="mut">${ar ? "نبرة الأخبار" : "News tilt"}: ${fp(b.news.score)}</div>` : "") + `</div>`).join("")
         : `<div class="mut">${ar ? "مفيش عقل محسوب للسوق ده" : "No brain reading for this market"}</div>`;
     } else if (S.view === "setups"){
-      const L = setups.filter(s => (!A || s.asset === A) && (!S.cls || clsOf(s.asset) === S.cls));
+      const L = setups.filter(s => (!A || s.asset === A) && (!S.cls || clsOf(s.asset) === S.cls) && (S.hz === "all" || HZ_OF_TF[s.tf] === S.hz));
       h = L.length ? `<table><tr><th>${ar ? "الأصل" : "Asset"}</th><th>${ar ? "المدرسة" : "School"}</th><th>${ar ? "السيتاب" : "Setup"}</th><th>${ar ? "الجهة" : "Side"}</th><th>TF</th><th>${ar ? "الدليل" : "Evidence"}</th></tr>`
         + L.map(s => `<tr><td>${esc(s.asset)}</td><td>${esc(s.school_ar || "")}</td><td>${esc(s.name || "")}</td><td>${esc(s.side || "")}</td><td>${esc(s.tf || "")}</td><td class="${s.ev_label ? "ev" : "mut"}">${esc(s.ev_label || (ar ? "لسه ماتقاسش - مش دليل" : "not tested - not evidence"))}</td></tr>`).join("") + "</table>"
         : `<div class="mut">${ar ? "مفيش سيتابات حية دلوقتي" : "No live setups right now"}</div>`;

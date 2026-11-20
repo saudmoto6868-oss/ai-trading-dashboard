@@ -17,22 +17,26 @@ const SNAP = { generated: "2026-11-15T05:00:00Z", log: ["الدهب: 3 مدد"],
   const txt = async () => p.evaluate(() => Ws.panels.find(x => x.type === "spot").body.innerText);
   const views = {};
   for (const v of ["ideas", "brain", "setups", "markets", "log"]) {
-    await p.evaluate(v => { const pn = Ws.panels.find(x => x.type === "spot"); const s = pn.body.querySelectorAll("select")[2]; s.value = v; s.dispatchEvent(new Event("change")); }, v);
+    await p.evaluate(v => { const pn = Ws.panels.find(x => x.type === "spot"); const s = pn.body.querySelectorAll("select")[3]; s.value = v; s.dispatchEvent(new Event("change")); }, v);
     views[v] = await txt();
   }
   const menu = await p.evaluate(() => [...document.querySelectorAll("#bar option")].some(o => o.value === "spot") || !!document.querySelector("#bar") );
   // class filter: crypto hides the gold idea, setups and market; the brain line follows the class
-  await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const v = pn.body.querySelectorAll("select")[2]; v.value = "ideas"; v.dispatchEvent(new Event("change")); const s = pn.body.querySelectorAll("select")[0]; s.value = "crypto"; s.dispatchEvent(new Event("change")); });
+  await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const v = pn.body.querySelectorAll("select")[3]; v.value = "ideas"; v.dispatchEvent(new Event("change")); const s = pn.body.querySelectorAll("select")[0]; s.value = "crypto"; s.dispatchEvent(new Event("change")); });
   const crypto = await txt();
   const cryptoOk = !/SETUP-COUP/.test(crypto) && !/الدهب/.test(crypto) && /HEAD-BTC/.test(crypto);
   // screenshot for the owner (deviceScaleFactor 2)
   await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const s = pn.body.querySelectorAll("select")[0]; s.value = ""; s.dispatchEvent(new Event("change")); });
-  await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const s = pn.body.querySelectorAll("select")[2]; s.value = "setups"; s.dispatchEvent(new Event("change")); });
-  const ok = /شراء|Entry|دخول/.test(views.ideas) && /HEAD-GOLD/.test(views.brain) && /استنى|Wait|wait/.test(views.brain)
-    && /SETUP-COUP/.test(views.setups) && /t 3.2 n 41/.test(views.setups) && /SETUP-NOEV/.test(views.setups) && /not tested|لسه ماتقاسش/.test(views.setups)
-    && /الدهب/.test(views.markets) && /الدهب: 3 مدد/.test(views.log) && /HEAD-/.test(views.ideas) && cryptoOk && menu && !errs.length;
+  await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const s = pn.body.querySelectorAll("select")[3]; s.value = "setups"; s.dispatchEvent(new Event("change")); });
+  // horizon filter: weekly (1D) keeps the 1D setup and drops the 1W one; the setups view is the 3rd select (index 3 now)
+  await p.evaluate(() => { const pn = Ws.panels.find(x => x.type === "spot"); const v = pn.body.querySelectorAll("select")[3]; v.value = "setups"; v.dispatchEvent(new Event("change")); const h = pn.body.querySelectorAll("select")[2]; h.value = "week"; h.dispatchEvent(new Event("change")); });
+  const weekTxt = await txt();
+  const horizonOk = /NOEV/.test(weekTxt) && !/SETUP-COUP/.test(weekTxt);
   const shot = process.env.SPOT_SHOT || "";
   if (shot) await p.locator(".spw").first().screenshot({ path: shot });
+  const ok = /شراء|Entry|دخول/.test(views.ideas) && /HEAD-GOLD/.test(views.brain) && /استنى|Wait|wait/.test(views.brain)
+    && /SETUP-COUP/.test(views.setups) && /t 3.2 n 41/.test(views.setups) && /SETUP-NOEV/.test(views.setups) && /not tested|لسه ماتقاسش/.test(views.setups)
+    && /الدهب/.test(views.markets) && /الدهب: 3 مدد/.test(views.log) && /HEAD-/.test(views.ideas) && cryptoOk && horizonOk && menu && !errs.length;
   console.log(JSON.stringify({ ideas: views.ideas.slice(0, 120), setupsHasEv: /t 3.2 n 41/.test(views.setups), menu, cryptoOk }));
   console.log('errors', errs.length, errs[0] || ''); console.log(ok ? 'PASS' : 'FAIL');
   await b.close(); process.exit(ok ? 0 : 1);

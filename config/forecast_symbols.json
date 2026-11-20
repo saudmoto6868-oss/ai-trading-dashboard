@@ -1,0 +1,9 @@
+{
+  "_note": "7 symbols per class. Seeds chosen from the most-traded names; edit freely. HL:xyz:* are Hyperliquid TradFi perps (no key). Crypto uses OKX spot pairs.",
+  "Crypto":  ["BTC-USDT", "ETH-USDT", "XRP-USDT", "SOL-USDT", "BNB-USDT", "DOGE-USDT", "ADA-USDT"],
+  "Metals":  ["HL:xyz:GOLD", "HL:xyz:SILVER", "HL:xyz:COPPER"],
+  "Oil & Gas": ["HL:xyz:CL", "HL:xyz:BRENTOIL"],
+  "Indices": ["HL:xyz:SP500", "HL:xyz:XYZ100"],
+  "Stocks":  ["HL:xyz:NVDA", "HL:xyz:AAPL", "HL:xyz:MSFT", "HL:xyz:TSLA", "HL:xyz:AMZN", "HL:xyz:GOOGL", "HL:xyz:META"],
+  "Forex":   ["HL:xyz:EUR", "HL:xyz:GBP", "HL:xyz:JPY"]
+}

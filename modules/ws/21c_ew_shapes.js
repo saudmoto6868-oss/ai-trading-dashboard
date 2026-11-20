@@ -164,6 +164,25 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* SIDES-END */
+/* PROJ-BEGIN expected zone for the wave that is forming (a description, not a forecast). Key X hides / shows it. */
+CandleChart.projOn = true;
+document.addEventListener("keydown", e => { if ((e.key === "x" || e.key === "X") && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) CandleChart.projOn = !CandleChart.projOn; });
+Object.assign(CandleChart.prototype, {
+  paintProjection(c, py){
+    const f = this._ewf; if (!CandleChart.projOn || !f || !f.pts || f.pts.length < 2) return;
+    const P = f.pts, last = P[P.length-1], prev = P[P.length-2], s = f.up ? 1 : -1, w1 = Math.abs(P[1].p - P[0].p) || 1e-12;
+    let a, b, lbl;
+    if (f.next % 2 === 0){   // waves 2 / 4 are pullbacks: the retracement band of the leg before them
+      const leg = Math.abs(last.p - prev.p) || w1; a = last.p - s*0.5*leg; b = last.p - s*0.618*leg; lbl = Lg("expected: wave "+f.next+" pullback 50–61.8 %", "متوقع: موجة "+f.next+" تصحيح 50–61.8 %");
+    } else {                 // waves 3 / 5 are pushes: the extension band of wave 1 from the last pivot
+      a = last.p + s*1.0*w1; b = last.p + s*1.618*w1; lbl = Lg("expected: wave "+f.next+" push 1.0–1.618 × wave 1", "متوقع: موجة "+f.next+" دفعة 1.0–1.618 × موجة 1");
+    }
+    const x0 = this.x(last.i), PR = this.PR, y1 = py(Math.max(a, b)), y2 = py(Math.min(a, b));
+    c.save(); c.globalAlpha = .12; c.fillStyle = "#b57cff"; c.fillRect(x0, y1, PR - x0, Math.max(2, y2 - y1)); c.globalAlpha = .7; c.strokeStyle = "#b57cff"; c.setLineDash([3,3]); c.strokeRect(x0+.5, y1+.5, PR - x0, Math.max(2, y2 - y1));
+    c.globalAlpha = .95; c.fillStyle = "#b57cff"; c.font = "9px sans-serif"; c.textAlign = "right"; c.textBaseline = "top"; c.fillText(lbl + "  · X", PR - 4, y1 + 2); c.restore();
+  }
+});
+/* PROJ-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
 Object.assign(CandleChart.prototype, {

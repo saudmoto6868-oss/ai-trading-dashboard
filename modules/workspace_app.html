@@ -2962,7 +2962,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintEWauto(c, py, dec){
     const list = this.ewCount(); this.paintEWforming(c, py);
-    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); this.paintProjection(c, py); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -4159,6 +4159,25 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* SIDES-END */
+/* PROJ-BEGIN expected zone for the wave that is forming (a description, not a forecast). Key X hides / shows it. */
+CandleChart.projOn = true;
+document.addEventListener("keydown", e => { if ((e.key === "x" || e.key === "X") && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) CandleChart.projOn = !CandleChart.projOn; });
+Object.assign(CandleChart.prototype, {
+  paintProjection(c, py){
+    const f = this._ewf; if (!CandleChart.projOn || !f || !f.pts || f.pts.length < 2) return;
+    const P = f.pts, last = P[P.length-1], prev = P[P.length-2], s = f.up ? 1 : -1, w1 = Math.abs(P[1].p - P[0].p) || 1e-12;
+    let a, b, lbl;
+    if (f.next % 2 === 0){   // waves 2 / 4 are pullbacks: the retracement band of the leg before them
+      const leg = Math.abs(last.p - prev.p) || w1; a = last.p - s*0.5*leg; b = last.p - s*0.618*leg; lbl = Lg("expected: wave "+f.next+" pullback 50–61.8 %", "متوقع: موجة "+f.next+" تصحيح 50–61.8 %");
+    } else {                 // waves 3 / 5 are pushes: the extension band of wave 1 from the last pivot
+      a = last.p + s*1.0*w1; b = last.p + s*1.618*w1; lbl = Lg("expected: wave "+f.next+" push 1.0–1.618 × wave 1", "متوقع: موجة "+f.next+" دفعة 1.0–1.618 × موجة 1");
+    }
+    const x0 = this.x(last.i), PR = this.PR, y1 = py(Math.max(a, b)), y2 = py(Math.min(a, b));
+    c.save(); c.globalAlpha = .12; c.fillStyle = "#b57cff"; c.fillRect(x0, y1, PR - x0, Math.max(2, y2 - y1)); c.globalAlpha = .7; c.strokeStyle = "#b57cff"; c.setLineDash([3,3]); c.strokeRect(x0+.5, y1+.5, PR - x0, Math.max(2, y2 - y1));
+    c.globalAlpha = .95; c.fillStyle = "#b57cff"; c.font = "9px sans-serif"; c.textAlign = "right"; c.textBaseline = "top"; c.fillText(lbl + "  · X", PR - 4, y1 + 2); c.restore();
+  }
+});
+/* PROJ-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
 Object.assign(CandleChart.prototype, {

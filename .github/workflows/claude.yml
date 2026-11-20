@@ -1,6 +1,5 @@
-# @claude on an issue / PR comment (works from the GitHub phone app, or /order in the XPiX Telegram bot = meeting room):
-# Claude Code works on this repo. Billing: if secret CLAUDE_CODE_OAUTH_TOKEN is set (`claude setup-token` on the owner's
-# Claude Team account) it uses the SUBSCRIPTION limits, no API money; otherwise the Console API key (ANTHROPIC_API_KEY).
+# @claude on an issue / PR comment (works from the GitHub phone app): Claude Code works on this repo, billed to the
+# Anthropic Console API credits (secret ANTHROPIC_API_KEY, Settings > Secrets and variables > Actions). Never commit the key.
 name: Claude Code
 on:
   issue_comment:
@@ -17,7 +16,7 @@ jobs:
     # owner 2026-10-28: no paid Anthropic API by default. The job runs only when the repo variable CLAUDE_ACTION_ENABLED is 'true' (Settings > Secrets and variables > Actions > Variables),
     # and only for the owner / members / collaborators (a public repo: any stranger's '@claude' comment must not spend the credit).
     if: >-
-      (vars.CLAUDE_ACTION_ENABLED == 'true' || vars.CLAUDE_SUBSCRIPTION == 'true') &&
+      vars.CLAUDE_ACTION_ENABLED == 'true' &&
       contains(github.event.comment.body || github.event.issue.body || '', '@claude') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.issue.author_association || 'NONE')
     runs-on: ubuntu-latest
@@ -36,9 +35,7 @@ jobs:
       - name: Check Anthropic key
         env:
           K: ${{ secrets.ANTHROPIC_API_KEY }}
-          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          [ -z "$OAUTH" ] || { echo "subscription token set (Claude Team) - no API key needed"; exit 0; }
           [ -n "$K" ] || { echo "::error::secret ANTHROPIC_API_KEY is empty / missing"; exit 1; }
           # shape only (first 10 chars = the key type, never the secret part): catches a wrong key type, quotes, spaces or a cut copy
           echo "key starts with: ${K:0:10}  length: ${#K}  spaces/newlines: $(printf '%s' "$K" | tr -cd ' \n\r\t' | wc -c)  quotes: $(printf '%s' "$K" | tr -cd '"\047' | wc -c)"
@@ -52,18 +49,6 @@ jobs:
       - run: pip install -q -r requirements.txt
       - uses: anthropics/claude-code-action@4845bacbb38b3c4b15d948f035349786f678e068  # v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Sonnet: good for code work and much cheaper than the default; python allowed so it can run the tests
           claude_args: '--max-turns 40 --model claude-sonnet-5-5 --allowedTools "Bash(python3:*),Bash(python:*),Bash(pip install:*),Bash(git fetch origin claude/issue-9-20261021-1523),Bash(git merge origin/claude/issue-9-20261021-1523),Edit,Write"'
-      - name: Tell the owner on Telegram (XPiX bot)
-        if: always()
-        env:
-          TG: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-          URL: ${{ github.event.issue.html_url || github.event.pull_request.html_url }}
-          STATUS: ${{ job.status }}
-        run: |
-          [ -n "$TG" ] && [ -n "$CHAT" ] || exit 0
-          [ "$STATUS" = success ] && T="✅ Claude Code خلص الأوردر، شوف الرد" || T="⚠️ Claude Code وقف ($STATUS)"
-          curl -sS "https://api.telegram.org/bot${TG}/sendMessage" --data-urlencode "chat_id=${CHAT}" --data-urlencode "text=${T}: ${URL}" > /dev/null

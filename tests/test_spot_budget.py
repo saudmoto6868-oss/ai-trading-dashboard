@@ -116,3 +116,27 @@ sp.render()
     assert not at.exception, at.exception
     assert any("Spot chart" in t.label or "شارت السبوت" in t.label for t in at.tabs)
 print("spot chart tab: OK")
+
+# strategies (2026-11-17): every split adds to 100; library + signals tabs exist; the board filter maps to real lab schools
+for nm, v in B.STRATEGIES.items():
+    assert abs(sum(v["split"].values()) - 100) < 1e-9 and v["en"] and v["ar"], nm
+import json as _json
+_ev = _json.load(open(os.path.join(os.path.dirname(__file__), "..", "data", "spot_setup_evidence.json"), encoding="utf8"))["setups"]
+_schools = {v["school"] for v in _ev.values()}
+for nm, (sch, side) in SP.SIGNAL_STRATEGIES.items():
+    assert side in (None, "buy", "exit")
+    for s_ in (sch or ()):
+        assert any(str(k).startswith(s_) for k in _schools), (nm, s_)
+with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
+    at = AppTest.from_string("""
+import modules.spot_page as sp, tempfile, streamlit as st
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
+st.session_state["sg_on"] = True
+sp.render()
+""", default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception
+    labs = [t.label for t in at.tabs]
+    assert any("Signals" in l for l in labs) and any("Setup library" in l for l in labs), labs
+print("spot strategies + signals board: OK")

@@ -78,7 +78,7 @@ def funnel(rows: list, bonf_t: float | None = None) -> dict:
     verdict_stages = stages[2:]   # "Testable" only says a row had no t-stat (missing data), not that the rule failed a test
     untested = sorted(k for k, v in schools.items() if v[0] > 0 and v[1] == 0)   # schools where NO row has a t-stat: the funnel cannot judge them at all
     return {"untested_schools": untested, "closest": closest, "stages": stages, "schools": schools, "survivors": survivors, "bonferroni_t": round(bonf, 2),
-            "tested": len(rows), "survived": last, "kill_rate": round(100 * (1 - last / len(rows)), 1) if rows else None,
+            "tested": len(rows), "survived": last, "kill_rate": round(100 * (1 - last / len(rows)), 2) if rows else None,
             "biggest_kill": max(verdict_stages, key=lambda s: s["killed"])["name"] if verdict_stages and any(s["killed"] for s in verdict_stages) else None}
 
 

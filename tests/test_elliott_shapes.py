@@ -55,3 +55,19 @@ assert name is None, (name, info)
 name, info = es.wxy_shape(100, 120, 108, 130, 140, 150, 145, 160)
 assert name is None, (name, info)
 print("test_elliott_shapes wxy: OK")
+
+# --- triple W-X-Y-X-Z, alternation, Fibonacci zone, triangle convergence ---
+name, info = es.triple_shape(100, 120, 108, 130, 110, 125, 115, 145, 128, 150, 140, 165)
+assert name == "triple_zigzag", (name, info)
+name, info = es.triple_shape(100, 120, 108, 130, 110, 125, 115, 145, 146, 150, 140, 165)   # second X too deep vs ratio? must fail X range
+assert name is None, (name, info)
+assert es.alternation(100, 120, 110, 150, 140, 160) is True          # wave 2 deep, wave 4 shallow
+assert es.alternation(100, 120, 115, 150, 140, 160) is False         # both shallow
+assert es.alternation(100, 120, 95, 150, 140, 160) is None           # not an impulse
+z = es.fib_zone(100, 120, 110)
+assert abs(z[0.5] - 100.0) < 1e-9 and abs(z[0.618] - (110 - 0.618 * 20)) < 1e-9
+assert es.triangle_converge(100, 120, 105, 115, 108, 113) == "contracting"
+assert es.triangle_converge(100, 110, 95, 115, 90, 120) == "expanding"
+assert es.triangle_converge(100, 120, 90, 130, 100, 110) is None
+assert es.classify_tail([100, 120, 108, 130, 110, 125, 115, 145, 128, 150, 140, 165]) == "triple_zigzag"
+print("test_elliott_shapes triple/alternation/fib/triangle: OK")

@@ -408,6 +408,15 @@
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 2: `research/strategies/2.6/docs/RULEBOOK.md` + `EVENT_DEFINITIONS.md` (كل قاعدة: CODE / ASSUMPTION / UNKNOWN + 4 أسئلة لصاحب الاستراتيجية).
 - [2026-11-14] [Claude — حساب سعود] 2.6 Task 4 خلص: فحص ثبات الإعدادات (pivot 2..5 × wait 40/80/120) في `evaluation.py` + `report.py --neighbourhood`، من غير ما يلمس الـ test. 31 اختبار OK (مصطنعة).
 
+## 2026-11-20 — [Claude — حساب سعود] حالة إليوت / جان / هارمونيك
+
+- **اتعمل على فرع `ccr-b8c1a2a9-jorg3f` (PR #245، Draft):** أشكال إليوت (zigzag، flats، triangles، diagonal، W-X-Y، triple) كتسميات على الشارت، ومنطقة Fibonacci، وانتظار منطقة OTE، وخطوط Gann offset (تعريف من عندنا). الكروت في مكتب السبوت، والوصف في الـ outlook والـ brain.
+- **Lab على الهارمونيك (2026-11-17):** مفيش نمط بيعدي بوابة الدليل. كل n < 100.
+- **ناقص:** مربعات التوقع (تحتاج قرار المالك كوصف واضح)، والـ leading diagonal (يحتاج سياق)، وربط مكتب التداول، وتعلّم الـ brain (يحتاج دليل)، والمراجعة المستمرة للإحصائيات (تحتاج قرار شكل).
+- **جاري:** مؤشر صغير في الركن فوق يمين الشارت بحالة إليوت لكل فريم (شهري لحد دقيقة)، ويتابع الفريمات.
+- **مصادر:** `docs/academy/reference/SOURCES.md`.
+- **فروع من جلسات تانية:** `feat/harm-tolerance-10` (مش مدمج، أخدت منه فكرة الانتظار للسعر)، وفروع إليوت قديمة معظمها مدمج.
+
 ## 2026-11-17 — تنسيق مع جلسة TIA/Spot (الفرع ccr-7ae379c4-cg6ulr)
 - [2026-11-17] [Claude — جلسة المقارنة] فرعي: `ccr-09b38b10-p3lzej` (PR #244 مسودة). ملفاتي: market_cache (breaker + negative cache)، yahoo_feed، market_map_view (منقول من main)، tia_page (Terminal | Markets + بلوك المدارس)، tia_intelligence (_schools + سجل Director)، tia_workspace (سطر fh_token)، .gitignore (data/tia/).
 - تعارضات مع الفرع التاني (merge-tree، من غير دمج): docs/ACTIVITY_LOG.md (ضيف الاتنين) و modules/tia_workspace.py (خد نسخة الفرع التاني وزوّد fh_token).

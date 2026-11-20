@@ -133,12 +133,16 @@ def wxy_shape(p0, p1, p2, p3, p4, p5, p6, p7):
 
 
 def classify_tail(prices):
-    """Label the newest pivots of an alternating price list: W-X-Y (last 8), triangle / impulse (last 6), ABC (last 4).
+    """Label the newest pivots of an alternating price list: triple W-X-Y (last 12), W-X-Y (last 8), triangle / impulse (last 6), ABC (last 4).
 
     Same order as the JS port (EWSHAPE block in the Workspace). Returns a shape name or None.
     """
     p = list(prices)
     n = len(p)
+    if n >= 12:
+        name, _ = triple_shape(*p[-12:])
+        if name:
+            return name
     if n >= 8:
         name, _ = wxy_shape(*p[-8:])
         if name:
@@ -159,3 +163,73 @@ SHAPE_AR = {"zigzag": "تصحيح زيجزاج (ABC)", "regular_flat": "فلات
             "running_flat": "فلات جاري", "impulse": "دافعة 1-5", "ending_diagonal": "دياجونال نهائي",
             "contracting": "مثلث متقارب", "expanding": "مثلث متسع", "double_zigzag": "زيجزاج مزدوج (W-X-Y)",
             "double_three": "ثلاثي مزدوج (W-X-Y)", "double_combo": "مركب (W-X-Y)"}
+
+
+# --- triple W-X-Y-X-Z (12 pivots: W p0..p3, X p3..p4, Y p4..p7, X p7..p8, Z p8..p11) ---
+def triple_shape(*p):
+    """Twelve pivots. Returns (name, info): 'triple_zigzag' | 'triple_three' | 'triple_combo' | None.
+    W, Y, Z must go the same way; each connecting X must go back and retrace 38.2-100 % of the leg before it.
+    """
+    if len(p) != 12:
+        return None, {}
+    s = 1 if p[1] > p[0] else -1
+    w_len = abs(p[3] - p[0])
+    y_len = abs(p[7] - p[4])
+    if w_len == 0 or y_len == 0:
+        return None, {}
+    x1 = abs(p[4] - p[3]) / w_len
+    x2 = abs(p[8] - p[7]) / y_len
+    info = {"x1_ret": round(x1, 3), "x2_ret": round(x2, 3)}
+    if not (X_RET_MIN <= x1 <= X_RET_MAX and X_RET_MIN <= x2 <= X_RET_MAX):
+        return None, info
+    if s * (p[4] - p[3]) >= 0 or s * (p[8] - p[7]) >= 0:            # both X legs go back
+        return None, info
+    if s * (p[7] - p[4]) <= 0 or s * (p[11] - p[8]) <= 0:           # Y and Z go on
+        return None, info
+    w, y, z = (abc_shape(*p[0:4])[0], abc_shape(*p[4:8])[0], abc_shape(*p[8:12])[0])
+    info.update({"w": w, "y": y, "z": z})
+    if None in (w, y, z):
+        return None, info
+    kinds = [v == "zigzag" for v in (w, y, z)]
+    if all(kinds):
+        return "triple_zigzag", info
+    if not any(kinds):
+        return "triple_three", info
+    return "triple_combo", info
+
+
+# --- alternation (impulse: wave 2 deep or shallow should differ from wave 4) ---
+def alternation(p0, p1, p2, p3, p4, p5):
+    """True when wave 2 and wave 4 retrace differently (one deep, one shallow), False when they match, None if not an impulse.
+    Deep = retrace >= 50 % of the wave before. Uses the same pivots as impulse_shape."""
+    if impulse_shape(p0, p1, p2, p3, p4, p5) != "impulse":
+        return None
+    w2 = abs(p2 - p1) / abs(p1 - p0)
+    w4 = abs(p4 - p3) / abs(p3 - p2)
+    return (w2 >= 0.5) != (w4 >= 0.5)
+
+
+# --- Elliott Fibonacci zone of the newest impulse (LuxAlgo study, our measurement): levels from the wave-5 end ---
+FIB_ZONE = (0.5, 0.618, 0.764, 0.854)
+
+
+def fib_zone(p0, p1, p5):
+    """Zone levels measured from wave 5's end (p5) back toward wave 1's range (p0 to p1). Returns {level: price}."""
+    rng = p1 - p0
+    return {lvl: p5 - lvl * rng for lvl in FIB_ZONE}
+
+
+# --- triangle converge check: highs fall and lows rise (contracting), or the reverse (expanding) ---
+def triangle_converge(p0, p1, p2, p3, p4, p5):
+    """Six pivots of a 5-leg triangle, starting with a LOW at p0 (highs p1,p3,p5; lows p0,p2,p4).
+    Mirrored automatically when p0 is a high. Returns 'contracting' | 'expanding' | None."""
+    if p1 == p0:
+        return None
+    up_start = p1 > p0
+    highs = [p1, p3, p5] if up_start else [p0, p2, p4]
+    lows = [p0, p2, p4] if up_start else [p1, p3, p5]
+    if all(highs[k] > highs[k + 1] for k in range(2)) and all(lows[k] < lows[k + 1] for k in range(2)):
+        return "contracting"
+    if all(highs[k] < highs[k + 1] for k in range(2)) and all(lows[k] > lows[k + 1] for k in range(2)):
+        return "expanding"
+    return None

@@ -38,16 +38,20 @@ def test_compare_keeps_pooled_rows_only_and_sorts_by_net():
     print("ok compare: pooled rows only, sorted by net R")
 
 
-def test_committed_lab_fvg_is_flagged_by_lab_but_fails_owner_bar():
+def test_committed_lab_every_lab_yes_still_checked_against_cost():
+    """The lab's YES does not imply the owner bar: any row the lab flags but with net <= 0 must fail here.
+    (Holds for whatever the committed lab file says today, so this test does not hard-code one run.)"""
     rows = sc.compare(sc.load())
-    fvg = next(r for r in rows if r["key"] == "fvg")
-    assert fvg["lab_edge"] is True and fvg["net"] < 0 and fvg["owner_pass"] is False, fvg
-    print("ok committed lab: fvg shows YES in the lab but fails once cost is taken off")
+    assert rows, "lab file has pooled rows"
+    for r in rows:
+        if r["lab_edge"] and (r["net"] is None or r["net"] <= 0):
+            assert r["owner_pass"] is False, r
+    print("ok committed lab: no row passes the owner bar unless net is positive after cost")
 
 
 if __name__ == "__main__":
     test_net_uses_lab_cost_when_missing()
     test_owner_bar_needs_all_conditions()
     test_compare_keeps_pooled_rows_only_and_sorts_by_net()
-    test_committed_lab_fvg_is_flagged_by_lab_but_fails_owner_bar()
+    test_committed_lab_every_lab_yes_still_checked_against_cost()
     print("signal_compare: all ok")

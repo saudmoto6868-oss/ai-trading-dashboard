@@ -57,6 +57,18 @@ def render_tia():
                     st.metric(tf.upper(), item.get("trend", "—"), f"RSI {item.get('rsi14', '—')} · {item.get('return20_pct', '—')}% / 20 bars")
                 else:
                     st.metric(tf.upper(), "UNAVAILABLE")
+        try:   # Director track record (2026-11-20): how past BULLISH / BEARISH runs did 3 days later; under 30 scored runs it says "not evidence"
+            from modules import tia_intelligence as _TI, tia_scoring as _TS
+            from modules.market_cache import get_klines as _gk
+            tr = _TS.track_record(_TI.LOG_PATH, _gk)
+            if tr is None:
+                st.caption("Director track record: no runs logged yet.")
+            else:
+                w = tr["wilson95"]
+                st.caption(f"Director track record ({tr['horizon_days']}d, direction only, no costs): runs {tr['runs']} · scored {tr['scored']} · pending {tr['pending']} · abstained {tr['abstain']}"
+                           + (f" · hit rate {tr['hit_rate']*100:.0f}% (95% {w[0]*100:.0f}–{w[1]*100:.0f}%)" if tr["scored"] else "") + f" · {tr['verdict']}")
+        except Exception:
+            pass   # the track record must never break the Director view
         hold = report.get("holdings") or {}
         if hold.get("held"):
             st.info(f"Spot ledger: you hold {hold.get('qty')} {hold.get('asset')} at an average of {hold.get('avg_usd')} USD (unrealised {hold.get('unreal_pct')}%). The Director does not change this position.")

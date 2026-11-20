@@ -194,6 +194,30 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* PROJ-END */
+/* G144-BEGIN Gann square of 144 (same numbers as modules/gann_geom.square_of_144): a 144-bar box from the lowest low of the last 144 bars,
+   time lines at the eighths and thirds of 144, price levels at the same fractions of the box's range. Geometry only. */
+const SQ144_F = [1/8, 1/4, 1/3, 3/8, 1/2, 5/8, 2/3, 3/4, 7/8, 1];
+Object.assign(CandleChart.prototype, {
+  paintGann144(c, py, PB){
+    const d = this.data, n = d.length; if (n < 30) return;
+    const k = n + ":" + d[n-1].c + ":" + this.tf; let g = this._g144 && this._g144.k === k ? this._g144.v : null;
+    if (!g){ const w0 = Math.max(0, n - 144); let st = w0; for (let i = w0; i < n; i++) if (d[i].l < d[st].l) st = i;
+      const end = Math.min(n, st + 144); let lo = Infinity, hi = -Infinity; for (let i = st; i < end; i++){ lo = Math.min(lo, d[i].l); hi = Math.max(hi, d[i].h); }
+      g = {st, lo, hi}; this._g144 = {k, v: g}; }
+    const rng = g.hi - g.lo; if (!(rng > 0)) return;
+    const x0 = this.x(g.st), x1 = this.x(g.st + 144), PR = this.PR, col = "#d4a017";
+    c.save(); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1; c.font = "9px sans-serif";
+    SQ144_F.forEach(f => {   // price levels
+      const y = py(g.lo + rng*f); c.globalAlpha = f === .5 || f === 1 ? .55 : .25; c.setLineDash(f === .5 ? [] : [2,4]);
+      c.beginPath(); c.moveTo(x0, y); c.lineTo(Math.min(PR, x1), y); c.stroke(); });
+    SQ144_F.forEach(f => {   // time lines
+      const xb = this.x(g.st + Math.round(144*f)); if (xb < 0 || xb > PR) return; c.globalAlpha = .22; c.setLineDash([2,4]);
+      c.beginPath(); c.moveTo(xb, 0); c.lineTo(xb, PB); c.stroke(); c.globalAlpha = .6; c.fillText(String(Math.round(144*f)), xb + 2, PB - 4); });
+    c.globalAlpha = .8; c.setLineDash([]); c.textAlign = "left"; c.fillText(Lg("Gann square of 144", "مربع جان 144"), Math.max(4, x0 + 3), py(g.hi) - 4);
+    c.restore();
+  }
+});
+/* G144-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
 Object.assign(CandleChart.prototype, {

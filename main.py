@@ -42,18 +42,11 @@ from modules.i18n import L, RTL_CSS, lang as _ui_lang
 from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
-from modules.macro import api_key, fetch_macro
 from modules.calendar_feed import fetch_calendar
 from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, MOVE_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
                                 features as cs_features, flag_side, match_filters, mini_chart_svg, move_flags, strategy_flags)
 from modules.news_feed import get_latest_news, ticker_html
-from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
-from modules.dom_panel import (
-    build_ladder, ladder_html, classify_trades, trades_html,
-    LimitTracker, limit_events_html, fmt_price,
-    ORDERFLOW_CSS, LEGEND_HTML, TapeMemory, DomMemory, hits_from, mark_absorption,
-    tape_stats, stats_html,
-)
+from modules.dom_panel import fmt_price, ORDERFLOW_CSS   # 2026-11-20: the old Streamlit DOM / tape panels were removed (they live in the Workspace)
 
 try:
     from streamlit_autorefresh import st_autorefresh
@@ -144,21 +137,6 @@ auto_on = st.sidebar.checkbox(L("Auto-refresh (live data)"), value=False, key="w
                               help=L("Re-runs the whole page on the server. The Workspace is already live without it."))
 refresh_secs = st.sidebar.slider(L("Refresh every (seconds)"), 60, 600, max(120, AUTO_REFRESH_SECONDS), step=30, key="w_refresh_every_seconds_v2")
 play_sound = st.sidebar.checkbox(L("Play sound on NEW strong signals"), value=True, key="w_play_sound_on_new_strong_signals")
-with st.sidebar.expander(L("Order Book / Time & Sales"), expanded=False):
-    smart_mult = st.slider(
-        L("Smart trade = size >= N x median print"), 2.0, 10.0, 4.0, step=0.5,
-        help=L("Prints this many times larger than the median trade in the window are flagged SMART; 2.5x that is WHALE."),
-        key="w_smart_trade_size_n_x_median_print")
-    big_order_mult = st.slider(
-        L("Big limit order = N x median level"), 3.0, 15.0, 5.0, step=0.5,
-        help=L("Used by the DOM highlight and by Limit Tracking."),
-        key="w_big_limit_order_n_x_median_level")
-    fast_secs = st.slider(L("DOM / Time&Sales refresh (seconds)"), 1, 10, 3,
-                          help=L("How often the two order-flow panels update by themselves (flashes appear on each update)."), key="w_dom_time_sales_refresh_seconds")
-    absorb_mult = st.slider(
-        L("Absorption = level volume >= N x median level"), 2.0, 8.0, 3.0, step=0.5,
-        help=L("Heavy volume trading at one price while the price barely moves."),
-        key="w_absorption_level_volume_n_x_median_level")
 with st.sidebar.expander(L("Telegram alerts (optional)"), expanded=False):
     tg_on = st.checkbox(L("Send the best alerts to Telegram"), value=False, key="tg_on",
                         help=L("Only the top-ranked alerts (evidence score, not a proven win rate). Needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Secrets."))
@@ -278,14 +256,6 @@ header_box = st.container()
 
 
 # ---- Data helpers -------------------------------------------------------------
-@st.cache_data(ttl=2, show_spinner=False)
-def cached_book(sym: str):
-    return render_order_book(sym, limit=50)
-
-
-@st.cache_data(ttl=2, show_spinner=False)
-def cached_trades(sym: str):
-    return render_time_and_sales(sym, limit=100)
 
 
 def score_mt5_group(symbols):
@@ -318,7 +288,7 @@ def _peer_frames(symbols, tf):
     if not need:
         return {}
     try:
-        fr, _e = fetch_frames(need, [tf])
+        fr, _e = fetch_frames(need, [tf], workers=8)   # 2026-11-20 speed: 8 parallel requests like the other radar views
     except Exception:
         return {}
     return {sy: v.get(tf) for sy, v in fr.items() if v.get(tf) is not None}
@@ -337,7 +307,7 @@ def _scan_cached(symbols: tuple, tf: str):
 def scan_crypto_group(symbols, tf):
     """Multi-timeframe scan: candles for the chosen timeframe PLUS its higher
     context timeframes are fetched in parallel (cached), then scored."""
-    frames, fetch_errors = fetch_frames(symbols, fetch_tfs(tf))
+    frames, fetch_errors = fetch_frames(symbols, fetch_tfs(tf), workers=8)   # 2026-11-20 speed: was 4 (24 symbols x ~3 timeframes = ~70 requests)
     pframes = _peer_frames(symbols, tf)
     results, errors = [], []
     for sym in symbols:
@@ -521,91 +491,6 @@ def fire_alerts(filtered):
 
 
 # ---- Crypto order-flow panels ----------------------------------------------------
-# st.fragment lets just these panels refresh every few seconds without
-# re-running the heavy scanner. Older Streamlit versions fall back to the
-# normal page auto-refresh.
-_fragment = getattr(st, "fragment", None)
-
-
-def live_fragment(fn):
-    if _fragment is None:
-        return fn
-    return _fragment(run_every=f"{fast_secs}s")(fn)
-
-
-def get_tape(sym):
-    """Classified trades + 'is_new' flash flags + absorption marks. The DOM and
-    Time&Sales panels both call this; calls within 1.5 s share one result so
-    the 'new print' flags are consumed only once."""
-    cache = st.session_state.setdefault("tape_cache", {})
-    hit = cache.get(sym)
-    if hit and time.time() - hit[0] < 1.5:
-        return hit[1]
-    mem = st.session_state.setdefault("tape_mem", {}).setdefault(sym, TapeMemory())
-    t = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
-    t = mem.mark(t)
-    t = mark_absorption(t, vol_mult=absorb_mult)
-    cache[sym] = (time.time(), t)
-    return t
-
-
-@live_fragment
-def render_dom(sym):
-    st.markdown(f"**Depth of Market** &middot; {html.escape(sym)}", unsafe_allow_html=True)
-    try:
-        bids, asks = cached_book(sym)
-    except Exception as e:
-        st.warning(f"Order book unavailable: {e}")
-        return None
-    try:
-        tape = get_tape(sym)
-    except Exception:
-        tape = None
-    ladder = build_ladder(bids, asks, depth=12)
-    mem = st.session_state.setdefault("dom_mem", {}).setdefault(sym, DomMemory())
-    absorb_prices = set()
-    if tape is not None and not tape.empty and "absorb" in tape.columns:
-        absorb_prices = {round(float(p), 8) for p in tape.loc[tape["absorb"], "price"]}
-    st.markdown(
-        ladder_html(ladder, big_mult=big_order_mult, hits=hits_from(tape),
-                    changes=mem.changes(ladder), absorb_prices=absorb_prices),
-        unsafe_allow_html=True,
-    )
-    st.caption(L("★ glowing = big resting order (blinks white when trades hit it). "
-               "Level flash = just traded. Blue outline = size grew."))
-    return bids, asks
-
-
-@live_fragment
-def render_trades(sym):
-    st.markdown(L("**Time & Sales** &middot; Smart / Whale / Absorb"), unsafe_allow_html=True)
-    try:
-        trades = get_tape(sym)
-        ab = ""
-        if not trades.empty and "absorb" in trades.columns and trades["absorb"].any():
-            dirs = trades.loc[trades["absorb"], "absorb_dir"]
-            ab = "by " + dirs.mode().iat[0]
-        st.markdown(stats_html(tape_stats(trades), ab), unsafe_allow_html=True)
-        st.markdown(trades_html(trades, max_rows=20), unsafe_allow_html=True)
-        st.markdown(LEGEND_HTML, unsafe_allow_html=True)
-        return trades
-    except Exception as e:
-        st.warning(f"Time & sales unavailable: {e}")
-        return None
-
-
-def render_limit_tracking(sym, book, trades):
-    st.markdown(L("**Limit Tracking** &middot; big limit orders placed / pulled / filled"), unsafe_allow_html=True)
-    if book is None:
-        return
-    trackers = st.session_state.setdefault("limit_trackers", {})
-    tracker = trackers.get(sym)
-    if tracker is None or tracker.big_mult != big_order_mult:
-        tracker = trackers[sym] = LimitTracker(big_mult=big_order_mult)
-    tracker.update(book[0], book[1], trades)
-    st.markdown(limit_events_html(tracker.events_df()), unsafe_allow_html=True)
-    st.caption(L("Snapshot based (compares each refresh), so quick spoof-and-cancel "
-               "inside one refresh is not seen. PULLED = vanished without trading."))
 
 
 @st.cache_resource
@@ -1019,19 +904,6 @@ def render_header():
             st.session_state["focus_ws"] = not focus
             st.rerun()
     return h_nav
-    # the ready-trades table now lives inside the Workspace (movable widget); macro watchlist is in the sidebar
-    with st.sidebar.expander(L("Macro watchlist"), expanded=False):
-        st.markdown(macro_html(), unsafe_allow_html=True)
-    with st.sidebar.expander(L("US economy (FRED)"), expanded=False):
-        st.caption(L("Monthly/daily official data, not live prices. Needs FRED_API_KEY in Secrets."))
-        for r_ in _fred_rows():
-            st.write(f"**{r_['label']}**: {r_['value'] if r_['value'] is not None else 'n/a'}  {r_['date']} {('- ' + r_['note']) if r_['note'] else ''}")
-
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def _fred_rows():
-    from modules.fred_feed import snapshot
-    return snapshot()
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -1058,34 +930,6 @@ def _stock_tickers():
 def _macro_fund():
     from modules.macro_fund import fetch_macro_fund
     return fetch_macro_fund()
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def _macro_rows():
-    return fetch_macro()
-
-
-def macro_html():
-    box = "border:1px solid #2b3139;border-radius:6px;background:#161a1e;padding:4px 8px;font-size:11px"
-    key = api_key()
-    hint = (f"<div style='{box};color:#848e9c'><b style='color:#eaecef'>Macro watchlist</b> "
-            "(Gold / Oil / EURUSD / DXY): add a free TwelveData key as <code>TWELVEDATA_API_KEY</code> in config.py or Streamlit secrets.</div>")
-    try:
-        rows = _macro_rows()
-        if not key and not rows:
-            return hint
-    except Exception as e:
-        return f"<div style='{box};color:#f6465d'>Macro watchlist unavailable: {html.escape(str(e))}</div>"
-    cells = []
-    for r in rows:
-        if not r["ok"]:
-            cells.append(f"<tr><td>{html.escape(r['name'])}</td><td colspan='2' style='color:#848e9c'>n/a</td></tr>")
-            continue
-        col = "#0ecb81" if (r["pct"] or 0) >= 0 else "#f6465d"
-        pct_txt = "" if r["pct"] is None else f"{r['pct']:+.2f}%"
-        cells.append(f"<tr><td>{html.escape(r['name'])}</td><td style='text-align:right'>{fmt_price(r['price'])}</td>"
-                     f"<td style='text-align:right;color:{col}'>{pct_txt}</td></tr>")
-    return f"<div style='{box}'><table style='width:100%;border-collapse:collapse;font-family:monospace'>" + "".join(cells) + "</table></div>"
 
 
 from modules.asset_classes import CLASSES as ASSET_CLASSES
@@ -2786,6 +2630,7 @@ def render_radar_signals(f):
     data = _radar_data(f)
     if data is None:
         return
+    st.caption(L("Source: chart patterns and strategies on the Radar timeframe. The Spot desk signal board reads the setup lab on 1w / 1d, so the two can disagree; when they do, wait."))   # 2026-11-20: say where the signal comes from, so Radar vs Spot answers do not look like a contradiction
     data = {s_: d_ for s_, d_ in data.items() if _radar_pass(d_, f)}   # only the symbols that pass the shared filters
     lab = _OK.load()
     by = {}

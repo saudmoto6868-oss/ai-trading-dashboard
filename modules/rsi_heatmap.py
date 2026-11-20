@@ -318,7 +318,7 @@ def render():   # 2026-11-20: opens light (30 symbols, Radar + Flow off); the he
         return
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
-        frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
+        frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=8)   # 2026-11-20 speed: was 4
 
     detail, setups = {}, {}
     for symbol in symbols:

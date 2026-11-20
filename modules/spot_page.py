@@ -1178,6 +1178,8 @@ def _tab_signals(d, px) -> None:
     tfs = c[1].multiselect("TF", ["1mo", "1w", "1d", "4h"], default=["1w", "1d"], key="sg_tf")
     hide_bad = c[2].toggle(T("Hide setups the lab found worse", "اخفي اللي المعمل لقاه أسوأ"), value=True, key="sg_hide")
     go = c[3].button(T("Scan the markets", "امسح الأسواق"), key="sg_go")
+    st.caption(T("Source: the setup lab schools on 1w / 1d spot candles. The Radar's Signal list reads chart patterns on the Radar timeframe, so the two can disagree; when they do, wait.",
+                 "المصدر: مدارس معمل الإشارات على شموع السبوت أسبوعي / يومي. قايمة إشارات الرادار بتقرا نماذج الشارت على فريم الرادار، فممكن يختلفوا؛ لو اختلفوا استنى."))
     if go:
         st.session_state["sg_on"] = True
     if not st.session_state.get("sg_on"):

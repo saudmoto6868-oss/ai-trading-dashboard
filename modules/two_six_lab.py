@@ -5,7 +5,6 @@ Research only: it never places orders. Stop / target rules are provisional
 """
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 SYMBOLS = {"Gold (Hyperliquid)": "HL:xyz:GOLD", "Gold futures (Yahoo GC=F)": "Y:GC=F",
            "Silver (Hyperliquid)": "HL:xyz:SILVER", "BTC": "BTC-USDT"}
@@ -29,6 +28,30 @@ def _df(sym, tf, limit):
     return get_klines(sym, tf, limit)
 
 
+def _journal_block(plays, times, sym, tf, last_close) -> None:
+    """2.6 journal: save every setup of these candles (updated in place) and show the review of each one."""
+    from pathlib import Path
+    from modules import two_six_journal as tj
+    path = Path(__file__).resolve().parents[1] / "data" / "two_six" / "journal.jsonl"
+    st.subheader("2.6 journal")
+    st.caption("Each setup = one row: why it was taken or rejected, its review, the best live setup now, and the follow-up. "
+               "Saved in data/two_six (git-ignored). Research only.")
+    if st.button("Save these setups to the journal", key="ts_journal_save"):
+        recs = tj.build_records(plays, [str(t) for t in times], sym, tf, last_price=last_close)
+        changed = tj.upsert(recs, path)
+        st.success(f"Journal updated: {changed} row(s) changed, {len(recs)} setups on these candles.")
+    rows = tj.load(path)
+    s = tj.summary(rows)
+    st.info(f"Journal: {s['rows']} rows · {s['live']} live · {s['expired']} expired · {s['text']}")
+    if rows:
+        view = [{"time": r["time"], "setup": f"{r['kind']} {r['side']} {r['tf']}", "status": r["status"],
+                 "R": r["outcome_r"], "best now": "★" if r.get("best_now") else "",
+                 "why taken": " · ".join(r["why_taken"]), "why rejected": " · ".join(r["why_rejected"]),
+                 "review": r["review"], "follow-up": r["followup"], "note": r.get("note", "")}
+                for r in sorted(rows, key=lambda r: r["time"], reverse=True)[:100]]
+        st.dataframe(pd.DataFrame(view), hide_index=True, use_container_width=True)
+
+
 def render() -> None:
     from modules import two_six_chart as tc
     st.title("2.6 Strategy")
@@ -49,7 +72,7 @@ def render() -> None:
     if df is not None and len(df) >= 50:
         plays = tc.setups(tc.bars_from_df(df), ratio=ratio, left=swing, right=swing, use_h1=use_h1, use_h2=use_h2)
         shown = plays[-show:]
-        components.html(tc.chart_html(df, shown), height=580)
+        st.iframe(tc.chart_html(df, shown), height=580, alt="2.6 chart")
         times = list(df["time"])
         rows = [{"time": times[p["known"]], "type": p["kind"], "side": p["side"], "status": p["status"],
                  "entry": round(p["entry"], 2), "stop": round(p["stop"], 2),
@@ -61,6 +84,7 @@ def render() -> None:
         if done:
             st.caption("Closed on this replay: " + ", ".join(f"{k} {done.count(k)}" for k in ("TP2", "TP1 then stop", "stopped"))
                        + f" (n={len(done)}; not evidence below n=30 and without costs)")
+        _journal_block(plays, times, sym, tf, float(df["close"].iloc[-1]))
     elif df is not None:
         st.warning("Not enough candles to find setups.")
     st.markdown(GUIDE)

@@ -1,7 +1,7 @@
 """Trade-review database (owner 2026-11-20, priority 1): every idea in SQL tables, ready for review queries.
 
 Tables (SQLite):
-  ideas       one row per idea: source (lab / desk), symbol, tf, time, side, entry, stop, target, primary detector,
+  ideas       one row per idea: source (lab / desk / telegram), symbol, tf, time, side, entry, stop, target, primary detector,
               school, taken (desk: filled or not), skip/status, plus OOS flag for lab rows
   context     what the market looked like at the idea bar (no look-ahead): nearest swing support / resistance and their
               distance in ATR, RSI14, price vs EMA20/50/200, ATR %, position in the 50-bar range, relative volume,
@@ -10,13 +10,19 @@ Tables (SQLite):
   outcomes    how it ended under the lab's own exit rule (1.5 ATR stop, 1.5R target, lab horizon): exit type
               (tp / sl / time), R, net R (minus 0.10R), bars and minutes to exit, MFE and MAE in R, and the result of
               the OPPOSITE side on the same bar (was the other side the trade?)
+  lab_evidence  weekly-lab verdict per detector on 1h (modules.lab_tiers.card: n, net R after cost, verdict)
 Views: v_detector, v_vote_edge (does a confirming / contradicting detector change results?), v_sr_room, v_session,
-v_missed (opposite side won while the idea lost).
+v_missed (opposite side won while the idea lost), v_studied (the "studied trade" filter, owner 2026-11-20: only these feed
+the shared brain) and v_studied_edge (does the filter actually beat the rest? measured, not assumed).
+A studied idea: no detector or desk doubt against it, at least one confirming detector the lab rates 'edge' or
+'positive, not proven', no confirming detector the lab rates 'loses', and its own detector is not rated 'loses'.
 
 Lab rows come from research/htf_arms/events.csv.gz (every detector signal on 1h, 12 markets). Desk rows come from an
-ai-desk journal.sqlite if one is given. Candles are re-fetched from the same feeds (needs network).
+ai-desk journal.sqlite if one is given; Telegram rows from the alerts cron's .signal_log.jsonl (the 'signal-log' artifact of
+the telegram-alerts workflow). Desk and Telegram ideas get the lab detectors that fired on the same symbol and 1h bar as votes,
+so every source is checked against the same schools. Candles are re-fetched from the same feeds (needs network).
 
-Usage: python -m research.trade_db.build_db [desk_journal.sqlite]"""
+Usage: python -m research.trade_db.build_db [--desk journal.sqlite] [--telegram .signal_log.jsonl]   (a bare path = desk)"""
 import json
 import sqlite3
 import sys
@@ -45,7 +51,19 @@ CREATE TABLE context (idea_id INTEGER PRIMARY KEY, support REAL, resistance REAL
 CREATE TABLE votes (idea_id INTEGER, key TEXT, school TEXT, vote INTEGER);
 CREATE TABLE outcomes (idea_id INTEGER PRIMARY KEY, exit TEXT, r REAL, r_net REAL, bars_to_exit INTEGER, minutes_to_exit INTEGER,
   mfe_r REAL, mae_r REAL, opp_exit TEXT, opp_r REAL);
+CREATE TABLE lab_evidence (key TEXT PRIMARY KEY, school TEXT, tf TEXT, n INTEGER, net REAL, verdict TEXT);
 CREATE INDEX ix_votes ON votes(idea_id);
+CREATE VIEW v_studied_flag AS SELECT i.id idea_id, i.source,
+  (NOT EXISTS (SELECT 1 FROM votes v WHERE v.idea_id=i.id AND v.vote<0)
+   AND EXISTS (SELECT 1 FROM votes v JOIN lab_evidence e ON e.key=v.key WHERE v.idea_id=i.id AND v.vote>0
+               AND e.verdict IN ('edge','positive, not proven'))
+   AND NOT EXISTS (SELECT 1 FROM votes v JOIN lab_evidence e ON e.key=v.key WHERE v.idea_id=i.id AND v.vote>0 AND e.verdict='loses')
+   AND NOT EXISTS (SELECT 1 FROM lab_evidence e WHERE e.key=i.key AND e.verdict='loses')) studied FROM ideas i;
+CREATE VIEW v_studied AS SELECT i.*, o.exit, o.r_net FROM ideas i JOIN v_studied_flag f ON f.idea_id=i.id
+  JOIN outcomes o ON o.idea_id=i.id WHERE f.studied;
+CREATE VIEW v_studied_edge AS SELECT f.source, f.studied, COUNT(*) n, ROUND(AVG(o.r_net),3) avg_net, ROUND(AVG(o.exit='tp'),3) tp_rate,
+  CASE WHEN COUNT(*)<30 THEN 'not evidence (n<30)' ELSE '' END note
+  FROM v_studied_flag f JOIN outcomes o ON o.idea_id=f.idea_id GROUP BY f.source, f.studied;
 CREATE VIEW v_detector AS SELECT i.key, i.school, COUNT(*) n, ROUND(AVG(o.r_net),3) avg_net, ROUND(AVG(o.exit='tp'),3) tp_rate,
   ROUND(AVG(o.bars_to_exit),1) avg_bars FROM ideas i JOIN outcomes o ON o.idea_id=i.id GROUP BY i.key ORDER BY n DESC;
 CREATE VIEW v_vote_edge AS SELECT v.key voter, v.vote, COUNT(*) n, ROUND(AVG(o.r_net),3) avg_net FROM votes v
@@ -144,11 +162,24 @@ def outcome_row(df, ind, i, d):
     return (ex, r, round(r - COST_R, 3), b, b * step, round(mfe, 2), round(mae, 2), oex, orr), stop_d
 
 
-def build(desk_path=None, log=print):
+def lab_votes(evg, sym, ts, d):
+    """The lab detectors that fired on this symbol and 1h bar (ts in ms), as votes for side d."""
+    rows = evg.get((sym, int(ts)))
+    return [] if rows is None else [(o["key"], school_of(o["key"]), 1 if int(o["d"]) == d else -1) for _, o in rows.iterrows()]
+
+
+def fill_lab_evidence(con, keys):
+    from modules.lab_tiers import card
+    con.executemany("INSERT OR REPLACE INTO lab_evidence VALUES (?,?,?,?,?,?)",
+                    [(c["key"], c["school"], c["tf"], c["n"], c["net"], c["verdict"]) for c in card(sorted(keys), LTF)])
+
+
+def build(desk_path=None, log=print, tg_path=None):
     if DB.exists():
         DB.unlink()
     con = sqlite3.connect(DB); con.executescript(SCHEMA)
     ev = pd.read_csv(EVENTS) if EVENTS.exists() else pd.DataFrame()
+    evg = {(s, int(t)): g for (s, t), g in ev.groupby(["sym", "ts"])} if len(ev) else {}
     frames = {}
     for sym, g in ev.groupby("sym") if len(ev) else []:
         try:
@@ -174,25 +205,35 @@ def build(desk_path=None, log=print):
                 insert(con, idea, ctx, out, votes); n += 1
         log(f"{sym}: {n} lab ideas")
     if desk_path:
-        add_desk(con, desk_path, frames, log)
+        add_desk(con, desk_path, frames, log, evg)
+    if tg_path:
+        add_telegram(con, tg_path, frames, log, evg)
+    fill_lab_evidence(con, set(ev["key"]) if len(ev) else set())
     con.commit()
     log(f"wrote {DB}: " + ", ".join(f"{t}={con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]}" for t in ("ideas", "context", "votes", "outcomes")))
     con.close()
 
 
-def add_desk(con, path, frames, log):
+def _frame_for(frames, sym, log, tag):
+    if sym not in frames:
+        try:
+            frames[sym] = frame(sym)
+        except Exception as e:
+            log(f"{tag} skip {sym}: {e}"); return None
+    return frames[sym]
+
+
+def add_desk(con, path, frames, log, evg=None):
     src = sqlite3.connect(f"file:{path}?mode=ro", uri=True); src.row_factory = sqlite3.Row
     n = 0
     for r in src.execute("SELECT * FROM ideas ORDER BY id"):
         sym = DESK_MAP.get(r["symbol"])
         if not sym:
             continue
-        if sym not in frames:
-            try:
-                frames[sym] = frame(sym)
-            except Exception as e:
-                log(f"desk skip {sym}: {e}"); continue
-        df, ind = frames[sym]
+        fr = _frame_for(frames, sym, log, "desk")
+        if fr is None:
+            continue
+        df, ind = fr
         t = pd.Timestamp(r["created"])
         ts = int((t.tz_convert("UTC").tz_localize(None) if t.tzinfo else t).value // 10**6)   # feed candle times are naive UTC
         i = int(np.searchsorted(ind["tms"], ts, side="right") - 1)
@@ -204,10 +245,58 @@ def add_desk(con, path, frames, log):
         idea = {"source": "desk", "symbol": sym, "tf": LTF, "ts": ts, "time": r["created"], "side": d, "entry": r["entry"], "stop": r["stop"],
                 "target": r["t1"], "key": "desk", "school": "ai-desk framework", "taken": int(bool(r["filled"])), "status": r["status"],
                 "oos": None, "ext_id": f"desk:{r['id']}"}
-        insert(con, idea, ctx, out, [(x[:60], "desk reason", 1) for x in reasons] + [(x[:60], "desk doubt", -1) for x in json.loads(r["doubts"] or "[]")])
+        insert(con, idea, ctx, out, [(x[:60], "desk reason", 1) for x in reasons] + [(x[:60], "desk doubt", -1) for x in json.loads(r["doubts"] or "[]")]
+               + lab_votes(evg or {}, sym, ind["tms"][i], d))
         n += 1
     log(f"desk: {n} ideas mapped to our feeds (lab exit rule applied for comparability; the desk's own result stays in status)")
 
 
+def telegram_records(path):
+    """Readable lines of .signal_log.jsonl with a full plan; a damaged line is skipped (same rule as modules.signal_log.load)."""
+    out = []
+    for line in Path(path).read_text().splitlines():
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        if r.get("symbol") and r.get("dir") in ("bullish", "bearish") and r.get("entry") and r.get("stop") and r.get("t"):
+            out.append(r)
+    return out
+
+
+def add_telegram(con, path, frames, log, evg=None):
+    n = 0
+    for r in telegram_records(path):
+        fr = _frame_for(frames, r["symbol"], log, "telegram")
+        if fr is None:
+            continue
+        df, ind = fr
+        ts = int(r["t"]) * 1000
+        i = int(np.searchsorted(ind["tms"], ts, side="right") - 1)
+        if i < 210 or not ind["atr"][i] > 0:
+            continue
+        d = 1 if r["dir"] == "bullish" else -1
+        out, _ = outcome_row(df, ind, i, d)
+        ctx = context(df, ind, i, d) | {"trend_100": None, "htf_1d": None, "htf_4h": None}
+        idea = {"source": "telegram", "symbol": r["symbol"], "tf": r.get("tf") or LTF, "ts": ts, "time": str(pd.Timestamp(ts, unit="ms")),
+                "side": d, "entry": r["entry"], "stop": r["stop"], "target": r.get("tp1"), "key": "telegram", "school": "scanner alert",
+                "taken": int(bool(r.get("sent"))), "status": r.get("out") or "signal", "oos": None, "ext_id": f"tg:{r.get('key')}:{r['t']}"}
+        insert(con, idea, ctx, out, lab_votes(evg or {}, r["symbol"], ind["tms"][i], d))
+        n += 1
+    log(f"telegram: {n} alerts (lab exit rule applied for comparability; taken = sent to Telegram)")
+
+
+def _args(argv):
+    a = {"desk": None, "telegram": None}
+    it = iter(argv)
+    for x in it:
+        if x in ("--desk", "--telegram"):
+            a[x[2:]] = next(it, None)
+        else:
+            a["desk"] = x
+    return a
+
+
 if __name__ == "__main__":
-    build(sys.argv[1] if len(sys.argv) > 1 else None)
+    _a = _args(sys.argv[1:])
+    build(_a["desk"], tg_path=_a["telegram"])

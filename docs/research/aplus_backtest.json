@@ -8,206 +8,206 @@
  },
  "results": {
   "BTC-USDT 1H": {
-   "bars": 1500,
-   "from": 1789790400000,
+   "bars": 4000,
+   "from": 1780790400000,
    "to": 1795186800000,
    "setups": {
     "pullback": {
-     "n": 38,
-     "meanR": -0.45,
-     "winPct": 26.3,
-     "t": -2.35,
+     "n": 100,
+     "meanR": -0.314,
+     "winPct": 29.0,
+     "t": -2.42,
      "verdict": "not evidence",
-     "trainR": -0.558,
-     "testR": -0.183
+     "trainR": -0.324,
+     "testR": -0.289
     },
     "retest": {
-     "n": 29,
-     "meanR": -0.301,
-     "winPct": 31.0,
-     "t": -1.13,
+     "n": 81,
+     "meanR": -0.388,
+     "winPct": 28.4,
+     "t": -2.51,
      "verdict": "not evidence",
-     "trainR": -0.432,
-     "testR": 0.112
+     "trainR": -0.441,
+     "testR": -0.269
     },
     "control": {
-     "n": 67,
-     "meanR": -0.767,
-     "winPct": 22.4,
-     "t": -4.87,
-     "verdict": "not evidence",
-     "trainR": -0.907,
-     "testR": -0.437
+     "n": 181,
+     "meanR": -0.336,
+     "winPct": 36.5,
+     "t": -3.14,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.249,
+     "testR": -0.605
     }
    }
   },
   "BTC-USDT 4H": {
-   "bars": 1500,
-   "from": 1773590400000,
+   "bars": 4000,
+   "from": 1737590400000,
    "to": 1795176000000,
    "setups": {
     "pullback": {
-     "n": 37,
-     "meanR": -0.313,
-     "winPct": 27.0,
-     "t": -1.46,
+     "n": 103,
+     "meanR": -0.199,
+     "winPct": 30.1,
+     "t": -1.51,
      "verdict": "not evidence",
-     "trainR": -0.182,
-     "testR": -0.584
+     "trainR": -0.112,
+     "testR": -0.402
     },
     "retest": {
-     "n": 30,
-     "meanR": -0.419,
-     "winPct": 23.3,
-     "t": -1.77,
+     "n": 87,
+     "meanR": -0.238,
+     "winPct": 28.7,
+     "t": -1.63,
      "verdict": "not evidence",
-     "trainR": -0.363,
-     "testR": -0.531
+     "trainR": -0.185,
+     "testR": -0.376
     },
     "control": {
-     "n": 67,
-     "meanR": -0.339,
-     "winPct": 28.4,
-     "t": -2.02,
+     "n": 190,
+     "meanR": -0.245,
+     "winPct": 31.1,
+     "t": -2.42,
      "verdict": "not evidence",
-     "trainR": -0.289,
-     "testR": -0.457
+     "trainR": -0.189,
+     "testR": -0.405
     }
    }
   },
   "ETH-USDT 1H": {
-   "bars": 1500,
-   "from": 1789790400000,
+   "bars": 4000,
+   "from": 1780790400000,
    "to": 1795186800000,
    "setups": {
     "pullback": {
-     "n": 37,
-     "meanR": -0.439,
-     "winPct": 24.3,
-     "t": -2.17,
+     "n": 103,
+     "meanR": -0.293,
+     "winPct": 30.1,
+     "t": -2.25,
      "verdict": "not evidence",
-     "trainR": -0.694,
-     "testR": 0.354
+     "trainR": -0.24,
+     "testR": -0.434
     },
     "retest": {
-     "n": 25,
-     "meanR": -0.45,
-     "winPct": 24.0,
-     "t": -1.71,
+     "n": 70,
+     "meanR": -0.069,
+     "winPct": 37.1,
+     "t": -0.39,
      "verdict": "not evidence",
-     "trainR": -0.366,
-     "testR": -0.666
+     "trainR": 0.026,
+     "testR": -0.292
     },
     "control": {
-     "n": 62,
-     "meanR": -0.452,
-     "winPct": 29.0,
-     "t": -2.61,
-     "verdict": "not evidence",
-     "trainR": -0.466,
-     "testR": -0.416
+     "n": 173,
+     "meanR": -0.357,
+     "winPct": 31.8,
+     "t": -3.34,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.416,
+     "testR": -0.17
     }
    }
   },
   "ETH-USDT 4H": {
-   "bars": 1500,
-   "from": 1773590400000,
+   "bars": 4000,
+   "from": 1737590400000,
    "to": 1795176000000,
    "setups": {
     "pullback": {
-     "n": 34,
-     "meanR": -0.144,
-     "winPct": 32.4,
-     "t": -0.61,
+     "n": 94,
+     "meanR": -0.26,
+     "winPct": 27.7,
+     "t": -1.94,
      "verdict": "not evidence",
-     "trainR": -0.196,
-     "testR": 0.026
+     "trainR": -0.325,
+     "testR": -0.088
     },
     "retest": {
-     "n": 29,
-     "meanR": -0.108,
-     "winPct": 34.5,
-     "t": -0.42,
+     "n": 84,
+     "meanR": -0.015,
+     "winPct": 35.7,
+     "t": -0.1,
      "verdict": "not evidence",
-     "trainR": 0.027,
-     "testR": -0.406
+     "trainR": 0.023,
+     "testR": -0.116
     },
     "control": {
-     "n": 63,
-     "meanR": -0.288,
-     "winPct": 28.6,
-     "t": -1.67,
+     "n": 178,
+     "meanR": -0.219,
+     "winPct": 29.8,
+     "t": -2.11,
      "verdict": "not evidence",
-     "trainR": -0.213,
-     "testR": -0.439
+     "trainR": -0.198,
+     "testR": -0.281
     }
    }
   },
   "SOL-USDT 1H": {
-   "bars": 1500,
-   "from": 1789790400000,
+   "bars": 4000,
+   "from": 1780790400000,
    "to": 1795186800000,
    "setups": {
     "pullback": {
-     "n": 38,
-     "meanR": 0.096,
-     "winPct": 42.1,
-     "t": 0.41,
+     "n": 102,
+     "meanR": 0.13,
+     "winPct": 42.2,
+     "t": 0.89,
      "verdict": "not evidence",
-     "trainR": 0.17,
-     "testR": -0.088
+     "trainR": 0.131,
+     "testR": 0.129
     },
     "retest": {
-     "n": 30,
-     "meanR": 0.047,
-     "winPct": 40.0,
-     "t": 0.17,
+     "n": 81,
+     "meanR": -0.061,
+     "winPct": 37.0,
+     "t": -0.38,
      "verdict": "not evidence",
-     "trainR": 0.127,
-     "testR": -0.14
+     "trainR": -0.106,
+     "testR": 0.039
     },
     "control": {
-     "n": 68,
-     "meanR": -0.264,
-     "winPct": 32.4,
-     "t": -1.55,
-     "verdict": "not evidence",
-     "trainR": -0.247,
-     "testR": -0.305
+     "n": 183,
+     "meanR": -0.486,
+     "winPct": 25.7,
+     "t": -4.96,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.557,
+     "testR": -0.274
     }
    }
   },
   "SOL-USDT 4H": {
-   "bars": 1500,
-   "from": 1773590400000,
+   "bars": 4000,
+   "from": 1737590400000,
    "to": 1795176000000,
    "setups": {
     "pullback": {
-     "n": 34,
-     "meanR": 0.223,
-     "winPct": 44.1,
-     "t": 0.87,
+     "n": 99,
+     "meanR": -0.179,
+     "winPct": 29.3,
+     "t": -1.31,
      "verdict": "not evidence",
-     "trainR": -0.191,
-     "testR": 1.57
+     "trainR": -0.373,
+     "testR": 0.338
     },
     "retest": {
-     "n": 28,
-     "meanR": 0.206,
-     "winPct": 42.9,
-     "t": 0.73,
+     "n": 84,
+     "meanR": 0.121,
+     "winPct": 39.3,
+     "t": 0.76,
      "verdict": "not evidence",
-     "trainR": 0.183,
-     "testR": 0.255
+     "trainR": 0.121,
+     "testR": 0.123
     },
     "control": {
-     "n": 62,
-     "meanR": 0.13,
-     "winPct": 41.9,
-     "t": 0.68,
+     "n": 183,
+     "meanR": -0.064,
+     "winPct": 34.4,
+     "t": -0.61,
      "verdict": "not evidence",
-     "trainR": 0.186,
-     "testR": 0.021
+     "trainR": -0.021,
+     "testR": -0.195
     }
    }
   }

@@ -468,3 +468,6 @@
 - هل نحدّث `test_hub_funnel` ولا نتراجع تحديث strategy lab؟
 - هل نضيف `pytest` لـ `requirements.txt`؟
 - هل نتراجع عن commits Lab اليدوية على main (`d4c6299`، `3f8f865`)؟
+
+## 2026-11-20 — قرارات وسيناريوهات
+- [Claude — جلسة المقارنة] تم تسجيل 6 قرارات بسيناريوهات (أفضل/أساسي/أسوأ) في `docs/decisions/2026-11-20-scenarios.md`. `test_hub_funnel` بقى بيتأكد من الثوابت بس، والنتيجة معلومة. `kill_rate` بمنزلتين عشرية. الـ voice agent مؤجل.

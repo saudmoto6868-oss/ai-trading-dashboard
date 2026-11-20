@@ -139,6 +139,14 @@ function setupHtml(e){
         const nm = {W:Lg("with trend","مع الترند"), A_ext:Lg("against, at range edge","ضد الترند عند طرف المدى"), A_mid:Lg("against, mid-range","ضد الترند من نص المدى"), F:Lg("flat","بدون ترند")};
         const k = !a1 ? "na" : a1 === "A_mid" ? "bad" : a1 === "W" ? "ok" : "mid";
         return [k, Lg("Daily / 4H position (tested)","موقع اليومي / 4س (مُختبر)"), !a1 ? "–" : "1D "+nm[a1]+(a4 ? " · 4H "+nm[a4] : "")+(a1 === "A_mid" ? " · "+Lg("worst arm in the test (-0.25R)","أسوأ حالة في الاختبار (-0.25R)") : a4 === "A_ext" ? " · "+Lg("4H pullback: least bad","تصحيح 4س: الأقل خسارة") : "")]; })()];
+    { // SKEPTIC (from ai-desk orchestrator, owner 2026-11-20): hard vetoes and named doubts from the checklist -> READY / WATCH / SKIP, plus "why not"
+      const hard = rows.filter(x => x[0] === "bad" && (x[1] === Lg("High-impact news ±1h","خبر قوي خلال ساعة") || x[1] === Lg("Daily / 4H position (tested)","موقع اليومي / 4س (مُختبر)")));
+      const doubts = rows.filter(x => x[0] === "bad"), lab = (e.lab || []), labBad = lab.length && lab.every(r => r.verdict === "loses");
+      if (labBad) doubts.push(["bad", Lg("Every detector of this setup loses after cost in the lab","كل مؤشرات السيت أب ده خسرانة بعد التكلفة في المعمل"), ""]);
+      const v = hard.length ? "SKIP" : (doubts.length >= 2 ? "WATCH" : "READY"), vcol = {SKIP:"#f6465d", WATCH:"#f0b90b", READY:"#0ecb81"}[v];
+      h += '<div style="margin-top:6px;padding:4px 6px;border-left:3px solid '+vcol+'"><b style="color:'+vcol+'">'+v+'</b> <span class="m">'+esc(Lg("skeptic (checklist vetoes + named doubts; a reading, not a signal)","المتشكك (موانع قائمة التحقق + أسباب الشك؛ قراءة مش إشارة)"))+'</span>'
+        +(doubts.length ? '<div dir="auto" style="font-size:11px;margin-top:2px">'+esc(Lg("Why not / doubts: ","ليه لأ / الشكوك: "))+doubts.map(x => esc(x[1]+(x[2] ? " ("+x[2]+")" : ""))).join(" · ")+'</div>' : '')+'</div>';
+    }
     h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
   if ((e.lab || []).length){   // backtest beside the signal (owner 2026-11-20): weekly-lab row per detector, net of cost; never a promise

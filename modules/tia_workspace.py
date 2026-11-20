@@ -7,6 +7,18 @@ from __future__ import annotations
 import streamlit as st
 from modules.workspace import build_workspace_html, _fh_token
 
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _tia_news() -> list:
+    """Same general news feed the desk Workspace gets (modules/news_feed.get_latest_news), cached 5 min so a re-render does not refetch.
+    2026-11-19 context-parity step 1 of 3: calendar, macro and stock fundamentals still live in main.py and are not shared yet."""
+    try:
+        from modules.news_feed import get_latest_news
+        return list(get_latest_news("general", 15) or [])
+    except Exception:
+        return []
+
+
 _TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
@@ -53,7 +65,7 @@ _TIA_NAMES_JS = """
 def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: list[str] | None = None, ctrl: dict | None = None):
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
-    doc = build_workspace_html(symbols=symbols, news=[], lang="en", asset_cls=asset_class,
+    doc = build_workspace_html(symbols=symbols, news=_tia_news(), lang="en", asset_cls=asset_class,
                                ui_theme="gold", ui_mat="steel", fh_token=_fh_token())   # same FX websocket token the desk Workspace gets
 
     # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.

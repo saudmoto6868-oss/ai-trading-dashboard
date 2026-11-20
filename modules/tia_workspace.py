@@ -43,6 +43,14 @@ def _macro():
     return macro_fund()
 
 
+
+def _stock(symbols: tuple):
+    """Stock fundamentals, only when the TIA universe is Stocks (same ticker rule as the desk Workspace: alphabetic base, first 10)."""
+    from modules.context_feeds import stock_fund
+    tickers = tuple(s.split("-")[0] for s in symbols[:10] if s.split("-")[0].isalpha())
+    return stock_fund(tickers) if tickers else None
+
+
 _TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
@@ -91,7 +99,8 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=_tia_news(), lang="en", asset_cls=asset_class,
                                ui_theme="gold", ui_mat="steel", fh_token=_fh_token(),
-                               cal=_ctx(_cal_rows, []), cmc=_ctx(_cmc, None), macrof=_ctx(_macro, None))   # same FX websocket token the desk Workspace gets
+                               cal=_ctx(_cal_rows, []), cmc=_ctx(_cmc, None), macrof=_ctx(_macro, None),
+                               stockf=_ctx(lambda: _stock(tuple(symbols)) if asset_class == "Stocks" else None, None))   # same FX websocket token the desk Workspace gets
 
     # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.
     import json

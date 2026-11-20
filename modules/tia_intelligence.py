@@ -215,7 +215,8 @@ def log_report(report: dict) -> None:
         os.makedirs(os.path.dirname(LOG_PATH) or ".", exist_ok=True)
         row = {"asof_utc": report.get("asof_utc"), "symbol": report.get("symbol"), "asset_class": report.get("asset_class"),
                "stance": report.get("stance"), "score": report.get("score"), "confidence": report.get("confidence"),
-               "schools_score": (report.get("schools") or {}).get("score"), "schools_action": (report.get("schools") or {}).get("action")}
+               "schools_score": (report.get("schools") or {}).get("score"), "schools_action": (report.get("schools") or {}).get("action"),
+               "price": next((t["last"] for tf in ("1h", "4h", "1d", "15m") for t in [(report.get("technical") or {}).get(tf) or {}] if t.get("status") == "ok"), None)}   # entry price, so the run can be scored later
         with open(LOG_PATH, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, default=str) + "\n")
     except Exception:

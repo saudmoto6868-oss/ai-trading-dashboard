@@ -27,6 +27,12 @@ TOPICS = {
     "scalp4h": ("A trader wants 15-minute scalps that end within 4 hours (time stop). Propose a checklist of at most 7 conditions in order "
                 "(regime, higher-timeframe bias, location, trigger, confirmation, timing, risk), with one measurable rule each, and say which "
                 "published evidence supports each rule and which is only convention. No price levels."),
+    "spot_setups": ("For SPOT buying and selling (no shorts) on weekly / monthly / daily charts, list entry and exit setups from every school "
+                    "(Elliott positions, divergences of every kind, Gann price + time, harmonic, ICT / SMC, Wyckoff phases, classic patterns, "
+                    "volume / order flow, intermarket, cycle value). For each: one objective, codeable rule, the invalidation, and the published "
+                    "evidence (name the source; say if unsure). Mark which ones are NOT in this list already: wave 2 / 3 / 4 / 5, hidden / triple / MACD / "
+                    "MA-distance / OBV divergence, Gann square of 9 + time, Gann 50 %, 1x1, anniversaries, golden / death cross, 200-week, 52-week, "
+                    "Bollinger squeeze, Mayer, COT extremes, funding. English, concise, no price predictions."),
     "risk": ("Summarise the evidence on risk management for discretionary and systematic traders: break-even win rate vs reward:risk, "
              "fixed-fraction sizing, daily loss limits, overtrading, and what peer-reviewed studies say about retail futures traders. "
              "Name sources; flag anything you are unsure of."),

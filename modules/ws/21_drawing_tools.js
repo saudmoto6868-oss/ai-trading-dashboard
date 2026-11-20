@@ -437,6 +437,39 @@ Object.assign(CandleChart.prototype, {
     else if (!D){ const err = this.llErr && Date.now() - this.llErr < 120000; c.font = "9px sans-serif"; c.fillStyle = err ? "#b08a3a" : "#6b7684"; c.textAlign = "right"; c.fillText(err ? "MTF LLT: waiting for the exchange (retrying)" : "MTF LLT: loading…", PR - 8, this.PB - 8); }   // small and quiet: it used to be a big sentence in the middle of the chart that never changed
     c.restore();
   },
+  htfAgg(tf){   // HTF candles built from the LOADED chart bars (the fallback: sub-minute HTF, or the feed request failed); weeks start on Monday 00:00 UTC
+    const d = this.data, W = 604800000, D4 = 345600000, sec = (TFSEC[tf] || 60) * 1000, out = []; let k0 = null;
+    for (const b of d){ const k = tf === "1W" ? Math.floor((b.t - D4) / W) : Math.floor(b.t / sec), st = tf === "1W" ? k * W + D4 : k * sec;
+      if (k !== k0){ out.push({t:st, o:b.o, h:b.h, l:b.l, c:b.c, v:b.v || 0}); k0 = k; } else { const x = out[out.length-1]; if (b.h > x.h) x.h = b.h; if (b.l < x.l) x.l = b.l; x.c = b.c; x.v += b.v || 0; } }
+    return out;
+  },
+  htfRows(tf, n){   // 2026-11-20: HTF candles of this chart's symbol: REAL candles from the feed (same loader as the chart, cached 45 s, one request per symbol + timeframe), then the newest one is kept live from the loaded bars
+    const H = this._htf = this._htf || {}, key = this.sym + "|" + tf, now = Date.now(); let e = H[key];
+    if ((TFSEC[tf] || 0) >= 60 && (!e || (!e.busy && now - e.at > 45000))){ e = H[key] = e || {rows:null, at:0, busy:false}; e.busy = true; e.at = now;
+      candlesTf(this.sym, tf, true, n + 2).then(r => { e.rows = r && r.length ? r : null; }).catch(() => { e.rows = null; }).finally(() => { e.busy = false; this.draw(); }); }
+    const agg = this.htfAgg(tf), bar = (TFSEC[this.tf] || 60) * 1000, rows = e && e.rows;
+    if (!rows) return agg.map((r, i) => Object.assign(r, {p: i === 0 && this.data[0].t - r.t >= bar}));   // from loaded bars only: the oldest one may start before the history
+    const out = rows.map(r => Object.assign({}, r, {p:false})), last = out[out.length-1];
+    for (const a of agg) if (a.t >= last.t){ if (a.t === last.t){ last.h = Math.max(last.h, a.h); last.l = Math.min(last.l, a.l); last.c = a.c; } else out.push(Object.assign({}, a, {p:false})); }
+    return out;
+  },
+  paintHtfCandles(c, py){   // 2026-11-20 owner: "the big day candle that stays on the chart", with a choice of timeframe (week ... second) like the TradingView HTF-candle indicators:
+    // the last N candles of a higher timeframe, drawn at the right edge of the plot (body open->close, wick high->low, newest on the right). Settings: st.dcandle {tf, n, w, gap, off, lbl}.
+    const S = this.st.dcandle, tf = S.tf || "1D", n = Math.max(1, Math.min(8, S.n | 0 || 1)), w = Math.max(8, S.w | 0 || 26), gap = Math.max(0, S.gap | 0), off = Math.max(0, S.off | 0), ctf = TFSEC[this.tf] || 60;
+    c.save(); c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillStyle = TH.mut;
+    const xr = this.W - this.PR - off;   // right edge of the newest candle
+    if (!this.data.length) { c.restore(); return; }
+    if ((TFSEC[tf] || 0) <= ctf){ c.textAlign = "right"; c.fillText(tf + " <= " + this.tf + ": " + Lg("pick a higher timeframe","اختار فريم أعلى"), xr, 24); c.restore(); return; }   // an HTF candle must be bigger than the chart candle
+    const rows = this.htfRows(tf, n).slice(-n);
+    rows.forEach((r, k) => {
+      const x0 = xr - w - (rows.length - 1 - k) * (w + gap), xc = x0 + w/2, up = r.c >= r.o, col = up ? TH.up : TH.dn, yh = py(r.h), yl = py(r.l), yo = py(r.o), yc = py(r.c), top = Math.min(yo, yc), hh = Math.max(2, Math.abs(yo - yc));
+      c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([]); c.beginPath(); c.moveTo(xc, yh); c.lineTo(xc, yl); c.stroke();   // wick
+      c.fillStyle = hexA(col, k === rows.length - 1 ? .38 : .26); c.fillRect(x0, top, w, hh);   // body
+      c.setLineDash(r.p ? [3, 3] : []); c.strokeRect(x0 + .5, top + .5, w - 1, hh - 1); c.setLineDash([]);
+      if (S.lbl && k === rows.length - 1){ c.fillStyle = TH.mut; c.fillText((r.p ? "~" : "") + tf, xc, Math.max(12, yh - 3)); }   // "~" = built from the loaded candles only (the history starts inside this candle)
+    });
+    c.restore();
+  },
   paintMt5(c, py, i0, i1){   // MT5-style pack seen on the user's phone chart: SMA ribbon (5 lines), Parabolic SAR (yellow diamonds), Bill Williams fractals (red arrow above a swing high, green arrow below a swing low)
     const d = this.data, n = d.length, S = this.st.mt5; if (n < 8) return; c.save();
     if (S.rib){ [[S.p1,"#4caf50",1],[S.p2,"#e040fb",1],[S.p3,"#2979ff",1.2],[S.p4,"#ff9800",1.4],[S.p5,"#f6465d",2]].forEach(([L, col, w]) => { L |= 0; if (L < 2 || n < L) return; c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let sum = 0, f = true;
@@ -456,6 +489,110 @@ Object.assign(CandleChart.prototype, {
       for (let i = Math.max(i0, L); i <= i1; i++){ let v = k === "u" ? -Infinity : Infinity; for (let j = i-L; j < i; j++) v = k === "u" ? Math.max(v, cl[j]) : Math.min(v, cl[j]); const x = this.x(i), y = py(v); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; } c.stroke(); }); });
     const lbs = DON_LB.filter(L => n_ >= L + 10); let up = 0, dn = 0; lbs.forEach(L => { const s_ = donState(cl, L)[0]; if (s_ > 0) up++; else if (s_ < 0) dn++; });
     c.globalAlpha = 1; c.font = "bold 10px sans-serif"; c.fillStyle = up >= dn ? "#0ecb81" : "#f6465d"; c.fillText("Donchian "+(lbs.length ? (up >= dn ? "▲ "+up : "▼ "+dn)+"/"+lbs.length : "n/a")+"  (20/60/150)", 8, 36); c.restore();
+  },
+  s26Mtf(S, all){   // 2.6 on other timeframes (1W -> 1m; all = the whole ladder for the table, else only the 2 next bigger ones): candles fetched once per 1-5 min per symbol + settings, shared by every chart
+    if (!this.sym || !+S.mtf) return []; const sec = TFSEC[this.tf] || 3600, opt = {ratio:+S.ratio, sw:+S.sw, wait:+S.wait, h1:!!+S.h1, h2:!!+S.h2};
+    const L = ["1W","1D","4H","1H","15m","5m","1m"].filter(t => t !== this.tf), want = all ? L : L.filter(t => TFSEC[t] > sec).reverse().slice(0, 2);
+    return want.map(H => { const k = this.sym+"|"+H+"|"+[opt.ratio, opt.sw, opt.wait, opt.h1, opt.h2].join(","), e = S26_HTF[k], ttl = TFSEC[H] <= 300 ? 60000 : TFSEC[H] >= 14400 ? 300000 : 120000;
+      if (!e || (!e.busy && Date.now() - e.t > ttl)){
+        S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:true};
+        candlesTf(this.sym, H, true, 300).then(rows => { let v = null; try { const R = s26Calc(rows, opt); v = {tf:H, rows, R, live:R.filter(p => p.status === "waiting" || p.status.startsWith("open")).slice(-2)}; } catch(err){} S26_HTF[k] = {t:Date.now(), v, busy:false}; this.draw(); })
+          .catch(() => { S26_HTF[k] = {t:Date.now(), v:e ? e.v : null, busy:false}; });
+      }
+      return S26_HTF[k] && S26_HTF[k].v; }).filter(Boolean);
+  },
+  paintS26(c, py){   // 2.6 strategy, calm and line-free: one equal-width box per setup (blue target zone over grey stop zone, colour only, small gap between boxes), live / waiting boxes
+    // with text + a chip, finished trades kept as muted history (win = blue, loss = grey), swing high / low markers, the measured range with its ÷ 2.6 unit, and a corner info tab with the maths. Every part has a switch in the settings
+    this._s26X = null;   // close-button hit box of the info table (set again below when the table is drawn)
+    const D = this.data, n = D.length; if (n < 30) return; const S = this.st.pos26, sec = TFSEC[this.tf] || 3600, wait = +S.wait || 80, ratio = +S.ratio || 2.6;
+    const key = n+"|"+D[n-1].c+"|"+D[n-1].h+"|"+D[n-1].l+"|"+D[0].t+"|"+[S.ratio, S.sw, S.h1, S.h2, S.wait].join(",");
+    if (!this._s26 || this._s26.k !== key){ let r = []; try { r = s26Calc(D, {ratio, sw:+S.sw, wait, h1:!!+S.h1, h2:!!+S.h2}); } catch(e){} this._s26 = {k:key, r}; }
+    const R = this._s26.r, liveSt = p => p.status === "waiting" || p.status.startsWith("open"), closed = p => p.fill != null && !liveSt(p);
+    const act = R.filter(liveSt).slice(-Math.max(1, +S.show || 3)), hist = +S.hist ? R.filter(closed).slice(-Math.max(0, +S.histN || 8)) : [], P = [...hist, ...act].sort((a, b) => a.known - b.known);
+    const px = +S.tx || 10, PR = this.PR, PB = this.PB, now = D[n-1].c, CR = S.color || "#4f8fd8", CK = S.color2 || "#8a94a3", FA = +S.fa || .16, HA = +S.ha || .08, BW = Math.max(4, +S.bw || 24);
+    const f = v => v.toFixed(v >= 100 ? 2 : v >= 1 ? 4 : 6), pc = (a, b) => { const v = (b - a)/a*100; return (v >= 0 ? "+" : "")+v.toFixed(2)+"%"; }, dash = d => c.setLineDash(d || []);
+    const dur = b => { const s = b*sec; return s >= 86400 ? (s/86400).toFixed(1)+"d" : s >= 3600 ? Math.round(s/3600)+"h" : Math.round(s/60)+"m"; };
+    const when = i => { const d = new Date(D[Math.max(0, Math.min(n - 1, i))].t); return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"); };
+    const MT = +S.mtfT ? this.s26Mtf(S, true) : [], HT = (MT.length ? MT : this.s26Mtf(S, false)).filter(H => TFSEC[H.tf] > sec).sort((a, b) => TFSEC[a.tf] - TFSEC[b.tf]).slice(0, 2), idxAt = t => { let lo = 0, hi = n - 1; if (t <= D[0].t) return 0; while (lo < hi){ const m = (lo + hi) >> 1; if (D[m].t < t) lo = m + 1; else hi = m; } return lo; };
+    const al = p => HT.map(H => { const q = H.live[H.live.length - 1]; return !q ? "" : H.tf+(q.side === p.side ? "✓" : "✗"); }).filter(Boolean).join(" ");
+    const leg = p => { const a = p.anchors, la = p.kind === "H1" ? a[0] : a[3], lb = p.kind === "H1" ? a[1] : a[4], buy = p.side === "BUY";   // leg start / end bar and price (the swing low / high the 2.6 unit was measured on)
+      return {la, lb, pa:buy ? D[la].l : D[la].h, pb:buy ? D[lb].h : D[lb].l}; };
+    const STAGE = {waiting:["⏳", "#5d6b7d"], open:["LIVE", CR], "open (TP1 hit)":["TP1 ✓", CR], TP2:["TP2 ✓", CR], stopped:["SL ✗", "#6e5a5a"], "TP1 then stop":["TP1→SL", "#6e5a5a"]};
+    c.save(); c.beginPath(); c.rect(0, 0, PR, PB); c.clip(); c.textBaseline = "middle"; dash();
+    // swing points: 1 = the legs of the boxes shown, 2 = every confirmed swing in view
+    if (+S.piv){ const pts = new Map(), add = (i, hi) => pts.set(i+(hi ? "H" : "L"), {i, hi, p:hi ? D[i].h : D[i].l});
+      if (+S.piv === 2) (R.piv || []).forEach(q => add(q.i, q.k === "H")); P.forEach(p => { const g = leg(p), buy = p.side === "BUY"; add(g.la, !buy); add(g.lb, buy); if (p.kind === "H2"){ add(p.anchors[0], !buy); add(p.anchors[1], !buy); } });
+      c.font = px+"px sans-serif"; c.textAlign = "center"; pts.forEach(q => { const x = this.x(q.i); if (x < 0 || x > PR) return; const y = py(q.p) + (q.hi ? -6 : 6);
+        c.fillStyle = q.hi ? CK : CR; c.beginPath(); c.moveTo(x, y + (q.hi ? 3 : -3)); c.lineTo(x - 4, y + (q.hi ? -3 : 3)); c.lineTo(x + 4, y + (q.hi ? -3 : 3)); c.closePath(); c.fill();
+        if (+S.pivL){ c.fillStyle = "#b9c0ca"; c.fillText((q.hi ? "H " : "L ")+f(q.p), x, y + (q.hi ? -px : px)); } }); }
+    if (+S.htfL) HT.forEach(H => H.live.forEach(q => { const xa = this.x(idxAt(H.rows[q.known].t)); if (xa > PR) return; c.globalAlpha = .55; c.fillStyle = "#a78bda"; c.fillRect(xa, py(q.entry) - .5, PR - xa, 1); c.globalAlpha = 1;
+      c.font = px+"px sans-serif"; c.textAlign = "right"; c.fillText(H.tf+" "+(q.side === "BUY" ? "L" : "S")+" "+f(q.entry), PR - 3, py(q.entry) - px*.7); }));
+    const placed = [], lanes = [];   // lanes: [start bar, end bar, low, high] of boxes already laid out; a box that would cover one in time AND price starts where that one ends
+    P.forEach(p => { let s0 = p.known; const lo = Math.min(p.stop, p.tp2), hi = Math.max(p.stop, p.tp2);   // finished trades stay on their own candle (muted, overlap is fine); live / waiting boxes step aside, at most one box width
+      if (liveSt(p)){ const o = lanes.find(L => s0 < L[1] && s0 + BW > L[0] && lo < L[3] && hi > L[2]); if (o && o[1] - p.known <= BW) s0 = o[1]; lanes.push([s0, s0 + BW, lo, hi]); } p._s0 = s0; });
+    this._s26Stat = {zones:0, arrows:0, trades:0};
+    if (+S.trd !== 0) P.forEach(p => { this._s26Stat.trades++; const buy = p.side === "BUY", st = p.status, wt = st === "waiting", live = liveSt(p), win = st === "TP2", x0 = this.x(p._s0) - this.bw/2, x1 = this.x(p._s0 + BW) - this.bw/2 - 1, W = x1 - x0;
+      if (x1 < 0 || x0 > PR) return; const yE = py(p.entry), yS = py(p.stop), y1 = py(p.tp1), y2 = py(p.tp2);
+      const zone = (ya, yb, col, a) => { c.globalAlpha = Math.min(.6, a); c.fillStyle = col; c.fillRect(x0, Math.min(ya, yb), W, Math.abs(yb - ya)); };
+      if (live){ const k = wt ? .6 : 1; zone(yE, y1, CR, FA*k*(p.tp1_hit ? 1.8 : 1)); zone(y1, y2, CR, FA*k*.6); zone(yE, yS, CK, FA*k); }
+      else { zone(yE, y1, CR, HA*(win || p.tp1_hit ? 1.7 : .8)); zone(y1, y2, CR, HA*(win ? 1.7 : .5)); zone(yE, yS, CK, HA*(win ? .8 : 1.7)); }
+      c.globalAlpha = 1;
+      if (p.fill != null){ const x = this.x(p.fill); if (x >= x0 && x <= x1){ c.fillStyle = live ? "#d5d9df" : "#8a919b"; c.beginPath(); c.arc(x, yE, 2.2, 0, 7); c.fill(); } }
+      if (!live){ if (W > 34){ c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = win ? hexA(CR, .9) : "#9a8f8f"; c.fillText(p.kind+" "+(buy ? "L" : "S")+" "+(win ? "✓ +2R" : st === "TP1 then stop" ? "◐ TP1→SL" : "✗ −1R"), x0 + 4, buy ? yE - px*.8 : yE + px*.8); } return; }
+      c.font = px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e6e9ee";
+      const tin = (y, h, t) => { if (Math.abs(h) >= px + 2 && W > 70) c.fillText(t, x0 + 5, y); };
+      if (+S.lbl){ tin((y1 + y2)/2, y2 - y1, "TP2 "+f(p.tp2)+"  "+pc(p.entry, p.tp2)); tin((yE + y1)/2, y1 - yE, "TP1 "+f(p.tp1)+"  "+pc(p.entry, p.tp1)); tin((yE + yS)/2, yS - yE, "SL "+f(p.stop)+"  "+pc(p.entry, p.stop)); }
+      const [lab, col] = STAGE[st] || [st, CK], u = Math.abs(p.entry - p.stop) || 1e-12, nowR = ((now - p.entry)*(buy ? 1 : -1))/u, left = Math.max(0, p.known + wait - (n - 1));
+      const stage = wt ? lab+" "+left+" · "+dur(left) : (nowR >= 0 ? "+" : "")+nowR.toFixed(1)+"R"+(p.tp1_hit ? " · TP1 ✓" : "");
+      const sc = +S.str ? s26Score(D, R, p, HT).s : null;
+      c.font = "bold "+px+"px sans-serif"; let txt = [p.kind, buy ? "L" : "S", "E "+f(p.entry), stage, +S.mtf ? al(p) : "", sc != null ? "★"+sc : ""].filter(Boolean).join("  "), cw = c.measureText(txt).width + 10;
+      if (cw > W + 30){ txt = [p.kind, buy ? "L" : "S", wt ? lab : stage].join(" "); cw = c.measureText(txt).width + 10; }
+      const ch = px + 5, cx = Math.max(x0 + 2, Math.min(x1 - cw - 2, PR - cw - 2)); let cy = buy ? yE - ch - 2 : yE + 2;
+      for (let t = 0; t < 4 && placed.some(r => cx < r[0] + r[2] && cx + cw > r[0] && cy < r[1] + r[3] && cy + ch > r[1]); t++) cy += (buy ? -1 : 1)*(ch + 2);
+      placed.push([cx, cy, cw, ch]); c.fillStyle = col; c.globalAlpha = .9; c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 3) : c.rect(cx, cy, cw, ch); c.fill(); c.globalAlpha = 1; c.fillStyle = "#fff"; c.fillText(txt, cx + 5, cy + ch/2);
+      if (wt){ const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#c9a227"; c.globalAlpha = .7; c.fillRect(x0, buy ? Math.max(yE, yS) - 3 : Math.min(yE, yS), W*fr, 3); c.globalAlpha = 1; } });
+    // zone boxes (harmonic-style: one translucent box per setup, from the signal bar to its exit / now, price band = entry..TP2 incl. stop; colour per kind: H1 blue, H2 gold)
+    // and a dotted arrow from the swing that made the setup to the box entry edge, so the direction reads at a glance. Settings: zn / arw (default off). Counts kept for the mock test.
+    if (+S.zn || +S.arw) P.forEach(p => { const live = liveSt(p), g = leg(p), col = p.kind === "H2" ? "#f0b429" : CR;
+      const xs = this.x(p.known), xe = this.x(p.exit != null ? p.exit : n - 1), yE = py(p.entry), yT = py(p.tp2), yS = py(p.stop);
+      if (xe < 0 || xs > PR) return;
+      if (+S.zn){ const top = Math.min(yT, yS, yE), bot = Math.max(yT, yS, yE), zx = Math.max(0, xs), zw = Math.min(PR, xe) - zx;
+        c.save(); c.globalAlpha = live ? .16 : .08; c.fillStyle = col; c.fillRect(zx, top, zw, bot - top);
+        c.globalAlpha = .75; c.strokeStyle = col; c.lineWidth = 1; c.strokeRect(zx + .5, top + .5, zw, bot - top); c.restore(); this._s26Stat.zones++; }
+      if (+S.arw){ const ax = this.x(g.lb), ay = py(g.pb), bx = Math.max(0, xs), by = yE, ang = Math.atan2(by - ay, bx - ax);
+        c.save(); c.strokeStyle = col; c.fillStyle = col; c.globalAlpha = .9; c.lineWidth = 1.2; c.setLineDash([2, 3]);
+        c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
+        c.beginPath(); c.moveTo(bx, by); c.lineTo(bx - 7*Math.cos(ang - .4), by - 7*Math.sin(ang - .4)); c.lineTo(bx - 7*Math.cos(ang + .4), by - 7*Math.sin(ang + .4)); c.closePath(); c.fill(); c.restore(); this._s26Stat.arrows++; } });
+    const F = act.length ? act[act.length - 1] : P[P.length - 1];   // the setup the range bar and the info tab explain
+    if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) + 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
+      if (x > 0 && x < PR){ c.strokeStyle = "#c9a227"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, ya); c.lineTo(x, yb); c.moveTo(x - 4, ya); c.lineTo(x + 4, ya); c.moveTo(x - 4, yb); c.lineTo(x + 4, yb); c.stroke();
+        const yu = py(F.kind === "H1" ? F.tp1 - (F.side === "BUY" ? u : -u) : F.entry); c.fillStyle = "#c9a227"; c.fillRect(x - 3, yu - 1, 6, 2);
+        c.font = "bold "+px+"px sans-serif"; c.textAlign = "left"; c.fillStyle = "#e0c46a"; c.fillText("Δ "+f(Math.abs(g.pb - g.pa))+" ÷ "+ratio+" = "+f(u), x + 6, (ya + yb)/2); } }
+    if (F && +S.info){ const g = leg(F), buy = F.side === "BUY", rng = Math.abs(g.pb - g.pa), u = rng/ratio, side = buy ? "LONG" : "SHORT", sg = buy ? "−" : "+";
+      const L = [[`2.6 · ${F.kind} ${side} · ${this.tf}`, buy ? CR : "#b7bdc6", true],
+        ...(F.kind === "H2" ? [[`${buy ? "Equal lows" : "Equal highs"}  ${f(F.tp1)}  (${when(F.anchors[0])} · ${when(F.anchors[1])})`, "#b7bdc6"], [`Swept  ${when(F.anchors[2])}`, "#b7bdc6"]] : []),
+        [`From  ${buy ? "swing L" : "swing H"}  ${f(g.pa)}  · ${when(g.la)}`, "#d5d9df"], [`To    ${buy ? "swing H" : "swing L"}  ${f(g.pb)}  · ${when(g.lb)}`, "#d5d9df"],
+        [`Range  Δ ${f(rng)}   ÷ ${ratio}  =  u ${f(u)}`, "#e0c46a"],
+        [F.kind === "H1" ? `Entry = ${buy ? "H" : "L"} ${sg} u = ${f(F.kind === "H1" && F.fill == null ? F.entry : g.pb + (buy ? -u : u))}` : `Entry = pool ${buy ? "−" : "+"} u = ${f(F.tp1 + (buy ? -u : u))}`, "#e6e9ee"],
+        [`SL = E ${sg} u  ${f(F.stop)}   TP1 ${f(F.tp1)}   TP2 ${f(F.tp2)}`, "#b7bdc6"],
+        [`${(STAGE[F.status] || [F.status])[0]} ${F.status === "waiting" ? Math.max(0, F.known + wait - (n - 1))+" bars left" : F.status}${HT.length ? "   "+al(F) : ""}`, "#9aa3ad"]];
+      if (+S.str){ const sc = s26Score(D, R, F, HT), bar = "▮".repeat(Math.round(sc.s/10))+"▯".repeat(10 - Math.round(sc.s/10)); L.push([`Strength ${sc.s}/100 ${bar}  ${sc.why.join(" · ")}`, sc.s >= 65 ? CR : sc.s <= 35 ? "#b98a8a" : "#c9a227"]); }
+      c.font = px+"px ui-monospace,Menlo,monospace"; const lh = px + 5, w = Math.max(...L.map(l => c.measureText(l[0]).width)) + 16 + 20, h = L.length*lh + 10, pos = +S.ipos || 0;   // +20: room for the × close button in the top-right corner
+      const X = pos % 2 ? PR - w - 8 : 8, Y = pos >= 2 ? PB - h - 8 : 22;
+      c.globalAlpha = .88; c.fillStyle = "#11151b"; c.beginPath(); c.roundRect ? c.roundRect(X, Y, w, h, 6) : c.rect(X, Y, w, h); c.fill(); c.globalAlpha = 1; c.textAlign = "left";
+      L.forEach((l, k) => { c.font = (l[2] ? "bold " : "")+px+"px ui-monospace,Menlo,monospace"; c.fillStyle = l[1]; c.fillText(l[0], X + 8, Y + 5 + lh*(k + .5)); });
+      // × button: hides this info table (turns the "Info tab" setting off; back on from the 2.6 settings)
+      const xb = {x:X + w - 19, y:Y + 3, w:15, h:15}; this._s26X = xb;
+      c.save(); c.fillStyle = "#2a313b"; c.beginPath(); c.roundRect ? c.roundRect(xb.x, xb.y, xb.w, xb.h, 3) : c.rect(xb.x, xb.y, xb.w, xb.h); c.fill();
+      c.strokeStyle = "#c5ccd6"; c.lineWidth = 1.4; c.beginPath(); c.moveTo(xb.x + 4.5, xb.y + 4.5); c.lineTo(xb.x + xb.w - 4.5, xb.y + xb.h - 4.5); c.moveTo(xb.x + xb.w - 4.5, xb.y + 4.5); c.lineTo(xb.x + 4.5, xb.y + xb.h - 4.5); c.stroke(); c.restore(); }
+    if (+S.path){ const W8 = act.filter(p => p.status === "waiting"); if (W8.length){   // nearest waiting setup: thin path now -> entry -> TP2 and the expected time (median of this chart's past setups)
+      const p = W8.reduce((b, q) => Math.abs(q.entry - now)/Math.abs(q.entry - q.stop) < Math.abs(b.entry - now)/Math.abs(b.entry - b.stop) ? q : b);
+      const med = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m])/2; };
+      const mF = med(R.filter(q => q.fill != null).map(q => q.fill - q.known)), mT = med(R.filter(q => q.status === "TP2").map(q => q.exit - q.fill));
+      const fe = Math.max(1, mF != null ? Math.round(mF) - (n - 1 - p.known) : 10), te = Math.max(1, mT != null ? Math.round(mT) : fe*2), xe = this.x(n - 1 + fe + te), d = new Date(D[n-1].t + (fe + te)*sec*1000);
+      c.globalAlpha = .7; c.strokeStyle = "#c9a227"; c.lineWidth = 1; dash([4, 4]); c.beginPath(); c.moveTo(this.x(n - 1), py(now)); c.lineTo(this.x(n - 1 + fe), py(p.entry)); c.lineTo(xe, py(p.tp2)); c.stroke(); dash(); c.globalAlpha = 1;
+      c.fillStyle = "#c9a227"; c.font = px+"px sans-serif"; c.textAlign = "center"; c.fillText("◎ ~"+String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0"), xe, py(p.tp2) + (p.side === "BUY" ? -px : px)); } }
+    dash(); c.restore();
   },
   paintMsb(c, py, i0, i1){   // MSB: market structure break lines + Order Block (Bu-/Be-OB) + Breaker / Mitigation Block (Bu-/Be-BB, -MB); see msbCalc. Settings = the Pine script's settings (this.st.msb)
     const n = this.data.length; if (n < 20) return; const S = this.st.msb, zl = Math.max(2, Math.round(+S.zl) || 9), fib = isFinite(+S.fib) ? +S.fib : 0.237;
@@ -569,9 +706,9 @@ Object.assign(CandleChart.prototype, {
       c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+(this._vp2.real ? "" : " ~")+bkTxt, PR-4, 12); }   // "~" = delta estimated from candles (no trades yet)
     c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
-  ewCount(){   // newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
-    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + this.tf; if (this._ew && this._ew.k === k) return this._ew.v;
-    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), out = []; let e = z.length;
+  ewCount(dk = 2.5){   // dk = swing size in volatility units (2.5 = the main count; smaller = the waves inside it). newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
+    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + this.tf + ":" + dk, slot = dk === 2.5 ? "_ew" : "_ewS"; if (this[slot] && this[slot].k === k) return this[slot].v;
+    const z = harmZigzag(this.data, zzDev(this.data, dk, 0.001, 0.025), 3), out = []; let e = z.length;
     for (; e >= 6 && out.length < 2; e--){
       const w = z.slice(e-6, e), up = w[0].k === "L", s = up ? 1 : -1, P = w.map(q => q.p);
       const l1 = s*(P[1]-P[0]), l3 = s*(P[3]-P[2]), l5 = s*(P[5]-P[4]);
@@ -582,7 +719,7 @@ Object.assign(CandleChart.prototype, {
     }
     if (!out.length && z.length >= 4){ const w = z.slice(-4), s = w[0].k === "H" ? -1 : 1;   // A-B-C zigzag: C beyond A, B retraces less than 100% of A
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
-    this._ew = {k, v:out}; this._ewf = this.ewForming(z, out); return out;
+    this[slot] = {k, v:out}; if (dk === 2.5) this._ewf = this.ewForming(z, out); return out;
   },
   ewForming(z, out){   // an impulse still being built (waves 1-4 so far) after the last finished count: pivots only, no forecast; returns {up, pts:[{i,p,txt}], next, broke} or null
     const top = out[0]; let base = -1; if (top){ if (top.abc.length < 3) return null; base = top.abc[2].i; }
@@ -648,7 +785,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintEWauto(c, py, dec){
     const list = this.ewCount(); this.paintEWforming(c, py);
-    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); this.paintProjection(c, py); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -658,8 +795,9 @@ Object.assign(CandleChart.prototype, {
         const P = w.pts, xe = this.x(this.data.length-1) + this.bw/2; c.save();
         for (let k = 0; k + 1 < P.length; k += 2){ const a0 = P[k].p, b0 = P[k+1].p, z1 = b0 - (b0 - a0)*0.618, z2 = b0 - (b0 - a0)*0.786, nxt = P[k+2], live = !nxt, x0 = this.x(P[k+1].i), x1 = nxt ? this.x(nxt.i) : Math.max(x0 + 24, xe), y1 = py(Math.max(z1, z2)), y2 = py(Math.min(z1, z2));
           let inZ = false; if (live) for (let j = P[k+1].i + 1; j < this.data.length && !inZ; j++){ const b = this.data[j]; inZ = b.l <= Math.max(z1, z2) && b.h >= Math.min(z1, z2); }   // confirmed bars after the impulse endpoint have traded into the zone
-          if (!live || this.oteAlways || inZ){ c.globalAlpha = live ? .2 : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
-            if (live){ c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("OTE 62-79% · "+Lg("in zone", "داخل المنطقة"), x0 + 3, y1 - 3); } } }
+          if (!live && (b0 - nxt.p)/((b0 - a0) || 1e-12) < 0.618) continue;   // a past zone that price never reached is noise: not drawn
+          { c.globalAlpha = live ? (inZ ? .2 : .1) : .09; c.fillStyle = "#f0b90b"; c.fillRect(x0, y1, x1 - x0, Math.max(2, y2 - y1)); c.globalAlpha = live ? .75 : .35; c.strokeStyle = "#f0b90b"; c.lineWidth = 1; c.setLineDash([4,3]); c.strokeRect(Math.round(x0)+.5, Math.round(y1)+.5, x1 - x0, Math.max(2, y2 - y1)); c.setLineDash([]);
+            if (live){ c.globalAlpha = .95; c.fillStyle = "#f0b90b"; c.font = "bold 9px sans-serif"; c.textAlign = "left"; c.fillText("Golden zone 61.8–78.6% (Fib) · "+(inZ ? Lg("in zone", "داخل المنطقة") : "⏳ "+Lg("waiting for zone", "مستنيين المنطقة")), x0 + 3, y1 - 3); } } }
         c.restore(); c.textAlign = "center"; }
       if (n === 0 && w.pts.length > 2){   // Fib retracement % on each corrective wave endpoint (2, 4, A)
         const P = w.pts; c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center";
@@ -827,8 +965,8 @@ Object.assign(CandleChart.prototype, {
   toolDown(e){
     const q = this.pt(e); if (this.tool !== "cur" && (q.x > this.PR || q.y > this.PB || !this.data.length)){ const why = !this.data.length ? Lg("no candles loaded yet", "لا توجد شموع بعد") : q.x > this.PR ? Lg("click inside the candle area (this is the order-flow column / price axis)", "اضغط داخل منطقة الشموع (ده عمود الأوردر فلو / محور السعر)") : Lg("click in the price area (this is an indicator pane)", "اضغط في منطقة السعر (ده شريط مؤشر)"); this._hint = {t:Date.now(), s:Lg("Drawing: ", "الرسم: ")+why}; console.info("[XPIX] drawing click ignored: "+why+" x="+Math.round(q.x)+" PR="+Math.round(this.PR)+" y="+Math.round(q.y)+" PB="+Math.round(this.PB)); this.draw(); setTimeout(() => this.draw(), 3600); }
     if (q.x > this.PR || q.y > this.PB || !this.data.length) return false;
-    const ac = this._autoChip; if (ac && q.x >= ac.x && q.x <= ac.x+ac.w && q.y >= ac.y && q.y <= ac.y+ac.h){ this.autoY(); this._autoChip = null; this.draw(); return true; }
     const hc = this._hidChip; if (hc && q.x >= hc.x && q.x <= hc.x+hc.w && q.y >= hc.y && q.y <= hc.y+hc.h){ this.draws.forEach(d => { delete d.hidden; }); this.saveDraws(); this.draw(); return true; }
+    const sx = this._s26X; if (sx && q.x >= sx.x && q.x <= sx.x+sx.w && q.y >= sx.y && q.y <= sx.y+sx.h){ this.st.pos26.info = 0; this._s26X = null; this.onSubH && this.onSubH(); this.draw(); return true; }   // 2.6 info table × : hide it (same save as the settings toggle)
     const gc = this._gChip; if (gc && q.x >= gc.x && q.x <= gc.x+gc.w && q.y >= gc.y && q.y <= gc.y+gc.h){ this.infoOpen = this.infoOpen === false; this.draw(); return true; }
     const ph = this._planH; if (this.tool === "cur" && this.overlay && this.overlay.plan && this.showSig && ph && Math.abs(q.x-ph.x) < 9 && Math.abs(q.y-ph.y) < 10){ this.planDrag = true; return true; }
     if (this.tool === "cur"){

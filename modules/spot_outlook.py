@@ -35,6 +35,8 @@ def outlook(b: dict) -> dict:
         bull_ob = [z for z in w.get("obs", []) if z["side"] == "bull" and z["hi"] < (px or 0)]
         o["support_zone"] = max(bull_fvg + bull_ob, key=lambda z: z["hi"], default=None)
         o["elliott_w"] = (w.get("elliott") or {}).get("kind")
+        o["shape_w"] = (w.get("elliott") or {}).get("shape")
+        o["harm_w"] = w.get("harmonic")
         g = (w.get("gann") or {}).get("fit") or {}
         o["gann_turn_w"] = g.get("bars_to_turn")
     m = b["reads"].get("1mo") or {}
@@ -84,6 +86,12 @@ def message_ar(o: dict) -> str:
     ew = {"impulse_up": "دافعة صاعدة (5 موجات)", "impulse_down": "دافعة هابطة (5 موجات)", "abc": "تصحيح ABC"}.get(o.get("elliott_w"))
     if ew:
         lines.append(f"اليوت (أسبوعي): {ew}.")
+    from modules.elliott_shapes import SHAPE_AR
+    if o.get("shape_w") in SHAPE_AR:
+        lines.append(f"شكل اليوت (أسبوعي): {SHAPE_AR[o['shape_w']]} - وصف فقط، مفيش دليل من الـ lab.")
+    if o.get("harm_w"):
+        hw = o["harm_w"]
+        lines.append(f"هارمونيك (أسبوعي): {hw.get('name')} ({'بيتكون' if hw.get('forming') else 'مكتمل'}) - وصف فقط، مفيش دليل من الـ lab.")
     if o.get("gann_turn_w") is not None and o["gann_turn_w"] <= 2:
         lines.append(f"جان: نافذة انعكاس زمنية خلال {o['gann_turn_w']} أسبوع - خلي بالك من تغيير الاتجاه.")
     for s in o.get("smt", [])[:2]:

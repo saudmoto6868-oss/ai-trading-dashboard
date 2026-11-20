@@ -68,7 +68,7 @@ def get_yahoo_klines(sym: str, tf: str, limit: int = 300) -> pd.DataFrame:
         if r.status_code == 200:
             break
     if r is None:
-        raise RuntimeError(f"Yahoo unreachable ({err})")
+        raise requests.exceptions.ConnectionError(f"Yahoo unreachable ({err})")   # a ConnectionError so market_cache's breaker counts it
     if r.status_code == 429:
         raise RuntimeError("Yahoo rate limit (429)")
     if r.status_code == 404:

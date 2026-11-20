@@ -40,7 +40,15 @@ NAMES = {"GOLD": ("gold", "دهب", "ذهب"), "SILVER": ("silver", "فضة"), "
 
 
 def _hit(text: str, words) -> bool:
-    return any(w in text for w in words)
+    """English words match whole words only ('war' must not match 'warns'); Arabic words match inside (prefixes ال / و / ب)."""
+    for w in words:
+        if w.isascii():
+            tail = r"[a-z]*" if len(w) >= 5 else r"(?:s|es|ed)?"   # 'escalat' -> escalates; 'war' -> wars, never 'warns'
+            if re.search(r"(?<![a-z])" + re.escape(w) + tail + r"(?![a-z])", text):
+                return True
+        elif w in text:
+            return True
+    return False
 
 
 def tag(items: list[dict]) -> list[dict]:

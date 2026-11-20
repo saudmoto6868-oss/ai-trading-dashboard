@@ -176,6 +176,36 @@ def cmd_watch():
     return D.format_watch(D.scan_watch(syms, lambda s_, t_: get_klines(s_, t_, 300)), ar=True)
 
 
+def _syms():
+    return [x for x in os.environ.get("DAY_SYMBOLS", "BTC-USDT,ETH-USDT,SOL-USDT,HL:xyz:GOLD,HL:xyz:SILVER,HL:xyz:SP500,HL:xyz:XYZ100,HL:xyz:CL,Y:EURUSD=X,Y:GBPUSD=X").split(",") if x]
+
+
+def cmd_horizons(args):
+    """/horizons [scalp|day|swing|position] : A+ / A setups per holding horizon (modules/horizons.py)."""
+    from modules import horizons as HZ
+    from modules.market_cache import get_klines
+    hs = tuple(a.lower() for a in args if a.lower() in HZ.ALL) or HZ.ALL
+    return HZ.format_digest(HZ.scan(_syms(), lambda s_, t_: get_klines(s_, t_, 300), horizons=hs), ar=True)
+
+
+def cmd_sweeps():
+    """/sweeps : fresh sweeps of the previous day / week / month highs and lows and the Asian range."""
+    from modules import level_sweeps as LS
+    from modules.market_cache import get_klines
+    got = LS.scan(_syms(), lambda s_, t_: get_klines(s_, t_, 300))
+    return "\n\n".join(LS.format_sweep(a) for a in got[:6]) or "مفيش سحب سيولة جديد دلوقتي."
+
+
+def cmd_news():
+    """/news : high-impact headlines from outside the calendar (RSS, last 3 hours)."""
+    from datetime import datetime, timezone
+    from modules import news_watch as NW
+    items, dead = NW.fetch_all(NW.default_fetch_text)
+    al = NW.alerts(items, datetime.now(timezone.utc))
+    out = "\n\n".join(NW.format_news(a) for a in al[:5]) or "مفيش أخبار قوية من خارج الكالندر في آخر 3 ساعات."
+    return out + (f"\n\n<i>مصادر ما ردتش: {len(dead)} من {len(NW.SOURCES)}</i>" if dead else "")
+
+
 def cmd_smt():
     """/smt : SMT between the correlated pairs right now (modules/intermarket.py)."""
     from modules import intermarket as IM
@@ -199,9 +229,9 @@ def ask_claude(text, deep=False):
 HELP_AR = """أوامر XPiX (قراية وعرض بس - مفيش أي أمر تداول):
 • اكتب عادي بالعربي: «ابعتلي صورة الدهب على الأسبوعي مع اليوت» · «افتح التايم اند سيلز للبيتكوين» · «الدهب هيطلع الأسبوع الجاي؟» · «وريني المحلل للفضة» · «هات فاتورة INV-12»
 • /shot BTC 4H · /panel tape|dom|ofm|limits|liq|signals · /ind ew|gann|smt|div|harm on|off
-• /ideas أو «أفكار السبوت» (مكتب الأفكار: صورة + الصفقات) · /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
+• /brain GOLD أو «اعمل إيه في الدهب» (العقل المدبر: يوم/أسبوع/شهر/سنة + اللي معاك) · /ideas أو «أفكار السبوت» (مكتب الأفكار: صورة + الصفقات) · /spotchart GOLD (صورة المحلل) · /outlook GOLD (تقرير الأسبوع + صورة)
 • /spot · /inv رقم · /find نص · /spotalerts · /spotxl
-• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة
+• /plan [scalp|conf] [5m|15m|1h] [SYMBOL...] خطة اليوم (ترابط الفريمات) · /smt الـ SMT بين الأزواج · /watch سياق للمراقبة · /horizons [scalp|day|swing|position] سيت أبس A+/A · /sweeps سحب سيولة · /news أخبار خارج الكالندر
 • /signals · /alerts · /today BTC · /deep سؤال"""
 TF_AR = {"1M": "الشهري", "1W": "الأسبوعي", "1D": "اليومي", "4H": "الـ 4 ساعات", "1H": "الساعة", "15m": "الربع ساعة", "5m": "الـ 5 دقايق"}
 IND_AR = {"ew": "اليوت", "gann": "جان", "smt": "SMT", "div": "الدايفرجنس", "harm": "الهارمونيك", "kz": "الكيل زون", "vp": "بروفايل الفوليوم", "vwap": "VWAP",
@@ -231,6 +261,16 @@ def spot_ideas_msg(p):
     say(spot_ideas.telegram_text(r))
 
 
+def spot_brain_msg(p, asset):
+    """Spot brain for one market: mosaic picture + the four horizons in Arabic."""
+    from modules import spot_brain, spot_brain_view, spot_dash, spot_ideas
+    cls, name = next(((c, n) for a, c, n in spot_ideas.UNIVERSE if a == asset), ("crypto", asset))
+    br = spot_brain.run(asset, cls, name)
+    png = spot_dash.to_png(spot_brain_view.render(br), f"/tmp/xpix_brain_{asset}.png", ctx=p.ctx)
+    send_photo(png, f"🧠 العقل المدبر - {name}: {br['head']}"[:1000])
+    say(spot_brain.text_ar(br))
+
+
 def run_actions(p, acts):
     """Execute router actions (whitelisted) and answer with one screenshot + an Arabic line of what was done."""
     from modules import bot_router
@@ -248,6 +288,8 @@ def run_actions(p, acts):
             return spot_image(p, a["asset"], outlook=(c == "outlook"))
         if c == "ideas":
             return spot_ideas_msg(p)
+        if c == "brain":
+            return spot_brain_msg(p, a["asset"])
         if c == "panel":
             r = p.panel(a["type"])
             done.append(("فتحت " if r.get("ok") else "مقدرتش أفتح ") + PANEL_AR.get(a["type"], a["type"]))
@@ -290,6 +332,8 @@ def handle(p, text):
     c = a[0].lower().split("@")[0] if a else ""
     if c in ("/help", "/start", "مساعدة"):
         return say(HELP_AR)
+    if c == "/brain":
+        return spot_brain_msg(p, (a[1] if len(a) > 1 else "GOLD").upper())
     if c == "/ideas":
         return spot_ideas_msg(p)
     if c in ("/spotchart", "/outlook"):
@@ -318,6 +362,12 @@ def handle(p, text):
         return say(cmd_plan(a[1:]), html=True)
     if c == "/smt":
         return say(cmd_smt())
+    if c == "/horizons":
+        return say(cmd_horizons(a[1:]), html=True)
+    if c == "/sweeps":
+        return say(cmd_sweeps(), html=True)
+    if c == "/news":
+        return say(cmd_news(), html=True)
     if c == "/watch":
         return say(cmd_watch(), html=True)
     if c == "/signals":

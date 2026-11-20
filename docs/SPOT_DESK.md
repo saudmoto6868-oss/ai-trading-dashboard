@@ -92,7 +92,17 @@ crypto majors + gold / silver / copper / platinum week by week (1W + 1M score, n
 by score bucket and sends a short Arabic result to Telegram (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`). The Analyzer is an
 optional tab (last one, loads only on request) until the result says the score helps.
 
-## Daily ideas desk (first tab, owner 2026-11-06)
+## Spot brain (first tab, owner 2026-11-06: "a mastermind for spot only")
+`modules/spot_brain.py`: one market -> verdict on 4 horizons (day 1-3 d: 4H + order flow + news; week 1-4 w: 1D + 1W + recipes;
+month 1-3 m: 1W + 1M + ICT zone + COT; year 6-12 m: 1M + 200-week avg / Mayer / drawdown + COT) -> buy / accumulate / wait /
+reduce / sell-protect with entry, stop, target; plus a holdings guard for every ledger position (hold / reduce / protect / exit).
+Order flow `spot_flow.py` (OKX: T&S 500 prints, 24 h taker CVD, book 400 levels, OI, funding, long/short, Coinbase premium,
+7-day volume profile = footprint-lite; Hyperliquid for metals / oil). Institutions `spot_inst.py` (CFTC COT, legacy report,
+3-year COT index of commercials and large speculators; codes checked with Equibles). Screen `spot_brain_view.py` = mosaic
+in the reference-picture style. Bot `/brain GOLD` or «اعمل إيه في الدهب»; the daily Telegram job also sends GOLD + BTC brains.
+Not backtested per horizon; CFTC / OKX rubik / Coinbase endpoints not reachable from the sandbox (parsers tested with sample JSON).
+
+## Daily ideas desk (second tab, owner 2026-11-06)
 `modules/spot_ideas.py` thinks about spot trades on 8 markets (gold, silver, copper, oil, EUR/USD, BTC, ETH, SOL) from the
 1M / 1W / 1D / 4H readings + the Radar detectors + chart patterns + tagged news (`spot_news.py`, keyword rules EN / AR):
 7 recipes - discount accumulation (SMC + ICT), 20 / 55-week breakout retest (classic / Turtle), bullish chart pattern,

@@ -28,6 +28,17 @@ def main(argv=None) -> int:
     r = spot_ideas.desk()
     txt = spot_ideas.telegram_text(r)
     print(txt)
+    try:   # the Workspace "Spot desk" widget reads this file (owner 2026-11-15)
+        from modules import spot_brain, spot_snapshot
+        brains = []
+        for asset, cls, name in spot_ideas.UNIVERSE:
+            try:
+                brains.append(spot_brain.run(asset, cls, name))
+            except Exception as e:
+                print(f"snapshot brain {asset} skipped: {type(e).__name__}: {e}")
+        print("snapshot:", spot_snapshot.write(spot_snapshot.build(r, brains)), len(brains), "brains")
+    except Exception as e:
+        print(f"snapshot skipped: {type(e).__name__}: {e}")
     if "--no-image" not in argv:
         try:
             from modules.spot_dash import to_png
@@ -36,6 +47,21 @@ def main(argv=None) -> int:
         except Exception as e:
             print(f"photo skipped: {type(e).__name__}: {e}")
     print("text:", send(txt[:4000]) or "sent")
+    for asset in [x.strip().upper() for x in os.environ.get("SPOT_BRAIN_SYMS", "GOLD,BTC").split(",") if x.strip()]:
+        try:
+            from modules import spot_brain, spot_brain_view, spot_ideas as SI
+            from modules.spot_dash import to_png
+            cls, name = next(((c, n) for a, c, n in SI.UNIVERSE if a == asset), ("crypto", asset))
+            br = spot_brain.run(asset, cls, name)
+            bt = spot_brain.text_ar(br)
+            print(bt)
+            print("diag flow:", {k: (v.get("ok"), v.get("why")) for k, v in (br.get("raw_flow") or {}).items() if isinstance(v, dict)})
+            print("diag cot:", (br.get("raw_cot") or {}).get("ok"), (br.get("raw_cot") or {}).get("why"))
+            if "--no-image" not in argv:
+                print("brain photo:", send_photo(to_png(spot_brain_view.render(br), f"brain_{asset}.png"), f"🧠 العقل المدبر - {name}") or "sent")
+            print("brain text:", send(bt[:4000]) or "sent")
+        except Exception as e:
+            print(f"brain {asset} skipped: {type(e).__name__}: {e}")
     return 0
 
 

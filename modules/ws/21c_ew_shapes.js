@@ -165,7 +165,7 @@ Object.assign(CandleChart.prototype, {
 });
 /* SIDES-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
-const EW_MTF_FRAMES = ["1M","1W","1D","4H","1H","15m","5m","1m"];
+const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
 Object.assign(CandleChart.prototype, {
   ewFrameSummary(rows, tf){   // one frame -> {tf, state, shape, next} (state text only; no forecast)
     const o = {data: rows, tf, ewForming: CandleChart.prototype.ewForming};
@@ -188,8 +188,12 @@ Object.assign(CandleChart.prototype, {
     for (const H of EW_MTF_FRAMES){
       const k = this.sym+"|"+H, e = store[k];
       if (!e || (!e.busy && Date.now() - e.t > 300000)){
-        store[k] = {t: Date.now(), v: e ? e.v : null, busy: true};
-        candlesTf(this.sym, H, true, 200).then(r => { store[k] = {t: Date.now(), v: r && r.length > 30 ? this.ewFrameSummary(r, H) : null, busy: false}; this.draw(); })
+        if (H !== "1Y") store[k] = {t: Date.now(), v: e ? e.v : null, busy: true};
+        if (H === "1Y") { store[k] = {t: Date.now(), v: store[k] ? store[k].v : null, busy: false}; }   // filled from the 1M fetch below
+        else candlesTf(this.sym, H, true, 200).then(r => { store[k] = {t: Date.now(), v: r && r.length > 30 ? this.ewFrameSummary(r, H) : null, busy: false};
+          if (H === "1M" && r && r.length > 24) { const yr = {}; r.forEach(x => { const ms = x.t < 1e12 ? x.t*1000 : x.t, y = new Date(ms).getUTCFullYear(); const g = yr[y] || (yr[y] = {t: ms, o: x.o, h: -Infinity, l: Infinity, c: x.c, v: 0}); g.h = Math.max(g.h, x.h); g.l = Math.min(g.l, x.l); g.c = x.c; g.v += (x.v || 0); });
+            const ys = Object.keys(yr).sort().map(y => yr[y]); const k1 = this.sym+"|1Y"; store[k1] = {t: Date.now(), v: ys.length > 3 ? this.ewFrameSummary(ys, "1Y") : null, busy: false}; }
+          this.draw(); })
           .catch(() => { store[k] = {t: Date.now(), v: null, busy: false}; });
       }
       if (store[k] && store[k].v) rows.push(store[k].v);

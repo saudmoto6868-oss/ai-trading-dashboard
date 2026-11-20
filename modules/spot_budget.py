@@ -187,3 +187,26 @@ def strategy_table(evidence: dict, min_n: int = 30) -> list[dict]:
         rows.append({"setup": sid, "tf": tf, "school": v.get("school"), "use as": v.get("side"), "n": n,
                      "avg %": round(v.get("mean_pct") or 0, 1), "normal %": round(v.get("base_pct") or 0, 1), "t": round(t, 1), "verdict": verdict})
     return sorted(rows, key=lambda r: -r["t"])
+
+
+# spot strategies the owner can pick (2026-11-17): each one is a budget split + what it does. Evidence notes are in PROJECT_STATUS.
+STRATEGIES = {
+    "Core + swing (default)": {"split": {"dca": 60.0, "swing": 25.0, "reserve": 15.0},
+                               "en": "Weekly DCA on BTC / ETH, a small swing part, a reserve for dips.",
+                               "ar": "DCA أسبوعي على BTC و ETH، جزء صغير للسوينج، واحتياطي للنزول."},
+    "DCA only": {"split": {"dca": 85.0, "swing": 0.0, "reserve": 15.0},
+                 "en": "No trading: weekly buys with the fear tilt, reserve for the dip ladder. The simplest plan.",
+                 "ar": "من غير تداول: شراء أسبوعي مع ميل الخوف، واحتياطي لسلم النزول. أبسط خطة."},
+    "Dip accumulation": {"split": {"dca": 45.0, "swing": 0.0, "reserve": 55.0},
+                         "en": "Smaller weekly buys, most of the money waits in limit orders 10 / 20 / 30% below the price.",
+                         "ar": "شراء أسبوعي أصغر، ومعظم الفلوس مستنية في أوامر Limit تحت السعر بـ 10 / 20 / 30%."},
+    "Value (200-week zone)": {"split": {"dca": 50.0, "swing": 0.0, "reserve": 50.0},
+                              "en": "DCA plus extra buys only when price is near the 200-week average (the lab's best buy setup, t 1.7: promising, not proven).",
+                              "ar": "DCA + شراء زيادة بس لما السعر يقرب من متوسط 200 أسبوع (أحسن إشارة شراء في المعمل، t 1.7: مشجعة مش مثبتة)."},
+    "Swing focus": {"split": {"dca": 30.0, "swing": 55.0, "reserve": 15.0},
+                    "en": "More money for swing trades. Highest risk here: no buy setup passed the lab, and swings are off in fear / below the 200-day line.",
+                    "ar": "فلوس أكتر للسوينج. أعلى مخاطرة هنا: مفيش إشارة شراء عدّت المعمل، والسوينج مقفول في الخوف / تحت خط 200 يوم."},
+    "Capital defence": {"split": {"dca": 25.0, "swing": 0.0, "reserve": 75.0},
+                        "en": "Mostly cash. Small weekly buys, sell ladder active. For a falling market or after a loss streak.",
+                        "ar": "معظمها كاش. شراء أسبوعي صغير، وسلم البيع شغال. لسوق نازل أو بعد سلسلة خساير."},
+}

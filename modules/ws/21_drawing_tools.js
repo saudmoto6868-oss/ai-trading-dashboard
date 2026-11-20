@@ -711,7 +711,10 @@ Object.assign(CandleChart.prototype, {
       // title
       c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
       // trade box (drawn only once price has reached the entry and while the trade is still open: no stop / last target touched since its point)
-      const fromI = h.pts[h.pts.length-1].i, filled = harmFilled(h.plan, this.data, fromI), over = harmHit(h.plan, this.data, fromI), live = filled && !over, wait = !filled && !over;
+      const fromI = h.pts[h.pts.length-1].i, chartFilled = harmFilled(h.plan, this.data, fromI), over = harmHit(h.plan, this.data, fromI);
+      // the journal already holds this trade as open (it filled, tracked by the journal's own candles): show it as running, never as waiting
+      const jOpen = (Journal.list || []).some(t => t.status === "open" && t.symbol === this.sym && t.fill !== false && Math.abs(t.entry - h.plan.entry) <= 0.0005*Math.abs(h.plan.entry));
+      const filled = chartFilled || jOpen, live = filled && !over, wait = !filled && !over;
       const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
       if (q === 0 && bwid > 60 && live){   // the trade box only for the newest open pattern, so older ones do not clutter the chart
         c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
@@ -1056,11 +1059,11 @@ Object.assign(CandleChart.prototype, {
     const sy = this.sync, S = this.st.sync, w = x1 - x0; if (w < 120) return;
     const log = this.syncLog || [], st = this.syncStats(), px = this.data.length ? this.data[this.data.length - 1].c : null, G = S.color, R = S.color2, mono = "9px ui-monospace,Menlo,Consolas,monospace";
     const rows = [];   // [kind, ...] drawn top to bottom; height follows the content
-    const stx = st.n ? "n "+st.n+" · "+st.win+"% · "+(st.avg > 0 ? "+" : "")+st.avg+"R" : Lg("no closed setups","مفيش صفقات مقفولة"), stc = !st.n ? "#6b7684" : st.n < 30 ? "#f0b90b" : st.avg > 0 ? "#0ecb81" : "#f6465d";
+    const stx = st.n ? "n "+st.n+" · "+st.win+"% · "+(st.avg > 0 ? "+" : "")+st.avg+"R" : Lg("no closed setups","مفيش صفقات مغلقة"), stc = !st.n ? "#6b7684" : st.n < 30 ? "#f0b90b" : st.avg > 0 ? "#0ecb81" : "#f6465d";
     c.save(); c.font = mono; const stw = c.measureText(stx).width + 10; c.restore(); const chip = w - stw - 12 > 110;   // stats chip in the header if it fits, else its own row
     rows.push(["lights"]); if (!chip) rows.push(["txt", stc, st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : stx, "bold "]);
     if (sy && sy.dir) rows.push(["big", sy.dir > 0 ? G : R, sy.dir > 0 ? Lg("▲ ALL 3 BUY","▲ التلاتة شراء") : Lg("▼ ALL 3 SELL","▼ التلاتة بيع")]);
-    else rows.push(["txt", "#6b7684", Lg("waiting for all three to agree","مستني التلاتة يتفقوا")]);
+    else rows.push(["txt", "#6b7684", Lg("waiting for all three to agree","بانتظار اتفاق الثلاثة")]);
     if (this.gannOn && this._gannLive){ const gl = this._gannLive, ag = sy && sy.dir === gl.dir, ag2 = sy && sy.dir && !ag;
       rows.push(["txt", gl.dir > 0 ? G : R, (gl.dir > 0 ? "▲" : "▼")+" Gann "+(gl.dir > 0 ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" "+fmtP(gl.en)+(ag ? Lg("  ✓ order flow agrees","  ✓ الأوردر فلو متفق") : ag2 ? Lg("  ✗ order flow against","  ✗ الأوردر فلو عكسه") : ""), "bold "]); }
     { const last = log[log.length - 1], cx = sy && sy.cx, side = sy && sy.dir ? sy.dir : last ? last.dir : 0, o = cx && cx.oi, fu = cx && cx.fund != null ? cx.fund : null;

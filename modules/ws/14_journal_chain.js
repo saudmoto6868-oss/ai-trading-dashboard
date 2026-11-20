@@ -61,6 +61,24 @@ const Journal = {
     } finally { this.busy = false; }
     if (changed) this.save();
   },
+  /* POST-MORTEM of a stopped trade (pure, from the saved record): warnings already on at entry, what the wider-stop test says, one next step. */
+  postmortem(tr){
+    if (!tr || tr.status !== "sl") return null;
+    const long_ = tr.dir === "bullish", c = tr.ctx || {}, why = [], wider = [];
+    if (c.of === "against") why.push([Lg("Order flow was against the trade at entry","الأوردر فلو كان ضد الصفقة وقت الدخول"), 1]);
+    if (c.news) why.push([Lg("News was active on the symbol at entry","كان فيه خبر نشط على الرمز وقت الدخول"), 1]);
+    if (c.fund === (long_ ? "crowded longs" : "crowded shorts")) why.push([Lg("Funding was crowded on the trade side","التمويل كان مزدحم في اتجاه الصفقة"), 1]);
+    if (c.oi && (long_ ? ["shorts","closing"] : ["longs","cover"]).includes(c.oi)) why.push([Lg("Open interest did not back the trade","الـOI ما كانش داعم للصفقة"), 1]);
+    if (tr.score != null && tr.max && 100*tr.score/tr.max < 70) why.push([Lg("Setup score was weak (under 70%)","سكور الإعداد كان ضعيف (أقل من 70%)"), 1]);
+    const r = tr.stk && tr.stk.r; if (r) [1.25, 1.5, 2, 3].forEach(k => { if (r[k] > 0) wider.push(k); });
+    if (wider.length) why.push([Lg("A wider stop ("+wider[0]+"× risk) would have reached the target","ستوب أوسع ("+wider[0]+"× الخطر) كان هيوصل للهدف"), 0]);
+    const warns = why.filter(w => w[1]).length;
+    const next = warns ? Lg("Skip or wait: "+warns+" warning(s) were already on at entry","تجنّب الدخول أو انتظر: كان فيه "+warns+" تحذير وقت الدخول")
+      : wider.length ? Lg("Stop too tight for this setup: test the wider stop on more trades","الستوب ضيّق على الإعداد ده: جرّب الستوب الأوسع على صفقات أكتر")
+      : Lg("Entry came early: wait for a confirming close before entering","الدخول كان بدري: استنى إغلاق تأكيد قبل الدخول");
+    if (!why.length) why.push([Lg("No warning was recorded at entry","لم يُسجَّل أي تحذير وقت الدخول"), 0]);
+    return {why: why.map(w => w[0]), next, warns};
+  },
   /* STOP TEST on YOUR trades (owner 2026-11-03: "most trades hit the stop and then reach the target"). For every finished trade, replay the candles after the entry with the SAME target and a stop k x the original risk
      (k = 1 is the real stop). Shows how many stopped trades did reach the target later, and what a wider stop would have done to the average R. Mark-to-close at the end of the trade's life when neither was hit. A tiny sample proves nothing (n < 30). */
   KS: [1, 1.25, 1.5, 2, 3],

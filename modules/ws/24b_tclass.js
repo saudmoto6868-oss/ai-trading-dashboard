@@ -145,14 +145,14 @@ const TCE = {
     if (c.bias && c.bias.available && c.bias.bias !== want && c.bias.bias !== "neutral") C(2.5, "Bias timeframe "+c.tf.bias+" is against ("+c.bias.bias+")", "فريم الاتجاه "+c.tf.bias+" ضدك ("+c.bias.bias+")");
     if (!c.bias || !c.bias.available) C(0.5, "No bias timeframe data ("+c.tf.bias+")", "مفيش بيانات لفريم الاتجاه ("+c.tf.bias+")");
     if (c.setupB && c.setupB.available && c.setupB.bias !== want && c.setupB.bias !== "neutral") C(1, "Setup timeframe trend is against", "ترند فريم الإعداد ضدك");
-    if (!c.trig) C(0.5, "No trigger yet on the entry timeframe "+c.tf.entry, "لسه مفيش إشارة على فريم الدخول "+c.tf.entry);
+    if (!c.trig) C(0.5, "No trigger yet on the entry timeframe "+c.tf.entry, "لا توجد إشارة بعد على فريم الدخول "+c.tf.entry);
     if (rr < 1.5) C(1.5, "R:R only "+rr.toFixed(1), "الـR:R "+rr.toFixed(1)+" بس");
     if (c.late) C(1.5, "Late: price already went "+Math.round(c.late*100)+"% of the way to the target", "متأخر: السعر مشي "+Math.round(c.late*100)+"% من المسافة للهدف");
     if (c.hist && c.hist.n >= 10 && c.hist.hitPct < 0.4) C(1.5, "Past bounces reached this target only "+Math.round(c.hist.hitPct*100)+"% of "+c.hist.n, "الارتدادات اللي فاتت وصلت للهدف ده "+Math.round(c.hist.hitPct*100)+"% بس من "+c.hist.n);
     if (c.hist && c.hist.n >= 10 && c.hist.p75 > 0 && Math.abs(tps[0] - entry) > c.hist.p75) C(1, "Target is bigger than 3 of 4 past moves on "+c.tf.setup+" ("+pt(c.hist.p75)+" pts)", "الهدف أكبر من 3 من كل 4 حركات فاتت على "+c.tf.setup+" ("+pt(c.hist.p75)+" نقطة)");
     if (!c.hist || c.hist.n < 10) C(0.5, "Too little history to measure ("+((c.hist && c.hist.n) || 0)+" past cases)", "تاريخ قليل للقياس ("+((c.hist && c.hist.n) || 0)+" حالة)");
     if (c.regime === "chop") C(1, "Market regime: chop (moves die quickly)", "حالة السوق: تذبذب (الحركات بتموت بسرعة)");
-    if (c.regime === "hivol" || c.regime === "crash") C(1, "Market regime: "+c.regime+" (stops get hit by noise)", "حالة السوق: "+c.regime+" (الستوب بيتضرب من الضوضاء)");
+    if (c.regime === "hivol" || c.regime === "crash") C(1, "Market regime: "+c.regime+" (stops get hit by noise)", "حالة السوق: "+c.regime+" (الستوب يُضرب بالضوضاء)");
     if (c.classOpen >= 2) C(1, c.classOpen+" open trades already in the same class and direction", "فيه "+c.classOpen+" صفقات مفتوحة في نفس الفئة والاتجاه");
     if (c.jr && c.jr.done >= 10 && c.jr.avgR < 0) C(1.5, "This idea type loses in your journal ("+c.jr.done+" trades, "+c.jr.avgR.toFixed(2)+"R)", "النوع ده خسران في الجورنال بتاعك ("+c.jr.done+" صفقة، "+c.jr.avgR.toFixed(2)+"R)");
     if (c.scalp && c.ses === "off-KZ") C(0.5, "Scalp outside the kill zones", "سكالب برة الكيل زون");
@@ -165,7 +165,7 @@ const TCE = {
     let verdict = vetoes.length ? "SKIP" : score >= 3 && rr >= 1.5 ? (idea.now ? "TAKE" : "WAIT") : score >= 1 ? "WAIT" : "SKIP";
     const worst = cons.slice().sort((a, b) => b[0] - a[0])[0];
     if (verdict === "TAKE" && worst && worst[0] >= 2){ verdict = "WAIT"; second.push(["Downgraded to WAIT: the strongest objection is heavy ("+worst[1]+")", "نزلت لـ«استنى»: أقوى اعتراض تقيل ("+worst[2]+")"]); }
-    if (verdict === "WAIT" && !idea.now) second.push(["Limit order at "+entry.toPrecision(6)+": price has not reached the zone", "أمر معلّق عند "+entry.toPrecision(6)+": السعر لسه ماوصلش للمنطقة"]);
+    if (verdict === "WAIT" && !idea.now) second.push(["Limit order at "+entry.toPrecision(6)+": price has not reached the zone", "أمر معلّق عند "+entry.toPrecision(6)+": السعر لم يصل للمنطقة بعد"]);
     const pct = Math.max(0, Math.min(100, Math.round((score + 4)/12*100)));
     return {pros, cons, vetoes, second, score, pct, verdict, plan:{entry, stop, tps}, rr, pts:pt(tps[0] - entry), blocked: blocked ? ob : null};
   },
@@ -247,7 +247,7 @@ const TC = {
       const long_ = s > 0, ar = [(long_ ? "شراء" : "بيع")+" من نموذج "+h.name+(h.state === "done" ? " مكتمل" : " بيتكوّن (أمر معلّق في منطقة الانعكاس PRZ)"),
         "الدخول "+fmtP(entry)+" · الستوب "+fmtP(stop)+" · الهدف "+fmtP(tps[0])+" ("+pts+" نقطة) · R:R "+rr.toFixed(1),
         "ترابط الفريمات: اتجاه "+S.bias+" ← إعداد "+S.setup+" ← دخول "+S.entry+": "+(agree > 0 ? "متوافق" : agree < 0 ? "عكس الاتجاه (حذر)" : "محايد"),
-        "مفيش نسبة نجاح تاريخية للهارمونيك هنا لسه؛ السجل الفعلي في الجورنال (أقل من 30 = مش دليل)"];
+        "لا توجد نسبة نجاح تاريخية للهارمونيك هنا بعد؛ السجل الفعلي في الجورنال (أقل من 30 = مش دليل)"];
       out.push({symbol:sym, direction:long_ ? "bullish" : "bearish", ttype:style, tfk:S.tfk, tfc:S.entry, score, max:6, src:"tclass", school:"harmonic",
         plan:{entry, stop, tps}, zones:[{lo:h.prz.lo, hi:h.prz.hi, dir:long_ ? "bullish" : "bearish"}],
         tags:[[Lg("Harmonic ","هارمونيك ")+h.name, "#b57cff", "#000", "Harmonic "+h.name+": "+why.join(" · ")]], spark, ana:{sig:ar}, why, pts, ps, level:entry, touches:0, hist:null});
@@ -358,7 +358,7 @@ const TC = {
     m.onpointerdown = e => e.stopPropagation(); let list = this.customs(), cur = null;
     const SRC = TCE.RULE_SRC, OPS = [[">", ">"], ["<", "<"], ["xa", Lg("crosses above","يقطع لفوق")], ["xb", Lg("crosses below","يقطع لتحت")]];
     const sel = (opts, v) => { const s = el("select"); opts.forEach(o => { const [k, l] = Array.isArray(o) ? o : [o, o]; s.append(Object.assign(el("option"), {value:k, textContent:l})); }); s.value = v; return s; };
-    const paint = () => { m.innerHTML = '<b style="color:#f0b90b">★ '+esc(Lg("My strategies","استراتيجياتي"))+'</b> <span class="m" style="font-size:11px">'+esc(Lg("judged by the same engine (case for / against, second look); untested until the journal has 30+ trades","بتتحكم بنفس المحرك (ليه أدخل / ليه لأ، مراجعة تانية)؛ مش مجربة لحد ما الجورنال يبقى فيه 30+ صفقة"))+'</span>';
+    const paint = () => { m.innerHTML = '<b style="color:#f0b90b">★ '+esc(Lg("My strategies","استراتيجياتي"))+'</b> <span class="m" style="font-size:11px">'+esc(Lg("judged by the same engine (case for / against, second look); untested until the journal has 30+ trades","بتتحكم بنفس المحرك (ليه أدخل / لماذا لا، مراجعة تانية)؛ مش مجربة لحد ما الجورنال يبقى فيه 30+ صفقة"))+'</span>';
       list.forEach((cs, i) => { const r = el("div"); r.style.cssText = "display:flex;gap:6px;align-items:center;margin-top:6px"; const on = el("input"); on.type = "checkbox"; on.checked = cs.on !== false; on.onchange = () => { cs.on = on.checked; this.saveCustoms(list); onSave(); };
         const t = el("span", null, esc(cs.name)+' <span class="m" style="font-size:11px">'+(cs.side === "short" ? "▼" : "▲")+" "+esc((cs.rules || []).map(x => x.a+" "+x.op+" "+(x.b === "value" ? x.v : x.b)+(+x.off ? (x.off > 0 ? " +" : " ")+x.off+"pt" : "")).join(" & "))+'</span>'); t.style.flex = "1";
         const ed = el("button", null, "✎"), del = el("button", null, "✕"); ed.onclick = () => { cur = JSON.parse(JSON.stringify(cs)); cur._i = i; form(); }; del.onclick = () => { list.splice(i, 1); this.saveCustoms(list); onSave(); paint(); };
@@ -459,7 +459,7 @@ Panel.prototype.build_tclass = function(){
       +(top.length ? '<br><span class="m">'+esc(Lg("Most common reasons not to enter: ","أكتر أسباب الرفض: "))+top.map(([k, n]) => esc(k)+" ("+n+")").join(" · ")+'</span>' : "")
       +(errs.length ? '<br><span class="r">'+esc(errs.slice(0, 3).join(" · "))+(errs.length > 3 ? " +"+(errs.length - 3) : "")+'</span>' : "")
       +(notes.length ? '<br><span class="m" title="'+esc(notes.join("\n"))+'">ⓘ '+esc(notes.slice(0, 2).join(" · "))+(notes.length > 2 ? " +"+(notes.length - 2) : "")+'</span>' : "")
-      +'<br><span class="m">'+esc(Lg("Forward record (journal): ","السجل الفعلي (الجورنال): "))+fr.done+' '+esc(Lg("closed","مقفولة"))+' · '+fr.win+' TP · '+(fr.avgR == null ? "–" : (fr.avgR >= 0 ? "+" : "")+fr.avgR.toFixed(2)+"R")+(fr.done < 30 ? ' · '+esc(Lg("under 30 = not evidence","أقل من 30 = مش دليل")) : "")+'</span>';
+      +'<br><span class="m">'+esc(Lg("Forward record (journal): ","السجل الفعلي (الجورنال): "))+fr.done+' '+esc(Lg("closed","مغلقة"))+' · '+fr.win+' TP · '+(fr.avgR == null ? "–" : (fr.avgR >= 0 ? "+" : "")+fr.avgR.toFixed(2)+"R")+(fr.done < 30 ? ' · '+esc(Lg("under 30 = not evidence","أقل من 30 = مش دليل")) : "")+'</span>';
     // best idea per symbol (after the side filter), then rank across symbols
     const list = []; res.forEach(([s, r]) => { const ids = (r.ideas || []).filter(dirOk); if (!ids.length) return; list.push([s, r, ids]); });
     list.sort((a, b) => (TC_VR[b[2][0].j.verdict] - TC_VR[a[2][0].j.verdict]) || (b[2][0].j.score - a[2][0].j.score));
@@ -470,7 +470,7 @@ Panel.prototype.build_tclass = function(){
         +(cand.length ? ' · '+esc(Lg("candidates before it: ","المرشحين قبلها: "))+cand.map(([s_, , ids]) => esc(s_.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+" "+(ids[0].side > 0 ? "▲" : "▼")+" "+esc(ids[0].label)).join(" · ") : ""); }
     { const lb = TC.DETS.map(d => [d, TC.record(S.style, d[0])]).filter(([, r]) => r.done > 0).sort((x, y) => (y[1].avgR || 0) - (x[1].avgR || 0));
       sum.innerHTML += '<br><span class="m">📚 '+esc(Lg("Schools in your journal (","المدارس في الجورنال ("))+esc(ttTxt(S.style))+'): '+(lb.length ? lb.map(([d, r]) => esc(Lg(d[1], d[2]))+" "+r.done+" · "+Math.round(100*r.win/r.done)+"% · "+(r.avgR >= 0 ? "+" : "")+r.avgR.toFixed(2)+"R").join(" | ")
-        +esc(Lg(" — the engine adds / removes weight from a school after 10 closed trades; under 30 = not evidence"," — المحرك بيزوّد / يقلل وزن المدرسة بعد 10 صفقات مقفولة؛ أقل من 30 = مش دليل")) : esc(Lg("no closed trades yet","لسه مفيش صفقات مقفولة")))+'</span>'; }
+        +esc(Lg(" — the engine adds / removes weight from a school after 10 closed trades; under 30 = not evidence"," — المحرك يزيد أو يقلل وزن المدرسة بعد 10 صفقات مغلقة؛ أقل من 30 = ليس دليلًا")) : esc(Lg("no closed trades yet","لا توجد صفقات مغلقة بعد")))+'</span>'; }
     let h = "", shown = 0;
     list.forEach(([s, r, ids]) => { const x = ids[0]; if (!showOk(x.j.verdict)) return; shown++;
       const others = ids.slice(1, 4).map(o => esc(o.label)+" ("+VT[o.j.verdict]+", "+o.j.score+")").join(" · ");

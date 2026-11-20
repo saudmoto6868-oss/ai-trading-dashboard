@@ -68,6 +68,16 @@ try:
     st, body = post({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     assert st == 200 and any(t["name"] == "lab_card" for t in body["result"]["tools"])
     assert post({"jsonrpc": "2.0", "method": "notifications/initialized"})[0] == 202
+    def post_path(body, path):
+        req = urllib.request.Request("http://127.0.0.1:18765" + path, data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            return e.code
+    assert post_path({"jsonrpc": "2.0", "id": 7, "method": "ping"}, "/mcp/test-token-123") == 200
+    assert post_path({"jsonrpc": "2.0", "id": 8, "method": "ping"}, "/mcp/wrong") == 401
+    assert post_path({"jsonrpc": "2.0", "id": 9, "method": "ping"}, "/other") == 404
 finally:
     h.terminate()
 print("ok mcp_6868 http")

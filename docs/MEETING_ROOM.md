@@ -558,3 +558,8 @@
 - **ChatGPT:** سيرفر MCP بقى يشتغل كمان على HTTP (`python3 tools/mcp_6868/server.py --http 8765`)، على 127.0.0.1 بس، وبتوكن سري في `~/.config/6868-brain/token` (اتعمل تلقائيًا، صلاحية 600). ChatGPT محتاج رابط https عام: ده محتاج نفق (Tailscale Funnel أو Cloudflare Tunnel) **بقرار المالك**، لأنه بيفتح بيانات البحث للإنترنت (بالتوكن).
 - **Ollama:** اتضاف في OpenClaw (`models.providers.ollama`، `qwen3.5:4b` محلي) كآخر احتياطي لـJarvis (`main`) وHermes، واختبار `openclaw infer` رد "ok". نسخة من الإعداد القديم: `~/.openclaw/openclaw.json.bak-20261120-ollama`.
 - **Grok في OpenClaw:** محتاج تسجيل دخول المالك: `openclaw models auth login --provider xai --method oauth` (أو مفتاح API)، وبعدها `xai/grok-4.7` يتضاف للاحتياطي. أنا ما بدخلش مفاتيح ولا باسوردات.
+
+## 2026-11-20 — [Claude — حساب Mohamed] النفق العام لعقل 6868 (عشان ChatGPT) اتفتح
+- السيرفر شغال على `127.0.0.1:8765` (HTTP)، والنفق عن طريق **ngrok** (Tailscale Funnel محتاج المالك يفعّله من لوحة Tailscale). الرابط العام: `https://moocher-mumble-utensil.ngrok-free.dev/mcp/<التوكن>`. **من غير التوكن بيرد 401** (اتجرّب من بره). التوكن في `~/.config/6868-brain/token` بس، ومش مكتوب في أي ملف في الريبو.
+- **حدود:** السيرفر والنفق شغالين من جلسة الماك؛ **بيقفوا لو الجهاز اتعمل له restart**، ورابط ngrok المجاني ممكن يتغيّر. macOS بيمنع خدمات launchd من قراءة Documents، فالتشغيل الدائم محتاج المالك يدي `python3` صلاحية Full Disk Access (إعداد أمان، المالك بس يعمله). مهمة النسخة الاحتياطية اتنقلت لـ`~/Backups/6868-git/bin/` عشان تشتغل من غير الصلاحية دي.
+- السيرفر قراءة بس، ومفيش أي أداة بتكتب أو بتنفّذ صفقات.

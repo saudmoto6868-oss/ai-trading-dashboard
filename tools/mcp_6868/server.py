@@ -156,10 +156,14 @@ def serve_http(port=8765, host="127.0.0.1"):
             self._send(405, {"error": "use POST /mcp"})
 
         def do_POST(self):
-            if self.path.rstrip("/") != "/mcp":
+            path = self.path.split("?", 1)[0].rstrip("/")
+            # token as a header, or as the last path part (/mcp/<token>) for clients that cannot send custom headers (ChatGPT connector URL)
+            ok = hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + tok) if path == "/mcp" else \
+                path.startswith("/mcp/") and hmac.compare_digest(path[5:], tok)
+            if path != "/mcp" and not path.startswith("/mcp/"):
                 return self._send(404, {"error": "not found"})
-            if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + tok):
-                return self._send(401, {"error": "missing or wrong bearer token"})
+            if not ok:
+                return self._send(401, {"error": "missing or wrong token"})
             n = int(self.headers.get("Content-Length") or 0)
             if n > 1_000_000:
                 return self._send(413, {"error": "request too large"})

@@ -1,0 +1,35 @@
+name: A+ setups backtest (weekly + manual)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 0"        # Sundays 06:23 UTC
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aplus-backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install pandas numpy requests
+      - name: Walk-forward on OKX candles (BTC / ETH / SOL, 1H + 4H)
+        run: python -m modules.aplus_backtest
+      - name: Commit the report
+        run: |
+          git config user.name "xpix-research-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/research/aplus_backtest.json || true
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -m "A+ setups backtest $(date -u +%F)"
+          for i in 1 2 3; do git pull --rebase -X theirs origin main && git push origin HEAD:main && break; git rebase --abort 2>/dev/null || true; sleep 5; done

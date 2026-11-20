@@ -106,6 +106,16 @@ def score_due(fetch, today=None, folder=None):
     return new
 
 
+def class_summary(folder=None):
+    """[(class, summary dict)] from the scored calls, for screens (brain view). Empty list when nothing is scored yet."""
+    from modules import forecast_log
+    res = _load_jsonl((folder or FDIR) / "outcomes.jsonl")
+    by = {}
+    for r in res:
+        by.setdefault(r.get("class") or "all", []).append((r["outcome"], r["R"]))
+    return [(k, forecast_log.summarise(v)) for k, v in sorted(by.items())]
+
+
 def write_summary(folder=None, out=None):
     from modules import forecast_log
     base = folder or FDIR

@@ -30,4 +30,12 @@ except ValueError:
 # 15 deg offset from a 45-deg axis -> 60 deg line
 got = g.offset_from_axis_price(100, 10, 1.0, 15, 1.0)
 assert abs(got - (100 + math.tan(math.radians(60)) * 10)) < 1e-9, got
+# square of 144: time lines at the eighths and thirds of 144 bars, price levels at the same fractions of the range
+lows = [100 + (i % 20) for i in range(200)]; highs = [x + 5 for x in lows]
+sq = g.square_of_144(lows, highs, start=10)
+assert sq["time"][:4] == [10 + 18, 10 + 36, 10 + 48, 10 + 54] and sq["time"][-1] == 10 + 144
+assert abs(sq["price"][4] - (sq["lo"] + (sq["hi"] - sq["lo"]) / 2)) < 1e-9 and abs(sq["price"][-1] - sq["hi"]) < 1e-9
+auto = g.square_of_144(lows, highs)
+assert lows[auto["start"]] == min(lows[-144:])
+assert g.square_of_144([], []) is None
 print("test_gann_geom: OK")

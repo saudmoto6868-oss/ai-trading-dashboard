@@ -71,3 +71,13 @@ assert es.triangle_converge(100, 110, 95, 115, 90, 120) == "expanding"
 assert es.triangle_converge(100, 120, 90, 130, 100, 110) is None
 assert es.classify_tail([100, 120, 108, 130, 110, 125, 115, 145, 128, 150, 140, 165]) == "triple_zigzag"
 print("test_elliott_shapes triple/alternation/fib/triangle: OK")
+
+# --- leading vs ending diagonal (context: the same-kind pivot before the diagonal) ---
+diag = [100, 120, 112, 150, 118, 152]                      # an up wedge: wave 4 overlaps wave 1, wave 5 shorter than wave 3
+assert es.impulse_shape(*diag) == "ending_diagonal"
+assert es.diagonal_kind(105, *diag) == "leading_diagonal"   # price came down into 100 (lower low): the wedge starts a move
+assert es.diagonal_kind(95, *diag) == "ending_diagonal"     # price was rising into 100 (higher low): the wedge ends a move
+assert es.classify_tail([125, 140] + diag) == "leading_diagonal"   # context chosen so it is not also a W-X-Y
+assert es.classify_tail([95, 130] + diag) == "ending_diagonal"
+assert es.classify_tail(diag) == "ending_diagonal"          # no context: stays ending (the old label)
+print("test_elliott_shapes diagonals: OK")

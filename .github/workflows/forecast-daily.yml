@@ -28,22 +28,14 @@ jobs:
       - name: Record today's baseline calls, then score the due ones
         run: |
           python -m modules.daily_forecast --record --score
-      - name: Save the results on the forecast-log branch (never on main or the PR branch)
+      - name: Commit the results (scheduled run -> main, like the lab and snapshot bots; manual run -> its own branch)
         run: |
-          set -e
-          mkdir -p "$RUNNER_TEMP/out"
-          cp -r data/forecasts "$RUNNER_TEMP/out/" && cp docs/forecasts/SUMMARY.md "$RUNNER_TEMP/out/" 2>/dev/null || true
           git config user.name "forecast bot"
           git config user.email "actions@users.noreply.github.com"
-          if git ls-remote --exit-code --heads origin forecast-log >/dev/null 2>&1; then
-            git fetch -q origin forecast-log && git checkout -q -B forecast-log FETCH_HEAD
-          else
-            git checkout -q --orphan forecast-log && git rm -rfq . || true
-          fi
-          mkdir -p data docs/forecasts
-          rm -rf data/forecasts && cp -r "$RUNNER_TEMP/out/forecasts" data/forecasts
-          [ -f "$RUNNER_TEMP/out/SUMMARY.md" ] && cp "$RUNNER_TEMP/out/SUMMARY.md" docs/forecasts/SUMMARY.md
-          git add -A data docs
+          git add data/forecasts docs/forecasts
           git diff --cached --quiet && exit 0
           git commit -q -m "Daily baseline calls $(date -u +%F)"
-          git push -q origin HEAD:forecast-log
+          TARGET="${GITHUB_REF_NAME:-main}"; if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then TARGET=main; fi
+          # only this bot writes data/forecasts and docs/forecasts, so a rebase onto a moved branch cannot conflict with people's work
+          ok=0; for i in 1 2 3; do git pull -q --rebase -X theirs origin "$TARGET" && git push -q origin HEAD:"$TARGET" && { ok=1; break; }; git rebase --abort 2>/dev/null || true; sleep 5; done
+          [ "$ok" = 1 ] || { echo "results NOT pushed"; exit 1; }

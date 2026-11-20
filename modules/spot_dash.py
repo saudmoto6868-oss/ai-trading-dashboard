@@ -27,7 +27,7 @@ def _t(ar: bool, en: str, a: str) -> str:
 
 SHAPE_LABEL = {"zigzag": ("zigzag (ABC)", "زيجزاج (ABC)"), "regular_flat": ("regular flat", "فلات عادي"),
                "expanded_flat": ("expanded flat", "فلات ممتد"), "running_flat": ("running flat", "فلات جاري"),
-               "impulse": ("impulse", "دافعة"), "ending_diagonal": ("ending diagonal", "دياجونال نهائي"),
+               "impulse": ("impulse", "دافعة"), "ending_diagonal": ("ending diagonal", "دياجونال نهائي"), "leading_diagonal": ("leading diagonal", "دياجونال بادئ"),
                "contracting": ("contracting triangle", "مثلث متقارب"), "expanding": ("expanding triangle", "مثلث متسع"),
                "double_zigzag": ("double zigzag (W-X-Y)", "زيجزاج مزدوج (W-X-Y)"), "double_three": ("double three (W-X-Y)", "ثلاثي مزدوج (W-X-Y)"),
                "double_combo": ("combo (W-X-Y)", "مركب (W-X-Y)")}

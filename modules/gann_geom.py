@@ -54,3 +54,28 @@ def offset_from_axis_price(p0, bars, axis_slope, offset_deg, unit, up=True):
 def square_of_nine_levels(pivot, steps=4):
     from modules.spot_ind import sq9
     return sq9(pivot, steps)
+
+
+# --- Square of 144 (R18 reference): a 144-bar box over the range of those bars, divided at eighths and thirds ---
+SQ144_FRACTIONS = (1/8, 1/4, 1/3, 3/8, 1/2, 5/8, 2/3, 3/4, 7/8, 1.0)
+
+
+def square_of_144(lows, highs, start=None):
+    """lows / highs: bar lows and highs (oldest first). The square starts at `start` (default: the lowest low of the
+    last 144 bars) and spans 144 bars. Returns {'start', 'lo', 'hi', 'time': [bar index], 'price': [level]}.
+    Time lines at 18, 36, 48, 54, 72, 90, 96, 108, 126, 144 bars (the eighths and thirds of 144); price levels at the
+    same fractions of the box's range. Geometry only: no signal, no evidence claim."""
+    n = len(lows)
+    if n == 0:
+        return None
+    w0 = max(0, n - 144)
+    if start is None:
+        seg = list(lows[w0:])
+        start = w0 + seg.index(min(seg))
+    end = min(n, start + 144)
+    lo = min(lows[start:end]) if end > start else lows[start]
+    hi = max(highs[start:end]) if end > start else highs[start]
+    rng = hi - lo
+    return {"start": start, "lo": lo, "hi": hi,
+            "time": [start + round(144 * f) for f in SQ144_FRACTIONS],
+            "price": [lo + rng * f for f in SQ144_FRACTIONS]}

@@ -164,12 +164,30 @@ def _call(q: str, ctx_txt: str, hist: list, model: str) -> dict:
 LIVE_SYSTEM = SYSTEM.replace("This is a spoken, back-and-forth conversation", "This is a live voice call (Gemini Live)") + """
 Speak like a real Egyptian person on a call: warm, quick, natural Cairo slang, short turns, let the user interrupt.
 When your answer is about a part of the screen, call point_at with that part so the presenter points at it; call open_page to change page.
+You can also drive the chart when the user asks by voice: set_symbol, set_timeframe, toggle_indicator, add_widget, draw_level, chart_layout,
+read_chart (call read_chart first when you need the open symbol, timeframe or indicator ids). These only change the view: there is no tool that places,
+changes or cancels an order, so never claim to trade.
 Messages that start with "Screen context" are live data from the user's screen (prices, indicators): use them, never read them out in full."""
 LIVE_TOOLS = [{"function_declarations": [
     {"name": "point_at", "description": "Point at a part of the XPiX screen while explaining it.",
      "parameters": {"type": "OBJECT", "properties": {"target": {"type": "STRING", "enum": TARGETS[1:]}}, "required": ["target"]}},
     {"name": "open_page", "description": "Switch the app to another page.",
-     "parameters": {"type": "OBJECT", "properties": {"page": {"type": "STRING", "enum": PAGES[1:]}}, "required": ["page"]}}]}]
+     "parameters": {"type": "OBJECT", "properties": {"page": {"type": "STRING", "enum": PAGES[1:]}}, "required": ["page"]}},
+    # voice control of the chart (owner 2026-11-20): every call goes to the workspace command layer XCMD (view / draw only, no orders)
+    {"name": "read_chart", "description": "Read what is open: symbols, timeframes, panels and the indicator ids that are on.",
+     "parameters": {"type": "OBJECT", "properties": {}}},
+    {"name": "set_symbol", "description": "Change the symbol of the main chart, e.g. BTC-USDT or HL:xyz:GOLD.",
+     "parameters": {"type": "OBJECT", "properties": {"symbol": {"type": "STRING"}}, "required": ["symbol"]}},
+    {"name": "set_timeframe", "description": "Change the timeframe of the main chart, e.g. 15m, 1H, 4H, 1D, 1W.",
+     "parameters": {"type": "OBJECT", "properties": {"tf": {"type": "STRING"}}, "required": ["tf"]}},
+    {"name": "toggle_indicator", "description": "Turn an indicator of the main chart on or off (ids from read_chart).",
+     "parameters": {"type": "OBJECT", "properties": {"indicator": {"type": "STRING"}, "on": {"type": "BOOLEAN"}}, "required": ["indicator", "on"]}},
+    {"name": "add_widget", "description": "Open a widget, e.g. chart, dom, tape, ofm (order-flow map), ofdesk, signals, alerts, tclass, spot.",
+     "parameters": {"type": "OBJECT", "properties": {"type": {"type": "STRING"}}, "required": ["type"]}},
+    {"name": "draw_level", "description": "Draw a horizontal level with a short label on the main chart.",
+     "parameters": {"type": "OBJECT", "properties": {"price": {"type": "NUMBER"}, "label": {"type": "STRING"}}, "required": ["price"]}},
+    {"name": "chart_layout", "description": "Reset the layout: standard (default widgets) or blank.",
+     "parameters": {"type": "OBJECT", "properties": {"name": {"type": "STRING", "enum": ["standard", "blank"]}}, "required": ["name"]}}]}]
 
 
 def live_token(rid) -> dict:

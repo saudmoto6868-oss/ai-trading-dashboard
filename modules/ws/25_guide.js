@@ -123,6 +123,16 @@ const GLive = {
     if (m.toolCall && m.toolCall.functionCalls){ const out = m.toolCall.functionCalls.map(fc => { const a = fc.args || {};
         if (fc.name === "point_at" && a.target){ const r = G.target(a.target); if (r) G.goTo(() => G.target(a.target)); return {id:fc.id, name:fc.name, response:{result: r ? "pointing" : "that widget is not open"}}; }
         if (fc.name === "open_page"){ const pg = {scanner:1, lab:2, playbook:3, stats:4, alerts_page:6}[a.page]; if (pg){ G.up(); setTimeout(() => G.page(pg), 1200); } return {id:fc.id, name:fc.name, response:{result:"ok"}}; }
+        const X = window.XCMD;   // voice control of the chart: XCMD validates every argument and has no order commands
+        if (X){ let r = null;
+          if (fc.name === "read_chart") r = X.state();
+          else if (fc.name === "set_symbol") r = X.setSymbol(String(a.symbol || "").toUpperCase());
+          else if (fc.name === "set_timeframe") r = X.setTf(String(a.tf || ""));
+          else if (fc.name === "toggle_indicator") r = X.toggle(String(a.indicator || ""), !!a.on);
+          else if (fc.name === "add_widget") r = X.addPanel(String(a.type || "").toLowerCase());
+          else if (fc.name === "draw_level") r = X.draw({kind:"hline", p:+a.price, label:String(a.label || "").slice(0, 40)});
+          else if (fc.name === "chart_layout") r = X.layout(a.name === "blank" ? "blank" : "standard");
+          if (r) return {id:fc.id, name:fc.name, response:{result: r.ok ? "ok" : "error: " + r.err, data: fc.name === "read_chart" ? JSON.stringify(r).slice(0, 3000) : undefined}}; }
         return {id:fc.id, name:fc.name, response:{result:"unknown"}}; });
       this.send({toolResponse:{functionResponses:out}}); }
     if (m.goAway) G.speak(G.G("The call will end soon (time limit).", "المكالمة هتخلص قريب (حد الوقت)."), null, true); },

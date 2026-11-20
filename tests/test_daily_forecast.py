@@ -70,3 +70,9 @@ assert again == []                       # never scored twice
 txt = df_.write_summary(folder=tmp, out=tmp / "SUMMARY.md")
 assert "| class |" in txt and "Rule v0" in txt
 print("test_daily_forecast: OK", len(written), "calls,", len(new), "scored")
+
+# class_summary reads the same outcomes file the summary uses
+rows = df_.class_summary(folder=tmp)
+assert rows and all("verdict" in s and "n" in s for _, s in rows)
+assert df_.class_summary(folder=Path(tempfile.mkdtemp())) == []
+print("test_daily_forecast class_summary: OK")

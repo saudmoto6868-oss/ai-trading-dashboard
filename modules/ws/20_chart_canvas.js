@@ -275,6 +275,7 @@ class CandleChart {
     if (this.kzsOn) this.paintKZS(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGann(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGannOffset(c, py, i0, i1, PB);
+    if (this.gannOn) this.paintGann144(c, py, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
     this.paintSides(c, py, i0, i1, PB);
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);

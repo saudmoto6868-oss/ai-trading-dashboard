@@ -139,6 +139,31 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* EWEXPL-END */
+/* SIDES-BEGIN buy-side / sell-side liquidity: untaken swing highs (BSL, buy-side, above) and swing lows (SSL, sell-side, below). Labels only. */
+Object.assign(CandleChart.prototype, {
+  paintSides(c, py, i0, i1, PB){
+    if (!this.data || this.data.length < 20) return;
+    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), n = this.data.length;
+    const PR = this.PR; let nb = 0, ns = 0;
+    for (let j = z.length - 1; j >= 0 && (nb < 3 || ns < 3); j--){
+      const q = z[j]; let taken = false;
+      for (let m = q.i + 1; m < n && !taken; m++){ const b = this.data[m]; taken = q.k === "H" ? b.h > q.p : b.l < q.p; }
+      if (taken) continue;
+      const high = q.k === "H"; if (high ? nb >= 3 : ns >= 3) continue; if (high) nb++; else ns++;
+      const x0 = this.x(q.i), y = py(q.p), col = high ? "#4aa3ff" : "#f6465d";
+      c.save(); c.setLineDash([2,3]); c.strokeStyle = col; c.globalAlpha = .6; c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke(); c.restore();
+      c.save(); c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "right"; c.textBaseline = high ? "bottom" : "top";
+      c.fillText(high ? Lg("BSL · buy-side liquidity", "BSL · سيولة شراء") : Lg("SSL · sell-side liquidity", "SSL · سيولة بيع"), PR - 4, y + (high ? -2 : 2)); c.restore();
+    }
+  },
+  ewSubLine(c, n){   // the count inside the newest wave (smaller swing size). One line; labels only.
+    const sub = this.ewCount(1.0)[0]; if (!sub || !sub.pts) return;
+    const txt = sub.pts.length >= 6 ? Lg("inside the newest wave: sub 1-5 done", "جوه آخر موجة: الفرعية 1-5 خلصت")
+      : Lg("inside the newest wave: sub-wave " + (sub.pts.length - 1) + " so far", "جوه آخر موجة: موجة فرعية " + (sub.pts.length - 1) + " لحد دلوقتي");
+    this.indNote(c, n, txt);
+  }
+});
+/* SIDES-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1M","1W","1D","4H","1H","15m","5m","1m"];
 Object.assign(CandleChart.prototype, {

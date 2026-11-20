@@ -2021,6 +2021,7 @@ class CandleChart {
     if (this.gannOn) this.paintGann(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGannOffset(c, py, i0, i1, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
+    this.paintSides(c, py, i0, i1, PB);
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);
     if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); }   // the card lives under the order-flow column (paintCol)
     if (this.psarOn && this.psarV){ const S = this.psarV, st = this.st.psar, r = Math.max(1.5, Math.min(3, this.bw*0.22)) * (st.w || 1);
@@ -2882,9 +2883,9 @@ Object.assign(CandleChart.prototype, {
       c.fillText("Δ "+(tb >= 0 ? "+" : "−")+fmtV(Math.abs(tb))+(this._vp2.real ? "" : " ~")+bkTxt, PR-4, 12); }   // "~" = delta estimated from candles (no trades yet)
     c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace";
   },
-  ewCount(){   // newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
-    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + this.tf; if (this._ew && this._ew.k === k) return this._ew.v;
-    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), out = []; let e = z.length;
+  ewCount(dk = 2.5){   // dk = swing size in volatility units (2.5 = the main count; smaller = the waves inside it). newest impulse (1-5) + the corrective A-B-C that follows it, from the zigzag pivots; also a lone A-B-C when no impulse fits
+    const k = this.data.length + ":" + (this.data.length ? this.data[this.data.length-1].c : 0) + ":" + this.tf + ":" + dk, slot = dk === 2.5 ? "_ew" : "_ewS"; if (this[slot] && this[slot].k === k) return this[slot].v;
+    const z = harmZigzag(this.data, zzDev(this.data, dk, 0.001, 0.025), 3), out = []; let e = z.length;
     for (; e >= 6 && out.length < 2; e--){
       const w = z.slice(e-6, e), up = w[0].k === "L", s = up ? 1 : -1, P = w.map(q => q.p);
       const l1 = s*(P[1]-P[0]), l3 = s*(P[3]-P[2]), l5 = s*(P[5]-P[4]);
@@ -2895,7 +2896,7 @@ Object.assign(CandleChart.prototype, {
     }
     if (!out.length && z.length >= 4){ const w = z.slice(-4), s = w[0].k === "H" ? -1 : 1;   // A-B-C zigzag: C beyond A, B retraces less than 100% of A
       if (s*(w[1].p - w[0].p) > 0 && s*(w[2].p - w[0].p) > 0 && s*(w[3].p - w[1].p) > 0 && s*(w[3].p - w[2].p) < 0) out.push({up:s > 0, pts:[], abc:w.slice(1).map((q,i) => ({i:q.i, p:q.p, txt:"ABC"[i], up:q.k === "H"})), start:{i:w[0].i, p:w[0].p}, rec:true}); }
-    this._ew = {k, v:out}; this._ewf = this.ewForming(z, out); return out;
+    this[slot] = {k, v:out}; if (dk === 2.5) this._ewf = this.ewForming(z, out); return out;
   },
   ewForming(z, out){   // an impulse still being built (waves 1-4 so far) after the last finished count: pivots only, no forecast; returns {up, pts:[{i,p,txt}], next, broke} or null
     const top = out[0]; let base = -1; if (top){ if (top.abc.length < 3) return null; base = top.abc[2].i; }
@@ -2961,7 +2962,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintEWauto(c, py, dec){
     const list = this.ewCount(); this.paintEWforming(c, py);
-    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -4133,6 +4134,31 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* EWEXPL-END */
+/* SIDES-BEGIN buy-side / sell-side liquidity: untaken swing highs (BSL, buy-side, above) and swing lows (SSL, sell-side, below). Labels only. */
+Object.assign(CandleChart.prototype, {
+  paintSides(c, py, i0, i1, PB){
+    if (!this.data || this.data.length < 20) return;
+    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), n = this.data.length;
+    const PR = this.PR; let nb = 0, ns = 0;
+    for (let j = z.length - 1; j >= 0 && (nb < 3 || ns < 3); j--){
+      const q = z[j]; let taken = false;
+      for (let m = q.i + 1; m < n && !taken; m++){ const b = this.data[m]; taken = q.k === "H" ? b.h > q.p : b.l < q.p; }
+      if (taken) continue;
+      const high = q.k === "H"; if (high ? nb >= 3 : ns >= 3) continue; if (high) nb++; else ns++;
+      const x0 = this.x(q.i), y = py(q.p), col = high ? "#4aa3ff" : "#f6465d";
+      c.save(); c.setLineDash([2,3]); c.strokeStyle = col; c.globalAlpha = .6; c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke(); c.restore();
+      c.save(); c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "right"; c.textBaseline = high ? "bottom" : "top";
+      c.fillText(high ? Lg("BSL · buy-side liquidity", "BSL · سيولة شراء") : Lg("SSL · sell-side liquidity", "SSL · سيولة بيع"), PR - 4, y + (high ? -2 : 2)); c.restore();
+    }
+  },
+  ewSubLine(c, n){   // the count inside the newest wave (smaller swing size). One line; labels only.
+    const sub = this.ewCount(1.0)[0]; if (!sub || !sub.pts) return;
+    const txt = sub.pts.length >= 6 ? Lg("inside the newest wave: sub 1-5 done", "جوه آخر موجة: الفرعية 1-5 خلصت")
+      : Lg("inside the newest wave: sub-wave " + (sub.pts.length - 1) + " so far", "جوه آخر موجة: موجة فرعية " + (sub.pts.length - 1) + " لحد دلوقتي");
+    this.indNote(c, n, txt);
+  }
+});
+/* SIDES-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1M","1W","1D","4H","1H","15m","5m","1m"];
 Object.assign(CandleChart.prototype, {

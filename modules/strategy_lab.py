@@ -31,6 +31,7 @@ from modules.elliott_lab import DEGREES as EW_DEGREES, elliott_signals
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_JSON, OUT_MD = ROOT / "data" / "strategy_lab.json", ROOT / "STRATEGY_LAB.md"
+TRADES_JSON = ROOT / "data" / "lab_trades.json"   # per-trade series for the portfolio / drawdown simulator (modules/lab_portfolio.py)
 TFS = ("1m", "15m", "1h", "4h", "1d")
 HORIZON = {"1m": 60, "15m": 64, "1h": 48, "4h": 30, "1d": 20}
 BARS = {"1m": 1200, "15m": 1500, "1h": 1500, "4h": 1200, "1d": 900}
@@ -624,12 +625,29 @@ def run(symbols=SYMBOLS, tfs=TFS, stride=4, fetch=_fetch, log=print):
         if _r.get("edge") and _r.get("t") is None:
             _r["edge"] = False
     meta = {"built": int(time.time()), "symbols": list(symbols), "tfs": list(tfs), "series": done, "stop_atr": STOP_ATR, "rr": RR}
-    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone}
+    return {"meta": meta, "rows": rows, "conflicts": conflicts, "confluence": cfl, "gann": gann, "lunar": lunar, "gzone": gzone,
+            "_trades": trade_series(evs)}   # popped before strategy_lab.json is written (own file)
+
+
+def trade_series(all_events) -> dict:
+    """Every lab trade in time order, compact: {key: [[ts_ms, series_index, r, oos], ...]}, series = "SYM TF". r = the default exit (RR, gross).
+    Kept so the portfolio simulator can replay the REAL sequence (overlap and clustering of losses), not a reshuffle of averages."""
+    series, out = [], {}
+    for tf, sym, ev in all_events:
+        series.append(f"{sym} {tf}"); j = len(series) - 1
+        for e in ev:
+            if e.get("ts") is not None and e.get("r") is not None:
+                out.setdefault(e["key"], []).append([int(e["ts"]), j, round(float(e["r"]), 3), int(bool(e.get("oos")))])
+    for v in out.values():
+        v.sort()
+    return {"built": int(time.time()), "rr": RR, "stop_atr": STOP_ATR, "series": series, "trades": out}
 
 
 if __name__ == "__main__":
     syms = tuple(sys.argv[1:]) or SYMBOLS
     res = run(syms, stride=int(os.environ.get("LAB_STRIDE", "4")))
+    TRADES_JSON.parent.mkdir(exist_ok=True)
+    TRADES_JSON.write_text(json.dumps(res.pop("_trades"), separators=(",", ":")))
     OUT_JSON.parent.mkdir(exist_ok=True)
     OUT_JSON.write_text(json.dumps(res, indent=1))
     OUT_MD.write_text(report(res["rows"], res["conflicts"], res["confluence"], res["meta"], res.get("gann"), res.get("lunar"), res.get("gzone")))

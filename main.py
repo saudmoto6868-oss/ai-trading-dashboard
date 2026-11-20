@@ -3751,7 +3751,7 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
         _HUB_TABS = {"Command Center": [("hub_ui", "render_overview")],   # 2026-11-09: 8 tabs -> 4 (owner approved); each group runs its parts one under the other
                      "Truth, funnel & consensus": [("hub_truth", "render"), ("hub_funnel", "render"), ("hub_consensus", "render")],
-                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render"), ("quant_robustness", "render")],   # 2026-11-20: strategy x trend/session grid on the REAL lab rows
+                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render"), ("quant_robustness", "render"), ("lab_portfolio", "render")],   # 2026-11-20: strategy x trend/session grid on the REAL lab rows + portfolio / drawdown simulator
                      "Trail & decay": [("hub_trail", "render"), ("hub_decay", "render")]}   # the trail publishes the live R series the decay watch reads
         if st.session_state.get("hub_tab") not in _HUB_TABS:
             st.session_state.pop("hub_tab", None)

@@ -44,7 +44,8 @@ at.run()
 assert not at.exception and not at.error, ([str(e.value)[:200] for e in at.exception], [str(e.value)[:200] for e in at.error])
 assert any("Strategy robustness" in str(h.value) or "متانة الاستراتيجيات" in str(h.value) for h in at.subheader), [str(h.value) for h in at.subheader]
 assert at.dataframe or any("strategy_lab.json" in str(i.value) for i in at.info), "Robustness shows neither the lab table nor the no-data note"
-print("ok research hub: robustness on real lab rows")
+assert any("Portfolio & drawdown simulator" in str(h.value) or "محاكي المحفظة" in str(h.value) for h in at.subheader), [str(h.value) for h in at.subheader]
+print("ok research hub: robustness + portfolio simulator on real lab rows")
 
 at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
 at.run()

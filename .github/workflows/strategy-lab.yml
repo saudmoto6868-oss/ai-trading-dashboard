@@ -6,7 +6,7 @@ on:
   workflow_dispatch: {}          # "Run workflow" button
 
 permissions:
-  contents: write                # commits STRATEGY_LAB.md + data/strategy_lab.json
+  contents: write                # commits STRATEGY_LAB.md + data/strategy_lab.json + data/lab_trades.json
 
 concurrency:
   group: strategy-lab
@@ -38,6 +38,7 @@ jobs:
           git config user.name "strategy-lab bot"
           git config user.email "actions@users.noreply.github.com"
           git add STRATEGY_LAB.md data/strategy_lab.json
+          if [ -f data/lab_trades.json ]; then git add data/lab_trades.json; fi
           for f in FILTER_COMPARE.md data/filter_compare.json; do if [ -f "$f" ]; then git add "$f"; fi; done
           if [ -f data/tf_stats.json ]; then git add -f data/tf_stats.json; fi
           git diff --cached --quiet && exit 0

@@ -552,3 +552,9 @@
 - **مزامنة الاتنين (من غير force):** فروع GitHub ← GitLab docs mirror تحت `github/<name>` (133 اتنسخوا، 0 مرفوض)؛ فروع GitLab ← GitHub تحت `gitlab/<name>` (63 اتنسخوا، 0 مرفوض). أي فرع متباعد بيتسجل ويتساب.
 - **التشغيل الدوري:** launchd `com.6868.gitbackup` كل 6 ساعات (`~/Library/LaunchAgents/com.6868.gitbackup.plist`)، والسجل في `~/Backups/6868-git/sync.log`.
 - **ملاحظة مهمة:** GitHub `main` وGitLab `main` تاريخين منفصلين (مفيش commit مشترك)؛ عشان كده النسخ بأسماء بادئة مش دمج. قرار توحيدهم للمالك.
+
+## 2026-11-20 — [Claude — حساب Mohamed] مؤشر شموع الفريم الأكبر + ChatGPT/Ollama/Grok
+- **مؤشر جديد "شموع الفريم الأكبر" (HTF candles)، زي "ICT HTF Candles" على TradingView:** بيرسم آخر N شمعة من 1H / 4H / 1D / 1W يمين آخر شمعة وبيتحرك مع الشارت. الإعدادات: الفريم، عدد الشموع (1–8)، **المسافة عن السعر بالشموع (أبعد/أقرب)**، الفاصل بين الشموع، عرض الشمعة، ليبل الفريم + الوقت المتبقي، وخطوط فتح/قمة/قاع الشمعة الحالية. محسوب من شموع الشارت (UTC، الأسبوع من الاثنين). تست `tests/test_htf_candles.py`؛ **مش متجرّب بصريًا في متصفح** (المتصفح الداخلي رفض يفتح الملف المحلي).
+- **ChatGPT:** سيرفر MCP بقى يشتغل كمان على HTTP (`python3 tools/mcp_6868/server.py --http 8765`)، على 127.0.0.1 بس، وبتوكن سري في `~/.config/6868-brain/token` (اتعمل تلقائيًا، صلاحية 600). ChatGPT محتاج رابط https عام: ده محتاج نفق (Tailscale Funnel أو Cloudflare Tunnel) **بقرار المالك**، لأنه بيفتح بيانات البحث للإنترنت (بالتوكن).
+- **Ollama:** اتضاف في OpenClaw (`models.providers.ollama`، `qwen3.5:4b` محلي) كآخر احتياطي لـJarvis (`main`) وHermes، واختبار `openclaw infer` رد "ok". نسخة من الإعداد القديم: `~/.openclaw/openclaw.json.bak-20261120-ollama`.
+- **Grok في OpenClaw:** محتاج تسجيل دخول المالك: `openclaw models auth login --provider xai --method oauth` (أو مفتاح API)، وبعدها `xai/grok-4.7` يتضاف للاحتياطي. أنا ما بدخلش مفاتيح ولا باسوردات.

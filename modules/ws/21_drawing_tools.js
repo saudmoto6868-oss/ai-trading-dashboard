@@ -437,6 +437,27 @@ Object.assign(CandleChart.prototype, {
     else if (!D){ const err = this.llErr && Date.now() - this.llErr < 120000; c.font = "9px sans-serif"; c.fillStyle = err ? "#b08a3a" : "#6b7684"; c.textAlign = "right"; c.fillText(err ? "MTF LLT: waiting for the exchange (retrying)" : "MTF LLT: loading…", PR - 8, this.PB - 8); }   // small and quiet: it used to be a big sentence in the middle of the chart that never changed
     c.restore();
   },
+  htfBars(tf){   // chart candles grouped into higher-timeframe candles (UTC buckets; weekly = Monday 00:00 UTC); [] when tf is not higher than the chart
+    const sec = TFSEC[tf], csec = TFSEC[this.tf] || 3600, d = this.data; if (!sec || sec <= csec || !d.length) return [];
+    const key = t => tf === "1W" ? Math.floor((t/1000 + 3*86400)/604800) : Math.floor(t/1000/sec), out = [];
+    for (const k of d){ const b = key(k.t), o = out[out.length - 1];
+      if (o && o.b === b){ o.h = Math.max(o.h, k.h); o.l = Math.min(o.l, k.l); o.c = k.c; o.n++; }
+      else out.push({b, t:k.t, o:k.o, h:k.h, l:k.l, c:k.c, n:1}); }
+    const end = b => tf === "1W" ? (b*604800 - 3*86400 + 604800)*1000 : (b + 1)*sec*1000;
+    out.forEach(x => x.end = end(x.b)); return out;
+  },
+  paintHtfc(c, py){   // N higher-timeframe candles drawn to the right of the last candle, moving with the chart (offset / gap / width in bars)
+    const F = this.st.htfc, H = this.htfBars(F.tf).slice(-Math.max(1, Math.min(8, F.n|0 || 3))); if (!H.length){ this.indNote(c, 4, Lg("HTF candles: pick a timeframe higher than the chart","شموع الفريم الأكبر: اختار فريم أكبر من الشارت")); return; }
+    const last = this.data.length - 1, w = Math.max(1, F.bw || 4), gap = Math.max(0, F.gap == null ? 1 : F.gap), x0 = last + Math.max(1, F.off || 6);
+    c.save(); c.font = "10px sans-serif"; c.textAlign = "center";
+    H.forEach((k, j) => { const a = x0 + j*(w + gap), xl = this.x(a) - this.bw/2, xr = this.x(a + w - 1) + this.bw/2, xm = (xl + xr)/2, up = k.c >= k.o, col = up ? F.color : (F.color2 || "#f6465d");
+      const yo = py(k.o), yc = py(k.c), yh = py(k.h), yl = py(k.l);
+      c.strokeStyle = col; c.lineWidth = F.w || 1; c.beginPath(); c.moveTo(xm, yh); c.lineTo(xm, Math.min(yo, yc)); c.moveTo(xm, Math.max(yo, yc)); c.lineTo(xm, yl); c.stroke();
+      c.globalAlpha = up ? .85 : .85; c.fillStyle = col; c.fillRect(xl, Math.min(yo, yc), Math.max(2, xr - xl), Math.max(1, Math.abs(yc - yo))); c.globalAlpha = 1;
+      if (F.lines && j === H.length - 1){ c.setLineDash([2,3]); c.globalAlpha = .6; [[k.o, "O"], [k.h, "H"], [k.l, "L"]].forEach(([p, t]) => { const y = py(p); c.beginPath(); c.moveTo(this.x(Math.max(0, last - 60)), y); c.lineTo(xl, y); c.stroke(); c.fillText(t, xl - 8, y - 2); }); c.setLineDash([]); c.globalAlpha = 1; }
+      if (F.lbl){ c.fillStyle = "#9aa4b2"; c.fillText(j === H.length - 1 ? F.tf+" · "+(() => { const ms = k.end - Date.now(); if (ms <= 0) return ""; const h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000); return h ? h+"h "+m+"m" : m+"m"; })() : F.tf, xm, yl + 12); } });
+    c.restore();
+  },
   paintMt5(c, py, i0, i1){   // MT5-style pack seen on the user's phone chart: SMA ribbon (5 lines), Parabolic SAR (yellow diamonds), Bill Williams fractals (red arrow above a swing high, green arrow below a swing low)
     const d = this.data, n = d.length, S = this.st.mt5; if (n < 8) return; c.save();
     if (S.rib){ [[S.p1,"#4caf50",1],[S.p2,"#e040fb",1],[S.p3,"#2979ff",1.2],[S.p4,"#ff9800",1.4],[S.p5,"#f6465d",2]].forEach(([L, col, w]) => { L |= 0; if (L < 2 || n < L) return; c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let sum = 0, f = true;

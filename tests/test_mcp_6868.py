@@ -44,3 +44,30 @@ assert "isError" not in res[3]["result"] and "fvg" in res[3]["result"]["content"
 assert res[4]["result"]["content"][0]["text"].startswith("## ")
 assert res[5]["error"]["code"] == -32602
 print("ok mcp_6868")
+
+# HTTP transport: token required, initialize + tools/list over POST /mcp
+import os, time, urllib.request, urllib.error   # noqa: E402
+env = dict(os.environ, MCP_6868_TOKEN="test-token-123")
+h = subprocess.Popen([sys.executable, str(ROOT / "tools/mcp_6868/server.py"), "--http", "18765"], env=env, stderr=subprocess.DEVNULL)
+try:
+    def post(body, tok="test-token-123"):
+        req = urllib.request.Request("http://127.0.0.1:18765/mcp", data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + tok} if tok else {})})
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, json.loads(r.read() or b"null")
+        except urllib.error.HTTPError as e:
+            return e.code, None
+    for _ in range(50):
+        try:
+            post({"jsonrpc": "2.0", "id": 0, "method": "ping"}); break
+        except Exception:
+            time.sleep(0.1)
+    assert post({"jsonrpc": "2.0", "id": 1, "method": "ping"}, tok="wrong")[0] == 401
+    assert post({"jsonrpc": "2.0", "id": 1, "method": "ping"}, tok="")[0] == 401
+    st, body = post({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert st == 200 and any(t["name"] == "lab_card" for t in body["result"]["tools"])
+    assert post({"jsonrpc": "2.0", "method": "notifications/initialized"})[0] == 202
+finally:
+    h.terminate()
+print("ok mcp_6868 http")

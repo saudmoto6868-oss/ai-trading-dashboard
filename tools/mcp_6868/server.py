@@ -131,7 +131,58 @@ def handle(msg):
     return {"jsonrpc": "2.0", "id": mid, "result": res}
 
 
+def serve_http(port=8765, host="127.0.0.1"):
+    """Streamable-HTTP transport (POST /mcp, JSON response) for clients that need a URL (ChatGPT connectors, remote agents).
+    Every request needs 'Authorization: Bearer <token>'. The token is created once in ~/.config/6868-brain/token (mode 600)
+    or read from MCP_6868_TOKEN. Binds to 127.0.0.1: exposing it publicly (a tunnel) is the owner's decision."""
+    import hmac
+    import os
+    import secrets
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    tok = os.environ.get("MCP_6868_TOKEN")
+    if not tok:
+        f = Path.home() / ".config" / "6868-brain" / "token"
+        if not f.exists():
+            f.parent.mkdir(parents=True, exist_ok=True); f.write_text(secrets.token_urlsafe(32)); f.chmod(0o600)
+        tok = f.read_text().strip()
+
+    class H(BaseHTTPRequestHandler):
+        def _send(self, code, body=None):
+            data = b"" if body is None else json.dumps(body, ensure_ascii=False).encode()
+            self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(data))); self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):   # no server-initiated stream in this read-only server
+            self._send(405, {"error": "use POST /mcp"})
+
+        def do_POST(self):
+            if self.path.rstrip("/") != "/mcp":
+                return self._send(404, {"error": "not found"})
+            if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + tok):
+                return self._send(401, {"error": "missing or wrong bearer token"})
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > 1_000_000:
+                return self._send(413, {"error": "request too large"})
+            try:
+                msg = json.loads(self.rfile.read(n) or b"{}")
+            except json.JSONDecodeError:
+                return self._send(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
+            out = [handle(m) for m in msg] if isinstance(msg, list) else handle(msg)
+            if out is None or out == [None] * len(out if isinstance(out, list) else []):
+                return self._send(202)
+            self._send(200, [o for o in out if o] if isinstance(out, list) else out)
+
+        def log_message(self, *a):   # keep stdout quiet
+            pass
+
+    print(f"6868-brain MCP over HTTP on http://{host}:{port}/mcp (bearer token in ~/.config/6868-brain/token)", file=sys.stderr)
+    ThreadingHTTPServer((host, port), H).serve_forever()
+
+
 def main():
+    if "--http" in sys.argv:
+        i = sys.argv.index("--http")
+        return serve_http(int(sys.argv[i + 1]) if len(sys.argv) > i + 1 else 8765)
     for line in sys.stdin:
         line = line.strip()
         if not line:

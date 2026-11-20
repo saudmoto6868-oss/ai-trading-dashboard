@@ -2751,7 +2751,6 @@ def render_radar_screener(f):
     """Finviz-style table (owner 2026-10-22): one sortable table for the Radar universe, filtered by the SAME panel as the chart grid (no second set of
     options), and a top-movers bar chart. Same candles as the chart grid (cached)."""
     import pandas as _pd
-    tf = f["tf"]
     data = _radar_data(f)
     if data is None:
         return

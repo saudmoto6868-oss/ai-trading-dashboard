@@ -107,7 +107,7 @@ def render(r: dict) -> str:
                   f'<div class="grid c3" style="margin-top:8px"><div>{_ladder(i)}</div><div>{tgs}</div>'
                   f'<div><table>{kp}</table></div></div>{nws}</div>')
     if ic:
-        out.append(f'<div class="h" style="margin-top:6px"><b>أفكار الشراء</b><span>مترتبة بالتوافق ثم العائد/المخاطرة</span></div><div class="grid c2">' + "".join(ic) + "</div>")
+        out.append('<div class="h" style="margin-top:6px"><b>أفكار الشراء</b><span>مترتبة بالتوافق ثم العائد/المخاطرة</span></div><div class="grid c2">' + "".join(ic) + "</div>")
     else:
         out.append('<div class="p"><div class="mid">مفيش فكرة شراء النهارده</div><div class="dim">ولا وصفة شروطها اتحققت بعائد 1.5R على الأقل - الاستنى قرار.</div></div>')
     if avoid:

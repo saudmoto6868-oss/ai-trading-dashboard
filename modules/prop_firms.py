@@ -92,7 +92,6 @@ def _read_local_storage(acc_id: str) -> dict | None:
     """
     key = f"pf_scraped_{acc_id}"
     # We store the result in session_state once read
-    ss_key = f"pf_live_{acc_id}"
     # Render a tiny iframe that reads localStorage and renders JSON in the page
     # Streamlit components can't directly return values without bi-directional JS;
     # we use st.query_params workaround: component writes to a hidden input that
@@ -681,7 +680,6 @@ def render_prop_firms() -> None:
     # Header + summary strip
     active_lst   = [a for a in accounts if a.get("status") == "active"]
     expiring_lst = [a for a in active_lst if _days_left_sort(a) <= 7]   # 0 days left = due today (was dropped by `or 999`)
-    closed_lst   = [a for a in accounts if a.get("status") in ("closed","failed")]
 
     h1, h2, h3 = st.columns([3,1,1])
     h1.markdown(

@@ -228,7 +228,6 @@ def render(st, L=lambda s: s) -> None:
     st.dataframe(rows, hide_index=True, width="stretch")
     cc = avg_pair_corr(closes)
     if cc["mean_corr"] is not None:
-        cur = [(sym, d["current"]["regime"]) for sym, d in details.items()]
         hub_ui.show(st, hub_ui.cards([("R", L("Series scanned"), len(details), L("timeframe {tf}").format(tf=tf), "", None),
                                       ("c", L("Avg correlation ({n} returns)").format(n=CORR_WIN), f"{cc['mean_corr']:.2f}", L("high: close to one bet") if cc["high"] else L("not high: some real diversification"),
                                        "warn" if cc["high"] else "up", max(0.0, cc["mean_corr"]) * 100)]))

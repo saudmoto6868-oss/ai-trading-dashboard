@@ -456,7 +456,6 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
     n = len(d)
     left, right, top, bot = 8, 74, 10, 18
     pw, ph = width - left - right, height - top - bot
-    long = res["direction"] == "bullish"
     levels = []  # (price, label, color, dash)
     zones = []
     for s in res.get("signals", []):

@@ -54,7 +54,7 @@ def render_decision_desk(payload: dict | None = None) -> None:
         (t("دليل المعمل", "Lab evidence"), lab_txt, state, "up" if ev and ev > 0 else "down" if ev is not None and ev <= 0 else "", t("متوسط R للكاشفات في المعمل", "average lab R of the detectors")),
         (t("كاشفات", "Detectors"), str(lv["n_keys"]), t("منها OFF: ", "OFF: ") + str(len(lv["off"])), "down" if lv["off"] else "", "")]), unsafe_allow_html=True)
     if s.get("against"):
-        st.warning(t(f"فيه إشارة عاكسة: بتخصم 0.10R من دليل المعمل.", "An opposing signal is present: 0.10R is subtracted from the lab evidence."))
+        st.warning(t("فيه إشارة عاكسة: بتخصم 0.10R من دليل المعمل.", "An opposing signal is present: 0.10R is subtracted from the lab evidence."))
     if lv["off"]:
         st.warning(t("كاشفات خارج التقييم (OFF) في المعمل: ", "Detectors that are OFF in the lab: ") + ", ".join(f"`{k}`" for k in lv["off"][:6]))
     plan = s.get("plan") or {}

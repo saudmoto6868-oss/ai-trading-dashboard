@@ -426,7 +426,7 @@ def volume_profile(side: str = "bull") -> str:
     vol = [max(2, int(40 * 2.718 ** (-((p - 108) / 5.0) ** 2) + (12 if p in (112, 113) else 0))) for p in prices]
     tot = sum(vol)
     poc = prices[vol.index(max(vol))]
-    acc, area = vol.index(max(vol)), {poc}
+    acc = vol.index(max(vol))
     s = vol[acc]
     lo_i = hi_i = acc
     while s < 0.7 * tot:

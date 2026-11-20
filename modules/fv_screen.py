@@ -267,7 +267,7 @@ def test(key: str, code: str, m: dict, ctx: dict | None = None) -> bool:
     if key == "vol":
         w, x = (("vol_week", float(code[4:])) if code.startswith("week") else ("vol_month", float(code[5:]))); return m[w] > x
     if key == "rsi":
-        r = m.get("rsi"); t = {"ob": ">=", "os": "<="}
+        r = m.get("rsi")
         if r is None:
             return False
         if code == "nob":

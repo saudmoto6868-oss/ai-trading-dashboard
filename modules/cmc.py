@@ -50,5 +50,5 @@ def fetch_cmc(key: str | None = None, limit: int = 100) -> dict:
                 return {"ok": False, "err": "limit"}
             r.raise_for_status()
         return parse(a.json(), b.json())
-    except Exception as e:   # never log the key
+    except Exception:   # never log the key
         return {"ok": False, "err": "net"}

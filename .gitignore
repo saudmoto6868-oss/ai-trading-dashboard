@@ -23,3 +23,6 @@ data/spot/
 
 # Claude Code activity hook writes this on every tool call: local only, never commit (commit spam got the GitHub account suspended)
 docs/ACTIVITY_LOG_AUTO.md
+
+# runtime database written by modules/academy_intelligence.py (created on app / test runs)
+data/academy_hub.sqlite3

@@ -109,7 +109,7 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
   const mk = () => { const bar = document.getElementById('bar'); if (!bar) return false; if (bar.querySelector('.tiactl')) return true;
     const g = document.createElement('span'); g.className = 'tiactl'; g.style.cssText = 'display:inline-flex;gap:4px;align-items:center;margin-left:8px';
     g.append(sel(C.markets, C.market, v => go('tia_mkt', v, ['tia_sym', 'tia_run']), 110), sel(C.symbols, C.selected, v => go('tia_sym', v, ['tia_run']), 150));
-    const b = document.createElement('button'); b.textContent = 'Run TIA Director'; b.onclick = () => go('tia_run', String(Date.now())); g.append(b); bar.append(g); return true; };
+    const b = document.createElement('button'); b.textContent = Lg("Run TIA Director","شغّل مدير TIA"); b.onclick = () => go('tia_run', String(Date.now())); g.append(b); bar.append(g); return true; };
   setInterval(mk, 800);   // buildBar() empties #bar at start-up and on every language / layout rebuild: the controls are put back whenever they are missing
 })();
 '''
@@ -205,8 +205,8 @@ Panel.prototype.build_tiaconf = function(){
       row.append(h,bar);rowsBox.append(row);});
     const f=el('div','m','Trend = close vs SMA20 / SMA50. RSI(14) = simple average of the last 14 changes (not Wilder smoothing). Closed candles only. OKX public API · '+when+' UTC. Descriptive; not a signal or an order.');f.style.cssText='font-size:9px;margin-top:5px';out.append(f);};
   const load=async()=>{const s=sym();
-    if(!/^[A-Z0-9]+-USDT$/.test(s)){out.textContent='Needs a crypto USDT pair as the selected symbol (OKX candles).';return;}
-    out.textContent='Loading candles...';
+    if(!/^[A-Z0-9]+-USDT$/.test(s)){out.textContent=Lg("Needs a crypto USDT pair as the selected symbol (OKX candles).","محتاج زوج كريبتو USDT كرمز مختار (شموع OKX).");return;}
+    out.textContent=Lg("Loading candles...","جاري تحميل الشموع...");
     const res=await Promise.all(TF.map(async([tf,bar])=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar='+bar+'&limit=120');const j=await r.json();
       if(!(j&&j.code==='0'&&Array.isArray(j.data)))return {tf,a:null};const c=j.data.filter(k=>k[8]==='1').reverse().map(k=>+k[4]).filter(v=>v>0);return {tf,a:analyse(c)};}catch(e){return {tf,a:null};}}));
     if(dead)return;draw(res,new Date().toISOString().slice(0,16));};
@@ -315,14 +315,14 @@ Panel.prototype.build_tiaring = function(){
     out.append(svg);const top=vol.map((v,h)=>[v,h]).sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]+':00').join(', ');
     const f=el('div','m','Busiest UTC hours by volume: '+top+' · '+cnt+' candles · source OKX public API · '+new Date().toISOString().slice(0,16)+' UTC');f.style.cssText='font-size:10px';out.append(f);};
   const load=async()=>{
-    if(!sym){out.textContent='Needs a crypto USDT pair as the centre symbol.';return;}
-    out.textContent='Loading candles...';
+    if(!sym){out.textContent=Lg("Needs a crypto USDT pair as the centre symbol.","محتاج زوج كريبتو USDT كرمز مركزي.");return;}
+    out.textContent=Lg("Loading candles...","جاري تحميل الشموع...");
     try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+sym+'&bar=1H&limit=300');const j=await r.json();if(dead)return;
-      if(!(j&&j.code==='0'&&Array.isArray(j.data)&&j.data.length>=96)){out.textContent='Not enough candle data returned (feed unavailable).';return;}
+      if(!(j&&j.code==='0'&&Array.isArray(j.data)&&j.data.length>=96)){out.textContent=Lg("Not enough candle data returned (feed unavailable).","الشموع مش كفاية (المصدر مش متاح).");return;}
       const sv_=new Array(24).fill(0),sr=new Array(24).fill(0),n=new Array(24).fill(0);
       j.data.forEach(c=>{const h=new Date(+c[0]).getUTCHours(),o=+c[1],hi=+c[2],lo=+c[3],v=+c[5];if(!(o>0)||!Number.isFinite(v))return;sv_[h]+=v;sr[h]+=(hi-lo)/o*100;n[h]++;});
       const vol=sv_.map((x,h)=>n[h]?x/n[h]:0),rng=sr.map((x,h)=>n[h]?x/n[h]:0);
-      draw(vol,rng,j.data.length);}catch(e){if(!dead)out.textContent='Candle feed error: '+String(e).slice(0,80);}};
+      draw(vol,rng,j.data.length);}catch(e){if(!dead)out.textContent=Lg("Candle feed error: ","خطأ في تغذية الشموع: ")+String(e).slice(0,80);}};
   load();const iv=setInterval(()=>{if(!document.hidden)load();},900000);this.unsubs.push(()=>clearInterval(iv));
 };
 '''
@@ -346,12 +346,12 @@ Panel.prototype.build_tiaoptions = function(){
   const exp=el("select");bar.append(exp);const content=el("div");wrap.append(bar,content);this.body.append(wrap);
   const fmt=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
   const render=()=>{const d=TIA_OPTIONS[cur.value];content.replaceChildren();exp.replaceChildren();
-    if(!d){const msg=el("div","m","Options snapshot unavailable: "+(TIA_OPTIONS_ERRORS[cur.value]||"no provider data"));content.append(msg);return;}
+    if(!d){const msg=el("div","m",Lg("Options snapshot unavailable: ","لقطة الأوبشنز مش متاحة: ")+(TIA_OPTIONS_ERRORS[cur.value]||"no provider data"));content.append(msg);return;}
     d.expiries.forEach((x,i)=>exp.append(Object.assign(el("option"),{value:String(i),textContent:x.exp+" · "+x.days+"d"})));
     const metrics=el("div");metrics.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin:9px 0";
     const cards=[["UNDERLYING PROXY",d.summary.spot],["TOTAL OI",d.summary.totals.oi],["PUT/CALL OI",d.summary.totals.pc_oi],["DVOL IV RANK",d.dvol&&d.dvol.rank!=null?d.dvol.rank+"%":null]];
     cards.forEach(([k,v])=>{const c=el("div");c.style.cssText="padding:8px;border:1px solid var(--line)";const a=el("div","m",k);a.style.fontSize="9px";const b=el("div",null,fmt(v));b.style.cssText="font:700 15px ui-monospace,Menlo,monospace;margin-top:5px";c.append(a,b);metrics.append(c);});content.append(metrics);
-    const detail=el("div","m","Deribit public option book · snapshot "+d.asof+" · underlying is the nearest-expiry forward proxy, not a spot quote.");detail.style.cssText="font-size:10px;margin:5px 0 10px";content.append(detail);
+    const detail=el("div","m",Lg("Deribit public option book · snapshot ","دفتر أوبشنز Deribit العام · لقطة ")+d.asof+" · underlying is the nearest-expiry forward proxy, not a spot quote.");detail.style.cssText="font-size:10px;margin:5px 0 10px";content.append(detail);
     const draw=()=>{const x=d.expiries[Number(exp.value)||0];if(!x)return;const stats=el("div");stats.style.cssText="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0";
       [["PCR VOL",x.pc_vol],["ATM IV",x.iv],["10% SKEW",x.skew10],["MAX PAIN",x.max_pain]].forEach(([k,v])=>{const z=el("span",null,k+": "+fmt(v));stats.append(z);});content.append(stats);
       const cv=el("canvas");cv.width=640;cv.height=220;cv.style.cssText="width:100%;height:220px;background:var(--panel0);border:1px solid var(--line)";content.append(cv);
@@ -380,13 +380,13 @@ Panel.prototype.build_tiacorr = function(){
         td.style.cssText='padding:5px 6px;text-align:center;border:1px solid var(--line);background:'+(c==null?'rgba(130,130,130,.1)':c>=0?'rgba(49,196,141,'+(.08+.5*mag)+')':'rgba(230,106,103,'+(.08+.5*mag)+')');tr.append(td);});tbl.append(tr);});
     out.append(tbl);const f=el('div','m','Source: OKX public API · '+n+' aligned hourly returns · '+new Date().toISOString().slice(0,16)+' UTC');f.style.cssText='font-size:10px;margin-top:6px';out.append(f);};
   const load=async()=>{
-    if(syms.length<2){out.textContent='Needs at least two USDT pairs in the symbol list.';return;}
-    out.textContent='Loading candles...';const raw={};
+    if(syms.length<2){out.textContent=Lg("Needs at least two USDT pairs in the symbol list.","محتاج زوجين USDT على الأقل في قايمة الرموز.");return;}
+    out.textContent=Lg("Loading candles...","جاري تحميل الشموع...");const raw={};
     await Promise.all(syms.map(async s=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar=1H&limit=100');const j=await r.json();if(j&&j.code==='0'&&Array.isArray(j.data)){const m=new Map();j.data.forEach(c=>m.set(+c[0],+c[4]));raw[s]=m;}}catch(e){}}));
     if(dead)return;const names=syms.filter(s=>raw[s]&&raw[s].size>=30);
-    if(names.length<2){out.textContent='No candle data returned for enough pairs (feed unavailable).';return;}
+    if(names.length<2){out.textContent=Lg("No candle data returned for enough pairs (feed unavailable).","مفيش شموع كفاية للأزواج (المصدر مش متاح).");return;}
     let ts=[...raw[names[0]].keys()];names.slice(1).forEach(s=>{ts=ts.filter(t=>raw[s].has(t));});ts.sort((a,b)=>a-b);
-    if(ts.length<25){out.textContent='Too few aligned candles to compute correlation.';return;}
+    if(ts.length<25){out.textContent=Lg("Too few aligned candles to compute correlation.","شموع متوافقة قليلة لحساب الارتباط.");return;}
     const series={};names.forEach(s=>{const c=ts.map(t=>raw[s].get(t));const r=[];for(let i=1;i<c.length;i++)if(c[i]>0&&c[i-1]>0)r.push(Math.log(c[i]/c[i-1]));series[s]=r;});
     draw(series,names,ts.length-1);};
   load();const iv=setInterval(()=>{if(!document.hidden)load();},600000);this.unsubs.push(()=>clearInterval(iv));
@@ -440,13 +440,13 @@ Panel.prototype.build_tiaradial = function(){
     svg.append(sv('text',{x:C,y:C+3,'text-anchor':'middle','font-size':'10',fill:'#f3dfb5','font-weight':'700'},c0.replace('-USDT','')));
     out.append(svg);const f=el('div','m','Source: OKX public API · '+n+' aligned hourly returns · '+new Date().toISOString().slice(0,16)+' UTC · lag text shown only when the best lag is not 0');f.style.cssText='font-size:10px';out.append(f);};
   const load=async()=>{
-    if(syms.length<3){out.textContent='Needs at least three USDT pairs in the symbol list.';return;}
-    out.textContent='Loading candles...';const raw={};
+    if(syms.length<3){out.textContent=Lg("Needs at least three USDT pairs in the symbol list.","محتاج 3 أزواج USDT على الأقل في قايمة الرموز.");return;}
+    out.textContent=Lg("Loading candles...","جاري تحميل الشموع...");const raw={};
     await Promise.all(syms.map(async s=>{try{const r=await fetch('https://www.okx.com/api/v5/market/candles?instId='+s+'&bar=1H&limit=100');const j=await r.json();if(j&&j.code==='0'&&Array.isArray(j.data)){const m=new Map();j.data.forEach(c=>m.set(+c[0],+c[4]));raw[s]=m;}}catch(e){}}));
     if(dead)return;const names=syms.filter(s=>raw[s]&&raw[s].size>=30);
-    if(names.length<3||names[0]!==syms[0]){out.textContent='No candle data for the centre pair or too few pairs (feed unavailable).';return;}
+    if(names.length<3||names[0]!==syms[0]){out.textContent=Lg("No candle data for the centre pair or too few pairs (feed unavailable).","مفيش شموع للزوج المركزي أو عدد الأزواج قليل (المصدر مش متاح).");return;}
     let ts=[...raw[names[0]].keys()];names.slice(1).forEach(s=>{ts=ts.filter(t=>raw[s].has(t));});ts.sort((a,b)=>a-b);
-    if(ts.length<25){out.textContent='Too few aligned candles.';return;}
+    if(ts.length<25){out.textContent=Lg("Too few aligned candles.","شموع متوافقة قليلة.");return;}
     const series={};names.forEach(s=>{const c=ts.map(t=>raw[s].get(t));const r=[];for(let i=1;i<c.length;i++)r.push(c[i]>0&&c[i-1]>0?Math.log(c[i]/c[i-1]):0);series[s]=r;});
     draw(series,names,ts.length-1);};
   load();const iv=setInterval(()=>{if(!document.hidden)load();},600000);this.unsubs.push(()=>clearInterval(iv));
@@ -456,7 +456,7 @@ Panel.prototype.build_tiaradial = function(){
     tia_panels = r'''
 Panel.prototype.build_tiapulse = function(){
   const box = el("div"); box.style.cssText = "padding:8px;overflow:auto;height:100%;";
-  const note = el("div","m", "Live ticker snapshot · provider coverage only"); note.style.cssText += "margin-bottom:8px;font-size:11px";
+  const note = el("div","m", Lg("Live ticker snapshot · provider coverage only","لقطة حية للأسعار · تغطية المزودين فقط")); note.style.cssText += "margin-bottom:8px;font-size:11px";
   const table = el("table"); table.style.cssText = "width:100%;border-collapse:collapse;font:12px ui-monospace,Menlo,monospace";
   const head = el("tr"); ["SYMBOL","LAST","24H %","FEED"].forEach(x=>{const th=el("th",null,x);th.style.cssText="text-align:right;padding:6px;border-bottom:1px solid var(--line)";head.append(th);}); table.append(head);
   const rows = new Map();
@@ -479,7 +479,7 @@ Panel.prototype.build_tiapulse = function(){
 };
 Panel.prototype.build_tiasources = function(){
   const box=el("div"); box.style.cssText="padding:10px;overflow:auto;height:100%;font-size:12px";
-  const intro=el("div","m","Connection health from this browser session; not a broker-account status."); intro.style.marginBottom="10px";
+  const intro=el("div","m",Lg("Connection health from this browser session; not a broker-account status.","صحة الاتصال من جلسة المتصفح دي؛ مش حالة حساب الوسيط.")); intro.style.marginBottom="10px";
   const body=el("div"); box.append(intro,body); this.body.append(box);
   const draw=()=>{
     body.replaceChildren();

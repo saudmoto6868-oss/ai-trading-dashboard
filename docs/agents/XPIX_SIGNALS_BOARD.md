@@ -1,4 +1,4 @@
-# السبورة: XPiX Signals (Grok)
+# السبورة: XPiX Signals
 
 > سبورة تعلّم مستمر. بتتحدث بعد كل جلسة. الفرع: `signals/s1-scalp-2026-11-18` (Draft، ما يتدمجش من غير موافقة المالك). مفيش صور في git. مفيش احتمالات معايرة.
 > روابط: [S1](../methodology/S1_scalp_draft.md) · [مصفوفة التلاقي](../methodology/S1_confluence_matrix.md) · [ملاحظات الضبط](XPIX_SIGNALS_TUNING_NOTES.md) · [نتائج الباك تست](../backtests/S1_2026-11-18/) · [دروس 18 نوفمبر (MR !84)](https://gitlab.com/6868-group/ai-trading-dashboard/-/blob/review/top7-postmortem-2026-11-18/docs/reviews/2026-11-18_top7_lessons_ar.md)

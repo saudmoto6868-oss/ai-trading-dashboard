@@ -109,6 +109,36 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   }
 });
+/* EWEXPL-BEGIN plain-language Elliott explainer: diagonal trendlines, wave-by-wave caption (labels only) */
+const EW_WAVE_TEXT = {
+  "0": ["start of the move", "بداية الحركة"],
+  "1": ["wave 1: first push, often the smallest", "موجة 1: أول دفعة، غالباً الأصغر"],
+  "2": ["wave 2: pullback, never goes past the start of wave 1", "موجة 2: تصحيح، ما تعديش بداية موجة 1"],
+  "3": ["wave 3: usually the strongest, never the shortest", "موجة 3: غالباً الأقوى، ومش الأقصر"],
+  "4": ["wave 4: pullback, stays out of wave 1's price area", "موجة 4: تصحيح، ما تدخلش منطقة موجة 1"],
+  "5": ["wave 5: last push, often shows weakening momentum", "موجة 5: آخر دفعة، غالباً الزخم بيضعف"]
+};
+Object.assign(CandleChart.prototype, {
+  paintEWdiag(c, py, w){   // ending diagonal: draw its two converging lines (highs 1-3-5, lows 0-2-4) and say what it is
+    if (!w || !w.pts || w.pts.length < 6) return;
+    const P = w.pts.map(q => ({x: this.x(q.i), y: py(q.p)})), shape = EWShape.impulse(...w.pts.map(q => q.p));
+    if (shape !== "ending_diagonal") return;
+    const PR = this.PR, col = w.up ? "#0ecb81" : "#f6465d";
+    const line = (a, b) => { const dx = b.x - a.x || 1e-9, m = (b.y - a.y)/dx; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(PR, a.y + m*(PR - a.x)); c.stroke(); };
+    c.save(); c.setLineDash([6,4]); c.strokeStyle = col; c.globalAlpha = .8; c.lineWidth = 1;
+    line(P[1], P[3]); line(P[3], P[5]);   // upper trendline through the highs 1, 3, 5
+    line(P[0], P[2]); line(P[2], P[4]);   // lower trendline through the lows 0, 2, 4
+    c.restore();
+    this.indNote(c, 5, Lg("Ending diagonal: lines converge, wave 5 is inside the wedge", "دياجونال نهائي: الخطوط بتتقارب، موجة 5 جوه الوتد"));
+  },
+  ewWaveCaption(c, w, n){   // one line per wave: what it is and what to expect (teaching text, not a forecast)
+    if (!w || !w.pts || w.pts.length < 2) return;
+    const k = String(w.pts.length - 1);
+    const t = EW_WAVE_TEXT[k]; if (!t) return;
+    this.indNote(c, n, Lg("Now: ", "دلوقتي: ") + Lg(t[0], t[1]));
+  }
+});
+/* EWEXPL-END */
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1M","1W","1D","4H","1H","15m","5m","1m"];
 Object.assign(CandleChart.prototype, {

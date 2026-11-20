@@ -5,6 +5,13 @@ English text unchanged. A missing entry simply stays English - never a blank. Tr
 from __future__ import annotations
 
 AR = {
+    "View": "عرض",
+    "Live chart": "شارت حي",
+    "Snapshot dashboard": "لوحة اللقطة",
+    "Chart images": "صور الشارت",
+    "Rules": "القواعد",
+    "Claims & evidence": "الادعاءات والأدلة",
+    "V7 research: live chart + tools (toggles inside the chart bar). Research only: not a recommendation, no orders; under 30 cases is not evidence.": "بحث V7: شارت حي + أدوات (المفاتيح جوه شريط الشارت). للبحث فقط: مش توصية ومفيش أوامر؛ أقل من 30 حالة مش دليل.",
     "Price": "السعر", "Change %": "التغير %", "20-bar %": "تغير 20 شمعة %", "Volume ×avg": "الفوليوم ×المتوسط", "Signals": "الإشارات", "Which": "أنهي إشارات",
     "Chart grid": "الشارتات",
     # Radar strip (design board 'Radar', 2026-10-22)

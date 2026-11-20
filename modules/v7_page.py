@@ -129,8 +129,9 @@ def _show_images(st) -> None:
 def render() -> None:
     import streamlit as st
     st.markdown("<style>.block-container{padding-top:2.2rem !important;padding-bottom:.5rem !important}</style>", unsafe_allow_html=True)
-    view = st.radio("View", ["Live chart", "Snapshot dashboard", "Chart images", "Rules", "Claims & evidence"], horizontal=True, key="v7_view", label_visibility="collapsed")
-    st.caption("V7 research: live chart + tools (toggles inside the chart bar). Research only: not a recommendation, no orders; under 30 cases is not evidence.")
+    from modules.i18n import L as _L
+    view = st.radio(_L("View"), ["Live chart", "Snapshot dashboard", "Chart images", "Rules", "Claims & evidence"], format_func=_L, horizontal=True, key="v7_view", label_visibility="collapsed")
+    st.caption(_L("V7 research: live chart + tools (toggles inside the chart bar). Research only: not a recommendation, no orders; under 30 cases is not evidence."))
     if view == "Live chart":
         html, err = live_html()
         if err:

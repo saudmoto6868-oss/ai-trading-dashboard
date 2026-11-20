@@ -109,3 +109,45 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   }
 });
+/* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
+const EW_MTF_FRAMES = ["1M","1W","1D","4H","1H","15m","5m","1m"];
+Object.assign(CandleChart.prototype, {
+  ewFrameSummary(rows, tf){   // one frame -> {tf, state, shape, next} (state text only; no forecast)
+    const o = {data: rows, tf, ewForming: CandleChart.prototype.ewForming};
+    const list = CandleChart.prototype.ewCount.call(o), f = o._ewf;
+    const z = harmZigzag(rows, zzDev(rows, 2.5, 0.001, 0.025), 3);
+    const shape = EWShape.tail(z.map(q => q.p));
+    let state = "—", next = null;
+    if (list.length){
+      const top = list[0];
+      if (top.pts.length >= 6 && top.abc.length >= 3) { state = Lg("impulse done, ABC done", "دافعة خلصت، والـ ABC خلص"); next = Lg("new impulse", "دافعة جديدة"); }
+      else if (top.pts.length >= 6) { state = Lg("impulse 1-5 done", "دافعة 1-5 خلصت"); next = Lg("ABC next", "ABC جاي"); }
+      else if (top.abc.length) { state = Lg("ABC forming", "ABC بيتكون"); next = Lg("ABC C next", "الموجة C جاية"); }
+    }
+    if (f){ state = Lg("forming, wave ", "بتتكون، موجة ") + f.next; next = Lg("wave ", "موجة ") + f.next; }
+    return {tf, state, shape: shape ? (EWShape_AR_OR_EN(shape)) : "—", next: next || "—"};
+  },
+  ewMTFBox(c){   // top-right corner: one line per frame, newest frames first; cached 5 min per frame; drawn only when Elliott is on
+    if (!this.sym) return;
+    const store = this._ewMtf || (this._ewMtf = {}), rows = [];
+    for (const H of EW_MTF_FRAMES){
+      const k = this.sym+"|"+H, e = store[k];
+      if (!e || (!e.busy && Date.now() - e.t > 300000)){
+        store[k] = {t: Date.now(), v: e ? e.v : null, busy: true};
+        candlesTf(this.sym, H, true, 200).then(r => { store[k] = {t: Date.now(), v: r && r.length > 30 ? this.ewFrameSummary(r, H) : null, busy: false}; this.draw(); })
+          .catch(() => { store[k] = {t: Date.now(), v: null, busy: false}; });
+      }
+      if (store[k] && store[k].v) rows.push(store[k].v);
+    }
+    if (!rows.length) return;
+    const PR = this.PR, lh = 12, W = 230, H = 16 + rows.length*lh;
+    c.save(); c.globalAlpha = .85; c.fillStyle = "#0b0e11"; c.fillRect(PR - W - 6, 4, W, H); c.globalAlpha = 1;
+    c.font = "bold 10px sans-serif"; c.fillStyle = "#f0b90b"; c.textAlign = "left"; c.textBaseline = "top";
+    c.fillText(Lg("Elliott by frame", "إليوت حسب الفريم"), PR - W, 6);
+    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.fillStyle = "#c9d1d9";
+    rows.forEach((r, i) => c.fillText(r.tf + "  " + r.state + "  ·  " + r.shape + "  ·  → " + r.next, PR - W, 20 + i*lh));
+    c.restore();
+  }
+});
+function EWShape_AR_OR_EN(name){ const AR = {zigzag:"زيجزاج ABC", regular_flat:"فلات عادي", expanded_flat:"فلات ممتد", running_flat:"فلات جاري", impulse:"دافعة 1-5", ending_diagonal:"دياجونال نهائي", contracting:"مثلث متقارب", expanding:"مثلث متسع", double_zigzag:"زيجزاج مزدوج", double_three:"ثلاثي مزدوج", double_combo:"مركب W-X-Y", triple_zigzag:"زيجزاج ثلاثي", triple_three:"ثلاثي ثلاثي", triple_combo:"ثلاثي مركب"}; return Lg(name.replace(/_/g," "), AR[name] || name); }
+/* EWMTF-END */

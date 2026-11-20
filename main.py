@@ -1152,7 +1152,7 @@ def render_universe_controls(_u1, _u2, _u3):
 
 # ---- Filters keep their values when you switch page / tab (owner 2026-10-23: "filters sometimes stop working"): Streamlit deletes the state of widgets
 # that are not drawn in a run, so the non-button filter keys are written back at the top of every run.
-_KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view")
+_KEEP_PREFIX = ("cs_", "fv_f_", "hm_", "perf_", "sm_", "bt_", "sc_", "to_", "lab_", "ac_", "acq_", "fl_", "uni_n", "asset_cls", "market_type", "radar_view", "radar_sub_", "tia_view")
 _BUTTON_KEYS = {"cs_preset_save", "cs_preset_del", "ac_mark", "ac_next", "ac_prev", "ac_undo", "ac_sprev", "ac_snext", "bt_agent_go", "bt_agent_reset", "bt_agent_run", "bt_agent_save", "bt_run", "bt_save", "cs_clear_top", "fl_go", "sc_apply"}   # buttons cannot be set from session state
 for _k in list(st.session_state.keys()):
     if isinstance(_k, str) and _k.startswith(_KEEP_PREFIX) and _k not in _BUTTON_KEYS and not _k.startswith(("acc_", "sm_run_", "ac_done")):
@@ -1168,13 +1168,16 @@ for _k in list(st.session_state.keys()):
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
 _PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap"]   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 18, 19], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 18, 19], 15: [5, 7]}   # 2026-11-20 owner: Trade Intelligence Center (17) merged into TIA (12) as a sub-view;   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
 _PAGE_ORDER = [0, 1, 11, 12, 13, 14, 15]   # 2026-11-20 owner: RSI Heatmap (20) moved inside Radar > Heat map (radar things live in the Radar); 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
 
 def _nav_to(i):
     """Open page i (an old page index opens its hub with that sub-page selected)."""
+    if i == 17:   # Trade Intelligence Center now lives inside TIA (owner 2026-11-20); old links still open it
+        i = 12
+        st.session_state["tia_view"] = "Intelligence Center"
     if i == 20:   # RSI Heatmap now lives in Radar > Heat map (owner 2026-11-20); old links still open it
         i = 1
         st.session_state["radar_view"] = "Heat map"
@@ -3654,7 +3657,8 @@ if PAGE == 1:   # cscan
         elif _rv == "Compare":
             _disp = st.segmented_control(L("Compare"), ["Similar charts", "Correlation", "Performance"], default="Similar charts", key="radar_sub_c", label_visibility="collapsed", format_func=L) or "Similar charts"
         elif _rv == "Heat map":   # market map + the RSI heatmap (was its own top tab until 2026-11-20)
-            _disp = st.segmented_control(L("Heat map"), ["Heat map", "RSI heatmap"], default="Heat map", key="radar_sub_h", label_visibility="collapsed", format_func=L) or "Heat map"
+            st.session_state.setdefault("radar_sub_h", "Heat map")
+            _disp = st.segmented_control(L("Heat map"), ["Heat map", "RSI heatmap"], key="radar_sub_h", label_visibility="collapsed", format_func=L) or "Heat map"
             if _disp == "RSI heatmap":   # own filters and data; skip the radar universe / SMT work
                 try:
                     from modules.rsi_heatmap import render as _rsi_heatmap_render
@@ -3897,6 +3901,16 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
     st.stop()
 
 if PAGE == 12:   # TIA institutional intelligence terminal (new standalone parent-company workspace)
+    # owner 2026-11-20: Trade Intelligence Center merged here (one place for the house view); only the open view runs
+    st.session_state.setdefault("tia_view", "TIA")   # no default= : the old ?page=17 link sets the value first
+    _tv = st.segmented_control("TIA", ["TIA", "Intelligence Center"], key="tia_view", format_func=L, label_visibility="collapsed") or "TIA"
+    if _tv == "Intelligence Center":
+        try:
+            from modules.intelligence_center_ui import render as _tic_render
+            _tic_render()
+        except Exception as _tic_exc:
+            st.error(f"Trade Intelligence Center: {type(_tic_exc).__name__}: {_tic_exc}")
+        st.stop()
     try:
         from modules.tia_page import render_tia
         render_tia()

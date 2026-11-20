@@ -25,3 +25,17 @@ Branch: claude/trade-classification-scalp-swing-o4s4vh (= main at e824098b). Own
 2. A+ backtest workflow (item 5), results to docs/research/.
 3. Visual upgrade (item 2) on the chosen screen.
 4. Options class (item 1) only if the owner confirms the source.
+
+## Owner answers (2026-11-20) and the coordinated plan
+- Options: the owner wants crypto, metals and US-stock options all covered. Current state: crypto and metals are in Spot; US-stock options are NOT in Spot (Cboe delayed JSON is the agreed source, not built yet). Next: a US-options read for the Workspace (source already decided in CLAUDE.md).
+- Visual upgrade: Workspace widgets first (they are the daily screen), Spot page after. Owner's style pictures still awaited (item 26); until then use the existing dark / day themes.
+- Why card: owner wants a "why" card on everything. Proposed shared shape (one renderer, used by Trade Classes, Spot ideas and the Radar / Signals cards): verdict, grade, FOR list, AGAINST list, stop, target, evidence (n, t), source tag. Trade Classes and Spot ideas already carry FOR / AGAINST lists, so they convert first.
+- A+ sandbox: built. modules/aplus_backtest.py + .github/workflows/aplus-backtest.yml (weekly + manual). Three setups (pullback, retest, random control) on BTC / ETH / SOL, 1H + 4H. Verdict only when n >= 100, |t| > 3 and both halves positive. Report: docs/research/aplus_backtest.json.
+- Telegram delivery: owner checks the phone and reports.
+- Alert variables: owner confirmed OK; the Spot online-ledger alert step reports its state on the next run.
+
+## Order from here
+1. A+ sandbox first run (done when the report lands in docs/research/aplus_backtest.json).
+2. Why card renderer shared by Trade Classes and Spot ideas.
+3. US-stock options read in the Workspace (Cboe delayed).
+4. Visual pass on the Workspace widgets.

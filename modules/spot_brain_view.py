@@ -167,10 +167,14 @@ def render(br: dict, markets: list | None = None) -> str:
     try:   # daily baseline calls: the measured record (auto, see modules/daily_forecast.py); a comparison line, not a strategy
         from modules.daily_forecast import class_summary
         rows = class_summary()
+        from modules.forecast_review import candidates, rows as rv_rows
+        cands = candidates(rv_rows())
     except Exception:
-        rows = []
+        rows, cands = [], []
     body = "".join(f'<div class="ln"><b>{e(c)}</b> · n {s["n"]} · {e(s["win_rate"] if s["win_rate"] is not None else "—")} · <span class="s">{e(s["verdict"])}</span></div>' for c, s in rows) \
         or '<div class="ln">لسه مفيش توقعات متقيّمة. التسجيل اليومي أوتوماتيك، والتقييم بعد 5 شموع يومية.</div>'
+    if cands:
+        body += '<div class="ln">مرشحين للدراسة (للـ lab، مش صفقات): ' + " · ".join(f'{e(r["key"])} ({r["n"]}، الحد الأدنى {r["lo"]})' for r in cands[:3]) + '</div>'
     out.append('<div class="row" style="grid-template-columns:1fr">' + _tile("سجل التوقعات اليومي (baseline، مش استراتيجية)", body, f'{sum(s["n"] for _, s in rows)}') + "</div>")
     out.append('</div><div class="col">')
     # right column: KPI tiles 2 cols + rings + amber bars

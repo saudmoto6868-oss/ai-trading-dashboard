@@ -28,6 +28,7 @@ jobs:
       - name: Record today's baseline calls, then score the due ones
         run: |
           python -m modules.daily_forecast --record --score
+          python -m modules.forecast_review   # docs/forecasts/REVIEW.md: what worked, what did not, what to study next
       - name: Commit the results (scheduled run -> main, like the lab and snapshot bots; manual run -> its own branch)
         run: |
           git config user.name "forecast bot"

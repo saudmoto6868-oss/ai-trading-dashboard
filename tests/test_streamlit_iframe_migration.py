@@ -7,13 +7,9 @@ EXPECTED_IFRAME_FILES = (
     "modules/header_bar.py",
     "modules/tv_widget.py",
     "modules/micro_foundations.py",
-    "modules/quant_edgemap.py",
-    "modules/quant_execution.py",
     "modules/quant_montecarlo.py",
-    "modules/quant_robustness.py",
     "modules/spot_page.py",
     "modules/tia_workspace.py",
-    "modules/veles_robustness.py",
     "main.py",
 )
 

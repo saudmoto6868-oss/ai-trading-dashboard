@@ -1178,8 +1178,8 @@ def _tab_signals(d, px) -> None:
     tfs = c[1].multiselect("TF", ["1mo", "1w", "1d", "4h"], default=["1w", "1d"], key="sg_tf")
     hide_bad = c[2].toggle(T("Hide setups the lab found worse", "اخفي اللي المعمل لقاه أسوأ"), value=True, key="sg_hide")
     go = c[3].button(T("Scan the markets", "امسح الأسواق"), key="sg_go")
-    st.caption(T("Source: the setup lab schools on 1w / 1d spot candles. The Radar's Signal list reads chart patterns on the Radar timeframe, so the two can disagree; when they do, wait.",
-                 "المصدر: مدارس معمل الإشارات على شموع السبوت أسبوعي / يومي. قايمة إشارات الرادار بتقرا نماذج الشارت على فريم الرادار، فممكن يختلفوا؛ لو اختلفوا استنى."))
+    st.caption(T("Spot only. The Radar is wider (spot, futures and more): the Radar and Watch out columns show where else a market has a signal and what to watch out for.",
+                 "سبوت بس. الرادار أوسع (سبوت وفيوتشر وغيره): عمودين الرادار وخد بالك بيقولولك السوق عليه إشارة فين تاني وتاخد بالك من إيه."))
     if go:
         st.session_state["sg_on"] = True
     if not st.session_state.get("sg_on"):
@@ -1197,10 +1197,23 @@ def _tab_signals(d, px) -> None:
     for r in show:
         by.setdefault(r["asset"], []).append(r)
     st.markdown("**" + T(f"{len(show)} live setups on {len(by)} markets", f"{len(show)} إشارة حية على {len(by)} سوق") + "**")
+    xn = {}
+    try:   # where else + watch out (owner 2026-11-20): save the Spot index, read the Radar's from this session
+        from modules import cross_signals as XS
+        sidx = XS.spot_index(rows)
+        st.session_state[XS.SPOT_KEY] = sidx
+        ridx = st.session_state.get(XS.RADAR_KEY)
+        lg = "ar" if T("a", "ب") == "ب" else "en"
+        xn = {a_: XS.notes(XS.base_of(a_), ridx, sidx, lg, here="spot") for a_ in by}
+    except Exception:
+        xn = {}
     if show:
         st.dataframe(pd.DataFrame([{T("Market", "السوق"): r["asset"], T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Use", "الاستخدام"): r["side"],
                                     "TF": r["tf"], T("Entry", "دخول"): _n(r["entry"]), T("Stop", "وقف"): _n(r["stop"]), T("Target", "هدف"): _n(r["target"]),
-                                    T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"]} for r in show]), hide_index=True, width="stretch", height=340)
+                                    T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"],
+                                    T("Radar", "الرادار"): next((p_ for p_ in xn.get(r["asset"], {}).get("where", "").split(" · ") if p_.startswith(("Radar", "الرادار"))), "-"),
+                                    T("Watch out", "خد بالك"): " · ".join(xn.get(r["asset"], {}).get("watch", [])) or "-"} for r in show]),
+                     hide_index=True, width="stretch", height=340)
         buys = [r for r in show if r["side"] == "buy" and r.get("entry")]
         if buys:
             a2 = st.columns([3, 1])

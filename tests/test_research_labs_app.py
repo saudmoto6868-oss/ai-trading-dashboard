@@ -22,7 +22,7 @@ from modules.lab_banner import with_demo_banner  # noqa: E402
 h = with_demo_banner("<html><body class='x'><p>hi</p></body></html>")
 assert h.index("demo-banner") > h.index("<body") and h.index("demo-banner") < h.index("<p>hi</p>"), h
 assert "DEMO" in h and "not evidence" in h and with_demo_banner("<p>no body</p>").startswith("<div")
-for f in ("edge_map_app", "robustness_app", "execution_app", "micro_foundations"):
+for f in ("micro_foundations",):   # 2026-11-20: edge map / robustness / execution mock pages deleted (unused since 2026-11-09)
     src = open(os.path.join(ROOT, "modules", f + ".html"), encoding="utf8").read()
     assert 'id="demo-banner"' in with_demo_banner(src), f
 mc = open(os.path.join(ROOT, "modules", "montecarlo_app.html"), encoding="utf8").read()

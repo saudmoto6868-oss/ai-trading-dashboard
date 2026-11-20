@@ -2630,7 +2630,7 @@ def render_radar_signals(f):
     data = _radar_data(f)
     if data is None:
         return
-    st.caption(L("Source: chart patterns and strategies on the Radar timeframe. The Spot desk signal board reads the setup lab on 1w / 1d, so the two can disagree; when they do, wait."))   # 2026-11-20: say where the signal comes from, so Radar vs Spot answers do not look like a contradiction
+    st.caption(L("The Radar is wider (spot, futures and more); the Spot board is spot only. The table under the list shows where else each market has a signal and what to watch out for."))   # 2026-11-20: say where the signal comes from, so Radar vs Spot answers do not look like a contradiction
     data = {s_: d_ for s_, d_ in data.items() if _radar_pass(d_, f)}   # only the symbols that pass the shared filters
     lab = _OK.load()
     by = {}
@@ -2660,6 +2660,23 @@ def render_radar_signals(f):
     st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, use_container_width=True,
                  column_config={L("Lab net R"): st.column_config.NumberColumn(format="%+.3f")})
     st.caption(L("Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate."))
+    try:   # where else + watch out (owner 2026-11-20): the Radar saves its index, reads the Spot board's index from this session
+        from modules import cross_signals as _XS
+        _items = [(sym, (_SF[k][0] if k in _SF else _PF[k]), flag_side(k) or "/".join(d.get("sides", {}).get(k, [])), d)
+                  for sym, d in data.items() for k in d["flags"] if k in _SF or k in _PF]
+        _ridx = _XS.radar_index(_items, tf)
+        st.session_state[_XS.RADAR_KEY] = _ridx
+        _sidx = st.session_state.get(_XS.SPOT_KEY)
+        _lg = _ui_lang()
+        _xrows = []
+        for _b, _ents in sorted(_ridx.items()):
+            _n = _XS.notes(_b, _ridx, _sidx, _lg, here="radar")
+            _xrows.append({L("Symbol"): _b, L("Where"): _n["where"], L("Watch out"): " · ".join(_n["watch"]) or "-"})
+        if _xrows:
+            with st.expander(L("Where else + watch out") + f" ({len(_xrows)})", expanded=False):
+                st.dataframe(_pd.DataFrame(_xrows), hide_index=True, use_container_width=True)
+    except Exception as _xe:
+        st.caption(f"cross-check: {type(_xe).__name__}")
 
 
 def render_radar_screener(f):

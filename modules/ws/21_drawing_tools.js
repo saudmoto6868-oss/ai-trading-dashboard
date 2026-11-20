@@ -497,7 +497,8 @@ Object.assign(CandleChart.prototype, {
     const placed = [], lanes = [];   // lanes: [start bar, end bar, low, high] of boxes already laid out; a box that would cover one in time AND price starts where that one ends
     P.forEach(p => { let s0 = p.known; const lo = Math.min(p.stop, p.tp2), hi = Math.max(p.stop, p.tp2);   // finished trades stay on their own candle (muted, overlap is fine); live / waiting boxes step aside, at most one box width
       if (liveSt(p)){ const o = lanes.find(L => s0 < L[1] && s0 + BW > L[0] && lo < L[3] && hi > L[2]); if (o && o[1] - p.known <= BW) s0 = o[1]; lanes.push([s0, s0 + BW, lo, hi]); } p._s0 = s0; });
-    P.forEach(p => { const buy = p.side === "BUY", st = p.status, wt = st === "waiting", live = liveSt(p), win = st === "TP2", x0 = this.x(p._s0) - this.bw/2, x1 = this.x(p._s0 + BW) - this.bw/2 - 1, W = x1 - x0;
+    this._s26Stat = {zones:0, arrows:0, trades:0};
+    if (+S.trd !== 0) P.forEach(p => { this._s26Stat.trades++; const buy = p.side === "BUY", st = p.status, wt = st === "waiting", live = liveSt(p), win = st === "TP2", x0 = this.x(p._s0) - this.bw/2, x1 = this.x(p._s0 + BW) - this.bw/2 - 1, W = x1 - x0;
       if (x1 < 0 || x0 > PR) return; const yE = py(p.entry), yS = py(p.stop), y1 = py(p.tp1), y2 = py(p.tp2);
       const zone = (ya, yb, col, a) => { c.globalAlpha = Math.min(.6, a); c.fillStyle = col; c.fillRect(x0, Math.min(ya, yb), W, Math.abs(yb - ya)); };
       if (live){ const k = wt ? .6 : 1; zone(yE, y1, CR, FA*k*(p.tp1_hit ? 1.8 : 1)); zone(y1, y2, CR, FA*k*.6); zone(yE, yS, CK, FA*k); }
@@ -517,6 +518,18 @@ Object.assign(CandleChart.prototype, {
       for (let t = 0; t < 4 && placed.some(r => cx < r[0] + r[2] && cx + cw > r[0] && cy < r[1] + r[3] && cy + ch > r[1]); t++) cy += (buy ? -1 : 1)*(ch + 2);
       placed.push([cx, cy, cw, ch]); c.fillStyle = col; c.globalAlpha = .9; c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 3) : c.rect(cx, cy, cw, ch); c.fill(); c.globalAlpha = 1; c.fillStyle = "#fff"; c.fillText(txt, cx + 5, cy + ch/2);
       if (wt){ const fr = Math.min(1, Math.max(0, (n - 1 - p.known)/wait)); c.fillStyle = "#c9a227"; c.globalAlpha = .7; c.fillRect(x0, buy ? Math.max(yE, yS) - 3 : Math.min(yE, yS), W*fr, 3); c.globalAlpha = 1; } });
+    // zone boxes (harmonic-style: one translucent box per setup, from the signal bar to its exit / now, price band = entry..TP2 incl. stop; colour per kind: H1 blue, H2 gold)
+    // and a dotted arrow from the swing that made the setup to the box entry edge, so the direction reads at a glance. Settings: zn / arw (default off). Counts kept for the mock test.
+    if (+S.zn || +S.arw) P.forEach(p => { const live = liveSt(p), g = leg(p), col = p.kind === "H2" ? "#f0b429" : CR;
+      const xs = this.x(p.known), xe = this.x(p.exit != null ? p.exit : n - 1), yE = py(p.entry), yT = py(p.tp2), yS = py(p.stop);
+      if (xe < 0 || xs > PR) return;
+      if (+S.zn){ const top = Math.min(yT, yS, yE), bot = Math.max(yT, yS, yE), zx = Math.max(0, xs), zw = Math.min(PR, xe) - zx;
+        c.save(); c.globalAlpha = live ? .16 : .08; c.fillStyle = col; c.fillRect(zx, top, zw, bot - top);
+        c.globalAlpha = .75; c.strokeStyle = col; c.lineWidth = 1; c.strokeRect(zx + .5, top + .5, zw, bot - top); c.restore(); this._s26Stat.zones++; }
+      if (+S.arw){ const ax = this.x(g.lb), ay = py(g.pb), bx = Math.max(0, xs), by = yE, ang = Math.atan2(by - ay, bx - ax);
+        c.save(); c.strokeStyle = col; c.fillStyle = col; c.globalAlpha = .9; c.lineWidth = 1.2; c.setLineDash([2, 3]);
+        c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
+        c.beginPath(); c.moveTo(bx, by); c.lineTo(bx - 7*Math.cos(ang - .4), by - 7*Math.sin(ang - .4)); c.lineTo(bx - 7*Math.cos(ang + .4), by - 7*Math.sin(ang + .4)); c.closePath(); c.fill(); c.restore(); this._s26Stat.arrows++; } });
     const F = act.length ? act[act.length - 1] : P[P.length - 1];   // the setup the range bar and the info tab explain
     if (F && +S.meas){ const g = leg(F), x = this.x(g.lb) + 10, ya = py(g.pa), yb = py(g.pb), u = Math.abs(g.pb - g.pa)/ratio;
       if (x > 0 && x < PR){ c.strokeStyle = "#c9a227"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, ya); c.lineTo(x, yb); c.moveTo(x - 4, ya); c.lineTo(x + 4, ya); c.moveTo(x - 4, yb); c.lineTo(x + 4, yb); c.stroke();

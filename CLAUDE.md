@@ -35,7 +35,7 @@ Full state + priority table: `PROJECT_STATUS.md` (read only the rows you need, n
 - Guide character (`Guide` in workspace_app.html) -> AI via `modules/guide_ai.py` + hidden component `modules/guide_bridge/` (Gemini only by owner rule: `GEMINI_API_KEY`; Claude only if `GUIDE_PROVIDER`=claude; `GUIDE_MODEL`, `GEMINI_MODEL`, `GUIDE_DAILY_CAP`); live voice call = Gemini Live (`GLive`, ephemeral token from `live_token`, `GEMINI_LIVE_MODEL`, `GEMINI_VOICE`, `GUIDE_LIVE_CAP`).
 - Signals `modules/signals.py` (+ `sig_filters`, `scorer`, `mtf`), patterns `modules/patterns.py`, scanner `modules/chart_scan.py`.
 - Server data: `market_cache.get_klines` routes OKX / `Y:` Yahoo / `HL:` `hl_feed.py`; asset classes `asset_classes.py`.
-- Tests: `for t in tests/test_*.py; do python3 $t; done` (plain scripts). App smoke test: Streamlit AppTest with `requests` patched to fail fast.
+- Tests: `for t in tests/test_*.py; do PYTHONPATH=. python3 $t; done` (plain scripts; `PYTHONPATH=.` needed). App smoke test: Streamlit AppTest with `requests` patched to fail fast.
 
 ## Data sources (decided 2026-10-17, don't re-research)
 - Crypto: OKX (browser + server). TradFi live: **Hyperliquid xyz dex** (no key; gold, silver, oil, S&P 500, Nasdaq, EUR/GBP/JPY, TLT, ~100 stocks; perpetual prices, 24/7) - confirmed working in the owner's real browser.

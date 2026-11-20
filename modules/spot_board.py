@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from modules.spot_dash import AMB, AMB2, BEAR, BG, CSS, DIM, LINE, PANEL, TXT, ring, spark
+from modules.spot_dash import AMB, AMB2, BEAR, CSS, LINE, TXT, ring, spark
 
 RED = "#e05a5a"
 

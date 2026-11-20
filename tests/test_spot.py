@@ -95,7 +95,6 @@ def boom(*a, **k):
     raise requests.ConnectionError("blocked in test")
 
 
-import tempfile
 with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
     at = AppTest.from_string("""
 import modules.spot_page as sp, tempfile

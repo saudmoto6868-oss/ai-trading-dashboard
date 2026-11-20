@@ -16,7 +16,7 @@ from config import CRYPTO_SYMBOLS
 from modules import telegram_alerts as T
 from modules.arabic import scan_entry
 from modules.market_cache import fetch_frames, get_klines
-from modules.scorer import CONTEXT_TFS, fetch_tfs, scan_symbol
+from modules.scorer import fetch_tfs, scan_symbol
 
 STATE = Path(os.environ.get("TG_STATE", ".tg_sent.json"))
 

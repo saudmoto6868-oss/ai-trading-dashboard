@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 
 UNIVERSE = [("GOLD", "metals", "الدهب"), ("SILVER", "metals", "الفضة"), ("COPPER", "metals", "النحاس"), ("OIL", "energy", "البترول"),
             ("EURUSD", "forex", "اليورو / دولار"), ("BTC", "crypto", "البيتكوين"), ("ETH", "crypto", "الإيثريوم"), ("SOL", "crypto", "سولانا")]

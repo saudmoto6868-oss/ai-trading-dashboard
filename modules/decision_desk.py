@@ -60,7 +60,7 @@ def render_decision_desk(payload: dict | None = None) -> None:
     plan = s.get("plan") or {}
     if isinstance(plan, dict) and plan:
         st.subheader(t("خطة الماسح", "Scanner plan"))
-        st.dataframe([{t("البند", "Item"): k, t("القيمة", "Value"): str(v)} for k, v in plan.items()], use_container_width=True, hide_index=True)
+        st.dataframe([{t("البند", "Item"): k, t("القيمة", "Value"): str(v)} for k, v in plan.items()], width="stretch", hide_index=True)
     tags = s.get("tags") if t("a", "b") == "a" else (s.get("tags_en") or s.get("tags"))
     if tags:
         st.markdown(t("**الوسوم:** ", "**Tags:** ") + " · ".join(str(x) for x in tags[:12]))

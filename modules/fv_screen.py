@@ -11,7 +11,6 @@ they do not exist for these markets: fundamentals, earnings, analyst, insider, s
 """
 from __future__ import annotations
 
-import math
 import re
 
 import numpy as np

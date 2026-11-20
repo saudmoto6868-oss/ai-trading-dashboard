@@ -1,5 +1,5 @@
 """Mock test: Biquote fallback parsing + market_cache fallback order (no network)."""
-import sys, os, time
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules import biquote_feed as bf, market_cache as mc, yahoo_feed as yf
 

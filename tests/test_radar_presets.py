@@ -2,7 +2,7 @@
 import os, sys, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from modules import radar_presets as R
-from modules.chart_scan import ALL_FILTERS, MOVE_FILTERS, RSI_FILTERS, PATTERN_FILTERS, STRATEGY_FILTERS
+from modules.chart_scan import MOVE_FILTERS, RSI_FILTERS, PATTERN_FILTERS, STRATEGY_FILTERS
 
 mom, vol = R.split_moves(MOVE_FILTERS)
 assert mom and vol and set(mom) | set(vol) == set(MOVE_FILTERS), (mom, vol)

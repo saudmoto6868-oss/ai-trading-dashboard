@@ -5,7 +5,6 @@ Pure functions on a DataFrame with an 'r' column (R multiples, +2 = won twice th
 'strategy' columns feed breakdown(). Nothing here places an order."""
 import math
 
-import numpy as np
 import pandas as pd
 
 GATE_N = 100        # minimum trades before any result can count as evidence

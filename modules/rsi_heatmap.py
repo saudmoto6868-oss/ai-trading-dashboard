@@ -353,7 +353,7 @@ def render():
                                "MTF": _alignment(detail[i["full"]], timeframes)} for i in items])
         st.dataframe(table.style.map(_style_rsi, subset=rsi_cols).map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
                      .format("{:.2f}", subset=rsi_cols, na_rep="—").format("{:,.6g}", subset=["Price"], na_rep="—"),
-                     use_container_width=True, hide_index=True, height=360)
+                     width="stretch", hide_index=True, height=360)
 
     with st.expander("Symbol detail · TIA Director"):
         available_symbols = [s for s in symbols if detail.get(s)]

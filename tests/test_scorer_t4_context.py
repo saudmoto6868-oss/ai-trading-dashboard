@@ -2,7 +2,7 @@
 T4 scorer test: context families (Elliott) are flags, not trigger stars.
 MEETING_ALERTS_SETUP.md — T4 requirement.
 """
-from modules.signals import BULL, BEAR
+from modules.signals import BULL
 from modules.scorer import aggregate, CONTEXT_FAMILIES, TRIGGER_FAMILIES
 
 

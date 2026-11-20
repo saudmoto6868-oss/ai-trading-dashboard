@@ -25,7 +25,7 @@ timeframe actually CONFIRMS the trigger, not from the tab it was fetched on.
 """
 
 from modules.signals import (
-    BULL, BEAR, PRIMARY_FAMILIES, CONFIRM_FAMILIES, ALL_FAMILIES, detect_all, sr_levels, fp,
+    BULL, BEAR, PRIMARY_FAMILIES, ALL_FAMILIES, detect_all, sr_levels, fp,
 )
 
 # T4 (MEETING_ALERTS_SETUP.md): context families shown as flags, not counted as stars.

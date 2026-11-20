@@ -526,3 +526,4 @@
 - **قاعدة:** الفريم الأعلى لازم يكون أكبر من فريم الشارت، وإلا مفيش رسم وبيظهر تنبيه «اختار فريم أعلى».
 - **اتجرب (mock فقط):** `tests/e2e/day_candle_check.js` في Chromium بـ OKX مزيّف: الافتراضي، 4H×3 مع المسافات والبُعد، 1W من الـ feed من غير `~`، فريم غير أكبر = تنبيه، 30s على شارت 5s، الرجوع للشموع المحمّلة (`~1D`)، القايمة، وصفر أخطاء JS. وغيّرت الفريم من الـ select الحقيقي في الإعدادات والستايل اتحدّث.
 - **ما اتجربش:** بيانات حية، الموبايل، حفظ الإعدادات بعد ريلود، فريم الشهر (مش مضاف).
+- **مصادر بحث المؤشر المعروف** (بحث ويب عام، ما اختبرتش المؤشرات نفسها ولا تأكدت من أسعارها أو تشغيلها على آخر إصدار): [LuxAlgo — HTF Candle Projections](https://www.luxalgo.com/library/indicator/htf-candle-projections/)، [ICT HTF Candles (fadi)](https://tradingview.com/script/0KTDWTdN-ICT-HTF-Candles-Source-Code-fadi)، [[ad] HTF](https://www.tradingview.com/script/bZ28AfLS-ad-HTF/).

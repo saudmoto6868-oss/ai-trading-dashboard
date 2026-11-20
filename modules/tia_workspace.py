@@ -19,6 +19,30 @@ def _tia_news() -> list:
         return []
 
 
+
+def _ctx(fn, default):
+    """A context feed never breaks the TIA page: any error gives the default."""
+    try:
+        return fn()
+    except Exception:
+        return default
+
+
+def _cal_rows():
+    from modules.context_feeds import calendar_rows
+    return calendar_rows()
+
+
+def _cmc():
+    from modules.context_feeds import cmc_data
+    return cmc_data()
+
+
+def _macro():
+    from modules.context_feeds import macro_fund
+    return macro_fund()
+
+
 _TIA_WALLS_JS = open(__import__("os").path.join(__import__("os").path.dirname(__file__), "tia_walls_block.js"), encoding="utf8").read()
 _OPT_CACHE: dict = {}   # (time, payload, errors): the Deribit snapshot is reused for 3 minutes, so a re-render never waits on the network again (failures are cached too)
 
@@ -66,7 +90,8 @@ def render_tia_workspace(height: int = 980, universe: str = "Crypto", symbols: l
     symbols = list(dict.fromkeys(symbols or ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT"]))
     asset_class = universe
     doc = build_workspace_html(symbols=symbols, news=_tia_news(), lang="en", asset_cls=asset_class,
-                               ui_theme="gold", ui_mat="steel", fh_token=_fh_token())   # same FX websocket token the desk Workspace gets
+                               ui_theme="gold", ui_mat="steel", fh_token=_fh_token(),
+                               cal=_ctx(_cal_rows, []), cmc=_ctx(_cmc, None), macrof=_ctx(_macro, None))   # same FX websocket token the desk Workspace gets
 
     # Snapshot public options context server-side (cached 3 min); the iframe receives only the derived, non-sensitive payload.
     import json

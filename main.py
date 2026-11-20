@@ -954,9 +954,7 @@ def _logo_data_uri():
     return ""
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def _calendar_rows():
-    return fetch_calendar()
+from modules.context_feeds import calendar_rows as _calendar_rows   # moved to modules/context_feeds.py (2026-11-20, shared with TIA)
 
 
 from modules import asset_classes as _AC   # the dropdown options (also used by render_header)
@@ -1034,16 +1032,7 @@ def _fred_rows():
     return snapshot()
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def _cmc_data():
-    from modules.cmc import fetch_cmc
-    return fetch_cmc()
-
-
-@st.cache_data(ttl=21600, show_spinner=False)
-def _stock_fund(tickers: tuple):
-    from modules.stock_fund import fetch_stock_fund
-    return fetch_stock_fund(tickers)
+from modules.context_feeds import cmc_data as _cmc_data, stock_fund as _stock_fund   # moved to modules/context_feeds.py
 
 
 def _stock_tickers():
@@ -1054,10 +1043,7 @@ def _stock_tickers():
     return ()
 
 
-@st.cache_data(ttl=21600, show_spinner=False)
-def _macro_fund():
-    from modules.macro_fund import fetch_macro_fund
-    return fetch_macro_fund()
+from modules.context_feeds import macro_fund as _macro_fund   # moved to modules/context_feeds.py
 
 
 @st.cache_data(ttl=30, show_spinner=False)

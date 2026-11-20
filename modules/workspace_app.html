@@ -6751,6 +6751,17 @@ Ws.defaultsMobile = () => {
    (which then keeps the forward record). Information, not a proven edge: < 30 forward trades = not evidence. */
 /* TCLASS-BEGIN pure engine (no DOM, no fetch): tests/test_tclass_js.py runs it with node on synthetic candles */
 const TCE = {
+  // Spot desk asset for the same market (display cross-feed only; the verdict does not use it)
+  SPOT_OF: {"BTC-USDT":"BTC", "ETH-USDT":"ETH", "SOL-USDT":"SOL", "HL:xyz:GOLD":"GOLD", "HL:xyz:SILVER":"SILVER", "HL:xyz:COPPER":"COPPER", "HL:xyz:BRENTOIL":"OIL", "HL:xyz:CL":"OIL", "HL:xyz:EUR":"EURUSD"},
+  spotLine(sym, long_, spot){
+    const a = this.SPOT_OF[sym], b = a && spot && (spot.brains || []).find(x => x.asset === a);
+    if (!b) return null;
+    const H = Object.values(b.horizons || {}).filter(h => typeof h.score === "number");
+    if (!H.length) return "◆ العقل المدبر (Spot): " + (b.head || "");
+    const n = H.length, agree = H.filter(h => h.score !== 0 && (h.score > 0) === long_).length, against = H.filter(h => h.score !== 0 && (h.score > 0) !== long_).length;
+    const tag = agree * 2 > n ? "◆ يوافق العقل المدبر (Spot): " : against * 2 > n ? "◆ عكس العقل المدبر (Spot): " : "◆ العقل المدبر (Spot) محايد: ";
+    return tag + (b.head || "") + " · " + agree + "/" + n + " مدد مع الصفقة";
+  },
   STYLES: {
     "Scalp":     {bias:"1H", setup:"15m", entry:"5m",  tfk:"5m",  hold:16, every:3*60e3,    want:400},
     "Day Trade": {bias:"4H", setup:"1H",  entry:"15m", tfk:"15m", hold:24, every:10*60e3,   want:400},
@@ -7097,10 +7108,12 @@ const TC = {
     } finally { this.busy = false; if (this.prog.indexOf("/") > 0) this.prog = ""; this.subs.forEach(f => f()); }
   },
   // an idea as a card in the scanner's shape: Alerts / Setup Card / Ready / Signals / strip / journal read it unchanged
+  // Cross-feed (owner 2026-11-20): the Spot brain's reading of the same market, shown on the card. Display only: it does not change the verdict or the score.
+  spotLine(sym, long_){ return TCE.spotLine(sym, long_, (typeof CFG !== "undefined" && CFG.spot) || null); },
   card(sym, style, x, r){
     const S = TCE.STYLES[style], j = x.j, long_ = x.side > 0, V = {TAKE:"ادخل", WAIT:"استنى", SKIP:"ماتدخلش"};
-    const ar = ["القرار: "+V[j.verdict]+" · الدرجة "+j.grade+" · "+x.label+" · النتيجة "+j.score, "ترابط الفريمات: "+S.bias+" ← "+S.setup+" ← "+S.entry]
-      .concat(j.pros.map(p => "✔ "+p[2]), j.cons.map(p => "✘ "+p[2]), j.vetoes.map(p => "⛔ "+p[1]), j.second.map(p => "↻ "+p[1]));
+    const sp = this.spotLine(sym, long_), ar = ["القرار: "+V[j.verdict]+" · الدرجة "+j.grade+" · "+x.label+" · النتيجة "+j.score, "ترابط الفريمات: "+S.bias+" ← "+S.setup+" ← "+S.entry]
+      .concat(sp ? [sp] : [], j.pros.map(p => "✔ "+p[2]), j.cons.map(p => "✘ "+p[2]), j.vetoes.map(p => "⛔ "+p[1]), j.second.map(p => "↻ "+p[1]));
     return {symbol:sym, direction:long_ ? "bullish" : "bearish", ttype:style, tfk:S.tfk, tfc:S.entry, score:Math.round(j.pct/10), max:10, src:"tclass", det:x.det, verdict:j.verdict,
       plan:{entry:j.plan.entry, stop:j.plan.stop, tps:j.plan.tps}, zones:[{lo:Math.min(x.entry, x.stop), hi:Math.max(x.entry, x.stop), dir:long_ ? "bullish" : "bearish"}],
       tags:[[this.detKey(x.det), "#f0b90b", "#000", x.label], [j.pts+Lg(" pts"," نقطة"), "#4aa3ff", "#000", "target in points"]].concat(j.grade === "A+" ? [["A+", "#f0b90b", "#000", "A+ setup: higher timeframe + trigger + 2 confirmations + R:R >= 2 + clear path"]] : []), spark:r.spark, ana:{sig:ar}, j, pts:j.pts, ps:r.ps, label:x.label};

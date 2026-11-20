@@ -4076,7 +4076,7 @@ const EWShape = {
 /* EWSHAPE-END */
 Object.assign(CandleChart.prototype, {
   ewShapeLabel(){   // newest shape label from the zigzag pivots (null when none)
-    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3);
+    const z = this.ewZZ();
     const name = EWShape.tail(z.map(q => q.p)); if (!name) return null;
     const T = {zigzag:["zigzag (A-B-C)","زيجزاج (A-B-C)"], regular_flat:["regular flat","فلات عادي"], expanded_flat:["expanded flat","فلات ممتد"],
       running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"],
@@ -4101,7 +4101,7 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   },
   paintGannOffset(c, py, i0, i1, PB){   // Gann offset lines (our definition): 15 / 45 / 60 deg from the last swing axis, 1 unit = ATR per bar
-    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3); if (z.length < 2) return;
+    const z = this.ewZZ(); if (z.length < 2) return;
     const a = z[z.length-2], b = z[z.length-1]; const bars = b.i - a.i; if (!bars) return;
     const slope = (b.p - a.p)/bars, dir = slope >= 0 ? 1 : -1;
     const d = this.data.slice(Math.max(0, this.data.length - 14)); const unit = d.reduce((s, r) => s + (r.h - r.l), 0)/Math.max(1, d.length); if (!unit) return;
@@ -4147,11 +4147,18 @@ Object.assign(CandleChart.prototype, {
   }
 });
 /* EWEXPL-END */
+Object.assign(CandleChart.prototype, {
+  ewZZ(){   // zig-zag pivots of the main Elliott swing size, cached per data state (length, last close, timeframe)
+    const d = this.data, k = d.length + ":" + (d.length ? d[d.length-1].c : 0) + ":" + this.tf;
+    if (this._zzC && this._zzC.k === k) return this._zzC.v;
+    const v = harmZigzag(d, zzDev(d, 2.5, 0.001, 0.025), 3); this._zzC = {k, v}; return v;
+  }
+});
 /* SIDES-BEGIN buy-side / sell-side liquidity: untaken swing highs (BSL, buy-side, above) and swing lows (SSL, sell-side, below). Labels only. */
 Object.assign(CandleChart.prototype, {
   paintSides(c, py, i0, i1, PB){
     if (!this.data || this.data.length < 20) return;
-    const z = harmZigzag(this.data, zzDev(this.data, 2.5, 0.001, 0.025), 3), n = this.data.length;
+    const z = this.ewZZ(), n = this.data.length;
     const PR = this.PR; let nb = 0, ns = 0;
     for (let j = z.length - 1; j >= 0 && (nb < 3 || ns < 3); j--){
       const q = z[j]; let taken = false;

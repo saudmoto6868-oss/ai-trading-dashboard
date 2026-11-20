@@ -437,6 +437,21 @@ Object.assign(CandleChart.prototype, {
     else if (!D){ const err = this.llErr && Date.now() - this.llErr < 120000; c.font = "9px sans-serif"; c.fillStyle = err ? "#b08a3a" : "#6b7684"; c.textAlign = "right"; c.fillText(err ? "MTF LLT: waiting for the exchange (retrying)" : "MTF LLT: loading…", PR - 8, this.PB - 8); }   // small and quiet: it used to be a big sentence in the middle of the chart that never changed
     c.restore();
   },
+  paintDayCandle(c, py){   // 2026-11-20 owner: "the big day candle that stays on the chart". The current UTC day as ONE big candle on intraday charts:
+    // O = first bar's open of the day, H / L = day extremes, C = last close; fixed at the right edge of the plot, so it stays while you scroll and zoom.
+    // If the loaded history starts inside the day, the open / high / low are only from the loaded bars: the outline is then dashed and the tag shows "~".
+    const d = this.data, n = d.length, bar = (TFSEC[this.tf] || 60) * 1000; if (!n || bar >= 86400000) return;
+    const DAY = 86400000, day = Math.floor(d[n-1].t / DAY); let i = n - 1; while (i > 0 && Math.floor(d[i-1].t / DAY) === day) i--;
+    const o = d[i].o, cl = d[n-1].c; let hi = -Infinity, lo = Infinity; for (let j = i; j < n; j++){ if (d[j].h > hi) hi = d[j].h; if (d[j].l < lo) lo = d[j].l; }
+    const partial = i === 0 && d[0].t - day*DAY >= bar, up = cl >= o, col = up ? TH.up : TH.dn, bw = 26, x0 = this.W - this.PR - bw - 8, xc = x0 + bw/2;
+    const yh = py(hi), yl = py(lo), yo = py(o), yc = py(cl);
+    c.save(); c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([]);
+    c.beginPath(); c.moveTo(xc, yh); c.lineTo(xc, yl); c.stroke();   // wick: day high to day low
+    c.fillStyle = hexA(col, .38); c.fillRect(x0, Math.min(yo, yc), bw, Math.max(2, Math.abs(yo - yc)));   // body: day open to last close
+    c.setLineDash(partial ? [3, 3] : []); c.strokeRect(x0 + .5, Math.min(yo, yc) + .5, bw - 1, Math.max(2, Math.abs(yo - yc)) - 1); c.setLineDash([]);
+    c.fillStyle = TH.mut; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.textBaseline = "bottom";
+    c.fillText((partial ? "~" : "") + "1D", xc, Math.max(12, yh - 3)); c.restore();
+  },
   paintMt5(c, py, i0, i1){   // MT5-style pack seen on the user's phone chart: SMA ribbon (5 lines), Parabolic SAR (yellow diamonds), Bill Williams fractals (red arrow above a swing high, green arrow below a swing low)
     const d = this.data, n = d.length, S = this.st.mt5; if (n < 8) return; c.save();
     if (S.rib){ [[S.p1,"#4caf50",1],[S.p2,"#e040fb",1],[S.p3,"#2979ff",1.2],[S.p4,"#ff9800",1.4],[S.p5,"#f6465d",2]].forEach(([L, col, w]) => { L |= 0; if (L < 2 || n < L) return; c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let sum = 0, f = true;

@@ -1571,7 +1571,7 @@ Object.assign(CandleChart.prototype, {
     const last = d[d.length-1].t;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
     for (const t of tr){
-      const x0 = this.tx(t.t0), x1 = this.tx(t.t1 || last);
+      const x0 = this.tx(t.t0), x1 = t.t1 ? this.tx(t.t1) : Math.min(this.tx(last), x0 + 30 * (this.bw || 6));   // open trade: the box stops after 30 bars (it used to run to the right edge forever)
       if (!(x1 >= 0) || x0 > this.PR) continue;
       const closed = t.status !== "open", long_ = t.dir === "bullish", w = Math.max(3, x1 - x0);
       const yE = py(t.entry), yS = py(t.sl), yT = py(t.tp1);

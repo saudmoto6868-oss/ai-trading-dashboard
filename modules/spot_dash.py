@@ -25,6 +25,12 @@ def _t(ar: bool, en: str, a: str) -> str:
     return a if ar else en
 
 
+SHAPE_LABEL = {"zigzag": ("zigzag (ABC)", "زيجزاج (ABC)"), "regular_flat": ("regular flat", "فلات عادي"),
+               "expanded_flat": ("expanded flat", "فلات ممتد"), "running_flat": ("running flat", "فلات جاري"),
+               "impulse": ("impulse", "دافعة"), "ending_diagonal": ("ending diagonal", "دياجونال نهائي"), "leading_diagonal": ("leading diagonal", "دياجونال بادئ"),
+               "contracting": ("contracting triangle", "مثلث متقارب"), "expanding": ("expanding triangle", "مثلث متسع"),
+               "double_zigzag": ("double zigzag (W-X-Y)", "زيجزاج مزدوج (W-X-Y)"), "double_three": ("double three (W-X-Y)", "ثلاثي مزدوج (W-X-Y)"),
+               "double_combo": ("combo (W-X-Y)", "مركب (W-X-Y)")}
 def _f(x, nd=2):
     if x is None or (isinstance(x, float) and not math.isfinite(x)):
         return "—"
@@ -289,7 +295,7 @@ def render(b: dict, ar: bool = True) -> str:
         smc_rows.append(f"<tr><td>{T(*TF_NAME[tf])}</td><td>{(ev['kind'] + ' ' + ('↑' if ev['dir'] == 'up' else '↓')) if ev else '—'}</td>"
                         f"<td>{_f(ob[-1]['lo']) + '–' + _f(ob[-1]['hi']) if ob else '—'}</td><td>{_f(fv[-1]['lo']) + '–' + _f(fv[-1]['hi']) if fv else '—'}</td>"
                         f"<td>{(f'{dr['pos'] * 100:.0f}%') if dr else '—'}</td></tr>")
-    ew_rows, gn_rows = [], []
+    ew_rows, gn_rows, hm_rows = [], [], []
     for tf in ("1mo", "1w", "1d"):
         r = reads.get(tf) or {}
         if not r.get("ok"):
@@ -299,7 +305,10 @@ def render(b: dict, ar: bool = True) -> str:
                 "abc": T("ABC correction", "تصحيح ABC")}.get(ew.get("kind"), "—")
         last = ew["labels"][-1][2] if ew.get("labels") else "—"
         tg = ew.get("targets") or {}
-        ew_rows.append(f"<tr><td>{T(*TF_NAME[tf])}</td><td>{kind}</td><td>{esc(last)}</td><td>{_f(tg.get('0.618'))}</td><td>{_f(tg.get('1.618'))}</td></tr>")
+        hm = r.get("harmonic")
+        if hm:
+            hm_rows.append(f"<tr><td>{T(*TF_NAME[tf])}</td><td>{esc(hm.get('name', '—'))}</td><td>{esc(hm.get('dir', '—'))}</td><td>{'forming' if hm.get('forming') else 'done'}</td></tr>")
+        ew_rows.append(f"<tr><td>{T(*TF_NAME[tf])}</td><td>{kind}</td><td>{esc(last)}</td><td>{esc(T(*SHAPE_LABEL[ew['shape']]) if ew.get('shape') in SHAPE_LABEL else '—')}</td><td>{_f(tg.get('0.618'))}</td><td>{_f(tg.get('1.618'))}</td></tr>")
         g = r["gann"]
         p = g.get("pivot")
         near = sorted(g.get("sq9", []), key=lambda v: abs(v - r["px"]))[:2]
@@ -309,7 +318,7 @@ def render(b: dict, ar: bool = True) -> str:
     out.append(f'<div class="grid c3">'
                f'<div class="p"><div class="h">SMC / ICT<b>{T("buy-side view", "من ناحية الشراء")}</b></div><table><tr><th></th><th>{T("last break", "آخر كسر")}</th><th>OB</th><th>FVG</th><th>{T("range pos.", "مكان في الرينج")}</th></tr>{"".join(smc_rows)}</table>'
                f'<div class="dim" style="margin-top:6px">{T("Below 50% = discount (where spot buys); above = premium.", "تحت 50% = ديسكاونت (مكان شراء السبوت)؛ فوق = بريميوم.")}</div></div>'
-               f'<div class="p"><div class="h">{T("Elliott", "اليوت")}<b>Fibonacci</b></div><table><tr><th></th><th>{T("count", "العد")}</th><th>{T("now", "دلوقتي")}</th><th>0.618</th><th>1.618</th></tr>{"".join(ew_rows)}</table></div>'
+               f'<div class="p"><div class="h">{T("Elliott", "اليوت")}<b>Fibonacci</b></div><table><tr><th></th><th>{T("count", "العد")}</th><th>{T("now", "دلوقتي")}</th><th>{T("shape", "الشكل")}</th><th>0.618</th><th>1.618</th></tr>{"".join(ew_rows)}</table>{("<table><tr><th></th><th>"+T("harmonic", "هارمونيك")+"</th><th>"+T("side", "الاتجاه")+"</th><th>"+T("state", "الحالة")+"</th></tr>"+"".join(hm_rows)+"</table>") if hm_rows else ""}</div>'
                f'<div class="p"><div class="h">{T("Gann", "جان")}<b>Sq9 · {T("time", "زمن")}</b></div><table><tr><th></th><th>{T("pivot", "المحور")}</th><th>{T("nearest levels", "أقرب مستويات")}</th><th>{T("cycle", "الدورة")}</th><th>{T("turn in", "الانعكاس بعد")}</th></tr>{"".join(gn_rows)}</table></div></div>')
     # ratios + SMT
     rat = b.get("ratios", {})

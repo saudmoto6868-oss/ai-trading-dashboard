@@ -1,0 +1,1 @@
+{"id": "BTC-USDT|2026-11-21", "symbol": "BTC-USDT", "class": "Crypto", "tf": "1D", "side": "long", "entry": 58166.2, "stop": 57758.0, "target": 58778.49999999999, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

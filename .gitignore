@@ -20,4 +20,9 @@ data/spot/
 
 # the brain (modules/brain.py): its memory lives in the GitHub Actions cache
 .brain_*
+
+# Claude Code activity hook writes this on every tool call: local only, never commit (commit spam got the GitHub account suspended)
+docs/ACTIVITY_LOG_AUTO.md
+data/tia/
+data/two_six/
 data/x77/

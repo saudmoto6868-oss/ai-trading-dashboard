@@ -1,0 +1,266 @@
+/* EWSHAPE-BEGIN Elliott correction shapes + diagonals as labels (same rules and numbers as modules/elliott_shapes.py; tests/test_ew_shapes_js_parity.py) */
+const EWShape = {
+  abc(a0, a1, a2, a3){   // zigzag / regular_flat / expanded_flat / running_flat, or null
+    const A = a1 - a0; if (A === 0) return null;
+    const s = A > 0 ? 1 : -1, lenA = Math.abs(A);
+    const bRet = s*(a1 - a2)/lenA, bBeyond = bRet > 1.0, cBeyond = s*(a3 - a1) > 0;
+    if (bRet <= 0 || bRet > 1.5) return null;
+    if (!bBeyond && bRet >= 0.382 && bRet < 0.9 && cBeyond) return "zigzag";
+    if (bRet >= 0.9 && bRet <= 1.05 && Math.abs(a3 - a1)/lenA <= 0.10) return "regular_flat";
+    if (bBeyond && cBeyond) return "expanded_flat";
+    if (bBeyond && !cBeyond) return "running_flat";
+    return null;
+  },
+  impulse(p0, p1, p2, p3, p4, p5){   // impulse / ending_diagonal, or null
+    const s = p1 > p0 ? 1 : -1;
+    const w1 = s*(p1 - p0), w3 = s*(p3 - p2), w5 = s*(p5 - p4);
+    if (Math.min(w1, w3, w5) <= 0) return null;
+    if (s*(p2 - p0) <= 0 || s*(p3 - p1) <= 0 || s*(p5 - p3) <= 0) return null;
+    const overlap4 = s*(p4 - p1) <= 0;
+    if (!overlap4 && !(w3 < w1 && w3 < w5)) return "impulse";
+    if (overlap4 && w5 < w3) return "ending_diagonal";
+    return null;
+  },
+  tri(p0, p1, p2, p3, p4, p5){   // contracting / expanding, or null (leg lengths only)
+    const legs = [Math.abs(p1-p0), Math.abs(p2-p1), Math.abs(p3-p2), Math.abs(p4-p3), Math.abs(p5-p4)];
+    if (Math.min(...legs) <= 0) return null;
+    if ([0,1,2,3].every(k => legs[k+1] <= legs[k]*0.95)) return "contracting";
+    if ([0,1,2,3].every(k => legs[k+1] >= legs[k]*1.05)) return "expanding";
+    return null;
+  },
+  wxy(p0, p1, p2, p3, p4, p5, p6, p7){   // double_zigzag / double_three / double_combo, or null
+    const s = p1 > p0 ? 1 : -1, wLen = Math.abs(p3 - p0);
+    if (wLen === 0) return null;
+    const xRet = Math.abs(p4 - p3)/wLen;
+    if (s*(p4 - p3) >= 0 || s*(p7 - p4) <= 0) return null;
+    if (xRet < 0.382 || xRet > 1.0) return null;
+    if (s*(p3 - p0) <= 0) return null;
+    const w = this.abc(p0, p1, p2, p3), y = this.abc(p4, p5, p6, p7);
+    if (!w || !y) return null;
+    const wz = w === "zigzag", yz = y === "zigzag";
+    if (wz && yz) return "double_zigzag";
+    if (!wz && !yz) return "double_three";
+    return "double_combo";
+  },
+  triple(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11){   // triple_zigzag / triple_three / triple_combo, or null (same rules as triple_shape)
+    const s = p1 > p0 ? 1 : -1, wL = Math.abs(p3 - p0), yL = Math.abs(p7 - p4);
+    if (wL === 0 || yL === 0) return null;
+    const x1 = Math.abs(p4 - p3)/wL, x2 = Math.abs(p8 - p7)/yL;
+    if (x1 < 0.382 || x1 > 1.0 || x2 < 0.382 || x2 > 1.0) return null;
+    if (s*(p4 - p3) >= 0 || s*(p8 - p7) >= 0) return null;
+    if (s*(p7 - p4) <= 0 || s*(p11 - p8) <= 0) return null;
+    const w = this.abc(p0, p1, p2, p3), y = this.abc(p4, p5, p6, p7), z = this.abc(p8, p9, p10, p11);
+    if (!w || !y || !z) return null;
+    const k = [w === "zigzag", y === "zigzag", z === "zigzag"];
+    if (k.every(Boolean)) return "triple_zigzag";
+    if (!k.some(Boolean)) return "triple_three";
+    return "triple_combo";
+  },
+  tail(p){   // same order as Python classify_tail
+    const n = p.length;
+    if (n >= 12){ const t = this.triple(...p.slice(n-12)); if (t) return t; }
+    if (n >= 8){ const w = this.wxy(...p.slice(n-8)); if (w) return w; }
+    if (n >= 6){ const q = p.slice(n-6); let t = this.tri(...q) || this.impulse(...q);
+      if (t === "ending_diagonal" && n >= 8){ const sd = q[1] > q[0] ? 1 : -1; if (sd*(q[0] - p[n-8]) < 0) t = "leading_diagonal"; }   // same rule as Python diagonal_kind
+      if (t) return t; }
+    if (n >= 4){ const a = this.abc(...p.slice(n-4)); if (a) return a; }
+    return null;
+  }
+};
+/* EWSHAPE-END */
+Object.assign(CandleChart.prototype, {
+  ewShapeLabel(){   // newest shape label from the zigzag pivots (null when none)
+    const z = this.ewZZ();
+    const name = EWShape.tail(z.map(q => q.p)); if (!name) return null;
+    const T = {zigzag:["zigzag (A-B-C)","زيجزاج (A-B-C)"], regular_flat:["regular flat","فلات عادي"], expanded_flat:["expanded flat","فلات ممتد"],
+      running_flat:["running flat","فلات جاري"], impulse:["impulse 1-5","دافعة 1-5"], ending_diagonal:["ending diagonal","دياجونال نهائي"], leading_diagonal:["leading diagonal","دياجونال بادئ"],
+      contracting:["contracting triangle","مثلث متقارب"], expanding:["expanding triangle","مثلث متسع"],
+      double_zigzag:["double zigzag (W-X-Y)","زيجزاج مزدوج (W-X-Y)"], double_three:["double three (W-X-Y)","ثلاثي مزدوج (W-X-Y)"],
+      double_combo:["combo (W-X-Y)","مركب (W-X-Y)"], triple_zigzag:["triple zigzag (W-X-Y-X-Z)","زيجزاج ثلاثي (W-X-Y-X-Z)"],
+      triple_three:["triple three (W-X-Y-X-Z)","ثلاثي ثلاثي (W-X-Y-X-Z)"], triple_combo:["triple combo (W-X-Y-X-Z)","ثلاثي مركب (W-X-Y-X-Z)"]}[name];
+    return T ? Lg("Shape: "+T[0], "الشكل: "+T[1]) : null;
+  }
+});
+
+Object.assign(CandleChart.prototype, {
+  paintEWfib(c, py, w){   // Elliott Fibonacci zone of the newest full impulse: 0.5 / 0.618 / 0.764 / 0.854 from the wave-5 end over the wave-1 range (our measurement)
+    if (!w || !w.pts || w.pts.length < 6) return;
+    const p0 = w.pts[0].p, p1 = w.pts[1].p, p5 = w.pts[5], rng = p1 - p0; if (!rng) return;
+    const x0 = this.x(p5.i), PR = this.PR, col = "#b57cff";
+    c.save(); c.setLineDash([3,3]); c.strokeStyle = col; c.fillStyle = col; c.globalAlpha = .75; c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle";
+    for (const lvl of [0.5, 0.618, 0.764, 0.854]){
+      const pr = p5.p - lvl*rng, y = py(pr); c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke();
+      c.fillText(lvl.toFixed(3), Math.min(PR - 34, x0 + 4), y - 7);
+    }
+    c.restore();
+  },
+  paintGannOffset(c, py, i0, i1, PB){   // Gann offset lines (our definition): 15 / 45 / 60 deg from the last swing axis, 1 unit = ATR per bar
+    const z = this.ewZZ(); if (z.length < 2) return;
+    const a = z[z.length-2], b = z[z.length-1]; const bars = b.i - a.i; if (!bars) return;
+    const slope = (b.p - a.p)/bars, dir = slope >= 0 ? 1 : -1;
+    const d = this.data.slice(Math.max(0, this.data.length - 14)); const unit = d.reduce((s, r) => s + (r.h - r.l), 0)/Math.max(1, d.length); if (!unit) return;
+    const base = Math.atan2(Math.abs(slope), unit), PR = this.PR, col = "#f7b500";
+    c.save(); c.setLineDash([5,4]); c.strokeStyle = col; c.globalAlpha = .7; c.lineWidth = 1; c.font = "10px sans-serif"; c.fillStyle = col;
+    for (const off of [15, 45, 60]){
+      const ang = base + off*Math.PI/180; if (ang >= Math.PI/2) continue;
+      const x0 = this.x(b.i), y0 = py(b.p), bwPx = Math.max(1e-9, this.bw), barsToEdge = (PR - x0)/bwPx;
+      const pEnd = b.p + dir*Math.tan(ang)*unit*barsToEdge;   // price at the right edge, same slope in scaled units
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(PR, py(pEnd)); c.stroke();
+      c.fillText(off+"°", Math.min(PR - 28, x0 + 6), y0 - 6);
+    }
+    c.restore();
+  }
+});
+/* EWEXPL-BEGIN plain-language Elliott explainer: diagonal trendlines, wave-by-wave caption (labels only) */
+const EW_WAVE_TEXT = {
+  "0": ["start of the move", "بداية الحركة"],
+  "1": ["wave 1: first push, often the smallest", "موجة 1: أول دفعة، غالباً الأصغر"],
+  "2": ["wave 2: pullback, never goes past the start of wave 1", "موجة 2: تصحيح، ما تعديش بداية موجة 1"],
+  "3": ["wave 3: usually the strongest, never the shortest", "موجة 3: غالباً الأقوى، ومش الأقصر"],
+  "4": ["wave 4: pullback, stays out of wave 1's price area", "موجة 4: تصحيح، ما تدخلش منطقة موجة 1"],
+  "5": ["wave 5: last push, often shows weakening momentum", "موجة 5: آخر دفعة، غالباً الزخم بيضعف"]
+};
+Object.assign(CandleChart.prototype, {
+  paintEWdiag(c, py){   // leading or ending diagonal on the newest six pivots: draw its two converging lines and say which one
+    const z = this.ewZZ(); if (z.length < 6) return;
+    const name = EWShape.tail(z.map(q => q.p)); if (name !== "ending_diagonal" && name !== "leading_diagonal") return;
+    const Q = z.slice(-6), P = Q.map(q => ({x: this.x(q.i), y: py(q.p)})), up = Q[1].p > Q[0].p;
+    const PR = this.PR, col = up ? "#0ecb81" : "#f6465d";
+    const line = (a, b) => { const dx = b.x - a.x || 1e-9, m = (b.y - a.y)/dx; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(PR, a.y + m*(PR - a.x)); c.stroke(); };
+    c.save(); c.setLineDash([6,4]); c.strokeStyle = col; c.globalAlpha = .8; c.lineWidth = 1;
+    line(P[1], P[3]); line(P[3], P[5]);   // the pivots 1, 3, 5
+    line(P[0], P[2]); line(P[2], P[4]);   // the pivots 0, 2, 4
+    c.restore();
+    this.indNote(c, 5, name === "leading_diagonal"
+      ? Lg("Leading diagonal: a wedge that starts a move (wave 1 or A)", "دياجونال بادئ: وتد بيبدأ حركة (موجة 1 أو A)")
+      : Lg("Ending diagonal: a wedge that ends a move (wave 5 or C)", "دياجونال نهائي: وتد بينهي حركة (موجة 5 أو C)"));
+  },
+  ewWaveCaption(c, w, n){   // one line per wave: what it is and what to expect (teaching text, not a forecast)
+    if (!w || !w.pts || w.pts.length < 2) return;
+    const k = String(w.pts.length - 1);
+    const t = EW_WAVE_TEXT[k]; if (!t) return;
+    this.indNote(c, n, Lg("Now: ", "دلوقتي: ") + Lg(t[0], t[1]));
+  }
+});
+/* EWEXPL-END */
+Object.assign(CandleChart.prototype, {
+  ewZZ(){   // zig-zag pivots of the main Elliott swing size, cached per data state (length, last close, timeframe)
+    const d = this.data, k = d.length + ":" + (d.length ? d[d.length-1].c : 0) + ":" + this.tf;
+    if (this._zzC && this._zzC.k === k) return this._zzC.v;
+    const v = harmZigzag(d, zzDev(d, 2.5, 0.001, 0.025), 3); this._zzC = {k, v}; return v;
+  }
+});
+/* SIDES-BEGIN buy-side / sell-side liquidity: untaken swing highs (BSL, buy-side, above) and swing lows (SSL, sell-side, below). Labels only. */
+Object.assign(CandleChart.prototype, {
+  paintSides(c, py, i0, i1, PB){
+    if (!this.data || this.data.length < 20) return;
+    const z = this.ewZZ(), n = this.data.length;
+    const PR = this.PR; let nb = 0, ns = 0;
+    for (let j = z.length - 1; j >= 0 && (nb < 3 || ns < 3); j--){
+      const q = z[j]; let taken = false;
+      for (let m = q.i + 1; m < n && !taken; m++){ const b = this.data[m]; taken = q.k === "H" ? b.h > q.p : b.l < q.p; }
+      if (taken) continue;
+      const high = q.k === "H"; if (high ? nb >= 3 : ns >= 3) continue; if (high) nb++; else ns++;
+      const x0 = this.x(q.i), y = py(q.p), col = high ? "#4aa3ff" : "#f6465d";
+      c.save(); c.setLineDash([2,3]); c.strokeStyle = col; c.globalAlpha = .6; c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke(); c.restore();
+      c.save(); c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "right"; c.textBaseline = high ? "bottom" : "top";
+      c.fillText(high ? Lg("BSL · buy-side liquidity", "BSL · سيولة شراء") : Lg("SSL · sell-side liquidity", "SSL · سيولة بيع"), PR - 4, y + (high ? -2 : 2)); c.restore();
+    }
+  },
+  ewSubLine(c, n){   // the count inside the newest wave (smaller swing size). One line; labels only.
+    const sub = this.ewCount(1.0)[0]; if (!sub || !sub.pts) return;
+    const txt = sub.pts.length >= 6 ? Lg("inside the newest wave: sub 1-5 done", "جوه آخر موجة: الفرعية 1-5 خلصت")
+      : Lg("inside the newest wave: sub-wave " + (sub.pts.length - 1) + " so far", "جوه آخر موجة: موجة فرعية " + (sub.pts.length - 1) + " لحد دلوقتي");
+    this.indNote(c, n, txt);
+  }
+});
+/* SIDES-END */
+/* PROJ-BEGIN expected zone for the wave that is forming (a description, not a forecast). Key X hides / shows it. */
+CandleChart.projOn = true;
+document.addEventListener("keydown", e => { if ((e.key === "x" || e.key === "X") && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) CandleChart.projOn = !CandleChart.projOn; });
+Object.assign(CandleChart.prototype, {
+  paintProjection(c, py){
+    const f = this._ewf; if (!CandleChart.projOn || !f || !f.pts || f.pts.length < 2) return;
+    const P = f.pts, last = P[P.length-1], prev = P[P.length-2], s = f.up ? 1 : -1, w1 = Math.abs(P[1].p - P[0].p) || 1e-12;
+    let a, b, lbl;
+    if (f.next % 2 === 0){   // waves 2 / 4 are pullbacks: the retracement band of the leg before them
+      const leg = Math.abs(last.p - prev.p) || w1; a = last.p - s*0.5*leg; b = last.p - s*0.618*leg; lbl = Lg("expected: wave "+f.next+" pullback 50–61.8 %", "متوقع: موجة "+f.next+" تصحيح 50–61.8 %");
+    } else {                 // waves 3 / 5 are pushes: the extension band of wave 1 from the last pivot
+      a = last.p + s*1.0*w1; b = last.p + s*1.618*w1; lbl = Lg("expected: wave "+f.next+" push 1.0–1.618 × wave 1", "متوقع: موجة "+f.next+" دفعة 1.0–1.618 × موجة 1");
+    }
+    const x0 = this.x(last.i), PR = this.PR, y1 = py(Math.max(a, b)), y2 = py(Math.min(a, b));
+    c.save(); c.globalAlpha = .12; c.fillStyle = "#b57cff"; c.fillRect(x0, y1, PR - x0, Math.max(2, y2 - y1)); c.globalAlpha = .7; c.strokeStyle = "#b57cff"; c.setLineDash([3,3]); c.strokeRect(x0+.5, y1+.5, PR - x0, Math.max(2, y2 - y1));
+    c.globalAlpha = .95; c.fillStyle = "#b57cff"; c.font = "9px sans-serif"; c.textAlign = "right"; c.textBaseline = "top"; c.fillText(lbl + "  · X", PR - 4, y1 + 2); c.restore();
+  }
+});
+/* PROJ-END */
+/* G144-BEGIN Gann square of 144 (same numbers as modules/gann_geom.square_of_144): a 144-bar box from the lowest low of the last 144 bars,
+   time lines at the eighths and thirds of 144, price levels at the same fractions of the box's range. Geometry only. */
+const SQ144_F = [1/8, 1/4, 1/3, 3/8, 1/2, 5/8, 2/3, 3/4, 7/8, 1];
+Object.assign(CandleChart.prototype, {
+  paintGann144(c, py, PB){
+    const d = this.data, n = d.length; if (n < 30) return;
+    const k = n + ":" + d[n-1].c + ":" + this.tf; let g = this._g144 && this._g144.k === k ? this._g144.v : null;
+    if (!g){ const w0 = Math.max(0, n - 144); let st = w0; for (let i = w0; i < n; i++) if (d[i].l < d[st].l) st = i;
+      const end = Math.min(n, st + 144); let lo = Infinity, hi = -Infinity; for (let i = st; i < end; i++){ lo = Math.min(lo, d[i].l); hi = Math.max(hi, d[i].h); }
+      g = {st, lo, hi}; this._g144 = {k, v: g}; }
+    const rng = g.hi - g.lo; if (!(rng > 0)) return;
+    const x0 = this.x(g.st), x1 = this.x(g.st + 144), PR = this.PR, col = "#d4a017";
+    c.save(); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1; c.font = "9px sans-serif";
+    SQ144_F.forEach(f => {   // price levels
+      const y = py(g.lo + rng*f); c.globalAlpha = f === .5 || f === 1 ? .55 : .25; c.setLineDash(f === .5 ? [] : [2,4]);
+      c.beginPath(); c.moveTo(x0, y); c.lineTo(Math.min(PR, x1), y); c.stroke(); });
+    SQ144_F.forEach(f => {   // time lines
+      const xb = this.x(g.st + Math.round(144*f)); if (xb < 0 || xb > PR) return; c.globalAlpha = .22; c.setLineDash([2,4]);
+      c.beginPath(); c.moveTo(xb, 0); c.lineTo(xb, PB); c.stroke(); c.globalAlpha = .6; c.fillText(String(Math.round(144*f)), xb + 2, PB - 4); });
+    c.globalAlpha = .8; c.setLineDash([]); c.textAlign = "left"; c.fillText(Lg("Gann square of 144", "مربع جان 144"), Math.max(4, x0 + 3), py(g.hi) - 4);
+    c.restore();
+  }
+});
+/* G144-END */
+/* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
+const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
+Object.assign(CandleChart.prototype, {
+  ewFrameSummary(rows, tf){   // one frame -> {tf, state, shape, next} (state text only; no forecast)
+    const o = {data: rows, tf, ewForming: CandleChart.prototype.ewForming};
+    const list = CandleChart.prototype.ewCount.call(o), f = o._ewf;
+    const z = harmZigzag(rows, zzDev(rows, 2.5, 0.001, 0.025), 3);
+    const shape = EWShape.tail(z.map(q => q.p));
+    let state = "—", next = null;
+    if (list.length){
+      const top = list[0];
+      if (top.pts.length >= 6 && top.abc.length >= 3) { state = Lg("impulse done, ABC done", "دافعة خلصت، والـ ABC خلص"); next = Lg("new impulse", "دافعة جديدة"); }
+      else if (top.pts.length >= 6) { state = Lg("impulse 1-5 done", "دافعة 1-5 خلصت"); next = Lg("ABC next", "ABC جاي"); }
+      else if (top.abc.length) { state = Lg("ABC forming", "ABC بيتكون"); next = Lg("ABC C next", "الموجة C جاية"); }
+    }
+    if (f){ state = Lg("forming, wave ", "بتتكون، موجة ") + f.next; next = Lg("wave ", "موجة ") + f.next; }
+    return {tf, state, shape: shape ? (EWShape_AR_OR_EN(shape)) : "—", next: next || "—"};
+  },
+  ewMTFBox(c){   // top-right corner: one line per frame, newest frames first; cached 5 min per frame; drawn only when Elliott is on
+    if (!this.sym) return;
+    const store = this._ewMtf || (this._ewMtf = {}), rows = [];
+    for (const H of EW_MTF_FRAMES){
+      const k = this.sym+"|"+H, e = store[k];
+      if (!e || (!e.busy && Date.now() - e.t > 300000)){
+        if (H !== "1Y") store[k] = {t: Date.now(), v: e ? e.v : null, busy: true};
+        if (H === "1Y") { store[k] = {t: Date.now(), v: store[k] ? store[k].v : null, busy: false}; }   // filled from the 1M fetch below
+        else candlesTf(this.sym, H, true, 200).then(r => { store[k] = {t: Date.now(), v: r && r.length > 30 ? this.ewFrameSummary(r, H) : null, busy: false};
+          if (H === "1M" && r && r.length > 24) { const yr = {}; r.forEach(x => { const ms = x.t < 1e12 ? x.t*1000 : x.t, y = new Date(ms).getUTCFullYear(); const g = yr[y] || (yr[y] = {t: ms, o: x.o, h: -Infinity, l: Infinity, c: x.c, v: 0}); g.h = Math.max(g.h, x.h); g.l = Math.min(g.l, x.l); g.c = x.c; g.v += (x.v || 0); });
+            const ys = Object.keys(yr).sort().map(y => yr[y]); const k1 = this.sym+"|1Y"; store[k1] = {t: Date.now(), v: ys.length > 3 ? this.ewFrameSummary(ys, "1Y") : null, busy: false}; }
+          this.draw(); })
+          .catch(() => { store[k] = {t: Date.now(), v: null, busy: false}; });
+      }
+      if (store[k] && store[k].v) rows.push(store[k].v);
+    }
+    if (!rows.length) return;
+    const PR = this.PR, lh = 12, W = 230, H = 16 + rows.length*lh;
+    c.save(); c.globalAlpha = .85; c.fillStyle = "#0b0e11"; c.fillRect(PR - W - 6, 4, W, H); c.globalAlpha = 1;
+    c.font = "bold 10px sans-serif"; c.fillStyle = "#f0b90b"; c.textAlign = "left"; c.textBaseline = "top";
+    c.fillText(Lg("Elliott by frame", "إليوت حسب الفريم"), PR - W, 6);
+    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.fillStyle = "#c9d1d9";
+    rows.forEach((r, i) => c.fillText(r.tf + "  " + r.state + "  ·  " + r.shape + "  ·  → " + r.next, PR - W, 20 + i*lh));
+    c.restore();
+  }
+});
+function EWShape_AR_OR_EN(name){ const AR = {zigzag:"زيجزاج ABC", regular_flat:"فلات عادي", expanded_flat:"فلات ممتد", running_flat:"فلات جاري", impulse:"دافعة 1-5", ending_diagonal:"دياجونال نهائي", leading_diagonal:"دياجونال بادئ", contracting:"مثلث متقارب", expanding:"مثلث متسع", double_zigzag:"زيجزاج مزدوج", double_three:"ثلاثي مزدوج", double_combo:"مركب W-X-Y", triple_zigzag:"زيجزاج ثلاثي", triple_three:"ثلاثي ثلاثي", triple_combo:"ثلاثي مركب"}; return Lg(name.replace(/_/g," "), AR[name] || name); }
+/* EWMTF-END */

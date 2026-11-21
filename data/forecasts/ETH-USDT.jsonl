@@ -1,0 +1,1 @@
+{"id": "ETH-USDT|2026-11-21", "symbol": "ETH-USDT", "class": "Crypto", "tf": "1D", "side": "short", "entry": 1605.22, "stop": 1763.15, "target": 1368.3249999999998, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

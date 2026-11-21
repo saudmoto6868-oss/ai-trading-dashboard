@@ -98,13 +98,22 @@ if not _auth_gate(L):
     st.stop()
 
 # ---- Research Labs (sidebar) -------------------------------------------------
-# Monte Carlo and Robustness live in the Stats page (one home each); only Micro · Foundations is opened from here.
+# Monte Carlo lives in Trading > Journal; only Micro · Foundations is opened from here.
 with st.sidebar.expander(L("🔬 Research Labs"), expanded=False):
     st.caption(L("Standalone studies — open in full page"))
-    _lab_choice = st.radio(L("Lab"), ["—", "⬡ Micro · Foundations"], key="lab_choice", label_visibility="collapsed")
+    _lab_choice = st.radio(
+        L("Lab"),
+        ["—", "⬡ Micro · Foundations", "2.6 Strategy Intelligence"],
+        key="lab_choice",
+        label_visibility="collapsed",
+    )
     if _lab_choice == "⬡ Micro · Foundations":
         from modules.micro_foundations import render as _mf_render
         _mf_render()
+        st.stop()
+    if _lab_choice == "2.6 Strategy Intelligence":
+        from modules.two_six_lab import render as _two_six_render
+        _two_six_render()
         st.stop()
 
 # ---- Build stamp: which commit this running app was built from (so a stale deploy is visible at a glance) ----
@@ -167,6 +176,37 @@ with st.sidebar.expander(L("Chart / Layout"), expanded=False):
     st.caption(L("Per-widget colours: use the two colour dots in each Workspace widget's title bar."))
 st.markdown(f"<style>.stApp{{background-color:{ui_bg}}} .stTabs [aria-selected='true']{{color:{ui_accent};border-bottom-color:{ui_accent}}}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>{ORDERFLOW_CSS}</style>", unsafe_allow_html=True)
+# compact, square-cornered controls on every page (owner 2026-11-16): small dropdowns, inputs, buttons, tabs and labels
+COMPACT_CSS = """<style>
+[data-baseweb="select"]>div{min-height:24px!important;height:auto!important;border-radius:4px!important;background:#161a1e!important;border:1px solid #2b3139!important;box-shadow:none!important}
+[data-baseweb="select"] *{font-size:11px!important;color:#c9d1d9!important}
+[data-baseweb="select"] input{min-height:0!important;padding:0 4px!important}
+[data-baseweb="input"],[data-baseweb="base-input"]{background:#161a1e!important;border-radius:4px!important;border:1px solid #2b3139!important;min-height:24px!important}
+[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{font-size:11px!important;padding:2px 6px!important;min-height:22px!important;color:#c9d1d9!important}
+[data-testid="stWidgetLabel"] p,[data-testid="stWidgetLabel"] label{font-size:10px!important;line-height:12px!important;margin:0 0 1px 0!important;color:#848e9c!important}
+[data-testid="stPopover"] button,button[kind="secondary"],button[kind="tertiary"]{min-height:24px!important;height:24px!important;padding:0 8px!important;font-size:11px!important;border-radius:4px!important;border:1px solid #2b3139!important;background:#161a1e!important;color:#c9d1d9!important}
+button[data-baseweb="tab"]{font-size:12px!important;padding:4px 10px!important;min-height:0!important;height:30px!important}
+[data-baseweb="tab-list"]{gap:2px!important}
+[data-baseweb="tab-highlight"]{height:2px!important}
+[data-testid="stSegmentedControl"] button{min-height:22px!important;height:22px!important;font-size:11px!important;padding:0 8px!important;border-radius:4px!important}
+[data-testid="stVerticalBlock"]{gap:.5rem}
+[data-testid="stSelectbox"]>div>div,[data-testid="stNumberInput"]>div>div,[data-testid="stTextInput"]>div>div,[data-testid="stMultiSelect"]>div>div{background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;min-height:24px!important;box-shadow:none!important}
+[data-testid="stSelectbox"] span,[data-testid="stSelectbox"] input,[data-testid="stMultiSelect"] span,[data-testid="stNumberInput"] input,[data-testid="stTextInput"] input{color:#c9d1d9!important;font-size:11px!important;background:transparent!important}
+[data-testid="stNumberInput"] input{min-height:22px!important;padding:0 6px!important}
+[data-testid="stNumberInput"] button{background:#161a1e!important;color:#c9d1d9!important;border-left:1px solid #2b3139!important}
+[data-testid="stSegmentedControl"]>div,[data-testid="stSegmentedControl"] [role="radiogroup"]{background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;padding:2px!important}
+[data-testid="stSegmentedControl"] button{background:transparent!important;color:#9aa3ad!important;border:0!important;border-radius:3px!important;font-size:11px!important;min-height:22px!important;height:22px!important;padding:0 8px!important}
+[data-testid="stSegmentedControl"] button[aria-checked="true"],[data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:#2b3139!important;color:#eaecef!important}
+button[role="tab"]{background:transparent!important;color:#9aa3ad!important;font-size:12px!important;padding:2px 10px!important;border:0!important;border-radius:0!important}
+button[role="tab"][aria-selected="true"]{color:#eaecef!important;box-shadow:inset 0 -2px 0 #f0b90b!important}
+[data-baseweb="tab-border"]{background:#2b3139!important}
+[data-testid="stPills"] button,[data-testid="stPills"] div[role="button"]{background:#161a1e!important;border:1px solid #2b3139!important;color:#9aa3ad!important;font-size:11px!important;min-height:22px!important;padding:0 8px!important;border-radius:4px!important}
+[data-testid="stPills"] button[aria-checked="true"],[data-testid="stPills"] div[aria-checked="true"]{background:#2b3139!important;color:#eaecef!important}
+[data-testid="stButtonGroup"] button,[role="radio"]{background:#161a1e!important;color:#9aa3ad!important;border:1px solid #2b3139!important;border-radius:3px!important;font-size:11px!important;min-height:22px!important;height:22px!important;padding:0 8px!important;box-shadow:none!important}
+[data-testid="stButtonGroup"] button[aria-checked="true"],[role="radio"][aria-checked="true"]{background:#2b3139!important;color:#eaecef!important;border-color:#f0b90b!important}
+[data-testid="stButtonGroup"] [role="radiogroup"]{gap:2px!important}
+</style>"""
+st.markdown(COMPACT_CSS, unsafe_allow_html=True)
 if _ui_lang() == "ar":   # Arabic: labels, captions and alerts right-to-left (charts, tables and numbers keep their own direction)
     st.markdown(RTL_CSS, unsafe_allow_html=True)
 if auto_on and st_autorefresh is not None:
@@ -270,6 +310,7 @@ def score_mt5_group(symbols):
     return results, ("; ".join(errors) if errors else "")
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _peer_frames(symbols, tf):
     """Candles (timeframe `tf`) of the correlated markets needed for SMT divergence, fetched once for the whole list."""
     from modules.smt import peers_of
@@ -913,9 +954,7 @@ def _logo_data_uri():
     return ""
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def _calendar_rows():
-    return fetch_calendar()
+from modules.context_feeds import calendar_rows as _calendar_rows   # moved to modules/context_feeds.py (2026-11-20, shared with TIA)
 
 
 from modules import asset_classes as _AC   # the dropdown options (also used by render_header)
@@ -993,16 +1032,7 @@ def _fred_rows():
     return snapshot()
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def _cmc_data():
-    from modules.cmc import fetch_cmc
-    return fetch_cmc()
-
-
-@st.cache_data(ttl=21600, show_spinner=False)
-def _stock_fund(tickers: tuple):
-    from modules.stock_fund import fetch_stock_fund
-    return fetch_stock_fund(tickers)
+from modules.context_feeds import cmc_data as _cmc_data, stock_fund as _stock_fund   # moved to modules/context_feeds.py
 
 
 def _stock_tickers():
@@ -1013,10 +1043,7 @@ def _stock_tickers():
     return ()
 
 
-@st.cache_data(ttl=21600, show_spinner=False)
-def _macro_fund():
-    from modules.macro_fund import fetch_macro_fund
-    return fetch_macro_fund()
+from modules.context_feeds import macro_fund as _macro_fund   # moved to modules/context_feeds.py
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -1096,11 +1123,8 @@ if _ac_msg:
 ACTIVE_SYMBOLS = list(SCAN_SYMBOLS)   # may contain "Y:" (Yahoo) symbols: the Workspace gets their candles embedded in the page (no live book / tape for them)
 
 
-def render_universe_controls():
-    """Asset class / Market for the Chart Scanner (moved here from the top row: the Workspace watchlist has its own selectors)."""
-    _u1, _u2, _u3, _u4 = st.columns([1.3, 1.0, 1.0, 5])
-    from modules import ui_kit as _UK
-    st.markdown(kit_css(), unsafe_allow_html=True)
+def render_universe_controls(_u1, _u2, _u3):
+    """Asset class / Market / Universe size: drawn in the ONE Radar filter line (the caller passes the three columns)."""
     _u1.selectbox(L("Asset class"), _AC.CLASSES, key="asset_cls", format_func=L, help=L("Asset class for the Chart Scanner (and the Workspace scan / ready trades)."))
     _u2.selectbox(L("Market"), list(_AC.MARKET_TYPES), key="market_type", format_func=L, help=L("Spot / Perpetual swap / dated Futures (OKX)."))
     _u3.number_input(L("Universe size"), min_value=10, max_value=150, value=24, step=2, key="uni_n", help=L("How many symbols the Radar scans (biggest 24h volume first). More symbols = a longer first load."))
@@ -1129,15 +1153,39 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Stats", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "X77"]   # 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_PAGE_ORDER = [0, 1, 11, 12, 2, 7, 3, 4, 8, 9, 10, 5, 6]   # 11 = Spot right after the Radar; 10 = Prop Firms inserted before AI/Alerts
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77"]   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 18, 19, 21], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
+_PAGE_ORDER = [0, 1, 11, 12, 20, 13, 14, 15]   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
+
+
+def _nav_to(i):
+    """Open page i (an old page index opens its hub with that sub-page selected)."""
+    if i == 8:   # Lab Summary now sits on top of Technical Office > Lab results (owner 2026-11-09)
+        i = 2
+        st.session_state["to_tab"] = "Lab results"
+    h = _HUB_OF.get(i)
+    st.session_state["page"] = h if h is not None else (i if i in _PAGE_ORDER else 0)
+    if h is not None:
+        st.session_state[f"hub_{h}"] = i
+
+
 if "page" not in st.session_state:
     try:
-        st.session_state["page"] = min(max(int(st.query_params.get("page", 0)), 0), len(_PAGES) - 1)
+        _nav_to(int(st.query_params.get("page", 0)))
     except (TypeError, ValueError):
-        st.session_state["page"] = 0
+        _nav_to(0)
+elif st.session_state["page"] not in _PAGE_ORDER:   # a session opened before the hubs existed
+    _nav_to(st.session_state["page"])
 with (NAV_BOX if NAV_BOX is not None else st.container()):
     PAGE = st.radio(L("Page"), _PAGE_ORDER, format_func=lambda i: L(_PAGES[i]), horizontal=True, key="page", label_visibility="collapsed")
+if PAGE in _HUBS:   # one compact row of sub-tabs; PAGE becomes the old page index, so every `if PAGE == N` block below is unchanged
+    _hk = f"hub_{PAGE}"
+    if st.session_state.get(_hk) not in _HUBS[PAGE]:   # Streamlit drops an undrawn widget's value: come back to the last sub-page used
+        st.session_state[_hk] = st.session_state.get("last_" + _hk) if st.session_state.get("last_" + _hk) in _HUBS[PAGE] else _HUBS[PAGE][0]
+    with st.container(key="hubnav"):
+        PAGE = st.radio(L(_PAGES[PAGE]), _HUBS[PAGE], format_func=lambda i: L(_PAGES[i]), horizontal=True, key=_hk, label_visibility="collapsed")
+    st.session_state["last_" + _hk] = PAGE
 if str(st.query_params.get("page", "")) != str(PAGE):
     st.query_params["page"] = str(PAGE)
 try:   # screen recorder + quick editor: lives in the parent page, so it follows you to every page (owner 2026-11-06)
@@ -1185,6 +1233,14 @@ st.markdown(f"""<style>.st-key-page [role="radiogroup"]{{gap:2px 16px;flex-wrap:
 [data-testid="stExpander"] summary{{background:#0b0f14!important;color:#e6e9ee!important}} [data-testid="stExpander"] summary p{{color:#e6e9ee!important}} .st-key-page [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-page [data-testid="stRadioOption"] p{{color:#c3c9d1;opacity:1}} .st-key-page [data-testid="stRadioOption"]{{opacity:1}}
 .st-key-page label:has(input:checked){{border-bottom:2px solid {ui_accent}}} .st-key-page label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""",
             unsafe_allow_html=True)
+if PAGE != 0:   # every page after the Workspace (owner 2026-11-09): full width, tight spacing, small framed metrics, hub sub-tabs as one row
+    st.markdown(f"""<style>.block-container{{max-width:100%!important;padding-left:1rem!important;padding-right:1rem!important}}
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]{{gap:.45rem}} [data-testid="stHorizontalBlock"]{{gap:.5rem!important}}
+[data-testid="stMetric"]{{background:rgba(255,255,255,.02);border:1px solid #1c232b;border-radius:6px;padding:4px 10px}} [data-testid="stMetricValue"]{{font-size:1.15rem!important}} [data-testid="stMetricLabel"] p{{font-size:11px!important}}
+.stApp h1{{font-size:1.35rem}} .stApp h2{{font-size:1.15rem}} .stApp h3{{font-size:1rem}} [data-testid="stButtonGroup"] button{{min-height:26px;padding:0 10px}} [data-testid="stButtonGroup"] button p{{font-size:12px}}
+.st-key-hubnav [role="radiogroup"]{{gap:2px 4px;flex-wrap:wrap;border-bottom:1px solid #1c232b}} .st-key-hubnav label{{padding:3px 12px;margin:0;border-radius:6px 6px 0 0;white-space:nowrap}}
+.st-key-hubnav [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-hubnav [data-testid="stRadioOption"] p{{font-size:12px;color:#c3c9d1}}
+.st-key-hubnav label:has(input:checked){{background:rgba(240,185,11,.10);border-bottom:2px solid {ui_accent}}} .st-key-hubnav label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""", unsafe_allow_html=True)
 
 def _md_sections(path):
     """{heading: body} of the '## ' sections of a Markdown file in the repo (empty if missing)."""
@@ -1351,15 +1407,6 @@ def _office_overview():
          (L("Backtest"), L("rules + engine, verdict on out-of-sample"), "info"), (L("Strategy import"), L("text / video link -> rules"), "off")],
         [(L("Alerts · Telegram"), L("confirmed only, never orders"), "ok" if tg else "off"), (L("Journal"), L("in the browser · CSV export"), "info"),
          (L("Model inventory"), L("gate verdict per strategy"), "info")]]), unsafe_allow_html=True)
-    st.markdown(U.tools(L("Tools"), [
-        (L("Backtest"), L("strategy + symbol + timeframe, verdict on out-of-sample"), L("tab: Backtest"), "ok"),
-        (L("Strategy builder"), L("indicator + condition + value, AND / OR, JSON"), L("tab: Backtest"), "ok"),
-        (L("Strategy import"), L("text or link -> rules + assumptions"), L("waiting: ChatGPT template"), "warn"),
-        (L("Scanner control"), L("filters, timeframe, confirmed / candidate"), L("Radar page"), "ok"),
-        (L("Trade card"), L("entry, stop, target and the detector's evidence"), L("task 17, after the ranking"), "off"),
-        (L("Telegram"), L("alerts for confirmed setups only"), L("workflow every 30 min") + (" · " + L("key set") if tg else " · " + L("no key")), "ok" if tg else "warn"),
-        (L("Recording"), L("snapshot / record the chart and the workspace"), L("Workspace toolbar"), "ok"),
-        (L("KPIs"), L("net R, profit factor, drawdown, t"), L("Stats page"), "ok")]), unsafe_allow_html=True)
     st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
 
 
@@ -1534,7 +1581,6 @@ def _office_ops():
 
 
 def _office_lab():
-    _office_control_room()
     st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
                  "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
     lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
@@ -1763,6 +1809,51 @@ def _office_options():
         lines.append(_ot("IV structure: ", "هيكل الـ IV: ") + (_ot("inverted (near expiries cost more than far ones): the market is tense in the short term.", "مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير.") if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
                                        _ot("normal (far expiries cost more): relative calm.", "طبيعي (البعيد أغلى): هدوء نسبي.") if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else _ot("flat.", "مسطح.")))
     st.markdown(f"<div class='xo-card' dir='{'rtl' if _oa else 'ltr'}' style='line-height:24px'><b>" + _ot("Reading of the nearest expiry (context, not a signal)", "قراءة أقرب استحقاق (سياق مش إشارة)") + "</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
+    # GEX (gamma exposure) from the same book: call wall, put wall, gamma flip (modules/gex.py). Naive dealer sign; context, not a signal.
+    def _gex_block(chain, spot, mult, title, days):
+        from modules import gex as GX
+        _td = _pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+        gx, tb = GX.levels(chain, spot, _td, max_days=days, mult=mult), GX.by_strike(chain, spot, _td, max_days=days, mult=mult)
+        if not gx["n_contracts"]:
+            st.info(L("No open interest to compute GEX."))
+            return
+        f = lambda v: f"{v:,.0f}" if v else "-"
+        st.markdown("<div class='xo-row'>" + U.indicators(title, [
+            (L("Call wall"), f(gx["call_wall"]), L("strike with the most call gamma"), None),
+            (L("Put wall"), f(gx["put_wall"]), L("strike with the most put gamma"), None),
+            (L("Gamma flip"), f(gx["gamma_flip"]), L("total GEX changes sign near here"), None),
+            (L("Net GEX per 1% move"), f"${gx['net_gex'] / 1e6:,.1f}M", L("positive = moves dampened, negative = moves can extend"), "warn" if gx["net_gex"] < 0 else None)]) + "</div>", unsafe_allow_html=True)
+        nb = tb[(tb.index >= spot * 0.8) & (tb.index <= spot * 1.2)].reset_index()
+        if len(nb):
+            nb["side"] = nb["net_gex"].map(lambda v: "+" if v >= 0 else "-")
+            bars = alt.Chart(nb).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("net_gex:Q", title="GEX $ / 1%"),
+                                                   color=alt.Color("side:N", scale=alt.Scale(domain=["+", "-"], range=["#e3a857", "#b8574a"]), legend=None), tooltip=["strike", "call_gex", "put_gex", "net_gex"])
+            marks = [alt.Chart(_pd.DataFrame({"x": [spot]})).mark_rule(color="#eaecef", strokeDash=[6, 4]).encode(x="x:Q")]
+            if gx["gamma_flip"]:
+                marks.append(alt.Chart(_pd.DataFrame({"x": [gx["gamma_flip"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q"))
+            ch_ = bars
+            for m_ in marks:
+                ch_ = ch_ + m_
+            st.altair_chart(ch_.properties(height=220), use_container_width=True)
+            st.caption(L("Gold = positive GEX, rust = negative; white dashed = spot, purple dotted = gamma flip."))
+        st.caption(L("GEX assumes dealers are long the calls and short the puts the public holds; public data cannot confirm who is long or short, and providers disagree. Context, not a trade signal."))
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Gamma exposure (GEX)'))}</div>", unsafe_allow_html=True)
+    try:
+        _gex_block(OD.gex_chain(rows), s["spot"], 1, f"GEX · {cur} · " + L("expiries up to 45 days"), 45)
+    except Exception as _e:
+        st.warning(f"GEX: {type(_e).__name__}: {_e}")
+    with st.expander(L("GEX for a US index / stock (Cboe, 15 min delayed)")):
+        _us = (st.text_input(L("Symbol"), value="SPX", key="od_gex_us") or "SPX").strip().upper()
+        if st.button(L("Load"), key="od_gex_us_go"):
+            try:
+                from modules import cboe_options as CB
+                _px, _chain = CB.fetch(_us)
+                if not _px:
+                    st.warning(L("Cboe sent no underlying price."))
+                else:
+                    _gex_block(_chain, float(_px), 100, f"GEX · {_us} · Cboe · " + L("expiries up to 30 days"), 30)
+            except Exception as _e:
+                st.warning(f"Cboe: {type(_e).__name__}: {_e}")
     st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
 
 
@@ -1977,12 +2068,91 @@ def _office_strategy_map():
     st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
 
 
+def _office_regime():
+    """Technical Office > Macro regime: risk-on / neutral / risk-off from five FRED series (modules/fred_regime.py), walk-forward with
+    publication delays (no look-ahead). A description of financial conditions, not a trade signal."""
+    import altair as alt
+    import pandas as _pd
+    from modules import office_ui as U, fred_regime as FR
+    st.markdown(U.CSS, unsafe_allow_html=True)
+
+    @st.cache_data(ttl=6 * 3600, show_spinner=False)
+    def _load():
+        return FR.load_all()
+    frames, errs = _load()
+    if errs:
+        st.caption(L("Not loaded: ") + ", ".join(errs))
+    if not frames:
+        st.warning(L("FRED did not answer; try again later."))
+        return
+    now = _pd.Timestamp.now(tz="UTC").tz_localize(None)
+    r = FR.regime_at(frames, now)
+    if r["score"] is None:
+        st.info(L("Not enough FRED history yet."))
+        return
+    names = {"risk-on": L("Risk on"), "neutral": L("Neutral"), "risk-off": L("Risk off")}
+    items = [(L("Regime now"), names[r["regime"]], L("score") + f" {r['score']:+.2f} · {r['n']}/5 " + L("series"), "warn" if r["regime"] == "risk-off" else None)]
+    items += [(L(p["label"]), f"{p['value']:.2f}", f"z {p['z']:+.2f} · " + L("known since") + f" {p['known_since'].date()}", "warn" if p["contrib"] > 1 else None) for p in r["parts"]]
+    st.markdown("<div class='xo-row'>" + U.indicators(L("Macro regime (FRED)"), items) + "</div>", unsafe_allow_html=True)
+    h = FR.history(frames, start=now - _pd.DateOffset(years=3), end=now)
+    if len(h):
+        line = alt.Chart(h).mark_line(color="#e3a857").encode(x=alt.X("date:T", title=None), y=alt.Y("score:Q", title=L("Stress score")), tooltip=["date:T", "score:Q", "regime:N"])
+        rules = alt.Chart(_pd.DataFrame({"y": [FR.TH, -FR.TH]})).mark_rule(color="#8f877a", strokeDash=[4, 4]).encode(y="y:Q")
+        st.altair_chart((line + rules).properties(height=240), use_container_width=True)
+        cnt = h["regime"].value_counts()
+        st.caption(L("Last 3 years, weekly: ") + " · ".join(f"{names.get(k, k)} {int(v)}" for k, v in cnt.items()))
+    st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
+
+
+def _office_control():
+    """Technical Office > Control room: status, gauge, alerts, charts, system map; under it the work board (left) and the GitHub workflows (right)."""
+    _office_overview()
+    a, b = st.columns([2, 1])
+    with a:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Work board'))}</div>", unsafe_allow_html=True)
+        _office_board()
+    with b:
+        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Operations'))}</div>", unsafe_allow_html=True)
+        _office_ops()
+
+
+def _office_lab_all():
+    """Technical Office > Lab results: the Lab Summary on top (was its own page), then one detector's card (left) next to the weekly lab tables (right)."""
+    try:
+        from modules.lab_summary import render_lab_summary
+        render_lab_summary(_scan_store().get("payload") or {})
+    except Exception as _ls_exc:
+        st.error(L("Lab Summary") + f": {_ls_exc}")
+    st.divider()
+    a, b = st.columns(2)
+    with a:
+        _office_detector()
+    with b:
+        _office_lab()
+
+
+def _office_strategies():
+    """Technical Office > Strategies: scanner presets for the Radar (folded), the strategy map, then the rule builder / backtest."""
+    with st.expander(L("Scanner presets -> Radar"), expanded=False):
+        _office_scanner()
+    _office_strategy_map()
+    st.divider()
+    st.markdown(f"<div class='xo-h'>{html.escape(L('Backtest your own rules'))}</div>", unsafe_allow_html=True)
+    _office_backtest()
+
+
+def _office_flow():
+    """Technical Office > Order flow: the forward-test judge on top, the manual (methods, tools, routine) under it - one tab (2026-11-09)."""
+    _office_flow_lab()
+    st.divider()
+    _office_flow_manual()
+
+
 def render_lab_page():
-    """Technical Office v2: one tab bar, only the open tab runs (control room, work board, scanner control, detector
-    analysis, backtest, operations, lab results)."""
-    tabs = {"Control room": _office_overview, "Work board": _office_board, "Scanner control": _office_scanner,   # order = the workflow: look, plan, set the scanner, read the detectors, map strategies, test, read the lab, then the specialist desks
-            "Detector analysis": _office_detector, "Strategy map": _office_strategy_map, "Backtest": _office_backtest, "Lab results": _office_lab,
-            "Options desk": _office_options, "Flow manual": _office_flow_manual, "Flow lab": _office_flow_lab, "Operations": _office_ops}
+    """Technical Office v2: one tab bar, only the open tab runs. Options desk + Macro regime live in Trading > Options & macro (2026-11-09)."""
+    tabs = {"Control room": _office_control, "Lab results": _office_lab_all, "Strategies": _office_strategies, "Order flow": _office_flow}   # 2026-11-09: 9 tabs -> 4
+    if st.session_state.get("to_tab") not in tabs:   # a tab that moved (Options desk, Macro regime, Flow manual / lab) must not break an open session
+        st.session_state.pop("to_tab", None)
     st.markdown(kit_css(), unsafe_allow_html=True)
     pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
     try:
@@ -2067,10 +2237,15 @@ def _playbook_rules():
 
 def render_playbook_page():
     """Playbook (owner 2026-10-22): one tab bar - by trading style, schools, rules and timing, the full document."""
-    tabs = {"By trading style": _playbook_styles, "Schools": _playbook_schools, "Rules & timing": _playbook_rules, "Full document": _playbook_doc}
-    pick = st.segmented_control(L("Playbook"), list(tabs), default="By trading style", format_func=L, key="pb_tab", label_visibility="collapsed")
+    tabs = {"Styles & rules": (_playbook_styles, _playbook_rules), "Schools & document": (_playbook_schools, _playbook_doc)}   # 2026-11-09: 4 tabs -> 2 (owner approved)
+    if st.session_state.get("pb_tab") not in tabs:
+        st.session_state.pop("pb_tab", None)
+    pick = st.segmented_control(L("Playbook"), list(tabs), default="Styles & rules", format_func=L, key="pb_tab", label_visibility="collapsed")
     try:
-        tabs.get(pick or "By trading style", _playbook_styles)()
+        for _i, _fn in enumerate(tabs.get(pick or "Styles & rules", tabs["Styles & rules"])):
+            if _i:
+                st.divider()
+            _fn()
     except Exception as e:
         st.error(f"Playbook: {type(e).__name__}: {e}")
 
@@ -2084,12 +2259,12 @@ def render_alerts_page():
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
     tgw = wf.get("telegram-alerts.yml", {})
-    tab = st.segmented_control(L("Alerts"), ["Sources", "Telegram", "Radar alerts (task 17)"], default="Sources", format_func=L, key="al_tab", label_visibility="collapsed")
-    if tab in (None, "Sources"):
-        st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
+    st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
                              (L("Telegram workflow"), tgw.get("schedule") or "-", "ok" if tgw else "off"),
                              (L("Dashboard banners"), L("on"), "ok"),
                              (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
+    _al, _ar_ = st.columns([3, 2])   # 2026-11-09: one page, sources left, Telegram + Radar plan right (was 3 tabs)
+    with _al:
         st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
             (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
             (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
@@ -2099,16 +2274,17 @@ def render_alerts_page():
             (L("Order-flow sync alerts"), L("book + tape agree with the setup"), L("waiting for the order-flow sync fix"), "off"),
             (L("News alarm"), L("strong news event: blinking light, short Arabic summary, source"), L("chat item 24.1, open"), "off"),
             (L("Paper-trading bot"), L("follows only rules that passed the lab, own track record"), L("planned, never real orders"), "off")]) + "</div>", unsafe_allow_html=True)
-    elif tab == "Telegram":
-        st.markdown(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
+    with _ar_:
+        st.markdown(f"<div class='xo-h'>{html.escape(L('Telegram'))}</div>", unsafe_allow_html=True)
+        st.caption(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
         st.markdown(U.table([L("Setting"), L("Where"), L("Value")], [
             [L("Bot token and chat id"), "Streamlit secrets / GitHub secrets", U.badge(L("key set") if tg else L("no key"), "ok" if tg else "warn")],
             [L("Schedule"), ".github/workflows/telegram-alerts.yml", U.esc(tgw.get("schedule") or "-")],
             [L("Timeframes / top / minimum quality"), "TG_TFS · TG_TOP · TG_MIN_Q · TG_MIN_STARS", "1h,1d · 3 · 60 · 4"],
             [L("Already-sent memory"), ".tg_sent.json (actions/cache)", L("no repeats")]]), unsafe_allow_html=True)
         st.caption(L("Use the sidebar > Telegram alerts > Send test message to check the link. The keys never go into the code or the chat."))
-    else:
-        st.markdown(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
+        st.markdown(f"<div class='xo-h' style='margin-top:8px'>{html.escape(L('Radar alerts (task 17)'))}</div>", unsafe_allow_html=True)
+        st.caption(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
                       "with the entry, stop and target from the existing rules, the detector's lab evidence, and the Radar mark. Suggestion only - no orders."))
         st.markdown(U.table([L("Field"), L("Source")], [[L("Symbol, timeframe, strategy"), "Radar"], [L("Entry / stop / target"), L("existing scanner rules")],
                                                       [L("Evidence"), "data/strategy_lab.json (net avg R, n)"], [L("Invalidation"), L("stop level")], [L("Status"), L("confirmed only")]]), unsafe_allow_html=True)
@@ -2177,9 +2353,11 @@ def _fv_with_ref(df, sym, ref_sym, ref_df):
     return m
 
 
+@st.cache_data(ttl=120, show_spinner=False)   # speed: every Radar rerun / page switch used to refetch all candles
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
+    from modules import radar_context as _RC
     frames, _errs = fetch_frames(list(symbols), [tf], limit=260, workers=8)
     pfr = _peer_frames(symbols, tf)
     out = {}
@@ -2196,7 +2374,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
-        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "price": float(df["close"].iloc[-1]),
+        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "ctx": _RC.context(df), "price": float(df["close"].iloc[-1]),
                     "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
@@ -2219,50 +2397,7 @@ def _cs_result(sym: str, tf: str):
     return r
 
 
-def render_market_map():
-    """Market map of the Hyperliquid TradFi markets (xyz): change tiles, breadth, and strength by asset class."""
-    from modules.hl_feed import markets as _hl_markets
-    from modules.market_map import board, breadth, by_class
-    try:
-        rows = _hl_markets()
-    except Exception as e:
-        st.warning(L("Market map: Hyperliquid did not answer") + f" ({type(e).__name__})")
-        return
-    df = board(rows)
-    if df.empty:
-        st.caption(L("Market map: no markets with a reference price right now."))
-        return
-    from modules.market_map import apply_filters as _mm_filter
-    _all = df
-    fc = st.columns([2.4, 0.8, 1, 1, 1.2, 1.2])
-    _cls_opts = sorted(_all["cls"].unique())
-    sel_cls = fc[0].pills(L("Class"), _cls_opts, selection_mode="multi", key="hm_cls", label_visibility="collapsed") or []
-    top_n = int(fc[1].number_input(L("Top N by volume"), 0, 300, 0, 10, key="hm_top", help=L("0 = all markets")))
-    direction = fc[2].selectbox(L("Direction"), ["all", "up", "down"], key="hm_dir", format_func=lambda k: {"all": L("All"), "up": L("Up"), "down": L("Down")}[k])
-    min_abs = float(fc[3].number_input(L("Min |change| %"), 0.0, 50.0, 0.0, 0.5, key="hm_abs"))
-    q = fc[4].text_input(L("Search"), key="hm_q", label_visibility="collapsed", placeholder=L("Search"))
-    sort = fc[5].selectbox(L("Sort"), ["vol", "chg", "chg_abs", "rel"], key="hm_sort", format_func=lambda k: {"vol": L("Volume"), "chg": L("Change"), "chg_abs": L("Biggest move"), "rel": L("vs class")}[k])
-    df = _mm_filter(_all, sel_cls, top_n, direction, min_abs, q, sort)
-    if df.empty:
-        st.info(f"{L('No markets match these filters.')} ({len(_all)} {L('markets')})")
-        return
-    bd = breadth(df)
-    st.markdown(f"**{L('Market map')}** · {L('markets')}: {bd['n']} · {L('up')}: {bd['up_share']*100:.0f}% · "
-                f"{L('down')}: {bd['down_share']*100:.0f}% · {L('median change')}: {bd['median_chg']:+.2f}%")
-    st.caption(L("Tile colour = change vs the previous day; tile size = 24h volume (no market cap is available for these markets). "
-                 "Breadth and strength describe the move, they do not predict it."))
-    tiles = []
-    for _, r in df.iterrows():
-        g = max(-8.0, min(8.0, r["chg"])) / 8.0
-        bg = f"rgba(14,203,129,{abs(g)*0.85+0.1:.2f})" if g >= 0 else f"rgba(246,70,93,{abs(g)*0.85+0.1:.2f})"
-        size = 0.7 + 0.6 * (r["vol"] / df["vol"].max()) ** 0.5
-        tiles.append(f"<div title='{r['name']} · {r['cls']} · {r['chg']:+.2f}% · vs class {r['rel']:+.2f}%' "
-                     f"style='flex:{size:.2f} 1 110px;min-height:56px;background:{bg};border-radius:4px;padding:4px 6px;"
-                     f"font:12px ui-monospace,Menlo,monospace;color:#eaecef'><b>{r['name']}</b><br>{r['chg']:+.2f}%</div>")
-    st.markdown("<div style='display:flex;flex-wrap:wrap;gap:4px'>" + "".join(tiles) + "</div>", unsafe_allow_html=True)
-    cls = by_class(df)
-    st.dataframe(cls.rename(columns={"cls": L("Class"), "n": L("Markets"), "avg_chg": L("Avg change %"), "up_share": L("Share up")}).round(3),
-                 hide_index=True)
+from modules.market_map_view import render_market_map  # noqa: E402  (moved 2026-11-17; same view for the desk and TIA)
 
 
 def _clear_cs_filters():
@@ -2664,11 +2799,14 @@ def _radar_filters(view):
     """ONE filter panel for every Radar view (owner 2026-10-23): universe, timeframe, side, indicators, strategies, patterns and the Finviz-style technical lists.
     Rendered on every run so its choices survive switching tabs; returns the settings dict."""
     st.markdown("""<style>
-.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px 8px 2px}
+.st-key-csf{background:#12161b;border:1px solid #2b3139;border-radius:5px;padding:3px 6px 1px}
 .st-key-csf label p,.st-key-csf [data-testid="stWidgetLabel"] p{font-size:10px!important;color:#848e9c!important;margin:0 0 1px 0!important;text-transform:uppercase;letter-spacing:.03em}
-.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:26px!important;font-size:11px!important}
+.st-key-csf [data-baseweb="select"]>div,.st-key-csf input{min-height:22px!important;font-size:10px!important;padding-top:0!important;padding-bottom:0!important}
 .st-key-csf [data-baseweb="select"] span,.st-key-csf [data-baseweb="tag"]{font-size:11px!important}
 .st-key-csf [data-testid="stHorizontalBlock"]{gap:.4rem!important}
+.st-key-csf [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;overflow-x:auto;align-items:center!important}.st-key-csf{font-size:10px}
+.st-key-csf [data-testid="stPopover"] button{min-height:22px!important;height:22px!important;padding:0 6px!important;font-size:10px!important}
+.st-key-csf [data-testid="stElementContainer"]{margin-bottom:0!important}
 .st-key-csf [data-testid="stVerticalBlock"]{gap:.25rem!important}
 .st-key-csf [data-testid="stNumberInputContainer"]{min-height:26px!important}
 .st-key-csf [data-baseweb="select"] [data-baseweb="tag"]{height:18px!important;margin:1px!important}
@@ -2738,15 +2876,17 @@ def _radar_filters(view):
     with st.container(key="csfw"), st.container(key="csf"):
         rd = ss.get("radar_def", {})   # set from Technical Office > Scanner control
         _def_tf = rd["tf"] if rd.get("tf") in _CS_TFS else "1h"
-        tf = st.pills(L("Timeframe"), _CS_TFS, key="cs_tf", default=_def_tf, label_visibility="collapsed") or _def_tf   # one timeframe row for EVERY Radar view
         _sides, _modes = ["Both", "Buy only", "Sell only"], ["All selected", "Any selected"]
         # ONE compact row (owner 2026-10-24): preset by strategy name, then plain grouped dropdowns, no icons
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([1.5, 0.55, 0.85, 1.0, 0.8, 0.85, 0.8, 0.8, 0.8])
-        top[0].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
-        with top[1].popover(L("Save")):
+        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.4, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8])
+        st.markdown(kit_css(), unsafe_allow_html=True)
+        render_universe_controls(top[1], top[2], top[3])   # Asset class / Market / Universe size, same line
+        tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
+        top[4].selectbox(L("Preset (strategy)"), [_RP.NONE] + list(_pres), key="cs_preset", on_change=_on_preset, format_func=lambda x: L("— choose a strategy —") if x == _RP.NONE else x)
+        with top[5].popover(L("Save")):
             _nm = st.text_input(L("Name of my preset"), key="cs_preset_name", max_chars=40)
             st.button(L("Save current filters"), key="cs_preset_save", on_click=_on_save)
             _m = ss.pop("rp_msg", None)
@@ -2756,7 +2896,7 @@ def _radar_filters(view):
             if isinstance(_cur, str) and _cur.startswith("★"):
                 st.button(L("Delete") + f" {_cur}", key="cs_preset_del", on_click=_on_del)
             st.caption(L("Saved in this browser only (not shared with other browsers or people)."))
-        with top[2].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
+        with top[6].popover(L("Trend") + _n("cs_stack", "cs_px_rel", "cs_ma_rel", "fv_f_sma20", "fv_f_sma50", "fv_f_sma200", "fv_f_adx", "fv_f_sar", "fv_f_dist20", "fv_f_ichi")):
             look = st.selectbox(L("Cross window"), [1, 3, 5, 10], index=1, key="cs_look", format_func=lambda n: f"last {n} candle" + ("s" if n > 1 else ""))
             stack = st.selectbox(L("Trend stack"), ["—", "Bullish (px>9>20>50)", "Bearish (px<9<20<50)", "Above all EMAs", "Below all EMAs"], key="cs_stack", format_func=L)
             c_ = st.columns([1.3, 0.7])
@@ -2769,39 +2909,39 @@ def _radar_filters(view):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[3].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
+        with top[7].popover(L("Momentum") + _n("cs_rsi", "cs_mom_a", "fv_f_perf", "fv_f_perf2", "fv_f_chg", "fv_f_chgopen", "fv_f_macd", "fv_f_stoch", "fv_f_cci", "fv_f_willr")):
             sel_rsi = st.multiselect("RSI", list(RSI_FILTERS), format_func=RSI_FILTERS.get, key="cs_rsi")
             sel_mom_a = st.multiselect(L("Price move (last candle)"), _mom_k, format_func=MOVE_FILTERS.get, key="cs_mom_a")
             for k_ in ("perf", "perf2", "chg", "chgopen", "macd", "stoch", "cci", "willr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[4].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
+        with top[8].popover(L("Volume") + _n("cs_mom_v", "fv_f_vol", "fv_f_relvol", "fv_f_turnover", "fv_f_obv")):
             sel_mom_v = st.multiselect(L("Volume (last candle)"), _vol_k, format_func=MOVE_FILTERS.get, key="cs_mom_v")
             for k_ in ("vol", "relvol", "turnover", "obv"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[5].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
+        with top[9].popover(L("Pattern") + _n("cs_pat", "cs_strat", "fv_f_candle", "fv_f_range")):
             sel_pat = st.multiselect(L("Chart patterns"), list(PATTERN_FILTERS), format_func=PATTERN_FILTERS.get, key="cs_pat")
             sel_strat = st.multiselect(L("Strategies / signals (Elliott, SMC, ICT, Harmonic, VWAP ...)"), list(STRATEGY_FILTERS), format_func=_strat_name, key="cs_strat")
             for k_ in ("candle", "range"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[6].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
+        with top[10].popover(L("Market") + _n("fv_f_hl20", "fv_f_hl50", "fv_f_hl52", "fv_f_hlall", "fv_f_gap", "fv_f_atr", "fv_f_bb", "fv_f_price", "fv_f_beta", "fv_f_corr")):
             for k_ in ("hl20", "hl50", "hl52", "hlall", "gap", "atr", "bb", "price", "beta", "corr"):
                 r_ = _fvbox(st, k_)
                 if r_:
                     fv[r_[0]] = r_[1]
-        with top[7].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
+        with top[11].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
             n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
             ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
             from modules.regime import REGIMES as _RG
             sel_regime = st.multiselect(L("Market regime"), _RG, key="cs_regime", help=L("Trend / Chop / Hi-Vol / Crash / Squeeze / Thin, from the candles of the chosen timeframe. A description of now, not a signal."))
-        top[8].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
+        top[12].button(L("Clear all filters"), key="cs_clear_top", on_click=_clear_cs_filters)
     sel_mom = list(sel_mom_a) + list(sel_mom_v)
     quick = []
 
@@ -2891,16 +3031,25 @@ def render_chart_scanner(f):
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
     _dn = _rs.get("dn", 0)
-    st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
-        (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
-        (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
-        (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
-        (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
-         L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
-        (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
-         L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
-        (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
-    ]), unsafe_allow_html=True)
+    with st.expander(L('Summary (KPIs)'), expanded=False):   # collapsed by default: the charts start higher on the page
+        st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+            (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
+            (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
+            (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
+            (L("Market (daily)"), L(_rs["regime"]), f"{_up_pct:.0f}% {L('up')} · {_dn} {L('down')}", "up" if _rs["regime"] == "trend up" else "down" if _rs["regime"] == "trend down" else "warn",
+             L("Share of the Radar symbols above / below their daily EMA 20 and 50")),
+            (L("News within 1 h"), L("yes") if _rs["news"] else L("no"), _rs["news"] or "", "warn" if _rs["news"] else "",
+             L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
+            (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
+        ]), unsafe_allow_html=True)
+    from modules import radar_open_setups as _OS
+    _orows = _OS.open_setups(data, {s_ for s_, _d in shown})
+    with st.expander(L("Open setups: harmonic + OTE, with direction") + f" ({len(_orows)})", expanded=bool(_orows)):
+        _sm = _OS.summary(_orows)
+        st.caption(f"long {_sm['long']} · short {_sm['short']} · unclear {_sm['unclear']} · in the Radar filter {_sm['in_filter']}. "
+                   "2.6 boxes and harmonic target prices are not in the scanner data yet (read-only, no orders).")
+        if _orows:
+            st.dataframe(pd.DataFrame(_orows), hide_index=True, width="stretch", height=240)
     st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
                + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
     if not shown:
@@ -2931,6 +3080,8 @@ def render_chart_scanner(f):
             _lad_main = dict(zip(_lt, _ex2.map(lambda t_: _htf_trend(_symt, t_), _lt)))
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
+    from modules import radar_live as _LIVE
+    _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
     for r0 in range(0, len(shown), per_row):
         cols = st.columns(per_row)
         for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
@@ -2956,18 +3107,38 @@ def render_chart_scanner(f):
                 _chg = d_x.get("chg"); _vx = d_x.get("volx")
                 from modules.symbol_icon import icon as _sic
                 _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
-                st.markdown(
-                    f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                    f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
-                    f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
-                    + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
-                    + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
-                    + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
-                    + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
-                    f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
-                    + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
-                    f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
-                    f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>", unsafe_allow_html=True)
+                from modules import radar_open_setups as _OS2
+                _sigs = [{"text": k, "dir": _OS2.direction_of(k, d_x)} for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_"))]
+                _lh = _LIVE.live_card_html(sym, tf_x, 300, signals=_sigs) if _live_on else None
+                if _lh:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        , unsafe_allow_html=True)
+                    st.iframe(_lh, height=300, alt=f"Live chart {sym}")
+                    _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
+                    from modules import radar_structure as _RS
+                    _struct = _RS.html_block(_RS.read(d_x))
+                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _struct + _tip_below + card_s + "</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
+                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
+                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
+                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
+                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
+                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
+                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
+                        f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
+                        + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
+                        f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
+                        f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>"
+                        , unsafe_allow_html=True)
                 _an = False
                 if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
                     with st.popover("⋯", use_container_width=True):
@@ -3409,32 +3580,41 @@ def render_smt_board():
 
 if PAGE == 1:   # cscan
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
-        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Similar charts", "Screener", "Performance", "Signal list", "Correlation", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        # views merged (owner 2026-11-16): Screener + Signal list, and Similar charts + Correlation + Performance under "Compare"
+        _OLD_RV = {"Signal list": ("Screener", "Signal list"), "Similar charts": ("Compare", "Similar charts"), "Correlation": ("Compare", "Correlation"), "Performance": ("Compare", "Performance")}
+        if st.session_state.get("radar_view") in _OLD_RV:
+            _o = _OLD_RV[st.session_state["radar_view"]]
+            st.session_state["radar_view"] = _o[0]
+            st.session_state["radar_sub_s" if _o[0] == "Screener" else "radar_sub_c"] = _o[1]
+        _rv = st.segmented_control(L("Radar"), ["Chart grid", "Day plan", "SMT pairs", "Screener", "Compare", "Heat map"], default="Chart grid", format_func=L, key="radar_view", label_visibility="collapsed") or "Chart grid"
+        _disp = _rv
+        if _rv == "Screener":
+            _disp = st.segmented_control(L("Screener"), ["Screener", "Signal list"], default="Screener", key="radar_sub_s", label_visibility="collapsed", format_func=L) or "Screener"
+        elif _rv == "Compare":
+            _disp = st.segmented_control(L("Compare"), ["Similar charts", "Correlation", "Performance"], default="Similar charts", key="radar_sub_c", label_visibility="collapsed", format_func=L) or "Similar charts"
         try:   # intermarket SMT (gold / silver, BTC / ETH, ...): always one line on top, and its own board
             from modules import intermarket_ui as _IMU
             st.markdown(_IMU.banner_html(_smt_events(), ar=(_ui_lang() == "ar")), unsafe_allow_html=True)
         except Exception:
             pass
-        if _rv not in ("Heat map", "SMT pairs", "Day plan"):   # the market map and the SMT board have their own controls; the universe / timeframe controls do not apply to them
-            render_universe_controls()
         import importlib as _il
         from modules import asset_classes as _acm
         if "wide" not in _acm.class_symbols.__code__.co_varnames:   # a hot redeploy can leave the old module in memory (Streamlit keeps imported modules): reload it once
             _acm = _il.reload(_acm)
         SCAN_SYMBOLS, _ac_msg2 = _acm.class_symbols(asset_cls, CRYPTO_SYMBOLS, top=int(st.session_state.get("uni_n", 24)), mtype=MARKET_TYPES.get(market_type, "SPOT"), wide=True)
         SCAN_SYMBOLS = (SCAN_SYMBOLS or list(CRYPTO_SYMBOLS))[:int(st.session_state.get("uni_n", 24))]
-        _rf = _radar_filters(_rv) if _rv not in ("SMT pairs", "Day plan") else None
-        if _rv == "SMT pairs":
+        _rf = _radar_filters(_disp) if _rv not in ("SMT pairs", "Day plan") else None
+        if _disp == "SMT pairs":
             render_smt_board()
-        elif _rv == "Day plan":
+        elif _disp == "Day plan":
             render_day_plan(SCAN_SYMBOLS)
-        elif _rv == "Heat map":
+        elif _disp == "Heat map":
             render_market_map()
-        elif _rv == "Similar charts":
+        elif _disp == "Similar charts":
             render_radar_similar(_rf)
-        elif _rv in ("Performance", "Correlation", "Signal list"):
-            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_rv](_rf)
-        elif _rv == "Screener":
+        elif _disp in ("Performance", "Correlation", "Signal list"):
+            {"Performance": render_radar_perf, "Correlation": render_radar_corr, "Signal list": render_radar_signals}[_disp](_rf)
+        elif _disp == "Screener":
             render_radar_screener(_rf)
         else:
             render_chart_scanner(_rf)
@@ -3461,22 +3641,24 @@ if PAGE == 3:   # playbook
     render_playbook_page()
 
 if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
-    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent", "Agent desk"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
+    if st.session_state.get("ai_tab") not in ("Mr X", "Backtest agent"):   # 2026-11-09: Agent desk folded under Mr X (owner approved)
+        st.session_state.pop("ai_tab", None)
+    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
     if _ai_tab == "Backtest agent":
         _c = st.columns([1.2, 0.8, 4])
         _bt_agent(_c[0].text_input(L("Symbol"), "BTC-USDT", key="ai_bt_sym"), _c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="ai_bt_tf"))
-    elif _ai_tab == "Agent desk":
-        from modules import office_ui as _U
-        st.markdown(_U.CSS, unsafe_allow_html=True)
-        st.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
-        st.markdown(_U.table([L("Needs"), L("Status")], [
-            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
-            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
-            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
-        st.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
     else:
         from modules.ai_page import render_ai_page
         render_ai_page(ACTIVE_SYMBOLS, L)
+        from modules import office_ui as _U
+        st.markdown(_U.CSS, unsafe_allow_html=True)
+        _adx = st.expander(L("Agent desk"), expanded=False)
+        _adx.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
+        _adx.markdown(_U.table([L("Needs"), L("Status")], [
+            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
+            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
+            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
+        _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
 if PAGE == 6:   # alerts (owner 2026-10-22: built as a real page)
     render_alerts_page()
@@ -3572,36 +3754,27 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
         import importlib as _il_hub
         from modules import hub_ui as _hub_ui
         _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
-        _HUB_TABS = {"Command Center": ("hub_ui", "render_overview"), "Truth Court": ("hub_truth", "render"), "Plateau Lab": ("hub_plateau", "render"),
-                     "Regime Radar": ("hub_regime", "render"), "Decision Trail": ("hub_trail", "render"), "Decay Watch": ("hub_decay", "render"),
-                     "Consensus Map": ("hub_consensus", "render"), "Kill Funnel": ("hub_funnel", "render")}
+        _HUB_TABS = {"Command Center": [("hub_ui", "render_overview")],   # 2026-11-09: 8 tabs -> 4 (owner approved); each group runs its parts one under the other
+                     "Truth, funnel & consensus": [("hub_truth", "render"), ("hub_funnel", "render"), ("hub_consensus", "render")],
+                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render")],
+                     "Trail & decay": [("hub_trail", "render"), ("hub_decay", "render")]}   # the trail publishes the live R series the decay watch reads
+        if st.session_state.get("hub_tab") not in _HUB_TABS:
+            st.session_state.pop("hub_tab", None)
         _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
-        _hub_mod, _hub_fn = _HUB_TABS[_hub_tab]
-        getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)   # only the open tab is imported and run
+        for _hi, (_hub_mod, _hub_fn) in enumerate(_HUB_TABS[_hub_tab]):   # only the open group is imported and run
+            if _hi:
+                st.divider()
+            getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
-if PAGE == 4:   # perf
-    _stab = st.segmented_control(" ", ["Lab evidence", "My journal", "Monte Carlo", "Edge Map", "Robustness", "Execution"], default="Lab evidence", format_func=L, key="stats_tab", label_visibility="collapsed") or "Lab evidence"
+if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+    if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
+        st.session_state.pop("stats_tab", None)
+    _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
     if _stab == "Monte Carlo":
         from modules.quant_montecarlo import render as _mc_render
         _mc_render()
-        st.stop()
-    if _stab == "Edge Map":
-        from modules.quant_edgemap import render as _em_render
-        _em_render()
-        st.stop()
-    if _stab == "Robustness":
-        from modules.quant_robustness import render as _rb_render
-        _rb_render()
-        st.stop()
-    if _stab == "Execution":
-        from modules.quant_execution import render as _ex_render
-        _ex_render()
-        st.stop()
-    if _stab == "Lab evidence":
-        _stats_lab()
-        st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
         st.stop()
     st.subheader(L("Performance report (QuantStats)"))
     st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
@@ -3642,10 +3815,9 @@ if PAGE == 4:   # perf
                         (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
                         st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
                                        "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
-                import streamlit.components.v1 as _components
                 _html = quantstats_html(_ret)
                 if _html:
-                    _components.html(_html, height=900, scrolling=True)
+                    st.iframe(_html, height=900, alt="QuantStats performance report")
                 else:
                     st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
         except Exception as _e:
@@ -3659,17 +3831,69 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
     st.stop()
 
-if PAGE == 12:   # X77: saved items (text, links, images, files), phase 1 (added 2026-11-20)
+if PAGE == 12:   # TIA institutional intelligence terminal (new standalone parent-company workspace)
     try:
-        from modules.x77_page import render as _x77_render
-        _x77_render()
-    except Exception as _x_exc:
-        st.error(f"X77: {type(_x_exc).__name__}: {_x_exc}")
+        from modules.tia_page import render_tia
+        render_tia()
+    except Exception as _tia_exc:
+        st.error(f"TIA: {type(_tia_exc).__name__}: {_tia_exc}")
     st.stop()
+
 if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
     try:
         from modules.spot_page import render as _spot_render
         _spot_render()
     except Exception as _sp_exc:
         st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
+    st.stop()
+
+if PAGE == 17:   # Trade Intelligence Center (MR !27, additive; knowledge + meeting journal, read-only over Lab / Radar / Spot)
+    try:
+        from modules.intelligence_center_ui import render as _tic_render
+        _tic_render()
+    except Exception as _tic_exc:
+        st.error(f"Trade Intelligence Center: {type(_tic_exc).__name__}: {_tic_exc}")
+    st.stop()
+
+if PAGE == 18:   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md
+    try:
+        from modules.v7_page import render as _v7_render
+        _v7_render()
+    except Exception as _v7_exc:
+        st.error(f"V7 Research: {type(_v7_exc).__name__}: {_v7_exc}")
+    st.stop()
+
+if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status only, no orders / prices
+    try:
+        from modules.two_six_lab import render as _two_six_render
+        _two_six_render()
+    except Exception as _ts_exc:
+        st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
+    st.stop()
+
+if PAGE == 21:   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders
+    try:
+        from modules.x77_page import render as _x77_render
+        _x77_render()
+    except Exception as _x_exc:
+        st.error(f"X77: {type(_x_exc).__name__}: {_x_exc}")
+    st.stop()
+
+if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
+    try:
+        from modules.rsi_heatmap import render as _rsi_heatmap_render
+        _rsi_heatmap_render()
+    except Exception as _rsi_hm_exc:
+        st.error(f"RSI Heatmap: {type(_rsi_hm_exc).__name__}: {_rsi_hm_exc}")
+    st.stop()
+
+if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+    st.markdown(kit_css(), unsafe_allow_html=True)
+    for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
+        try:
+            _fn()
+        except Exception as _om_exc:
+            st.error(f"{_nm}: {type(_om_exc).__name__}: {_om_exc}")
+        if _nm == "Macro regime":
+            st.divider()
     st.stop()

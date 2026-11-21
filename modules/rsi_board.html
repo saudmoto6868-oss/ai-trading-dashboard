@@ -1,0 +1,214 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{--bg:#0e1116;--panel:#141922;--line:#242c38;--txt:#e6eaf0;--mut:#8b95a5;--up:#1f9d6b;--dn:#e5484d;--amb:#f5a524;--sel:#5b8def}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font:12px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#src{height:20px;display:flex;align-items:center;gap:12px;padding:0 8px;font-size:10.5px;color:var(--mut);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
+#src i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;background:var(--up)}#src b{color:var(--txt)}
+#app{display:grid;grid-template-columns:58fr 42fr;gap:6px;height:calc(100% - 20px);padding:4px}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:0;display:flex;flex-direction:column;position:relative}
+.hd{display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.chip{border:1px solid var(--line);border-radius:10px;padding:0 7px;font-size:10.5px;white-space:nowrap;cursor:default}
+.tag{cursor:pointer;user-select:none}.tag.on{background:#2a2310;border-color:var(--amb);color:var(--amb)}
+#map{flex:1;min-height:0}#map svg{width:100%;height:100%;display:block}
+.bub{cursor:pointer;transition:transform .15s}.bub:hover,.bub.sel{transform:scale(1.8)}.dim{opacity:.13}
+.lbl{font-size:9.5px;font-weight:700;pointer-events:none}
+.pulse{animation:pu 1s ease-in-out infinite}@keyframes pu{0%,100%{opacity:.95}50%{opacity:.05}}
+#tip{position:fixed;pointer-events:none;background:#0a0d12f5;border:1px solid var(--line);border-radius:8px;padding:8px;width:260px;display:none;z-index:9;font-size:11px}
+.row2{display:flex;justify-content:space-between;gap:8px}
+input,select,button{background:#0f141b;color:var(--txt);border:1px solid var(--line);border-radius:12px;font:inherit;font-size:11px;padding:2px 8px;height:22px}
+button{cursor:pointer}button.on{border-color:var(--amb);color:var(--amb)}.seg button{border-radius:0;margin-left:-1px}.seg button:first-child{border-radius:12px 0 0 12px}
+.seg button:last-child{border-radius:0 12px 12px 0}.seg button.act{background:#22303f;border-color:var(--sel)}
+#list{flex:1;overflow:auto}
+.r{padding:5px 7px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent}
+.r:hover{background:#19202b}.r.sel{background:#1b2535;border-left-color:var(--sel)}
+.r.urg{animation:ub 1.1s ease-in-out infinite}@keyframes ub{0%,100%{border-left-color:var(--amb);background:#241d0c}50%{border-left-color:transparent;background:transparent}}
+.l1,.l3{display:flex;align-items:center;gap:6px}.l3{flex-wrap:wrap;row-gap:2px}.l3 .sm,.plan{white-space:nowrap}.l1 .sym{font-weight:800;font-size:12.5px}.sm{color:var(--mut);font-size:10.5px}
+.l1 .sp{flex:1}.big{font-size:15px;font-weight:800;min-width:26px;text-align:right}
+.pill{border-radius:9px;padding:0 7px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap}
+.l2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:3px 0}
+.meter{position:relative;height:10px;background:#202836;border-radius:3px;overflow:hidden}.meter i{position:absolute;top:0;bottom:0}
+.strip{display:grid;grid-template-columns:repeat(9,1fr);gap:1px}.strip div{height:10px;border-radius:2px;font-size:7.5px;text-align:center;line-height:10px;color:#fff;font-weight:700}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin:2px 0}.tags span{font-size:9.5px;border-radius:8px;padding:0 5px;background:#212a37;color:#c9d1dc}
+.tags span.u{background:var(--amb);color:#111;font-weight:800}
+.tfb{display:flex;align-items:flex-end;gap:1px;height:18px}.tfb div{width:6px;border-radius:2px 2px 0 0;position:relative}
+.ar{display:flex;gap:1px;font-size:8px;line-height:8px}.plan{font-variant-numeric:tabular-nums;font-size:10.5px}
+.rr{font-weight:800;border-radius:4px;padding:0 4px;color:#111}
+.gauge{width:46px;height:5px;background:var(--dn);border-radius:3px;overflow:hidden}.gauge i{display:block;height:100%;background:var(--up)}
+.det{display:none;background:#0f141c;border-radius:6px;padding:5px 7px;margin-top:4px;color:var(--mut);font-size:10.5px}.r.open .det{display:block}.det b{color:var(--txt)}
+#toast{position:absolute;right:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
+</style></head><body>
+<div id="src"></div>
+<div id="app">
+ <div class="pane"><div class="hd" id="mh"></div><div id="map"></div></div>
+ <div class="pane"><div id="toast"></div>
+  <div class="hd">
+   <input id="q" placeholder="Search symbol, setup, school…" style="flex:1;min-width:110px">
+   <span class="seg"><button data-d="0" class="act">All</button><button data-d="1">Long</button><button data-d="-1">Short</button></span>
+   <select id="so" title="Sort"><option value="score">Best</option><option value="conv">Conviction</option><option value="rr">R:R</option><option value="fresh">Freshest</option><option value="rsi">RSI ↓</option><option value="rsiu">RSI ↑</option><option value="flow">Flow buy</option><option value="vol">Volume ×</option></select>
+   <button id="arm" title="Alarm: beep + toast + blink for urgent setups, and for conviction ≥ Min (≥30) with R:R ≥ 1.5; once per symbol / side / TF / 6 h">🔕</button>
+   <span class="sm" id="cnt"></span>
+  </div>
+  <div class="hd" id="tagbar"></div>
+  <div class="hd">
+   <label class="sm">Conv ≥ <input id="mc" type="range" min="0" max="100" step="5" value="0" style="width:64px;vertical-align:middle;height:12px"> <b id="mcv">0</b></label>
+   <label class="sm">R:R ≥ <select id="mr"><option>0</option><option>1</option><option>1.5</option><option>2</option><option>3</option></select></label>
+   <label class="sm">School <select id="sc"><option value="">any</option></select></label>
+   <label class="sm">Fresh ≤ <select id="mf"><option value="99">any</option><option>0</option><option>1</option><option>2</option><option>5</option></select> bars</label>
+  </div>
+  <div id="list"></div>
+ </div>
+</div>
+<div id="tip"></div>
+<script>
+const D = __DATA__;
+const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const BAND = v => v == null ? null : v >= 70 ? D.bands[0] : v >= 60 ? D.bands[1] : v > 40 ? D.bands[2] : v > 30 ? D.bands[3] : D.bands[4];
+const VC = v => v > 0 ? "var(--up)" : v < 0 ? "var(--dn)" : "#3a4352";
+const fp = x => x == null ? "—" : Math.abs(x) >= 1000 ? x.toLocaleString(undefined, {maximumFractionDigits: 0}) : Math.abs(x) >= 1 ? x.toFixed(2) : x.toPrecision(4);
+const store = {get(k, d){try{return JSON.parse(localStorage.getItem(k)) ?? d}catch(e){return d}}, set(k, v){try{localStorage.setItem(k, JSON.stringify(v))}catch(e){}}};
+const HIGHER = D.timeframes.slice(D.timeframes.indexOf(D.tf) + 1);
+let dirF = 0, sel = null, armed = store.get("rsihm_arm", false), tagF = new Set();
+const arrows = i => HIGHER.map(tf => {const v = (i.htf || {})[tf]; return `<span title="${tf} EMA 9/21 ${v > 0 ? "up" : v < 0 ? "down" : "flat / no data"}" style="color:${VC(v)}">${v > 0 ? "▲" : v < 0 ? "▼" : "•"}</span>`;}).join("");
+
+// ---------- thin source strip
+(function(){
+  const names = {okx: "OKX", hl: "Hyperliquid", yahoo: "Yahoo", other: "Other"}, urg = D.items.filter(i => i.urgent).length;
+  $("#src").innerHTML = Object.entries(D.src).map(([k, n]) => `<span><i></i>${names[k] || k} <b>${n}</b></span>`).join("") +
+    `<span>Flow <b>${D.flow_n}</b></span><span>Map <b>${esc(D.tf)}</b></span><span>Built <b>${esc(D.built)}</b></span>` +
+    (urg ? `<span style="color:var(--amb)" class="pulse">● ${urg} urgent</span>` : "") +
+    `<span style="margin-left:auto">tail = last 6 candles · ▲▼ = bigger TF trend · ring = 9 schools · blinking = urgent</span>`;
+})();
+
+// ---------- map
+function arc(cx, cy, r, a0, a1){const p = a => [cx + r * Math.cos(a), cy + r * Math.sin(a)], [x0, y0] = p(a0), [x1, y1] = p(a1);
+  return `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;}
+function drawMap(){
+  const box = $("#map"), W = Math.max(300, box.clientWidth), H = Math.max(260, box.clientHeight), L = 28, R = 64, T = 12, B = 14;
+  const n = Math.max(1, ...D.items.map(i => i.rank)), X = k => L + (W - L - R) * (k / (n + 1)), Y = v => T + (H - T - B) * (1 - v / 100);
+  const step = Math.min(5, (W - L - R) / (n + 1) / 3);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  D.bands.forEach(b => {s += `<rect x="${L}" width="${W - L - R}" y="${Y(b.hi)}" height="${Y(b.lo) - Y(b.hi)}" fill="${b.c}" opacity=".09"/>
+    <text x="${W - R + 5}" y="${(Y(b.hi) + Y(b.lo)) / 2 + 4}" fill="${b.c}" font-size="11">${b.name}</text>`;});
+  [30, 40, 50, 60, 70].forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#fff" opacity=".1" stroke-dasharray="3 5"/><text x="${L - 5}" y="${Y(v) + 4}" fill="#8b95a5" font-size="10" text-anchor="end">${v}</text>`);
+  if (D.avg != null) s += `<line x1="${L}" x2="${W - R}" y1="${Y(D.avg)}" y2="${Y(D.avg)}" stroke="#f5a524" stroke-dasharray="7 5" stroke-width="1.4"/><text x="${L + 4}" y="${Y(D.avg) - 4}" fill="#f5a524" font-size="11" font-weight="700">Avg ${D.avg.toFixed(2)}</text>`;
+  D.items.filter(i => i.rsi_map != null).forEach(i => {
+    const cx = X(i.rank), cy = Y(i.rsi_map), r = 3 + (i.conv || 0) / 16, b = BAND(i.rsi_map), seg = 2 * Math.PI / D.schools.length, tr = i.trail || [];
+    let g = `<g data-s="${esc(i.full)}" class="it">`;
+    if (tr.length > 1){const pts = tr.map((v, k) => `${(cx - (tr.length - 1 - k) * step).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+      g += `<polyline points="${pts}" fill="none" stroke="${b.c}" stroke-width="1" opacity=".28" stroke-linecap="round" stroke-dasharray="2 2"/>`;}
+    if (i.urgent) g += `<circle class="pulse" cx="${cx}" cy="${cy}" r="${r + 9}" fill="none" stroke="#f5a524" stroke-width="2"/>`;
+    g += `<g class="bub" style="transform-origin:${cx}px ${cy}px">`;
+    if (i.conv != null) D.schools.forEach((sc, k) => {const v = i.votes[sc].v;
+      g += `<path d="${arc(cx, cy, r + 3.2, -Math.PI / 2 + k * seg + .07, -Math.PI / 2 + (k + 1) * seg - .07)}" stroke="${VC(v)}" stroke-width="2.4" fill="none" opacity="${v ? 1 : .5}"/>`;});
+    g += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${b.c}" stroke="#0b0e13" stroke-width=".8"/></g>`;
+    g += `<text class="lbl" x="${cx}" y="${cy - r - 7}" text-anchor="middle" fill="${i.urgent ? "#f5a524" : b.c}">${esc(i.sym)}${i.speed ? " " + i.speed : ""}</text>`;
+    if (HIGHER.length) g += `<text x="${cx}" y="${cy + r + 11}" text-anchor="middle" font-size="8" letter-spacing="1">${HIGHER.map(tf => {const v = (i.htf || {})[tf];
+      return `<tspan fill="${v > 0 ? "#1f9d6b" : v < 0 ? "#e5484d" : "#5a6474"}">${v > 0 ? "▲" : v < 0 ? "▼" : "•"}</tspan>`;}).join("")}</text>`;
+    s += g + "</g>";});
+  box.innerHTML = s + "</svg>";
+  const counts = D.bands.map(b => `<span class="chip" style="border-color:${b.c};color:${b.c}">${b.name} ${D.items.filter(i => BAND(i.rsi_map) === b).length}</span>`).join("");
+  const longs = D.items.filter(i => i.dir > 0).length, shorts = D.items.filter(i => i.dir < 0).length;
+  $("#mh").innerHTML = `<b>RSI · ${esc(D.tf)}</b>${counts}<span class="chip" style="color:var(--up)">Long ${longs}</span><span class="chip" style="color:var(--dn)">Short ${shorts}</span>`;
+  $$(".it").forEach(el => {const it = D.items.find(i => i.full === el.dataset.s), bub = el.querySelector(".bub");
+    bub.onmouseenter = e => tip(it, e); bub.onmousemove = e => tip(it, e); bub.onmouseleave = () => $("#tip").style.display = "none";
+    bub.onclick = () => select(it.full, true);});
+}
+function tip(i, e){
+  const t = $("#tip"); let h = `<div class="row2"><b style="font-size:13px">${esc(i.full)}</b><span>RSI ${esc(D.tf)} <b>${i.rsi_map?.toFixed(2)}</b></span></div>
+   <div class="sm" style="margin:2px 0 4px">${esc(i.state)} ${esc(i.speed)} · ${esc(i.regime)}${i.atr_pct != null ? " · ATR " + i.atr_pct + "%" : ""}${i.vol_x != null ? " · vol ×" + i.vol_x : ""}</div>`;
+  if (i.urgent) h += `<div style="color:var(--amb);font-weight:700">● Urgent: ${esc(i.urgent)}</div>`;
+  if (i.tags?.length) h += `<div class="tags">${i.tags.map(t => `<span class="${t === "Urgent" ? "u" : ""}">${esc(t)}</span>`).join("")}</div>`;
+  if (i.conv != null){h += `<div class="row2"><span class="pill" style="background:${VC(i.dir)}">${esc(i.verdict)}</span><span>conv <b>${i.conv}</b> · ${i.bull}↑ ${i.bear}↓</span></div>`;
+    D.schools.forEach(sc => {const v = i.votes[sc]; if (v.v || v.n.length) h += `<div class="row2"><span style="color:${VC(v.v)}">● ${sc}</span><span class="sm" style="text-align:right">${esc(v.n.slice(0, 2).join(", "))}</span></div>`;});}
+  if (HIGHER.length) h += `<div class="row2"><span>Bigger TFs</span><span class="ar" style="font-size:11px">${arrows(i)} <span class="sm">&nbsp;${HIGHER.join(" ")}</span></span></div>`;
+  if (i.plan) h += `<div class="row2" style="margin-top:3px"><span>E ${fp(i.plan.entry)} · SL ${fp(i.plan.stop)} · TP ${fp(i.plan.target)}</span><b>R:R ${i.plan.rr}</b></div>`;
+  t.innerHTML = h; t.style.display = "block";
+  t.style.left = Math.min(e.clientX + 14, innerWidth - 268) + "px"; t.style.top = Math.min(e.clientY + 10, innerHeight - t.offsetHeight - 6) + "px";
+}
+
+// ---------- board
+function timer(i){
+  if (!i.next_close) return "";
+  const s = Math.max(0, Math.round((i.next_close - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return `⏱ ${d ? d + "d " : ""}${d || h ? h + "h " : ""}${m}m${d || h ? "" : " " + (s % 60) + "s"}`;
+}
+function score(i){return (i.urgent ? 30 : 0) + (i.conv || 0) + (i.plan ? Math.min(i.plan.rr, 4) * 6 : 0) + (i.fresh != null ? Math.max(0, 10 - i.fresh * 2) : 0) + (i.tags || []).length * 2;}
+function rowHtml(i){
+  const pc = i.dir > 0 ? "var(--up)" : i.dir < 0 ? "var(--dn)" : "#4a5466";
+  const strip = D.schools.map(sc => {const v = i.votes ? i.votes[sc] : {v: 0, n: []};
+    return `<div title="${esc(sc)}: ${esc(v.n.join(", ") || "quiet")}" style="background:${VC(v.v)};opacity:${v.v ? 1 : .45}">${D.short[sc]}</div>`;}).join("");
+  const tfb = D.timeframes.map(tf => {const v = i.rsi[tf], b = BAND(v);
+    return `<div title="${tf}: ${v == null ? "no data" : v.toFixed(1)}" style="height:${v == null ? 2 : Math.max(2, v / 100 * 18)}px;background:${b ? b.c : "#333"};${tf === D.tf ? "box-shadow:0 0 0 1px #fff" : ""}"></div>`;}).join("");
+  const rrC = !i.plan ? "" : i.plan.rr >= 2 ? "var(--up)" : i.plan.rr >= 1 ? "var(--amb)" : "var(--dn)";
+  const fl = i.flow && i.flow.buy != null ? `<span class="gauge" title="aggressor buy share ${(i.flow.buy * 100).toFixed(0)}%"><i style="width:${(i.flow.buy * 100).toFixed(0)}%"></i></span><span class="sm">${(i.flow.buy * 100).toFixed(0)}%</span>` : "";
+  const det = i.votes ? D.schools.filter(sc => i.votes[sc].n.length).map(sc => `<b style="color:${VC(i.votes[sc].v)}">${sc}</b>: ${esc(i.votes[sc].n.join(", "))}`).join(" · ") : "";
+  return `<div class="r${sel === i.full ? " sel" : ""}${i.urgent ? " urg" : ""}" data-s="${esc(i.full)}">
+   <div class="l1"><span class="sym">${esc(i.sym)}</span><span style="color:var(--amb)">${esc(i.speed)}</span><span class="sm">${fp(i.price)}</span>
+     <span class="sm tm" data-s="${esc(i.full)}">${timer(i)}</span><span class="sp"></span>
+     <span class="pill" style="background:${pc}">${esc(i.verdict || i.state)}</span><span class="big" style="color:${pc}" title="conviction: net schools agreeing of 9">${i.conv ?? "—"}</span></div>
+   ${i.conv != null ? `<div class="l2"><div class="meter" title="${i.bull} schools long · ${i.bear} short · ${9 - i.bull - i.bear} quiet"><i style="right:50%;width:${i.bull_pct / 2}%;background:var(--up)"></i><i style="left:50%;width:${i.bear_pct / 2}%;background:var(--dn)"></i></div><div class="strip">${strip}</div></div>` : ""}
+   ${i.tags?.length ? `<div class="tags">${i.tags.map(t => `<span class="${t === "Urgent" ? "u" : ""}">${esc(t)}</span>`).join("")}</div>` : ""}
+   <div class="l3"><div class="tfb">${tfb}</div><span class="ar">${arrows(i)}</span>
+     <span class="sm">${esc(D.tf)} <b style="color:${BAND(i.rsi_map)?.c || "inherit"}">${i.rsi_map == null ? "—" : i.rsi_map.toFixed(1)}</b>${i.atr_pct != null ? " · ATR " + i.atr_pct + "%" : ""}${i.vol_x != null ? " · vol ×" + i.vol_x : ""}</span>
+     <span class="sp" style="flex:1"></span>${fl}
+     ${i.plan ? `<span class="plan">E ${fp(i.plan.entry)} · <span style="color:var(--dn)">SL ${fp(i.plan.stop)}</span> · <span style="color:var(--up)">TP ${fp(i.plan.target)}</span></span> <span class="rr" style="background:${rrC}">${i.plan.rr}R</span>` : ""}</div>
+   <div class="det">${i.urgent ? `<div style="color:var(--amb)">● Urgent: ${esc(i.urgent)}</div>` : ""}${det || "No school fired on this timeframe."}
+     ${i.plan ? `<br>Risk −${i.plan.risk_pct}% · reward +${i.plan.reward_pct}%` : ""}${i.flow && i.flow.text ? "<br>Flow: " + esc(i.flow.text) : ""} · ${esc(i.state)} · ${esc(i.regime)}</div></div>`;
+}
+function rows(){
+  const q = $("#q").value.trim().toLowerCase(), mc = +$("#mc").value, mr = +$("#mr").value, mf = +$("#mf").value, sc = $("#sc").value, so = $("#so").value;
+  let it = D.items.filter(i => (!dirF || i.dir === dirF) && (i.conv ?? 0) >= mc && (!mr || (i.plan && i.plan.rr >= mr)) && (mf === 99 || (i.fresh != null && i.fresh <= mf)) &&
+    (!sc || (i.votes && i.votes[sc].v && i.votes[sc].v === i.dir)) && [...tagF].every(t => (i.tags || []).includes(t)) &&
+    (!q || [i.full, i.sym, i.verdict, i.state, i.regime, ...(i.tags || []), ...(i.votes ? D.schools.flatMap(s => i.votes[s].v ? [s, ...i.votes[s].n] : []) : [])].join(" ").toLowerCase().includes(q)));
+  const key = {score, conv: i => i.conv ?? -1, rr: i => i.plan ? i.plan.rr : -1, fresh: i => i.fresh == null ? -99 : -i.fresh, rsi: i => i.rsi_map ?? -1,
+    rsiu: i => i.rsi_map == null ? -999 : -i.rsi_map, flow: i => i.flow && i.flow.buy != null ? i.flow.buy : -1, vol: i => i.vol_x ?? -1}[so];
+  it.sort((a, b) => key(b) - key(a));
+  $("#list").innerHTML = it.map(rowHtml).join("") || `<div class="sm" style="padding:12px">Nothing matches.</div>`;
+  $("#cnt").textContent = `${it.length}/${D.items.length}`;
+  const shown = new Set(it.map(i => i.full));
+  $$(".it").forEach(g => g.classList.toggle("dim", !shown.has(g.dataset.s)));
+  $$(".r").forEach(r => r.onclick = () => {select(r.dataset.s, false); r.classList.toggle("open");});
+}
+function select(full, scroll){
+  sel = full;
+  $$(".it .bub").forEach(b => b.classList.toggle("sel", b.parentNode.dataset.s === full));
+  $$(".r").forEach(r => r.classList.toggle("sel", r.dataset.s === full));
+  if (scroll){const r = document.querySelector(`.r[data-s="${CSS.escape(full)}"]`); if (r){r.scrollIntoView({block: "center", behavior: "smooth"}); r.classList.add("open");}}
+}
+// tag chips with counts, school list
+$("#tagbar").innerHTML = D.tags.map(t => {const n = D.items.filter(i => (i.tags || []).includes(t)).length;
+  return `<span class="chip tag" data-t="${t}" style="${n ? "" : "opacity:.4"}">${t} ${n}</span>`;}).join("");
+$$(".tag").forEach(c => c.onclick = () => {const t = c.dataset.t; tagF.has(t) ? tagF.delete(t) : tagF.add(t); c.classList.toggle("on"); rows();});
+D.schools.forEach(s => $("#sc").insertAdjacentHTML("beforeend", `<option value="${s}">${s}</option>`));
+
+// ---------- alarm
+let actx = null;
+function beep(n = 1){try{actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  for (let k = 0; k < n; k++){const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + k * .22;
+    o.frequency.value = 880 + k * 220; g.gain.setValueAtTime(.16, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + .18); o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + .2);}}catch(e){}}
+function paintArm(){$("#arm").textContent = armed ? "🔔 on" : "🔕 off"; $("#arm").classList.toggle("on", armed);}
+function checkAlarm(){
+  if (!armed) return;
+  const mc = Math.max(+$("#mc").value, 30), seen = store.get("rsihm_seen", {}), now = Date.now(), hits = [];
+  D.items.forEach(i => {const ok = i.urgent || (i.dir && (i.conv ?? 0) >= mc && i.plan && i.plan.rr >= 1.5);
+    if (!ok || !i.dir || (dirF && i.dir !== dirF)) return;
+    const k = `${i.full}|${D.tf}|${i.dir}`; if (seen[k] && now - seen[k] < 6 * 3600e3) return; seen[k] = now; hits.push(i);});
+  store.set("rsihm_seen", seen);
+  if (!hits.length) return;
+  beep(hits.some(i => i.urgent) ? 3 : 1);
+  $("#toast").innerHTML = hits.slice(0, 5).map(i => `<div>${i.urgent ? "⚡" : "🔔"} ${esc(i.sym)} · ${esc(i.verdict)} · ${i.conv} · ${i.plan ? i.plan.rr + "R" : ""}</div>`).join("");
+  setTimeout(() => $("#toast").innerHTML = "", 20000);
+}
+$("#arm").onclick = () => {armed = !armed; store.set("rsihm_arm", armed); paintArm(); if (armed){beep(); checkAlarm();}};
+$$(".seg button").forEach(b => b.onclick = () => {dirF = +b.dataset.d; $$(".seg button").forEach(x => x.classList.toggle("act", x === b)); rows();});
+["#q"].forEach(k => $(k).oninput = rows); ["#so", "#mr", "#mf", "#sc"].forEach(k => $(k).onchange = rows);
+$("#mc").oninput = () => {$("#mcv").textContent = $("#mc").value; rows();};
+const ui = store.get("rsihm_ui", null);
+if (ui){$("#mc").value = ui.mc; $("#mcv").textContent = ui.mc; $("#so").value = ui.so; $("#mr").value = ui.mr || "0";}
+addEventListener("beforeunload", () => store.set("rsihm_ui", {mc: $("#mc").value, so: $("#so").value, mr: $("#mr").value}));
+setInterval(() => $$(".tm").forEach(el => {const i = D.items.find(x => x.full === el.dataset.s); if (i) el.textContent = timer(i);}), 1000);
+drawMap(); paintArm(); rows(); checkAlarm();
+let _rz; addEventListener("resize", () => {clearTimeout(_rz); _rz = setTimeout(() => {drawMap(); rows();}, 150);});
+</script></body></html>

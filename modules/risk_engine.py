@@ -2,7 +2,7 @@
 THE RISK MANAGER
 Turns a scored signal into a full trade plan: entry, stop loss, and 3
 staged take-profits, using the nearest liquidity/support-resistance levels
-and the RR rules from the framework doc (default 0.5% risk, partial-profit-
+and the RR rules from the framework doc (base 0.25%; 0.50% only for validated A+ with n >= 30, partial-profit-
 then-runner approach via staged RR multiples).
 
 T3 (MEETING_ALERTS_SETUP.md): stop/entry/TP now depend on setup type.

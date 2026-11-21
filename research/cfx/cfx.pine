@@ -1,0 +1,1341 @@
+// CFX (Confluence X) — Pine Script v5 SKELETON
+// STATUS: DRAFT / UNTESTED. Not a trading system. No performance or edge claims.
+// Do not copy LuxAlgo or any protected script.
+// Source of truth for the sequential entry engine is Python (/workspace/cfx/cfx_lib.py + cfx_pipeline.py).
+// This Pine file is a chart overlay: structure, FVG/OB/IFVG, session boxes, SMT, XPIX,
+// CISD drawn as a short line on the origin→confirm candles (chart TF and HTF), CRT as a compact box,
+// and a CHoCH-based plan drawing that approximates the engine (no synthetic RR targets).
+// Owner approval required before any GitLab/GitHub push, branch, or merge.
+
+//@version=5
+indicator("CFX Confluence X [DRAFT/UNTESTED]", overlay=true, max_boxes_count=300, max_labels_count=200, max_lines_count=200)
+
+// ───────────────────────── Inputs ─────────────────────────
+grpStruct = "Structure"
+swingLen     = input.int(3, "Swing length (internal)", minval=1, group=grpStruct)
+eqTolAtr     = input.float(0.10, "EQH/EQL tolerance (ATR)", step=0.01, group=grpStruct)
+eqConfirm    = input.int(3, "EQH/EQL confirm bars", minval=1, group=grpStruct)
+
+grpImb = "FVG / OB"
+fvgMinAtr    = input.float(0.30, "FVG min width (ATR)", step=0.05, group=grpImb)
+fvgMaxAge    = input.int(30, "FVG max age (bars)", group=grpImb)
+obDispAtr    = input.float(1.50, "OB displacement min (ATR) — msb_ob", step=0.1, group=grpImb)
+obMaxAge     = input.int(80, "OB max age (bars)", group=grpImb)
+mitigation   = input.string("close", "Mitigation", options=["close", "wick", "average"], group=grpImb)
+
+grpTrig = "CISD / CHoCH"
+cisdLookback = input.int(40, "CISD lookback", group=grpTrig)
+cisdMaxAge   = input.int(6, "HTF CISD max age (HTF bars)", group=grpTrig)
+chochBody    = input.bool(true, "CHoCH/CISD require body close", group=grpTrig)
+showChartCisd = input.bool(true, "Draw chart-TF CISD on the candle span", group=grpTrig)
+maxCisdLines  = input.int(4, "Max visible CISD lines", minval=1, maxval=12, group=grpTrig)
+cisdShowAge   = input.int(24, "Hide chart-TF CISD older than (bars)", group=grpTrig)
+
+grpTrend = "Trend filter (VWMA/HA — NOT a clone of Shooter X-Trend)"
+useTrend     = input.bool(true, "Enable VWMA-HA trend gate", group=grpTrend)
+vwmaLen      = input.int(120, "VWMA length", group=grpTrend)
+trendAtrLen  = input.int(20, "Trend ATR length", group=grpTrend)
+trendAtrMult = input.float(0.5, "Trend ATR multiplier", step=0.1, group=grpTrend)
+haSource     = input.bool(true, "Use Heikin Ashi source for the filter only", group=grpTrend)
+
+grpRisk = "Risk / RR"
+atrLen       = input.int(14, "ATR length", group=grpRisk)
+slBufAtr     = input.float(0.15, "SL buffer (ATR)", step=0.01, group=grpRisk)
+rr1Min       = input.float(1.5, "Hard gate: RR1 minimum", step=0.1, group=grpRisk)
+riskPct      = input.float(0.5, "DEFAULT_RISK_PERCENT (display only here)", step=0.1, group=grpRisk)
+
+grpTime = "Killzones (America/New_York times — DST handled by timezone=)"
+useKz        = input.bool(true, "Require killzone for new signals", group=grpTime)
+kzTz         = input.string("America/New_York", "Killzone timezone", group=grpTime)
+// Windows are placeholders pending confirmation from the screenshots.
+kzAsia       = input.session("2000-0000", "Asia", group=grpTime)
+kzLon        = input.session("0200-0500", "London", group=grpTime)
+kzNy         = input.session("0700-1000", "New York AM", group=grpTime)
+
+grpUi = "Arabic labels / display"
+langAr       = input.bool(true, "Arabic labels", group=grpUi)
+showFvg      = input.bool(true, "Show FVG", group=grpUi)
+showOb       = input.bool(true, "Show OB (volume % only if volume exists)", group=grpUi)
+showIfvg     = input.bool(true, "Show IFVG (filled FVG that flipped)", group=grpUi)
+showBreaker  = input.bool(true, "Show breaker (mitigated OB after opposite CHoCH)", group=grpUi)
+showStruct   = input.bool(true, "Show BOS / CHoCH / EQH", group=grpUi)
+
+// ── New input groups (display / filters). Off by default where they would clutter. ──
+grpMtf = "Multi-timeframe alignment"
+useMtfFilter = input.bool(true, "Require MTF alignment (HTF + 1H + current)", group=grpMtf)
+htfTf        = input.timeframe("240", "HTF (CISD/CRT + align, default 4H)", group=grpMtf)
+mtfTf2       = input.timeframe("60", "Align timeframe 2 (default 1H)", group=grpMtf)
+
+grpSmt = "SMT / trend line"
+showTrendLine = input.bool(true, "Show trend line (last two confirmed swings)", group=grpSmt)
+showSmt       = input.bool(true, "Show SMT line", group=grpSmt)
+smtSym        = input.symbol("TVC:DXY", "SMT correlated symbol", group=grpSmt)
+smtInvert     = input.bool(true, "Invert SMT symbol (e.g. DXY vs gold)", group=grpSmt)
+
+grpHtfZ = "HTF CISD / CRT zones"
+showHtfZones = input.bool(true, "Show HTF CISD (short line) and CRT (box)", group=grpHtfZ)
+
+grpSess = "Sessions"
+showSessShade  = input.bool(true, "Session boxes (time × session high/low)", group=grpSess)
+showSessHL     = input.bool(false, "Unswept session H/L short stub (not a full line)", group=grpSess)
+maxSessBoxes   = input.int(9, "Max historical session boxes", minval=3, maxval=30, group=grpSess)
+useSessFilter  = input.bool(false, "Session filter for new plans", group=grpSess)
+sessAsia       = input.session("1900-0200", "Asia session (NY)", group=grpSess)
+sessLon        = input.session("0200-0900", "London session (NY)", group=grpSess)
+sessNy         = input.session("0800-1700", "New York session (NY)", group=grpSess)
+sessFilterPick = input.string("Any in-session", "Filter session", options=["Any in-session", "Asia", "London", "New York"], group=grpSess)
+
+grpLiq = "Relevant highs / lows"
+showLiqLevels = input.bool(true, "EQH/EQL and prior day H/L (unswept, near price)", group=grpLiq)
+liqNearAtr    = input.float(2.0, "Near-price window (ATR)", minval=0.1, step=0.1, group=grpLiq)
+levelStubBars = input.int(8, "Level stub length (bars)", minval=2, maxval=20, group=grpLiq)
+dedupeAtr     = input.float(0.30, "Merge nearby levels (ATR)", step=0.05, group=grpLiq)
+maxLevelStubs = input.int(6, "Max visible level stubs", minval=1, maxval=16, group=grpLiq)
+
+grpXpix = "MTF Liquidity Levels (XPIX)"
+showLiq15  = input.bool(true, "15M high/low", group=grpXpix)
+showLiq60  = input.bool(true, "1H high/low", group=grpXpix)
+showLiq5   = input.bool(false, "5M high/low", group=grpXpix)
+showLiq240 = input.bool(false, "4H high/low", group=grpXpix)
+showLiqD   = input.bool(false, "D1 high/low", group=grpXpix)
+showLiqW   = input.bool(false, "W1 high/low", group=grpXpix)
+
+grpPlan = "Trade drawings (display)"
+showPlanDrawings = input.bool(true, "Draw plans (CHoCH + structural TP, display approx of Python engine)", group=grpPlan)
+
+// ───────────────────────── Helpers ─────────────────────────
+atr = ta.atr(atrLen)
+
+// Heikin Ashi values for the FILTER only. Decision OHLC stays the chart's real candles.
+haClose = (open + high + low + close) / 4.0
+haOpen  = 0.0
+haOpen := na(haOpen[1]) ? (open + close) / 2.0 : (haOpen[1] + haClose[1]) / 2.0
+filtSrc = haSource ? haClose : close
+
+vwma = ta.vwma(filtSrc, vwmaLen)
+trendBull = useTrend ? (filtSrc > vwma) : true
+trendBear = useTrend ? (filtSrc < vwma) : true
+
+inAsia = not na(time(timeframe.period, kzAsia, kzTz))
+inLon  = not na(time(timeframe.period, kzLon,  kzTz))
+inNy   = not na(time(timeframe.period, kzNy,   kzTz))
+inKz   = inAsia or inLon or inNy
+
+// ───────────────────────── Structure (minimal, DRAFT) ─────────────────────────
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low, swingLen, swingLen)
+
+var float lastSh = na   // last swing high
+var float lastSl = na
+if not na(ph)
+    lastSh := ph
+if not na(pl)
+    lastSl := pl
+
+bosUp   = chochBody ? (not na(lastSh) and close > lastSh and close[1] <= lastSh) : (not na(lastSh) and high > lastSh)
+bosDn   = chochBody ? (not na(lastSl) and close < lastSl and close[1] >= lastSl) : (not na(lastSl) and low < lastSl)
+
+// CHoCH vs BOS needs a stored trend state — stub only.
+var int structDir = 0   // 1 bull, -1 bear, 0 unknown
+chochUp = bosUp and structDir == -1
+chochDn = bosDn and structDir == 1
+if bosUp
+    structDir := 1
+if bosDn
+    structDir := -1
+
+if showStruct and chochUp
+    label.new(bar_index, low, langAr ? "تغيّر طابع" : "CHoCH", style=label.style_label_up, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny)
+if showStruct and chochDn
+    label.new(bar_index, high, langAr ? "تغيّر طابع" : "CHoCH", style=label.style_label_down, color=color.new(color.maroon, 20), textcolor=color.white, size=size.tiny)
+if showStruct and bosUp and not chochUp
+    label.new(bar_index, low, "BOS", style=label.style_label_up, color=color.new(color.green, 40), textcolor=color.white, size=size.tiny)
+if showStruct and bosDn and not chochDn
+    label.new(bar_index, high, "BOS", style=label.style_label_down, color=color.new(color.red, 40), textcolor=color.white, size=size.tiny)
+
+// ───────────────────────── FVG / IFVG / OB / Breaker (managed, expired) ─────────────────────────
+bullFvg = low > high[2] and (low - high[2]) >= fvgMinAtr * atr
+bearFvg = high < low[2] and (low[2] - high) >= fvgMinAtr * atr
+
+f_mitigated(int dir, float top, float bot) =>
+    float mid = (top + bot) / 2.0
+    bool hit = false
+    if mitigation == "close"
+        hit := dir == 1 ? close < bot : close > top
+    else if mitigation == "wick"
+        hit := dir == 1 ? low < bot : high > top
+    else
+        hit := dir == 1 ? close < mid : close > mid
+    hit
+
+var array<box>   fvgBx = array.new_box()
+var array<int>   fvgDir = array.new_int()
+var array<int>   fvgBorn = array.new_int()
+var array<float> fvgTop = array.new_float()
+var array<float> fvgBot = array.new_float()
+var array<bool>  fvgFlip = array.new_bool()
+
+if showFvg and bullFvg
+    array.push(fvgBx, box.new(bar_index - 2, low, bar_index, high[2], bgcolor=color.new(color.teal, 80), border_color=color.new(color.teal, 50)))
+    array.push(fvgDir, 1)
+    array.push(fvgBorn, bar_index)
+    array.push(fvgTop, low)
+    array.push(fvgBot, high[2])
+    array.push(fvgFlip, false)
+if showFvg and bearFvg
+    array.push(fvgBx, box.new(bar_index - 2, low[2], bar_index, high, bgcolor=color.new(color.maroon, 80), border_color=color.new(color.maroon, 50)))
+    array.push(fvgDir, -1)
+    array.push(fvgBorn, bar_index)
+    array.push(fvgTop, low[2])
+    array.push(fvgBot, high)
+    array.push(fvgFlip, false)
+
+if array.size(fvgBx) > 0
+    for i = array.size(fvgBx) - 1 to 0
+        int age = bar_index - array.get(fvgBorn, i)
+        int d = array.get(fvgDir, i)
+        float top = array.get(fvgTop, i)
+        float bot = array.get(fvgBot, i)
+        bool flipped = array.get(fvgFlip, i)
+        box bx = array.get(fvgBx, i)
+        if age > fvgMaxAge
+            box.delete(bx)
+            array.remove(fvgBx, i)
+            array.remove(fvgDir, i)
+            array.remove(fvgBorn, i)
+            array.remove(fvgTop, i)
+            array.remove(fvgBot, i)
+            array.remove(fvgFlip, i)
+        else if f_mitigated(d, top, bot)
+            if showIfvg and not flipped
+                array.set(fvgDir, i, -d)
+                array.set(fvgFlip, i, true)
+                box.set_bgcolor(bx, color.new(color.purple, 80))
+                box.set_border_color(bx, color.new(color.purple, 40))
+                box.set_right(bx, bar_index)
+            else
+                box.delete(bx)
+                array.remove(fvgBx, i)
+                array.remove(fvgDir, i)
+                array.remove(fvgBorn, i)
+                array.remove(fvgTop, i)
+                array.remove(fvgBot, i)
+                array.remove(fvgFlip, i)
+        else
+            box.set_right(bx, bar_index)
+
+var array<box>   obBx = array.new_box()
+var array<int>   obDir = array.new_int()
+var array<int>   obBorn = array.new_int()
+var array<float> obTop = array.new_float()
+var array<float> obBot = array.new_float()
+var array<bool>  obBroken = array.new_bool()
+
+if showOb and (bosUp or bosDn)
+    int dirOb = bosUp ? 1 : -1
+    int k = 1
+    bool found = false
+    for x = 1 to 8
+        if not found
+            bool opp = dirOb == 1 ? (close[x] < open[x]) : (close[x] > open[x])
+            if opp
+                k := x
+                found := true
+    float zTop = high[k]
+    float zBot = low[k]
+    float disp = dirOb == 1 ? (close - zBot) : (zTop - close)
+    if found and not na(atr) and disp >= obDispAtr * atr
+        array.push(obBx, box.new(bar_index - k, zTop, bar_index, zBot, bgcolor=color.new(dirOb == 1 ? color.teal : color.maroon, 82), border_color=color.new(dirOb == 1 ? color.teal : color.maroon, 45)))
+        array.push(obDir, dirOb)
+        array.push(obBorn, bar_index)
+        array.push(obTop, zTop)
+        array.push(obBot, zBot)
+        array.push(obBroken, false)
+
+if array.size(obBx) > 0
+    for i = array.size(obBx) - 1 to 0
+        int age = bar_index - array.get(obBorn, i)
+        int d = array.get(obDir, i)
+        float top = array.get(obTop, i)
+        float bot = array.get(obBot, i)
+        box bx = array.get(obBx, i)
+        bool alreadyBrk = array.get(obBroken, i)
+        if age > obMaxAge
+            box.delete(bx)
+            array.remove(obBx, i)
+            array.remove(obDir, i)
+            array.remove(obBorn, i)
+            array.remove(obTop, i)
+            array.remove(obBot, i)
+            array.remove(obBroken, i)
+        else if f_mitigated(d, top, bot)
+            if showBreaker and not alreadyBrk and ((d == 1 and chochDn) or (d == -1 and chochUp))
+                array.set(obBroken, i, true)
+                array.set(obDir, i, -d)
+                box.set_bgcolor(bx, color.new(color.orange, 82))
+                box.set_border_color(bx, color.new(color.orange, 40))
+                box.set_right(bx, bar_index)
+            else if alreadyBrk and f_mitigated(-d, top, bot)
+                box.delete(bx)
+                array.remove(obBx, i)
+                array.remove(obDir, i)
+                array.remove(obBorn, i)
+                array.remove(obTop, i)
+                array.remove(obBot, i)
+                array.remove(obBroken, i)
+            else if not showBreaker or alreadyBrk == false
+                if not (showBreaker and ((d == 1 and chochDn) or (d == -1 and chochUp)))
+                    box.delete(bx)
+                    array.remove(obBx, i)
+                    array.remove(obDir, i)
+                    array.remove(obBorn, i)
+                    array.remove(obTop, i)
+                    array.remove(obBot, i)
+                    array.remove(obBroken, i)
+                else
+                    box.set_right(bx, bar_index)
+            else
+                box.set_right(bx, bar_index)
+        else
+            box.set_right(bx, bar_index)
+
+// ───────────────────────── Plan gate (illustration only) ─────────────────────────
+// A production port must implement CISD, OB volume%, liquidity targets, HTF veto,
+// news blackout, and cost_R in Python, then optionally mirror here.
+// RR1 hard gate: if a candidate plan has rr1 < rr1Min -> WAIT. Do not use max(rr1, rr2).
+
+rr1MinPlot = rr1Min  // kept so the input is referenced
+plot(vwma, "VWMA filter", color=trendBull ? color.new(color.teal, 0) : color.new(color.maroon, 0))
+trendAtrVal = ta.atr(trendAtrLen)
+plot(useTrend ? vwma + trendAtrMult * trendAtrVal : na, "VWMA + ATR band", color=color.new(color.gray, 60))
+plot(useTrend ? vwma - trendAtrMult * trendAtrVal : na, "VWMA - ATR band", color=color.new(color.gray, 60))
+
+bgcolor(useKz and inKz ? color.new(color.gray, 92) : na, title="Killzone window")
+
+var table note = table.new(position.top_right, 1, 4, bgcolor=color.new(color.black, 30), border_width=0)
+if barstate.islast
+    table.cell(note, 0, 0, "CFX — DRAFT / UNTESTED", text_color=color.yellow, text_size=size.small)
+    table.cell(note, 0, 1, "No edge claim. Owner approval before ship.", text_color=color.white, text_size=size.tiny)
+    table.cell(note, 0, 2, langAr ? ("فلتر الاتجاه: " + (trendBull ? "صاعد" : trendBear ? "هابط" : "محايد")) : (trendBull ? "trend bull" : "trend bear"), text_color=color.white, text_size=size.tiny)
+    table.cell(note, 0, 3, (useKz ? (inKz ? "KZ: in" : "KZ: out") : "KZ: off") + " | RR1 min " + str.tostring(rr1Min), text_color=color.white, text_size=size.tiny)
+
+// TODO (not in this draft): CISD body rule, volumetric OB %, EQH clustering, HTF security(),
+// SL/TP liquidity math, Arabic reshaping is N/A in Pine, alerts on confirmed bar close,
+// spread/cost model, news blackout calendar.
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Display-layer additions. Existing inputs / structure / FVG / killzone / table
+// above are left in place. No Fibonacci setups are added (none existed here).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+f_tfHigher(string tf) =>
+    timeframe.in_seconds(tf) > timeframe.in_seconds()
+
+// Show a TF's XPIX level when the chart is at or below that TF (15M visible on a 15m chart).
+f_tfAtLeast(string tf) =>
+    timeframe.in_seconds(tf) >= timeframe.in_seconds()
+
+f_tfOrSelf(string tf) =>
+    f_tfHigher(tf) ? tf : timeframe.period
+
+f_delLine(line ln) =>
+    if not na(ln)
+        line.delete(ln)
+
+f_delLabel(label lb) =>
+    if not na(lb)
+        label.delete(lb)
+
+f_delBox(box bx) =>
+    if not na(bx)
+        box.delete(bx)
+
+// Swing history for the trend line / EQH / SMT (does not alter lastSh / lastSl / BOS / CHoCH).
+var float sh1 = na
+var float sh2 = na
+var int   sh1Bar = na
+var int   sh2Bar = na
+var float sl1 = na
+var float sl2 = na
+var int   sl1Bar = na
+var int   sl2Bar = na
+var float sh1PeerH = na
+var float sh2PeerH = na
+var float sl1PeerL = na
+var float sl2PeerL = na
+
+// ── MTF alignment (confirmed HTF bars, lookahead_off) ──
+[htfO, htfH, htfL, htfC, htfT, htf1BullSec] = request.security(syminfo.tickerid, htfTf, [open[1], high[1], low[1], close[1], time[1], close[1] > ta.vwma(close, vwmaLen)[1]], lookahead=barmerge.lookahead_off)
+htf2BullSec = request.security(syminfo.tickerid, mtfTf2, close[1] > ta.vwma(close, vwmaLen)[1], lookahead=barmerge.lookahead_off)
+mtfBull = not useMtfFilter or (htf1BullSec and htf2BullSec and trendBull)
+mtfBear = not useMtfFilter or (not htf1BullSec and not htf2BullSec and trendBear)
+
+// ── Sessions (separate from existing killzone windows / bgcolor) ──
+inAsiaSess = not na(time(timeframe.period, sessAsia, kzTz))
+inLonSess  = not na(time(timeframe.period, sessLon,  kzTz))
+inNySess   = not na(time(timeframe.period, sessNy,   kzTz))
+inAnySess  = inAsiaSess or inLonSess or inNySess
+sessOk = not useSessFilter or (sessFilterPick == "Any in-session" ? inAnySess : sessFilterPick == "Asia" ? inAsiaSess : sessFilterPick == "London" ? inLonSess : inNySess)
+kzOk = not useKz or inKz
+
+// ── SMT peer (same TF, lookahead_off). Invert: -low / -high so DXY HH is a peer LL. ──
+peerHighRaw = request.security(smtSym, timeframe.period, high, lookahead=barmerge.lookahead_off)
+peerLowRaw  = request.security(smtSym, timeframe.period, low,  lookahead=barmerge.lookahead_off)
+peerHigh = smtInvert ? -peerLowRaw : peerHighRaw
+peerLow  = smtInvert ? -peerHighRaw : peerLowRaw
+
+if not na(ph)
+    sh2 := sh1
+    sh2Bar := sh1Bar
+    sh2PeerH := sh1PeerH
+    sh1 := ph
+    sh1Bar := bar_index - swingLen
+    sh1PeerH := peerHigh[swingLen]
+if not na(pl)
+    sl2 := sl1
+    sl2Bar := sl1Bar
+    sl2PeerL := sl1PeerL
+    sl1 := pl
+    sl1Bar := bar_index - swingLen
+    sl1PeerL := peerLow[swingLen]
+
+// ── Prior-day H/L (last closed daily bar) ──
+[pdh, pdl] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+newDay = ta.change(time("D")) != 0
+var float dayHi = na
+var float dayLo = na
+dayHi := newDay or na(dayHi) ? high : math.max(dayHi, high)
+dayLo := newDay or na(dayLo) ? low  : math.min(dayLo, low)
+
+// ── Session shading + session H/L tracking ──
+COL_ASIA = color.new(color.blue, 94)
+COL_LON  = color.new(#ff9800, 94)
+COL_NY   = color.new(color.teal, 94)
+
+var box   asiaBox = na
+var box   lonBox = na
+var box   nyBox = na
+var float asiaHi = na
+var float asiaLo = na
+var float lonHi = na
+var float lonLo = na
+var float nyHi = na
+var float nyLo = na
+var int   asiaStart = na
+var int   lonStart = na
+var int   nyStart = na
+var line  asiaHLn = na
+var line  asiaLLn = na
+var line  lonHLn = na
+var line  lonLLn = na
+var line  nyHLn = na
+var line  nyLLn = na
+var label asiaHLb = na
+var label asiaLLb = na
+var label lonHLb = na
+var label lonLLb = na
+var label nyHLb = na
+var label nyLLb = na
+var label asiaNameLb = na
+var label lonNameLb = na
+var label nyNameLb = na
+var box[] sessHist = array.new_box()
+var label[] sessHistLb = array.new_label()
+var bool asiaHSwept = false
+var bool asiaLSwept = false
+var bool lonHSwept = false
+var bool lonLSwept = false
+var bool nyHSwept = false
+var bool nyLSwept = false
+
+f_keepSess(box bx, label lb) =>
+    if not na(bx)
+        array.push(sessHist, bx)
+    if not na(lb)
+        array.push(sessHistLb, lb)
+    if array.size(sessHist) > maxSessBoxes
+        box.delete(array.shift(sessHist))
+    if array.size(sessHistLb) > maxSessBoxes
+        label.delete(array.shift(sessHistLb))
+
+f_updSess(bool inSess, bool inSessPrev, box bx, float hi, float lo, int st, color col, label nameLb, string name) =>
+    box outBx = bx
+    float outHi = hi
+    float outLo = lo
+    int outSt = st
+    label outLb = nameLb
+    if inSess and not inSessPrev
+        f_keepSess(outBx, outLb)
+        outBx := showSessShade ? box.new(bar_index, high, bar_index, low, bgcolor=col, border_color=color.new(color.gray, 70), border_width=1) : na
+        outLb := showSessShade ? label.new(bar_index, high, name, style=label.style_none, textcolor=color.new(col, 0), size=size.tiny) : na
+        outHi := high
+        outLo := low
+        outSt := bar_index
+    else if inSess
+        outHi := na(outHi) ? high : math.max(outHi, high)
+        outLo := na(outLo) ? low  : math.min(outLo, low)
+        if showSessShade and not na(outBx)
+            box.set_right(outBx, bar_index)
+            box.set_top(outBx, outHi)
+            box.set_bottom(outBx, outLo)
+        if showSessShade and not na(outLb)
+            label.set_xy(outLb, outSt, outHi)
+            label.set_text(outLb, name)
+        if not showSessShade and not na(outBx)
+            box.delete(outBx)
+            outBx := na
+        if not showSessShade and not na(outLb)
+            label.delete(outLb)
+            outLb := na
+    [outBx, outHi, outLo, outSt, outLb]
+
+[asiaBox, asiaHi, asiaLo, asiaStart, asiaNameLb] := f_updSess(inAsiaSess, inAsiaSess[1], asiaBox, asiaHi, asiaLo, asiaStart, COL_ASIA, asiaNameLb, "Asia")
+[lonBox,  lonHi,  lonLo,  lonStart,  lonNameLb]  := f_updSess(inLonSess,  inLonSess[1],  lonBox,  lonHi,  lonLo,  lonStart,  COL_LON, lonNameLb, "London")
+[nyBox,   nyHi,   nyLo,   nyStart,   nyNameLb]   := f_updSess(inNySess,   inNySess[1],   nyBox,   nyHi,   nyLo,   nyStart,   COL_NY, nyNameLb, "NY")
+
+if inAsiaSess and not inAsiaSess[1]
+    asiaHSwept := false
+    asiaLSwept := false
+if not inAsiaSess and not na(asiaHi) and high > asiaHi
+    asiaHSwept := true
+if not inAsiaSess and not na(asiaLo) and low < asiaLo
+    asiaLSwept := true
+if inLonSess and not inLonSess[1]
+    lonHSwept := false
+    lonLSwept := false
+if not inLonSess and not na(lonHi) and high > lonHi
+    lonHSwept := true
+if not inLonSess and not na(lonLo) and low < lonLo
+    lonLSwept := true
+if inNySess and not inNySess[1]
+    nyHSwept := false
+    nyLSwept := false
+if not inNySess and not na(nyHi) and high > nyHi
+    nyHSwept := true
+if not inNySess and not na(nyLo) and low < nyLo
+    nyLSwept := true
+
+f_shortHL(bool on, float lvl, string tag, line ln, label lb, color col) =>
+    line outLn = ln
+    label outLb = lb
+    bool near = not na(lvl) and not na(atr) and math.abs(close - lvl) <= liqNearAtr * atr
+    bool show = on and not na(lvl) and (showSessHL or (showLiqLevels and near))
+    if show
+        if na(outLn)
+            outLn := line.new(bar_index, lvl, bar_index + levelStubBars, lvl, color=color.new(col, 20), width=1, style=line.style_solid)
+        else
+            line.set_xy1(outLn, bar_index, lvl)
+            line.set_xy2(outLn, bar_index + levelStubBars, lvl)
+            line.set_color(outLn, color.new(col, 20))
+        if na(outLb)
+            outLb := label.new(bar_index + levelStubBars, lvl, tag, style=label.style_none, textcolor=color.white, size=size.tiny)
+        else
+            label.set_xy(outLb, bar_index + levelStubBars, lvl)
+            label.set_text(outLb, tag)
+            label.set_color(outLb, color.new(col, 30))
+    else
+        f_delLine(outLn)
+        f_delLabel(outLb)
+        outLn := na
+        outLb := na
+    [outLn, outLb]
+
+if barstate.islast
+    [asiaHLn, asiaHLb] := f_shortHL(showSessHL and not inAsiaSess and not asiaHSwept, asiaHi, "Asia H", asiaHLn, asiaHLb, color.blue)
+    [asiaLLn, asiaLLb] := f_shortHL(showSessHL and not inAsiaSess and not asiaLSwept, asiaLo, "Asia L", asiaLLn, asiaLLb, color.blue)
+    [lonHLn, lonHLb] := f_shortHL(showSessHL and not inLonSess and not lonHSwept, lonHi, "Lon H", lonHLn, lonHLb, #ff9800)
+    [lonLLn, lonLLb] := f_shortHL(showSessHL and not inLonSess and not lonLSwept, lonLo, "Lon L", lonLLn, lonLLb, #ff9800)
+    [nyHLn, nyHLb] := f_shortHL(showSessHL and not inNySess and not nyHSwept, nyHi, "NY H", nyHLn, nyHLb, color.teal)
+    [nyLLn, nyLLb] := f_shortHL(showSessHL and not inNySess and not nyLSwept, nyLo, "NY L", nyLLn, nyLLb, color.teal)
+
+// ── Trend line from last two confirmed swings in the trend direction ──
+var line trendLn = na
+if showTrendLine and barstate.islast
+    bool useLows = structDir == 1 or (structDir == 0 and trendBull)
+    bool okL = useLows and not na(sl1) and not na(sl2) and not na(sl1Bar) and not na(sl2Bar) and sl1Bar != sl2Bar
+    bool okH = not useLows and not na(sh1) and not na(sh2) and not na(sh1Bar) and not na(sh2Bar) and sh1Bar != sh2Bar
+    if okL or okH
+        int x1 = okL ? sl2Bar : sh2Bar
+        float y1 = okL ? sl2 : sh2
+        int x2 = okL ? sl1Bar : sh1Bar
+        float y2 = okL ? sl1 : sh1
+        color tc = okL ? color.teal : color.maroon
+        if na(trendLn)
+            trendLn := line.new(x1, y1, x2, y2, color=tc, width=1, style=line.style_solid, extend=extend.right)
+        else
+            line.set_xy1(trendLn, x1, y1)
+            line.set_xy2(trendLn, x2, y2)
+            line.set_color(trendLn, tc)
+    else
+        f_delLine(trendLn)
+        trendLn := na
+else if not showTrendLine
+    f_delLine(trendLn)
+    trendLn := na
+
+// ── SMT: chart HH/LL not confirmed by the correlated symbol ──
+var line  smtLn = na
+var label smtLb = na
+bearSmt = showSmt and not na(sh1) and not na(sh2) and not na(sh1PeerH) and not na(sh2PeerH) and sh1 > sh2 and sh1PeerH <= sh2PeerH
+bullSmt = showSmt and not na(sl1) and not na(sl2) and not na(sl1PeerL) and not na(sl2PeerL) and sl1 < sl2 and sl1PeerL >= sl2PeerL
+if showSmt and barstate.islast and (bearSmt or bullSmt)
+    int sx1 = bearSmt ? sh2Bar : sl2Bar
+    float sy1 = bearSmt ? sh2 : sl2
+    int sx2 = bearSmt ? sh1Bar : sl1Bar
+    float sy2 = bearSmt ? sh1 : sl1
+    string smtTxt = bearSmt ? "SMT" : "SMT"
+    if na(smtLn)
+        smtLn := line.new(sx1, sy1, sx2, sy2, color=color.new(color.yellow, 20), width=1, style=line.style_solid)
+    else
+        line.set_xy1(smtLn, sx1, sy1)
+        line.set_xy2(smtLn, sx2, sy2)
+    if na(smtLb)
+        smtLb := label.new(sx2, sy2, smtTxt, style=bearSmt ? label.style_label_down : label.style_label_up, color=color.new(color.yellow, 30), textcolor=color.black, size=size.tiny)
+    else
+        label.set_xy(smtLb, sx2, sy2)
+        label.set_text(smtLb, smtTxt)
+        label.set_style(smtLb, bearSmt ? label.style_label_down : label.style_label_up)
+else if not showSmt or (barstate.islast and not bearSmt and not bullSmt)
+    f_delLine(smtLn)
+    f_delLabel(smtLb)
+    smtLn := na
+    smtLb := na
+
+// ── HTF CISD / CRT zones (last closed HTF candle via lookahead_off + [1]) ──
+var float[] hO = array.new_float()
+var float[] hH = array.new_float()
+var float[] hL = array.new_float()
+var float[] hC = array.new_float()
+var int[]   hT = array.new_int()
+var box   cisdBox = na
+var label cisdLb0 = na
+var label cisdLb1 = na
+var line  cisdLn = na
+var label cisdLb = na
+var box   crtBox = na
+var label crtLb0 = na
+var label crtLb1 = na
+var int   cisdDir = 0
+var int   cisdT0 = na
+var int   cisdT1 = na
+var float cisdTop = na
+var float cisdBot = na
+var float cisdLvl = na
+var int   crtT0 = na
+var int   crtT1 = na
+var float crtTop = na
+var float crtBot = na
+
+f_isPivH(int i, int L, int n, array<float> arr) =>
+    bool ok = i >= L and i <= n - 1 - L
+    if ok
+        float p = array.get(arr, i)
+        for k = i - L to i + L
+            if array.get(arr, k) > p
+                ok := false
+    ok
+
+f_isPivL(int i, int L, int n, array<float> arr) =>
+    bool ok = i >= L and i <= n - 1 - L
+    if ok
+        float p = array.get(arr, i)
+        for k = i - L to i + L
+            if array.get(arr, k) < p
+                ok := false
+    ok
+
+f_lastPiv(array<float> arr, int L, bool isHigh) =>
+    int n = array.size(arr)
+    int found = -1
+    if n > 2 * L
+        for i = n - 1 - L to L by -1
+            bool hit = isHigh ? f_isPivH(i, L, n, arr) : f_isPivL(i, L, n, arr)
+            if hit
+                found := i
+                break
+    found
+
+if showHtfZones and f_tfHigher(htfTf) and ta.change(htfT) != 0 and not na(htfC) and not na(htfT)
+    array.push(hO, htfO)
+    array.push(hH, htfH)
+    array.push(hL, htfL)
+    array.push(hC, htfC)
+    array.push(hT, int(htfT))
+    if array.size(hC) > math.max(80, cisdLookback + 10)
+        array.shift(hO)
+        array.shift(hH)
+        array.shift(hL)
+        array.shift(hC)
+        array.shift(hT)
+    int nH = array.size(hC)
+    int L = swingLen
+    // CRT: last completed HTF bar vs the previous HTF range bar
+    if nH >= 2
+        float rngH = array.get(hH, nH - 2)
+        float rngL = array.get(hL, nH - 2)
+        int rngT0 = array.get(hT, nH - 2)
+        int rngT1 = array.get(hT, nH - 1)
+        float actH = array.get(hH, nH - 1)
+        float actL = array.get(hL, nH - 1)
+        float actC = array.get(hC, nH - 1)
+        bool sweepLo = actL < rngL and actC > rngL
+        bool sweepHi = actH > rngH and actC < rngH
+        // Keep the latest reference range as the CRT zone; mark it when a reclaim is present.
+        crtT0 := rngT0
+        crtT1 := rngT1
+        crtTop := rngH
+        crtBot := rngL
+        if not (sweepLo or sweepHi) and nH >= 3
+            // still show the current prior range (last closed is the live HTF candle's predecessor)
+            crtT0 := array.get(hT, nH - 1)
+            crtT1 := int(time)  // extend toward now; overwritten on the box right below
+            crtTop := array.get(hH, nH - 1)
+            crtBot := array.get(hL, nH - 1)
+    // CISD on the stored HTF candles (project rule: sweep, delivery run, body close through the open of that run)
+    int look = math.min(cisdLookback, nH)
+    int iHigh = f_lastPiv(hH, L, true)
+    int iLow  = f_lastPiv(hL, L, false)
+    cisdDir := 0
+    if iLow >= 0 and nH >= 3
+        float swLvl = array.get(hL, iLow)
+        int e = -1
+        int from = math.max(iLow, nH - look)
+        for i = nH - 1 to from by -1
+            if array.get(hL, i) < swLvl
+                e := i
+                break
+        if e > iLow
+            int m = e
+            while m >= 0 and not (array.get(hC, m) < array.get(hO, m))
+                m -= 1
+            if m >= 0
+                int s0 = m
+                while s0 - 1 >= 0 and array.get(hC, s0 - 1) < array.get(hO, s0 - 1)
+                    s0 -= 1
+                float clv = array.get(hO, s0)
+                int conf = -1
+                int last = math.min(nH - 1, e + cisdMaxAge)
+                for b = e + 1 to last
+                    bool bodyOk = not chochBody or array.get(hC, b) > array.get(hO, b)
+                    if array.get(hC, b) > clv and bodyOk
+                        conf := b
+                        break
+                bool held = conf >= 0 and array.get(hC, nH - 1) > clv
+                int iHiPrior = -1
+                if iHigh >= 0 and iHigh < e
+                    iHiPrior := iHigh
+                bool structOk = true
+                if iHiPrior >= 0
+                    float struct = array.get(hH, iHiPrior)
+                    for k = e + 1 to nH - 1
+                        if array.get(hH, k) > struct
+                            structOk := false
+                if held and structOk
+                    cisdDir := 1
+                    cisdT0 := array.get(hT, s0)
+                    cisdT1 := array.get(hT, conf)
+                    cisdLvl := clv
+                    cisdTop := math.max(clv, array.get(hH, conf))
+                    cisdBot := math.min(array.get(hL, e), clv)
+    if cisdDir == 0 and iHigh >= 0 and nH >= 3
+        float swLvlH = array.get(hH, iHigh)
+        int eH = -1
+        int fromH = math.max(iHigh, nH - look)
+        for i = nH - 1 to fromH by -1
+            if array.get(hH, i) > swLvlH
+                eH := i
+                break
+        if eH > iHigh
+            int mH = eH
+            while mH >= 0 and not (array.get(hC, mH) > array.get(hO, mH))
+                mH -= 1
+            if mH >= 0
+                int s0H = mH
+                while s0H - 1 >= 0 and array.get(hC, s0H - 1) > array.get(hO, s0H - 1)
+                    s0H -= 1
+                float clvH = array.get(hO, s0H)
+                int confH = -1
+                int lastH = math.min(nH - 1, eH + cisdMaxAge)
+                for b = eH + 1 to lastH
+                    bool bodyOkH = not chochBody or array.get(hC, b) < array.get(hO, b)
+                    if array.get(hC, b) < clvH and bodyOkH
+                        confH := b
+                        break
+                bool heldH = confH >= 0 and array.get(hC, nH - 1) < clvH
+                bool structOkH = true
+                if iLow >= 0 and iLow < eH
+                    float structL = array.get(hL, iLow)
+                    for k = eH + 1 to nH - 1
+                        if array.get(hL, k) < structL
+                            structOkH := false
+                if heldH and structOkH
+                    cisdDir := -1
+                    cisdT0 := array.get(hT, s0H)
+                    cisdT1 := array.get(hT, confH)
+                    cisdLvl := clvH
+                    cisdTop := math.max(array.get(hH, eH), clvH)
+                    cisdBot := math.min(clvH, array.get(hL, confH))
+
+f_setZone(box bx, label a, label b, bool on, int t0, int t1, float top, float bot, string tag, color col) =>
+    box outBx = bx
+    label outA = a
+    label outB = b
+    bool ok = on and not na(t0) and not na(t1) and not na(top) and not na(bot) and t1 >= t0 and top > bot
+    if ok
+        int right = t1
+        if tag == "CRT"
+            right := int(math.max(t1, time))
+        if na(outBx)
+            outBx := box.new(t0, top, right, bot, xloc=xloc.bar_time, bgcolor=color.new(col, 85), border_color=color.new(col, 50), border_width=1)
+        else
+            box.set_left(outBx, t0)
+            box.set_right(outBx, right)
+            box.set_top(outBx, top)
+            box.set_bottom(outBx, bot)
+            box.set_bgcolor(outBx, color.new(col, 85))
+            box.set_border_color(outBx, color.new(col, 50))
+        if na(outA)
+            outA := label.new(t0, top, tag, xloc=xloc.bar_time, style=label.style_label_down, color=color.new(col, 30), textcolor=color.white, size=size.tiny)
+        else
+            label.set_xy(outA, t0, top)
+            label.set_text(outA, tag)
+        if na(outB)
+            outB := label.new(right, top, tag, xloc=xloc.bar_time, style=label.style_label_down, color=color.new(col, 50), textcolor=color.white, size=size.tiny)
+        else
+            label.set_xy(outB, right, top)
+            label.set_text(outB, tag)
+    else
+        f_delBox(outBx)
+        f_delLabel(outA)
+        f_delLabel(outB)
+        outBx := na
+        outA := na
+        outB := na
+    [outBx, outA, outB]
+
+f_setCisdLine(line ln, label lb, bool on, int t0, int t1, float lvl, string tag, color col) =>
+    line outLn = ln
+    label outLb = lb
+    bool ok = on and not na(t0) and not na(t1) and not na(lvl) and t1 >= t0
+    if ok
+        if na(outLn)
+            outLn := line.new(t0, lvl, t1, lvl, xloc=xloc.bar_time, color=color.new(col, 15), width=1, style=line.style_solid)
+        else
+            line.set_xy1(outLn, t0, lvl)
+            line.set_xy2(outLn, t1, lvl)
+            line.set_color(outLn, color.new(col, 15))
+        if na(outLb)
+            outLb := label.new(int(math.round(0.5 * (t0 + t1))), lvl, tag, xloc=xloc.bar_time, style=label.style_none, textcolor=col, size=size.tiny)
+        else
+            label.set_xy(outLb, int(math.round(0.5 * (t0 + t1))), lvl)
+            label.set_text(outLb, tag)
+            label.set_textcolor(outLb, col)
+    else
+        f_delLine(outLn)
+        f_delLabel(outLb)
+        outLn := na
+        outLb := na
+    [outLn, outLb]
+
+if barstate.islast
+    // HTF CISD is a short line on the HTF origin→confirm candles, not a tall zone box.
+    f_delBox(cisdBox)
+    cisdBox := na
+    f_delLabel(cisdLb0)
+    cisdLb0 := na
+    f_delLabel(cisdLb1)
+    cisdLb1 := na
+    [cisdLn, cisdLb] := f_setCisdLine(cisdLn, cisdLb, showHtfZones and cisdDir != 0, cisdT0, cisdT1, cisdLvl, "CISD " + htfTf, cisdDir == 1 ? color.teal : color.maroon)
+    [crtBox, crtLb0, crtLb1] := f_setZone(crtBox, crtLb0, crtLb1, showHtfZones and not na(crtT0), crtT0, crtT1, crtTop, crtBot, "CRT", color.yellow)
+
+// ── Chart-TF CISD: short line from origin candle to confirming candle ──
+var float[] gO = array.new_float()
+var float[] gH = array.new_float()
+var float[] gL = array.new_float()
+var float[] gC = array.new_float()
+var int[]   gI = array.new_int()
+var line  chartCisdBullLn = na
+var label chartCisdBullLb = na
+var line  chartCisdBearLn = na
+var label chartCisdBearLb = na
+
+if barstate.isconfirmed and showChartCisd
+    array.push(gO, open)
+    array.push(gH, high)
+    array.push(gL, low)
+    array.push(gC, close)
+    array.push(gI, bar_index)
+    int capG = math.max(80, cisdLookback + 10)
+    if array.size(gC) > capG
+        array.shift(gO)
+        array.shift(gH)
+        array.shift(gL)
+        array.shift(gC)
+        array.shift(gI)
+
+f_setCisdLineBar(line ln, label lb, bool on, int x0, int x1, float lvl, string tag, color col) =>
+    line outLn = ln
+    label outLb = lb
+    bool ok = on and not na(x0) and not na(x1) and not na(lvl) and x1 >= x0
+    if ok
+        if na(outLn)
+            outLn := line.new(x0, lvl, x1, lvl, color=color.new(col, 10), width=1, style=line.style_solid)
+        else
+            line.set_xy1(outLn, x0, lvl)
+            line.set_xy2(outLn, x1, lvl)
+            line.set_color(outLn, color.new(col, 10))
+        int mid = int(math.round(0.5 * (x0 + x1)))
+        if na(outLb)
+            outLb := label.new(mid, lvl, tag, style=label.style_none, textcolor=col, size=size.tiny)
+        else
+            label.set_xy(outLb, mid, lvl)
+            label.set_text(outLb, tag)
+            label.set_textcolor(outLb, col)
+    else
+        f_delLine(outLn)
+        f_delLabel(outLb)
+        outLn := na
+        outLb := na
+    [outLn, outLb]
+
+if barstate.islast and showChartCisd
+    int nG = array.size(gC)
+    int bullS = -1
+    int bullC = -1
+    float bullLv = na
+    int bearS = -1
+    int bearC = -1
+    float bearLv = na
+    if nG >= 8
+        int iLowG = f_lastPiv(gL, swingLen, false)
+        int iHighG = f_lastPiv(gH, swingLen, true)
+        int lookG = math.min(cisdLookback, nG)
+        if iLowG >= 0
+            float swLG = array.get(gL, iLowG)
+            int eG = -1
+            int fromG = math.max(iLowG, nG - lookG)
+            for i = nG - 1 to fromG by -1
+                if array.get(gL, i) < swLG
+                    eG := i
+                    break
+            if eG > iLowG
+                int mG = eG
+                while mG >= 0 and not (array.get(gC, mG) < array.get(gO, mG))
+                    mG -= 1
+                if mG >= 0
+                    int s0G = mG
+                    while s0G - 1 >= 0 and array.get(gC, s0G - 1) < array.get(gO, s0G - 1)
+                        s0G -= 1
+                    float clvG = array.get(gO, s0G)
+                    int confG = -1
+                    int lastG = math.min(nG - 1, eG + cisdShowAge)
+                    for b = eG + 1 to lastG
+                        bool bodyOkG = not chochBody or array.get(gC, b) > array.get(gO, b)
+                        if array.get(gC, b) > clvG and bodyOkG
+                            confG := b
+                            break
+                    if confG >= 0 and (nG - 1 - confG) <= cisdShowAge
+                        bullS := s0G
+                        bullC := confG
+                        bullLv := clvG
+        if iHighG >= 0
+            float swHG = array.get(gH, iHighG)
+            int eHG = -1
+            int fromHG = math.max(iHighG, nG - lookG)
+            for i = nG - 1 to fromHG by -1
+                if array.get(gH, i) > swHG
+                    eHG := i
+                    break
+            if eHG > iHighG
+                int mHG = eHG
+                while mHG >= 0 and not (array.get(gC, mHG) > array.get(gO, mHG))
+                    mHG -= 1
+                if mHG >= 0
+                    int s0HG = mHG
+                    while s0HG - 1 >= 0 and array.get(gC, s0HG - 1) > array.get(gO, s0HG - 1)
+                        s0HG -= 1
+                    float clvHG = array.get(gO, s0HG)
+                    int confHG = -1
+                    int lastHG = math.min(nG - 1, eHG + cisdShowAge)
+                    for b = eHG + 1 to lastHG
+                        bool bodyOkHG = not chochBody or array.get(gC, b) < array.get(gO, b)
+                        if array.get(gC, b) < clvHG and bodyOkHG
+                            confHG := b
+                            break
+                    if confHG >= 0 and (nG - 1 - confHG) <= cisdShowAge
+                        bearS := s0HG
+                        bearC := confHG
+                        bearLv := clvHG
+    string cisdTfTag = "CISD " + timeframe.period + (timeframe.isintraday ? "m" : "")
+    bool drawBull = bullS >= 0 and bullC >= bullS and not na(bullLv) and maxCisdLines >= 1
+    bool drawBear = bearS >= 0 and bearC >= bearS and not na(bearLv) and maxCisdLines >= (drawBull ? 2 : 1)
+    int bullX0 = drawBull ? array.get(gI, bullS) : na
+    int bullX1 = drawBull ? array.get(gI, bullC) : na
+    int bearX0 = drawBear ? array.get(gI, bearS) : na
+    int bearX1 = drawBear ? array.get(gI, bearC) : na
+    [chartCisdBullLn, chartCisdBullLb] := f_setCisdLineBar(chartCisdBullLn, chartCisdBullLb, drawBull, bullX0, bullX1, bullLv, cisdTfTag, color.teal)
+    [chartCisdBearLn, chartCisdBearLb] := f_setCisdLineBar(chartCisdBearLn, chartCisdBearLb, drawBear, bearX0, bearX1, bearLv, cisdTfTag, color.maroon)
+else if not showChartCisd
+    f_delLine(chartCisdBullLn)
+    f_delLabel(chartCisdBullLb)
+    f_delLine(chartCisdBearLn)
+    f_delLabel(chartCisdBearLb)
+    chartCisdBullLn := na
+    chartCisdBullLb := na
+    chartCisdBearLn := na
+    chartCisdBearLb := na
+
+// ── Relevant EQH / EQL and prior-day H/L (unswept, near price only) ──
+var bool eqhSwept = false
+var bool eqlSwept = false
+var float eqhLvl = na
+var float eqlLvl = na
+if not na(sh1) and not na(sh2) and not na(atr) and math.abs(sh1 - sh2) <= eqTolAtr * atr and (bar_index - sh1Bar) >= eqConfirm
+    float newEqh = math.max(sh1, sh2)
+    if na(eqhLvl) or math.abs(newEqh - eqhLvl) > eqTolAtr * atr
+        eqhSwept := false
+    eqhLvl := newEqh
+else if not na(eqhLvl) and not na(atr) and math.abs(sh1 - eqhLvl) > eqTolAtr * atr
+    eqhLvl := na
+    eqhSwept := false
+if not na(eqhLvl) and high > eqhLvl
+    eqhSwept := true
+
+if not na(sl1) and not na(sl2) and not na(atr) and math.abs(sl1 - sl2) <= eqTolAtr * atr and (bar_index - sl1Bar) >= eqConfirm
+    float newEql = math.min(sl1, sl2)
+    if na(eqlLvl) or math.abs(newEql - eqlLvl) > eqTolAtr * atr
+        eqlSwept := false
+    eqlLvl := newEql
+else if not na(eqlLvl) and not na(atr) and math.abs(sl1 - eqlLvl) > eqTolAtr * atr
+    eqlLvl := na
+    eqlSwept := false
+if not na(eqlLvl) and low < eqlLvl
+    eqlSwept := true
+
+var line  eqhLn = na
+var line  eqlLn = na
+var line  pdhLn = na
+var line  pdlLn = na
+var label eqhLb = na
+var label eqlLb = na
+var label pdhLb = na
+var label pdlLb = na
+
+f_relLine(bool on, float lvl, string tag, line ln, label lb, color col) =>
+    line outLn = ln
+    label outLb = lb
+    bool near = not na(lvl) and not na(atr) and math.abs(close - lvl) <= liqNearAtr * atr
+    if on and near
+        if na(outLn)
+            outLn := line.new(bar_index, lvl, bar_index + levelStubBars, lvl, color=color.new(col, 20), width=1, style=line.style_solid)
+        else
+            line.set_xy1(outLn, bar_index, lvl)
+            line.set_xy2(outLn, bar_index + levelStubBars, lvl)
+        if na(outLb)
+            outLb := label.new(bar_index + levelStubBars, lvl, tag, style=label.style_none, textcolor=color.white, size=size.tiny)
+        else
+            label.set_xy(outLb, bar_index + levelStubBars, lvl)
+            label.set_text(outLb, tag)
+    else
+        f_delLine(outLn)
+        f_delLabel(outLb)
+        outLn := na
+        outLb := na
+    [outLn, outLb]
+
+if barstate.islast
+    [eqhLn, eqhLb] := f_relLine(showLiqLevels and not na(eqhLvl) and not eqhSwept, eqhLvl, "EQH", eqhLn, eqhLb, color.maroon)
+    [eqlLn, eqlLb] := f_relLine(showLiqLevels and not na(eqlLvl) and not eqlSwept, eqlLvl, "EQL", eqlLn, eqlLb, color.teal)
+    [pdhLn, pdhLb] := f_relLine(showLiqLevels and not na(pdh) and dayHi < pdh, pdh, "PDH", pdhLn, pdhLb, #ff9800)
+    [pdlLn, pdlLb] := f_relLine(showLiqLevels and not na(pdl) and dayLo > pdl, pdl, "PDL", pdlLn, pdlLb, #ff9800)
+
+// ── XPIX MTF Liquidity Levels ──
+// Last CLOSED HTF H/L: request.security(..., high[1]/low[1], lookahead=barmerge.lookahead_off).
+// [1] selects the previous completed HTF bar; lookahead_off avoids a future leak.
+// Show only the nearer edge, with hysteresis (switch after price crosses 70% of that candle's range).
+// Hide if both edges are more than 15 * ATR(14) away. Solid width-2 line from the current bar
+// 30 bars to the right; tag "price | 15M" / "price | 1H".
+atr14 = ta.atr(14)
+tf15s = f_tfOrSelf("15")
+tf60s = f_tfOrSelf("60")
+tf5s  = f_tfOrSelf("5")
+tf4hs = f_tfOrSelf("240")
+tfDs  = f_tfOrSelf("D")
+tfWs  = f_tfOrSelf("W")
+[x15H, x15L] = request.security(syminfo.tickerid, tf15s, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[x60H, x60L] = request.security(syminfo.tickerid, tf60s, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[x5H,  x5L]  = request.security(syminfo.tickerid, tf5s,  [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[x4H,  x4L]  = request.security(syminfo.tickerid, tf4hs, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[xDH,  xDL]  = request.security(syminfo.tickerid, tfDs,  [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[xWH,  xWL]  = request.security(syminfo.tickerid, tfWs,  [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+f_xpixSide(float hi, float lo, int prev) =>
+    int side = prev
+    float rng = hi - lo
+    if na(hi) or na(lo) or rng <= 0
+        side := 0
+    else if prev == 0
+        side := math.abs(close - hi) <= math.abs(close - lo) ? 1 : -1
+    else if prev == 1
+        // showing high; switch to low only after close crosses 70% of the range toward the low
+        if close < lo + 0.30 * rng
+            side := -1
+    else
+        if close > lo + 0.70 * rng
+            side := 1
+    side
+
+f_xpixDraw(bool enabled, bool tfOk, float hi, float lo, int prevSide, line ln, label lb, color col, color txt, string tag) =>
+    int side = prevSide
+    line outLn = ln
+    label outLb = lb
+    bool far = not na(atr14) and not na(hi) and not na(lo) and math.abs(close - hi) > 15.0 * atr14 and math.abs(close - lo) > 15.0 * atr14
+    bool hide = not enabled or not tfOk or far or na(hi) or na(lo) or na(atr14)
+    if hide
+        f_delLine(outLn)
+        f_delLabel(outLb)
+        outLn := na
+        outLb := na
+        side := 0
+    else
+        side := f_xpixSide(hi, lo, prevSide)
+        float px = side == 1 ? hi : lo
+        string lab = str.tostring(px, format.mintick) + " | " + tag
+        if na(outLn)
+            outLn := line.new(bar_index, px, bar_index + 30, px, color=col, width=2, style=line.style_solid)
+        else
+            line.set_xy1(outLn, bar_index, px)
+            line.set_xy2(outLn, bar_index + 30, px)
+            line.set_color(outLn, col)
+            line.set_width(outLn, 2)
+        if na(outLb)
+            outLb := label.new(bar_index + 30, px, lab, style=label.style_label_left, color=col, textcolor=txt, size=size.tiny)
+        else
+            label.set_xy(outLb, bar_index + 30, px)
+            label.set_text(outLb, lab)
+            label.set_color(outLb, col)
+            label.set_textcolor(outLb, txt)
+    [side, outLn, outLb]
+
+var int   xpSide15 = 0
+var int   xpSide60 = 0
+var int   xpSide5  = 0
+var int   xpSide4  = 0
+var int   xpSideD  = 0
+var int   xpSideW  = 0
+var line  xpLn15 = na
+var line  xpLn60 = na
+var line  xpLn5  = na
+var line  xpLn4  = na
+var line  xpLnD  = na
+var line  xpLnW  = na
+var label xpLb15 = na
+var label xpLb60 = na
+var label xpLb5  = na
+var label xpLb4  = na
+var label xpLbD  = na
+var label xpLbW  = na
+
+if barstate.islast
+    [xpSide15, xpLn15, xpLb15] := f_xpixDraw(showLiq15,  f_tfAtLeast("15"),  x15H, x15L, xpSide15, xpLn15, xpLb15, #ff9800, color.black, "15M")
+    [xpSide60, xpLn60, xpLb60] := f_xpixDraw(showLiq60,  f_tfAtLeast("60"),  x60H, x60L, xpSide60, xpLn60, xpLb60, #4caf50, color.white, "1H")
+    [xpSide5,  xpLn5,  xpLb5]  := f_xpixDraw(showLiq5,   f_tfAtLeast("5"),   x5H,  x5L,  xpSide5,  xpLn5,  xpLb5,  color.yellow, color.black, "5M")
+    [xpSide4,  xpLn4,  xpLb4]  := f_xpixDraw(showLiq240, f_tfAtLeast("240"), x4H,  x4L,  xpSide4,  xpLn4,  xpLb4,  color.blue, color.white, "4H")
+    [xpSideD,  xpLnD,  xpLbD]  := f_xpixDraw(showLiqD,   f_tfAtLeast("D"),   xDH,  xDL,  xpSideD,  xpLnD,  xpLbD,  color.red, color.white, "D1")
+    [xpSideW,  xpLnW,  xpLbW]  := f_xpixDraw(showLiqW,   f_tfAtLeast("W"),   xWH,  xWL,  xpSideW,  xpLnW,  xpLbW,  color.gray, color.white, "W1")
+
+// ── Trade drawings: at most 2 (open + faded ghost). Open stays solid until TP2 / SL / INV, then fades. ──
+type TradeVis
+    int dir = 0
+    int entryBar = 0
+    int closeBar = na
+    float entry = na
+    float sl = na
+    float tp1 = na
+    float tp2 = na
+    bool isOpen = false
+    string reason = ""
+    string result = ""
+    line lnEntry = na
+    line lnSl = na
+    line lnTp1 = na
+    line lnTp2 = na
+    line lnStart = na
+    label lbEntry = na
+    label lbSl = na
+    label lbTp1 = na
+    label lbTp2 = na
+    label lbReason = na
+    label lbResult = na
+
+var array<TradeVis> tradeVis = array.new<TradeVis>()
+FADE_T = 85
+
+f_purgeTrade(TradeVis t) =>
+    f_delLine(t.lnEntry)
+    f_delLine(t.lnSl)
+    f_delLine(t.lnTp1)
+    f_delLine(t.lnTp2)
+    f_delLine(t.lnStart)
+    f_delLabel(t.lbEntry)
+    f_delLabel(t.lbSl)
+    f_delLabel(t.lbTp1)
+    f_delLabel(t.lbTp2)
+    f_delLabel(t.lbReason)
+    f_delLabel(t.lbResult)
+
+f_pruneTrades() =>
+    while array.size(tradeVis) > 2
+        TradeVis old = array.shift(tradeVis)
+        f_purgeTrade(old)
+
+f_styleLine(line ln, color c, bool faded) =>
+    if not na(ln)
+        line.set_color(ln, color.new(c, faded ? FADE_T : 0))
+
+f_styleLab(label lb, color c, color txt, bool faded) =>
+    if not na(lb)
+        label.set_color(lb, color.new(c, faded ? FADE_T : 20))
+        label.set_textcolor(lb, color.new(txt, faded ? FADE_T : 0))
+
+f_paintTrade(TradeVis t, bool faded) =>
+    color ce = t.dir == 1 ? color.green : color.red
+    color cs = color.red
+    color ct = color.green
+    f_styleLine(t.lnEntry, ce, faded)
+    f_styleLine(t.lnSl, cs, faded)
+    f_styleLine(t.lnTp1, ct, faded)
+    f_styleLine(t.lnTp2, ct, faded)
+    f_styleLine(t.lnStart, ce, faded)
+    f_styleLab(t.lbEntry, ce, color.white, faded)
+    f_styleLab(t.lbSl, cs, color.white, faded)
+    f_styleLab(t.lbTp1, ct, color.white, faded)
+    f_styleLab(t.lbTp2, ct, color.white, faded)
+    f_styleLab(t.lbReason, color.black, color.white, faded)
+
+f_extendTrade(TradeVis t, int x2) =>
+    if not na(t.lnEntry)
+        line.set_x2(t.lnEntry, x2)
+    if not na(t.lnSl)
+        line.set_x2(t.lnSl, x2)
+    if not na(t.lnTp1)
+        line.set_x2(t.lnTp1, x2)
+    if not na(t.lnTp2)
+        line.set_x2(t.lnTp2, x2)
+    if not na(t.lbEntry)
+        label.set_xy(t.lbEntry, x2, t.entry)
+    if not na(t.lbSl)
+        label.set_xy(t.lbSl, x2, t.sl)
+    if not na(t.lbTp1)
+        label.set_xy(t.lbTp1, x2, t.tp1)
+    if not na(t.lbTp2)
+        label.set_xy(t.lbTp2, x2, t.tp2)
+
+f_fadeTrade(TradeVis t, string result, int cBar) =>
+    t.isOpen := false
+    t.result := result
+    t.closeBar := cBar
+    f_extendTrade(t, cBar)
+    f_paintTrade(t, true)
+    string tag = result
+    if langAr
+        tag := result == "TP2" ? "هدف ٢" : result == "SL" ? "وقف" : "إبطال"
+    color rc = result == "SL" or result == "INV" ? color.red : color.green
+    if na(t.lbResult)
+        t.lbResult := label.new(cBar, t.entry, tag, style=label.style_label_left, color=color.new(rc, 85), textcolor=color.new(color.white, 0), size=size.tiny)
+    else
+        label.set_xy(t.lbResult, cBar, t.entry)
+        label.set_text(t.lbResult, tag)
+
+f_hasOpenTrade() =>
+    bool anyOpen = false
+    if array.size(tradeVis) > 0
+        for i = 0 to array.size(tradeVis) - 1
+            TradeVis t = array.get(tradeVis, i)
+            if t.isOpen
+                anyOpen := true
+    anyOpen
+
+f_openTrade(int dir, float entry, float sl, float tp1, float tp2, string reason) =>
+    if not f_hasOpenTrade()
+        f_pruneTrades()
+        while array.size(tradeVis) >= 2
+            TradeVis old = array.shift(tradeVis)
+            f_purgeTrade(old)
+        color ce = dir == 1 ? color.green : color.red
+        TradeVis t = TradeVis.new()
+        t.dir := dir
+        t.entryBar := bar_index
+        t.closeBar := na
+        t.entry := entry
+        t.sl := sl
+        t.tp1 := tp1
+        t.tp2 := tp2
+        t.isOpen := true
+        t.reason := reason
+        t.result := ""
+        t.lnEntry := line.new(bar_index, entry, bar_index, entry, color=ce, width=1, style=line.style_solid)
+        t.lnSl := line.new(bar_index, sl, bar_index, sl, color=color.red, width=1, style=line.style_dotted)
+        t.lnTp1 := line.new(bar_index, tp1, bar_index, tp1, color=color.green, width=1, style=line.style_dotted)
+        t.lnTp2 := line.new(bar_index, tp2, bar_index, tp2, color=color.green, width=1, style=line.style_solid)
+        t.lnStart := line.new(bar_index, math.min(sl, tp2), bar_index, math.max(sl, tp2), color=color.new(ce, 40), width=1)
+        t.lbEntry := label.new(bar_index, entry, langAr ? (dir == 1 ? "دخول" : "دخول") : "Entry", style=label.style_label_left, color=color.new(ce, 20), textcolor=color.white, size=size.tiny)
+        t.lbSl := label.new(bar_index, sl, "SL", style=label.style_label_left, color=color.new(color.red, 20), textcolor=color.white, size=size.tiny)
+        t.lbTp1 := label.new(bar_index, tp1, "TP1", style=label.style_label_left, color=color.new(color.green, 20), textcolor=color.white, size=size.tiny)
+        t.lbTp2 := label.new(bar_index, tp2, "TP2", style=label.style_label_left, color=color.new(color.green, 20), textcolor=color.white, size=size.tiny)
+        t.lbReason := label.new(bar_index, entry, reason, style=dir == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.black, 20), textcolor=color.white, size=size.tiny)
+        t.lbResult := na
+        array.push(tradeVis, t)
+        f_pruneTrades()
+
+f_updateTrades() =>
+    if array.size(tradeVis) > 0
+        for i = 0 to array.size(tradeVis) - 1
+            TradeVis t = array.get(tradeVis, i)
+            if t.isOpen
+                bool hitSl = t.dir == 1 ? low <= t.sl : high >= t.sl
+                bool hitTp2 = t.dir == 1 ? high >= t.tp2 : low <= t.tp2
+                bool inv = (t.dir == 1 and chochDn) or (t.dir == -1 and chochUp)
+                if hitSl
+                    f_fadeTrade(t, "SL", bar_index)
+                else if hitTp2
+                    f_fadeTrade(t, "TP2", bar_index)
+                else if inv
+                    f_fadeTrade(t, "INV", bar_index)
+                else
+                    f_extendTrade(t, bar_index)
+
+f_updateTrades()
+
+// Plan drawings: CHoCH + structural SL/TP. Not the full Python sequential engine
+// (HTF daily+4H veto → POI → sweep → LTF CISD/CHoCH → limit at FVG/OB).
+// TPs are the last opposite swing only — no synthetic rr1Min*risk targets.
+if showPlanDrawings and barstate.isconfirmed and not f_hasOpenTrade() and not na(atr) and atr > 0 and kzOk and sessOk
+    if chochUp and mtfBull and not na(lastSl) and not na(lastSh)
+        float slL = lastSl - slBufAtr * atr
+        float riskL = close - slL
+        if riskL > 0 and lastSh > close + rr1Min * riskL
+            float tp1L = lastSh
+            float tp2L = lastSh
+            float rr1L = (tp1L - close) / riskL
+            if rr1L >= rr1Min
+                f_openTrade(1, close, slL, tp1L, tp2L, langAr ? "تغيّر طابع" : "CHoCH")
+    if chochDn and mtfBear and not na(lastSh) and not na(lastSl) and not f_hasOpenTrade()
+        float slS = lastSh + slBufAtr * atr
+        float riskS = slS - close
+        if riskS > 0 and lastSl < close - rr1Min * riskS
+            float tp1S = lastSl
+            float tp2S = lastSl
+            float rr1S = (close - tp1S) / riskS
+            if rr1S >= rr1Min
+                f_openTrade(-1, close, slS, tp1S, tp2S, langAr ? "تغيّر طابع" : "CHoCH")
+
+var table note2 = table.new(position.bottom_right, 1, 3, bgcolor=color.new(color.black, 40), border_width=0)
+if barstate.islast
+    string mtfTxt = useMtfFilter ? (mtfBull ? "MTF: bull" : mtfBear ? "MTF: bear" : "MTF: no align") : "MTF: off"
+    string sessTxt = (inAsiaSess ? "Asia " : "") + (inLonSess ? "Lon " : "") + (inNySess ? "NY" : "")
+    if sessTxt == ""
+        sessTxt := "Sess: out"
+    table.cell(note2, 0, 0, mtfTxt, text_color=color.white, text_size=size.tiny)
+    table.cell(note2, 0, 1, sessTxt, text_color=color.white, text_size=size.tiny)
+    table.cell(note2, 0, 2, "trades " + str.tostring(array.size(tradeVis)) + "/2  DRAFT", text_color=color.yellow, text_size=size.tiny)

@@ -24,7 +24,7 @@ jobs:
           cache: pip
       - run: pip install pandas numpy requests tzdata
       - name: Restore what was already sent
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830  # v4 (restore + save split 2026-11-20: a failed step must not drop the learning state)
         with:
           path: |
             .tg_sent.json
@@ -63,10 +63,23 @@ jobs:
       - name: Signal log (stats + artifact)
         if: always()
         run: python -m modules.signal_log
+      - name: Save sent memory, brain log, graded ideas, signal log (always, even if a step failed)
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: |
+            .tg_sent.json
+            .tc_sent.json
+            .brain_sent.json
+            .brain_log.jsonl
+            .brain_graded.json
+            .signal_log.jsonl
+          key: tg-sent-${{ github.run_id }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: signal-log
           path: .signal_log.jsonl
+          include-hidden-files: true   # v4 skips dot-files by default: the signal log was never uploaded
           if-no-files-found: ignore
           retention-days: 90

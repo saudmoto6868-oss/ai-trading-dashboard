@@ -46,5 +46,13 @@ def test_iv_rank():
     assert O.iv_rank([10.0] * 40) is None and O.iv_rank(s[:10]) is None and O.iv_rank([None] * 50) is None
 
 
+def test_gex_chain_feeds_gex():
+    from modules import gex
+    ch = O.gex_chain(ROWS, today=date(2026, 10, 22))
+    assert len(ch) == 7 and set(ch.type) == {"C", "P"}   # the 2020 expiry and the perpetual are dropped
+    lv = gex.levels(ch, 100.0, date(2026, 10, 22), mult=1)
+    assert lv["call_wall"] == 110.0 and lv["put_wall"] == 100.0 and lv["n_contracts"] == 7
+
+
 if __name__ == "__main__":
-    test_parse(); test_max_pain_and_summary(); test_strikes(); test_iv_rank(); print("ok options_desk")
+    test_parse(); test_max_pain_and_summary(); test_strikes(); test_iv_rank(); test_gex_chain_feeds_gex(); print("ok options_desk")

@@ -28,6 +28,19 @@ def main(argv=None) -> int:
     r = spot_ideas.desk()
     txt = spot_ideas.telegram_text(r)
     print(txt)
+    try:   # the Workspace "Spot desk" widget reads this file (owner 2026-11-15)
+        from modules import spot_brain, spot_snapshot
+        brains = []
+        for asset, cls, name in spot_ideas.UNIVERSE:
+            try:
+                brains.append(spot_brain.run(asset, cls, name))
+            except Exception as e:
+                print(f"snapshot brain {asset} skipped: {type(e).__name__}: {e}")
+        snap = spot_snapshot.build(r, brains)
+        print("snapshot:", spot_snapshot.write(snap), len(brains), "brains")
+        print("ideas logged (new):", spot_snapshot.append_log(snap))
+    except Exception as e:
+        print(f"snapshot skipped: {type(e).__name__}: {e}")
     if "--no-image" not in argv:
         try:
             from modules.spot_dash import to_png

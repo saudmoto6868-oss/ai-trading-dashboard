@@ -159,6 +159,14 @@ def ui_theme_bg(theme: str) -> str:
 MRX_LIVE = os.environ.get("MRX_LIVE", "").strip() == "1"
 
 
+def _spot_snapshot() -> dict:
+    try:
+        from modules import spot_snapshot
+        return spot_snapshot.load()
+    except Exception:
+        return {}
+
+
 def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
@@ -208,6 +216,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
+        "spot": _spot_snapshot(),   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
@@ -282,7 +291,7 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                      asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
-    import streamlit.components.v1 as components
+    import streamlit as st
 
     # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
     # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
@@ -290,9 +299,8 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
         doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
-        import streamlit as st
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
-    components.html(doc, height=height, scrolling=False)
+    st.iframe(doc, height=height, alt="Live market workspace")
 
 
 WS_HTML_REFRESH_SECS = 180   # send new page data at most this often (when the scan is idle)

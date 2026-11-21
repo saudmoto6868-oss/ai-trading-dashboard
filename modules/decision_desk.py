@@ -53,6 +53,15 @@ def render_decision_desk(payload: dict | None = None) -> None:
          f"{s.get('score', 0)}/{s.get('max', 0)}", "up" if s.get("direction") == "bullish" else "down" if s.get("direction") == "bearish" else "", t("نتيجة الماسح (مش دليل)", "scanner score (not evidence)")),
         (t("دليل المعمل", "Lab evidence"), lab_txt, state, "up" if ev and ev > 0 else "down" if ev is not None and ev <= 0 else "", t("متوسط R للكاشفات في المعمل", "average lab R of the detectors")),
         (t("كاشفات", "Detectors"), str(lv["n_keys"]), t("منها OFF: ", "OFF: ") + str(len(lv["off"])), "down" if lv["off"] else "", "")]), unsafe_allow_html=True)
+    try:   # description only: the structure the candles show now (no lab number, no direction)
+        from modules import market_cache, desk_describe
+        desc = desk_describe.describe(market_cache.get_klines(str(s.get("symbol")), str(s.get("tfk") or "1h").lower(), 300))
+        from modules.elliott_shapes import SHAPE_AR
+        el = SHAPE_AR.get(desc.get("elliott_shape"), "—") if desc.get("elliott_shape") else "—"
+        hm = (desc.get("harmonic") or "—") + ((" (" + t("بيتكون", "forming") + ")") if desc.get("harmonic_forming") else "")
+        st.caption(t(f"وصف فقط، مش دليل: شكل إليوت = {el} · هارمونيك = {hm}", f"Description only, not evidence: Elliott shape = {el} · harmonic = {hm}"))
+    except Exception:
+        pass
     if s.get("against"):
         st.warning(t(f"فيه إشارة عاكسة: بتخصم 0.10R من دليل المعمل.", "An opposing signal is present: 0.10R is subtracted from the lab evidence."))
     if lv["off"]:

@@ -29,3 +29,5 @@ research/htf_arms/events.csv.gz
 data/journal/
 data/x77/
 data/cache/
+# chat archives (owner rule: keep local)
+docs/chats/

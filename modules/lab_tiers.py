@@ -54,3 +54,27 @@ def evidence(result: dict, tf: str):
     if not vals:
         return None
     return round(sum(vals) / len(vals) - (OPPOSITION_PENALTY if result.get("against") else 0.0), 3)
+
+
+def card(keys, tf: str) -> list:
+    """Backtest beside the signal (owner 2026-11-20, like Flux Charts / OddsMaker): the weekly-lab row of each detector of a
+    setup, on its own timeframe when it has >= MIN_N trades, else all timeframes. Net R already includes the lab cost.
+    verdict: 'edge' (passed the lab gate), 'too few' (n < MIN_N: not evidence), 'loses' (net <= 0), 'positive, not proven'."""
+    rows, out, seen = _load()["rows"], [], set()
+    for k in keys:
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        r = rows.get((k, LAB_TF.get(tf, ""))) or {}
+        scope = LAB_TF.get(tf, "")
+        if r.get("n", 0) < MIN_N:
+            r, scope = rows.get((k, "all")) or r, "all"
+        if not r:
+            continue
+        n, net = int(r.get("n", 0)), r.get("net")
+        if net is None and r.get("avgR") is not None:   # per-detector rows carry gross avgR only; same cost as the lab (LAB_COST_R, 0.10R)
+            net = round(float(r["avgR"]) - float(os.environ.get("LAB_COST_R", "0.10")), 3)
+        verdict = "edge" if r.get("edge") else "too few" if n < MIN_N else "loses" if (net is None or net <= 0) else "positive, not proven"
+        out.append({"key": k, "school": r.get("school", ""), "tf": scope, "n": n, "net": net, "t": r.get("t"),
+                    "is": r.get("is_avgR"), "oos": r.get("oos_avgR"), "verdict": verdict})
+    return out

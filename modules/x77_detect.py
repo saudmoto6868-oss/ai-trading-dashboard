@@ -50,8 +50,18 @@ SCHOOLS = {
 
 
 def js_config() -> dict:
-    """What the Workspace X77 widget needs: key -> school, school -> names + Arabic explanation."""
-    return {"keys": {k: v[0] for k, v in KEY_MAP.items()}, "schools": {s: list(v) for s, v in SCHOOLS.items()}}
+    """What the Workspace X77 widget needs: key -> school, school -> names + Arabic explanation,
+    school -> number of library examples (items tagged with the school id, e.g. by scripts/x77_add.py)."""
+    lib: dict = {}
+    try:
+        from modules import x77_store
+        for it in x77_store.list_items():
+            for t in it.get("tags", []):
+                if t.upper() in SCHOOLS:
+                    lib[t.upper()] = lib.get(t.upper(), 0) + 1
+    except Exception:  # library missing or broken must not break the Workspace
+        lib = {}
+    return {"keys": {k: v[0] for k, v in KEY_MAP.items()}, "schools": {s: list(v) for s, v in SCHOOLS.items()}, "lib": lib}
 
 
 def events(df: pd.DataFrame) -> dict:

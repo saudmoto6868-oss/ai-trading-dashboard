@@ -92,7 +92,8 @@ TADAWUL = [
     "9536.SR", "9595.SR", "9621.SR", "9616.SR", "9633.SR", "9561.SR", "9572.SR", "9533.SR", "9617.SR", "9653.SR",
     "9565.SR", "9577.SR", "9642.SR", "9553.SR",
 ]
-BY_CLASS = {"Forex": FOREX, "Indices": INDICES, "Egypt (EGX)": EGX, "Saudi (Tadawul)": TADAWUL}
+BONDS = ["^TNX", "^TYX", "^FVX", "^IRX", "IEF", "IEI", "SHY", "TLH", "AGG", "BND", "HYG", "LQD", "TIP", "EMB", "MUB", "ZN=F", "ZB=F"]   # 10y / 30y / 5y / 13w yields, Treasury ETFs + futures, core / high-yield / investment-grade / TIPS / EM / muni ETFs
+BY_CLASS = {"Forex": FOREX, "Indices": INDICES, "Bonds": BONDS, "Egypt (EGX)": EGX, "Saudi (Tadawul)": TADAWUL}
 
 
 def symbols(cls: str) -> list[str]:

@@ -86,7 +86,16 @@ def _short(symbol):
     return s
 
 
-def _symbols(asset_class: str, limit: int):
+YAHOO_ONLY = ("Egypt (EGX)", "Saudi (Tadawul)")   # markets whose full listing is browsed in batches (data/universe_yahoo.json)
+EMBED_CAP = 40   # Yahoo symbols whose candles are embedded in the board's AI chart (the rest of a long list: use the plain candles chart)
+DEEP_CAP = 40   # "read every school" runs on at most this many symbols (the most stretched RSI); the rest get RSI only
+
+
+def _symbols(asset_class: str, limit: int, offset: int = 0):
+    if asset_class in YAHOO_ONLY:
+        from modules.yahoo_feed import universe
+        u = universe(asset_class)
+        return u[offset:offset + limit], f"{len(u)} listed, showing {offset + 1}-{min(offset + limit, len(u))}"
     from modules.tia_intelligence import symbols_for_class
     catalog = symbols_for_class(asset_class, top=limit)
     return list(dict.fromkeys(catalog.get("symbols", [])))[:limit], catalog.get("note", "")
@@ -218,7 +227,7 @@ def _cached_read(sym, candle, chart_tf, deep, _df, vote=0):
     return read_symbol(_df, read_setup(_df), vote, deep)
 
 
-def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True):
+def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True, deep_set=None):
     """One record per symbol for the board (pure apart from the cached flow fetch)."""
     from modules.rsi_confluence import derive_tags, read_symbol
     from modules.rsi_flow import FLOW_TOP_N, feed_of, flow_read
@@ -226,7 +235,7 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
     recs = {}
     for s in symbols:
         try:
-            recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s]) if deep else None
+            recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s]) if deep and (deep_set is None or s in deep_set) else None
         except Exception:
             recs[s] = None
     flows = {}
@@ -360,21 +369,29 @@ def render():
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
     view = st.segmented_control("العرض", ["لوحة RSI", "شارت AI"], default="لوحة RSI", key="rsi_hm_view", label_visibility="collapsed")
-    f = st.columns([1.0, 1.05, 3.4, 0.95, 0.95, 0.5], gap="small", vertical_alignment="center")
+    f = st.columns([1.0, 1.05, 3.0, 0.95, 0.85, 0.95, 0.5], gap="small", vertical_alignment="center")
     f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap</div>", unsafe_allow_html=True)
     asset_class = f[1].selectbox("السوق", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
     picked = f[2].pills("الفريمات", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "1d"],
                         key="rsi_hm_tfs", label_visibility="collapsed") or []
-    limit = f[3].selectbox("العملات", (10, 20, 30, 50, 100, 200, 300), index=1, key="rsi_hm_limit",
-                           label_visibility="collapsed", format_func=lambda n: f"{n} عملة")
+    limits = (10, 20, 30, 50, 100, 200, 300)
+    limit = f[3].selectbox("العملات", limits, index=limits.index(100) if asset_class in YAHOO_ONLY else 1, key=f"rsi_hm_limit_{asset_class}",
+                           label_visibility="collapsed", format_func=lambda n: f"{n} عملة")   # EGX / Tadawul start at 100 (own key per market)
+    batch = 0
+    if asset_class in YAHOO_ONLY:   # the rest of the listing, one batch at a time
+        from modules.yahoo_feed import universe
+        total = len(universe(asset_class))
+        pages = max(1, -(-total // int(limit)))
+        batch = f[4].selectbox("الدفعة", list(range(pages)), key=f"rsi_hm_batch_{asset_class}_{limit}", label_visibility="collapsed",
+                               format_func=lambda k: f"{k * int(limit) + 1}–{min((k + 1) * int(limit), total)} من {total}")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
         st.info("اختار فريم واحد على الأقل.")
         return
     default_tf = "4h" if "4h" in timeframes else timeframes[0]
-    chart_tf = f[4].selectbox("فريم الخريطة", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
+    chart_tf = f[5].selectbox("فريم الخريطة", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
                               label_visibility="collapsed", format_func=lambda t: f"خريطة {t}")
-    with f[5].popover("⚙"):
+    with f[6].popover("⚙"):
         deep = st.toggle("Radar: كل الاستراتيجيات", value=True, key="rsi_hm_deep",
                          help="كل مدارس الاستراتيجيات + هارمونيك + نماذج الشارت (أبطأ).")
         ai_in = st.toggle("شارت AI داخل اللوحة", value=True, key="rsi_hm_aiw",
@@ -401,7 +418,7 @@ def render():
         symbols = list(dict.fromkeys(symbols))
         note = "Top 10 per market: " + " · ".join(parts) + " (the العملات box is ignored here)"
     else:
-        symbols, note = _symbols(asset_class, int(limit))
+        symbols, note = _symbols(asset_class, int(limit), batch * int(limit))
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
         return
@@ -420,8 +437,15 @@ def render():
         render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart", yf=yf)
         return
     from modules.market_cache import fetch_frames
-    with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
-        frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
+    bar = st.progress(0.0, text=f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…")
+    frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=6 if asset_class in YAHOO_ONLY else 4,
+                                  progress=lambda k, n: bar.progress(k / n, text=f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes… {k}/{n}"))
+    bar.empty()
+    if asset_class in YAHOO_ONLY:   # symbols Yahoo does not know are skipped from now on (they cost retries)
+        from modules.yahoo_feed import mark_dead
+        for s_, e_ in errors.items():
+            if any(w in e_ for w in ("unknown symbol", "no data", "no candles")):
+                mark_dead(s_)
     st.session_state["rsi_hm_frames"] = frames   # the AI chart view reuses these candles instead of downloading them again
 
     detail, setups = {}, {}
@@ -447,13 +471,23 @@ def render():
         return
 
     with st.spinner("Reading every school on the map timeframe…" if deep else "Building the board…"):
-        items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
+        deep_set = None
+        if deep and len(symbols) > DEEP_CAP:   # long lists: the schools are read for the most stretched RSI only
+            ranked = sorted((s for s in symbols if (detail.get(s) or {}).get(chart_tf)), key=lambda s: -abs(detail[s][chart_tf]["rsi"] - 50))
+            deep_set = set(ranked[:DEEP_CAP])
+            st.caption(f"{len(symbols)} رمز: قراءة كل المدارس لأكثر {DEEP_CAP} رمز تطرفًا في RSI، والباقي RSI فقط.")
+        items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow, deep_set)
     ws_html = ""
     if ai_in:   # the Workspace chart widget (chart only) goes inside the board; Yahoo candles are the ones already downloaded for the map
         from modules.workspace import build_workspace_html
         from modules.yahoo_feed import embed
         ys = [x for x in symbols if x.startswith("Y:")]
-        ws_html = build_workspace_html(symbols, None, "ar", asset_cls=asset_class, solo="chart", yf=embed(ys, frames=frames) if ys else {})
+        if len(ys) > EMBED_CAP:   # long lists: only the first (biggest) symbols travel inside the page, with fewer bars, to keep it light
+            ys, bars = ys[:EMBED_CAP], 160
+        else:
+            bars = WARMUP_BARS
+        ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
+        ws_html = build_workspace_html(ws_syms, None, "ar", asset_cls=asset_class, solo="chart", yf=embed(ys, bars=bars, frames=frames) if ys else {})
     st.iframe(board_html(items, chart_tf, timeframes, ws_html), height=780, alt="RSI heatmap map and setup board")
 
     if errors:

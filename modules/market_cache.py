@@ -173,7 +173,7 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
     return df
 
 
-def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):
+def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4, progress=None):
     """-> (frames, errors); frames[symbol][tf] = DataFrame, errors[symbol] = text."""
     jobs = [(s, tf) for s in symbols for tf in tfs]
     frames = {s: {} for s in symbols}
@@ -193,7 +193,12 @@ def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):
         return s, tf, None, err
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for s, tf, df, err in ex.map(run, jobs):
+        for k, (s, tf, df, err) in enumerate(ex.map(run, jobs), 1):
+            if progress:
+                try:
+                    progress(k, len(jobs))
+                except Exception:
+                    pass
             if df is not None:
                 frames[s][tf] = df
             else:

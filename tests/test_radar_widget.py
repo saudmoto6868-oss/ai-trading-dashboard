@@ -19,7 +19,8 @@ assert '"solo": ""' in build_workspace_html(["BTC-USDT"], None, "en", solo="bogu
 # 2) the parts are wired: own saved layout, decorate hook, menu save exposed, radar lines never saved
 src = open(os.path.join(ROOT, "modules", "workspace_app.html"), encoding="utf-8").read()
 for s in ('CFG.solo === "radar" ? "ai_ws_radar"', "RadarMode.decorate(this)", "const save = this.indSave =", "this.draws.filter(d => !d._rd)",
-          "Ws.build(RadarMode.layout(", "const RadarMode = {", "RadarMode.allBar()", 'allKey(){ return LS + "_all"; }', "this.applyAll(p);"):
+          "Ws.build(RadarMode.layout(", "const RadarMode = {", "RadarMode.allBar()", 'allKey(){ return LS + "_all"; }', "this.applyAll(p);",
+          "clearAll(){", "this.actions(bar);", "this.tbBtns = {refresh:refreshNow, fit, drw, rf};", 'store.get(this.cleanKey(), false) ? -1'):
     assert s in src, s
 
 # 3) features() hands back the pattern lines per pattern (Radar points draw them)

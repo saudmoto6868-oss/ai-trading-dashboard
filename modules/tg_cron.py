@@ -54,7 +54,9 @@ def scan_alerts(symbols, tfs, min_stars: int) -> tuple[list[dict], list[str]]:
                 out.append(e)
             except Exception as ex:   # a coin with a short history etc. - skipped
                 if "not enough" not in str(ex):
-                    errs.append(f"{sym} {tf}: {type(ex).__name__}")
+                    import traceback   # keep the failing line (2026-11-20: KeyErrors on random 1h symbols had no traceback)
+                    last = traceback.extract_tb(ex.__traceback__)[-1]
+                    errs.append(f"{sym} {tf}: {type(ex).__name__} {ex} at {Path(last.filename).name}:{last.lineno}")
     return out, errs
 
 
@@ -86,7 +88,7 @@ def main(argv=None) -> int:
     except Exception as ex:
         print("signal log skipped:", type(ex).__name__)
     print(f"sent {n} of {len(best)} candidate(s)" + (f"; Telegram error: {err}" if err else ""))
-    return 1 if err else 0
+    return 1 if err and not T.no_secrets(err) else 0   # missing secrets: nothing to send, but do not fail the job (a failed job drops the learning cache)
 
 
 if __name__ == "__main__":

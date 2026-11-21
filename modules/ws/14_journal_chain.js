@@ -15,11 +15,22 @@ const Chain = {
     const n = ["htf", "loc", "vol", "reg", "time"].filter(k => o[k]).length; o.g = n === 5 ? "A+++" : n === 4 ? "A+" : n === 3 ? "A" : n === 2 ? "B" : "C"; return o; },
   tag(rec){ candlesTf(rec.symbol, TFC_ALL[rec.tfk] || "1H", true, 200).then(rows => { const o = Chain.layers(rows, rec.dir === "bullish" ? 1 : -1, rec.tfk, rec.t0); if (o){ rec.chain = o; Journal.save(); } }).catch(() => {}); }   // async: the trade is logged at once, the layers are added when the candles arrive
 };
+/* the journal trade on this symbol at this entry, only if it FILLED (price reached the entry). Only a filled journal trade may draw a trade box */
+function journalFill(sym, entry){ return (Journal.list || []).find(t => t.symbol === sym && t.fill !== false && Math.abs(t.entry - entry) <= 0.0005*Math.abs(entry)) || null; }
 const Journal = {
   list: store.get(LS+"_journal", []), subs: new Set(), busy: false,
   cfg: Object.assign({min:50, rr:1}, store.get(LS+"_jset", {}) || {}),   // what gets LOGGED: weak (< min % strength) or poor-payoff (< rr R:R) setups are not recorded, so they cannot drag the win rate down
   px(sym){ const t = Hub.last["tickers|all"]; return t && !t.error && t[sym] ? t[sym].last : null; },
-  save(){ this.list = this.list.slice(-1500); store.set(LS+"_journal", this.list); this.subs.forEach(f => f()); },
+  save(){ this.list = this.list.slice(-1500); store.set(LS+"_journal", this.list); this.pushServer(); this.subs.forEach(f => f()); },
+  // one journal: every new or changed trade goes to the server store (trade_journal.py) through the journal bridge; localStorage stays as this browser's cache
+  pushServer(){
+    let br = null; try { for (const f of Array.from(window.parent.frames)){ try { if (f.__xpixJournal){ br = f.__xpixJournal; break; } } catch(e){} } } catch(e){}
+    if (!br) return; this._sent = this._sent || {};
+    for (const t of this.list){
+      const sig = [t.status, t.fill, t.r, t.t1, t.reason || "", (t.exits || []).length].join("|"); if (this._sent[t.id] === sig) continue; this._sent[t.id] = sig;
+      br.push({id:t.id, symbol:t.symbol, dir:t.dir, tfk:t.tfk, ttype:t.ttype, entry:t.entry, sl:t.sl, tp1:t.tp1, tp2:t.tp2 || null, tp3:t.tp3 || null, rr:t.rr, score:t.score, max:t.max, tags:t.tags || [], ctx:t.ctx || null, t0:t.t0, t1:t.t1 || null, status:t.status, fill:t.fill !== false, r:t.r || 0, exits:t.exits || [], reason:t.reason || ""});
+    }
+  },
   ingest(){
     let added = 0; const pool = [];
     (CFG.ready || []).forEach(e => pool.push(e)); Alerts.list.forEach(a => a.card && pool.push(a.card));
@@ -31,7 +42,7 @@ const Journal = {
       const cd = (JEXP[e.tfk] || 3*86400e3)/6;   // cool-down per setup: the same symbol|side|type is not re-logged every time price drifts, even after the first one closed
       if (this.list.some(t => t.key === key && (t.status === "open" || Math.abs(t.entry-en)/en < 0.0005 || Date.now() - t.t0 < cd))) return;
       const rec = {id:key+"|"+Date.now(), key, symbol:e.symbol, dir:e.direction, tfk:e.tfk, ttype:e.ttype, entry:en, sl:e.plan.stop, tp1:e.plan.tps[0], tp2:e.plan.tps[1] || null, tp3:e.plan.tps[2] || null,
-        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), riskPct:0.25, score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Ctx.snapshot(e.symbol, e.direction), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0015 : true; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
+        rr: Math.abs(e.plan.tps[0]-en)/Math.max(1e-12, Math.abs(en-e.plan.stop)), riskPct:0.25, score:e.score, max:e.max, pct:Math.round(100*e.score/Math.max(1,e.max)), tags:(e.tags||[]).map(t => t[0]).slice(0,4), t0:Date.now(), status:"open", ctx:Object.assign(Ctx.snapshot(e.symbol, e.direction), {schools: e.j ? {verdict:e.j.verdict, score:e.j.score, pct:e.j.pct, pros:e.j.pros.map(p => [p[0], p[1]]), cons:e.j.cons.map(p => [p[0], p[1]]), vetoes:e.j.vetoes.map(p => p[0]), second:e.j.second.map(p => p[0])} : null, snap: e.ctxSnap || null}), fill:(() => { const p0 = this.px(e.symbol); return p0 ? Math.abs(en - p0)/p0 <= 0.0002 : false; })()}; this.list.push(rec); Chain.tag(rec);   // fill:false = the plan entry is away from the price, the trade only counts once price really touches it (old records have no field = filled)
       added++;
     });
     if (added) this.save();
@@ -51,15 +62,37 @@ const Journal = {
             if (tr.fill === false){   // entry not touched yet: a move to the stop or the target WITHOUT touching the entry was never a trade
               if (c.l <= tr.entry && tr.entry <= c.h){ tr.fill = true; fc = true; changed = true; }
               else { const away = long_ ? (c.l > tr.entry ? c.h >= tr.tp1 : c.h < tr.entry && c.l <= tr.sl) : (c.h < tr.entry ? c.l <= tr.tp1 : c.l > tr.entry && c.h >= tr.sl); if (away){ tr.status = "nf"; tr.r = 0; tr.t1 = c.t + bar[1]; changed = true; break; } continue; } }
-            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl, tp = !fc && (long_ ? c.h >= tr.tp1 : c.l <= tr.tp1);
-            if (sl){ tr.status = "sl"; tr.r = -1; tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
-            if (tp){ tr.status = "tp"; tr.r = tr.rr; tr.t1 = c.t + bar[1]; changed = true; break; }
+            // partial exits: each target books 1/n of the trade at its own R (n = 1, 2 or 3 targets); the stop books the units still open at -1R; status stays "open" until the last unit is closed
+            tr.exits = tr.exits || []; const n = tr.tp3 ? 3 : tr.tp2 ? 2 : 1, risk = Math.abs(tr.entry - tr.sl) || 1e-12, sumR = () => tr.exits.reduce((a, e) => a + e.r, 0), booked = new Set(tr.exits.map(e => e.level));
+            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl;
+            if (sl){ const tpN = tr.exits.filter(e => e.level !== "sl").length; tr.exits.push({level:"sl", t:c.t + bar[1], price:tr.sl, r:-(n - tpN)/n}); tr.status = "sl"; tr.r = sumR(); tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
+            if (!fc) for (const [lvl, px] of [["tp1", tr.tp1], ["tp2", tr.tp2], ["tp3", tr.tp3]]){ if (!px || booked.has(lvl)) continue; if (long_ ? c.h >= px : c.l <= px){ booked.add(lvl); tr.exits.push({level:lvl, t:c.t + bar[1], price:px, r:Math.abs(px - tr.entry)/risk/n}); changed = true; } }   // the fill candle cannot book a target (the target may have printed before the fill)
+            tr.r = sumR();
+            if (tr.exits.filter(e => e.level !== "sl").length >= n){ tr.status = "tp"; tr.t1 = c.t + bar[1]; changed = true; break; }
           }
-          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = 0; tr.t1 = Date.now(); changed = true; }
+          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = tr.fill === false ? 0 : (tr.exits || []).reduce((a, e) => a + e.r, 0); tr.t1 = Date.now(); changed = true; }
         });
       }
     } finally { this.busy = false; }
     if (changed) this.save();
+  },
+  /* POST-MORTEM of a stopped trade (pure, from the saved record): warnings already on at entry, what the wider-stop test says, one next step. */
+  postmortem(tr){
+    if (!tr || tr.status !== "sl") return null;
+    const long_ = tr.dir === "bullish", c = tr.ctx || {}, why = [], wider = [];
+    if (c.of === "against") why.push([Lg("Order flow was against the trade at entry","الأوردر فلو كان ضد الصفقة وقت الدخول"), 1]);
+    if (c.news) why.push([Lg("News was active on the symbol at entry","كان هناك خبر نشط على الرمز وقت الدخول"), 1]);
+    if (c.fund === (long_ ? "crowded longs" : "crowded shorts")) why.push([Lg("Funding was crowded on the trade side","التمويل كان مزدحم في اتجاه الصفقة"), 1]);
+    if (c.oi && (long_ ? ["shorts","closing"] : ["longs","cover"]).includes(c.oi)) why.push([Lg("Open interest did not back the trade","الـOI ما كانش داعم للصفقة"), 1]);
+    if (tr.score != null && tr.max && 100*tr.score/tr.max < 70) why.push([Lg("Setup score was weak (under 70%)","سكور الإعداد كان ضعيف (أقل من 70%)"), 1]);
+    const r = tr.stk && tr.stk.r; if (r) [1.25, 1.5, 2, 3].forEach(k => { if (r[k] > 0) wider.push(k); });
+    if (wider.length) why.push([Lg("A wider stop ("+wider[0]+"× risk) would have reached the target","ستوب أوسع ("+wider[0]+"× الخطر) كان هيوصل للهدف"), 0]);
+    const warns = why.filter(w => w[1]).length;
+    const next = warns ? Lg("Skip or wait: "+warns+" warning(s) were already on at entry","تجنّب الدخول أو انتظر: كان هناك "+warns+" تحذير وقت الدخول")
+      : wider.length ? Lg("Stop too tight for this setup: test the wider stop on more trades","الستوب ضيّق على الإعداد ده: جرّب الستوب الأوسع على صفقات أكتر")
+      : Lg("Entry came early: wait for a confirming close before entering","الدخول كان بدري: استنى إغلاق تأكيد قبل الدخول");
+    if (!why.length) why.push([Lg("No warning was recorded at entry","لم يُسجَّل أي تحذير وقت الدخول"), 0]);
+    return {why: why.map(w => w[0]), next, warns};
   },
   /* STOP TEST on YOUR trades (owner 2026-11-03: "most trades hit the stop and then reach the target"). For every finished trade, replay the candles after the entry with the SAME target and a stop k x the original risk
      (k = 1 is the real stop). Shows how many stopped trades did reach the target later, and what a wider stop would have done to the average R. Mark-to-close at the end of the trade's life when neither was hit. A tiny sample proves nothing (n < 30). */
@@ -115,14 +148,20 @@ function setupHtml(e){
     const ofv = Ctx.ofVerdict(c, e.direction), ses = Ctx.session(), nw = Ctx.news(e.symbol), fu = Ctx.fundFlag(c, e.direction), ic = k => ({ok:'<b class="g">✓</b>', bad:'<b class="rd">✗</b>', mid:'<b class="m">~</b>', na:'<b class="m">–</b>'})[k];
     const rows = [[fr, Lg("Daily trend (radar)","الترند اليومي (الرادار)"), R && !R.err ? R.verdict : Lg("open the radar","افتح الرادار")],
       [e.q >= 50 ? "ok" : e.q ? "mid" : "na", Lg("Lab evidence","أدلة المعمل"), e.q ? e.q+"/100" : "–"],
-      [ofv === "agree" ? "ok" : ofv === "against" ? "bad" : ofv === "mixed" ? "mid" : "na", Lg("Order book + tape now","الأوردر بوك والصفقات دلوقتي"), c && c.of ? "book "+(c.of.book == null ? "–" : Math.round(c.of.book*100)+"%")+" · Δ2m "+(c.of.delta == null ? "–" : Math.round(c.of.delta*100)+"%") : "…"],
+      [ofv === "agree" ? "ok" : ofv === "against" ? "bad" : ofv === "mixed" ? "mid" : "na", Lg("Order book + tape now","دفتر الأوامر والصفقات الآن"), c && c.of ? "book "+(c.of.book == null ? "–" : Math.round(c.of.book*100)+"%")+" · Δ2m "+(c.of.delta == null ? "–" : Math.round(c.of.delta*100)+"%") : "…"],
       [/KZ/.test(ses) ? "ok" : "mid", Lg("Time (NY session)","الوقت (جلسة نيويورك)"), ses],
-      (() => { const rg = RegimeCtx.get(e.symbol, TFC_ALL[e.tfk] || "1H"), v = rg && rg.v; return [v && v.regime ? "mid" : "na", Lg("Market regime (now, this timeframe)","حالة السوق (دلوقتي، نفس الفريم)"), v && v.regime ? v.regime.toUpperCase()+(v.adx != null ? " · ADX "+Math.round(v.adx) : "") : (rg && rg.busy ? "…" : "–")]; })(),
-      [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","مفيش")],
+      (() => { const rg = RegimeCtx.get(e.symbol, TFC_ALL[e.tfk] || "1H"), v = rg && rg.v; return [v && v.regime ? "mid" : "na", Lg("Market regime (now, this timeframe)","حالة السوق (الآن، نفس الإطار الزمني)"), v && v.regime ? v.regime.toUpperCase()+(v.adx != null ? " · ADX "+Math.round(v.adx) : "") : (rg && rg.busy ? "…" : "–")]; })(),
+      [nw ? "bad" : "ok", Lg("High-impact news ±1h","خبر قوي خلال ساعة"), nw ? nw.country+" "+nw.title : Lg("none","لا يوجد")],
       [fu ? "bad" : (c && c.fund != null ? "ok" : "na"), Lg("Funding (crowding)","التمويل (الزحمة)"), c && c.fund != null ? (c.fund*100).toFixed(3)+"%"+(fu ? " · "+fu : "") : "–"],
       (() => { const o = Ctx.oiFlag(c, e.direction); return [o.k, Lg("Open interest 4h (OKX)","العقود المفتوحة 4س (OKX)"), o.txt]; })()];
     h += '<div style="margin-top:6px;border:1px solid var(--line);border-radius:4px;padding:4px 6px"><div class="m" style="font-size:10px;margin-bottom:2px">'+esc(Lg("Checklist (playbook)","قائمة التحقق (الخطة)"))+'</div>'+rows.map(([k, l, v]) => '<div style="display:flex;gap:6px;font-size:11px">'+ic(k)+'<span style="flex:1">'+esc(l)+'</span><span class="m">'+esc(String(v))+'</span></div>').join("")+'</div>'; }
   if ((e.tags || []).length) h += '<div style="margin-top:5px">'+e.tags.slice(0,6).map(t => '<span style="display:inline-block;padding:0 6px;margin:0 3px 3px 0;border-radius:3px;font-size:10px;font-weight:700;background:'+esc(t[1])+';color:'+esc(t[2])+'" title="'+esc(tagTip(t))+'">'+esc(tagTxt(t[0]))+'</span>').join("")+'</div>';
+  if ((e.lab || []).length){   // backtest beside the signal (owner 2026-11-20): weekly-lab row per detector, net of cost; never a promise
+    const f = v => v == null ? "–" : (v >= 0 ? "+" : "")+Number(v).toFixed(2), vc = {edge:["#0ecb81", Lg("passed the lab gate","عدّى بوابة المعمل")], "too few":["#848e9c", Lg("too few (not evidence)","عدد قليل (ليس دليلًا)")], loses:["#f6465d", Lg("loses after cost","خسران بعد التكلفة")], "positive, not proven":["#f0b90b", Lg("positive, not proven","موجب، غير مثبت")]};
+    h += H(Lg("Backtest beside the signal (weekly lab, net of cost)","الباك تيست جنب الإشارة (المعمل الأسبوعي، بعد التكلفة)"))
+      +'<table class="rdt"><tr><th>'+esc(Lg("detector","المؤشر"))+'</th><th>TF</th><th>n</th><th>'+esc(Lg("net R","صافي R"))+'</th><th>t</th><th>IS / OOS</th><th></th></tr>'
+      +e.lab.map(r => { const v = vc[r.verdict] || ["#848e9c", r.verdict]; return '<tr><td>'+esc(r.key)+'</td><td>'+esc(r.tf)+'</td><td>'+r.n+'</td><td style="color:'+(r.net > 0 ? "#0ecb81" : "#f6465d")+'">'+f(r.net)+'</td><td>'+f(r.t)+'</td><td>'+f(r.is)+' / '+f(r.oos)+'</td><td style="color:'+v[0]+'">'+esc(v[1])+'</td></tr>'; }).join("")+'</table>';
+  }
   if (pl) h += H(Lg("Trade plan","خطة الصفقة"))+'<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px"><span class="m">'+Lg("Entry","دخول")+'</span><b>'+fmtP(pl.entry)+'</b><span class="m">'+Lg("Stop","وقف")+'</span><b style="color:#f6465d">'+fmtP(pl.stop)+'</b>'+pl.tps.map((v, i) => '<span class="m">'+Lg("Target ","هدف ")+(i+1)+'</span><b style="color:#0ecb81">'+fmtP(v)+'</b>').join("")+(rr ? '<span class="m">R:R</span><b>1 : '+rr.toFixed(1)+'</b>' : "")+'</div>';
   if (e.eta) h += '<div class="m" style="margin-top:3px">'+esc(typeof e.eta === "string" ? e.eta : "")+'</div>';
   if (a){ h += H(Lg("Conditions met (why the setup opened)","الشروط اللي اتحققت (ليه السيت اب اتفتح)"))+li(a.sig || []);
@@ -131,7 +170,7 @@ function setupHtml(e){
     if (a.htf && a.htf.length) h += H(Lg("Higher timeframes","الفريمات الأعلى"))+li(a.htf);
     if (a.mtf && a.mtf.length) h += H(Lg("Weekly / Daily / 4H framework","إطار الأسبوعي / اليومي / 4 ساعات"))+li(a.mtf);
     if (a.scen && a.scen.length) h += H(Lg("Scenarios","السيناريوهات"))+li(a.scen); }
-  else h += '<div class="m" style="margin-top:8px">'+esc(Lg("No stored analysis for this older setup; it fills in after the next scan.","مفيش تحليل متخزن للسيت اب القديم ده؛ هيظهر بعد المسح الجاي."))+'</div>';
-  return h+'<div class="m" style="margin-top:9px;font-size:10px">'+esc(Lg("Evidence ranking, not a proven win rate. Not financial advice.","ترتيب بالأدلة مش نسبة نجاح مثبتة. مش نصيحة مالية."))+'</div></div>';
+  else h += '<div class="m" style="margin-top:8px">'+esc(Lg("No stored analysis for this older setup; it fills in after the next scan.","لا يوجد تحليل محفوظ لهذا الإعداد القديم؛ سيظهر بعد المسح التالي."))+'</div>';
+  return h+'<div class="m" style="margin-top:9px;font-size:10px">'+esc(Lg("Evidence ranking, not a proven win rate. Not financial advice.","ترتيب بالأدلة وليس نسبة نجاح مثبتة. وليست نصيحة مالية."))+'</div></div>';
 }
 

@@ -133,14 +133,15 @@ def school_weights(entries, graded: dict, min_n: int = 10, shrink_n: int = 20, l
     return out
 
 
-def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, agents: str = "") -> str:
+def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, agents: str = "", lessons: list | None = None) -> str:
     """The daily review message: how the last graded ideas did, per school, with the n<30 warning."""
     import html
     esc = html.escape
     st = stats(entries, graded)
     a = st["all"]
     if not a["n"]:
-        return ("🧠 <b>مراجعة المخ</b>\nلسه مفيش أفكار اتقيّمت (بتتقيّم بعد 6 ساعات على الأقل)." if ar else "🧠 <b>Brain review</b>\nNo idea has been graded yet (they are graded 6 h or more after the list).")
+        empty = ("🧠 <b>مراجعة المخ</b>\nلسه مفيش أفكار اتقيّمت (بتتقيّم بعد 6 ساعات على الأقل)." if ar else "🧠 <b>Brain review</b>\nNo idea has been graded yet (they are graded 6 h or more after the list).")
+        return empty + _lesson_block(lessons, ar, esc)
     lines = [f"🧠 <b>{'مراجعة المخ' if ar else 'Brain review'}</b> · {a['n']} {'فكرة متقيّمة' if ar else 'graded ideas'} · {'متوسط' if ar else 'avg'} {a['avg_r']:+.2f}R · {a['win']}% {'رابحة' if ar else 'wins'}"]
     rows = sorted(st["school"].items(), key=lambda kv: -kv[1]["n"])[:6]
     for name, r in rows:
@@ -148,4 +149,13 @@ def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, 
     if agents:
         lines.append("\n" + agents)
     lines.append("\n<i>R قبل التكاليف. المخ بيسجّل ويقيّم ويقترح بس؛ أي ترقية بتعدي على اللاب الأسبوعي.</i>" if ar else "\n<i>R before costs. The brain logs, grades and suggests only; any promotion goes through the weekly lab.</i>")
+    lines.append(_lesson_block(lessons, ar, esc).rstrip())
     return "\n".join(lines)[:3900]
+
+
+def _lesson_block(lessons, ar: bool, esc) -> str:
+    """Journal lesson candidates: shown as suggestions only. Empty string when there are none."""
+    if not lessons:
+        return ""
+    head = "دروس من الجورنال (مرشحات، غير مطبّقة)" if ar else "Journal lessons (candidates, not applied)"
+    return "\n<b>" + head + "</b>\n" + "\n".join(f"• {esc(x)}" for x in lessons)

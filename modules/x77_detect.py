@@ -13,7 +13,7 @@ from modules import patterns, regime, signals
 KEY_MAP = {
     "level": ("S_SR", "E_SR_TOUCH"), "tlbreak": ("S_SR", "E_SR_FLIP"), "breakout": ("S_SR", "E_SR_BREAK"),
     "ma_cross": ("S_MA", "E_MA_CROSS"), "ema_stack": ("S_MA", "E_MA_STACK"), "sma1040": ("S_MA", "E_MA_SMA1040"),
-    "vwap": ("S_VP", "E_VP_POC"),
+    "vwap": ("S_VP", "E_VP_POC"), "liqline": ("S_VP", "E_VP_LIQLINE"),
     "msb_ob": ("S_SMC_ICT", "E_SMC_BOS"), "ob": ("S_SMC_ICT", "E_SMC_OB"), "fvg": ("S_SMC_ICT", "E_SMC_FVG"),
     "sweep": ("S_SMC_ICT", "E_SMC_SWEEP"), "breaker": ("S_SMC_ICT", "E_SMC_BREAKER"), "ote": ("S_SMC_ICT", "E_SMC_OTE"),
     "unicorn": ("S_SMC_ICT", "E_SMC_UNICORN"), "judas": ("S_SMC_ICT", "E_SMC_JUDAS"), "kzs": ("S_SMC_ICT", "E_SMC_KZ"),
@@ -23,6 +23,7 @@ KEY_MAP = {
     "wavec": ("S_ELLIOTT", "E_EW_ABC"), "fib": ("S_FIB", "F_RET_W2"),
     "rsi_div": ("S_OSC", "E_OSC_RSI_DIV"), "macd_div": ("S_OSC", "E_OSC_MACD_DIV"), "smt": ("S_SMT", "E_SMT"),
     "donch": ("S_STRUCTURE", "E_ST_HH_HL"), "turtle55": ("S_STRUCTURE", "E_ST_TURTLE"), "zombie": ("S_STRUCTURE", "E_ST_ZOMBIE"),
+    "ohl_break": ("S_STRUCTURE", "E_ST_OHL_BREAK"), "ohl_open": ("S_CANDLES", "E_C_OHL_OPEN"),   # live keys seen 2026-11-21, were "Other"
     "pa_engulf": ("S_CANDLES", "E_C_ENGULF"), "pa_pin": ("S_CANDLES", "E_C_PIN"), "pa_inside": ("S_CANDLES", "E_C_INSIDE"),
     "pa_star": ("S_CANDLES", "E_C_STAR"), "rect": ("S_CLASSIC", "E_CP_RECT"), "dbl": ("S_CLASSIC", "E_CP_DOUBLE"),
     "wyck": ("S_WYCKOFF", "E_WY_SPRING"),
@@ -49,8 +50,18 @@ SCHOOLS = {
 
 
 def js_config() -> dict:
-    """What the Workspace X77 widget needs: key -> school, school -> names + Arabic explanation."""
-    return {"keys": {k: v[0] for k, v in KEY_MAP.items()}, "schools": {s: list(v) for s, v in SCHOOLS.items()}}
+    """What the Workspace X77 widget needs: key -> school, school -> names + Arabic explanation,
+    school -> number of library examples (items tagged with the school id, e.g. by scripts/x77_add.py)."""
+    lib: dict = {}
+    try:
+        from modules import x77_store
+        for it in x77_store.list_items():
+            for t in it.get("tags", []):
+                if t.upper() in SCHOOLS:
+                    lib[t.upper()] = lib.get(t.upper(), 0) + 1
+    except Exception:  # library missing or broken must not break the Workspace
+        lib = {}
+    return {"keys": {k: v[0] for k, v in KEY_MAP.items()}, "schools": {s: list(v) for s, v in SCHOOLS.items()}, "lib": lib}
 
 
 def events(df: pd.DataFrame) -> dict:

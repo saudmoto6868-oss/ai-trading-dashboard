@@ -1244,41 +1244,46 @@ def render() -> None:
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
-    tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
-                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
-                    T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"), T("Signals & alarms", "الإشارات والتنبيهات")])
-    with tabs[0]:
+    # Only the picked tab runs (st.tabs ran every tab on every rerun, i.e. every auto-refresh). Same tabs, same order.
+    names = [T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"),
+             T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
+             T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
+             T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"),
+             T("Signals & alarms", "الإشارات والتنبيهات")]
+    pick = st.segmented_control(" ", list(range(len(names))), default=0, format_func=lambda i: names[i], key="sp_tab", label_visibility="collapsed")
+    idx = 0 if pick is None else pick
+    if idx == 0:
         _tab_brain(d, px, met, cr, fx)
-    with tabs[1]:
+    elif idx == 1:
         _tab_ideas()
-    with tabs[2]:
+    elif idx == 2:
         _tab_crypto(d, cr, fx)
-    with tabs[3]:
+    elif idx == 3:
         _tab_metals(d, met, fx, fx_src, egp)
-    with tabs[4]:
+    elif idx == 4:
         _tab_ledger(d, px, fx, egp)
-    with tabs[5]:
+    elif idx == 5:
         _tab_alerts(d, px)
-    with tabs[6]:
+    elif idx == 6:
         _tab_news(d)
-    with tabs[7]:
+    elif idx == 7:
         _tab_setup(d, px, fx)
-    with tabs[8]:   # owner 2026-11-06: an option on the side, loaded only on request
+    elif idx == 8:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)
         else:
             st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
-    with tabs[9]:
+    elif idx == 9:
         _tab_budget(d)
-    with tabs[10]:   # heavy (the whole Workspace app): built only on request, like the analyzer
+    elif idx == 10:   # heavy (the whole Workspace app): built only on request, like the analyzer
         if st.session_state.get("spc_on") or st.button(T("Open the spot chart (full Workspace chart + live setups)", "افتح شارت السبوت (شارت الـ Workspace كامل + الإشارات الحية)"), key="spc_open"):
             st.session_state["spc_on"] = True
             _tab_chart(d, cr)
         else:
             st.caption(T("Not loaded until you open it.", "مش بيتحمّل غير لما تفتحه."))
-    with tabs[11]:
+    elif idx == 11:
         _tab_library()
-    with tabs[12]:
+    elif idx == 12:
         _tab_signals(d, px)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

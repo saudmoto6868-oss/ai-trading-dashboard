@@ -27,4 +27,7 @@ assert X.events(df.head(10))["errors"] == ["not enough candles (need 60)"]
 # every mapped key belongs to a known school prefix
 assert all(s.startswith("S_") and ev for s, ev in X.KEY_MAP.values())
 assert res["errors"] == [], res["errors"]
+# keys seen live on OKX 2026-11-21 must not fall to "Other"
+assert {"liqline", "ohl_open", "ohl_break"} <= set(X.KEY_MAP), "unmapped live keys"
+assert all(s in X.SCHOOLS for s, _ in X.KEY_MAP.values())
 print(f"x77_detect: passed ({len(res['events'])} events, {len(res['patterns'])} patterns, regime={res['regime']}, errors={len(res['errors'])})")

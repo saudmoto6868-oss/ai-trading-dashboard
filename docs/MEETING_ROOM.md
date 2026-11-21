@@ -1,5 +1,20 @@
 # قاعة الاجتماعات (Meeting room)
 
+## فهرس الأماكن (كل حاجة في مكانها — اقرأ ده الأول)
+| الدُرج | المكان | ملاحظة |
+|---|---|---|
+| الجورنال (المخزن الوحيد للصفقات) | `data/journal/trades.json` ← `modules/trade_journal.py` | كل الصفقات، الحالة، الخروجات، السياق وقت الدخول |
+| الجورنال: الجسر من المتصفح | `modules/journal_sync.py` + `modules/journal_bridge/` | الشارت بيبعت الصفقات للسيرفر، وبيعيد الإرسال لحد الحفظ |
+| مراجعة الصفقات والدروس | `modules/trade_learning.py` → `data/journal/lessons.json` | مرشحات بس، مش بتغيّر الماسح لوحدها |
+| جدول الصفقات للاجتماع | `trade_learning.trade_table()` | markdown: الوقت UTC، السبب، الخطوة الجاية |
+| قراءات المدارس وقت الدخول | `modules/ws/24b_tclass.js` (`judge` / `judgeAll`) → الكارت `ctxSnap` | pros / cons / vetoes / مستويات / VP / regime |
+| الأخبار | `CFG.cal` في `modules/ws/12_news_filters_context.js` | `newsMin` = دقايق لحد الخبر (الشباك -30 .. +60) |
+| تعريف الفريمات والجلسات | `TC.STYLES` في `24b_tclass.js` / `Ctx.session` | Asia / London KZ / NY AM KZ / NY PM KZ |
+| الشارت (الواجهة) | `modules/ws/*.js` → `scripts/build_workspace.py` → `modules/workspace_app.html` | عدّل الجزء، مش الملف المولّد |
+| الاختبارات | `tests/test_trade_journal.py`، `tests/test_trade_learning.py`، `tests/test_workspace_parts_sync.py` | شغّلهم بعد أي تعديل |
+| الباك تيست والمعمل | `docs/academy/`، `modules/lab_*` | مش جزء من الجورنال |
+
+
 المكان ده لكل الحسابات والذكاءات اللي بتشتغل على المشروع. أي حد يفتحه قبل ما يبدأ شغل، ويكتب فيه بعد ما يخلص.
 
 ## تذكير المالك — تطوير Order Flow
@@ -532,3 +547,651 @@
 - **اتجرب (mock فقط):** `tests/e2e/day_candle_check.js` في Chromium بـ OKX مزيّف: الافتراضي، 4H×3 مع المسافات والبُعد، 1W من الـ feed من غير `~`، فريم غير أكبر = تنبيه، 30s على شارت 5s، الرجوع للشموع المحمّلة (`~1D`)، القايمة، وصفر أخطاء JS. وغيّرت الفريم من الـ select الحقيقي في الإعدادات والستايل اتحدّث.
 - **ما اتجربش:** بيانات حية، الموبايل، حفظ الإعدادات بعد ريلود، فريم الشهر (مش مضاف).
 - **مصادر بحث المؤشر المعروف** (بحث ويب عام، ما اختبرتش المؤشرات نفسها ولا تأكدت من أسعارها أو تشغيلها على آخر إصدار): [LuxAlgo — HTF Candle Projections](https://www.luxalgo.com/library/indicator/htf-candle-projections/)، [ICT HTF Candles (fadi)](https://tradingview.com/script/0KTDWTdN-ICT-HTF-Candles-Source-Code-fadi)، [[ad] HTF](https://www.tradingview.com/script/bZ28AfLS-ad-HTF/).
+
+## 2026-11-16 — [Claude → Agent 2.6] مراجعة المؤشر واستراتيجية المشروع 2.6
+
+**الحالة:** مراجعة كود فقط، من غير تشغيل على بيانات حقيقية ومن غير تعديل. الفرع: `fix/2-6-swings` (worktree في scratchpad، commit الأساس `5e10c82`، تعديلات غير مُلتزَمة).
+
+### 1. ليه الصفقات غلط (مؤكد بالكود)
+- **bug مؤكد في `real_legs` (`modules/two_six_chart.py`):** لما pivot جديد من نفس نوع السابق يكون أعلى (H) أو أقل (L)، الكود يستبدل `zz[-1]` ولكنه **يضيف leg جديد** بدل ما يستبدل آخر leg. النتيجة: leg مكرر بنفس نقطة البداية وطرف نهاية مختلف.
+- **تكرار مُثبت بـ repro:** pivots H110 → L90 → H108 → H112 → L80 تطلع legs: `90→108` و`90→112` (الاتنين بنفس البداية). ده بيعمل setups متداخلة بـ span غلط، وده نفس شكوى المالك "الصفقات متداخلة".
+- نفس المنطق متنسخ في JS (`s26Calc`, `o.p`)، فالـ parity test بيعدّي والغلط موجود في الاتنين.
+- **الإصلاح:** في فرع الامتداد، استبدل آخر leg بدل الإضافة. Test: مفيش leg اتنين ليهم نفس نقطة البداية.
+
+### 2. الهندسة نفسها مش مُتحقَّق منها
+- الكود: SELL: `entry = A + span/2.6`، `stop = entry + u/2`، `TP1 = A`، `TP2 = B`. BUY متماثل.
+- هذا **تخمين مبني على فريمات الريل**، ولسه ما اتطابق بالأرقام: ريل DfopgmVi8Wu فيه حاسبة `30 ÷ 2.6` و`SELL ZONE 4142.79` و علامات `4143.73 / 4064.47`. لازم نعرف: الـ zone محسوبة من بداية السوينج ولا نهايته؟ الـ SL والـ TP من أي نقطة بالظبط؟
+- لو الهندسة غلط، إصلاح الـ leg مش هيكفي.
+
+### 3. الـ backtest مش دليل
+- P على 15m: train n=34 (+0.69R)، test n=14 (−0.41R). على 1h: train n=33 (−0.01R)، test n=14 (+0.76R). 4h n صغير جدًا.
+- تحت n=30 = مش دليل. الأرقام gross، من غير spread ولا random control.
+
+### 4. أفضل خطوة (بالترتيب)
+1. **صلّح الـ duplicate leg** في Python و JS، زوّد test، شغّل `tests/test_two_six_js_parity.py` و`tests/test_two_six_chart.py`. (ده تغيير صغير ومحدد.)
+2. **طابق أرقام الريل بالعدد**: خد لقطات الفريمات (الحاسبة، الـ zone، العلامات)، احسب بالكود نفس الأرقام، ولو ما طلعتش، الهندسة تتغير قبل أي backtest.
+3. **بعدها بس** backtest على بيانات XAUUSD spot حقيقية (مش GC=F) مع spread وcommission، walk-forward، و n≥30 لكل split، وفرضيات مسجّلة قبل التشغيل.
+4. لا تدمج ولا تنشر على `main` بدون موافقة المالك. لا تعمل live trading.
+
+### 5. قواعد الشغل (ثابتة)
+- كل رقم معه عدد العينات والمصدر. تحت 30 = "مش دليل".
+- قول صراحة اللي ما اتجربش.
+- Secrets: لا مفاتيح في الكود أو الـ commits.
+
+## 2026-11-16 — [Claude → Agent 2.6] نتيجة اختبار min_atr (2.0 / 2.5 / 3.0) على الذهب
+
+**الحالة:** نتيجة استكشافية، مش دليل. البيانات: Hyperliquid gold perp (مش XAUUSD spot)، 15m و1h و4h. الاختبار: P فقط (H1 وH2 مقفولين)، split 70/30 بالـindex. Gross، من غير spread. السكريبت: `scratchpad/minatr_test.py` (غير ملتزم).
+
+| TF | min_atr | filled | TP2 | stopped | train TP2% (n) | test TP2% (n) |
+|---|---|---|---|---|---|---|
+| 15m | 2.0 | 109 | 17 | 78 | 19.7 (76) | 6.1 (33) |
+| 15m | 2.5 | 82 | 12 | 58 | 19.6 (56) | 3.8 (26) |
+| 15m | 3.0 | 66 | 8 | 48 | 14.6 (48) | 5.6 (18) |
+| 1h | 2.0 | 119 | 17 | 81 | 13.8 (87) | 15.6 (32) |
+| 1h | 2.5 | 90 | 12 | 63 | 13.6 (66) | 12.5 (24) |
+| 1h | 3.0 | 74 | 9 | 52 | 11.5 (52) | 13.6 (22) |
+| 4h | 2.0 | 44 | 3 | 37 | 6.7 (30) | 7.1 (14) |
+| 4h | 2.5 | 31 | 2 | 24 | 4.5 (22) | 11.1 (9) |
+| 4h | 3.0 | 25 | 1 | 21 | 0.0 (17) | 12.5 (8) |
+
+**القراءة:**
+- عدد الصفقات بيقل مع الـmin_atr الأعلى، بس مفيش قيمة واحدة تطلع أحسن بشكل واضح.
+- الـTP2% على 15m في الـtest تحت الـbreak-even (~12%، لأن R≈7.2 للـTP2).
+- 1h الأقرب للـbreak-even، بس n صغير جدًا.
+- كل الـsplits تحت n=30 → مش دليل. لازم مزيد من البيانات.
+
+**الخطوة الجاية:**
+1. صدّر XAUUSD spot حقيقي (M1/M5) مع spread وtimezone.
+2. أعد التشغيل بـwalk-forward، n≥30 لكل split، مع spread.
+3. لا تعتمد على min_atr مختار قبل النتيجة دي.
+
+**قواعد:** لا تدمج ولا تنشر. لا live trading. Secrets: لا مفاتيح في الكود أو الـcommits.
+
+## 2026-11-16 — [Claude → Agent 2.6] اختبار الوقف (ثابت مقابل ATR) + مراجعة الداتا
+
+**الحالة:** استكشافي، in-sample، gross (من غير spread)، P فقط، min_atr=2.0، Hyperliquid gold perp (مش spot). السكريبتات: `scratchpad/stop_variants.py` و`scratchpad/mean_r.py` (غير ملتزمة).
+
+**الوقف المقارن:**
+- base: `entry ± u/2` (الحالي)
+- atr1.0 / atr1.5: `entry ± k × ATR14` عند لحظة التأكيد
+
+| TF | variant | n | TP2 | stop | TP1→stop | meanR* |
+| 15m | base | 109 | 17 | 78 | 14 | +0.41 |
+| 15m | atr1.0 | 97 | 20 | 57 | 20 | +0.32 |
+| 15m | atr1.5 | 89 | 16 | 52 | 21 | −0.05 |
+| 1h | base | 119 | 17 | 81 | 21 | +0.30 |
+| 1h | atr1.0 | 119 | 23 | 71 | 25 | +0.41 |
+| 1h | atr1.5 | 111 | 26 | 61 | 24 | +0.19 |
+| 4h | base | 44 | 3 | 37 | 4 | −0.35 |
+| 4h | atr1.0 | 43 | 3 | 32 | 8 | −0.49 |
+| 4h | atr1.5 | 41 | 4 | 29 | 8 | −0.47 |
+
+*meanR: TP2 = |tp2−entry|/risk، stop = −1R، TP1→stop = 0R (افتراض). الـmeanR بيتحرك أساسًا بعدد TP2 × ~7R، فاعتمادها على عدد قليل من الصفقات.
+
+- الوقف الهيكلي مش قابل للتطبيق كـresting stop لـSELL: الـentry = A + u فوق الـswing high، فأقرب swing high مؤكد فوق الـentry مش معروف وقت الـsetup. فلازم نقرر: وقف ATR ثابت، أو تأجيل الدخول لحد ما يتأكد swing جديد.
+- ATR 1.0 و1.5 مش أحسن من base بشكل ثابت: 15m أسوأ، 1h أحسن شوية، 4h أسوأ.
+- كل النتايج in-sample ومن غير spread، وعدد TP2 قليل جدًا. ده مش دليل.
+
+**الداتا:**
+- Hugging Face: XAUUSD 1m من 2011 لـ2024 (OHLC + tick volume)، ومجموعة 2004–2025 بعدة فريمات. لازم نتأكد من الـlicense والـtimezone والتغطية الحالية.
+- Forex Tester: داتا مجانية تشمل XAUUSD من 2001 لـ2025، bid، GMT. الـresolution مش واضح.
+- TraderMade وBarchart: دقيقة بس بالدفع. Metals-API: يومي بس.
+- الأفضل: export من الوسيط (M1 مع spread).
+
+**الخطوات:**
+1. تحميل داتا XAUUSD spot من الوسيط أو Hugging Face مع الـlicense مفحوص.
+2. إعادة الاختبار مع spread (من الداتا الحقيقية)، walk-forward، n≥30 لكل split.
+3. لا تعتمد على base أو atr1.0 قبل النتيجة دي.
+
+**قواعد:** لا دمج ولا نشر. لا live trading. لا مفاتيح في الكود أو الـcommits.
+
+## 2026-11-16 — [Claude → Agent 2.6] تكلفة الـspread على نتايج الوقف (استكشافي)
+
+**الحالة:** الـspread هنا افتراض (0.30 و0.50 دولار round trip، زي CFX)، مش مقاس. الداتا perp مش spot، والـTP1→stop = 0R افتراض. السكريبت: `scratchpad/cost_r.py` (غير ملتزم).
+
+| TF | variant | spread 0 | spread 0.30 | spread 0.50 |
+| 15m | base (n=109) | +0.41 | +0.24 | +0.13 |
+| 15m | atr1.0 (n=97) | +0.32 | +0.16 | +0.05 |
+| 1h | base (n=119) | +0.30 | +0.22 | +0.17 |
+| 1h | atr1.0 (n=119) | +0.41 | +0.37 | +0.34 |
+| 4h | base (n=44) | −0.35 | −0.37 | −0.38 |
+| 4h | atr1.0 (n=43) | −0.49 | −0.50 | −0.51 |
+
+- الـspread بيقلل الـmeanR بس مش بيقلبه في 15m و1h.
+- 4h خاسر قبل وبعد التكلفة.
+- النتايج لسه in-sample، وعدد TP2 قليل جدًا، ومفيش walk-forward.
+
+**لسه مطلوب:** داتا XAUUSD spot حقيقية مع spread مقاس، وwalk-forward، وn≥30 لكل split.
+
+
+## 2026-11-16 — [Claude → Agent 2.6] اختبار على XAUUSD spot (2004–2025) + control
+
+**الداتا:** `XAU_15m_data.jsonl` (480,717 صف)، `XAU_1h_data.jsonl` (121,823)، `XAU_4h_data.jsonl` (32,074). من HF mirror لـKaggle (`ZombitX64/xauusd-gold-price-historical-data-2004-2025`)، الـlicense غير مذكور. فحص: ما فيش duplicates، الترتيب سليم، OHLC سليم، الـtimezone مش معروف. الملفات في `scratchpad/xau_hf/`. ملف 1m (648 MB) ما اتحملش، لازم موافقتك.
+
+**الاختبار:** P فقط، min_atr 2/2.5/3، وقف base وATR1.0، spread مفترض 0.30 USD، 3 folds بالزمن.
+
+| TF | min_atr | وقف | n | meanR@0 | meanR@0.30 | folds @0.30 |
+| 1h | 2.0 | base | 2789 | +0.52 | +0.28 | +0.50 / +0.03 / +0.32 |
+| 1h | 2.5 | base | 2011 | +0.28 | +0.10 | +0.00 / +0.11 / +0.18 |
+| 15m | 2.0 | base | 10369 | +0.58 | −0.03 | −0.38 / +0.07 / +0.17 |
+| 15m | 3.0 | ATR1.0 | 5534 | +0.40 | +0.15 | +0.13 / +0.06 / +0.25 |
+| 4h | 3.0 | ATR1.0 | 382 | +0.36 | +0.30 | −0.02 / +0.31 / +0.64 |
+
+**Control (المهم):** نفس الـlegs ونفس الهندسة معكوسة الاتجاه (mirror). النتيجة:
+- 1h base 2.0: real +0.28، mirror +0.19
+- 15m base 2.0: real −0.03، mirror +0.37
+- 15m SELL: real −0.05، mirror +0.47
+
+يعني الـmirror مش أسوأ من الـreal، وفي 15m أحسن بكتير. **الاستنتاج:** الـpayoff (TP2 = 7.2R مقابل stop = −1R) بيخلي meanR موجب مع نسبة TP2 بسيطة، والـ2.6 geometry نفسه ما بيثبتش edge.
+
+**الشارت:** ما اتعملش بصريًا، matplotlib مش موجود في الـvenv.
+
+**الخلاصة:** ما فيش setup مثبت. 1h base 2.0 هو الأقرب (3 folds موجبة بعد spread)، بس الـmirror بيوضح إن الميزة غير مؤكدة.
+
+1. control عشوائي: نفس الـpayoff والـstop والـTP بـentry عشوائي في نفس الـleg.
+2. TP1 فقط (2R) كبديل، break-even 33%.
+3. spread مقاس، مش افتراض.
+
+
+## 2026-11-16 — [Claude → Agent 2.6] اختبار منطقة 1/2.6 كمنطقة ارتداد (بدون وقف)
+
+**السؤال:** لما السعر يلمس منطقة `B + fraction × S` (S = span السوينج) بعد تأكيد الـleg، هل بيرتد باتجاه الـleg ولا بيكمل؟ الـ1/2.6 مقارن بمستويات تانية.
+
+**التعريف:** ارتداد = بعد اللمس، السعر يتحرك 1 ATR باتجاه نهاية الـleg قبل ما يتحرك 1 ATR عكسه. الـbaseline العشوائي ~50%.
+
+**الداتا:** XAUUSD spot (HF mirror)، legs بـmin_atr=2، نافذة 80 بار. السكربت: `scratchpad/zone_reaction.py` و`zone_split.py` (غير ملتزمين).
+
+| TF | 1/2.6 | 0.382 | 0.5 | 0.618 | 0.786 |
+|---|---|---|---|---|---|
+| 1h (n≈9,400) | 37.0% | 36.9% | 45.2% | 50.7% | 54.7% |
+| 15m (n≈37,700) | 38.1% | 38.0% | 45.0% | 50.9% | 55.4% |
+| 4h (n≈2,780) | 36.2% | 36.0% | 45.6% | 52.2% | 56.3% |
+
+**التقسيم حسب اتجاه الـleg (1h):** نفس الترتيب في الاتجاهين. مش drift.
+
+- منطقة 1/2.6 (≈0.385) **مش** منطقة ارتداد بالتعريف ده: السعر بيكمل خلالها أكتر من ارتداده (37%). ومتطابقة تقريبًا مع 0.382.
+- الارتداد بيزيد مع العمق (0.618 و0.786). ده ممكن يكون **تأثير القرب من نهاية الـleg** مش خاصية المنطقة نفسها. ده confound لازم يتفصل.
+
+**ملاحظة:** النتيجة characterization، مش walk-forward ولا edge مثبت.
+
+1. فصل تأثير القرب من النهاية: نفس الـtest بعمق مطلق بالـATR بدل النسبة.
+2. زيادة التعريف (2 ATR أو زمن محدد) للتأكد من الاتجاه.
+3. لو المؤلف بيقصد "1/2.6 كمنطقة لمس وارتداد"، لازم قاعدة دخول وخروج من فيديوهاته.
+
+
+## 2026-11-16 — [Claude → Agent 2.6] قواعد الكاروسيل (confluencetrading) + اختبار الهندسة كما هي
+
+**المصدر:** 7 شرايح كاروسيل من حساب `confluencetrading` (صور، مش فيديو). الشرايح فيها: ENTRY = HIGH − RANGE ÷ 2.6 (اندفاع من LOW لـHIGH)، الوقف تحت الـLOW، "3R+ (2.6)"، ومعايير تخطي: مفيش اندفاع نظيف، الموجة الخامسة، مفيش تأكيد عند 2.6، POC بعيد عن المستوى. مثال الذهب: LOW 4054.0، HIGH 4102.7، RANGE 48.7، ÷2.6 = 18.7، ENTRY 4084.0.
+
+**فيديو 5m (XAUUSD، shaxina_fx):** "Sel zona" عند ~4314.5 = high + range/2.6 (فوق الـhigh). ده **يتعارض** مع الكاروسيل اللي بيقول LOW + range/2.6 لشورت. محتاج نص الشرح عشان نحدد أيهم القاعدة.
+
+**الاختبار:** هندسة الكاروسيل حرفيًا، long: entry = H − S/2.6، stop = L، TP = 3R. short معكوس. Zigzag ATR (min_atr 2/3)، spread مفترض 0.30، 3 folds. السكربت: `scratchpad/carousel_test.py` (غير ملتزم).
+
+| TF | min_atr | n | win% | meanR@0 | meanR@0.30 | folds @0.30 |
+| 1h | 2.0 | 1168 | 17.4 | −0.31 | −0.42 | −0.43 / −0.39 / −0.43 |
+| 1h | 3.0 | 621 | 18.8 | −0.25 | −0.31 | −0.19 / −0.34 / −0.41 |
+| 15m | 2.0 | 4493 | 18.1 | −0.28 | −0.48 | −0.52 / −0.43 / −0.49 |
+| 15m | 3.0 | 2466 | 18.2 | −0.27 | −0.37 | −0.31 / −0.39 / −0.42 |
+
+break-even لـ3R = 25%. النتيجة كلها تحته، وكل الـfolds سالبة.
+
+**القراءة:** الهندسة كما فهمناها من الكاروسيل خاسرة على XAUUSD spot. متسقة مع اختبار منطقة 1/2.6 (السعر بيكمل خلالها أكتر من ما بيرتد). الفرضيات اللي ممكن تكون غلط: تعريف الاندفاع (الـzigzag ATR مش تعريف المؤلف)، هدف 3R (الصورة مش واضحة), وقاعدة الشورت.
+
+**ناقص:** نص أو transcript للفيديوهات (الـaudio مش متحوّل)، والفيديو الخاص باستراتيجية "متوسط الشموع" (مش مراجع لسه).
+
+
+## 2026-11-16 — [Claude] اختبار المرشح "Daily Swing → 2.6 → 4H touch → BOS → EMA" على XAUUSD spot (مش متحقق من التقرير)
+
+**المصدر:** تقرير ملصوق في المحادثة ادّعى `+0.474R` (2R) و`+0.646R` (3R) على n=34، بيانات 2019–2026. مش عندنا السكريبت ولا الداتا بتاعته، فالأرقام دي **غير مُتحقَّق منها**.
+
+**التعريفات اللي استخدمتها** (تفسير مني، مش من التقرير): daily من 1h (UTC)، leg بـATR daily 2.0، zone = end ∓ R/2.6، touch خلال 60 شمعة 4h، reclaim خلال 6، BOS خلال 6 (كسر أعلى/أدنى الـpullback)، EMA20/EMA200 اتجاه، وقف = أقصى حركة من اللمس للدخول، هدف 2R/3R، spread 0.30، صفقة واحدة في كل مرة.
+
+| variant | target | n | win% | meanR@0.30 | folds |
+| touch+reclaim | 2R | 167 | 28.1 | −0.41 | −0.25 / −0.29 / −0.69 |
+| touch+reclaim | 3R | 164 | 21.3 | −0.41 | −0.32 / −0.29 / −0.60 |
+| +BOS | 2R | 83 | 31.3 | −0.09 | +0.00 / −0.19 / −0.06 |
+| +BOS | 3R | 83 | 24.1 | −0.06 | +0.00 / −0.33 / +0.14 |
+| +BOS+EMA | 2R | 40 | 35.0 | +0.03 | +0.60 / +0.23 / −0.49 |
+| +BOS+EMA | 3R | 40 | 25.0 | −0.03 | +0.78 / −0.02 / −0.55 |
+
+**القراءة:** مفيش edge ثابت. أفضل صف (BOS+EMA) عدد صغير جدًا (40)، ومتوسطه قريب من صفر، وfold الأخير سالب. النتيجة المنشورة (+0.47/+0.65) ما اتأكدتش.
+
+**القيود:** الـstop وتعريف الـBOS والـdaily من 1h UTC قرارات مني. التقرير الأصلي ما وصفش الـstop بدقة. النتيجة تخص XAUUSD spot 2004–2025، مش 2019–2026.
+
+**الخطوة الجاية:** اطلب من صاحب التقرير السكريبت والداتا والـstop rule، وإلا ما نعتمدش الأرقام دي.
+
+
+## 2026-11-16 — [Claude] ملخص ملف التفريغات (Matimatiki_2_6_Videos_Transcripts_and_References_AR.docx)
+
+**المصدر:** التفريغات الآلية من Descript، مع ترجمة تقريبية. الملف نفسه بيقول إنه مش تفريغ حرفي مضمون.
+
+**2.6 مباشرة (فيديو 02 + صورة مرجعية):**
+- قياس الحركة من الحد الأدنى للحد الأقصى، ثم القسمة على 2.6 (التفريغ كتبها "26").
+- الناتج (مثال: 20 نقطة) بيتحط **تحت الحد الأدنى** بعد كسره، فتطلع منطقة شراء. مثال ربح 60 نقطة.
+- الصورة: 44 ÷ 2.6 = 16.9، منطقة بيع عند 4314.5 فوق المنطقة.
+- ده بيطابق هندسة P (المنطقة بره نقطة البداية). **ناقص:** الوقف، الهدف، شرط التأكيد، تعريف "الكسر الأدنى".
+
+**طرق مستقلة (مش 2.6):**
+- فيديو 01: متوسط مدى 14 شمعة ÷ 10.
+- فيديو 04: دورات بالأيام (153/102→58، 164/102→63، 155/102→44) لنقط دخول زمنية.
+- فيديو 05: السيولة. بعد سحب القمة ما تفترضش استمرار الصعود؛ دور على setup بعد السحب.
+- فيديو 06: خبر وحركة شراء 25 نقطة، من غير قواعد.
+- فيديو 03: صوت روسي، التفريغ مش مفهوم.
+
+**التعارض:** الكاروسيل بيحط الدخول جوه الحركة (HIGH − R÷2.6). الفيديو 02 والصورة بيحطوه بره الحركة. الاختبار على منطقة 1/2.6 كان جوه الحركة، فما اختبرش هندسة الفيديو 02.
+
+**الخطوة الجاية:** اختبار P بقاعدة وقف وهدف من مصدر (غير متوفرة حاليًا)، أو طلب شرح مكتوب من صاحب الحساب للقواعد دي.
+
+
+## 2026-11-16 — [Claude] اختبار نقطة P خارج نقطة البداية (بدون وقف/هدف)
+
+**التعريف:** بعد تأكيد الـleg: صاعد → منطقة شراء = الحد الأدنى − R/k؛ هابط → منطقة بيع = القمة + R/k. ارتداد = السعر يرجع 1 ATR نحو نهاية الـleg قبل ما يعدي 1 ATR لقدام. Baseline 50%. السكربتات: `scratchpad/beyond_zone.py` و`beyond_ctrl.py` (غير ملتزمة).
+
+| TF | min_atr | rev% (buy) | rev% (sell) | rev% (all) |
+| 1h | 2.0 | 58.7 | 57.8 | 58.2 |
+| 1h | 3.0 | 61.4 | 59.6 | 60.4 |
+| 15m | 2.0 | 60.2 | 60.7 | 60.5 |
+| 15m | 3.0 | 59.4 | 60.7 | 60.1 |
+| 4h | 2.0 | 65.6 | 64.5 | 65.0 |
+| 4h | 3.0 | 68.2 | 65.6 | 66.7 |
+
+**Control (R/k، min_atr=2، 1h):** k=1.5 → 60.9%، k=2.0 → 59.8%، k=2.6 → 58.2%، k=3.5 → 58.7%، k=5 → 58.3%.
+
+- المنطقة خارج نقطة البداية بتعطي ارتداد فوق 50%، وأعلى مع الفريم الأكبر.
+- لكن k=2.6 مش أحسن من باقي القيم، يعني **الرقم 2.6 مش هو السبب**. الأثر من القرب من نقطة البداية نفسها.
+- النتيجة إحصائية فقط: مش PnL، من غير spread، ومن غير تقسيم زمني.
+
+**الخطوة الجاية:** نقطة الارتداد تتعرض كـ"منطقة قرب نقطة البداية"، مش كـ"2.6"، ونختبر الفريمات المتعددة (تأكيد من فريم أكبر) كمرشح منفصل.
+
+
+## 2026-11-16 — [Claude] محرك صناديق الارتداد 4H (min_atr=2، نصف ارتفاع 0.25 ATR)
+
+**التعريف:** منطقة = نقطة بداية الـleg ∓ R/2.6 (شراء تحت القاع لـleg صاعد، بيع فوق القمة لـleg هابط). الصندوق يبدأ من تأكيد الـleg لحد أول لمس أو 80 شمعة. السكربت: `scratchpad/reversal_box.py` (غير ملتزم).
+
+**النتيجة على XAUUSD 4H:** 3125 صندوق (شراء 1562، بيع 1563)، 60.7% اتلمسوا.
+
+**تحذير:** 13 صندوق (0.4%) هندستهم مش متسقة مع سعر الشمعة (المنطقة مش في الجهة الصح). محتاج نفحص سبب الـpivot/leg ده قبل ما نعرض.
+
+**الخطوة الجاية:** رسم الصناديق في الـworkspace (JS) بعد تأكيد الـcheck ده، ومرشح الفريم الأكبر كفلتر منفصل.
+
+
+## 2026-11-16 — [Claude] سبب توقف الـWorkspace + وضع الصناديق
+
+- **السبب:** خطأ syntax في الـscript الرئيسي للـworkspace من تعديل P. قفلة أقواس داخل تعليق. ده كان بيوقف الـWorkspace كله. اتصلّح في `f9e5644`، ومعاه اختبار `tests/test_workspace_js_syntax.py`.
+- **الصناديق:** وضع `box` افتراضي (`mode`)، مع migration للإعدادات القديمة. الـparity مع Python: 512 صندوق متطابق.
+- **Branch:** `fix/2-6-swings` متدفع على origin. مش merged على `main`.
+- **ناقص:** مراجعة التابس كلها، لأن قائمة التابس مش محددة. مراجعة الشارت في المتصفح، لأن الداتا الحية مش متاحة من الـsandbox.
+
+
+## 2026-11-17 — [Claude — حساب Mohamed] مرجع السيت أب (ICT / SMC / Wyckoff / Gann / Price Action / Liquidity / Order Flow)
+
+**أمر المالك:** ابحث عن كل أنواع السيت أب (ICT، SMC، Wyckoff، Gann، Price Action، Liquidity، Order Flow)، وشوف اللي موجود عندنا في المنصة وهاتي اللي بره، وجمّع مراجع وشروحات للمهندسين والمتداولين. **الحالة: مرجع أولي، مش نتيجة. ماتغيّرش أي كود، ولا أي setup اتقبل كـ"ربح" من غير اختبار (n ≥ 30 وتكلفة حقيقية، حسب `docs/SCHOOLS_COVERAGE_2026-11-06.md`).** ملاحظة: `AGENT_PROMPT.md` بيقول n ≥ 100 و t > 3؛ اتفقوا على رقم واحد.
+
+### 1. اللي موجود عندنا في المنصة (من الكود)
+
+| المدرسة / السيت أب | الملف | الحالة في المعمل (strategy lab) | ملاحظة |
+|---|---|---|---|
+| OB, FVG, breaker, Unicorn, MSS, IFVG, Silver Bullet, mitigation | `modules/signals.py`, `chart_scan.py`, `patterns.py` | معظمها في الـlab | IFVG / MSS / PD / Silver / mitigation = فلاتر Radar بس (مش مقاسة) |
+| Liquidity sweep (يوم/أسبوع/شهر/Asian) | `modules/level_sweeps.py` | موجود | "إشارة انعكاس" مش دخول |
+| Liquidity line / stop-cluster | `modules/liquidity_ohl.py` | موجود | تقريب، مش بيانات L2 حقيقية |
+| Judas, session AMD, ORB, Kill Zone, Power of 3 | `signals` + `intermarket.session_of` | موجود | معمل 2.6 H1/H2 **فشلوا** (2026-11-13) |
+| Price action (engulfing, pin bar, inside bar, morning star عند مستوى) | `modules/pa_patterns.py` | جديد (2026-11-06) | Context بس، مش ستار |
+| Wyckoff (spring / upthrust) | `modules/wyckoff_phases.py` | جديد، Context | المراحل A–E مش مبنية في الـScanner |
+| Gann (grid، زوايا، زمن) | `modules/gann_lab.py` + الـWorkspace | **معمل walk-forward** | مش في الـScanner؛ محتاج قرار أي grid |
+| Elliott | `modules/elliott_lab.py` | Context | ew3 = **-0.13R (n = 775)** → يفضل Context |
+| Harmonic | `modules/harmonic.py` | موجود | Radar flag بس |
+| Order flow / footprint / absorption | `recorder/footprint_recorder.py`, `modules/dom_panel.py` (`mark_absorption`) | forward test | المسجّل بيحفظ 7 أيام بس؛ محتاج شهور |
+| Volume profile (POC / VAH / VAL) | موجود في الكود (36 ملف) | **مش مقاس كـ scanner key** | ده اللي ناقص في "أفكار مستقبلية" |
+| Chart patterns (rectangle، double top/bottom) | `patterns.py` | جديد، Context | مفيش قاعدة breakout + retest مقاسة |
+
+### 2. اللي بره (لازم تجيبه، من بحث ويب، مش مقاس عندنا)
+
+| الموضوع | المرجع | ملاحظة |
+|---|---|---|
+| ICT / SMC: OB، FVG، breaker، mitigation، Unicorn | [LuxAlgo: Mitigation Block](https://www.luxalgo.com/library/concept/mitigation-block/)، [LuxAlgo: Breaker Block](https://www.luxalgo.com/library/concept/breaker-block.md)، [Tradingstrategyguides: Breaker/Mitigation](https://tradingstrategyguides.com/day-12-breaker-blocks-mitigation-blocks-explained-ict-smc-deep-dive/) | التعريفات مختلفة من مصدر لمصدر |
+| ICT vs "ما الذي ثبت فعلاً" | [AlphaEx: Order blocks explained](https://www.alphaexcapital.com/smart-money-concepts/order-blocks-explained) | مصدر نقدي، يستحق القراءة |
+| Liquidity sweep / BOS / CHoCH / MSS | [LuxAlgo: Liquidity Sweep](https://www.luxalgo.com/library/concept/liquidity-sweep/)، [DailyPriceAction: SMC Guide](https://dailypriceaction.com/blog/smart-money-concepts/)، [Backtrex: Liquidity Sweep guide](https://backtrex.com/en/blog/liquidity-sweep-smc-ict-trading-guide) | BOS/CHoCH المصطلحات مختلفة |
+| Wyckoff | [CMC Markets: Wyckoff Method](https://www.cmcmarkets.com/en-gb/trading-strategy/what-is-wyckoff-method)، [LuxAlgo: Wyckoff Method](https://www.luxalgo.com/library/concept/wyckoff-method.md)، [ProRealCode: Wyckoff Schematics (PDF)](https://www.prorealcode.com/wp-content/uploads/2019/11/WyckoffSchematics-VisualTemplatesForMarketTimingDecisions.pdf) | الـPDF فيه الرسومات؛ **ماينفعش تحمّله** من غير إذن المالك |
+| Gann | [Optuma: Square of 9 Gann Fan](https://www.optuma.com/kb/gann-and-astro/gann-tools/square-of-9-gann-fan)، [Kotak: Gann Theory](https://www.kotaksecurities.com/stockshaala/introduction-to-technical-analysis/gann-theory) | Kotak نفسه بيقول الزوايا والزمن "ذاتية" |
+| Volume profile / footprint | [LuxAlgo: Volume Profile](https://www.luxalgo.com/library/concept/volume-profile.md)، [MQL5: POC/VAH/VAL](https://www.mql5.com/en/blogs/post/774932)، [MQL5: Footprint](https://www.mql5.com/en/blogs/post/778690) | Value Area الافتراضي 70% (قابل للتغيير 50–90%) |
+| Price action | [Capital.com: Price Action](https://capital.com/en-eu/learn/trading-strategies/price-action-trading)، [TrendSpider: Price Action Strategies](https://trendspider.com/learning-center/price-action-trading-strategies/) | "السياق أهم من النموذج" |
+
+### 3. الدليل (الحكم الأهم)
+
+- **مافيش دراسة أكاديمية محكّمة** بتثبت ربح ICT/SMC وفق البحث (مصدر ثانوي بيقول إن Crossref ماطلعش حاجة). **الحكم: فرضيات، مش حقائق.**
+- **الـFVG** بيظهر في بيانات عشوائية تقريبًا في ثلث الشموع؛ ادعاء "الفجوات بتتملّى" لازم يتقاس مقابل خط الأساس العشوائي.
+- فوائد Wyckoff و Gann و Elliott **تفسير ذاتي**؛ اتنين متداولين يختلفوا على نفس الشارت.
+- أغلب النتائج من مواقع بتبيع أدوات أو كورسات؛ **ماتعتبرش أي نسبة نجاح منها دليل.**
+
+### 4. التوصية (للقرار، مش تنفيذ)
+
+1. **Volume profile (POC / VAH / VAL) كـ scanner key:** مذكور في "أفكار مستقبلية" رقم 5 في `SCHOOLS_COVERAGE`، وبيانات يومية كفاية. أول اختبار منطقي.
+2. **Gann كـ scanner key:** محتاج قرار grid، ومعمل walk-forward موجود.
+3. **Wyckoff phases (SOS / LPS):** مبني جزئيًا؛ محتاج قاعدة واضحة قبل القياس.
+4. **Absorption / footprint:** مش جاهز قبل ما المسجّل يجمّع شهور.
+5. **MDR، Bookmap، "1.618%":** ماينفعش نقيس حاجة مش معرّفة؛ MDR مش موجود في المنصة ولا في الريبو.
+
+### 5. اللي ماتغطّاش في البحث ده
+
+- ماحمّلتش أي صورة أو PDF (التحميل محتاج موافقة المالك). الصور الشارحة الجاهزة: الروابط فوق، والمالك يقرر.
+- مراجع Elliott و Harmonic و Order flow (CVD، Bookmap) **مش متغطية بعمق**.
+- ماراجعتش أي فيديو أو محتوى "Adem OnChain" المذكور في الرسالة الأصلية.
+- ماتعملش أي اختبار جديد؛ كل الأرقام اللي فوق من الريبو (`SCHOOLS_COVERAGE`، `elliott_lab`) أو بتقول "مش مقاس".
+
+**قواعد:** لا دمج ولا نشر. لا تغيير على الكود. لا live trading. لا مفاتيح في الكود أو الـcommits.
+
+### 6. تكملة (2026-11-17): اللي كان ناقص
+
+**تصحيح:** أوقات الـKill Zones في `docs/V7_CFX_AUDIT_2026-11-12.md` بتوقيت **نيويورك (EST)** مش القاهرة: Asia 20:00–00:00، London 02:00–05:00، NY AM 07:00–11:00، NY PM 13:30–16:00. المصادر مختلفة في الحدود (مثلاً NY AM 08:30–11:00 عند مصدر تاني)، ولازم تتأكد من توقيت الشارت (EST/EDT) قبل أي قياس.
+
+**مراجع إضافية (بحث ويب، مش مقاس عندنا):**
+
+| Elliott: القواعد الصلبة (wave 2 ما تنزلش تحت بداية wave 1، wave 3 مش أقصر الاتنين، wave 4 ما تتداخلش مع wave 1) | [LuxAlgo: Elliott Hard Rules](https://www.luxalgo.com/library/concept/elliott-hard-rules.md)، [StockCharts: Identifying Elliott Wave Patterns](https://chartschool.stockcharts.com/table-of-contents/market-analysis/elliott-wave-analysis-articles/identifying-elliott-wave-patterns) | القواعد التلاتة متفق عليها؛ "الإرشادات" (زي 0.5–0.618 لـwave 2) مش قواعد |
+| Harmonic: Gartley / Bat / Butterfly / Crab | [StockCharts: Harmonic patterns](https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/harmonic-patterns)، [LuxAlgo: Harmonic Patterns](https://www.luxalgo.com/library/concept/harmonic-patterns.md)، [Capital.com: Harmonic patterns](https://capital.com/en-int/learn/technical-analysis/harmonic-pattern) | LuxAlgo نفسه بيقول إن ادعاء "نموذج معين بيكسب نسبة معينة" **ماتكررش** |
+| CVD / Absorption / DOM | [Tradezella: Order flow terms](https://www.tradezella.com/learning-items/order-flow-terms-and-concepts)، [ATAS: Order Flow](https://atas.net/volume-analysis/order-flow/)، [NexusFi: Order Flow](https://nexusfi.com/wiki/trading-wiki/Order-Flow) | Bookmap مصدر تجاري؛ الـfeatures بتحتاج باقة مدفوعة وفيد بيانات |
+| Silver Bullet / Judas Swing | [LuxAlgo: Silver Bullet](https://www.luxalgo.com/library/concept/silver-bullet/)، [AlphaEx: ICT killzones (what is actually proven)](https://www.alphaexcapital.com/smart-money-concepts/ict-killzones) | Silver Bullet = نوافذ ساعة (3–4 ص، 10–11 ص، 2–3 م NY)؛ ICT ماينشرش قواعد مكتوبة |
+
+**الحكم على الإضافات:**
+- Elliott: عندنا `elliott_lab.py` و ew3 خسران؛ القواعد الصلبة موجودة في الكود، الإرشادات لأ.
+- Harmonic: عندنا `harmonic.py` كـ Radar flag بس، ومفيش دليل على نسبة نجاح.
+- Silver Bullet: نفس فكرة kill zone + FVG بعد sweep؛ الاختبار المطلوب نفس شروط H2 (فرضية مسجلة قبل الاختبار).
+
+**الصور:** عملتها أنا كـ SVG من غير تحميل أي ملف خارجي. موجودة في `docs/img/setups/`:
+- `fvg.svg`: تعريف FVG بـ3 شموع
+- `order_block.svg`: آخر شمعة معاكسة قبل الحركة
+- `sweep_choch.svg`: sweep ثم CHoCH
+- `wyckoff_spring.svg`: spring ثم اختبار
+- `volume_profile.svg`: POC / VAH / VAL
+
+الصور تعريفات بس؛ مافيهاش قواعد دخول أو خروج.
+
+**الدليل (تذكير):** كل النتائج اللي فوق تعريفات أو آراء ممارسين. مافيش مصدر مستقل بيثبت الربح. أي اختبار لازم يكون بفرضية مسجّلة قبل ما نشوف النتيجة، وبالتكلفة، ومع تقسيم زمني.
+
+
+### 7. تحقّق من المصادر (2026-11-17): اللي اتفتح واتقرا فعلاً
+
+اتفتحت واتقرت النصوص دي (مش من نتايج البحث بس). ملفات الـscratchpad مش في الريبو (حقوق نشر).
+
+| المصدر | اللي اتأكد منه | حالة |
+| [LuxAlgo: Elliott Hard Rules](https://www.luxalgo.com/library/concept/elliott-hard-rules.md) | 3 قواعد للـimpulse (wave 2 ما تنزلش تحت بداية wave 1، wave 3 مش أقصر الاتنين، wave 4 ما تتداخلش مع wave 1 إلا في diagonal). "wave 3 لازم تكون الأطول" **غلط**. | مقروء |
+| [LuxAlgo: Silver Bullet](https://www.luxalgo.com/library/concept/silver-bullet.md) | 3 نوافذ ساعة NY: 3–4 ص، 10–11 ص، 2–3 م. "لا توجد إحصائيات مراجعة عامة"؛ نسب الربح المنتشرة = تسويق. | مقروء |
+| [LuxAlgo: Harmonic Patterns](https://www.luxalgo.com/library/concept/harmonic-patterns.md) | 5 نقاط XABCD بنسب فيبوناتشي. "ماتوجدش أدلة مستقلة" إن الانعكاس بيحصل أكتر من الصدفة. | مقروء |
+| [LuxAlgo: Gann Method](https://www.luxalgo.com/library/concept/gann-method.md) | "مافيش دليل صارم"؛ الطرق بتطلّع مستويات كتير، فبعضها دايمًا بيتطابق مع الانعكاسات بأثر رجعي. قصص نتايج Gann من مصادر دعائية. | مقروء |
+| [LuxAlgo: Volume Profile](https://www.luxalgo.com/library/concept/volume-profile.md) | أصله Market Profile لـPeter Steidlmayer في CBOT (1980s)؛ Value Area = أعلى نسبة حجم حوالين POC. | مقروء |
+| [AlphaEx: Order blocks — what is actually proven](https://www.alphaexcapital.com/smart-money-concepts/order-blocks-explained) | "مافيش دراسة محكّمة بتثبت edge"، و"نسبة 80% fill" إشاعة. | مقروء |
+| [ProRealCode: Wyckoff Schematics (PDF)](https://www.prorealcode.com/wp-content/uploads/2019/11/WyckoffSchematics-VisualTemplatesForMarketTimingDecisions.pdf) | الملف = Market Technician عدد 55 (مارس 2006)، 6 صفحات. 3 schematics (واحدة accumulation، اتنين distribution)، مراحل A–E، أحداث زي PS / SC / AR / ST، ومصدر: Jim Forte (1994). | مقروء (نص) |
+| [StockCharts: Harmonic patterns](https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/harmonic-patterns) | الصفحة كبيرة (723 KB)؛ ماتقراتش كلها. | مش مراجعة |
+
+**اللي ماتعملش:**
+- **الفيديوهات:** مافيش لينك فيديو واحد في الطلب (الـ"TikTok Video Link" كان عنوان من غير رابط). **محتاج اللينك.** ومن غير transcript ما أقدرش أراجع الفيديو.
+- **ChatGPT / Gemini / Grok / DeepSeek / Qwen:** مافيش أداة عندي تبعت لأي منهم. لو عايز رأي تاني، انسخ السؤال والمصادر دي وابعته من عندك.
+- **تحميل ملفات تانية:** الـPDF اتحمّل من مصدر ProRealCode بس. مستنيين موافقتك على أي تحميل تاني.
+- **الصور:** مافيش صور خارجية اتحمّلت؛ الـSVG اللي في `docs/img/setups/` من صنعنا.
+
+**حكم عام:** كل المفاهيم دي تعريفات ومنهجيات. مافيش دليل مستقل إنها تربح. أي اختبار لازم يبدأ بفرضية مسجّلة قبل النتيجة، وبالتكلفة.
+
+## 8. تحليل نص Qwen (Adem OnChain) + بحث ويب (2026-11-18)
+
+مصدر النص: الرسالة الأولى (Qwen). الفيديوهات مش متراجعة (مفيش لينك). كل جدول فيه "نسبة نجاح" أو "⭐" أو "$ رأس مال" = **مش مدعوم بدليل**، ماتستخدمش.
+
+### 8.1 تحقق من الادعاءات
+
+| الادعاء في النص | الحكم | الدليل / المصدر | ملاحظة |
+| VAH / VAL / POC، Value Area حوالين 70% | صح كتعريف | [TastyLive](https://www.tastylive.com/news-insights/what-volume-profile-how-to-trade-it)، [LuxAlgo Value Area](https://www.luxalgo.com/library/concept/value-area.md) | 70% اتفاقية مش قانون السوق. POC = أعلى حجم. |
+| "نسبة نجاح 60-70%" لكل الاستراتيجيات | **مفيش دليل** | ماحدش نشر backtest في البحث | شيلها. |
+| Bookmap يحتاج Rithmic/CQG (مدفوع) | صح | [Bookmap connectivity](https://bookmap.com/knowledgebase/docs/KB-IntroductionToBookmap-Connectivity) (Rithmic MBO مطلوب)، [EdgeClear](https://bookmap.com/en/partner/edge-clear) | يدعم dxFeed كمان. |
+| Bookmap ما يشتغلش على Forex Spot | **غير مؤكد** | لقيت Gain Capital في نسخة إيطالي بس | اسأل Bookmap قبل ما تعتمد عليه. |
+| Absorption = حجم بيع كبير والسعر ماينزلش | صح كتعريف | [LuxAlgo Absorption & Exhaustion](https://www.luxalgo.com/library/concept/absorption-and-exhaustion/)، [ATAS footprint patterns](https://learn.atas.net/volume-basics/volume-analysis/footprint-patterns) | |
+| Stacked imbalance = 3:1 و3 مستويات متتالية | عرف بتاع المنصة | [LuxAlgo Footprint](https://www.luxalgo.com/library/concept/footprint-concepts/) | العتبة بتختلف من منصة لمنصة. |
+| Unfinished business = سعر هيرجع للمكان ده | **مش مثبت** | مصادر vendor بس | فرضية، مش قاعدة. |
+| CVD divergence = إشارة قوية | **مفيش دليل** | [بحث CVD](https://beyondcandlesticks.substack.com/p/why-cumulative-volume-delta-fails)، [Bookmap blog](https://bookmap.com/blog/delta-and-cumulative-volume-delta-what-they-show-and-what-they-dont) بيقولوا عكس كده | NexusFi بيقول "أقوى إشارة" من غير اختبار. |
+| IFVG بخمس فلاتر | تعريف IFVG صح، الفلاتر من Qwen | [LuxAlgo Inversion FVG](https://www.luxalgo.com/library/concept/inversion-fvg/)، [Edgeful IFVG report](https://www.edgeful.com/blog/posts/inverse-fair-value-gaps-report) | الفلاتر الخمسة مش موجودة كقاعدة رسمية. Edgeful فيه بيانات، راجعها. |
+| BOS / CHoCH تعريف | صح | تعريفات SMC عامة | |
+| "1.618% Fibonacci" | **غلط** | الصح: امتداد 1.618 (نسبة مش نسبة مئوية) | |
+| Kill Zones بتوقيت UTC (لندن 07–16، NY 13–22) | **غلط** | [Backtrex Kill Zone UTC](https://backtrex.com/en/blog/ict-kill-zones-trading-sessions-timing-guide)، [TradingFinder](https://tradingfinder.com/education/forex/ict-kill-zones) | لندن 2–5 ص EST = 07–10 UTC. NY AM 7–11 EST = 12–16 UTC. الجداول مش متطابقة. الريبو بيستخدم NY time (انظر section 6). |
+| MDR = أول ساعتين high/low | **مش موجود كمصطلح** | بحث مالقيش تعريف MDR | المصطلح القريب: Defining Range (DR) أو Initial Balance (أول 60 دقيقة) أو Opening Range. [LuxAlgo Defining Range](https://www.luxalgo.com/library/concept/defining-range/)، [Opening Range](https://www.luxalgo.com/library/concept/opening-range-and-orb.md) |
+| Order block فشل = Flip zone | تسمية مختلفة | Breaker block (ICT): OB فشل وبقى عكس الدور. الـsweep شرط في ICT الأصلي | [LuxAlgo Breaker Block](https://www.luxalgo.com/library/concept/breaker-block.md)، [Plisio](https://plisio.net/education/breaker-block-trading) |
+| Multi-timeframe checklist | منطقي كإجراء، مش إثبات | — | |
+| R:R ≥ 1:2، 3 صفقات/يوم، وقف بعد 3 خسائر | قواعد إدارة مخاطر، مش مدعومة بدليل | — | قرار المالك. |
+| Order flow مفيد لـ short-term price | مدعوم جزئياً | [Cont, Kukanov, Stoikov, "The Price Impact of Order Book Events"](https://arxiv.org/abs/1011.6402) (JFEc 2014) | الورقة بتقيس impact المتزامن، مش forecasting out-of-sample. |
+
+### 8.2 مصطلحات موجودة في المنصة (استخدمها قبل ما تجيب حاجة جديدة)
+
+- Value area / POC / VAH / VAL: مش متأكد إنها موجودة في الكود. لم يُفحص.
+- Absorption: `modules/dom_panel.py` → `mark_absorption` (vol ×3، range 0.05%).
+- Footprint: `recorder/footprint_recorder.py` (OKX trades، 7 أيام SQLite).
+- Opening range / Defining range: مش متأكد إن فيه موديول بيعملهم. `modules/liquidity_ohl.py` و`modules/level_sweeps.py` لسه ماتفحصوش.
+- Wyckoff / Gann / Elliott / Harmonic: الأنظمة الموجودة في section 1.
+
+### 8.3 خلاصة
+
+- الصح من النص: تعاريف Volume Profile، Absorption، Stacked imbalance، IFVG، BOS/CHoCH، Breaker block، Multi-timeframe.
+- الغلط: Kill Zones UTC، "1.618%"، MDR كمصطلح موجود.
+- بدون دليل: كل نسب النجاح، "unfinished business"، CVD divergence كإشارة، الفلاتر الخمسة للـIFVG، "3 صفقات/يوم" و"وقف بعد 3 خسائر" (قواعد مخاطرة).
+- القرار لازم يجي من backtest بـ pre-registered hypothesis وتكلفة حقيقية (شوف section 3/4). ولسه في تعارض n ≥ 100 vs n ≥ 30.
+
+### 8.4 لم يُفعل
+
+- ماتحملتش ملفات PDF أو صور جديدة.
+- الفيديوهات: مش متراجعة.
+- مفيش إرسال لأي AI تاني (Gemini / Grok / DeepSeek / Qwen / ChatGPT). لو عايز رأي تاني، ابعت النص ده ليهم بنفسك.
+
+## 2026-11-20 — [Claude — حساب Mohamed] نداء لكل الأجنتس: سيبوا ملاحظاتكم + وظيفة "المقفّل" الدائمة
+
+**أمر المالك:** كل agent عنده ملاحظة أو معلومة أو اتنبه لحاجة يكتبها هنا ويسيب بيها ملاحظة. وفي وظيفة دايمة (أو agent متخصص) بتراجع الملاحظات وتقفل اللي ما اتقفلش أول بأول، وتقول "قفلنا كذا، وفاضل كذا". ومراجعة دورية على كل المشاريع: إيه اللي ممكن يتخفف أو يتبسّط عشان الموقع والصفقات والتفكير يبقوا أسرع وأحسن.
+
+### صيغة الملاحظة (سطر واحد لكل ملاحظة)
+`[التاريخ] [الاسم] [النوع: معلومة / مشكلة / سؤال / قفلت] الموضوع، الدليل (ملف:سطر أو رابط)، مفتوح ولا مقفول`
+- ما تكتبش رقم من غير n والمصدر. تحت n=30 = "مش دليل".
+
+### وظيفة المقفّل (مقترحة، محتاجة موافقة المالك قبل ما تتحول لـworkflow)
+- تقرا الغرفة كلها وتطلع جدول: **مقفول** (مين قفله وفين الدليل)، **مفتوح** (مين مسؤول)، **متعارض** (ملاحظتين مختلفتين على نفس الموضوع).
+- دورية (أسبوعيًا مع الـlab)، وتنقل المقفول لأرشيف وتسيب المفتوح فوق.
+- مراجعة تخفيف: ملفات كبيرة، كود متكرر، أنماط ما اتحسّنتش في الـlab عدة مرات (تتشال أو تتحوّل لـContext).
+- مش بتعدّل كود ولا بتدمج. بتكتب بس.
+
+### حالة النهارده (من شغل الجلسة دي)
+| الموضوع | الحالة | الدليل |
+| bug تكرار الـleg في 2.6 | **مقفول على فرع `fix/2-6-swings` فقط** (Python + JS، تست انحدار، parity 1727 setup). **مفتوح:** الدمج في `research/2-6-h2` و`main` (محتاج موافقة المالك) | `modules/two_six_chart.py` على الفرع، `tests/test_two_six_chart.py` |
+| صور Elliott المركّب وGann وHarmonic اللي المالك رفعها في محادثة تانية | **مفتوح:** ما لقيتهاش على الجهاز ولا في الأرشيف. محتاج المالك يرفعها أو يقول مكانها. مين سجّلها قبل كده يكتب هنا فين | بحث في Downloads / Desktop / Projects_MD |
+| جرد فجوات Elliott وGann وHarmonic | **اتعمل (جرد، مش كود):** `docs/SCHOOLS_GAP_ELLIOTT_GANN_HARMONIC_2026-11-20.md` (12 فجوة في كود Elliott، جداول Harmonic، شرح Gann). الأرقام من مصادر ثانوية، غير متحققة | الملف نفسه |
+| أشكال Gann الهندسية (hexagon / octagon / pentagon ...) | **اتعمل (بحث):** قسم 3.6 في ملف الفجوات. Square of 9 والسداسي وMaster 12 و144/52/90 اتلقوا؛ المثلث والخماسي والثماني والمكعب وWheel of 24 **ما لهمش مصدر**. **مفتوح:** وثيقة 1931 محتاجة OCR، وقرار scale وتسمية زوايا الـfan | `docs/SCHOOLS_GAP_ELLIOTT_GANN_HARMONIC_2026-11-20.md` |
+| مقارنة بأفضل 10 منصات + باك تيست مستمر | **اتعمل (بحث + خطة، مش كود):** `docs/PLATFORM_COMPARISON_AND_CONTINUOUS_BACKTEST_2026-11-20.md`. FlexCharts وBigPaloga ما اتلقوش. **مفتوح:** قرار المالك على الباك تيست اليومي | الملف نفسه |
+| محادثة Signals (من المالك) | **مفتوح:** لسه ما وصلتش. لما توصل، اللي فيها يتسجل هنا | - |
+| بيانات XAUUSD spot مقاسة (spread)، walk-forward n≥30، control عشوائي، TP1-only | **مفتوح:** محتاجة داتا أو موافقة تحميل | قسم 2026-11-16 فوق |
+
+**قواعد ثابتة:** أي شغل في فرع منفصل. لا دمج في `main` بدون موافقة Claude والمالك. لا live trading. لا مفاتيح في الكود.
+
+## 2026-11-20 — [المالك → كل الأجنتس] رؤية "الآلة الواحدة" (نقلها Claude — حساب Mohamed)
+
+**أمر المالك:** كل مشاريع التداول ورأس المال تكمّل بعض. **المالك شايف صفقات في مكتب التداول مش ظاهرة في AI Trading Dashboard، والعكس — لازم تتجمع.** سلسلة واحدة: خبر/تحليل اقتصادي ← فريمات من السنة لحد الدقيقة و30 ثانية ← المدارس والمؤشرات ← اتجاه صانع السوق ← صفقات وتحليلات وتنبيهات ورسائل. عقل واحد بيشغّل كل التابات (باك تيست، جورنال، سبوت...) ويتعلم باستمرار. المتكرر يتشال، واللي ملوش لازمة يتشال، واللي ينفع يتضم. أدوات خارجية مسموحة بعد مراجعة أمان كاملة.
+
+**الخطة والجرد:** `docs/ONE_MACHINE_INTEGRATION_2026-11-20.md` (10 طبقات ومين موجود فيها، سياسة الأدوات الخارجية، وترتيب تنفيذ مقترح أوله **مخزن أفكار واحد** تكتب فيه كل المصادر وتقرا منه كل الشاشات والرسائل).
+
+**توضيح صريح:** "نسبق صانع السوق بـ7 خطوات" معناها عندنا **نبقى جاهزين قبل الحدث بشجرة سيناريوهات مسجّلة مسبقًا** (صعود / هبوط / sweep، بإبطال لكل واحد) ونقيّمها بعده. مش هندّعي إننا نعرف اتجاه الخبر.
+
+**المطلوب من كل agent:** لو عندك مصدر صفقات أو تخزين مش مذكور في الملف (ريبو تاني، bot، n8n، شيت)، اكتبه هنا بالصيغة: `[التاريخ] [الاسم] المصدر، بيطلّع إيه، بيكتب فين، مين بيقرا منه`.
+
+## 2026-11-20 — [Claude — حساب Mohamed] المشاريع التلاتة + المدارس الناقصة + الفيبوناتشي وSK System
+
+**أمر المالك:** نقارن مكتب التداول (ai-desk) وAI Trading Dashboard و6868 Capital Desk، وكل واحد ياخد اللي ناقصه من التاني (صفقات، معلومات، خبرة، أدوات). ونبحث عن الفيبوناتشي بأنواعه، وSK System، وطرق دخول الموجات، والمدارس اللي مش عندنا. تنسيق ومراجعة وتطوير مستمر.
+
+**الملفات (كلها جرد/بحث، مفيش كود اتغير):**
+- `docs/THREE_PROJECTS_COMPARISON_2026-11-20.md`: مصفوفة المكتب × الداشبورد (12 مجال)، Capital Desk من واجهته، مين ياخد إيه، و**12 قاعدة متعارضة** (المخاطرة 0.5% مقابل 0.25%، veto الفريم الكبير مقابل نتيجة الـlab إنه أسوأ من العشوائي، حجب الأخبار، الأهداف، معيار الدليل، التكاليف، أسماء الرموز…).
+- `docs/SCHOOLS_MISSING_2026-11-20.md`: 33 مدرسة/طريقة مش عندنا بدرجة دليل وداتا وصعوبة، وأول 10 يتضافوا.
+- `docs/FIBONACCI_SK_ELLIOTT_ENTRIES_2026-11-20.md`: 18 أداة فيبوناتشي، SK System (المؤلف مش متأكد، مفيش باك تيست)، ودخول الموجات 3/5/C/بعد المثلث/الـdiagonal.
+- `docs/ONE_MACHINE_INTEGRATION_2026-11-20.md`: ليه الصفقات مش متجمعة (5 مخازن، 4 سكانرز، المكتب بيعرض Workspace فاضي `alerts: []`).
+
+**أهم معلومة لكل الأجنتس:** 6868 Capital Desk بيقيس **نفس الـ52 detector بتوعنا** بحكم أشد (DSR وPBO وHansen SPA وt > 3 بعد تكاليف حقيقية 16–22 bps): **0 من 52 بيعدّي** (snapshot 18 نوفمبر، أرقامه مش متحققة عندنا). أي ترقية detector لإشارة لازم تعدّي الحكم ده.
+
+**مفتوح ومحتاج المالك:**
+| البند | ليه |
+|---|---|
+| حسم القواعد المتعارضة (قسم 4 في ملف المقارنة) | من غير حسم، كل مشروع هيطلّع صفقات بقواعد مختلفة |
+| مكان مخزن الأفكار الواحد (ريبو خاص / قاعدة داتا) | شرط تجميع الصفقات |
+| نسخة حديثة من ai-desk وكود Capital Desk | المكتب اتقرا من نسخة مؤقتة، وCapital Desk من الواجهة بس |
+| مصدر أصلي لـSK System | مفيش نص أصلي ولا مؤلف مؤكد |
+| صور Elliott/Gann/Harmonic ومحادثة Signals | لسه ما وصلوش |
+| أي مدرسة من أول 10 تبدأ | كل واحدة بفرضية مسجّلة قبل التشغيل |
+
+## 2026-11-20 — [المالك → كل الأجنتس] الأولوية رقم 1 دلوقتي: مراجعة كل صفقة والتعلم المستدام (نقلها Claude — حساب Mohamed)
+
+**أمر المالك (أولًا أولًا أولًا):** كل الأجنتس يركزوا في ده قبل أي حاجة تانية:
+1. **كل صفقة تتراجع صفقة بصفقة:** اتعملت ليه، ما اتعملتش ليه، ضربت التيك بروفيت ليه أو الوقف ليه، وفي قد إيه وقت. كانت إيه الدعوم والمقاومات وقتها، وإيه الاستراتيجيات اللي كانت شغالة واللي بتأكد واللي بتنفي. كان المفروض نركز مع أنهي مؤشر، ونخش امتى ونخرج امتى بناءً على أنهي مؤشر.
+2. **الفرص اللي فاتت:** الصفقات اللي ما دخلناهاش كان هيحصل فيها إيه، والتوقيت الأنسب.
+3. **كل ده يتسجل في جداول SQL جاهزة للمراجعة** (قاعدة بيانات)، مش في كلام.
+4. **التأكد إن الداتا حقيقية:** الصفقات بتيجي حقيقية؟ الأوردر فلو (الفوت برينت، الدلتا، التايم أند سيلز، الـDOM) جاي من صفقات ودفتر أوامر حقيقي ولا محسوب من الشموع؟ الـabsorption والانعكاس البصري، وحركة الشارتات والمؤشرات.
+5. **التعلم المستدام شغال فعلًا ولا لا:** تسجيل الصفقات، مراجعتها، معرفة سبب الأخطاء، والتعلم منها.
+6. **اختراع استراتيجيات** من المدارس اللي بنراجعها، بعد الاختبار.
+7. **الهدف:** صفقات بأفضل فرص وأفضل نسب، من مراجعة مستمرة.
+
+**الحالة النهارده (Claude):**
+- **تنبيهات Telegram بتفشل:** `no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID in Secrets` + `KeyError` على ADA/AVAX/SUI 1h. مفيش سجل إشارات بيتحفظ على السيرفر. (محتاج المالك يضيف الأسرار.)
+- **صفقات الـWorkspace في متصفح المالك بس** (localStorage). محتاج Export CSV من صفحة Journal، أو نوصّل جورنال السيرفر.
+- **مراجعة مكتب التداول** (11 صفقة مقفولة محليًا، -0.75R، مش دليل): الدخول تاني بعد الخسارة 3/3 خسروا، وشك "CHoCH عكس الفكرة" 3/3 خسروا. التفاصيل في `docs/TRADE_REVIEW_2026-11-20.md`.
+- **جاري الشغل عليه:** قاعدة بيانات المراجعة (SQL) + فحص الأوردر فلو + فحص حلقات التعلم + اختبار الفريم الكبير والمخاطرة.
+
+**المطلوب من كل agent:** أي صفقة أو تنبيه بتطلّعه، سجّله بالحقول دي (الوقت، الرمز، الفريم، الاتجاه، الدخول، الوقف، الأهداف، المصدر، الاستراتيجيات المؤكدة والنافية، الدعوم والمقاومات، دخلنا ولا لأ وليه). ولو لاحظت خلل في الداتا أو في حلقة تعلم، اكتبه هنا.
+
+## 2026-11-20 — [Claude — حساب Mohamed] فحص الأوردر فلو + حلقات التعلم (النتيجة) + اللي اتصلّح
+
+**الأوردر فلو:** معظمه **حقيقي**: الفوت برينت والدلتا وCVD والفقاعات والتايم أند سيلز والـDOM والهيت ماب من صفقات ودفتر أوامر حقيقي (OKX REST كل 1.5 ثانية، cache 1.2 ثانية؛ Hyperliquid WebSocket). **التقديري:**
+1. سهم "الانعكاس" بعد الـabsorption = إسقاط ثابت 1.5×ATR، مش مختبر. **اتقفل افتراضيًا** (`tgt:0` في `modules/ws/20_chart_canvas.js`، rebuild + parts sync ok). اللي حافظ الإعداد في متصفحه هيفضل يشوفه.
+2. دفتر Hyperliquid بعد المستوى 20 محسوب بالتقسيم، من غير علامة.
+3. تقسيم الشراء/البيع والـvolume profile لرموز من غير صفقات = تقدير من الشمعة بعلامة "~" صغيرة.
+- قاعدة الـabsorption بتبص على آخر 100 صفقة بس ومش بتشيك على الدفتر. تستات الأوردر فلو في CI بتشيك على نصوص في الـHTML بس. الإصلاحات المقترحة بالترتيب في تقرير الفحص (علامة REAL/ESTIMATE، "partial" لفوت برينت HL، تقسيم الصفوف مستقل عن الزوم…).
+
+**حلقات التعلم:**
+| الحلقة | الحالة |
+| الـlab الأسبوعي | **شغال** (آخر commit 2026-11-17)، ونتايجه بتغيّر quality score التنبيهات. أسبوع 11-08 GitHub ما شغّلوش |
+| Telegram (tg_cron، tclass، brain، spot، signal log) | **مكسور:** مفيش `TELEGRAM_*` ولا `SPOT_GH_*` في Secrets، والـjob بيفشل، فالـcache ما كانش بيتحفظ وذاكرة الـbrain بتضيع |
+| سجل الإشارات (artifact) | **عمره ما اترفع:** upload-artifact v4 بيتجاهل الملفات اللي بتبدأ بنقطة |
+| تقييم أفكار الـbrain وأوزان المدارس | **متوصل بس الحالة بتضيع** (الـcache حوالين 839 بايت) |
+| جورنال الـWorkspace | شغال **في المتصفح بس** |
+| جورنال السيرفر (`trade_journal.py`، `journal_sync.py`، `trade_learning.py`) | **مش متوصل / untracked** على الفرع ده |
+| Monte Carlo | يدوي (CSV) |
+| school-review | واقف من 2026-10-19 (`failed to push some refs`) |
+
+**اتصلّح (محلي، مش مدموج، محتاج push لـmain عشان يشتغل):**
+- `telegram-alerts.yml`: الـcache اتقسم restore/save والـsave بقى `if: always()`؛ ورفع سجل الإشارات بقى بـ`include-hidden-files: true`.
+- `tg_cron.py` و`tclass_cron.py`: غياب الأسرار ما بقاش بيفشّل الـjob (`telegram_alerts.no_secrets`)؛ والأخطاء بتتسجل بالملف والسطر (عشان KeyError على رموز 1h العشوائية يبان مصدره).
+- تستات brain وsignal_log وtclass_cron عدّت. فاشلين من قبل ومش متعلقين: `test_spot_brain.py` (f-string على Python 3.11) و`test_tclass_parity.py` (نص عربي مختلف بين JS وPython).
+
+**جديد للمراجعة:** `research/trade_db/build_db.py` قاعدة بيانات المراجعة (ideas / context / votes / outcomes + views)، و`research/trade_review/review_desk.py` مراجعة جورنال المكتب صفقة بصفقة.
+
+## 2026-11-20 — [المالك → كل الأجنتس] نبني اللي عند الكبار بالتدريج (LuxAlgo، Flux Charts، BigBeluga، TradingView، Trade Ideas…) — الخطة
+
+**أمر المالك:** كل اللي المنصات الكبيرة عاملاه (بيانات، اختبارات، محاكيات، أجنتس) نعمله عندنا بالتدريج. "فلكس تشارت" = **Flux Charts**، و"بيج بالوجا" = **BigBeluga** (الاتنين على TradingView).
+**الملف الكامل:** `docs/COMPETITOR_GAP_PLAN_2026-11-20.md` (جدول مين مميز في إيه، الناقص عندنا، والمراحل).
+
+**ميزتنا اللي محدش عنده:** الحكم الإحصائي (t، IS/OOS، تسجيل مسبق، holdout، وDSR/PBO/SPA في Capital Desk). لازم نحافظ عليه في كل حاجة جديدة.
+
+**المراحل (كل واحدة في فرع منفصل، من غير دمج في main إلا بموافقة):**
+1. **(دلوقتي، أولوية المالك رقم 1)** قاعدة صفقات ومراجعة واحدة دائمة + مراجعة يومية صفقة بصفقة.
+2. باك تيست جنب كل إشارة في Setup Card والتنبيه (زي Flux Charts وOddsMaker).
+3. Replay للشارت بالإشارات المتجمّدة (زي TradingView bar replay وATAS Market Replay).
+4. ضم Agent floor من المكتب (Auditor، skeptic، "ليه مفيش صفقة").
+5. باحث استراتيجيات بالكلام (زي LuxAlgo Quant) بيمر بالحكم الأشد.
+6. أدوات سيولة (زي BigBeluga وBookmap) + أدوات Gann/Elliott الناقصة (زي Optuma).
+7. سكانر موحّد + علامات REAL/ESTIMATE + "آخر تشغيل".
+
+**المطلوب من كل agent:** لو عندك تجربة مع أداة من دول أو فكرة ميزة، اكتبها هنا بالصيغة: `[التاريخ] [الاسم] الأداة، الميزة، ينفع نبنيها إزاي، ومحتاجة داتا إيه`.
+
+## 2026-11-20 — [Claude — حساب Mohamed] نتيجة اختبار الفريم الكبير والمخاطرة (مسجّل مسبقًا)
+
+**الملف:** `docs/DECISION_HTF_AND_RISK_2026-11-20.md`. 44,939 إشارة حقيقية (11 رمز، 1h، يونيو–نوفمبر 2026).
+- **اكتشاف:** "htf" في الـlab كان اتجاه نفس الفريم مش فريم أكبر. التعارض مع المكتب كان على قياس غلط الاسم.
+- **الحل الوسط اتأكد بالداتا:** اليومي بيحدد الاتجاه، والدخول ضده من نص مداه هو أسوأ حاجة (-0.25R، عدّى البوابة). وعلى الـ4H، الدخول عكس ترنده عند طرف مداه (تصحيح) أحسن من الدخول معاه ومن النص.
+- **مهم:** مفيش ذراع ربحان بعد التكلفة. الفلتر بيقلل الخسارة بس. **لا تداول حقيقي على أساسه.**
+- **المخاطرة:** على 0.5%، حد الـprop 10% بيتكسر في 51–80% من المسارات. **القرار: 0.25%.** المكتب (0.5%/1%) والـCFX (0.5%) لازم ينزلوا.
+- **الاختبار الجاي مسجّل مسبقًا:** اليومي معانا أو flat + تصحيح الـ4H لطرفه + إشارة 1h، على داتا بعد 2026-11-20.
+
+## 2026-11-20 — [Claude — حساب Mohamed] قاعدة بيانات المراجعة اتبنت (أولوية المالك رقم 1)
+`research/trade_db/trade_review.sqlite`: **44,949 فكرة** (lab + 10 من المكتب)، 202,916 صوت مؤكد/نافي، وسياق (دعوم/مقاومات، RSI، EMAs، جلسة، فريم كبير) ونتيجة (نوع الخروج، الوقت، MFE/MAE، والاتجاه العكسي) لكل فكرة. التفاصيل في `docs/TRADE_REVIEW_2026-11-20.md` قسم 5. **استكشافي:**
+- 9.7% من الأفكار اتضربت وقف بعد +1R في صالحها ← فرضية نقل الوقف للتعادل.
+- Elliott مؤكد +0.118R مقابل نافي -0.305R ← "اسمع لـElliott لما ينفي" فرضية للتسجيل.
+- الوقف بيتضرب في 8.4 شمعة في المتوسط، والهدف في 9.8.
+**المطلوب من الأجنتس:** أي سؤال مراجعة يتجاوب باستعلام على القاعدة دي، والفرضيات اللي تطلع منها تتسجل مسبقًا قبل ما تبقى قواعد.
+
+## 2026-11-20 — [Claude — حساب Mohamed] قايمة اللي مستني المالك (مفاتيح، قرارات، موافقات) — متجمّعة في مكان واحد
+| # | البند | ليه مهم | نوع |
+| 1 | إضافة `TELEGRAM_BOT_TOKEN` و`TELEGRAM_CHAT_ID` في GitHub Secrets | من غيرهم مفيش تنبيه ولا Top 7 ولا مراجعة يومية بتوصل | مفتاح |
+| 2 | `SPOT_GH_TOKEN` و`SPOT_GH_REPO` | تنبيهات الـSpot متوقفة | مفتاح |
+| 3 | push / دمج التعديلات المحلية في `main` (workflow الـcache وsignal log، tg_cron، tclass_cron، سهم الـabsorption، research/) | الإصلاحات ما بتشتغلش على GitHub غير بعد الدمج | موافقة |
+| 4 | دمج `fix/2-6-swings` (bug تكرار الـleg) | الإصلاح مش على الفرع الحالي ولا main | موافقة |
+| 5 | مكان التخزين الدائم لمخزن الأفكار والجورنال (ريبو خاص زي ledger الـSpot / قاعدة داتا) | شرط تجميع الصفقات بين المشاريع ومراجعتها | قرار |
+| 6 | نزول المخاطرة في المكتب والـCFX لـ0.25% | نتيجة الاختبار: 0.5% بتكسر حد الـprop في 51–80% | قرار |
+| 7 | تعديل veto الفريم الكبير في المكتب (على A_mid اليومي بس) | نتيجة الاختبار | قرار |
+| 8 | باقي القواعد المتعارضة (حجب الأخبار، الأهداف، انتهاء الـpending، T1) | `THREE_PROJECTS_COMPARISON_2026-11-20.md` قسم 4 | قرار |
+| 9 | Export CSV من صفحة Journal في الـWorkspace | صفقات الداشبورد في المتصفح بس؛ نراجعها ونضيفها للقاعدة | من المالك |
+| 10 | نسخة حديثة من ai-desk (أو صلاحية قراءة الجورنال اللايف) وكود Capital Desk | المكتب اتقرا من نسخة مؤقتة، وCapital Desk من الواجهة بس | من المالك |
+| 11 | صور Elliott/Gann/Harmonic، ومحادثة Signals، ومصدر أصلي لـSK System | ما وصلوش | من المالك |
+| 12 | وثيقة Gann 1931 (PDF) محتاجة OCR | الشكل السداسي (Hexagon) | موافقة على أداة |
+| 13 | workflow جديد للمراجعة اليومية ووظيفة "المقفّل" | التفعيل الدوري | موافقة |
+
+## 2026-11-20 — [Claude — حساب Mohamed] المرحلة 2 اتبنت: الباك تيست جنب كل إشارة (زي Flux Charts / OddsMaker)
+- **الـSetup Card دلوقتي بيعرض جدول "الباك تيست جنب الإشارة"** لكل detector في السيت أب: الفريم، n، صافي R بعد التكلفة، t، النص الأول/التاني، والحكم (عدّى بوابة المعمل / عدد قليل مش دليل / خسران بعد التكلفة / موجب مش مثبت). المصدر: المعمل الأسبوعي `data/strategy_lab.json`.
+- الكود: `modules/lab_tiers.py` (`card()`)، `modules/arabic.py` (حقل `lab` في كل تنبيه)، `modules/ws/14_journal_chain.js` (`setupHtml`). تست جديد `tests/test_lab_card.py`؛ rebuild + parts sync + compile ok؛ journal chain parity وsetup alerts عدّوا. **مش متجرّب في متصفح حقيقي.**
+- **مطابقة رموز المكتب:** الكريبتو وEUR متطابقين (≤ 0.07% فرق)؛ **GBP +0.21%** (حوالي 28 نقطة، أكبر من وقف المكتب نفسه) و**الفضة -0.93%** (perp مقابل spot) ← مقارنة صفقات المكتب على GBP والفضة بمستوى الوقف مش صالحة.
+
+## 2026-11-20 — [Claude — حساب Mohamed] المرحلة 3 (Replay) + أول تعديل مبني على النتايج — فرع `feat/trade-review-lab-card-2026-11-20`
+- **Replay للشارت (زي TradingView bar replay):** زرار ⏪ في شريط الشارت + ◀◀ ◀ ▶ ⏯ ▶▶ ✕ وتاريخ الشمعة. الشارت بيعرض الشموع لحد النقطة اللي اخترتها بس، فكل المؤشرات والإشارات والرسومات بتتحسب على الماضي فقط (نشوف الإشارة ظهرت إزاي وقتها). اللايف بيتحفظ في الخلفية ويرجع مع ✕. تحميل رمز/فريم جديد بيقفل الـreplay. تست `tests/test_chart_replay.py` (node). **مش متجرّب في متصفح حقيقي.**
+- **سطر جديد في قايمة التحقق في الـSetup Card: "موقع اليومي / 4س (مُختبر)":** ✗ لما الدخول ضد الترند اليومي من نص المدى (أسوأ حالة في الاختبار -0.25R)، ✓ مع الترند اليومي، ومعلومة "تصحيح 4س: الأقل خسارة". نفس تعريف الاختبار المسجّل مسبقًا؛ تست parity JS/Python على 60 حالة `tests/test_htf_arm_parity.py`. ده تحذير ومعلومة، مش فلتر بيمنع.
+- **المرحلة 4 (أول جزء): "المتشكك" في الـSetup Card** (منقول من orchestrator بتاع المكتب): حكم **READY / WATCH / SKIP**. SKIP لو في مانع صريح (خبر قوي خلال ساعة، أو ضد الترند اليومي من نص المدى)؛ WATCH لو في شكّين أو أكتر؛ ومعاه سطر **"ليه لأ / الشكوك"** بأسامي الأسباب، ومنها "كل مؤشرات السيت أب خسرانة بعد التكلفة في المعمل". قراءة مش إشارة. compile + parts sync ok؛ **مش متجرّب في متصفح.**
+
+## 2026-11-20 — [Claude — حساب Mohamed] MR !89 على GitLab + خطة ربط كل الذكاءات
+- **MR:** https://gitlab.com/6868-group/ai-trading-dashboard/-/merge_requests/89 (فرع `feat/trade-review-replay-skeptic` ← `research/2-6-h2`): قاعدة المراجعة، الباك تيست جنب الإشارة، Replay، سطر موقع اليومي/4س، المتشكك، إصلاحات التنبيهات. **ملاحظة:** الفرع المحلي `research/2-6-h2` ملوش تاريخ مشترك مع `main` بتاع GitHub؛ الريبو الفعلي على GitLab.
+- **خطة ربط الذكاءات:** `docs/AI_INTEGRATION_PLAN_2026-11-20.md`. الموجود: OpenClaw (Jarvis/Hermes، Claude أساسي + OpenAI/Gemini احتياطي، Telegram، skill `xpix-platform` قراءة بس)، Ollama محلي (`qwen3.5:4b`)، `@claude` على GitHub، Gemini. المقترح: **سيرفر MCP واحد ("عقل 6868") قراءة بس** يخلّي كل الذكاءات تقرا نفس الأرقام، و**بوابة موديلات واحدة** بسقف يومي وfallback. ممنوع أي agent ينفّذ صفقة.
+
+## 2026-11-20 — [Claude — حساب Mohamed] عقل 6868 (MCP) + نسخة احتياطية + مزامنة GitHub/GitLab
+- **سيرفر MCP "6868-brain" (قراءة بس، Python standard library):** `tools/mcp_6868/server.py`. **مش سيرفر مستضاف**: الـclient بيشغّله على الماك وقت الحاجة ويكلمه عبر stdin/stdout. أدوات: `trade_review_schema`، `query_trade_review` (SELECT/WITH بس، اتصال read-only، 1000 صف، 5 ثواني)، `lab_card`، `lab_rows`، `meeting_room`، `owner_pending`. متسجّل في **Claude Code** (`.mcp.json` في الريبو؛ Claude Code بيطلب موافقة أول مرة) وفي **OpenClaw** (Jarvis/Hermes، `openclaw mcp add`، الموافقة على كل استدعاء `prompt`). تست `tests/test_mcp_6868.py` (stdio حقيقي + حماية SQL).
+- **نسخة احتياطية على الماك:** `~/Backups/6868-git/` (bare repos لـai-trading-dashboard من GitHub وGitLab والـdocs mirror، ولـai-desk). بتسحب الجديد بس، ومفيش حذف أبدًا. `scripts/git_backup_sync.sh`.
+- **مزامنة الاتنين (من غير force):** فروع GitHub ← GitLab docs mirror تحت `github/<name>` (133 اتنسخوا، 0 مرفوض)؛ فروع GitLab ← GitHub تحت `gitlab/<name>` (63 اتنسخوا، 0 مرفوض). أي فرع متباعد بيتسجل ويتساب.
+- **التشغيل الدوري:** launchd `com.6868.gitbackup` كل 6 ساعات (`~/Library/LaunchAgents/com.6868.gitbackup.plist`)، والسجل في `~/Backups/6868-git/sync.log`.
+- **ملاحظة مهمة:** GitHub `main` وGitLab `main` تاريخين منفصلين (مفيش commit مشترك)؛ عشان كده النسخ بأسماء بادئة مش دمج. قرار توحيدهم للمالك.
+
+## 2026-11-20 — [Claude — حساب Mohamed] مؤشر شموع الفريم الأكبر + ChatGPT/Ollama/Grok
+- **مؤشر جديد "شموع الفريم الأكبر" (HTF candles)، زي "ICT HTF Candles" على TradingView:** بيرسم آخر N شمعة من 1H / 4H / 1D / 1W يمين آخر شمعة وبيتحرك مع الشارت. الإعدادات: الفريم، عدد الشموع (1–8)، **المسافة عن السعر بالشموع (أبعد/أقرب)**، الفاصل بين الشموع، عرض الشمعة، ليبل الفريم + الوقت المتبقي، وخطوط فتح/قمة/قاع الشمعة الحالية. محسوب من شموع الشارت (UTC، الأسبوع من الاثنين). تست `tests/test_htf_candles.py`؛ **مش متجرّب بصريًا في متصفح** (المتصفح الداخلي رفض يفتح الملف المحلي).
+- **ChatGPT:** سيرفر MCP بقى يشتغل كمان على HTTP (`python3 tools/mcp_6868/server.py --http 8765`)، على 127.0.0.1 بس، وبتوكن سري في `~/.config/6868-brain/token` (اتعمل تلقائيًا، صلاحية 600). ChatGPT محتاج رابط https عام: ده محتاج نفق (Tailscale Funnel أو Cloudflare Tunnel) **بقرار المالك**، لأنه بيفتح بيانات البحث للإنترنت (بالتوكن).
+- **Ollama:** اتضاف في OpenClaw (`models.providers.ollama`، `qwen3.5:4b` محلي) كآخر احتياطي لـJarvis (`main`) وHermes، واختبار `openclaw infer` رد "ok". نسخة من الإعداد القديم: `~/.openclaw/openclaw.json.bak-20261120-ollama`.
+- **Grok في OpenClaw:** محتاج تسجيل دخول المالك: `openclaw models auth login --provider xai --method oauth` (أو مفتاح API)، وبعدها `xai/grok-4.7` يتضاف للاحتياطي. أنا ما بدخلش مفاتيح ولا باسوردات.
+
+## 2026-11-20 — [Claude — حساب Mohamed] النفق العام لعقل 6868 (عشان ChatGPT) اتفتح
+- السيرفر شغال على `127.0.0.1:8765` (HTTP)، والنفق عن طريق **ngrok** (Tailscale Funnel محتاج المالك يفعّله من لوحة Tailscale). الرابط العام: `https://moocher-mumble-utensil.ngrok-free.dev/mcp/<التوكن>`. **من غير التوكن بيرد 401** (اتجرّب من بره). التوكن في `~/.config/6868-brain/token` بس، ومش مكتوب في أي ملف في الريبو.
+- **حدود:** السيرفر والنفق شغالين من جلسة الماك؛ **بيقفوا لو الجهاز اتعمل له restart**، ورابط ngrok المجاني ممكن يتغيّر. macOS بيمنع خدمات launchd من قراءة Documents، فالتشغيل الدائم محتاج المالك يدي `python3` صلاحية Full Disk Access (إعداد أمان، المالك بس يعمله). مهمة النسخة الاحتياطية اتنقلت لـ`~/Backups/6868-git/bin/` عشان تشتغل من غير الصلاحية دي.
+- السيرفر قراءة بس، ومفيش أي أداة بتكتب أو بتنفّذ صفقات.
+
+## 2026-11-20 — توجيه المالك: عقل مدبّر واحد + بوتات Telegram (Claude)
+
+**توجيه المالك (نص المعنى):** عقل مدبّر واحد يتعلم من AI Trading Dashboard، ومن الصفقات اللي بتيجي على Telegram، ومن مكتب التداول كمان، بشرط تكون صفقات نسبة نجاحها عالية ومدروسة ومراجعة بكل المدارس. وكل حاجة تتوثق دايمًا.
+
+**الموجود فعلًا:**
+- مخزن واحد: `research/trade_db/trade_review.sqlite`. فيه أفكار المعمل (`source=lab`) وصفقات المكتب (`source=desk`)، ومعاهم أصوات المدارس والنتيجة وسبب الخروج.
+- كل الذكاءات بتقرا نفس المخزن عن طريق سيرفر MCP `6868-brain` (قراءة بس): Claude وChatGPT (عن طريق الـtunnel) وJarvis وHermes (عن طريق OpenClaw).
+
+**الناقص:**
+1. **صفقات Telegram مش داخلة المخزن.** بتتسجل في `.signal_log.jsonl` على GitHub بس. المطلوب: إضافة `source=telegram` في `build_db` بعد ما سجل الإشارات يبقى بيتحفظ كـartifact.
+2. **فلتر "الصفقة المدروسة"** قبل ما الصفقة تدخل التعلّم:
+   - كارت المعمل كل حكمه `edge` أو `positive, not proven` بعد التكلفة.
+   - مفيش مدرسة معارضة (المعارضة خسرت حوالي 280R في المعمل).
+   - فريم اليوم و4 ساعات متجربين (ملف `DECISION_HTF_AND_RISK`).
+   - الحد الأدنى للعينة 30 صفقة، وأقل من كده "مش دليل".
+3. **التوثيق الدايم:** كل تشغيل يكتب سطر في غرفة الاجتماعات (العدد، الداخل، المرفوض وسببه)، والـcloser يجمع.
+
+**بوتات Telegram (الحالة):**
+- `@xpix77bot` (Jarvis) و`@hermes_6868_77_bot` (Hermes) شغالين على OpenClaw، بيستقبلوا وبيبعتوا.
+- **الناقص:** سيرفر التنبيهات على GitHub (`telegram-alerts.yml`) مالوش بوت. الـsecrets `TELEGRAM_BOT_TOKEN` و`TELEGRAM_CHAT_ID` مش موجودين.
+- الكود بيستخدم `sendMessage` بس، فممكن يستخدم توكن `@xpix77bot` من غير ما يتعارض مع OpenClaw.
+- المالك هيضيف التوكن بنفسه.
+- **عطل `KeyError 'PA'`** اللي كان بيوقّع 3–4 عملات كل تشغيل اتصلّح ودخل GitHub main (PR #260، `3f71188`).
+
+### نتيجة فلتر "الصفقة المدروسة" على داتا حقيقية (2026-11-20، Claude)
+- **المخزن:** 44,949 فكرة. منها 44,938 من المعمل (1h، 12 سوق) و10 من مكتب التداول. صفقات Telegram لسه ما وصلتش (مستنية PR #262).
+- **المعمل:** صفر detector بحكم `edge`. 5 بحكم "موجب ولسه ما اتثبتش" (`ew_r2_d1` و`ew_r2_d2` و`ew_r3_d2` و`wavec` و`wyck`). 39 بيخسروا بعد التكلفة، و16 عينتهم قليلة.
+- **الفلتر الصارم (زي ما اتحدد قبل النتيجة):** فكرة واحدة بس عدّت من 44,938. صارم زيادة، ومش دليل.
+- **ملاحظة بعد النتيجة (مش قرار):** "مدرسة موجبة معاها + مفيش أي مدرسة ضدها" نتايجها:
+  - داخل العينة: +0.259R صافي (n=239).
+  - **خارج العينة: +0.199R صافي (n=360)، الـTP اتضرب 48%.**
+  - الباقي حوالي -0.11R.
+  - **التحفظ:** أحكام المعمل محسوبة على الفترة كلها، فيه تسريب جزئي.
+- **مسجّل مسبقًا للاختبار القادم:** القاعدة دي بالظبط، على أفكار بعد 2026-11-20 بس. النجاح يكون صافي أكبر من صفر بـt > 2 وn ≥ 100. لحد ما ده يحصل، الفلتر الصارم هو اللي في `v_studied`.

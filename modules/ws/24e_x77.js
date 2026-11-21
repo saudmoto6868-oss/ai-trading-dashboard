@@ -6,7 +6,7 @@ const X77_PAIRS = [["P1", ["sweep"], ["ote"]], ["P2", ["sweep"], ["rsi_div", "ma
 const x77Pairs = keys => X77_PAIRS.filter(([, a, b]) => a.some(k => keys.includes(k)) && b.some(k => keys.includes(k))).map(p => p[0]);
 Panel.prototype.build_x77 = function(){
   const S = this.state, ar = lang === "ar", L = (e, a) => ar ? a : e, X = (typeof CFG !== "undefined" && CFG.x77) || {};
-  const KM = X.keys || {}, SC = X.schools || {};
+  const KM = X.keys || {}, SC = X.schools || {}, LB = X.lib || {};
   if (!document.getElementById("x77Css")){ const st = el("style"); st.id = "x77Css"; st.textContent =
     ".x77w{height:100%;overflow:auto;padding:6px;font-size:12px;line-height:1.5}.x77w .tb{display:flex;gap:4px;align-items:center;flex-wrap:wrap}"
     +".x77w .cd{border:1px solid var(--line);border-inline-start:4px solid var(--vc,#888);border-radius:7px;padding:6px 8px;margin:6px 2px;cursor:pointer}"
@@ -21,7 +21,8 @@ Panel.prototype.build_x77 = function(){
     "سيتابات السكانر الحية متصنفة بمدرسة X77. التصنيف وصف مش دليل؛ عدد المدارس المتفقة اتختبر على التاريخ وفشل (2026-11-21).");
   const box = el("div"); wrap.append(note, box);
   const schoolsOf = keys => [...new Set(keys.map(k => KM[k] || "S_OTHER"))];
-  const chip = s => { const v = SC[s] || [s, s, ""]; return `<span class="ch" title="${esc(v[2] || "")}">${esc(ar ? v[0] : v[1])}</span>`; };
+  const chip = s => { const v = SC[s] || [s, s, ""]; const n = LB[s] || 0;
+    return `<span class="ch" title="${esc((v[2] || "") + (n ? L(" · library examples: ", " · أمثلة في المكتبة: ") + n : ""))}">${esc(ar ? v[0] : v[1])}${n ? " 📚" + n : ""}</span>`; };
   const draw = () => {
     if (!Object.keys(KM).length){ box.innerHTML = `<div class="mut">${L("No X77 map from the server.", "مفيش خريطة X77 من السيرفر.")}</div>`; return; }
     let list = []; try { list = readyList(true); } catch(e){}
@@ -36,4 +37,24 @@ Panel.prototype.build_x77 = function(){
   };
   this.resub = () => { this.setTitle(); draw(); };
   const tm = setInterval(draw, 15000); this.unsubs.push(() => clearInterval(tm)); draw();
+};
+// Chart indicator "X77" (Indicators menu, Sessions & signals group): the same school labels drawn on the chart.
+// One line per live setup on this symbol (top left) + a small "X77" tag at its entry price. Labels only.
+CandleChart.prototype.paintX77 = function(c, py, PR){
+  const X = (typeof CFG !== "undefined" && CFG.x77) || {}, KM = X.keys || {}, SC = X.schools || {}, LB = X.lib || {}, ar = lang === "ar";
+  let rows = []; try { rows = readyList(true).filter(e => e.symbol === this.sym).slice(0, 4); } catch(e){}
+  c.save(); c.font = "11px sans-serif"; c.textBaseline = "middle"; c.textAlign = "left";
+  const y0 = 34 + 4*15, line = (txt, y, col) => { const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
+    c.fillStyle = col; c.fillText(txt, 50, y); };
+  if (!rows.length) line("X77: " + (ar ? "مفيش سيتاب حي للرمز ده" : "no live setup on this symbol"), y0, "#9aa4b2");
+  rows.forEach((e, i) => {
+    const up = e.direction === "bullish", col = up ? "#0ecb81" : "#f6465d", keys = e.keys || [];
+    const ids = [...new Set(keys.map(k => KM[k] || "S_OTHER"))], sch = ids.map(s => (SC[s] || [s, s])[ar ? 0 : 1]);
+    const nLib = ids.reduce((a, s) => a + (LB[s] || 0), 0);   // library examples (owner pictures) for these schools
+    const prs = x77Pairs(keys);
+    line("X77 " + (up ? "▲" : "▼") + " " + (e.tf || e.tfk || "") + ": " + (sch.join(" · ") || "-") + (prs.length ? "  [" + prs.join(",") + (ar ? " اتلغى" : " killed") + "]" : "") + (nLib ? "  📚" + nLib : ""), y0 + i*18, col);
+    const ent = e.plan && e.plan.entry, y = ent != null ? py(ent) : null;
+    if (y != null && isFinite(y)){ c.fillStyle = col; c.fillRect(PR - 34, y - 7, 30, 14); c.fillStyle = "#000"; c.textAlign = "center"; c.fillText("X77", PR - 19, y); c.textAlign = "left"; }
+  });
+  c.restore();
 };

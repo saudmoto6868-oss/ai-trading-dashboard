@@ -1,4 +1,4 @@
-# Manual check that the ANTHROPIC_API_KEY repo secret works (prints status + key shape only, never the key).
+# Manual check that the ANTHROPIC_API_KEY repo secret works (prints status only; never the key or any part of it).
 name: Anthropic key check
 on: workflow_dispatch
 permissions:
@@ -12,7 +12,7 @@ jobs:
           K: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           [ -n "$K" ] || { echo "::error::secret ANTHROPIC_API_KEY is empty / missing"; exit 1; }
-          echo "key starts with: ${K:0:10}  length: ${#K}  spaces/newlines: $(printf '%s' "$K" | tr -cd ' \n\r\t' | wc -c)  quotes: $(printf '%s' "$K" | tr -cd '"\047' | wc -c)"
+          echo "length: ${#K}  spaces/newlines: $(printf '%s' "$K" | tr -cd ' \n\r\t' | wc -c)  quotes: $(printf '%s' "$K" | tr -cd '"\047' | wc -c)"
           ok=0
           for m in claude-haiku-5-5 claude-sonnet-5-5 claude-opus-5-5; do
             code=$(curl -s -o r.json -w '%{http_code}' https://api.anthropic.com/v1/messages -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" \

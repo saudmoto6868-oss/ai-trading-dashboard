@@ -66,11 +66,22 @@ def send(token: str, chat: str, text: str) -> None:
                   json={"chat_id": chat, "text": text[:4000]}).raise_for_status()
 
 
+def diagnose(token: str) -> None:
+    """Log which bot this token is and whether updates are waiting (token itself is never printed)."""
+    try:
+        me = requests.get(TG.format(token=token, method="getMe"), timeout=10).json().get("result", {})
+        hook = requests.get(TG.format(token=token, method="getWebhookInfo"), timeout=10).json().get("result", {})
+        print(f"bot @{me.get('username')} webhook={bool(hook.get('url'))} pending={hook.get('pending_update_count')}")
+    except Exception as exc:
+        print(f"diagnose failed: {type(exc).__name__}")
+
+
 def run() -> int:
     token = os.environ.get("XPIX_BOT_TOKEN", "")
     owner = os.environ.get("XPIX_OWNER_CHAT_ID", "")
     if not token or not owner:
         sys.exit("missing XPIX_BOT_TOKEN / XPIX_OWNER_CHAT_ID")
+    diagnose(token)
     off = load_offset()
     params = {"timeout": 0, "limit": 100}
     if off:

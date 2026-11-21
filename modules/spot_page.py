@@ -741,6 +741,38 @@ def _tg_box(d: dict) -> None:
             save(d)
 
 
+def _ladder_box(d, px) -> None:
+    """Ladder plan -> buy alerts in one click (owner 2026-11-21). Prefilled with the 21-11 plan; prices / USD are editable."""
+    from modules import spot_budget as B
+    P = B.PLAN_2026_11_21
+    with st.expander(T("Ladder plan: buy now + -10% + -20% (one click alerts)", "خطة السلم: شراء دلوقتي + ‎-10%‎ + ‎-20%‎ (تنبيهات بدوسة واحدة)"), expanded=False):
+        st.caption(T(f"Plan of {P['date']}: each coin split in three equal parts. Edit the start price or USD if you want. Cash reserve kept apart: {P['reserve_usd']:,.0f} USD in USDC.",
+                     f"خطة {P['date']}: كل عملة متقسمة 3 أجزاء متساوية. عدّل سعر البداية أو المبلغ لو حابب. الكاش الاحتياطي برّه الخطة: {P['reserve_usd']:,.0f} دولار USDC."))
+        base = pd.DataFrame([{"asset": a, "start": p0, "usd": u, "now": px.get(a)} for a, (p0, u) in P["coins"].items()])
+        ed = st.data_editor(base, hide_index=True, width="stretch", key="sp_ladder_ed", disabled=["now"],
+                            column_config={"asset": T("Coin", "العملة"), "start": st.column_config.NumberColumn(T("Start price", "سعر البداية"), format="%.4f"),
+                                           "usd": st.column_config.NumberColumn("USD", format="%.0f"), "now": st.column_config.NumberColumn(T("Now", "دلوقتي"), format="%.4f")},
+                            num_rows="dynamic")
+        coins = {str(r["asset"]).strip().upper(): (r["start"], r["usd"]) for _, r in ed.iterrows() if str(r.get("asset") or "").strip()}
+        rows = B.plan_ladder(coins, P["steps"])
+        if rows:
+            st.dataframe(pd.DataFrame(rows).rename(columns={"asset": T("Coin", "العملة"), "step_pct": T("Step %", "الخطوة %"), "price": T("Buy at", "اشتري عند"),
+                                                            "usd": "USD", "qty": T("Qty", "الكمية")}), hide_index=True, width="stretch")
+            st.caption(T(f"Total {sum(r['usd'] for r in rows):,.0f} USD in {len(rows)} buy alerts. Spot only, no leverage. A plan, not a promise.",
+                         f"الإجمالي {sum(r['usd'] for r in rows):,.0f} دولار في {len(rows)} تنبيه شراء. سبوت بس من غير رافعة. خطة مش ضمان."))
+        if st.button(T("Add these buy alerts", "ضيف تنبيهات الشراء دي"), key="sp_ladder_add", disabled=not rows):
+            have = {(x["asset"], x["kind"], round(float(x["price"]), 8)) for x in d["alerts"]}
+            new = 0
+            for r in rows:
+                if (r["asset"], "buy", round(float(r["price"]), 8)) in have:
+                    continue
+                d["alerts"].append(C.new_alert(r["asset"], "buy", r["price"], f"Plan {P['date']} {r['step_pct']:+.0f}% · {r['usd']:,.0f}$"))
+                new += 1
+            if new and save(d):
+                _notify(d, T(f"ladder plan: {new} buy alerts armed", f"خطة السلم: {new} تنبيه شراء اتسجلوا"))
+            st.success(T(f"Added {new} (already there: {len(rows) - new}).", f"اتضاف {new} (موجودين قبل كده: {len(rows) - new})."))
+
+
 def _tab_alerts(d, px):
     _tg_box(d)
     with st.form("sp_alf", clear_on_submit=True):
@@ -754,6 +786,7 @@ def _tab_alerts(d, px):
             d["alerts"].append(C.new_alert(asset, kind, lvl, note))
             if save(d):
                 _notify(d, T(f"alert armed: {asset} {kind} at {lvl:,.4g}", f"تنبيه اتسجل: {asset} {'شراء' if kind == 'buy' else 'بيع' if kind == 'sell' else 'إلغاء'} عند {lvl:,.4g}"))
+    _ladder_box(d, px)
     hits = C.check_alerts(d["alerts"], px)
     ar = T("en", "ar") == "ar"
     for h in hits:

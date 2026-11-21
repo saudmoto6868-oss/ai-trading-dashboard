@@ -210,3 +210,25 @@ STRATEGIES = {
                         "en": "Mostly cash. Small weekly buys, sell ladder active. For a falling market or after a loss streak.",
                         "ar": "معظمها كاش. شراء أسبوعي صغير، وسلم البيع شغال. لسوق نازل أو بعد سلسلة خساير."},
 }
+
+
+# ladder plan -> alerts (owner 2026-11-21): one buy now + limit buys lower, each coin split in equal parts
+PLAN_2026_11_21 = {"date": "2026-11-21", "steps": [0.0, -10.0, -20.0], "reserve_usd": 350.0,
+                   "coins": {"BTC": (56074.0, 1400.0), "ETH": (1552.0, 875.0), "SOL": (65.57, 350.0), "XRP": (0.873, 350.0), "ZEC": (696.6, 175.0)}}
+
+
+def plan_ladder(coins: dict, steps=None) -> list[dict]:
+    """coins: {asset: (start price, USD)} -> rows (asset, step %, price, usd, qty). USD is split equally over the steps;
+    rounding goes to the last step so each coin adds up exactly."""
+    steps = list(steps if steps is not None else PLAN_2026_11_21["steps"])
+    out = []
+    for asset, (p0, usd) in (coins or {}).items():
+        if not (_pos(p0) and _pos(usd) and steps):
+            continue
+        part = round(_pos(usd) / len(steps))
+        for i, s in enumerate(steps):
+            u = part if i < len(steps) - 1 else round(_pos(usd) - part * (len(steps) - 1), 2)
+            p = _pos(p0) * (1 + s / 100.0)
+            nd = 2 if p >= 100 else 4 if p >= 1 else 6
+            out.append({"asset": str(asset).upper(), "step_pct": s, "price": round(p, nd), "usd": u, "qty": round(u / p, 8)})
+    return out

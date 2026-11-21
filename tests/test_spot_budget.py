@@ -140,3 +140,27 @@ sp.render()
     labs = [t.label for t in at.tabs]
     assert any("Signals" in l for l in labs) and any("Setup library" in l for l in labs), labs
 print("spot strategies + signals board: OK")
+
+# ladder plan -> alerts (2026-11-21): 5 coins x 3 steps = 15 buy alerts, each coin adds up, the button saves them once
+lr = B.plan_ladder(B.PLAN_2026_11_21["coins"])
+assert len(lr) == 15 and abs(sum(r["usd"] for r in lr) - 3150) < 1e-6
+assert [r["price"] for r in lr if r["asset"] == "BTC"] == [56074.0, 50466.6, 44859.2]
+assert abs(sum(r["usd"] for r in lr if r["asset"] == "ZEC") - 175) < 1e-9 and B.plan_ladder({"X": (0, 100)}) == []
+import tempfile as _tf
+_root = _tf.mkdtemp()
+with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
+    at = AppTest.from_string(f"""
+import modules.spot_page as sp
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore({_root!r})
+sp.render()
+""", default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception
+    at.button(key="sp_ladder_add").click().run()
+    assert not at.exception, at.exception
+    at.button(key="sp_ladder_add").click().run()      # second click adds nothing new
+from modules.spot_store import LocalStore as _LS
+_al = [a for a in (_LS(_root).load() or {}).get("alerts", []) if str(a.get("note", "")).startswith("Plan 2026-11-21")]
+assert len(_al) == 15 and all(a["kind"] == "buy" and a["active"] for a in _al), len(_al)
+print("ladder plan alerts: OK")

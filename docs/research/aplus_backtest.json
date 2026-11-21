@@ -1,0 +1,216 @@
+{
+ "rules": {
+  "hold_bars": 48,
+  "target_R": 2.0,
+  "cost_pct": 0.1,
+  "stop": "0.5 ATR beyond level",
+  "entry": "close of signal bar"
+ },
+ "results": {
+  "BTC-USDT 1H": {
+   "bars": 4000,
+   "from": 1780790400000,
+   "to": 1795186800000,
+   "setups": {
+    "pullback": {
+     "n": 100,
+     "meanR": -0.314,
+     "winPct": 29.0,
+     "t": -2.42,
+     "verdict": "not evidence",
+     "trainR": -0.324,
+     "testR": -0.289
+    },
+    "retest": {
+     "n": 81,
+     "meanR": -0.388,
+     "winPct": 28.4,
+     "t": -2.51,
+     "verdict": "not evidence",
+     "trainR": -0.441,
+     "testR": -0.269
+    },
+    "control": {
+     "n": 181,
+     "meanR": -0.336,
+     "winPct": 36.5,
+     "t": -3.14,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.249,
+     "testR": -0.605
+    }
+   }
+  },
+  "BTC-USDT 4H": {
+   "bars": 4000,
+   "from": 1737590400000,
+   "to": 1795176000000,
+   "setups": {
+    "pullback": {
+     "n": 103,
+     "meanR": -0.199,
+     "winPct": 30.1,
+     "t": -1.51,
+     "verdict": "not evidence",
+     "trainR": -0.112,
+     "testR": -0.402
+    },
+    "retest": {
+     "n": 87,
+     "meanR": -0.238,
+     "winPct": 28.7,
+     "t": -1.63,
+     "verdict": "not evidence",
+     "trainR": -0.185,
+     "testR": -0.376
+    },
+    "control": {
+     "n": 190,
+     "meanR": -0.245,
+     "winPct": 31.1,
+     "t": -2.42,
+     "verdict": "not evidence",
+     "trainR": -0.189,
+     "testR": -0.405
+    }
+   }
+  },
+  "ETH-USDT 1H": {
+   "bars": 4000,
+   "from": 1780790400000,
+   "to": 1795186800000,
+   "setups": {
+    "pullback": {
+     "n": 103,
+     "meanR": -0.293,
+     "winPct": 30.1,
+     "t": -2.25,
+     "verdict": "not evidence",
+     "trainR": -0.24,
+     "testR": -0.434
+    },
+    "retest": {
+     "n": 70,
+     "meanR": -0.069,
+     "winPct": 37.1,
+     "t": -0.39,
+     "verdict": "not evidence",
+     "trainR": 0.026,
+     "testR": -0.292
+    },
+    "control": {
+     "n": 173,
+     "meanR": -0.357,
+     "winPct": 31.8,
+     "t": -3.34,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.416,
+     "testR": -0.17
+    }
+   }
+  },
+  "ETH-USDT 4H": {
+   "bars": 4000,
+   "from": 1737590400000,
+   "to": 1795176000000,
+   "setups": {
+    "pullback": {
+     "n": 94,
+     "meanR": -0.26,
+     "winPct": 27.7,
+     "t": -1.94,
+     "verdict": "not evidence",
+     "trainR": -0.325,
+     "testR": -0.088
+    },
+    "retest": {
+     "n": 84,
+     "meanR": -0.015,
+     "winPct": 35.7,
+     "t": -0.1,
+     "verdict": "not evidence",
+     "trainR": 0.023,
+     "testR": -0.116
+    },
+    "control": {
+     "n": 178,
+     "meanR": -0.219,
+     "winPct": 29.8,
+     "t": -2.11,
+     "verdict": "not evidence",
+     "trainR": -0.198,
+     "testR": -0.281
+    }
+   }
+  },
+  "SOL-USDT 1H": {
+   "bars": 4000,
+   "from": 1780790400000,
+   "to": 1795186800000,
+   "setups": {
+    "pullback": {
+     "n": 102,
+     "meanR": 0.13,
+     "winPct": 42.2,
+     "t": 0.89,
+     "verdict": "not evidence",
+     "trainR": 0.131,
+     "testR": 0.129
+    },
+    "retest": {
+     "n": 81,
+     "meanR": -0.061,
+     "winPct": 37.0,
+     "t": -0.38,
+     "verdict": "not evidence",
+     "trainR": -0.106,
+     "testR": 0.039
+    },
+    "control": {
+     "n": 183,
+     "meanR": -0.486,
+     "winPct": 25.7,
+     "t": -4.96,
+     "verdict": "not evidence (halves disagree or negative)",
+     "trainR": -0.557,
+     "testR": -0.274
+    }
+   }
+  },
+  "SOL-USDT 4H": {
+   "bars": 4000,
+   "from": 1737590400000,
+   "to": 1795176000000,
+   "setups": {
+    "pullback": {
+     "n": 99,
+     "meanR": -0.179,
+     "winPct": 29.3,
+     "t": -1.31,
+     "verdict": "not evidence",
+     "trainR": -0.373,
+     "testR": 0.338
+    },
+    "retest": {
+     "n": 84,
+     "meanR": 0.121,
+     "winPct": 39.3,
+     "t": 0.76,
+     "verdict": "not evidence",
+     "trainR": 0.121,
+     "testR": 0.123
+    },
+    "control": {
+     "n": 183,
+     "meanR": -0.064,
+     "winPct": 34.4,
+     "t": -0.61,
+     "verdict": "not evidence",
+     "trainR": -0.021,
+     "testR": -0.195
+    }
+   }
+  }
+ },
+ "note": "Past candles only. Not a forecast, not a live result."
+}

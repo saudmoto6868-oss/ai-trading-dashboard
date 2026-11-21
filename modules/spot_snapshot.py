@@ -89,6 +89,40 @@ def write(snap: dict, path: str = PATH) -> str:
     return path
 
 
+LOG = os.path.join(ROOT, "docs", "spot", "ideas_log.jsonl")
+
+
+def append_log(snap: dict, path: str = LOG) -> int:
+    """Every idea the desk showed is kept once (day + asset + kind + entry), so its outcome can be measured later.
+    Win / loss is decided by the later price path, not by this file. Returns the number of new rows."""
+    day = str(snap.get("generated", ""))[:10]
+    seen = set()
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    o = json.loads(line)
+                    seen.add((o.get("day"), o.get("asset"), o.get("kind"), json.dumps(_jsonable(o.get("entry")))))
+                except ValueError:
+                    continue
+    new = []
+    for i in snap.get("ideas") or []:
+        if i.get("entry") is None or i.get("stop") is None:
+            continue
+        key = (day, i.get("asset"), i.get("kind"), json.dumps(_jsonable(i.get("entry"))))
+        if key in seen:
+            continue
+        seen.add(key)
+        new.append({"day": day, "asset": i.get("asset"), "kind": i.get("kind"), "horizon": i.get("horizon"),
+                    "entry": i.get("entry"), "stop": i.get("stop"), "targets": i.get("targets"), "rr": i.get("rr"), "conf": i.get("conf")})
+    if new:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            for o in new:
+                f.write(json.dumps(_jsonable(o), ensure_ascii=False) + "\n")
+    return len(new)
+
+
 def load(path: str = PATH) -> dict:
     """Embedded into the Workspace at build time. Missing or broken file -> {} (the widget says so)."""
     try:

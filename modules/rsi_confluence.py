@@ -199,4 +199,5 @@ def read_symbol(df, setup: dict | None, flow_vote: int = 0, deep: bool = True) -
     except Exception:
         plan = None
     return {"votes": votes, **c, "verdict": verdict(c, setup.get("phase"), setup.get("regime")),
-            "fresh": min(agos) if agos else None, "plan": plan}
+            "fresh": min(agos) if agos else None, "plan": plan, "signals": signals,
+            "harm": [h.get("name", "") for h in harmonics or []], "pats": [p[0] for p in pats]}

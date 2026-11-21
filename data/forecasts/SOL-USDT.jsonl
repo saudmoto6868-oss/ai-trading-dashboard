@@ -1,0 +1,1 @@
+{"id": "SOL-USDT|2026-11-21", "symbol": "SOL-USDT", "class": "Crypto", "tf": "1D", "side": "long", "entry": 67.77, "stop": 67.15, "target": 68.69999999999999, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

@@ -7,7 +7,7 @@ try { new PerformanceObserver(l => l.getEntries().forEach(e => { if (e.duration 
 const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31: standard TLS port 443
 const SYMS = CFG.symbols.slice();
-const LS = "ai_ws_v5";
+const LS = CFG.solo ? "ai_ws_solo" : "ai_ws_v5";   // solo = the chart-only widget on the RSI page: its own saved layout, never the Workspace one
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
 const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };   // OFF by default (free chart, like TradingView): with it on, every live tick and every data load re-centres the view on the latest candle and undoes a manual pan. The ⊙ button turns it on; the STANDARD layout charts start with it on (state.ac)
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };

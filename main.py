@@ -3387,13 +3387,15 @@ def _academy_schools():
                     st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
                 st.markdown(body)
         with right:
-            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")])
-            with tabs[0]:
+            # one tab runs per rerun (st.tabs ran all four); same content, same order
+            _ac_names = [L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")]
+            _ac_pick = st.segmented_control(" ", list(range(4)), default=0, format_func=lambda i: _ac_names[i], key=f"ac_ref_tab_{x['id']}", label_visibility="collapsed") or 0
+            if _ac_pick == 0:
                 st.markdown(x["examples"] or L("No lessons yet."))
-            with tabs[1]:
+            elif _ac_pick == 1:
                 st.info(L("External evidence from published sources. It is context, not the project's lab result."))
                 st.markdown(x["evidence"] or L("No lessons yet."))
-            with tabs[2]:
+            elif _ac_pick == 2:
                 if not x["review"]:
                     st.caption(L("No school-specific review yet; the general findings are in the References tab."))
                 for l_ in x["review"]:
@@ -3406,7 +3408,7 @@ def _academy_schools():
                         st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
                     if l_["caveats"]:
                         st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
-            with tabs[3]:
+            else:
                 st.markdown(x["ai"] or L("No lessons yet."))
 
 
@@ -3485,6 +3487,8 @@ if PAGE == 0:   # workspace
         _stk_t = _stock_tickers()
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
         _ws_stat.caption("⏳ Workspace: building the page...")
+        from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
+        _JSYNC.sync()
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,

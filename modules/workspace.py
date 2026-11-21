@@ -211,7 +211,19 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
-    return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
+    return _template_text().replace("__CONFIG__", payload, 1)
+
+
+_TPL_CACHE: dict = {}
+
+
+def _template_text() -> str:
+    """The 1.15 MB template was re-read from disk on every Streamlit rerun; cache it, reload only when the file changes."""
+    mt = _TEMPLATE.stat().st_mtime_ns
+    if _TPL_CACHE.get("mt") != mt:
+        _TPL_CACHE["mt"] = mt
+        _TPL_CACHE["text"] = _TEMPLATE.read_text(encoding="utf-8")
+    return _TPL_CACHE["text"]
 
 
 def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
@@ -286,7 +298,8 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
 
     # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
     # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
-    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
+    # the template's mtime is part of the key: a new build (UI change) is shown at once, not after the 3-10 min reuse window
+    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height, _TEMPLATE.stat().st_mtime_ns)
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
         doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)

@@ -214,7 +214,7 @@ def run(now_utc: datetime, fetch, send, sent: dict, calendar_rows=None, dry: boo
                 block = agent_result.text(agent_result.summarize(res))
             except Exception:
                 block = ""   # the review must go out even when the agents block cannot be built
-            out(f"review|{rd}", brain.review_text(entries, graded, agents=block))
+            out(f"review|{rd}", brain.review_text(entries, graded, agents=block, lessons=_lessons()))
     if log is not None:
         log.append(f"{len(msgs)} message(s)")
     return msgs
@@ -242,3 +242,12 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+
+def _lessons() -> list:
+    """Journal lesson candidates for the review text; empty on any error so the review still goes out."""
+    try:
+        from modules import trade_learning
+        return trade_learning.suggestions()
+    except Exception:
+        return []

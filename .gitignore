@@ -20,3 +20,11 @@ data/spot/
 
 # the brain (modules/brain.py): its memory lives in the GitHub Actions cache
 .brain_*
+
+# research outputs rebuilt by scripts (trade review DB, per-event dumps)
+research/trade_db/*.sqlite
+research/htf_arms/events.csv.gz
+
+# trade journal store, lessons and reports (personal trade data, never commit)
+data/journal/
+data/x77/

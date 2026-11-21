@@ -316,7 +316,7 @@ const TC = {
       const c = {tf:{bias:S.bias, setup:S.setup, entry:S.entry}, ps:X.ps, atr:X.a, levels, bias, setupB, trig, confl, vpAt:vn ? vn.src : "", hist, late:late > 0.4 ? late : 0, regime:reg,
         news:nw ? (nw.country+" "+(nw.title || "")) : "", openSame:open.some(t => t.symbol === sym && t.dir === dir), openOpp:open.some(t => t.symbol === sym && t.dir !== dir),
         classOpen:open.filter(t => t.symbol !== sym && symClass(t.symbol) === cls && t.dir === dir).length, jr:this.record(style, idea.det), scalp:style === "Scalp", ses};
-      return Object.assign({}, idea, {j:TCE.judge(idea, c), hist}); });
+      const ctxSnap = {lv:X.lv.slice(0, 8).map(l => ({p:l.p, k:l.kind})), nodes:X.nodes.slice(0, 4).map(n => ({p:n.p, src:n.src})), regime:reg, ses, news:c.news, atr:X.a, px:X.px, ps:X.ps}; return Object.assign({}, idea, {j:TCE.judge(idea, c), hist, ctxSnap}); });
   },
   async scanSym(sym, style, opt){
     const st = await this.stack(sym, style), S = TCE.STYLES[style], pr = this.peer(sym);
@@ -340,7 +340,7 @@ const TC = {
       .concat(j.pros.map(p => "✔ "+p[2]), j.cons.map(p => "✘ "+p[2]), j.vetoes.map(p => "⛔ "+p[1]), j.second.map(p => "↻ "+p[1]));
     return {symbol:sym, direction:long_ ? "bullish" : "bearish", ttype:style, tfk:S.tfk, tfc:S.entry, score:Math.round(j.pct/10), max:10, src:"tclass", det:x.det, verdict:j.verdict,
       plan:{entry:j.plan.entry, stop:j.plan.stop, tps:j.plan.tps}, zones:[{lo:Math.min(x.entry, x.stop), hi:Math.max(x.entry, x.stop), dir:long_ ? "bullish" : "bearish"}],
-      tags:[[this.detKey(x.det), "#f0b90b", "#000", x.label], [j.pts+Lg(" pts"," نقطة"), "#4aa3ff", "#000", "target in points"]], spark:r.spark, ana:{sig:ar}, j, pts:j.pts, ps:r.ps, label:x.label};
+      tags:[[this.detKey(x.det), "#f0b90b", "#000", x.label], [j.pts+Lg(" pts"," نقطة"), "#4aa3ff", "#000", "target in points"]], spark:r.spark, ana:{sig:ar}, j, pts:j.pts, ps:r.ps, label:x.label, ctxSnap:x.ctxSnap};
   },
   // TAKE + price at the zone -> Alerts (never replaces a stronger card of the same symbol / side / type)
   push(style){ Object.keys(this.res).filter(k => k.startsWith(style+"|")).forEach(k => { const r = this.res[k], x = r.ideas && r.ideas[0]; if (!x || x.j.verdict !== "TAKE" || !x.now) return;
@@ -470,7 +470,7 @@ Panel.prototype.build_tclass = function(){
         +(cand.length ? ' · '+esc(Lg("candidates before it: ","المرشحين قبلها: "))+cand.map(([s_, , ids]) => esc(s_.replace(/^HL:xyz:|^Y:|-USDT.*$/g, ""))+" "+(ids[0].side > 0 ? "▲" : "▼")+" "+esc(ids[0].label)).join(" · ") : ""); }
     { const lb = TC.DETS.map(d => [d, TC.record(S.style, d[0])]).filter(([, r]) => r.done > 0).sort((x, y) => (y[1].avgR || 0) - (x[1].avgR || 0));
       sum.innerHTML += '<br><span class="m">📚 '+esc(Lg("Schools in your journal (","المدارس في الجورنال ("))+esc(ttTxt(S.style))+'): '+(lb.length ? lb.map(([d, r]) => esc(Lg(d[1], d[2]))+" "+r.done+" · "+Math.round(100*r.win/r.done)+"% · "+(r.avgR >= 0 ? "+" : "")+r.avgR.toFixed(2)+"R").join(" | ")
-        +esc(Lg(" — the engine adds / removes weight from a school after 10 closed trades; under 30 = not evidence"," — المحرك يزيد أو يقلل وزن المدرسة بعد 10 صفقات مغلقة؛ أقل من 30 = ليس دليلًا")) : esc(Lg("no closed trades yet","لا توجد صفقات مغلقة بعد")))+'</span>'; }
+        +esc(Lg(" — this widget does not change school weights; the Telegram daily ranking (brain) may nudge them after 10 graded trades, never the signals; under 30 trades = not evidence"," — هذه الأداة لا تغيّر أوزان المدارس؛ ترتيب التليجرام اليومي (المخ) قد يعدّلها بعد 10 صفقات مقيّمة، ولا يغيّر الإشارات؛ أقل من 30 صفقة = ليس دليلًا")) : esc(Lg("no closed trades yet","لا توجد صفقات مغلقة بعد")))+'</span>'; }
     let h = "", shown = 0;
     list.forEach(([s, r, ids]) => { const x = ids[0]; if (!showOk(x.j.verdict)) return; shown++;
       const others = ids.slice(1, 4).map(o => esc(o.label)+" ("+VT[o.j.verdict]+", "+o.j.score+")").join(" · ");

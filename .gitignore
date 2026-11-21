@@ -20,3 +20,4 @@ data/spot/
 
 # the brain (modules/brain.py): its memory lives in the GitHub Actions cache
 .brain_*
+data/x77/

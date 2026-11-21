@@ -132,6 +132,7 @@ class CandleChart {
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.drawSoon(); this.checkMore();
   }
   down(e){
+    if (this.alarmDown && this.alarmDown(e)) return;   // the + beside the price / an alert tag (modules/ws/21d_price_alarms.js)
     { const r1 = this.cv.getBoundingClientRect(), mx1 = (e.clientX - r1.left)/this.S, my1 = (e.clientY - r1.top)/this.S;   // ✕ on the order-flow gauge / sync card
       const hit = k => { const Z = this[k]; return Z && mx1 >= Z.x && mx1 <= Z.x + Z.w && my1 >= Z.y && my1 <= Z.y + Z.h; };
       if (this.colOn && hit("_gaX")){ this.gaOn = false; this._gaX = null; this.onOfX && this.onOfX(); this.draw(); return; }
@@ -398,6 +399,7 @@ class CandleChart {
       const rem = candleRem(last.t, this.tf), sec = Math.floor(rem/1000), hh = Math.floor(sec/3600), mm = Math.floor(sec%3600/60), ss = sec%60;
       c.fillStyle = "#2b3139"; c.fillRect((this.W-this.axw)+1, ly+9, this.axw-2, 14); c.fillStyle = "#eaecef"; c.fillText("⏱ "+(hh ? hh+":"+pad2(mm)+":"+pad2(ss) : pad2(mm)+":"+pad2(ss)), (this.W-this.axw)+5, ly+16);
     }
+    if (this.paintAlarms) this.paintAlarms(c, py, PR, PB, dec);   // price alerts (21d_price_alarms.js)
     // crosshair + legend
     let show = last;
     if (!this.mouse && XHS.on && XHS.sym === this.sym && XHS.t != null && this.data.length){   // task 52: time from another chart
@@ -411,6 +413,7 @@ class CandleChart {
       const tx = this.x(ii), label = this.fmtTime(this.data[ii].t, true); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, H-19, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, H-10);
     }
+    if (this.paintPlus) this.paintPlus(c, m, PR, PB, dec);
     const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? TH.up : TH.dn;
     c.textAlign = "left"; c.fillStyle = "#848e9c";
     const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";

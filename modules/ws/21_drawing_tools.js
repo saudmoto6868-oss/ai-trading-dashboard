@@ -894,8 +894,10 @@ Object.assign(CandleChart.prototype, {
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (q.x <= this.PR && q.y <= this.PB && isFinite(q.p)){
       item(Lg("Horizontal line at ","خط أفقي عند ")+fmtP(q.p), () => { const d = {id:Date.now()+Math.random(), type:"hline", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.draw(); });
+      if (typeof palarmDialog === "function" && this.sym) item("⏰ "+Lg("Add alert at ","تنبيه عند ")+fmtP(q.p), () => palarmDialog({sym:this.sym, tf:this.tf, v:+q.p.toFixed(8)}, () => this.draw()));
       item(Lg("Copy price ","نسخ السعر ")+fmtP(q.p), () => ctxCopy(String(q.p))); item(Lg("Fit the view","ضبط العرض"), () => this.fit()); }
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
+    if (typeof palarmManager === "function") item("⏰ "+Lg("Alerts","التنبيهات")+" ("+PAlarm.list.length+")", () => palarmManager(this.sym, () => this.draw()));
     if (this.draws.length) item(T("cmAll")+" ("+this.draws.length+")", () => this.clearDraws());
     if (this.overlay || this.fibLv) item(T("cmOv"), () => { this.overlay = null; this.fibLv = null; this.draw(); });
     if (!m.children.length) item(T("cmNone"), () => {});

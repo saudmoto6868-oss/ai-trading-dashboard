@@ -88,7 +88,7 @@ def render(cr: list, plan_for, n, T, lang: str = "en") -> None:
     else:
         doc = build_workspace_html([it["sym"] for it in items], None, lang, asset_cls="Crypto", solo="radar", radar={"cols": cols, "h": h, "items": items})
         ss["spg_doc"] = (key, doc, time.time())
-    st.iframe(doc, height=-(-len(items) // cols) * h + 8, alt="Spot charts")
+    st.iframe(doc, height=-(-len(items) // cols) * h + 40, alt="Spot charts")   # + the all-charts bar
 
 
 def _safe(fn, sym):

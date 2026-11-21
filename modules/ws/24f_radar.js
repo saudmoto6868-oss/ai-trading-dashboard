@@ -12,13 +12,44 @@ const RadarMode = {
   layout(saved){
     const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, Ws.el.clientWidth || innerWidth), w = Math.floor(W / cols);
     const old = {}; (saved || []).forEach(p => { if (p && p.type === "chart" && p.state && p.state.sym) old[p.state.sym] = p.state; });
-    return this.items().map((it, i) => ["chart", {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2},
+    return this.items().map((it, i) => ["chart", {x:(i % cols)*w, y:this.BAR + Math.floor(i / cols)*H, w:w - 2, h:H - 2},
       Object.assign({group:0, ema:{9:true, 21:true, 50:false}}, old[it.sym] || {}, {sym:it.sym, tf:this.tf(it.tf), min:false, lock2:true})]);
   },
   // the frame's width is not known yet while the page boots: lay the grid out again once loaded and on every resize (Streamlit resizes the iframe)
   fit(){ const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, document.documentElement.clientWidth || innerWidth), w = Math.floor(W / cols);
-    Ws.panels.filter(p => p.type === "chart").forEach((p, i) => { p.rect = {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2}; p.apply(); try { p.chart.resize(); } catch(e){} });
+    Ws.panels.filter(p => p.type === "chart").forEach((p, i) => { p.rect = {x:(i % cols)*w, y:this.BAR + Math.floor(i / cols)*H, w:w - 2, h:H - 2}; p.apply(); try { p.chart.resize(); } catch(e){} });
     document.querySelectorAll(".rdinfo").forEach(x => x.remove()); },
+  BAR: 30,   // height of the "indicators on ALL charts" bar above the grid
+  allKey(){ return LS + "_all"; },
+  allGet(){ const v = store.get(this.allKey(), {}); return v && typeof v === "object" ? v : {}; },
+  // one indicator on / off on every chart (owner 2026-11-21: "pick an indicator once, it goes on all the charts"); remembered for this grid
+  setAll(id, on){ const m = this.allGet(); m[id] = !!on; store.set(this.allKey(), m);
+    Ws.panels.forEach(p => { const it = (p.indItems || []).find(x => x.id === id); if (!it || !p.chart) return; try { it.set(!!on); p.state.mode = ""; if (p.indSave) p.indSave(); p.chart.draw(); } catch(e){} });
+    Ws.save(); },
+  applyAll(p){ const m = this.allGet(); Object.keys(m).forEach(id => { const it = (p.indItems || []).find(x => x.id === id); if (it && it.get() !== m[id]) try { it.set(m[id]); } catch(e){} });
+    if (Object.keys(m).length && p.indSave) p.indSave(); },
+  allBar(){
+    const bar = el("div", "rdall"), btn = el("button", "rdallb", "ƒx " + esc(Lg("Indicators on ALL charts", "مؤشرات على كل الشارتات")) + " ▾"), chips = el("span", "rdchips");
+    const pop = el("div", "rdpop"); pop.style.display = "none";
+    const ref = () => (Ws.panels.find(p => p.indItems && p.indItems.length) || {}).indItems || [];
+    const drawChips = () => { chips.innerHTML = ""; const m = this.allGet(), items = ref();
+      Object.keys(m).filter(id => m[id]).forEach(id => { const it = items.find(x => x.id === id); const c = el("button", "rdchip", esc((it ? it.label : id).slice(0, 34)) + " ✕");
+        c.title = Lg("Remove from all charts", "شيله من كل الشارتات"); c.onclick = () => { this.setAll(id, false); drawChips(); render(); }; chips.append(c); }); };
+    const render = () => { pop.innerHTML = ""; const items = ref().filter(it => it.id !== "ma" && it.id !== "zlog" && typeof it.set === "function");
+      const q = el("input"); q.placeholder = Lg("Search indicators…", "ابحث عن مؤشر…"); q.className = "rdq"; pop.append(q);
+      const list = el("div", "rdlist"); pop.append(list); const m = this.allGet();
+      const fill = () => { list.innerHTML = ""; const s = q.value.trim().toLowerCase(); let g0 = null;
+        items.filter(it => !s || String(it.label).toLowerCase().includes(s)).forEach(it => { const g = it.grp ? Lg(it.grp.en, it.grp.ar) : "";
+          if (g && g !== g0){ list.append(el("div", "rdgh", esc(g))); g0 = g; }
+          const row = el("label", "rdrow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!m[it.id];
+          cb.onchange = () => { this.setAll(it.id, cb.checked); m[it.id] = cb.checked; drawChips(); }; row.append(cb, el("span", null, esc(it.label))); if (it.tip) row.title = it.tip; list.append(row); }); };
+      q.oninput = fill; fill();
+      const clr = el("button", "rdclr", esc(Lg("Turn all of these off on every chart", "اقفل الكل من كل الشارتات")));
+      clr.onclick = () => { Object.keys(this.allGet()).forEach(id => this.setAll(id, false)); store.set(this.allKey(), {}); drawChips(); render(); }; pop.append(clr); };
+    btn.onclick = e => { e.stopPropagation(); if (pop.style.display !== "none"){ pop.style.display = "none"; return; } render(); pop.style.display = "block"; };
+    document.addEventListener("pointerdown", e => { if (pop.style.display !== "none" && !pop.contains(e.target) && e.target !== btn) pop.style.display = "none"; }, true);
+    bar.append(btn, chips, pop); Ws.el.append(bar); setTimeout(drawChips, 1500);
+  },
   isOn(p, pt){
     if (pt.kind === "ind"){ const it = (p.indItems || []).find(x => x.id === pt.ind); return !!(it && it.get()); }
     if (pt.kind === "sr") return !!(p.chart && p.chart.srOn);
@@ -56,6 +87,7 @@ const RadarMode = {
       box.style.zIndex = ++Ws.z + 1000; Ws.el.append(box); more.textContent = "▴"; };
     // the chart needs a moment to load its candles (and the indicators menu); then mark what is on and open the first point
     let tries = 0; const sync = () => { if (!p.chart || !p.chart.data.length){ if (++tries < 40) setTimeout(sync, 500); return; }
+      this.applyAll(p);
       btns.forEach((b, i) => b.classList.toggle("on", this.isOn(p, pts[i])));
       const first = pts.findIndex(x => x.kind !== "info"); if (first >= 0 && !btns[first].classList.contains("on")){ this.toggle(p, pts[first], true); btns[first].classList.add("on"); } };   // the main find (point 1) always opens
     setTimeout(sync, 300);

@@ -17,7 +17,7 @@ def _tags(raw: str) -> tuple[str, ...]:
 
 def render() -> None:
     st.subheader("X77")
-    st.caption("Saves what you send (text, link, image, video, document). Nothing here analyses or trades yet.")
+    st.caption("Saves what you send (text, link, image, video, document) and labels chart detections by school. Labels are not evidence; nothing here trades.")
 
     with st.form("x77_add", clear_on_submit=True):
         kind = st.selectbox("Kind", KIND_CHOICES, index=0)

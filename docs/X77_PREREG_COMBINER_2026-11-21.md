@@ -44,3 +44,23 @@ Short n = "inconclusive", not "pass" and not "fail".
 Dose-response (mean R at score 1, 2, 3, 4+). Random-entry baseline matched on direction + regime (1,000 permutations).
 
 Source: design reviewed by one advisor question (Fable), 2026-11-21. Numbers marked "confirm" still need checking against the lab code.
+
+## Addendum 2026-11-21 — history check (from the existing lab run, nothing new run)
+The strategy lab already measures confluence (`modules/strategy_lab.py`, "confluence": families agreeing on one bar,
+majority vote, same 1.5 x ATR stop / 1.5R target). Latest saved run: `data/strategy_lab.json`, commit b0997ef1
+(2026-11-17), 12 markets x 5 timeframes, gross R (no costs):
+
+| Families agreeing, no opposition | n | win % | avg R gross |
+|---|---|---|---|
+| 1 | 30 | 33.3 | +0.041 |
+| 2 | 404 | 40.3 | +0.067 |
+| 3 | 1,187 | 39.3 | +0.054 |
+| 4+ | 951 | 36.5 | -0.057 |
+
+Score >= 3 pooled: n = 2,138, avg about +0.005R gross, about -0.095R after the lab's 0.10R cost.
+No dose-response (more agreement does not raise R; 4+ is the worst). Win rates sit at or under the 40% break-even of a 1.5R target.
+
+Verdict: **killed on history.** The run differs from this registration (all timeframes pooled, lab family set, majority vote,
+48-bar horizon on 1h), but the gross mean is near zero with n > 2,000, so a 0.10R cost cannot be beaten by re-cutting the
+same data. The forward test is not worth running for "count of agreeing families". A new hypothesis (for example
+specific family pairs under one regime) needs its own registration before any data is looked at.

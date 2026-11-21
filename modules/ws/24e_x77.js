@@ -37,3 +37,22 @@ Panel.prototype.build_x77 = function(){
   this.resub = () => { this.setTitle(); draw(); };
   const tm = setInterval(draw, 15000); this.unsubs.push(() => clearInterval(tm)); draw();
 };
+// Chart indicator "X77" (Indicators menu, Sessions & signals group): the same school labels drawn on the chart.
+// One line per live setup on this symbol (top left) + a small "X77" tag at its entry price. Labels only.
+CandleChart.prototype.paintX77 = function(c, py, PR){
+  const X = (typeof CFG !== "undefined" && CFG.x77) || {}, KM = X.keys || {}, SC = X.schools || {}, ar = lang === "ar";
+  let rows = []; try { rows = readyList(true).filter(e => e.symbol === this.sym).slice(0, 4); } catch(e){}
+  c.save(); c.font = "11px sans-serif"; c.textBaseline = "middle"; c.textAlign = "left";
+  const y0 = 34 + 4*15, line = (txt, y, col) => { const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
+    c.fillStyle = col; c.fillText(txt, 50, y); };
+  if (!rows.length) line("X77: " + (ar ? "مفيش سيتاب حي للرمز ده" : "no live setup on this symbol"), y0, "#9aa4b2");
+  rows.forEach((e, i) => {
+    const up = e.direction === "bullish", col = up ? "#0ecb81" : "#f6465d", keys = e.keys || [];
+    const sch = [...new Set(keys.map(k => KM[k] || "S_OTHER"))].map(s => (SC[s] || [s, s])[ar ? 0 : 1]);
+    const prs = x77Pairs(keys);
+    line("X77 " + (up ? "▲" : "▼") + " " + (e.tf || e.tfk || "") + ": " + (sch.join(" · ") || "-") + (prs.length ? "  [" + prs.join(",") + (ar ? " اتلغى" : " killed") + "]" : ""), y0 + i*18, col);
+    const ent = e.plan && e.plan.entry, y = ent != null ? py(ent) : null;
+    if (y != null && isFinite(y)){ c.fillStyle = col; c.fillRect(PR - 34, y - 7, 30, 14); c.fillStyle = "#000"; c.textAlign = "center"; c.fillText("X77", PR - 19, y); c.textAlign = "left"; }
+  });
+  c.restore();
+};

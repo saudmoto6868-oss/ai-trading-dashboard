@@ -324,6 +324,7 @@ class CandleChart {
     if (this.dcOn) this.paintHtfCandles(c, py);   // 2026-11-20: higher-timeframe candles (default: today as one big candle), fixed at the right edge
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
+    if (this.x77On && this.paintX77) this.paintX77(c, py, PR);   // X77 schools of the live setups on this symbol (24e_x77.js)
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
     this.infoChip(c);
     if (this.ewOn || this.harmOn) this.htfNote(c, 2);   // bigger-timeframe trend, once per paint

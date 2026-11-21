@@ -302,7 +302,8 @@ Ws.defaults = () => {
   try { const mine = store.get(LS+"_std", null); if (mine && mine.v >= 7 && Array.isArray(mine.panels) && mine.panels.length) return mine.panels.map(p => [p.type, p.rect, JSON.parse(JSON.stringify(p.state || {}))]); } catch(e){}
   return Ws.builtinStandard(); };
 Ws.builtinStandard = () => {
-  const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
+  // fill the VISIBLE area (the frame can be taller than the screen; a fixed 960 px grid sat in the middle of it). Ws.viewRect() = the visible part of the frame
+  const vis = (() => { try { return Ws.viewRect().h; } catch(e){ return 0; } })(), W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700), vis || 700) - 8), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
   const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
   return [

@@ -593,4 +593,13 @@ def scan_entry(r: dict, df: pd.DataFrame, ar: bool | None = None) -> dict | None
         "plan": {"entry": round(plan["entry"], 6), "stop": round(plan["stop_loss"], 6),
                  "tps": [round(x, 6) for x in plan["take_profits"]]},
         "eta": eta_ar(df, plan, r["timeframe"], ar), "tv": tv_link(r["symbol"], r["timeframe"]),
+        "lab": _lab_card(r),   # backtest beside the signal: weekly-lab row per detector (owner 2026-11-20)
     }
+
+
+def _lab_card(r):
+    try:
+        from modules.lab_tiers import card
+        return card([s.get("key") for s in r.get("signals", [])], r.get("timeframe", ""))
+    except Exception:   # no lab file / bad row: the card simply shows nothing
+        return []

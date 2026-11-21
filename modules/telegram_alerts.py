@@ -157,3 +157,11 @@ def dispatch(alerts: list[dict], sent: dict, top_n: int = 3, min_q: int = 60) ->
             break
         mark(a, sent); n += 1
     return n, err
+
+
+NO_SECRETS = "no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID in Secrets"
+
+
+def no_secrets(err) -> bool:
+    """True when a send failed only because the Telegram secrets are not set (not a real send error)."""
+    return bool(err) and str(err).startswith(NO_SECRETS)

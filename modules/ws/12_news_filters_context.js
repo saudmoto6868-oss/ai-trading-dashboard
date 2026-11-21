@@ -122,7 +122,7 @@ const Ctx = {
   oiFlag(c, dir){ const o = c && c.oi; if (!o) return {k:"na", txt:"–"}; const L_ = dir === "bullish", r = o.read;
     const txt = (o.oi4 > 0 ? "+" : "")+o.oi4.toFixed(1)+"% OI · "+({longs:Lg("new longs","لونجات جديدة"), cover:Lg("short covering","تغطية شورت"), shorts:Lg("new shorts","شورتات جديدة"), closing:Lg("longs closing","لونجات بتقفل")})[r];
     const k = L_ ? (r === "longs" ? "ok" : r === "cover" ? "mid" : "bad") : (r === "shorts" ? "ok" : r === "closing" ? "mid" : "bad"); return {k, txt, read:r}; },
-  snapshot(sym, dir){ const c = this.cache[sym]; return {of:this.ofVerdict(c, dir), ses:this.session(), news:!!this.news(sym), fund:this.fundFlag(c, dir), oi:this.oiFlag(c, dir).read || null}; }
+  snapshot(sym, dir){ const c = this.cache[sym], nw = this.news(sym); return {of:this.ofVerdict(c, dir), ses:this.session(), news:!!nw, newsMin: nw ? Math.round((nw.ts - Date.now())/60000) : null, newsTitle: nw ? String(nw.title || "").slice(0, 80) : null, fund:this.fundFlag(c, dir), oi:this.oiFlag(c, dir).read || null}; }
 };
 const Alerts = {
   list: store.get(LS+"_alerts", []).filter(a => a.kind === "scan" && a.card), subs: new Set(),

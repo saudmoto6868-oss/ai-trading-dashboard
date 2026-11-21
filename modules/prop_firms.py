@@ -321,7 +321,7 @@ def _list_card_html(acc: dict) -> str:
     color = acc.get("color","#f0b429")
     t_cls, t_txt = _timer_text(acc)
     ds = _days_since(acc.get("last_trade_date") or "")
-    trade_note = _xl(f"آخر صفقة: {ds}ي","f{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
+    trade_note = _xl(f"آخر صفقة: {ds}ي",f"{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
     size_txt = f'{acc.get("size","?")} {acc.get("currency","USD")}'
     return (
         f'<div class="pfc-card-top">'
@@ -597,11 +597,29 @@ def _account_form(existing: dict | None = None) -> dict | None:
 
 
 # ── AI rules extractor ────────────────────────────────────────────────────────
+def _is_public_http_url(url: str) -> bool:
+    """Only http(s) to a public address: blocks file:, localhost, private and link-local targets (SSRF).
+    shortcut: checks the host's IPs once, not each redirect hop, upgrade with a no-redirect opener if this page ever fetches untrusted links."""
+    import ipaddress, socket
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(url)
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        for info in socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP):
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def _ai_extract_rules(firm_name: str, firm_url: str) -> dict:
     """Fetch firm page and extract rules via Claude or Gemini. Returns partial dict."""
     import urllib.request, re as _re
     raw_text = ""
-    if firm_url:
+    if firm_url and _is_public_http_url(firm_url):
         try:
             req = urllib.request.Request(firm_url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=8) as r:

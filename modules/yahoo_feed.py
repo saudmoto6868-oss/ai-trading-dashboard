@@ -102,14 +102,16 @@ def tv_symbol(sym: str) -> str:
 EMBED_TFS = ("15m", "1h", "4h", "1d")
 
 
-def embed(symbols, bars: int = 200) -> dict:
+def embed(symbols, bars: int = 200, frames: dict | None = None) -> dict:
     """{ "Y:SYM": {"15m": [[ms,o,h,l,c,v], ...oldest first], "1h": ..., "4h": ..., "1d": ...} } for the browser Workspace
-    (its page cannot call Yahoo itself - CORS - so the candles are handed over inside the page). Failed symbols are left out."""
+    (its page cannot call Yahoo itself - CORS - so the candles are handed over inside the page). Failed symbols are left out.
+    frames = candles already downloaded by the caller ({sym: {tf: DataFrame}}): used as they are, nothing is fetched."""
     from modules.market_cache import fetch_frames
     ys = [x for x in symbols if is_yahoo(x)]
     if not ys:
         return {}
-    frames, _errs = fetch_frames(ys, list(EMBED_TFS), limit=bars, workers=8)
+    if frames is None:
+        frames, _errs = fetch_frames(ys, list(EMBED_TFS), limit=bars, workers=8)
     out = {}
     for sym in ys:
         d = {}

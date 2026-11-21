@@ -407,14 +407,20 @@ def render():
         from modules.workspace import render_workspace
         ys = [x for x in symbols if x.startswith("Y:")][:12]   # cap: each Yahoo symbol is 4 downloads when the board has not fetched it yet
         ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
-        with st.spinner("Loading Yahoo candles…" if ys else "Loading…"):
-            yf = _yahoo_embed(tuple(ys)) if ys else {}
+        have = st.session_state.get("rsi_hm_frames") or {}
+        from modules.yahoo_feed import EMBED_TFS, embed
+        if ys and all(tf in (have.get(s) or {}) for s in ys for tf in EMBED_TFS):   # the board of this market was just loaded: no download
+            yf = embed(ys, frames=have)
+        else:
+            with st.spinner("Loading Yahoo candles…"):
+                yf = _yahoo_embed(tuple(ys)) if ys else {}
         st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد وياهو (أول 12 رمز ياهو).")
         render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart", yf=yf)
         return
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
         frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
+    st.session_state["rsi_hm_frames"] = frames   # the AI chart view reuses these candles instead of downloading them again
 
     detail, setups = {}, {}
     for symbol in symbols:

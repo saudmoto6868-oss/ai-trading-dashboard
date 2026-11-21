@@ -47,6 +47,7 @@ class Panel {
     Ws.el.append(this.root); Ws.panels.push(this);
     this.apply(); this.paint(); this.root.classList.toggle("min", this.min);
     this.bindDrag(); this.setTitle(); this.build();
+    if (CFG.solo === "radar" && this.type === "chart") try { RadarMode.decorate(this); } catch(e){ console.error(e); }   // Radar grid: the scanner's points under the chart
     this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
   }
   setTitle(){ { const hasS = ["chart","dom","tape","limits","ofm","fund","liq","posn","tvc"].includes(this.type); this.ttl.innerHTML = esc(T(this.type)) + (hasS ? " · "+symIcon(this.state.sym, 14)+esc(this.state.sym) : ""); } this.grp.title = T("group"); }
@@ -400,7 +401,7 @@ class Panel {
       items.forEach(it => { if (!done.has(it.id)){ it.grp = it.grp || G("Other","أخرى"); ordered.push(it); } });   // anything not listed keeps working, at the end
       items.splice(0, items.length, ...ordered); }
     this.indItems = items;   // task 22: the Master button turns these off/on together
-    const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
+    const save = this.indSave = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];
     const UI = this.indUI = this.indUI || {x:null, y:null, min:false, pin:false};

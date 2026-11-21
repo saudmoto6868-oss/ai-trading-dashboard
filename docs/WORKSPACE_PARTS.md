@@ -18,6 +18,7 @@
 | `23_orderflow` | تجميع الأسعار، FLOWREAD، ZoneLog |
 | `24_flow_confluence_misc` | Flow confluence وما بعده لحد الـGuide |
 | `24b_tclass` | **تصنيف الصفقات** (`TCE` محرك نقي بين `TCLASS-BEGIN/END` + `TC` + نوع بانل `tclass`): سكالب/داي/سوينج/بوزشن بترابط الفريمات، صفقات ارتداد من الدعم/المقاومة بهدف بالنقاط، وبتدخل التنبيهات وكارت الصفقة والشريط. لازم يفضل قبل `26_snap` (استرجاع التخطيط) |
+| `24f_radar` | وضع الرادار (`solo="radar"`): شبكة شارتات الويدجت لصفحة الرادار وكريبتو السبوت، والنقاط تحت كل شارت |
 | `25_guide` | الشخصية الإرشادية، GVoice، GLive |
 | `26_snap` | اللقطة والتسجيل |
 | `27_xcmd` | `window.XCMD`: طبقة أوامر آمنة للسائقين الخارجيين (بوت XPiX عبر Playwright): state/setSymbol/setTf/toggle/draw/clearDrawings/addPanel/closePanel/shot. قراءة + رسم فقط، مفيش أوامر صفقات |

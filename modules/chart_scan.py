@@ -442,7 +442,7 @@ def features(df: pd.DataFrame, look: int = CROSS_LOOKBACK) -> dict:
         rg = _regime(df)["regime"]
     except Exception:   # the regime label is extra information: never let it break the screener
         rg = None
-    return {"rsi": r, "flags": f, "lines": [ln for v in pl.values() for ln in v], "regime": rg}
+    return {"rsi": r, "flags": f, "lines": [ln for v in pl.values() for ln in v], "plines": pl, "regime": rg}   # plines: per pattern, for the Radar chart points
 
 
 def mini_chart_svg(df: pd.DataFrame, bars: int = 60, w: int = 300, h: int = 150, lines=None) -> str:

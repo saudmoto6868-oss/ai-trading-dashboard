@@ -35,6 +35,7 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
 body.solo #bar,body.solo #strip{display:none}body.solo #ws{top:0}
+.rdft{flex:0 0 auto;display:flex;align-items:center;gap:3px;padding:2px 3px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;border-top:1px solid var(--line,#2b3139);scrollbar-width:thin}.rdft button{font-size:10px;line-height:15px;padding:0 5px;border-radius:3px;border:1px solid #2b3139;background:#161a1e;color:#c9d1d9;cursor:pointer}.rdft button.on{background:#3a2f0c!important;border-color:#f0b90b!important;color:#ffd666!important;font-weight:700}.rdft button.long{color:#0ecb81}.rdft button.short{color:#f6465d}.rdft button.long.on{background:#123a26!important;color:#2ef0a0!important}.rdft button.short.on{background:#3a1418!important;color:#ff7b8a!important}.rdft button.info{opacity:.6;cursor:default}.rdft .rdmore{margin-inline-start:auto;font-size:11px}.rdtag{font-size:10px;color:#0ecb81;background:#1e3a2a;border-radius:3px;padding:0 4px}.rdinfo{position:absolute;overflow-y:auto;background:rgba(18,22,27,.98);border:1px solid #2dd4bf66;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:18px;color:#e6e9ee;box-shadow:0 6px 24px rgba(0,0,0,.5)}.rdinfo hr{border:0;border-top:1px solid #2b3139;margin:6px 0}.rdinfo .xr-tip{display:block}
 body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the belt lives in the top bar */
 #strip .lbl{flex:none;color:var(--mut);font-size:10px;text-transform:uppercase}
 .stpop{position:fixed;z-index:2147483000;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
@@ -455,7 +456,7 @@ try { new PerformanceObserver(l => l.getEntries().forEach(e => { if (e.duration 
 const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31: standard TLS port 443
 const SYMS = CFG.symbols.slice();
-const LS = CFG.solo ? "ai_ws_solo" : "ai_ws_v5";   // solo = the chart-only widget on the RSI page: its own saved layout, never the Workspace one
+const LS = CFG.solo === "radar" ? "ai_ws_radar" : CFG.solo === "spot" ? "ai_ws_spot_v1" : CFG.solo ? "ai_ws_solo" : "ai_ws_v5";   // spot = the Spot page chart (full app, own layout; was a text replace that stopped matching and wrote the Workspace layout)   // radar = the Radar page grid (modules/ws/24f_radar.js)   // solo = the chart-only widget on the RSI page: its own saved layout, never the Workspace one
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
 const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };   // OFF by default (free chart, like TradingView): with it on, every live tick and every data load re-centres the view on the latest candle and undoes a manual pan. The ⊙ button turns it on; the STANDARD layout charts start with it on (state.ac)
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
@@ -1236,7 +1237,7 @@ async function candlesTf(sym, tf, first, want){   // -> candles oldest..newest f
 const isRL = e => /rate limit|429/i.test(String(e && e.message || e || ""));   // a rate limit is a pause, not a failure
 const hlPoll = tf => { const s = TFSEC[tf] || 60; return s >= 86400 ? 45000 : s >= 14400 ? 30000 : s >= 3600 ? 20000 : s >= 900 ? 10000 : 6000; };   // Hyperliquid candle poll period by timeframe: a daily candle does not need a 6 s poll (weight limit ~1200 / min per IP)
 const ageTxt = ms => { const m = Math.round(ms/60000); return m < 90 ? m+Lg(" min", " دقيقة") : m < 2880 ? Math.round(m/60)+Lg(" h", " ساعة") : Math.round(m/1440)+Lg(" days", " يوم"); };
-const offTxt = (sym, e) => isRL(e) ? T("busy") : (/^HL:/.test(String(sym || "")) ? T("offlineHL") : T("offline"));   // the text says WHICH venue and whether it is only a pause
+const offTxt = (sym, e) => isRL(e) ? (/^HL:/.test(String(sym || "")) ? T("busy") : Lg("OKX is rate-limiting this browser: waiting a few seconds, then retrying (not an error)", "OKX بيحدد عدد الطلبات من المتصفح ده: بنستنى ثواني ونعيد (مش خطأ)")) : (/^HL:/.test(String(sym || "")) ? T("offlineHL") : T("offline"));   // the text says WHICH venue and whether it is only a pause
 const LLC = new Map();   // symbol -> {t, v, p}: shared MTF LLT candles (see llKick)
 async function llFetch(sym){
   const c = LLC.get(sym), now = Date.now(); if (c && c.p) return c.p; if (c && c.v && now - c.t < (/^HL:/.test(sym) ? 90000 : 25000)) return c.v;   // Hyperliquid: 6 candle requests per refresh, so refresh every 90 s (the levels only change when a candle closes)
@@ -1252,6 +1253,7 @@ async function llFetch(sym){
 function setStatus(ok){ const d = document.getElementById("dot"); if (!d) return; d.className = ok ? "ok" : "bad"; d.title = ok ? T("live") : T("offline"); }
 
 /* ---------------- Trade journal: logs every scanner/alert trade, then follows it on OKX candles until TP1 or SL ---------------- */
+const TFMS = {"1m":6e4, "5m":3e5, "15m":9e5, "1h":36e5, "4h":144e5, "1d":864e5};
 const JBAR = {"1m":["1m",60000], "1H":["1H",3600000], "1D":["1D",86400000]};
 const JEXP = {"5m":6*3600e3, "15m":12*3600e3, "4h":6*86400e3, "1m":12*3600e3, "13m":24*3600e3, "1h":3*86400e3, "2h":4*86400e3, "3h":5*86400e3, "6h":8*86400e3, "7h":9*86400e3, "8h":10*86400e3, "12h":14*86400e3, "1d":20*86400e3, "3d":40*86400e3, "1w":60*86400e3, "1mo":120*86400e3};
 const TFC_ALL = {"1m":"1m","5m":"5m","13m":"13m","15m":"15m","4h":"4H","1h":"1H","2h":"2H","3h":"3H","6h":"6H","7h":"7H","8h":"8H","12h":"12H","1d":"1D","3d":"3D","1w":"1W","1mo":"1M"}, TFK_OPTS = [["1m","1m"],["5m","5m"],["13m","13m"],["15m","15m"],["1h","1h"],["2h","2h"],["3h","3h"],["4h","4h"],["6h","6h"],["7h","7h"],["8h","8h"],["12h","12h"],["1d","1d"],["3d","3d"],["1w","1w"],["1mo","1M"]];
@@ -1317,13 +1319,15 @@ const Journal = {
               else { const away = long_ ? (c.l > tr.entry ? c.h >= tr.tp1 : c.h < tr.entry && c.l <= tr.sl) : (c.h < tr.entry ? c.l <= tr.tp1 : c.l > tr.entry && c.h >= tr.sl); if (away){ tr.status = "nf"; tr.r = 0; tr.t1 = c.t + bar[1]; changed = true; break; } continue; } }
             // partial exits: each target books 1/n of the trade at its own R (n = 1, 2 or 3 targets); the stop books the units still open at -1R; status stays "open" until the last unit is closed
             tr.exits = tr.exits || []; const n = tr.tp3 ? 3 : tr.tp2 ? 2 : 1, risk = Math.abs(tr.entry - tr.sl) || 1e-12, sumR = () => tr.exits.reduce((a, e) => a + e.r, 0), booked = new Set(tr.exits.map(e => e.level));
-            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl;
-            if (sl){ const tpN = tr.exits.filter(e => e.level !== "sl").length; tr.exits.push({level:"sl", t:c.t + bar[1], price:tr.sl, r:-(n - tpN)/n}); tr.status = "sl"; tr.r = sumR(); tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
+            const beOn = booked.has("tp1"), slPx = beOn ? tr.entry : tr.sl;   // after TP1 the stop moves to the entry (breakeven): the rest of the trade cannot lose
+            const sl = long_ ? c.l <= slPx : c.h >= slPx;
+            if (sl){ const tpN = tr.exits.filter(e => e.level !== "sl").length; tr.exits.push({level:"sl", t:c.t + bar[1], price:slPx, r: beOn ? 0 : -(n - tpN)/n}); tr.status = "sl"; tr.r = sumR(); tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
             if (!fc) for (const [lvl, px] of [["tp1", tr.tp1], ["tp2", tr.tp2], ["tp3", tr.tp3]]){ if (!px || booked.has(lvl)) continue; if (long_ ? c.h >= px : c.l <= px){ booked.add(lvl); tr.exits.push({level:lvl, t:c.t + bar[1], price:px, r:Math.abs(px - tr.entry)/risk/n}); changed = true; } }   // the fill candle cannot book a target (the target may have printed before the fill)
             tr.r = sumR();
             if (tr.exits.filter(e => e.level !== "sl").length >= n){ tr.status = "tp"; tr.t1 = c.t + bar[1]; changed = true; break; }
           }
-          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = tr.fill === false ? 0 : (tr.exits || []).reduce((a, e) => a + e.r, 0); tr.t1 = Date.now(); changed = true; }
+          // max hold: 24 bars of the trade's timeframe, then it closes at the R already booked
+          if (tr.status === "open" && Date.now() - tr.t0 > Math.min(JEXP[tr.tfk] || 3*86400e3, 24 * (TFMS[tr.tfk] || 36e5))){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = tr.fill === false ? 0 : (tr.exits || []).reduce((a, e) => a + e.r, 0); tr.t1 = Date.now(); changed = true; }
         });
       }
     } finally { this.busy = false; }
@@ -3155,7 +3159,7 @@ Object.assign(CandleChart.prototype, {
   py2p(y){ return this._lo + (this.PB-y)/this.PB*(this._hi-this._lo); },
   pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
-  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
+  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws.filter(d => !d._rd))); } catch(e){} },
   setTool(t){ if (t !== "cur" && !this.drawingsVisible){ this.drawingsVisible = true; this.onDrawVis && this.onDrawVis(); }   // choosing a drawing tool while drawings are hidden shows them again: never draw something invisible
     this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
   cancelTool(){ if (this.creating){ this.draws = this.draws.filter(d => d !== this.creating); this.creating = null; } this.setTool("cur"); },
@@ -3847,7 +3851,7 @@ Object.assign(CandleChart.prototype, {
     const last = d[d.length-1].t;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
     for (const t of tr){
-      const x0 = this.tx(t.t0), x1 = this.tx(t.t1 || last);
+      const x0 = this.tx(t.t0), x1 = t.t1 ? this.tx(t.t1) : Math.min(this.tx(last), x0 + 30 * (this.bw || 6));   // open trade: the box stops after 30 bars (it used to run to the right edge forever)
       if (!(x1 >= 0) || x0 > this.PR) continue;
       const closed = t.status !== "open", long_ = t.dir === "bullish", w = Math.max(3, x1 - x0);
       const yE = py(t.entry), yS = py(t.sl), yT = py(t.tp1);
@@ -4766,6 +4770,7 @@ class Panel {
     Ws.el.append(this.root); Ws.panels.push(this);
     this.apply(); this.paint(); this.root.classList.toggle("min", this.min);
     this.bindDrag(); this.setTitle(); this.build();
+    if (CFG.solo === "radar" && this.type === "chart") try { RadarMode.decorate(this); } catch(e){ console.error(e); }   // Radar grid: the scanner's points under the chart
     this.root.addEventListener("pointerdown", () => this.front(), true); this.front();
   }
   setTitle(){ { const hasS = ["chart","dom","tape","limits","ofm","fund","liq","posn","tvc"].includes(this.type); this.ttl.innerHTML = esc(T(this.type)) + (hasS ? " · "+symIcon(this.state.sym, 14)+esc(this.state.sym) : ""); } this.grp.title = T("group"); }
@@ -5119,7 +5124,7 @@ class Panel {
       items.forEach(it => { if (!done.has(it.id)){ it.grp = it.grp || G("Other","أخرى"); ordered.push(it); } });   // anything not listed keeps working, at the end
       items.splice(0, items.length, ...ordered); }
     this.indItems = items;   // task 22: the Master button turns these off/on together
-    const save = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
+    const save = this.indSave = () => { this.state.st = JSON.parse(JSON.stringify(ch().st)); this.state.maL = ch().maL.map(m => Object.assign({}, m)); ch().calcEma(); ch().resize(); Ws.save(); this.ofSync && this.ofSync(); };
     // chart MODES: one click switches a whole indicator set; display options (trade box, divergence lines, table, BB lines) are left alone
     const KEEP = ["sbox","llt","bbshow","div","flow","dot3"];
     const UI = this.indUI = this.indUI || {x:null, y:null, min:false, pin:false};
@@ -7913,10 +7918,13 @@ Panel.prototype.build_x77 = function(){
 CandleChart.prototype.paintX77 = function(c, py, PR){
   const X = (typeof CFG !== "undefined" && CFG.x77) || {}, KM = X.keys || {}, SC = X.schools || {}, LB = X.lib || {}, ar = lang === "ar";
   let rows = []; try { rows = readyList(true).filter(e => e.symbol === this.sym).slice(0, 4); } catch(e){}
+  const ov = this.overlay;   // the chart's own scanner setup for this symbol AND timeframe (same one the chart draws)
+  if (!rows.length && ov && ov.plan) rows = [{direction: ov.dir, tf: ov.tf, keys: ov.keys || [], plan: ov.plan}];
   c.save(); c.font = "11px sans-serif"; c.textBaseline = "middle"; c.textAlign = "left";
   const y0 = 34 + 4*15, line = (txt, y, col) => { const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
     c.fillStyle = col; c.fillText(txt, 50, y); };
-  if (!rows.length) line("X77: " + (ar ? "مفيش سيتاب حي للرمز ده" : "no live setup on this symbol"), y0, "#9aa4b2");
+  if (!rows.length) line("X77: " + (CFG.scanning ? (ar ? "السكانر لسه شغال... استنى" : "scanner still running... wait")
+    : (ar ? "مفيش سيتاب حي للرمز ده (السكانر ماطلعش إشارة)" : "no live setup on this symbol (scanner found none)")), y0, "#9aa4b2");
   rows.forEach((e, i) => {
     const up = e.direction === "bullish", col = up ? "#0ecb81" : "#f6465d", keys = e.keys || [];
     const ids = [...new Set(keys.map(k => KM[k] || "S_OTHER"))], sch = ids.map(s => (SC[s] || [s, s])[ar ? 0 : 1]);
@@ -7927,6 +7935,69 @@ CandleChart.prototype.paintX77 = function(c, py, PR){
     if (y != null && isFinite(y)){ c.fillStyle = col; c.fillRect(PR - 34, y - 7, 30, 14); c.fillStyle = "#000"; c.textAlign = "center"; c.fillText("X77", PR - 19, y); c.textAlign = "left"; }
   });
   c.restore();
+};
+/* ---- RADAR MODE (owner 2026-11-21): the Radar page's chart grid is this app with CFG.solo === "radar" - one of OUR chart widgets per
+   symbol (own indicators menu, tools, timeframe), laid out as a grid, instead of the old lightweight-charts cards.
+   CFG.radar = {cols, h, items:[{sym, tf, tag, info, pts:[{label, dir, kind, ind, lines}]}]} comes from main.py (render_chart_scanner).
+   Under every chart: numbered points = what the scanner found on it. A click switches it on the chart: kind "ind" = one item of the
+   indicators menu (Elliott, harmonic, MSB ...), "lines" = the chart pattern's own lines (modules/patterns.py), "sr" = the S/R button,
+   "info" = shown only. The first point opens by itself. ▾ opens the explanation under the chart, over the chart below it only.
+   Saved layout: LS = "ai_ws_radar" (never the Workspace one); a chart keeps its indicator choices while its symbol stays in the grid.
+   Nothing here places an order. ---- */
+const RadarMode = {
+  items(){ return (CFG.radar && Array.isArray(CFG.radar.items)) ? CFG.radar.items : []; },
+  tf(t){ const m = String(t || "1h").match(/^(\d+)(m|h|d|w|mo)$/); if (!m) return "1H"; return m[2] === "m" ? m[1] + "m" : m[2] === "mo" ? "1M" : m[1] + m[2].toUpperCase(); },
+  layout(saved){
+    const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, Ws.el.clientWidth || innerWidth), w = Math.floor(W / cols);
+    const old = {}; (saved || []).forEach(p => { if (p && p.type === "chart" && p.state && p.state.sym) old[p.state.sym] = p.state; });
+    return this.items().map((it, i) => ["chart", {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2},
+      Object.assign({group:0, ema:{9:true, 21:true, 50:false}}, old[it.sym] || {}, {sym:it.sym, tf:this.tf(it.tf), min:false, lock2:true})]);
+  },
+  // the frame's width is not known yet while the page boots: lay the grid out again once loaded and on every resize (Streamlit resizes the iframe)
+  fit(){ const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, document.documentElement.clientWidth || innerWidth), w = Math.floor(W / cols);
+    Ws.panels.filter(p => p.type === "chart").forEach((p, i) => { p.rect = {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2}; p.apply(); try { p.chart.resize(); } catch(e){} });
+    document.querySelectorAll(".rdinfo").forEach(x => x.remove()); },
+  isOn(p, pt){
+    if (pt.kind === "ind"){ const it = (p.indItems || []).find(x => x.id === pt.ind); return !!(it && it.get()); }
+    if (pt.kind === "sr") return !!(p.chart && p.chart.srOn);
+    if (pt.kind === "lines" || pt.kind === "levels") return !!(p.chart && p.chart.draws.some(d => d._rd === pt.label));
+    return false;
+  },
+  toggle(p, pt, on){
+    const ch = p.chart; if (!ch) return;
+    if (pt.kind === "ind"){ const it = (p.indItems || []).find(x => x.id === pt.ind); if (!it) return; it.set(on); if (p.indSave) p.indSave(); else Ws.save(); }
+    else if (pt.kind === "sr"){ p.state.sr = on; Ws.save(); if (p.syncSR) p.syncSR(); }
+    else if (pt.kind === "levels"){   // plan levels (Spot: buy 1 / buy 2 / target / invalidation): horizontal lines with their name
+      ch.draws = ch.draws.filter(d => d._rd !== pt.label);
+      if (on) (pt.levels || []).forEach((l, i) => { if (l && isFinite(l.p) && l.p > 0) ch.draws.push({id:"rd" + Date.now() + i + Math.random(), _rd:pt.label, type:"hline", color:l.color || "#f0b90b", w:1.4, txt:l.label || "", pts:[{t:Date.now(), p:+l.p}]}); });
+    }
+    else if (pt.kind === "lines"){
+      ch.draws = ch.draws.filter(d => d._rd !== pt.label);
+      if (on) (pt.lines || []).forEach((l, i) => { if (Array.isArray(l) && l.length === 4 && l.every(isFinite))
+        ch.draws.push({id:"rd" + Date.now() + i + Math.random(), _rd:pt.label, type:"trend", color:pt.dir === "short" ? "#f6465d" : pt.dir === "long" ? "#0ecb81" : "#f0b90b", w:1.6, pts:[{t:+l[0], p:+l[1]}, {t:+l[2], p:+l[3]}]}); });
+    }
+    ch.draw();
+  },
+  decorate(p){
+    const it = this.items().find(x => x.sym === p.state.sym); if (!it) return;
+    const ft = el("div", "rdft"), pts = (it.pts || []).slice(0, 12);
+    if (it.tag) ft.append(el("span", "rdtag", esc(it.tag)));
+    const btns = pts.map((pt, i) => { const b = el("button", "rdpt " + (pt.dir || ""), (i + 1) + " · " + esc(pt.label)); b.title = pt.tip || pt.label;
+      if (pt.kind === "info"){ b.disabled = true; b.classList.add("info"); }
+      b.onclick = () => { const on = !b.classList.contains("on"); this.toggle(p, pt, on); b.classList.toggle("on", on); }; ft.append(b); return b; });
+    const more = el("button", "rdmore", "▾"); more.title = Lg("Explanation of this chart (opens under it, over the chart below)", "شرح الشارت ده (بيفتح تحته، فوق الشارت اللي تحته بس)"); ft.append(more);
+    p.body.append(ft);
+    let box = null; const close = () => { if (box){ box.remove(); box = null; more.textContent = "▾"; } };
+    more.onclick = () => { if (box){ close(); return; }
+      box = el("div", "rdinfo", it.info || esc(Lg("No explanation for this chart yet.", "مفيش شرح للشارت ده لسه.")));
+      const r = p.rect; box.style.cssText = "left:" + r.x + "px;top:" + (r.y + r.h) + "px;width:" + r.w + "px;max-height:" + Math.max(160, r.h - 4) + "px";
+      box.style.zIndex = ++Ws.z + 1000; Ws.el.append(box); more.textContent = "▴"; };
+    // the chart needs a moment to load its candles (and the indicators menu); then mark what is on and open the first point
+    let tries = 0; const sync = () => { if (!p.chart || !p.chart.data.length){ if (++tries < 40) setTimeout(sync, 500); return; }
+      btns.forEach((b, i) => b.classList.toggle("on", this.isOn(p, pts[i])));
+      const first = pts.findIndex(x => x.kind !== "info"); if (first >= 0 && !btns[first].classList.contains("on")){ this.toggle(p, pts[first], true); btns[first].classList.add("on"); } };   // the main find (point 1) always opens
+    setTimeout(sync, 300);
+  },
 };
 const RETIRED = {ready:"signals", ticker:null, links:null, video:null};   // owner OK 2026-10-17: duplicates / not part of the trading decision
 Ws.build = list => { Ws.hist.mute++; try { list.map(([t,r,s]) => [t in RETIRED ? RETIRED[t] : t, r, s]).filter(([t]) => t).forEach(([t,r,s]) => new Panel(t, r, s)); } finally { Ws.hist.mute--; } Ws.checkEmpty(); };
@@ -8615,7 +8686,8 @@ function applyLang(rebuild){
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
-  if (CFG.solo){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
+  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.fit(); addEventListener("load", () => RadarMode.fit()); { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
+  else if (CFG.solo && CFG.solo !== "spot"){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
     else { store.set(LS+"_cls", CFG.cls || ""); Ws.build(Ws.defaultsSolo()); Ws.save(); } }
   else if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaultsMobile().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen

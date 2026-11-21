@@ -696,7 +696,7 @@ def _scan_worker(store, ws_tf, ws_key):
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
                     _slot[e_["tfc"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
-                                        | {"tf": e_["tfc"], "dir": e_["direction"]})
+                                        | {"tf": e_["tfc"], "dir": e_["direction"], "keys": e_.get("keys", [])})   # keys: X77 chart indicator labels this setup by school
                 if r_["score"] >= ALERT_SCORE_THRESHOLD and (tf_ != "1m" or "1m" in SCAN_TFS) and not r_.get("against"):   # 1m only with SCAN_1M=1; no opposing signal (lab: opposed setups lost ~ -280R)
                     tf_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
             for side_ in ("bullish", "bearish"):   # same-direction alerts at one moment are one market-wide bet: keep the best few

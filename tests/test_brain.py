@@ -1,5 +1,5 @@
 """Event clock, Daily Top 7, Brain memory and the brain cron (modules/event_clock.py, daily_top.py, brain.py, brain_cron.py). Synthetic, no network, no Telegram."""
-import os, sys, tempfile, json
+import os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from datetime import datetime, timezone, timedelta
 from pathlib import Path

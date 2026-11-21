@@ -7,7 +7,6 @@ symbol, and a tiny self-contained SVG candle chart (EMA 9/21/50 + VWAP).
 from __future__ import annotations
 
 import base64
-import html
 
 import numpy as np
 import pandas as pd

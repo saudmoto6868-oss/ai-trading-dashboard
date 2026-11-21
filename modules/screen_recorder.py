@@ -24,8 +24,6 @@ def injector_html() -> str:
 def render() -> None:
     """Call once per run, after the page bar. A hidden container: the component adds no visible gap."""
     import streamlit as st
-    from streamlit.components.v1 import html as _html
-
     with st.container(key="xpix_rec_host"):
         st.markdown("<style>.st-key-xpix_rec_host{display:none!important}</style>", unsafe_allow_html=True)
-        _html(injector_html(), height=0)
+        st.iframe(injector_html(), height=1, alt="Screen recorder injector")   # height 0 renders no iframe; the host container is hidden

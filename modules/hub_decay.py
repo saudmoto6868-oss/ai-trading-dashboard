@@ -172,4 +172,4 @@ def render(st, L=lambda s: s) -> None:
             (st.success if d["promoted"] else st.error)(L("Promoted" if d["promoted"] else "Rejected: ") + "; ".join(d["reasons"]) + f"  (N={d['n_challenges']}, need t>={d['need_t']})")
     if reg.get("events"):
         st.dataframe([{"time": e["ts"], "kind": e["kind"], "id": e["id"], "passed": e["passed"], "why not": "; ".join(e["reasons"])}
-                      for e in reversed(reg["events"][-50:])], hide_index=True, use_container_width=True)
+                      for e in reversed(reg["events"][-50:])], hide_index=True, width="stretch")

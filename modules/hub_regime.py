@@ -15,7 +15,7 @@ from __future__ import annotations
 import numpy as np
 
 from modules import hub_core
-from modules.regime_lib import REGIMES, WARM, _trailing, _wilder, adx, label, true_range   # the shared definition; re-exported so this tab's API is unchanged
+from modules.regime_lib import REGIMES, WARM, _trailing, _wilder, adx, label, true_range  # noqa: F401  # the shared definition; re-exported so this tab's API is unchanged
 
 SPEC = hub_core.TabSpec(
     id="regime", title="Regime Radar", glyph="◉", accent="#2FBF71",
@@ -199,7 +199,6 @@ _COLOR = {"Crash": "#E5484D", "HiVol": "#F5A524", "Squeeze": "#8E4EC6", "Trend":
 
 
 def render(st, L=lambda s: s) -> None:
-    import pandas as pd
     from modules import hub_ui
     hub_ui.show(st, hub_ui.header(SPEC, L(SPEC.purpose), L(SPEC.title), L))
     tf = st.selectbox(L("Timeframe"), ["1d", "1h"], key="hr_tf")
@@ -208,7 +207,7 @@ def render(st, L=lambda s: s) -> None:
         snap = hub_core.read(SPEC.id)
         if snap and snap["findings"]:
             st.dataframe([{"series": f["key"], "regime": f["regime"], "bars in regime": f["bars_in"]} for f in snap["findings"]],
-                         hide_index=True, use_container_width=True)
+                         hide_index=True, width="stretch")
         else:
             st.info(L("Press Scan. Labels use only past candles; nothing is estimated until you do."))
         return
@@ -226,10 +225,9 @@ def render(st, L=lambda s: s) -> None:
         closes[sym] = df["close"].astype(float).to_numpy()
         details[sym] = res
         rows.append({"symbol": sym, "regime": res["current"]["regime"], "bars in regime": res["current"]["bars_in"], "candles": len(df), "note": ""})
-    st.dataframe(rows, hide_index=True, use_container_width=True)
+    st.dataframe(rows, hide_index=True, width="stretch")
     cc = avg_pair_corr(closes)
     if cc["mean_corr"] is not None:
-        cur = [(sym, d["current"]["regime"]) for sym, d in details.items()]
         hub_ui.show(st, hub_ui.cards([("R", L("Series scanned"), len(details), L("timeframe {tf}").format(tf=tf), "", None),
                                       ("c", L("Avg correlation ({n} returns)").format(n=CORR_WIN), f"{cc['mean_corr']:.2f}", L("high: close to one bet") if cc["high"] else L("not high: some real diversification"),
                                        "warn" if cc["high"] else "up", max(0.0, cc["mean_corr"]) * 100)]))
@@ -238,7 +236,7 @@ def render(st, L=lambda s: s) -> None:
         st.markdown("**" + L("Funding and open interest (Hyperliquid)") + "**")
         st.dataframe([{"coin": c, "funding APR %": v["funding_apr_pct"], "z vs 30d": v["z"], "stretched": v["stretched"], "premium bps": v["premium_bps"],
                        "OI $M": round(v["oi_usd"] / 1e6, 1), "OI change %": v.get("oi_change_pct"), "since (s)": v["since"], "reading": v["quadrant"]}
-                      for c, v in fx.items()], hide_index=True, use_container_width=True)
+                      for c, v in fx.items()], hide_index=True, width="stretch")
         st.caption(L("OI change and the price/OI reading need a previous scan; the first scan only stores the baseline. Context, not a signal."))
     except Exception as e:
         st.caption(L("Funding data unavailable: ") + str(e)[:80])
@@ -248,5 +246,5 @@ def render(st, L=lambda s: s) -> None:
         st.dataframe([{"regime": g, "bars": v["bars"], "avg run (bars)": v["mean_run"], "persistence": v["persistence"],
                        "next-bar mean": v["next_mean"], "next-bar |move|": v["next_abs"], "t": v["t"],
                        "evidence": "n>=30" if v["evidence"] else "not evidence"} for g, v in s.items()],
-                     hide_index=True, use_container_width=True)
+                     hide_index=True, width="stretch")
         st.caption(L("Next-bar numbers describe behaviour inside each regime. They are not a trading edge until they pass the Truth Court."))

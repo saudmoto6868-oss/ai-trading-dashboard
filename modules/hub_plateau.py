@@ -265,7 +265,7 @@ def render(st, L=lambda s: s) -> None:
         snap = hub_core.read(SPEC.id)
         if snap and snap["findings"]:
             st.dataframe([{"series": f["key"], "pass": f["promote"], "trades": f["n_trades"], "t": f["t"], "why not": "; ".join(f["why_not"])}
-                          for f in snap["findings"]], hide_index=True, use_container_width=True)
+                          for f in snap["findings"]], hide_index=True, width="stretch")
         else:
             st.info(L("Pick a symbol and press Run. Nothing is estimated until you do."))
         return
@@ -293,15 +293,15 @@ def render(st, L=lambda s: s) -> None:
     st.altair_chart(alt.Chart(pd.DataFrame(rows)).mark_rect().encode(
         x=alt.X("slow:O", sort=[str(s) for s in SLOWS]), y=alt.Y("fast:O", sort=[str(f) for f in FASTS]),
         color=alt.Color("sharpe:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0)), tooltip=["fast", "slow", "sharpe"]
-    ).properties(height=260, title=L("Smoothed Sharpe surface (median of 3x3 neighbours)")), use_container_width=True)
+    ).properties(height=260, title=L("Smoothed Sharpe surface (median of 3x3 neighbours)")), width="stretch")
     if res["by_regime"]:
         snap = hub_core.read("regime") or {}
         now = next((f.get("regime") for f in snap.get("findings", []) if f.get("key") == f"{sym} {tf}"), None)
         st.markdown("**" + L("Out-of-sample result by market regime (labels from the shared regime definition)") + "**")
         st.dataframe([{"regime": r["regime"] + (" (now)" if r["regime"] == now else ""), "OOS bars": r["bars"], "mean bar return %": round(100 * r["mean"], 4),
                        "Sharpe/bar": None if r["sharpe"] is None else round(r["sharpe"], 3), "t": None if r["t"] is None else round(r["t"], 2),
-                       "evidence": "n>=30" if r["evidence"] else "not evidence"} for r in res["by_regime"]], hide_index=True, use_container_width=True)
+                       "evidence": "n>=30" if r["evidence"] else "not evidence"} for r in res["by_regime"]], hide_index=True, width="stretch")
         st.caption(L("A regime where the rule works must still pass the Truth Court: slicing into six regimes is six more looks."))
     if wf:
-        st.dataframe(wf["folds"], hide_index=True, use_container_width=True)
+        st.dataframe(wf["folds"], hide_index=True, width="stretch")
         st.line_chart(pd.DataFrame({"stitched OOS equity (sum of bar returns)": wf["equity"]}))

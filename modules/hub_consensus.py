@@ -125,7 +125,7 @@ def render(st, L=lambda s: s) -> None:
         ("~", L("Independent"), k["INDEPENDENT"], L("real separate information"), "up", 100 * k["INDEPENDENT"] / max(1, len(pairs)))]) +
         hub_ui.graph([(p["a"], p["b"], p["rho"], p["class"]) for p in pairs], title=L("Detector map: who agrees, who fights"), L=L))
     st.dataframe([{k: p[k] for k in ("a", "b", "together", "opposite", "rho", "z", "class")} for p in sorted(pairs, key=lambda p: -abs(p["rho"]))],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     st.markdown("**" + L("How many votes is your consensus really worth?") + "**")
     names = sorted({x for p in pairs for x in (p["a"], p["b"])})
     pick = st.multiselect(L("Detectors in the consensus"), names, default=names[:4], key="hc_pick")
@@ -140,4 +140,4 @@ def render(st, L=lambda s: s) -> None:
     st.markdown("**" + L("Does more agreement help?") + "**")
     conf = res["confluence"]
     (st.success if conf["n_positive"] else st.warning)(hub_ui.tr(L, conf["verdict"]))
-    st.dataframe([{**r, "evidence": "n>=100" if r["evidence"] else "not evidence"} for r in conf["rows"]], hide_index=True, use_container_width=True)
+    st.dataframe([{**r, "evidence": "n>=100" if r["evidence"] else "not evidence"} for r in conf["rows"]], hide_index=True, width="stretch")

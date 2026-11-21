@@ -53,7 +53,7 @@ def render_rotation_scan(payload: dict | None = None) -> None:
         (t("الفئات", "Classes"), str(len(rows)), t("فيها Setups", "with setups"), "", "")]), unsafe_allow_html=True)
     h = [t("الفئة", "Class"), t("رموز", "Symbols"), t("شراء", "Long"), t("بيع", "Short"), t("متوسط النتيجة %", "Avg score %"), t("أعلى رمز", "Top symbol")]
     st.dataframe([{h[0]: c, h[1]: len(b["symbols"]), h[2]: b["long"], h[3]: b["short"], h[4]: round(100 * sum(b["shares"]) / len(b["shares"])) if b["shares"] else None,
-                   h[5]: f"{b['best'][1]} · {b['best'][2]}" if b["best"] else ""} for c, b in rows], use_container_width=True, hide_index=True)
+                   h[5]: f"{b['best'][1]} · {b['best'][2]}" if b["best"] else ""} for c, b in rows], width="stretch", hide_index=True)
     st.bar_chart({c: len(b["symbols"]) for c, b in rows})
     st.caption(t("ده وصف لآخر مسح (إشارات الماسح)، مش دليل ولا توقع. الفئات اللي بدون خلفية بيانات (مصر والسعودية من Yahoo بحجم صفر، والأوبشنز) غالبًا ما بتظهرش هنا.",
                  "This describes the last scan (scanner setups). It is not evidence and not a forecast. Classes without a live feed behind the scanner (Yahoo EGX / Tadawul with zero volume, options) mostly do not show up here."))

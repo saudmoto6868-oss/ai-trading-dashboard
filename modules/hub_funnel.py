@@ -149,10 +149,10 @@ def render(st, L=lambda s: s) -> None:
                    + L(" None clears the bar for all trials." if t3_n else " Those few are too weak to tell from luck."))
     if res["closest"]:
         st.markdown("**" + L("Closest candidates (positive net R in both halves)") + "**")
-        st.dataframe(res["closest"], hide_index=True, use_container_width=True)
+        st.dataframe(res["closest"], hide_index=True, width="stretch")
     st.markdown("**" + L("Survivors by school at each stage") + "**")
-    st.dataframe([{"school": k, **dict(zip(STAGE_NAMES, v))} for k, v in sorted(res["schools"].items(), key=lambda kv: -kv[1][0])], hide_index=True, use_container_width=True)
+    st.dataframe([{"school": k, **dict(zip(STAGE_NAMES, v))} for k, v in sorted(res["schools"].items(), key=lambda kv: -kv[1][0])], hide_index=True, width="stretch")
     st.markdown("**" + L("Break-even win rate by reward:risk (pure target/stop trades, 0.10R cost)") + "**")
     st.dataframe([{"R:R": b["rr"], "break-even win %": b["breakeven_win_pct"], "lab win %": b["lab_win_pct"], "lab net R": b["lab_net_r"], "n": b["lab_n"], "reading": b["note"]}
-                  for b in res["breakeven"]], hide_index=True, use_container_width=True)
+                  for b in res["breakeven"]], hide_index=True, width="stretch")
     st.caption(L("The lab's 'win' is any trade with R > 0, so a time exit can count as a win while paying less than the target. Trust the measured net R, not win% alone."))

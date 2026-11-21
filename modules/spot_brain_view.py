@@ -48,7 +48,7 @@ def ring(score, size=96, label="", fill=False):
 def line(vals, W=420, H=150, levels=None, dots=True, col=A, area=True):
     v = np.asarray([x for x in vals if x is not None and math.isfinite(x)], float)
     if len(v) < 3:
-        return f'<div class="s">مفيش داتا</div>'
+        return '<div class="s">مفيش داتا</div>'
     lv = [x for x in (levels or []) if x[0] is not None]
     lo, hi = min(v.min(), *[x[0] for x in lv]) if lv else v.min(), max(v.max(), *[x[0] for x in lv]) if lv else v.max()
     pad = (hi - lo) * .08 or 1

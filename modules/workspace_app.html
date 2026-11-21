@@ -4317,8 +4317,9 @@ function EWShape_AR_OR_EN(name){ const AR = {zigzag:"زيجزاج ABC", regular_
 /* EWMTF-END */
 /* ---------------- price alarms (owner 2026-11-20: "exactly like TradingView": a + beside the price on the axis, the same
    alert dialog and options, and the alarm reaches the phone: Telegram message / Telegram call / WhatsApp / push) ----------------
-   Checked in THIS browser every few seconds while the Workspace is open (TradingView checks on its servers: a closed tab here
-   means no check). Channels are the owner's own accounts, typed in the dialog and kept in this browser only (never in the repo):
+   Checked in THIS browser every few seconds while the Workspace is open; the list is also synced (hidden bridge ->
+   modules/palarm_server.py) to the online store, where the GitHub alerts job checks it every ~30 min with the page closed
+   (owner 2026-11-21) and sends Telegram / ntfy / Telegram call. Channels are the owner's own accounts, typed in the dialog and kept in this browser only (never in the repo):
    ntfy.sh topic (phone push, free app, priority 5 = alarm), CallMeBot (Telegram text / Telegram voice call / WhatsApp, free),
    any webhook URL. No key of the app is used. */
 /* PALARM-PURE-START (tests/test_price_alarms.js evaluates this block alone) */
@@ -4377,19 +4378,30 @@ function palarmText(a, px){   // TradingView-style placeholders in the message
 
 const PAlarm = {
   list: store.get(LS+"_palarms", []), log: store.get(LS+"_palog", []), prev: {}, subs: new Set(), _iv: null, _snd: null,
-  save(){ store.set(LS+"_palarms", this.list); this.subs.forEach(f => { try { f(); } catch(e){} }); },
+  save(){ store.set(LS+"_palarms", this.list); this.subs.forEach(f => { try { f(); } catch(e){} }); clearTimeout(this._syT); this._syT = setTimeout(() => this.sync(), 3000); },
+  bridge(){ let fs = []; try { fs = Array.from(window.parent.frames); } catch(e){} for (const f of fs){ try { if (f.__xpixBridge) return f.__xpixBridge; } catch(e){} } return null; },
+  sync(){   // hand the list to the server (modules/palarm_server.py via the hidden bridge): GitHub checks it every ~30 min, page open or not
+    const b = typeof window !== "undefined" && this.bridge(); if (!b) return; const id = "pa" + Date.now(), t0 = Date.now(), C = this.cfg();
+    window.__xpixPalarmAnswer = ans => { if (!ans || ans.id !== id) return; window.__xpixPalarmAnswer = null; this.srv = {ok: !!ans.ok, err: ans.err || "", t: Date.now()};
+      if (!ans.ok || !Array.isArray(ans.list)) return; let ch = false;
+      ans.list.forEach(s => { const a = this.list.find(x => x.id === s.id); if (!a || (a.editT || 0) > t0 || (s.lastT || 0) <= (a.lastT || 0)) return;   // the server fired it while the page was closed: take its fired state
+        ["on","status","lastT","fired","lastBar","lastClose"].forEach(k => { if (k in s) a[k] = s[k]; }); ch = true; });
+      if (ch){ store.set(LS+"_palarms", this.list); this.subs.forEach(f => { try { f(); } catch(e){} }); } };
+    b.ask({id, kind: "palarms", list: this.list, notify: {ntfy: C.ntfy, tg: C.tg}});
+  },
   cfg(){ return Object.assign({ntfy:"", tg:"", wa:"", waKey:"", hook:""}, store.get(LS+"_notify", {})); },
   forSym(sym){ return this.list.filter(a => a.sym === sym); },
-  upsert(a){ const i = this.list.findIndex(x => x.id === a.id); if (i >= 0) this.list[i] = a; else this.list.unshift(a); this.save(); this.start(); },
+  upsert(a){ a.editT = Date.now(); const i = this.list.findIndex(x => x.id === a.id); if (i >= 0) this.list[i] = a; else this.list.unshift(a); this.save(); this.start(); },
   del(id){ this.list = this.list.filter(a => a.id !== id); this.save(); },
-  start(){ if (this._iv || typeof window === "undefined") return; this._iv = setInterval(() => this.tick(), 5000); this.tick(); },
+  start(){ if (this._iv || typeof window === "undefined") return; this._iv = setInterval(() => this.tick(), 5000); this.tick();
+    setTimeout(() => this.sync(), 4000); setInterval(() => this.sync(), 300000); },   // on open (the bridge mounts after the page) + every 5 min
   async tick(){
     const on = this.list.filter(a => a.on); if (!on.length) return; const now = Date.now(), groups = {};
     on.forEach(a => { const k = a.sym+"|"+(a.tf || "1m"); (groups[k] = groups[k] || []).push(a); });
     let dirty = false;
     for (const k in groups){
       const [sym, tf] = k.split("|"); let rows;
-      try { rows = await candlesTf(sym, tf, false); } catch(e){ continue; }
+      try { rows = await candlesTf(sym, tf, groups[k].some(a => PALARM_MOVE.has(a.cond)) ? 1 : false); } catch(e){ continue; }   // "moving" needs n bars back: a full load (300), else the last 3 are enough
       if (!rows || !rows.length) continue;
       const cur = rows[rows.length - 1], st = {p0: this.prev[k], p1: cur.c, curT: cur.t, rows}; this.prev[k] = cur.c;
       groups[k].forEach(a => { const was = JSON.stringify([a.on, a.lastClose, a.lastBar]); const px = palarmCheck(a, st, now);
@@ -4503,11 +4515,12 @@ function palarmManager(sym, onChange){   // the alert list: status, edit, pause 
       + (sym ? "<button data-new style='margin:8px 0'>+ "+Lg("New alert on ","تنبيه جديد على ")+esc(sym)+"</button>" : "")
       + "<table style='width:100%;border-collapse:collapse'>"+(rows || "<tr><td style='color:#848e9c'>"+Lg("No alerts yet","مفيش تنبيهات")+"</td></tr>")+"</table>"
       + "<div style='margin-top:10px;color:#848e9c'>"+Lg("Log","السجل")+"</div>"+(log || "<small style='color:#848e9c'>–</small>")
-      + "<small style='display:block;margin-top:8px;color:#848e9c'>"+Lg("Checked every few seconds while this Workspace is open.","بيتشيّك كل كام ثانية طول ما الـWorkspace مفتوح.")+"</small></div>";
+      + "<small style='display:block;margin-top:8px;color:#848e9c'>"+Lg("Checked every few seconds while this Workspace is open.","بيتشيّك كل كام ثانية طول ما الـWorkspace مفتوح.")+" "
+      + (!PAlarm.srv ? Lg("Server check: not connected yet.","تشييك السيرفر: لسه ما اتوصلش.") : PAlarm.srv.ok ? "✅ "+Lg("Page closed: GitHub checks them every ~30 min (Telegram, ntfy, Telegram call).","والصفحة مقفولة: GitHub بيشيّكها كل ~30 دقيقة (تليجرام، ntfy، مكالمة تليجرام).") : "⚠️ "+Lg("Server check off: ","تشييك السيرفر مقفول: ")+esc(PAlarm.srv.err))+"</small></div>";
     ov.querySelector("[data-x]").onclick = () => ov.remove();
     const nb = ov.querySelector("[data-new]"); if (nb) nb.onclick = () => { ov.remove(); palarmDialog({sym}, onChange); };
     ov.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { const a = PAlarm.list.find(x => x.id === b.dataset.e); ov.remove(); palarmDialog(a, onChange); });
-    ov.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const a = PAlarm.list.find(x => x.id === b.dataset.p); a.on = !a.on; a.status = a.on ? "active" : "paused"; if (a.on){ delete a.lastClose; delete a.lastBar; } PAlarm.save(); PAlarm.start(); render(); onChange && onChange(); });
+    ov.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const a = PAlarm.list.find(x => x.id === b.dataset.p); a.on = !a.on; a.editT = Date.now(); a.status = a.on ? "active" : "paused"; if (a.on){ delete a.lastClose; delete a.lastBar; } PAlarm.save(); PAlarm.start(); render(); onChange && onChange(); });
     ov.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { PAlarm.del(b.dataset.d); render(); onChange && onChange(); });
   };
   render(); ov.onclick = e => { if (e.target === ov) ov.remove(); }; document.body.append(ov);
@@ -4553,7 +4566,7 @@ Object.assign(CandleChart.prototype, {
   },
   alarmUp(){   // end of a press on an alert: moved = save the new price, not moved = open the alert
     const D = this.alDrag; if (!D) return false; this.alDrag = null;
-    if (D.mv){ delete D.a.lastClose; delete D.a.lastBar; PAlarm.save(); this.draw(); } else palarmDialog(D.a, () => this.draw());
+    if (D.mv){ D.a.editT = Date.now(); delete D.a.lastClose; delete D.a.lastBar; PAlarm.save(); this.draw(); } else palarmDialog(D.a, () => this.draw());
     return true;
   }
 });

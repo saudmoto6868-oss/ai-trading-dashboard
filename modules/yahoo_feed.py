@@ -22,7 +22,8 @@ FOREX = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X",
 INDICES = ["^IXIC", "^NDX", "^GSPC", "^DJI", "^RUT", "^VIX", "^GDAXI", "^FTSE", "^N225", "^HSI"]
 EGX = ["^CASE30", "COMI.CA", "HRHO.CA", "TMGH.CA", "SWDY.CA", "EAST.CA", "ORAS.CA", "ABUK.CA", "FWRY.CA", "ETEL.CA", "PHDC.CA"]
 TADAWUL = ["^TASI.SR", "2222.SR", "1120.SR", "2010.SR", "7010.SR", "1180.SR", "2380.SR", "1211.SR", "4030.SR", "2350.SR", "5110.SR", "1150.SR"]
-BY_CLASS = {"Forex": FOREX, "Indices": INDICES, "Egypt (EGX)": EGX, "Saudi (Tadawul)": TADAWUL}
+BONDS = ["^TNX", "^TYX", "^FVX", "^IRX", "IEF", "IEI", "SHY", "TLH", "AGG", "BND", "HYG", "LQD", "TIP", "EMB", "MUB", "ZN=F", "ZB=F"]   # 10y / 30y / 5y / 13w yields, Treasury ETFs + futures, core / high-yield / investment-grade / TIPS / EM / muni ETFs
+BY_CLASS = {"Forex": FOREX, "Indices": INDICES, "Bonds": BONDS, "Egypt (EGX)": EGX, "Saudi (Tadawul)": TADAWUL}
 
 
 def symbols(cls: str) -> list[str]:

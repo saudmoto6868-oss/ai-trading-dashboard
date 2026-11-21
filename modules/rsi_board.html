@@ -101,7 +101,7 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
   <div class="hint">الخريطة: كل نقطة عملة. فوق الخط 70 = تشبع شراء، تحت 30 = تشبع بيع. اضغط على نقطة عشان تفتح تفاصيلها.</div>
   <div id="map" style="flex:1 1 0;min-height:60px"></div>
   <div class="spl h" id="sh" title="اسحب لتغيير الارتفاع، دبل كليك يرجّع"></div>
-  <div id="chartbox"><div class="hd" id="cm"><button class="ctl" id="cm-c">شموع بسيطة</button><button class="ctl" id="cm-a">شارت AI</button><span style="margin-inline-start:auto;display:flex;gap:3px;align-items:center"><span class="sm">ارتفاع</span><button class="ctl" data-ch="30">S</button><button class="ctl" data-ch="44">M</button><button class="ctl" data-ch="65">L</button><button class="ctl" id="cm-map" title="إظهار / إخفاء الخريطة">الخريطة</button></span></div><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
+  <div id="chartbox"><div class="hd" id="cm"><button class="ctl" id="cm-c">شموع بسيطة</button><button class="ctl" id="cm-a">شارت AI</button><span style="margin-inline-start:auto;display:flex;gap:3px;align-items:center"><span class="sm">ارتفاع</span><button class="ctl" data-ch="30">S</button><button class="ctl" data-ch="44">M</button><button class="ctl" data-ch="65">L</button><button class="ctl" id="cm-pl" title="خطوط الصفقة على الشارت: دخول ووقف وهدف ودعم ومقاومة">خطوط الصفقة</button><button class="ctl" id="cm-map" title="إظهار / إخفاء الخريطة">الخريطة</button></span></div><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
    <div id="chwrap"><canvas id="cv"></canvas></div><iframe id="aiw" title="AI chart" style="display:none;flex:1;min-height:0;border:0;width:100%;background:#0e1116"></iframe></div>
   </div>
  <div class="spl v" id="sv" title="اسحب لتغيير العرض، دبل كليك يرجّع"></div>
@@ -461,14 +461,20 @@ jrn();
 </script>
 <script>
 (function(){
-const root = document.documentElement.style, LK = "rsihm_lay", lay = Object.assign({lw: 48, ch: 44, cm: "c", hm: false}, store.get(LK, {}));
+const root = document.documentElement.style, LK = "rsihm_lay", lay = Object.assign({lw: 48, ch: 44, cm: "a", pl: true, hm: false}, store.get(LK, {}));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), save = () => store.set(LK, lay), redraw = () => {try {drawMap(); rows(); drawChart(sel);} catch(e){}};
-const aw = $("#aiw"), post = () => {try {if (sel && aw.contentWindow) aw.contentWindow.postMessage({t: "sym", s: sel}, "*");} catch(e){}};
+const aw = $("#aiw"), post = () => {try {if (!sel || !aw.contentWindow) return;
+  const i = D.items.find(x => x.full === sel), lv = [];
+  if (lay.pl && i){
+    if (i.plan){lv.push({p: i.plan.entry, t: "دخول", c: "#f0b90b", w: 1.6, r: 1}, {p: i.plan.stop, t: "وقف", c: "#f6465d", d: [6, 3], r: 1}, {p: i.plan.target, t: "هدف", c: "#0ecb81", d: [6, 3], r: 1});}
+    (i.lv || []).forEach(l => lv.push({p: l.p, t: l.k === "R" ? "مقاومة" : "دعم", c: l.k === "R" ? "#c77dff" : "#4aa3ff", d: [2, 3], w: 1}));
+  }
+  aw.contentWindow.postMessage({t: "sym", s: sel, lv}, "*");} catch(e){}};
 function vars(){root.setProperty("--lw", lay.lw + "%"); root.setProperty("--ch", lay.ch + "%");}
 function apply(){
   vars(); const ai = lay.cm === "a" && !!D.ws;
   $("#map").style.display = $("#sh").style.display = lay.hm ? "none" : ""; $("#chartbox").style.flex = lay.hm ? "1 1 0" : "";
-  $("#cm-a").style.display = D.ws ? "" : "none"; $("#cm-a").classList.toggle("on", ai); $("#cm-c").classList.toggle("on", !ai); $("#cm-map").classList.toggle("on", !lay.hm);
+  $("#cm-a").style.display = D.ws ? "" : "none"; $("#cm-a").classList.toggle("on", ai); $("#cm-c").classList.toggle("on", !ai); $("#cm-map").classList.toggle("on", !lay.hm); $("#cm-pl").classList.toggle("on", lay.pl);
   $("#chtitle").style.display = $("#chwrap").style.display = ai ? "none" : ""; aw.style.display = ai ? "block" : "none";
   if (ai && !aw.srcdoc){aw.onload = post; aw.srcdoc = D.ws;}
   $$("[data-ch]").forEach(b => b.classList.toggle("on", +b.dataset.ch === lay.ch));
@@ -476,6 +482,7 @@ function apply(){
 $("#cm-c").onclick = () => {lay.cm = "c"; save(); apply(); redraw();};
 $("#cm-a").onclick = () => {lay.cm = "a"; save(); apply(); post();};
 $("#cm-map").onclick = () => {lay.hm = !lay.hm; save(); apply(); setTimeout(redraw, 30);};
+$("#cm-pl").onclick = () => {lay.pl = !lay.pl; save(); apply(); post();};
 $$("[data-ch]").forEach(b => b.onclick = () => {lay.ch = +b.dataset.ch; lay.hm = false; save(); apply(); setTimeout(redraw, 30);});
 function drag(el, move, reset){
   el.ondblclick = () => {reset(); save(); apply(); setTimeout(redraw, 30);};

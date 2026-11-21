@@ -217,6 +217,7 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
+    { const lc = this.data.length ? this.data[this.data.length-1].c : 0; (this.planLv || []).forEach(l => { if (l.r && lc && Math.abs(l.p-lc)/lc < 0.25){ if (l.p < lo) lo = l.p; if (l.p > hi) hi = l.p; } }); }   // entry / stop / target sent by the RSI board stay on screen
     if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
@@ -393,6 +394,9 @@ class CandleChart {
     if (this.fibLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; this.fibLv.forEach(l => { const y = py(l.p); if (y < 0 || y > PB) return;
       const col = l.r < 0 ? "#0ecb81" : l.r > 1 ? "#f6465d" : "#f0b90b"; c.strokeStyle = col; c.globalAlpha = .8; c.setLineDash([4,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
       c.fillStyle = col; c.fillText(l.r+"  "+l.p.toFixed(dec), 4, y-5); }); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
+    if (this.planLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; this.planLv.forEach(l => { const y = py(l.p); if (!isFinite(y) || y < 0 || y > PB) return;   // trade plan sent by the RSI board: [{p, t, c, d}]
+      c.strokeStyle = l.c; c.globalAlpha = .9; c.lineWidth = l.w || 1.2; c.setLineDash(l.d || []); c.beginPath(); c.moveTo(0, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.lineWidth = 1;
+      c.fillStyle = l.c; c.fillText(l.t+" "+l.p.toFixed(dec), PR-4, y-4); }); c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
     // last price line
     const last = this.data[n-1], ly = py(last.c), lup = last.c >= last.o, lcol = lup ? TH.up : TH.dn;
     if (ly > 0 && ly < PB){

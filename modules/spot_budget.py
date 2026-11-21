@@ -214,7 +214,8 @@ STRATEGIES = {
 
 # ladder plan -> alerts (owner 2026-11-21): one buy now + limit buys lower, each coin split in equal parts
 PLAN_2026_11_21 = {"date": "2026-11-21", "steps": [0.0, -10.0, -20.0], "reserve_usd": 350.0,
-                   "coins": {"BTC": (56074.0, 1400.0), "ETH": (1552.0, 875.0), "SOL": (65.57, 350.0), "XRP": (0.873, 350.0), "ZEC": (696.6, 175.0)}}
+                   "coins": {"BTC": (56074.0, 1400.0), "ETH": (1552.0, 875.0), "SOL": (65.57, 350.0), "XRP": (0.873, 175.0), "HYPE": (56.29, 175.0),
+                             "ZEC": (696.6, 175.0)}}   # owner 2026-11-21: HYPE added (strongest large cap over 1y), XRP cut 350 -> 175
 
 
 def plan_ladder(coins: dict, steps=None) -> list[dict]:

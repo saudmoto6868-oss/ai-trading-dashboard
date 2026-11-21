@@ -761,6 +761,9 @@ def _ladder_box(d, px) -> None:
             st.caption(T(f"Total {sum(r['usd'] for r in rows):,.0f} USD in {len(rows)} buy alerts. Spot only, no leverage. A plan, not a promise.",
                          f"الإجمالي {sum(r['usd'] for r in rows):,.0f} دولار في {len(rows)} تنبيه شراء. سبوت بس من غير رافعة. خطة مش ضمان."))
         if st.button(T("Add these buy alerts", "ضيف تنبيهات الشراء دي"), key="sp_ladder_add", disabled=not rows):
+            tag = f"Plan {P['date']}"   # the plan changed (HYPE added): drop this plan's alerts that have not fired yet, then add the current ones
+            gone = [x for x in d["alerts"] if str(x.get("note", "")).startswith(tag) and x.get("active") and not x.get("fired_at")]
+            d["alerts"] = [x for x in d["alerts"] if x not in gone]
             have = {(x["asset"], x["kind"], round(float(x["price"]), 8)) for x in d["alerts"]}
             new = 0
             for r in rows:
@@ -768,9 +771,10 @@ def _ladder_box(d, px) -> None:
                     continue
                 d["alerts"].append(C.new_alert(r["asset"], "buy", r["price"], f"Plan {P['date']} {r['step_pct']:+.0f}% · {r['usd']:,.0f}$"))
                 new += 1
-            if new and save(d):
+            if (new or gone) and save(d):
                 _notify(d, T(f"ladder plan: {new} buy alerts armed", f"خطة السلم: {new} تنبيه شراء اتسجلوا"))
-            st.success(T(f"Added {new} (already there: {len(rows) - new}).", f"اتضاف {new} (موجودين قبل كده: {len(rows) - new})."))
+            st.success(T(f"Added {new} (replaced {len(gone)} old plan alerts; already fired / kept: {len(rows) - new}).",
+                         f"اتضاف {new} (اتشال {len(gone)} تنبيه من الخطة القديمة؛ اللي اشتغل قبل كده واتساب: {len(rows) - new})."))
 
 
 def _tab_alerts(d, px):

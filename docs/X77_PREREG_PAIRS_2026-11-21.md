@@ -46,3 +46,17 @@ Short n = "inconclusive", not pass and not fail.
 
 ## Report, not gated
 Per pair: win %, gross and net mean R, n per market. A random-direction baseline on the same bars.
+
+## Result — stage 1 history, run once on 2026-11-21 (`research/x77_pairs.py`, output `research/x77_pairs_history.json`)
+12 markets, 1h, 1,500 bars each (about 57 days), net of 0.10R cost. No fetch errors.
+
+| Pair | n | days | win % | net mean R | t (day-clustered) | half 1 | half 2 | random baseline | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| P1 sweep + OTE | 253 | 53 | 43.1 | -0.042 | -0.55 | -0.026 | -0.058 | -0.170 | KILLED |
+| P2 sweep + divergence | 495 | 56 | 38.2 | -0.144 | -2.00 | -0.275 | -0.013 | -0.134 | KILLED |
+| P3 candle at level | 523 | 57 | 39.6 | -0.130 | -2.54 | -0.104 | -0.156 | -0.031 | KILLED |
+| P4 trend pullback to Fib | 964 | 57 | 41.1 | -0.081 | -1.60 | -0.211 | +0.050 | -0.148 | KILLED |
+
+All 4 pairs fail the history rule (net mean <= 0). Stage 2 (forward) is not run: nothing survived.
+P1 and P4 lose less than a random direction on the same bars, but are still below zero after costs; that is not an edge.
+Limit: only ~57 days of 1h history per market (the data source cap at 1,500 bars), so this is one market period.

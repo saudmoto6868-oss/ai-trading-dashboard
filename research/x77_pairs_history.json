@@ -1,0 +1,109 @@
+{
+ "stage": "history",
+ "tf": "1h",
+ "bars": 1500,
+ "cost_r": 0.1,
+ "errors": {},
+ "pairs": {
+  "P1 sweep+OTE": {
+   "n": 253,
+   "days": 53,
+   "win": 43.1,
+   "net_mean": -0.0422,
+   "t_day": -0.55,
+   "half1": -0.026,
+   "half2": -0.0582,
+   "base_net_mean": -0.17,
+   "per_market": {
+    "SOL-USDT": 26,
+    "HL:xyz:GOLD": 25,
+    "HL:xyz:JPY": 25,
+    "HL:xyz:SILVER": 23,
+    "HL:xyz:EUR": 23,
+    "HL:xyz:CL": 22,
+    "BTC-USDT": 22,
+    "ETH-USDT": 21,
+    "HL:xyz:SP500": 19,
+    "HL:xyz:BRENTOIL": 18,
+    "HL:xyz:XYZ100": 16,
+    "HL:xyz:GBP": 13
+   },
+   "verdict": "KILLED (net <= 0 overall or in a half)"
+  },
+  "P2 sweep+divergence": {
+   "n": 495,
+   "days": 56,
+   "win": 38.2,
+   "net_mean": -0.1437,
+   "t_day": -2.0,
+   "half1": -0.2747,
+   "half2": -0.0132,
+   "base_net_mean": -0.1339,
+   "per_market": {
+    "HL:xyz:GOLD": 58,
+    "HL:xyz:BRENTOIL": 52,
+    "HL:xyz:XYZ100": 48,
+    "BTC-USDT": 44,
+    "HL:xyz:SILVER": 43,
+    "HL:xyz:SP500": 43,
+    "HL:xyz:CL": 42,
+    "SOL-USDT": 38,
+    "ETH-USDT": 34,
+    "HL:xyz:JPY": 33,
+    "HL:xyz:EUR": 31,
+    "HL:xyz:GBP": 29
+   },
+   "verdict": "KILLED (net <= 0 overall or in a half)"
+  },
+  "P3 candle at level": {
+   "n": 523,
+   "days": 57,
+   "win": 39.6,
+   "net_mean": -0.13,
+   "t_day": -2.54,
+   "half1": -0.1041,
+   "half2": -0.1558,
+   "base_net_mean": -0.0306,
+   "per_market": {
+    "HL:xyz:BRENTOIL": 57,
+    "BTC-USDT": 55,
+    "HL:xyz:JPY": 51,
+    "HL:xyz:GOLD": 49,
+    "HL:xyz:SP500": 49,
+    "HL:xyz:EUR": 48,
+    "HL:xyz:SILVER": 47,
+    "HL:xyz:XYZ100": 42,
+    "SOL-USDT": 36,
+    "ETH-USDT": 33,
+    "HL:xyz:CL": 32,
+    "HL:xyz:GBP": 24
+   },
+   "verdict": "KILLED (net <= 0 overall or in a half)"
+  },
+  "P4 trend pullback to Fib": {
+   "n": 964,
+   "days": 57,
+   "win": 41.1,
+   "net_mean": -0.0805,
+   "t_day": -1.6,
+   "half1": -0.2107,
+   "half2": 0.0497,
+   "base_net_mean": -0.1478,
+   "per_market": {
+    "SOL-USDT": 93,
+    "HL:xyz:EUR": 88,
+    "HL:xyz:GBP": 88,
+    "ETH-USDT": 88,
+    "HL:xyz:GOLD": 87,
+    "HL:xyz:BRENTOIL": 82,
+    "HL:xyz:CL": 77,
+    "BTC-USDT": 77,
+    "HL:xyz:JPY": 76,
+    "HL:xyz:XYZ100": 76,
+    "HL:xyz:SILVER": 71,
+    "HL:xyz:SP500": 61
+   },
+   "verdict": "KILLED (net <= 0 overall or in a half)"
+  }
+ }
+}

@@ -217,11 +217,20 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
         "solo": solo if solo in ("chart",) else "",   # "chart" = chart-only widget (RSI page); empty = the full Workspace
-        "spot": _spot_snapshot(),   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
+        "spot": _spot_snapshot(),
+        "x77": _x77_cfg(),   # X77 widget: detector key -> school, Arabic names + explanations (modules/x77_detect.py)   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
     return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
+
+
+def _x77_cfg() -> dict:
+    try:
+        from modules.x77_detect import js_config
+        return js_config()
+    except Exception:   # the widget then says "no X77 map"; the Workspace must never fail on it
+        return {}
 
 
 def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:

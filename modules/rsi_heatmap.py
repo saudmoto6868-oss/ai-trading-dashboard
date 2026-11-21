@@ -350,6 +350,12 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 </style>"""
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _yahoo_embed(symbols: tuple) -> dict:
+    from modules.yahoo_feed import embed
+    return embed(symbols)
+
+
 def render():
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
@@ -397,11 +403,14 @@ def render():
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
         return
-    if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); crypto + Hyperliquid symbols (Yahoo ones need the Workspace page)
+    if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); Yahoo candles are embedded in the page like on the Workspace page
         from modules.workspace import render_workspace
-        ws_syms = [s for s in symbols if not s.startswith("Y:")] or symbols
-        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد بس.")
-        render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart")
+        ys = [x for x in symbols if x.startswith("Y:")][:20]   # cap: each Yahoo symbol is 4 downloads
+        ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
+        with st.spinner("Loading Yahoo candles…" if ys else "Loading…"):
+            yf = _yahoo_embed(tuple(ys)) if ys else {}
+        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد وياهو (أول 20 رمز ياهو).")
+        render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart", yf=yf)
         return
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):

@@ -42,6 +42,23 @@ def render() -> None:
         except ValueError as exc:
             st.error(str(exc))
 
+    with st.expander("Analyze a chart (existing repo detectors, labelled by school)"):
+        a, b, c = st.columns([2, 1, 1])
+        sym = a.text_input("Symbol", "BTC-USDT", key="x77_an_sym")
+        tf = b.selectbox("Timeframe", ["15m", "1h", "4h", "1d"], index=1, key="x77_an_tf")
+        if c.button("Analyze", key="x77_an_go"):
+            from modules import market_cache, x77_detect
+            try:
+                res = x77_detect.events(market_cache.get_klines(sym, tf, 300))
+            except Exception as exc:
+                st.error(f"No candles: {type(exc).__name__}: {exc}")
+            else:
+                st.caption(f"Regime: {res['regime'] or '-'} · labels only, not evidence (lab numbers decide)")
+                st.write(x77_detect.summary(res))
+                st.dataframe(res["events"] + res["patterns"], hide_index=True)
+                for e in res["errors"]:
+                    st.caption(e)
+
     filt = st.segmented_control("Show", ["all"] + KIND_CHOICES, default="all", key="x77_filter")
     items = store.list_items(None if filt in (None, "all") else filt)
     st.caption(f"{len(items)} item(s)")

@@ -731,3 +731,14 @@ AR.update({"Trading": "التداول", "Lab": "المعمل", "Learn & AI": "ا
 AR.update({"Styles & rules": "الستايلات والقواعد", "Schools & document": "المدارس والمستند", "Truth, funnel & consensus": "الحقيقة والفلتر والتوافق",
            "Plateau & regime": "الثبات وحالة السوق", "Trail & decay": "سجل القرارات والتآكل"})
 AR.update({"Strategies": "الاستراتيجيات", "Scanner presets -> Radar": "إعدادات السكانر ← الرادار", "Backtest your own rules": "اختبر قواعدك على التاريخ"})
+AR.update({"Preview": "معاينة", "Preview: built but not shown": "معاينة: حاجات متبنية ومش ظاهرة",
+           "Everything here was built and tested but had no page. Look at each one and decide: keep, change or delete.": "كل اللي هنا اتبنى واتعمله اختبارات بس ماكانش له صفحة. شوف كل واحد وقرر: نخليه، نعدله، ولا نمسحه.",
+           "Edge Map": "خريطة الإيدج", "Robustness Matrix": "مصفوفة المتانة", "Execution Cycle": "دورة التنفيذ", "Veles Robustness Lab": "معمل متانة Veles",
+           "Signal comparison": "مقارنة الإشارات", "Wyckoff phases": "مراحل وايكوف", "Momentum ranking": "ترتيب الزخم", "Gann square of nine": "مربع جان التسعة",
+           "Libraries (no screen)": "مكتبات (من غير شاشة)", "No lab file yet": "لسه مفيش ملف معمل",
+           "Every detector from the last lab run on real candles (data/strategy_lab.json), pooled rows only.": "كل الكواشف من آخر تشغيل للمعمل على شموع حقيقية (data/strategy_lab.json)، الصفوف المجمعة بس.",
+           "Read the phase": "اقرا المرحلة", "No accumulation structure on these candles.": "مفيش هيكل تجميع على الشموع دي.",
+           "Textbook labelling, not a signal and not validated.": "تسمية من الكتب، مش إشارة ومش متجربة.",
+           "Symbols (comma separated)": "الرموز (افصل بفاصلة)", "Rank": "رتّب", "12-1 month relative strength ranking on daily closes.": "ترتيب القوة النسبية 12-1 شهر على الإغلاق اليومي.",
+           "Pivot price": "سعر المحور", "Square of nine: (sqrt(P) ± 0.25 k)², pure math, no data.": "مربع التسعة: (جذر السعر ± 0.25 k)²، حساب بس من غير داتا.",
+           "Each has its own test in tests/. None is called by the app.": "كل واحدة ليها اختبار في tests/. ولا واحدة بيستخدمها التطبيق."})

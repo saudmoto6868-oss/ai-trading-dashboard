@@ -488,7 +488,11 @@ def render():
             bars = WARMUP_BARS
         ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
         ws_html = build_workspace_html(ws_syms, None, "ar", asset_cls=asset_class, solo="chart", yf=embed(ys, bars=bars, frames=frames) if ys else {})
-    st.iframe(board_html(items, chart_tf, timeframes, ws_html), height=780, alt="RSI heatmap map and setup board")
+    try:   # a phone gets the stacked layout (map, chart, tabs one under the other) in a taller frame
+        mobile = any(k in (st.context.headers.get("User-Agent", "") or "") for k in ("Mobi", "Android", "iPhone"))
+    except Exception:
+        mobile = False
+    st.iframe(board_html(items, chart_tf, timeframes, ws_html), height=1620 if mobile else 780, alt="RSI heatmap map and setup board")
 
     if errors:
         with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):

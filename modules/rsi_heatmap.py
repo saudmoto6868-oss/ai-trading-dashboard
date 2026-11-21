@@ -353,7 +353,7 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 @st.cache_data(ttl=300, show_spinner=False)
 def _yahoo_embed(symbols: tuple) -> dict:
     from modules.yahoo_feed import embed
-    return embed(symbols)
+    return embed(symbols, bars=WARMUP_BARS)   # same (symbol, tf, limit) keys as the board's own download: candles it already fetched are reused, not downloaded again
 
 
 def render():
@@ -405,11 +405,11 @@ def render():
         return
     if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); Yahoo candles are embedded in the page like on the Workspace page
         from modules.workspace import render_workspace
-        ys = [x for x in symbols if x.startswith("Y:")][:20]   # cap: each Yahoo symbol is 4 downloads
+        ys = [x for x in symbols if x.startswith("Y:")][:12]   # cap: each Yahoo symbol is 4 downloads when the board has not fetched it yet
         ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
         with st.spinner("Loading Yahoo candles…" if ys else "Loading…"):
             yf = _yahoo_embed(tuple(ys)) if ys else {}
-        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد وياهو (أول 20 رمز ياهو).")
+        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد وياهو (أول 12 رمز ياهو).")
         render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart", yf=yf)
         return
     from modules.market_cache import fetch_frames

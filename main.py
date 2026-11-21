@@ -3438,6 +3438,11 @@ if PAGE == 1:   # cscan
             render_radar_screener(_rf)
         else:
             render_chart_scanner(_rf)
+        try:   # X77 (owner 2026-11-20): send a Radar symbol to the X77 store; saves only
+            from modules.x77_page import send_box as _x77_send
+            _x77_send(SCAN_SYMBOLS)
+        except Exception as _xe:
+            st.caption(f"X77: {type(_xe).__name__}")
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 

@@ -58,3 +58,17 @@ def render() -> None:
                     st.image(str(p), width=360)
                 else:
                     st.caption(p.name)
+
+
+def send_box(symbols, key: str = "x77_send") -> None:
+    """Radar button (owner 2026-11-20): save one symbol + timeframe + note as an X77 'setup'. No analysis, no order."""
+    with st.popover("Send to X77"):
+        sym = st.selectbox("Symbol", list(symbols) or ["BTC-USDT"], key=f"{key}_sym")
+        tf = st.selectbox("Timeframe", ["5m", "15m", "1h", "4h", "1d"], index=2, key=f"{key}_tf")
+        note = st.text_input("Why (pattern / school)", key=f"{key}_note")
+        if st.button("Save", key=f"{key}_go"):
+            try:
+                saved = store.add_item("setup", text=f"{sym} {tf} {note}".strip(), tags=("radar", sym, tf))
+                st.success(f"Saved {saved['id']}")
+            except ValueError as exc:
+                st.error(str(exc))

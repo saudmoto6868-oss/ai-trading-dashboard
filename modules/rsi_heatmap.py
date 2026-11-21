@@ -400,7 +400,7 @@ def render():
     if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); crypto + Hyperliquid symbols (Yahoo ones need the Workspace page)
         from modules.workspace import render_workspace
         ws_syms = [s for s in symbols if not s.startswith("Y:")] or symbols
-        st.caption("شارت AI: نفس شارت الورك سبيس بمؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو + Hyperliquid.")
+        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد بس.")
         render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart")
         return
     from modules.market_cache import fetch_frames

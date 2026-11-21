@@ -167,6 +167,7 @@ class CandleChart {
       const P = this.pinch; if (P.vert){ const dy = Math.max(20, Math.abs(v[0].y - v[1].y)); this._bookFit = false; if (!this.lockR) this.freezeY(); this.zoomY(P.dyP/dy, this.candleY()); P.dyP = dy; this.drawSoon(); return; }   // price pinch: spreading the fingers magnifies the candles, anchored on the middle of the candles (never flies away)
       const f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.drawSoon(); this.checkMore(); return; }
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:(e.clientX-rect.left)/this.S, y:(e.clientY-rect.top)/this.S}; XH_CHARTS.add(this); xhSync(this);
+    if (this.alarmMove && this.alarmMove(e)) return;   // dragging an alert line (21d_price_alarms.js)
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.drawSoon(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)/this.S))); this.drawSoon(); return; }
@@ -195,6 +196,7 @@ class CandleChart {
   saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lk: this.lockR})); } catch(e){} }
   restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
+    if (this.alarmUp && this.alarmUp(e)) return;   // end of a press on an alert line / tag
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
       if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap((t0.x - rc.left)/this.S, (t0.y - rc.top)/this.S); } }   // a quick tap = MT5 round menu

@@ -172,7 +172,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                          ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
-                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = "") -> str:
+                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = "", radar: dict | None = None) -> str:
     news = list(news or [])
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
@@ -216,7 +216,8 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
-        "solo": solo if solo in ("chart",) else "",   # "chart" = chart-only widget (RSI page); empty = the full Workspace
+        "solo": solo if solo in ("chart", "radar", "spot") else "",   # "chart" = chart-only widget (RSI page); "radar" = the Radar page grid (modules/ws/24f_radar.js); empty = the full Workspace
+        "radar": radar or {},   # {cols, h, items:[{sym, tf, tag, info, pts}]} for solo="radar" (main.py render_chart_scanner)
         "spot": _spot_snapshot(),
         "x77": _x77_cfg(),   # X77 widget: detector key -> school, Arabic names + explanations (modules/x77_detect.py)   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }

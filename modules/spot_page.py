@@ -327,6 +327,13 @@ def _tab_crypto(d, cr, fx):
     if not cr:
         st.warning(T("OKX spot list unavailable right now.", "قايمة OKX سبوت مش متاحة دلوقتي."))
         return
+    try:   # owner 2026-11-21: the coins as a grid of OUR chart widgets (tools, indicators, the plan drawn on the chart), one thin filter line
+        from modules import spot_grid
+        from modules.i18n import lang as _lang
+        spot_grid.render(cr, _plan_for, _n, T, "ar" if _lang() == "ar" else "en")
+    except Exception as e:
+        st.caption(T("Chart grid unavailable", "شبكة الشارتات مش متاحة") + f": {type(e).__name__}: {e}")
+    st.markdown("**" + T("One coin: plan, ladder and list", "عملة واحدة: الخطة والدفعات والقايمة") + "**")
     a, b, c3 = st.columns([1, 2, 1])
     top = a.selectbox(T("Show", "اعرض"), ["50", "100", "200", T("All", "الكل")], key="sp_top")
     q = b.text_input(T("Search", "بحث"), key="sp_q").strip().upper()
@@ -1019,10 +1026,9 @@ def _chart_doc(symbols: tuple, lang: str, height: int) -> str:
     """The full Workspace app (charts, every indicator, footprint / order flow, Elliott, Gann, drawings, alerts) for the spot symbols.
     Cached: the same string is re-sent on reruns, so the frame does not reload and its live feeds keep running."""
     from modules.workspace import build_workspace_html
-    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto")
-    # chart widget only (owner 2026-11-16): own layout store, so the main Workspace layout is untouched; on first open the
-    # layout is one maximised chart on the first symbol. More widgets can still be added from "+ Widget".
-    doc = doc.replace('const LS = "ai_ws_v5";', 'const LS = "ai_ws_spot_v1";', 1)
+    # solo="spot": own layout store (ai_ws_spot_v1), so the main Workspace layout is untouched (the old text replace of the LS line
+    # stopped matching when the app got its modes, and then wrote the Workspace layout); on first open: one maximised chart.
+    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto", solo="spot")
     boot = """<script>window.addEventListener('load',()=>setTimeout(()=>{try{
 if(localStorage.getItem('ai_ws_spot_one'))return;
 XCMD.layout('blank');XCMD.addPanel('chart');XCMD.setSymbol(%s);

@@ -177,7 +177,8 @@ function applyLang(rebuild){
   if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
   try { if (!CFG.solo) welcome(); } catch(e){}
   if (CFG.mrxOn) try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // off until the official launch (MRX_LIVE=1): no presenter on screen, no photo in the DOM   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
-  if (CFG.solo) addEventListener("message", e => { const m = e.data; if (m && m.t === "sym" && SYMS.includes(m.s)){ const p = Ws.panels.find(x => x.type === "chart"); if (p && p.state.sym !== m.s) p.setSymbol(m.s); } });   // the RSI board that embeds this chart sends the selected symbol
+  if (CFG.solo) addEventListener("message", e => { const m = e.data; if (!m || m.t !== "sym" || !SYMS.includes(m.s)) return; const p = Ws.panels.find(x => x.type === "chart"); if (!p) return;
+    if (p.state.sym !== m.s) p.setSymbol(m.s); p.chart.planLv = Array.isArray(m.lv) && m.lv.length ? m.lv : null; try { p.chart.draw(); } catch(e_){} });   // the RSI board that embeds this chart sends the selected symbol
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");

@@ -20,7 +20,7 @@ TF = {"1m": ("1m", "7d", 1), "5m": ("5m", "60d", 1), "15m": ("15m", "60d", 1), "
 
 FOREX = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURGBP=X", "EURJPY=X", "GBPJPY=X", "USDEGP=X", "USDSAR=X", "GC=F", "SI=F", "DX-Y.NYB"]
 INDICES = ["^IXIC", "^NDX", "^GSPC", "^DJI", "^RUT", "^VIX", "^GDAXI", "^FTSE", "^N225", "^HSI"]
-EGX = ["^CASE30", "COMI.CA", "HRHO.CA", "TMGH.CA", "SWDY.CA", "EAST.CA", "ORAS.CA", "ABUK.CA", "FWRY.CA", "ETEL.CA", "EKHO.CA", "PHDC.CA"]
+EGX = ["^CASE30", "COMI.CA", "HRHO.CA", "TMGH.CA", "SWDY.CA", "EAST.CA", "ORAS.CA", "ABUK.CA", "FWRY.CA", "ETEL.CA", "PHDC.CA"]
 TADAWUL = ["^TASI.SR", "2222.SR", "1120.SR", "2010.SR", "7010.SR", "1180.SR", "2380.SR", "1211.SR", "4030.SR", "2350.SR", "5110.SR", "1150.SR"]
 BY_CLASS = {"Forex": FOREX, "Indices": INDICES, "Egypt (EGX)": EGX, "Saudi (Tadawul)": TADAWUL}
 
@@ -102,14 +102,16 @@ def tv_symbol(sym: str) -> str:
 EMBED_TFS = ("15m", "1h", "4h", "1d")
 
 
-def embed(symbols, bars: int = 200) -> dict:
+def embed(symbols, bars: int = 200, frames: dict | None = None) -> dict:
     """{ "Y:SYM": {"15m": [[ms,o,h,l,c,v], ...oldest first], "1h": ..., "4h": ..., "1d": ...} } for the browser Workspace
-    (its page cannot call Yahoo itself - CORS - so the candles are handed over inside the page). Failed symbols are left out."""
+    (its page cannot call Yahoo itself - CORS - so the candles are handed over inside the page). Failed symbols are left out.
+    frames = candles already downloaded by the caller ({sym: {tf: DataFrame}}): used as they are, nothing is fetched."""
     from modules.market_cache import fetch_frames
     ys = [x for x in symbols if is_yahoo(x)]
     if not ys:
         return {}
-    frames, _errs = fetch_frames(ys, list(EMBED_TFS), limit=bars, workers=8)
+    if frames is None:
+        frames, _errs = fetch_frames(ys, list(EMBED_TFS), limit=bars, workers=8)
     out = {}
     for sym in ys:
         d = {}

@@ -1,0 +1,1 @@
+{"id": "BNB-USDT|2026-11-21", "symbol": "BNB-USDT", "class": "Crypto", "tf": "1D", "side": "short", "entry": 530.6, "stop": 593.92, "target": 435.6200000000001, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

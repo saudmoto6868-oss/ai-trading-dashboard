@@ -437,20 +437,38 @@ Object.assign(CandleChart.prototype, {
     else if (!D){ const err = this.llErr && Date.now() - this.llErr < 120000; c.font = "9px sans-serif"; c.fillStyle = err ? "#b08a3a" : "#6b7684"; c.textAlign = "right"; c.fillText(err ? "MTF LLT: waiting for the exchange (retrying)" : "MTF LLT: loading…", PR - 8, this.PB - 8); }   // small and quiet: it used to be a big sentence in the middle of the chart that never changed
     c.restore();
   },
-  paintDayCandle(c, py){   // 2026-11-20 owner: "the big day candle that stays on the chart". The current UTC day as ONE big candle on intraday charts:
-    // O = first bar's open of the day, H / L = day extremes, C = last close; fixed at the right edge of the plot, so it stays while you scroll and zoom.
-    // If the loaded history starts inside the day, the open / high / low are only from the loaded bars: the outline is then dashed and the tag shows "~".
-    const d = this.data, n = d.length, bar = (TFSEC[this.tf] || 60) * 1000; if (!n || bar >= 86400000) return;
-    const DAY = 86400000, day = Math.floor(d[n-1].t / DAY); let i = n - 1; while (i > 0 && Math.floor(d[i-1].t / DAY) === day) i--;
-    const o = d[i].o, cl = d[n-1].c; let hi = -Infinity, lo = Infinity; for (let j = i; j < n; j++){ if (d[j].h > hi) hi = d[j].h; if (d[j].l < lo) lo = d[j].l; }
-    const partial = i === 0 && d[0].t - day*DAY >= bar, up = cl >= o, col = up ? TH.up : TH.dn, bw = 26, x0 = this.W - this.PR - bw - 8, xc = x0 + bw/2;
-    const yh = py(hi), yl = py(lo), yo = py(o), yc = py(cl);
-    c.save(); c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([]);
-    c.beginPath(); c.moveTo(xc, yh); c.lineTo(xc, yl); c.stroke();   // wick: day high to day low
-    c.fillStyle = hexA(col, .38); c.fillRect(x0, Math.min(yo, yc), bw, Math.max(2, Math.abs(yo - yc)));   // body: day open to last close
-    c.setLineDash(partial ? [3, 3] : []); c.strokeRect(x0 + .5, Math.min(yo, yc) + .5, bw - 1, Math.max(2, Math.abs(yo - yc)) - 1); c.setLineDash([]);
-    c.fillStyle = TH.mut; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.textBaseline = "bottom";
-    c.fillText((partial ? "~" : "") + "1D", xc, Math.max(12, yh - 3)); c.restore();
+  htfAgg(tf){   // HTF candles built from the LOADED chart bars (the fallback: sub-minute HTF, or the feed request failed); weeks start on Monday 00:00 UTC
+    const d = this.data, W = 604800000, D4 = 345600000, sec = (TFSEC[tf] || 60) * 1000, out = []; let k0 = null;
+    for (const b of d){ const k = tf === "1W" ? Math.floor((b.t - D4) / W) : Math.floor(b.t / sec), st = tf === "1W" ? k * W + D4 : k * sec;
+      if (k !== k0){ out.push({t:st, o:b.o, h:b.h, l:b.l, c:b.c, v:b.v || 0}); k0 = k; } else { const x = out[out.length-1]; if (b.h > x.h) x.h = b.h; if (b.l < x.l) x.l = b.l; x.c = b.c; x.v += b.v || 0; } }
+    return out;
+  },
+  htfRows(tf, n){   // 2026-11-20: HTF candles of this chart's symbol: REAL candles from the feed (same loader as the chart, cached 45 s, one request per symbol + timeframe), then the newest one is kept live from the loaded bars
+    const H = this._htf = this._htf || {}, key = this.sym + "|" + tf, now = Date.now(); let e = H[key];
+    if ((TFSEC[tf] || 0) >= 60 && (!e || (!e.busy && now - e.at > 45000))){ e = H[key] = e || {rows:null, at:0, busy:false}; e.busy = true; e.at = now;
+      candlesTf(this.sym, tf, true, n + 2).then(r => { e.rows = r && r.length ? r : null; }).catch(() => { e.rows = null; }).finally(() => { e.busy = false; this.draw(); }); }
+    const agg = this.htfAgg(tf), bar = (TFSEC[this.tf] || 60) * 1000, rows = e && e.rows;
+    if (!rows) return agg.map((r, i) => Object.assign(r, {p: i === 0 && this.data[0].t - r.t >= bar}));   // from loaded bars only: the oldest one may start before the history
+    const out = rows.map(r => Object.assign({}, r, {p:false})), last = out[out.length-1];
+    for (const a of agg) if (a.t >= last.t){ if (a.t === last.t){ last.h = Math.max(last.h, a.h); last.l = Math.min(last.l, a.l); last.c = a.c; } else out.push(Object.assign({}, a, {p:false})); }
+    return out;
+  },
+  paintHtfCandles(c, py){   // 2026-11-20 owner: "the big day candle that stays on the chart", with a choice of timeframe (week ... second) like the TradingView HTF-candle indicators:
+    // the last N candles of a higher timeframe, drawn at the right edge of the plot (body open->close, wick high->low, newest on the right). Settings: st.dcandle {tf, n, w, gap, off, lbl}.
+    const S = this.st.dcandle, tf = S.tf || "1D", n = Math.max(1, Math.min(8, S.n | 0 || 1)), w = Math.max(8, S.w | 0 || 26), gap = Math.max(0, S.gap | 0), off = Math.max(0, S.off | 0), ctf = TFSEC[this.tf] || 60;
+    c.save(); c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillStyle = TH.mut;
+    const xr = this.W - this.PR - off;   // right edge of the newest candle
+    if (!this.data.length) { c.restore(); return; }
+    if ((TFSEC[tf] || 0) <= ctf){ c.textAlign = "right"; c.fillText(tf + " <= " + this.tf + ": " + Lg("pick a higher timeframe","اختار فريم أعلى"), xr, 24); c.restore(); return; }   // an HTF candle must be bigger than the chart candle
+    const rows = this.htfRows(tf, n).slice(-n);
+    rows.forEach((r, k) => {
+      const x0 = xr - w - (rows.length - 1 - k) * (w + gap), xc = x0 + w/2, up = r.c >= r.o, col = up ? TH.up : TH.dn, yh = py(r.h), yl = py(r.l), yo = py(r.o), yc = py(r.c), top = Math.min(yo, yc), hh = Math.max(2, Math.abs(yo - yc));
+      c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([]); c.beginPath(); c.moveTo(xc, yh); c.lineTo(xc, yl); c.stroke();   // wick
+      c.fillStyle = hexA(col, k === rows.length - 1 ? .38 : .26); c.fillRect(x0, top, w, hh);   // body
+      c.setLineDash(r.p ? [3, 3] : []); c.strokeRect(x0 + .5, top + .5, w - 1, hh - 1); c.setLineDash([]);
+      if (S.lbl && k === rows.length - 1){ c.fillStyle = TH.mut; c.fillText((r.p ? "~" : "") + tf, xc, Math.max(12, yh - 3)); }   // "~" = built from the loaded candles only (the history starts inside this candle)
+    });
+    c.restore();
   },
   paintMt5(c, py, i0, i1){   // MT5-style pack seen on the user's phone chart: SMA ribbon (5 lines), Parabolic SAR (yellow diamonds), Bill Williams fractals (red arrow above a swing high, green arrow below a swing low)
     const d = this.data, n = d.length, S = this.st.mt5; if (n < 8) return; c.save();
@@ -767,7 +785,7 @@ Object.assign(CandleChart.prototype, {
   },
   paintEWauto(c, py, dec){
     const list = this.ewCount(); this.paintEWforming(c, py);
-    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); return; } if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWdiag(c, py, list[0]); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); this.paintProjection(c, py); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
+    if (!list.length){ this.indNote(c, 1, Lg("Elliott: no wave count on this timeframe yet", "إليوت: مفيش عد موجات على الفريم ده لسه")); const shp0 = this.ewShapeLabel(); if (shp0) this.indNote(c, 4, shp0); this.paintEWdiag(c, py); this.ewSubLine(c, 7); this.paintProjection(c, py); this.ewMTFBox(c); return; }   // the shape, sub-count, expected zone and frame box do not need a full count on this frame if (this.htfAgainst(list[0].up)) this.indNote(c, 3, Lg("Elliott count against the bigger trend", "عد إليوت عكس الاتجاه الأكبر")); const shp = this.ewShapeLabel(); if (shp) this.indNote(c, 4, shp); this.ewMTFBox(c); if (list[0] && list[0].pts && list[0].pts.length >= 6) this.paintEWfib(c, py, list[0]); this.paintEWdiag(c, py); if (list[0]) this.ewWaveCaption(c, list[0], 6); this.ewSubLine(c, 7); this.paintProjection(c, py); const PR = this.PR, PB = this.PB; c.save(); c.beginPath(); c.rect(0,0,PR,PB); c.clip(); c.textAlign = "center"; c.textBaseline = "middle";
     list.forEach((w, n) => { const imp = w.pts.concat(w.abc.length ? [] : []), seq = (w.start ? [w.start] : []).concat(w.pts, w.abc); const col = w.up ? "#0ecb81" : "#f6465d", acol = "#b57cff";
       c.globalAlpha = n ? .45 : 1; c.lineWidth = n ? 1 : 1.6; c.strokeStyle = col; c.beginPath(); w.pts.forEach((q,i) => { const x = this.x(q.i), y = py(q.p); i ? c.lineTo(x,y) : c.moveTo(x,y); }); if (w.pts.length) c.stroke();
       if (w.abc.length){ c.strokeStyle = acol; c.setLineDash([4,3]); c.beginPath(); const first = w.pts.length ? w.pts[w.pts.length-1] : w.start; c.moveTo(this.x(first.i), py(first.p)); w.abc.forEach(q => c.lineTo(this.x(q.i), py(q.p))); c.stroke(); c.setLineDash([]); }
@@ -876,8 +894,10 @@ Object.assign(CandleChart.prototype, {
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (q.x <= this.PR && q.y <= this.PB && isFinite(q.p)){
       item(Lg("Horizontal line at ","خط أفقي عند ")+fmtP(q.p), () => { const d = {id:Date.now()+Math.random(), type:"hline", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.draw(); });
+      if (typeof palarmDialog === "function" && this.sym) item("⏰ "+Lg("Add alert at ","تنبيه عند ")+fmtP(q.p), () => palarmDialog({sym:this.sym, tf:this.tf, v:+q.p.toFixed(8)}, () => this.draw()));
       item(Lg("Copy price ","نسخ السعر ")+fmtP(q.p), () => ctxCopy(String(q.p))); item(Lg("Fit the view","ضبط العرض"), () => this.fit()); }
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
+    if (typeof palarmManager === "function") item("⏰ "+Lg("Alerts","التنبيهات")+" ("+PAlarm.list.length+")", () => palarmManager(this.sym, () => this.draw()));
     if (this.draws.length) item(T("cmAll")+" ("+this.draws.length+")", () => this.clearDraws());
     if (this.overlay || this.fibLv) item(T("cmOv"), () => { this.overlay = null; this.fibLv = null; this.draw(); });
     if (!m.children.length) item(T("cmNone"), () => {});

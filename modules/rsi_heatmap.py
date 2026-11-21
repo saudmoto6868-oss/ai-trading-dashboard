@@ -8,12 +8,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from modules import rsi_ar as _AR
+
 import pandas as pd
 import streamlit as st
 
+ALL_MARKETS = "All markets · Top 10"
 ASSET_CLASSES = (
     "Crypto", "Forex", "Metals", "Oil & Gas", "Indices", "Stocks", "Bonds",
-    "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)",
+    "Options", "Meme coins", "Egypt (EGX)", "Saudi (Tadawul)", ALL_MARKETS,
 )
 TIMEFRAMES = ("1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w")
 WARMUP_BARS = 250   # Wilder RSI converges after ~250 bars (StockCharts); fewer drifts from TradingView
@@ -199,6 +202,22 @@ def _board_score(rec):
     return rec["conv"] + min(plan.get("rr", 0), 4) * 6 + (10 - 2 * rec["fresh"] if rec.get("fresh") is not None else 0)
 
 
+def _candle_key(df):
+    """Last closed candle time: the board only needs recomputing when a new candle closes."""
+    try:
+        return str(df["time"].iloc[-1])
+    except Exception:
+        return "?"
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_read(sym, candle, chart_tf, deep, _df, vote=0):
+    """Strategy schools per symbol, cached per closed candle (Live refresh stops re-running all 9 schools)."""
+    from modules.rsi_confluence import read_symbol
+    from modules.rsi_setups import read_setup
+    return read_symbol(_df, read_setup(_df), vote, deep)
+
+
 def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True):
     """One record per symbol for the board (pure apart from the cached flow fetch)."""
     from modules.rsi_confluence import derive_tags, read_symbol
@@ -207,7 +226,7 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
     recs = {}
     for s in symbols:
         try:
-            recs[s] = read_symbol(closed[s], setups.get(s), 0, deep) if deep else None
+            recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s]) if deep else None
         except Exception:
             recs[s] = None
     flows = {}
@@ -222,9 +241,10 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
             vote = flow_read(fl)["vote"]
             if deep and vote:
                 try:
-                    recs[s] = read_symbol(closed[s], setups.get(s), vote, deep)
+                    recs[s] = _cached_read(s, _candle_key(closed[s]), chart_tf, deep, closed[s], vote)
                 except Exception:
                     pass
+    top25 = set(sorted(recs, key=lambda s: _board_score(recs[s]), reverse=True)[:25])
     items = []
     for rank, s in enumerate(symbols, start=1):
         per_tf, setup, rec = detail.get(s) or {}, setups.get(s) or {}, recs.get(s)
@@ -250,8 +270,48 @@ def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True
                      for tf in timeframes if tf in per_tf}
         it["src"] = feed_of(s)[0] or ("yahoo" if s.startswith("Y:") else "other")
         it["tags"], it["urgent"] = derive_tags(it, chart_tf, timeframes)
+        it.update(_detail(s, rec, closed.get(s), chart_tf, top25, setup))
         items.append(it)
     return items
+
+
+def _sig_rows(rec, cap=12):
+    """Arabic signal rows for the drawer: matching side first, then the rest (English data, Arabic text)."""
+    from modules.arabic import signal_ar, tag_for
+    from modules.rsi_confluence import school_of
+    if not rec:
+        return []
+    side = rec.get("dir") or 0
+    sigs = sorted(rec.get("signals", []), key=lambda s: (s.get("direction") == "bullish") != (side > 0))
+    out = []
+    for s in sigs[:cap]:
+        try:
+            name, detail = signal_ar(s, True)
+        except Exception:
+            name, detail = s.get("name", ""), ""
+        t = tag_for(s, True)
+        out.append({"school": school_of(s), "n": name, "d": str(detail)[:200], "v": 1 if s.get("direction") == "bullish" else -1,
+                    "t": t[0], "c": t[1]})
+    return out
+
+
+def _detail(sym, rec, df, chart_tf, top25, setup):
+    """Drawer + chart data: Arabic signal rows, harmonics / patterns, last 50 candles and nearest S/R levels."""
+    out = {"sigs": _sig_rows(rec), "harm": (rec or {}).get("harm", []), "pats": (rec or {}).get("pats", []),
+           "ohlc": [], "lv": []}
+    if df is None or len(df) < 10 or "open" not in df:
+        return out
+    tail = df[["open", "high", "low", "close"]].tail(120).astype(float).round(8).values.tolist()
+    out["ohlc"] = tail
+    try:
+        from modules.signals import sr_levels
+        res, sup = sr_levels(df)
+        last = float(df["close"].iloc[-1])
+        out["lv"] = ([{"p": float(x), "k": "R"} for x in sorted(res) if x > last][:2]
+                     + [{"p": float(x), "k": "S"} for x in sorted(sup, reverse=True) if x < last][:2])
+    except Exception:
+        out["lv"] = []
+    return out
 
 
 def board_html(items, chart_tf, timeframes):
@@ -264,7 +324,13 @@ def board_html(items, chart_tf, timeframes):
             "built": pd.Timestamp.now(tz="UTC").strftime("%H:%M:%S UTC"), "tags": list(TAGS),
             "tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
             "avg": round(sum(pts) / len(pts), 2) if pts else None,
-            "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS]}
+            "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS],
+            "ar": {"school": _AR.SCHOOL,
+                   "verdict": _AR.VERDICT,
+                   "phase": _AR.PHASE,
+                   "tag": _AR.TAG,
+                   "band": _AR.BAND,
+                   "regime": _AR.REGIME}}
     blob = json.dumps(data, ensure_ascii=False, default=float).replace("</", "<\\/")
     return _BOARD.read_text(encoding="utf-8").replace("__DATA__", blob)
 
@@ -284,27 +350,37 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 </style>"""
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _yahoo_embed(symbols: tuple) -> dict:
+    from modules.yahoo_feed import embed
+    return embed(symbols, bars=WARMUP_BARS)   # same (symbol, tf, limit) keys as the board's own download: candles it already fetched are reused, not downloaded again
+
+
 def render():
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
-    f = st.columns([1.25, 0.8, 2.45, 0.62, 0.62, 0.72, 0.62, 0.66], gap="small")
-    f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap <span>Intelligence</span></div>", unsafe_allow_html=True)
-    asset_class = f[1].selectbox("Market", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
-    picked = f[2].pills("Timeframes", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "12h", "1d", "1w"],
+    view = st.segmented_control("العرض", ["لوحة RSI", "شارت AI"], default="لوحة RSI", key="rsi_hm_view", label_visibility="collapsed")
+    f = st.columns([1.0, 1.05, 3.4, 0.95, 0.95, 0.5], gap="small", vertical_alignment="center")
+    f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap</div>", unsafe_allow_html=True)
+    asset_class = f[1].selectbox("السوق", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
+    picked = f[2].pills("الفريمات", TIMEFRAMES, selection_mode="multi", default=["15m", "1h", "4h", "1d"],
                         key="rsi_hm_tfs", label_visibility="collapsed") or []
-    limit = f[3].selectbox("Symbols", (10, 20, 30, 50, 100, 200, 300), index=3, key="rsi_hm_limit",
-                           label_visibility="collapsed", format_func=lambda n: f"{n} sym")
+    limit = f[3].selectbox("العملات", (10, 20, 30, 50, 100, 200, 300), index=1, key="rsi_hm_limit",
+                           label_visibility="collapsed", format_func=lambda n: f"{n} عملة")
     timeframes = [tf for tf in TIMEFRAMES if tf in picked]
     if not timeframes:
-        st.info("Select at least one timeframe.")
+        st.info("اختار فريم واحد على الأقل.")
         return
     default_tf = "4h" if "4h" in timeframes else timeframes[0]
-    chart_tf = f[4].selectbox("Map TF", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
-                              label_visibility="collapsed", format_func=lambda t: f"Map {t}")
-    deep = f[5].toggle("Radar", value=True, key="rsi_hm_deep", help="All strategy schools + harmonics + chart patterns (slower).")
-    use_flow = f[6].toggle("Flow", value=True, key="rsi_hm_flow", help="Order-flow snapshot for the top 20 setups (OKX / Hyperliquid).")
-    live = f[7].selectbox("Live", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live", label_visibility="collapsed",
-                          format_func=lambda m: "Live off" if not m else f"Live {m} min")
+    chart_tf = f[4].selectbox("فريم الخريطة", timeframes, index=timeframes.index(default_tf), key="rsi_hm_chart_tf",
+                              label_visibility="collapsed", format_func=lambda t: f"خريطة {t}")
+    with f[5].popover("⚙"):
+        deep = st.toggle("Radar: كل الاستراتيجيات", value=True, key="rsi_hm_deep",
+                         help="كل مدارس الاستراتيجيات + هارمونيك + نماذج الشارت (أبطأ).")
+        use_flow = st.toggle("Flow: الأوردر فلو", value=False, key="rsi_hm_flow",
+                             help="لقطة الأوردر فلو لأفضل 20 setup (OKX / Hyperliquid).")
+        live = st.selectbox("تحديث تلقائي", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live",
+                            format_func=lambda m: "مقفول" if not m else f"كل {m} دقيقة")
     if live:
         try:
             from streamlit_autorefresh import st_autorefresh
@@ -312,13 +388,39 @@ def render():
         except Exception:
             st.caption("streamlit-autorefresh not installed: Live is off.")
 
-    symbols, note = _symbols(asset_class, int(limit))
+    if asset_class == ALL_MARKETS:   # top 10 of every market (Options skipped: no candle feed), one board
+        symbols, parts = [], []
+        for cls in ASSET_CLASSES:
+            if cls in (ALL_MARKETS, "Options"):
+                continue
+            got, _ = _symbols(cls, 10)
+            symbols += got
+            parts.append(f"{cls} {len(got)}")
+        symbols = list(dict.fromkeys(symbols))
+        note = "Top 10 per market: " + " · ".join(parts) + " (the العملات box is ignored here)"
+    else:
+        symbols, note = _symbols(asset_class, int(limit))
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
+        return
+    if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); Yahoo candles are embedded in the page like on the Workspace page
+        from modules.workspace import render_workspace
+        ys = [x for x in symbols if x.startswith("Y:")][:12]   # cap: each Yahoo symbol is 4 downloads when the board has not fetched it yet
+        ws_syms = [x for x in symbols if not x.startswith("Y:")] + ys
+        have = st.session_state.get("rsi_hm_frames") or {}
+        from modules.yahoo_feed import EMBED_TFS, embed
+        if ys and all(tf in (have.get(s) or {}) for s in ys for tf in EMBED_TFS):   # the board of this market was just loaded: no download
+            yf = embed(ys, frames=have)
+        else:
+            with st.spinner("Loading Yahoo candles…"):
+                yf = _yahoo_embed(tuple(ys)) if ys else {}
+        st.caption("شارت AI: نفس شارت الورك سبيس بكل مؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو وهايبرليكويد وياهو (أول 12 رمز ياهو).")
+        render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart", yf=yf)
         return
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):
         frames, errors = fetch_frames(symbols, timeframes, limit=WARMUP_BARS, workers=4)
+    st.session_state["rsi_hm_frames"] = frames   # the AI chart view reuses these candles instead of downloading them again
 
     detail, setups = {}, {}
     for symbol in symbols:
@@ -345,38 +447,6 @@ def render():
     with st.spinner("Reading every school on the map timeframe…" if deep else "Building the board…"):
         items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
     st.iframe(board_html(items, chart_tf, timeframes), height=780, alt="RSI heatmap map and setup board")
-
-    with st.expander(f"All symbols · RSI by timeframe ({len(items)})"):
-        rsi_cols = [f"RSI {tf}" for tf in timeframes]
-        table = pd.DataFrame([{"Symbol": i["full"], "Price": i["price"], "Verdict": i["verdict"],
-                               "Conviction": i["conv"], **{f"RSI {tf}": i["rsi"][tf] for tf in timeframes},
-                               "MTF": _alignment(detail[i["full"]], timeframes)} for i in items])
-        st.dataframe(table.style.map(_style_rsi, subset=rsi_cols).map(lambda v: _ALIGN_STYLE.get(v, ""), subset=["MTF"])
-                     .format("{:.2f}", subset=rsi_cols, na_rep="—").format("{:,.6g}", subset=["Price"], na_rep="—"),
-                     width="stretch", hide_index=True, height=360)
-
-    with st.expander("Symbol detail · TIA Director"):
-        available_symbols = [s for s in symbols if detail.get(s)]
-        selected = st.selectbox("Symbol", available_symbols, key="rsi_hm_symbol")
-        selected_data = detail.get(selected, {})
-        cards = st.columns(max(1, min(6, len(timeframes))))
-        for i, tf in enumerate(timeframes):
-            m = selected_data.get(tf)
-            with cards[i % len(cards)]:
-                st.metric(f"RSI · {tf}", f"{m['rsi']:.2f}" if m else "—", rsi_band(m["rsi"]) if m else "No data",
-                          delta_color="off")
-                if m:
-                    st.caption(f"{m['trend']} · {m['last_closed']}")
-        if st.button("Analyse with TIA Director", key="rsi_hm_director"):
-            from modules.tia_intelligence import director_report
-            with st.spinner(f"Running TIA evidence review for {selected}…"):
-                report = director_report(selected, asset_class)
-            st.write(report.get("stance", "UNAVAILABLE"), "·", report.get("confidence", "LOW"))
-            st.caption(report.get("director_summary", "No director summary returned."))
-            for warning in report.get("warnings", []):
-                st.warning(warning)
-            st.json({"technical": report.get("technical", {}), "flow": report.get("flow", {}),
-                     "sources": report.get("sources", {}), "options": report.get("options")})
 
     if errors:
         with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):

@@ -85,6 +85,8 @@ def _fetch_raw(symbol: str, tf: str, limit: int):
             raise
         _note(src, True)
         return df
+    if symbol.startswith("Y:") and tf == "12h":   # Yahoo / Biquote have no 12h: build it from 4h (3 bars, 00:00 UTC)
+        return _resample_from(get_klines(symbol, "4h", limit * 3 + 3), "12h", limit)
     if symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
         from modules import av_feed, biquote_feed
         errs = []
@@ -128,6 +130,18 @@ def _fetch_raw(symbol: str, tf: str, limit: int):
         raise
     _note(src, True)
     return df
+
+
+def _resample_from(df, rule: str, limit: int):
+    """OHLCV candles resampled to a bigger timeframe; only complete-looking buckets with a close."""
+    import pandas as pd
+    d = df.copy()
+    d["time"] = pd.to_datetime(d["time"])
+    out = (d.set_index("time")
+             .resample(rule, origin="start_day")
+             .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+             .dropna(subset=["close"]).reset_index())
+    return out.tail(limit).reset_index(drop=True)
 
 
 def get_klines(symbol: str, tf: str, limit: int = 300):

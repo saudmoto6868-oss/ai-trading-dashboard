@@ -1,0 +1,1 @@
+{"id": "DOGE-USDT|2026-11-21", "symbol": "DOGE-USDT", "class": "Crypto", "tf": "1D", "side": "long", "entry": 0.05364, "stop": 0.05256, "target": 0.05526, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

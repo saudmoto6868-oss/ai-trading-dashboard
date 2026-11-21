@@ -29,6 +29,35 @@ def symbols(cls: str) -> list[str]:
     return [PREFIX + s for s in BY_CLASS.get(cls, [])]
 
 
+_DEAD: set = set()   # symbols Yahoo answered "unknown symbol" for: skipped for the rest of this server run (each one costs retries)
+
+
+def mark_dead(sym: str) -> None:
+    _DEAD.add(sym[len(PREFIX):] if is_yahoo(sym) else sym)
+
+
+def _universe_file() -> dict:
+    import json
+    import pathlib
+    try:
+        return json.loads((pathlib.Path(__file__).resolve().parent.parent / "data" / "universe_yahoo.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def universe(cls: str) -> list[str]:
+    """Every listed symbol of a Yahoo-only market (EGX / Tadawul), biggest first, index first, minus symbols Yahoo does not know.
+    Falls back to the short list when data/universe_yahoo.json is missing. Other classes: the same as symbols()."""
+    d = _universe_file()
+    if cls == "Egypt (EGX)" and d.get("egx"):
+        raw = ["^CASE30"] + [t + ".CA" for t in d["egx"]]
+    elif cls == "Saudi (Tadawul)" and d.get("tadawul"):
+        raw = ["^TASI.SR"] + [t + ".SR" for t in d["tadawul"]]
+    else:
+        raw = BY_CLASS.get(cls, [])
+    return [PREFIX + s for s in raw if s not in _DEAD]
+
+
 def is_yahoo(sym: str) -> bool:
     return isinstance(sym, str) and sym.startswith(PREFIX)
 
@@ -55,6 +84,38 @@ def parse_chart(d: dict) -> pd.DataFrame:
 def get_yahoo_klines(sym: str, tf: str, limit: int = 300) -> pd.DataFrame:
     if tf not in TF:
         raise ValueError(f"Yahoo feed: timeframe {tf} not supported")
+    if tf in ("1h", "4h"):   # both come from the same 60m download: one request per symbol, the second job waits for the first
+        df = _raw_60m(sym)
+        if tf == "4h":
+            df = aggregate_frame(df, 4, 60)
+        return df.tail(limit).reset_index(drop=True)
+    return _download(sym, tf, limit)
+
+
+_RAW60: dict = {}   # symbol -> (time, frame)
+_RAW60_LOCKS: dict = {}
+
+
+def _raw_60m(sym: str) -> pd.DataFrame:
+    import threading
+    import time
+    lock = _RAW60_LOCKS.setdefault(sym, threading.Lock())
+    with lock:
+        hit = _RAW60.get(sym)
+        if hit and time.time() - hit[0] < 90:
+            if isinstance(hit[1], Exception):
+                raise hit[1]
+            return hit[1]
+        try:
+            df = _download(sym, "1h", 100000)
+        except ValueError as e:   # unknown symbol / no candles: remember it so the 4h job does not ask again (429 / network errors are not cached: those are retried)
+            _RAW60[sym] = (time.time(), e)
+            raise
+        _RAW60[sym] = (time.time(), df)
+        return df
+
+
+def _download(sym: str, tf: str, limit: int) -> pd.DataFrame:
     iv, rg, n = TF[tf]
     ysym = requests.utils.quote(sym[len(PREFIX):] if is_yahoo(sym) else sym, safe="")
     r = None
@@ -117,6 +178,7 @@ def embed(symbols, bars: int = 200, frames: dict | None = None) -> dict:
         d = {}
         for tf, df in (frames.get(sym) or {}).items():
             if df is not None and len(df):
+                df = df.tail(bars)
                 d[tf] = [[int(t.timestamp() * 1000), round(o, 6), round(h, 6), round(l, 6), round(c, 6), round(v, 2)]
                          for t, o, h, l, c, v in zip(df["time"], df["open"], df["high"], df["low"], df["close"], df["volume"])]
         if d:

@@ -6,13 +6,13 @@
 #src{height:22px;display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10.5px;color:var(--mut);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
 #src i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:4px;background:var(--up)}#src b{color:var(--txt)}
 #src button{margin-inline-start:auto}
-#app{display:grid;grid-template-columns:48fr 52fr;gap:6px;height:calc(100% - 22px);padding:4px}
+#app{display:grid;grid-template-columns:var(--lw,48%) 6px minmax(0,1fr);gap:0;height:calc(100% - 22px);padding:2px}
 .pane{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
 .hd{display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .chip{border:1px solid var(--line);border-radius:10px;padding:0 7px;font-size:10.5px;white-space:nowrap}
 .tag{cursor:pointer;user-select:none}.tag.on{background:#2a2310;border-color:var(--amb);color:var(--amb)}
 #map{min-height:0}#map svg{width:100%;height:100%;display:block}
-#chartbox{flex:0 0 44%;min-height:220px;border-top:1px solid var(--line);display:flex;flex-direction:column}
+#chartbox{flex:0 0 var(--ch,44%);min-height:60px;border-top:1px solid var(--line);display:flex;flex-direction:column}
 #chwrap{flex:1;min-height:0;padding:4px 8px}#chwrap canvas{display:block}
 .bub{cursor:pointer;transition:transform .15s}.bub:hover,.bub.sel{transform:scale(1.8)}.dim{opacity:.13}
 .lbl{font-size:9.5px;font-weight:700;pointer-events:none}
@@ -91,15 +91,20 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 .kp div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#10151d}.kp b{display:block;font-size:17px;direction:ltr;font-variant-numeric:tabular-nums}
 .jt{width:100%;border-collapse:collapse;font-size:11px}.jt td,.jt th{padding:3px 5px;border-bottom:1px solid var(--line);text-align:start}.jt th{color:var(--mut);font-weight:700}
 .pos{color:var(--up)}.neg{color:var(--dn)}
+.spl{background:#1a212c;flex:0 0 6px;cursor:col-resize;touch-action:none}.spl.h{cursor:row-resize;height:6px}.spl:hover,.spl.drag{background:var(--sel)}
+.hint{padding:1px 6px;font-size:10px;line-height:1.35}.hd{padding:2px 6px;gap:4px}#tabs button{height:28px}#qk{padding:2px 6px}#cm{padding:2px 6px}#cm .ctl{height:22px;font-size:10.5px}
+#list{gap:4px;padding:4px}.pn{padding:6px;gap:5px}.cl{gap:4px}.cc{padding:5px 7px}.kp{gap:4px}
 </style></head><body>
 <div id="src"></div>
 <div id="app">
  <div class="pane"><div class="hd" id="mh"></div>
   <div class="hint">الخريطة: كل نقطة عملة. فوق الخط 70 = تشبع شراء، تحت 30 = تشبع بيع. اضغط على نقطة عشان تفتح تفاصيلها.</div>
-  <div id="map" style="flex:1 1 40%;min-height:160px"></div>
-  <div id="chartbox"><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
-   <div id="chwrap"><canvas id="cv"></canvas></div></div>
+  <div id="map" style="flex:1 1 0;min-height:60px"></div>
+  <div class="spl h" id="sh" title="اسحب لتغيير الارتفاع، دبل كليك يرجّع"></div>
+  <div id="chartbox"><div class="hd" id="cm"><button class="ctl" id="cm-c">شموع بسيطة</button><button class="ctl" id="cm-a">شارت AI</button><span style="margin-inline-start:auto;display:flex;gap:3px;align-items:center"><span class="sm">ارتفاع</span><button class="ctl" data-ch="30">S</button><button class="ctl" data-ch="44">M</button><button class="ctl" data-ch="65">L</button><button class="ctl" id="cm-map" title="إظهار / إخفاء الخريطة">الخريطة</button></span></div><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
+   <div id="chwrap"><canvas id="cv"></canvas></div><iframe id="aiw" title="AI chart" style="display:none;flex:1;min-height:0;border:0;width:100%;background:#0e1116"></iframe></div>
   </div>
+ <div class="spl v" id="sv" title="اسحب لتغيير العرض، دبل كليك يرجّع"></div>
  <div class="pane"><div id="toast"></div>
   <div id="qk"><span class="sm">سريع:</span><button class="ctl" data-q="mc">توافق 50+</button><button class="ctl" data-q="rr">R:R 1.5+</button><button class="ctl" data-q="fr">الشمعة الحالية</button><button class="ctl" data-q="rs">مسح</button></div>
   <div id="tabs"><button data-t="opp" class="act">① الفرص <b id="cnt"></b></button><button data-t="det">② تفاصيل العملة</button><button data-t="flt">③ الفلاتر <b id="fn"></b></button><button data-t="hlp">④ الشرح</button><button data-t="ses">⑤ الجلسات</button><button data-t="risk">⑥ المخاطر</button><button data-t="mkt">⑦ نبض السوق</button><button data-t="jrn">⑧ الجورنال</button></div>
@@ -452,5 +457,35 @@ $("#ja").onclick = () => {const p = parseFloat($("#jp").value), s = $("#js").val
   $("#jp").style.borderColor = ""; const L = store.get(JK, []); L.push({s, d: $("#jd").value, p, n: $("#jn").value.trim(), t: Date.now()}); store.set(JK, L.slice(-500)); $("#jp").value = ""; $("#jn").value = ""; jrn();};
 $("#jx").onclick = () => {const b = $("#jx"); if (b.dataset.arm){store.set(JK, []); delete b.dataset.arm; b.textContent = "امسح الكل"; jrn();} else {b.dataset.arm = 1; b.textContent = "اضغط تاني للتأكيد";}};
 jrn();
+})();
+</script>
+<script>
+(function(){
+const root = document.documentElement.style, LK = "rsihm_lay", lay = Object.assign({lw: 48, ch: 44, cm: "c", hm: false}, store.get(LK, {}));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), save = () => store.set(LK, lay), redraw = () => {try {drawMap(); rows(); drawChart(sel);} catch(e){}};
+const aw = $("#aiw"), post = () => {try {if (sel && aw.contentWindow) aw.contentWindow.postMessage({t: "sym", s: sel}, "*");} catch(e){}};
+function vars(){root.setProperty("--lw", lay.lw + "%"); root.setProperty("--ch", lay.ch + "%");}
+function apply(){
+  vars(); const ai = lay.cm === "a" && !!D.ws;
+  $("#map").style.display = $("#sh").style.display = lay.hm ? "none" : ""; $("#chartbox").style.flex = lay.hm ? "1 1 0" : "";
+  $("#cm-a").style.display = D.ws ? "" : "none"; $("#cm-a").classList.toggle("on", ai); $("#cm-c").classList.toggle("on", !ai); $("#cm-map").classList.toggle("on", !lay.hm);
+  $("#chtitle").style.display = $("#chwrap").style.display = ai ? "none" : ""; aw.style.display = ai ? "block" : "none";
+  if (ai && !aw.srcdoc){aw.onload = post; aw.srcdoc = D.ws;}
+  $$("[data-ch]").forEach(b => b.classList.toggle("on", +b.dataset.ch === lay.ch));
+}
+$("#cm-c").onclick = () => {lay.cm = "c"; save(); apply(); redraw();};
+$("#cm-a").onclick = () => {lay.cm = "a"; save(); apply(); post();};
+$("#cm-map").onclick = () => {lay.hm = !lay.hm; save(); apply(); setTimeout(redraw, 30);};
+$$("[data-ch]").forEach(b => b.onclick = () => {lay.ch = +b.dataset.ch; lay.hm = false; save(); apply(); setTimeout(redraw, 30);});
+function drag(el, move, reset){
+  el.ondblclick = () => {reset(); save(); apply(); setTimeout(redraw, 30);};
+  el.onpointerdown = e => {e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add("drag"); aw.style.pointerEvents = "none";
+    const mv = ev => {move(ev); vars();}, up = () => {el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.classList.remove("drag"); aw.style.pointerEvents = ""; save(); apply(); setTimeout(redraw, 30);};
+    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);};
+}
+drag($("#sv"), ev => {const r = $("#app").getBoundingClientRect(); lay.lw = Math.round(clamp((ev.clientX - r.left) / r.width * 100, 20, 80));}, () => {lay.lw = 48;});
+drag($("#sh"), ev => {const r = $("#sh").parentNode.getBoundingClientRect(); lay.ch = Math.round(clamp((r.bottom - ev.clientY) / r.height * 100, 15, 85)); lay.hm = false;}, () => {lay.ch = 44;});
+const _s3 = select; select = function(a, b){_s3(a, b); post();};
+apply(); setTimeout(redraw, 60);
 })();
 </script></body></html>

@@ -321,7 +321,7 @@ def _list_card_html(acc: dict) -> str:
     color = acc.get("color","#f0b429")
     t_cls, t_txt = _timer_text(acc)
     ds = _days_since(acc.get("last_trade_date") or "")
-    trade_note = _xl(f"آخر صفقة: {ds}ي","f{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
+    trade_note = _xl(f"آخر صفقة: {ds}ي",f"{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
     size_txt = f'{acc.get("size","?")} {acc.get("currency","USD")}'
     return (
         f'<div class="pfc-card-top">'

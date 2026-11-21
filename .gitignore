@@ -28,3 +28,4 @@ research/htf_arms/events.csv.gz
 # trade journal store, lessons and reports (personal trade data, never commit)
 data/journal/
 data/x77/
+data/cache/

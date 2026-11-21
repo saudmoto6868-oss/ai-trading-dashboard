@@ -15,6 +15,8 @@ const Chain = {
     const n = ["htf", "loc", "vol", "reg", "time"].filter(k => o[k]).length; o.g = n === 5 ? "A+++" : n === 4 ? "A+" : n === 3 ? "A" : n === 2 ? "B" : "C"; return o; },
   tag(rec){ candlesTf(rec.symbol, TFC_ALL[rec.tfk] || "1H", true, 200).then(rows => { const o = Chain.layers(rows, rec.dir === "bullish" ? 1 : -1, rec.tfk, rec.t0); if (o){ rec.chain = o; Journal.save(); } }).catch(() => {}); }   // async: the trade is logged at once, the layers are added when the candles arrive
 };
+/* the journal trade on this symbol at this entry, only if it FILLED (price reached the entry). Only a filled journal trade may draw a trade box */
+function journalFill(sym, entry){ return (Journal.list || []).find(t => t.symbol === sym && t.fill !== false && Math.abs(t.entry - entry) <= 0.0005*Math.abs(entry)) || null; }
 const Journal = {
   list: store.get(LS+"_journal", []), subs: new Set(), busy: false,
   cfg: Object.assign({min:50, rr:1}, store.get(LS+"_jset", {}) || {}),   // what gets LOGGED: weak (< min % strength) or poor-payoff (< rr R:R) setups are not recorded, so they cannot drag the win rate down

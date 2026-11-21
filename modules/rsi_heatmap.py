@@ -314,7 +314,7 @@ def _detail(sym, rec, df, chart_tf, top25, setup):
     return out
 
 
-def board_html(items, chart_tf, timeframes):
+def board_html(items, chart_tf, timeframes, ws_html=""):
     from modules.rsi_confluence import SCHOOLS, SHORT, TAGS
     pts = [i["rsi_map"] for i in items if i["rsi_map"] is not None]
     src = {}
@@ -322,7 +322,7 @@ def board_html(items, chart_tf, timeframes):
         src[i.get("src", "other")] = src.get(i.get("src", "other"), 0) + 1
     data = {"src": src, "flow_n": sum(1 for i in items if i.get("flow") and i["flow"].get("buy") is not None),
             "built": pd.Timestamp.now(tz="UTC").strftime("%H:%M:%S UTC"), "tags": list(TAGS),
-            "tf": chart_tf, "timeframes": timeframes, "schools": list(SCHOOLS), "short": SHORT, "items": items,
+            "tf": chart_tf, "timeframes": timeframes, "ws": ws_html, "schools": list(SCHOOLS), "short": SHORT, "items": items,
             "avg": round(sum(pts) / len(pts), 2) if pts else None,
             "bands": [{"name": b[0], "lo": b[1], "hi": b[2], "c": b[3]} for b in BANDS],
             "ar": {"school": _AR.SCHOOL,
@@ -377,6 +377,8 @@ def render():
     with f[5].popover("⚙"):
         deep = st.toggle("Radar: كل الاستراتيجيات", value=True, key="rsi_hm_deep",
                          help="كل مدارس الاستراتيجيات + هارمونيك + نماذج الشارت (أبطأ).")
+        ai_in = st.toggle("شارت AI داخل اللوحة", value=True, key="rsi_hm_aiw",
+                          help="يحط شارت الورك سبيس بمؤشراته تحت الخريطة. يقفل لو عايز صفحة أخف.")
         use_flow = st.toggle("Flow: الأوردر فلو", value=False, key="rsi_hm_flow",
                              help="لقطة الأوردر فلو لأفضل 20 setup (OKX / Hyperliquid).")
         live = st.selectbox("تحديث تلقائي", (0, 1, 2, 5, 15), index=0, key="rsi_hm_live",
@@ -446,7 +448,13 @@ def render():
 
     with st.spinner("Reading every school on the map timeframe…" if deep else "Building the board…"):
         items = build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep, use_flow)
-    st.iframe(board_html(items, chart_tf, timeframes), height=780, alt="RSI heatmap map and setup board")
+    ws_html = ""
+    if ai_in:   # the Workspace chart widget (chart only) goes inside the board; Yahoo candles are the ones already downloaded for the map
+        from modules.workspace import build_workspace_html
+        from modules.yahoo_feed import embed
+        ys = [x for x in symbols if x.startswith("Y:")]
+        ws_html = build_workspace_html(symbols, None, "ar", asset_cls=asset_class, solo="chart", yf=embed(ys, frames=frames) if ys else {})
+    st.iframe(board_html(items, chart_tf, timeframes, ws_html), height=780, alt="RSI heatmap map and setup board")
 
     if errors:
         with st.expander(f"Unavailable symbols/timeframes ({len(errors)})"):

@@ -11,7 +11,8 @@
     const a = (d.args || {}); window.__xpixBridge.ai = !!a.ai; window.__xpixBridge.live = !!a.live;
     const ans = a.ans; if (!ans || !ans.id || ans.id === lastAns) return; lastAns = ans.id;
     let fs = []; try { fs = Array.from(window.parent.frames); } catch(e){}
-    fs.forEach(f => { try { if (f.__xpixGuideAnswer) f.__xpixGuideAnswer(ans); } catch(e){} });
+    const fn = ans.kind === "palarms" ? "__xpixPalarmAnswer" : "__xpixGuideAnswer";   // price-alarm sync answers go to the alarms, not the guide
+    fs.forEach(f => { try { if (f[fn]) f[fn](ans); } catch(e){} });
   });
   send("streamlit:componentReady", {apiVersion:1}); send("streamlit:setFrameHeight", {height:0});
 })();

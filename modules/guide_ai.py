@@ -252,5 +252,9 @@ def render_bridge():
         req = _bridge(ai=bool(provider()), live=bool(gemini_key()), ans=ss.get("guide_ans"), key="guide_bridge", default=None)
     if isinstance(req, dict) and req.get("id") and req.get("id") != ss.get("guide_last"):
         ss["guide_last"] = req["id"]
-        ss["guide_ans"] = answer(req, hist)
+        if req.get("kind") == "palarms":   # price alarms: the Workspace hands its list to the online store (modules/palarm_server.py)
+            from modules.palarm_server import sync
+            ss["guide_ans"] = sync(req)
+        else:
+            ss["guide_ans"] = answer(req, hist)
         st.rerun(scope="fragment")

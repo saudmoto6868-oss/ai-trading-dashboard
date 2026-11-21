@@ -29,6 +29,30 @@ KEY_MAP = {
 }
 
 
+# school -> (Arabic name, English name, one-line Arabic explanation); shown on the X77 page, widget and chart labels
+SCHOOLS = {
+    "S_SR": ("دعم ومقاومة", "Support / resistance", "السعر عند مستوى اتلمس قبل كده: ارتداد أو كسر."),
+    "S_MA": ("المتوسطات", "Moving averages", "اتجاه الترند من ترتيب وتقاطع المتوسطات."),
+    "S_VP": ("الفوليوم / VWAP", "Volume / VWAP", "السعر فوق أو تحت متوسط السعر بالحجم (القيمة العادلة)."),
+    "S_SMC_ICT": ("SMC / ICT", "SMC / ICT", "سيولة واوردر بلوك وفجوات وكسر هيكل (فلوس كبيرة)."),
+    "S_AMD": ("جلسات AMD", "Sessions (AMD)", "تجميع ثم تلاعب ثم توزيع حسب جلسات اليوم."),
+    "S_ELLIOTT": ("إليوت", "Elliott wave", "عد الموجات: دافعة 5 وتصحيح ABC."),
+    "S_FIB": ("فيبوناتشي", "Fibonacci", "ارتداد لنسب فيبو (0.5 / 0.618 / OTE 0.62-0.79)."),
+    "S_OSC": ("الدايفرجنس", "Divergence", "السعر عمل قاع/قمة جديدة والـ RSI أو MACD ماأكدش."),
+    "S_SMT": ("SMT", "SMT", "زوجين مرتبطين واحد كسر والتاني ماكسرش."),
+    "S_STRUCTURE": ("الهيكل والترند", "Structure / trend", "قمم وقيعان أعلى أو أقل، اختراق قنوات (ترتل / دونشيان)."),
+    "S_CANDLES": ("الشموع", "Candles", "شمعة رفض أو ابتلاع أو نجمة عند منطقة مهمة."),
+    "S_CLASSIC": ("النماذج الكلاسيك", "Classic patterns", "مثلثات وقنوات ورأس وكتفين وقمتين وقاعين."),
+    "S_WYCKOFF": ("وايكوف", "Wyckoff", "سبرينج أو أبثرست: كسر وهمي للرينج ورجوع."),
+    "S_OTHER": ("غير مصنف", "Other", "إشارة لسه ماتصنفتش في X77."),
+}
+
+
+def js_config() -> dict:
+    """What the Workspace X77 widget needs: key -> school, school -> names + Arabic explanation."""
+    return {"keys": {k: v[0] for k, v in KEY_MAP.items()}, "schools": {s: list(v) for s, v in SCHOOLS.items()}}
+
+
 def events(df: pd.DataFrame) -> dict:
     """-> {'events': [{school, event, key, side, name, detail}], 'patterns': [{school, event, key, side}], 'regime': str|None, 'errors': [...]}."""
     out = {"events": [], "patterns": [], "regime": None, "errors": []}

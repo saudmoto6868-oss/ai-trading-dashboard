@@ -26,6 +26,14 @@ with tempfile.TemporaryDirectory() as t:
         items = store.list_items(base=Path(t) / "x77")
         assert len(items) == 1 and items[0]["text"] == "AppTest text item", items
 
+        # Arabic mode (owner: explanations in Arabic): labels switch, guide is there
+        at = AppTest.from_file(str(script), default_timeout=30)
+        at.session_state["ws_lang"] = "ar"
+        at.run()
+        assert not at.exception, at.exception
+        assert any(b.label == "احفظ في X77" for b in at.button), [b.label for b in at.button]
+        assert any("بيشتغل إزاي" in e.label for e in at.expander), [e.label for e in at.expander]
+
         # Radar send box: saves a 'setup' with symbol + timeframe tags
         script.write_text(
             "import sys\nsys.path.insert(0, %r)\nfrom modules.x77_page import send_box\nsend_box(['ETH-USDT'])\n" % str(ROOT),

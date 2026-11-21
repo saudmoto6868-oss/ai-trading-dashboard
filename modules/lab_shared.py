@@ -86,6 +86,10 @@ def class_of(sym: str) -> str:
             for cls, lst in yahoo_feed.BY_CLASS.items():
                 if s[2:] in lst:
                     return cls
+            if s.endswith(".CA"):   # the full EGX / Tadawul universe (data/universe_yahoo.json)
+                return "Egypt (EGX)"
+            if s.endswith(".SR"):
+                return "Saudi (Tadawul)"
             return "Stocks"
     except Exception:
         pass

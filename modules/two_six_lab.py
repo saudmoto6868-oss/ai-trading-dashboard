@@ -28,7 +28,7 @@ def _df(sym, tf, limit):
     return get_klines(sym, tf, limit)
 
 
-def _journal_block(plays, times, sym, tf, last_close) -> None:
+def _journal_block(plays, times, sym, tf, last_close, htf=None) -> None:
     """2.6 journal: save every setup of these candles (updated in place) and show the review of each one."""
     from pathlib import Path
     from modules import two_six_journal as tj
@@ -37,7 +37,7 @@ def _journal_block(plays, times, sym, tf, last_close) -> None:
     st.caption("Each setup = one row: why it was taken or rejected, its review, the best live setup now, and the follow-up. "
                "Saved in data/two_six (git-ignored). Research only.")
     if st.button("Save these setups to the journal", key="ts_journal_save"):
-        recs = tj.build_records(plays, [str(t) for t in times], sym, tf, last_price=last_close)
+        recs = tj.build_records(plays, [str(t) for t in times], sym, tf, last_price=last_close, htf=htf)
         changed = tj.upsert(recs, path)
         st.success(f"Journal updated: {changed} row(s) changed, {len(recs)} setups on these candles.")
     rows = tj.load(path)
@@ -84,7 +84,16 @@ def render() -> None:
         if done:
             st.caption("Closed on this replay: " + ", ".join(f"{k} {done.count(k)}" for k in ("TP2", "TP1 then stop", "stopped"))
                        + f" (n={len(done)}; not evidence below n=30 and without costs)")
-        _journal_block(plays, times, sym, tf, float(df["close"].iloc[-1]))
+        htf = {}   # bigger timeframes for the agreement column (1H / 4H of this chart's timeframe)
+        for big in {"15m": ["1h", "4h"], "5m": ["1h", "4h"], "1h": ["4h", "1d"], "4h": ["1d"], "1d": []}.get(tf, []):
+            try:
+                hdf = _df(sym, big, 500)
+                hp = tc.setups(tc.bars_from_df(hdf), ratio=ratio, left=swing, right=swing, use_h1=use_h1, use_h2=use_h2)
+                from modules import two_six_journal as tj
+                htf[big] = tj.htf_index(hp, [str(t) for t in hdf["time"]])
+            except Exception:
+                pass
+        _journal_block(plays, times, sym, tf, float(df["close"].iloc[-1]), htf=htf)
     elif df is not None:
         st.warning("Not enough candles to find setups.")
     st.markdown(GUIDE)

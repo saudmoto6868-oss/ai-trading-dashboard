@@ -92,13 +92,36 @@ def _nearest_live(plays, last_price):
     return min(live, key=lambda p: abs(p["entry"] - last_price))
 
 
-def build_records(plays, times, symbol, tf, last_price=None, wait=80):
-    """One record per play. times[i] = timestamp (string) of bar i. last_price = latest close (for best_now)."""
+def htf_index(plays, times) -> list[tuple[str, str]]:
+    """(time, side) of every setup of a bigger timeframe, oldest first. time = the bar the setup became known."""
+    return sorted((str(times[p["known"]]), p["side"]) for p in plays)
+
+
+def htf_agreement(index, t, side, label):
+    """'<label>✓' if the latest bigger-timeframe setup known at or before time t is on the same side, '✗' if opposite,
+    '' if there is none. Approximation: uses each setup's known bar, not the status it has at time t."""
+    last = None
+    for tk, sd in index:
+        if tk <= t:
+            last = sd
+        else:
+            break
+    if last is None:
+        return ""
+    return label + ("✓" if last == side else "✗")
+
+
+def build_records(plays, times, symbol, tf, last_price=None, wait=80, htf=None):
+    """One record per play. times[i] = timestamp (string) of bar i. last_price = latest close (for best_now).
+    htf = {"1h": htf_index(...), "4h": htf_index(...)} (optional): adds the bigger-timeframe agreement to each row."""
     best = _nearest_live(plays, last_price)
     out = []
     for p in plays:
         t = str(times[p["known"]])
         taken, rejected = _reasons(p, wait)
+        agree = [a for a in (htf_agreement(ix, t, p["side"], lab) for lab, ix in sorted((htf or {}).items())) if a]
+        if agree:
+            taken.append("bigger timeframes: " + " ".join(agree))
         out.append({
             "id": _rec_id(symbol, tf, p, t), "symbol": symbol, "tf": tf, "time": t,
             "kind": p["kind"], "side": p["side"], "status": p["status"],
@@ -106,7 +129,7 @@ def build_records(plays, times, symbol, tf, last_price=None, wait=80):
             "tp1": round(p["tp1"], 4), "tp2": round(p["tp2"], 4),
             "outcome_r": _outcome(p["status"]),
             "why_taken": taken, "why_rejected": rejected,
-            "best_now": best is p,
+            "best_now": best is p, "htf": agree,
             "review": _review(p), "followup": _followup(p, wait),
             "strategy": f"2.6 {p['kind']} · ratio leg/u · provisional stop 1u, TP1 1R, TP2 2R",
             "note": "",

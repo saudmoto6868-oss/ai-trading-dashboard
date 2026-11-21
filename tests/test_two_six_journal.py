@@ -86,9 +86,29 @@ def test_summary_says_not_evidence_below_30():
     print("ok summary: n, wins, avg R, and 'not evidence' under 30")
 
 
+def test_htf_agreement_uses_latest_known_setup_before_time():
+    idx = [("2026-01-01 10:00", "BUY"), ("2026-01-01 12:00", "SELL")]
+    assert tj.htf_agreement(idx, "2026-01-01 11:00", "BUY", "1h") == "1h✓", "latest before 11:00 is BUY"
+    assert tj.htf_agreement(idx, "2026-01-01 13:00", "BUY", "1h") == "1h✗", "latest before 13:00 is SELL"
+    assert tj.htf_agreement(idx, "2026-01-01 09:00", "BUY", "1h") == "", "no bigger-timeframe setup yet"
+    print("ok htf agreement: latest known setup at or before the time, '' when none")
+
+
+def test_build_records_adds_htf_column_and_reason():
+    plays = [{"kind": "H1", "side": "BUY", "known": 1, "entry": 100.0, "stop": 99.0, "tp1": 101.0, "tp2": 102.0,
+              "status": "waiting", "fill": None}]
+    htf = {"1h": [("a", "BUY")], "4h": [("a", "SELL")]}
+    rec = tj.build_records(plays, ["a", "b"], "XAUUSD", "15m", htf=htf)[0]
+    assert rec["htf"] == ["1h✓", "4h✗"], rec["htf"]
+    assert any("bigger timeframes" in r for r in rec["why_taken"])
+    print("ok build_records: htf column and a reason line")
+
+
 if __name__ == "__main__":
     test_records_cover_every_play_and_status_rules()
     test_best_now_is_nearest_live_setup()
     test_upsert_keeps_owner_note_and_is_idempotent()
     test_summary_says_not_evidence_below_30()
+    test_htf_agreement_uses_latest_known_setup_before_time()
+    test_build_records_adds_htf_column_and_reason()
     print("two_six_journal: all ok")

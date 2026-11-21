@@ -1297,9 +1297,13 @@ def _source_status():
 def _source_ping():
     """Is each data source answering right now? (tiny public calls, 4 s timeout; _source_status caches it 60 s). Never sends a key."""
     import requests
+    from modules import market_cache as _mc
     out = {}
-    for name, fn in (("OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=4)),
-                     ("Hyperliquid", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=4))):
+    for name, key, fn in (("OKX", "OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=8)),
+                          ("Hyperliquid", "HL", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=8))):
+        if _mc.recent_ok(key):   # the app's own candle downloads just worked: no extra call (a busy server made the 4 s ping time out = false "down")
+            out[name] = True
+            continue
         try:
             out[name] = bool(fn().ok)
         except Exception:
@@ -3446,9 +3450,9 @@ def render_info_strip():
     src = _bg("srcping", _source_ping, {}, ttl=60, wait=1.0)   # never holds the page up when a source is down (4 s timeouts)
     from modules import office_kpi as _OK
     built = (_OK.summary(_OK.load()) or {}).get("built") or "-"
-    dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
+    dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171' if ok is False else '#848e9c'};margin:0 4px'></span>"
     items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
-    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
+    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down') if src.get(n) is False else L('checking'))}" for n in ("OKX", "Hyperliquid")]
     items.append(f"{html.escape(L('Last lab run'))} {html.escape(str(built))}")
     items.append(html.escape(L("No automatic orders")))
     st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"

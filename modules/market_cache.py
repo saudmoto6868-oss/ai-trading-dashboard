@@ -33,6 +33,7 @@ _now = time.time    # injectable clock (tests replace it)
 _cache: dict = {}
 _neg: dict = {}     # key -> (retry_after, message)
 _src: dict = {}     # source -> [consecutive transport failures, paused_until]
+_ok_at: dict = {}   # source -> time of its last successful request (feeds the status strip)
 _lock = threading.Lock()
 _TRANSPORT = (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
 
@@ -51,12 +52,19 @@ def source_paused(src: str) -> bool:
     return bool(st and st[1] > _now())
 
 
+def recent_ok(src: str, within: float = 180.0) -> bool:
+    """True when a real request to this source (OKX / HL / YAHOO) succeeded in the last `within` seconds."""
+    t = _ok_at.get(src)
+    return bool(t and _now() - t < within)
+
+
 def _note(src: str, ok: bool, exc: BaseException | None = None) -> None:
     """Count only transport errors: a bad symbol or a parse error must not pause a whole source."""
     with _lock:
         st = _src.setdefault(src, [0, 0.0])
         if ok:
             st[0], st[1] = 0, 0.0
+            _ok_at[src] = _now()
         elif exc is not None and isinstance(exc, _TRANSPORT):
             st[0] += 1
             if st[0] >= BREAK_AFTER:

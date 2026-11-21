@@ -879,7 +879,7 @@ Object.assign(CandleChart.prototype, {
   py2p(y){ return this._lo + (this.PB-y)/this.PB*(this._hi-this._lo); },
   pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
-  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
+  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws.filter(d => !d._rd))); } catch(e){} },
   setTool(t){ if (t !== "cur" && !this.drawingsVisible){ this.drawingsVisible = true; this.onDrawVis && this.onDrawVis(); }   // choosing a drawing tool while drawings are hidden shows them again: never draw something invisible
     this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
   cancelTool(){ if (this.creating){ this.draws = this.draws.filter(d => d !== this.creating); this.creating = null; } this.setTool("cur"); },

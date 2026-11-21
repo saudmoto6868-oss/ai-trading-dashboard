@@ -1,4 +1,5 @@
 /* ---------------- Trade journal: logs every scanner/alert trade, then follows it on OKX candles until TP1 or SL ---------------- */
+const TFMS = {"1m":6e4, "5m":3e5, "15m":9e5, "1h":36e5, "4h":144e5, "1d":864e5};
 const JBAR = {"1m":["1m",60000], "1H":["1H",3600000], "1D":["1D",86400000]};
 const JEXP = {"5m":6*3600e3, "15m":12*3600e3, "4h":6*86400e3, "1m":12*3600e3, "13m":24*3600e3, "1h":3*86400e3, "2h":4*86400e3, "3h":5*86400e3, "6h":8*86400e3, "7h":9*86400e3, "8h":10*86400e3, "12h":14*86400e3, "1d":20*86400e3, "3d":40*86400e3, "1w":60*86400e3, "1mo":120*86400e3};
 const TFC_ALL = {"1m":"1m","5m":"5m","13m":"13m","15m":"15m","4h":"4H","1h":"1H","2h":"2H","3h":"3H","6h":"6H","7h":"7H","8h":"8H","12h":"12H","1d":"1D","3d":"3D","1w":"1W","1mo":"1M"}, TFK_OPTS = [["1m","1m"],["5m","5m"],["13m","13m"],["15m","15m"],["1h","1h"],["2h","2h"],["3h","3h"],["4h","4h"],["6h","6h"],["7h","7h"],["8h","8h"],["12h","12h"],["1d","1d"],["3d","3d"],["1w","1w"],["1mo","1M"]];
@@ -64,13 +65,15 @@ const Journal = {
               else { const away = long_ ? (c.l > tr.entry ? c.h >= tr.tp1 : c.h < tr.entry && c.l <= tr.sl) : (c.h < tr.entry ? c.l <= tr.tp1 : c.l > tr.entry && c.h >= tr.sl); if (away){ tr.status = "nf"; tr.r = 0; tr.t1 = c.t + bar[1]; changed = true; break; } continue; } }
             // partial exits: each target books 1/n of the trade at its own R (n = 1, 2 or 3 targets); the stop books the units still open at -1R; status stays "open" until the last unit is closed
             tr.exits = tr.exits || []; const n = tr.tp3 ? 3 : tr.tp2 ? 2 : 1, risk = Math.abs(tr.entry - tr.sl) || 1e-12, sumR = () => tr.exits.reduce((a, e) => a + e.r, 0), booked = new Set(tr.exits.map(e => e.level));
-            const sl = long_ ? c.l <= tr.sl : c.h >= tr.sl;
-            if (sl){ const tpN = tr.exits.filter(e => e.level !== "sl").length; tr.exits.push({level:"sl", t:c.t + bar[1], price:tr.sl, r:-(n - tpN)/n}); tr.status = "sl"; tr.r = sumR(); tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
+            const beOn = booked.has("tp1"), slPx = beOn ? tr.entry : tr.sl;   // after TP1 the stop moves to the entry (breakeven): the rest of the trade cannot lose
+            const sl = long_ ? c.l <= slPx : c.h >= slPx;
+            if (sl){ const tpN = tr.exits.filter(e => e.level !== "sl").length; tr.exits.push({level:"sl", t:c.t + bar[1], price:slPx, r: beOn ? 0 : -(n - tpN)/n}); tr.status = "sl"; tr.r = sumR(); tr.t1 = c.t + bar[1]; changed = true; break; }   // same candle touches both: count the stop (conservative)
             if (!fc) for (const [lvl, px] of [["tp1", tr.tp1], ["tp2", tr.tp2], ["tp3", tr.tp3]]){ if (!px || booked.has(lvl)) continue; if (long_ ? c.h >= px : c.l <= px){ booked.add(lvl); tr.exits.push({level:lvl, t:c.t + bar[1], price:px, r:Math.abs(px - tr.entry)/risk/n}); changed = true; } }   // the fill candle cannot book a target (the target may have printed before the fill)
             tr.r = sumR();
             if (tr.exits.filter(e => e.level !== "sl").length >= n){ tr.status = "tp"; tr.t1 = c.t + bar[1]; changed = true; break; }
           }
-          if (tr.status === "open" && Date.now() - tr.t0 > (JEXP[tr.tfk] || 3*86400e3)){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = tr.fill === false ? 0 : (tr.exits || []).reduce((a, e) => a + e.r, 0); tr.t1 = Date.now(); changed = true; }
+          // max hold: 24 bars of the trade's timeframe, then it closes at the R already booked
+          if (tr.status === "open" && Date.now() - tr.t0 > Math.min(JEXP[tr.tfk] || 3*86400e3, 24 * (TFMS[tr.tfk] || 36e5))){ tr.status = tr.fill === false ? "nf" : "exp"; tr.r = tr.fill === false ? 0 : (tr.exits || []).reduce((a, e) => a + e.r, 0); tr.t1 = Date.now(); changed = true; }
         });
       }
     } finally { this.busy = false; }

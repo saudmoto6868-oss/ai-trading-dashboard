@@ -2836,7 +2836,7 @@ def _radar_filters(view):
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
+    fold = view in ("Heat map",)   # owner 2026-11-21: no separate "Hide filters" line; the heat map hides the filter block (widgets stay rendered so selections are kept)
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     from modules import fv_screen as _FV
@@ -2898,7 +2898,8 @@ def _radar_filters(view):
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.4, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8])
+        _grid = view == "Chart grid"   # owner 2026-11-21: the grid's Summary / Open setups / grid size sit on THIS line too (render_chart_scanner fills them)
+        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.1, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8] + ([0.9, 1.0, 0.8] if _grid else []), vertical_alignment="center")
         st.markdown(kit_css(), unsafe_allow_html=True)
         render_universe_controls(top[1], top[2], top[3])   # Asset class / Market / Universe size, same line
         tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
@@ -2975,7 +2976,8 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime)}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime),
+            "slots": tuple(top[13:16]) if _grid else None}
 
 
 def _radar_hits(d, f):
@@ -3054,10 +3056,10 @@ def render_chart_scanner(f):
     ss = st.session_state
     ss.setdefault("cs_cols", 4)
     ss.setdefault("cs_h", 360)
-    _tl = st.columns([3.2, 0.9, 1.3, 0.6, 0.8, 0.7], vertical_alignment="center")
-    _tl[0].caption(f"{len(shown)} / {len(data)} {L('symbols match')} · {tf} · {nsel} {L('conditions')}" + (f" · {L('showing')} {int(n_show)}" if len(shown) > n_show else "")
+    _tl = f.get("slots") or tuple(st.columns([0.9, 1.0, 0.8, 3.0], vertical_alignment="center")[:3])   # the filter line's last 3 boxes (one line, owner 2026-11-21)
+    with _tl[0].popover(f"{L('Summary')} {len(shown)}/{len(data)}"):
+        st.caption(f"{len(shown)} / {len(data)} {L('symbols match')} · {tf} · {nsel} {L('conditions')}" + (f" · {L('showing')} {int(n_show)}" if len(shown) > n_show else "")
                    + " · ◆ " + L("suggestion only, no orders"))
-    with _tl[1].popover(L("Summary")):
         st.markdown(_UK.strip([
             (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
             (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
@@ -3068,15 +3070,16 @@ def render_chart_scanner(f):
              L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
             (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
         ]), unsafe_allow_html=True)
-    with _tl[2].popover(L("Open setups") + f" ({len(_orows)})"):
+    with _tl[1].popover(L("Open setups") + f" ({len(_orows)})"):
         _sm = _OS.summary(_orows)
         st.caption(f"long {_sm['long']} · short {_sm['short']} · unclear {_sm['unclear']} · in the Radar filter {_sm['in_filter']}. "
                    "2.6 boxes and harmonic target prices are not in the scanner data yet (read-only, no orders).")
         if _orows:
             st.dataframe(pd.DataFrame(_orows), hide_index=True, width="stretch", height=240)
-    _tl[3].number_input(L("Charts"), min_value=1, max_value=60, step=1, key="cs_n", help=L("How many charts in the grid"), label_visibility="collapsed")
-    _tl[4].selectbox(L("Columns"), [1, 2, 3, 4, 5, 6, 7, 8], key="cs_cols", format_func=lambda n: f"{n} " + L("per row"), label_visibility="collapsed")
-    _tl[5].selectbox(L("Height"), [260, 300, 360, 420, 500, 600], key="cs_h", format_func=lambda n: f"{n}px", label_visibility="collapsed")
+    with _tl[2].popover(f"▦ {int(ss.get('cs_n') or n_show)}·{int(ss['cs_cols'])}"):   # grid size: how many charts, per row, height
+        st.number_input(L("Charts"), min_value=1, max_value=60, step=1, key="cs_n", help=L("How many charts in the grid"))
+        st.selectbox(L("Columns"), [1, 2, 3, 4, 5, 6, 7, 8], key="cs_cols", format_func=lambda n: f"{n} " + L("per row"))
+        st.selectbox(L("Height"), [260, 300, 360, 420, 500, 600], key="cs_h", format_func=lambda n: f"{n}px")
     if not shown:
         st.info(L("No symbols match the selected conditions right now."))
         return

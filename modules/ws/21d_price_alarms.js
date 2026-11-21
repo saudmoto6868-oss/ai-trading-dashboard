@@ -208,14 +208,14 @@ Object.assign(CandleChart.prototype, {
   paintAlarms(c, py, PR, PB, dec){   // every alert of this symbol as a dashed orange line with a bell tag on the axis
     this._alHits = []; if (!this.sym) return; const ax = this.W - this.axw;
     PAlarm.forSym(this.sym).forEach(a => { if (PALARM_MOVE.has(a.cond)) return;
-      [a.v].concat(PALARM_CH.has(a.cond) && a.v2 != null ? [a.v2] : []).forEach(v => { const y = py(v); if (!(y > 0 && y < PB)) return;
+      [a.v].concat(PALARM_CH.has(a.cond) && a.v2 != null ? [a.v2] : []).forEach((v, i) => { const y = py(v); if (!(y > 0 && y < PB)) return;
         c.globalAlpha = a.on ? 1 : .45; c.strokeStyle = "#ff9800"; c.setLineDash([6,4]); c.beginPath(); c.moveTo(0, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]);
         c.fillStyle = "#ff9800"; c.fillRect(ax+1, y-8, this.axw-2, 16); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText("⏰"+v.toFixed(dec), ax+3, y); c.globalAlpha = 1;
-        this._alHits.push({x: ax, y: y-8, w: this.axw, h: 16, a}); }); });
+        const k = i ? "v2" : "v"; this._alHits.push({x: ax, y: y-8, w: this.axw, h: 16, a, k}, {x: 0, y: y-4, w: PR, h: 8, a, k}); }); });   // tag on the axis + the line itself
   },
   alarmDown(e){   // click on the + (alert menu) or on an alert tag (edit it); true = handled
     const r = this.cv.getBoundingClientRect(), mx = (e.clientX - r.left)/this.S, my = (e.clientY - r.top)/this.S, inB = b => b && mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h;
-    const tag = (this._alHits || []).find(inB); if (tag){ palarmDialog(tag.a, () => this.draw()); return true; }
+    const tag = (this._alHits || []).find(inB); if (tag){ this.alDrag = {a: tag.a, k: tag.k, y: e.clientY, mv: false}; try { this.cv.setPointerCapture(e.pointerId); } catch(_){} return true; }   // press on a line / tag: drag moves it, a click opens it (alarmUp)
     const b = this._plusB; if (!inB(b)) return false;
     document.querySelectorAll(".ctxm").forEach(x => x.remove());
     const menu = el("div", "ctxm"); menu.style.cssText = "position:fixed;z-index:2147483001;left:"+(e.clientX - 200)+"px;top:"+e.clientY+"px";
@@ -226,6 +226,17 @@ Object.assign(CandleChart.prototype, {
     item("⏰ "+Lg("Alerts","التنبيهات")+" ("+PAlarm.list.length+")", () => palarmManager(this.sym, () => this.draw()));
     document.body.append(menu);
     const off = ev => { if (ev && menu.contains(ev.target)) return; menu.remove(); document.removeEventListener("pointerdown", off, true); }; setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+    return true;
+  },
+  alarmMove(e){   // dragging an alert line: its price follows the cursor (TradingView); true = handled
+    const D = this.alDrag; if (!D) return false;
+    if (!D.mv && Math.abs(e.clientY - D.y) < 4) return true; D.mv = true; this.cv.style.cursor = "ns-resize";
+    const p = this.py2p(Math.max(0, Math.min(this.PB, this.mouse.y))); if (isFinite(p)) D.a[D.k] = +p.toFixed(8);
+    this.drawSoon(); return true;
+  },
+  alarmUp(){   // end of a press on an alert: moved = save the new price, not moved = open the alert
+    const D = this.alDrag; if (!D) return false; this.alDrag = null;
+    if (D.mv){ delete D.a.lastClose; delete D.a.lastBar; PAlarm.save(); this.draw(); } else palarmDialog(D.a, () => this.draw());
     return true;
   }
 });

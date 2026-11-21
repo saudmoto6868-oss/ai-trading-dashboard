@@ -10,6 +10,7 @@ PURE = re.search(r"/\* PALARM-PURE-START.*?\*/(.*?)/\* PALARM-PURE-END \*/", SRC
 CH = open(os.path.join(ROOT, "modules", "ws", "20_chart_canvas.js"), encoding="utf-8").read()
 DT = open(os.path.join(ROOT, "modules", "ws", "21_drawing_tools.js"), encoding="utf-8").read()
 assert "this.alarmDown(e)" in CH and "this.paintAlarms(c, py, PR, PB, dec)" in CH and "this.paintPlus(c, m, PR, PB, dec)" in CH
+assert "this.alarmMove(e)" in CH and "this.alarmUp(e)" in CH   # drag an alert line to move it
 assert "palarmDialog({sym:this.sym" in DT and "palarmManager(this.sym" in DT
 
 if not shutil.which("node"):

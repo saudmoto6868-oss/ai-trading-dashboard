@@ -3126,7 +3126,7 @@ def render_chart_scanner(f):
                                    ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         ss["radar_ws_doc"] = (key, doc, time.time())
     rows = -(-len(items) // per_row)
-    st.iframe(doc, height=rows * ch_h + 8, alt="Radar charts")
+    st.iframe(doc, height=rows * ch_h + 40, alt="Radar charts")   # + the "indicators on ALL charts" bar
 
 
 _PT_IND = {   # Radar flag -> the Workspace chart's indicator (its ƒx menu id) that draws it

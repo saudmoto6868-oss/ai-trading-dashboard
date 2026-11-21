@@ -353,6 +353,7 @@ div[data-testid='stHorizontalBlock']:has(.rsi-hm-title) label[data-baseweb='chec
 def render():
     from modules.rsi_setups import read_setup
     st.markdown(_HEADER_CSS, unsafe_allow_html=True)
+    view = st.segmented_control("العرض", ["لوحة RSI", "شارت AI"], default="لوحة RSI", key="rsi_hm_view", label_visibility="collapsed")
     f = st.columns([1.0, 1.05, 3.4, 0.95, 0.95, 0.5], gap="small", vertical_alignment="center")
     f[0].markdown("<div class='rsi-hm-title'>RSI Heatmap</div>", unsafe_allow_html=True)
     asset_class = f[1].selectbox("السوق", ASSET_CLASSES, index=0, key="rsi_hm_market", label_visibility="collapsed")
@@ -395,6 +396,12 @@ def render():
         symbols, note = _symbols(asset_class, int(limit))
     if not symbols:
         st.warning("No verified symbols are currently available for this market. No synthetic symbols were added.")
+        return
+    if view == "شارت AI":   # chart-only widget of the Workspace (movable, resizable, all its indicators); crypto + Hyperliquid symbols (Yahoo ones need the Workspace page)
+        from modules.workspace import render_workspace
+        ws_syms = [s for s in symbols if not s.startswith("Y:")] or symbols
+        st.caption("شارت AI: نفس شارت الورك سبيس بمؤشراته. اسحب وكبّر وصغّر زي ما تحب. الرموز: كريبتو + Hyperliquid.")
+        render_workspace(ws_syms, lang="ar", height=720, asset_cls=asset_class, solo="chart")
         return
     from modules.market_cache import fetch_frames
     with st.spinner(f"Loading {len(symbols)} symbols × {len(timeframes)} timeframes…"):

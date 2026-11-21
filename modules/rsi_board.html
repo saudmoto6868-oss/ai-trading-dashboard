@@ -6,7 +6,7 @@
 #src{height:22px;display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10.5px;color:var(--mut);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
 #src i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:4px;background:var(--up)}#src b{color:var(--txt)}
 #src button{margin-inline-start:auto}
-#app{display:grid;grid-template-columns:58fr 42fr;gap:6px;height:calc(100% - 22px);padding:4px}
+#app{display:grid;grid-template-columns:48fr 52fr;gap:6px;height:calc(100% - 22px);padding:4px}
 .pane{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
 .hd{display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .chip{border:1px solid var(--line);border-radius:10px;padding:0 7px;font-size:10.5px;white-space:nowrap}
@@ -53,10 +53,10 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 #legend{padding:10px;direction:rtl;font-size:11.5px}
 #tp-flt #tagbar{flex:1 1 100%;flex-wrap:wrap;height:auto;padding:0;border:0;white-space:normal;overflow:visible}#legend h4{margin:8px 0 3px;color:var(--amb)}#legend div{margin:2px 0}
 #toast{position:absolute;inset-inline-end:8px;bottom:8px;z-index:8}#toast div{background:#3a2d10;border:1px solid var(--amb);border-radius:6px;padding:3px 8px;margin-top:4px;font-weight:700;font-size:11px}
-#list{flex:1;min-height:0;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(136px,1fr));gap:5px;align-content:start}
+#list{flex:1;min-height:0;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:5px;align-content:start}
 .bar{flex:0 0 36px}
 .grp{grid-column:1/-1;font-weight:800;font-size:11px;color:var(--mut);padding:4px 2px;border-bottom:1px solid var(--line);direction:rtl}
-.tile{position:relative;border-radius:8px;padding:6px;border:1px solid var(--line);cursor:pointer;min-height:98px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.tile{position:relative;border-radius:8px;padding:6px;border:1px solid var(--line);cursor:pointer;min-height:84px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
 .tile:hover{border-color:var(--sel)}.tile.sel{outline:1px solid var(--sel)}
 .tile .hd2{display:flex;justify-content:space-between;align-items:center;gap:4px}
 .tile .nm{font-weight:800;font-size:13px;direction:ltr}
@@ -75,17 +75,34 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
 .tfb{display:flex;align-items:flex-end;gap:1px;height:18px}.tfb div{width:6px;border-radius:2px 2px 0 0}
 .plan{font-variant-numeric:tabular-nums;font-size:10.5px;direction:ltr}
 @keyframes ub{0%,100%{box-shadow:inset 0 0 0 1px var(--amb)}50%{box-shadow:none}}
+#tabs{overflow-x:auto}#tabs button{flex:1 0 auto;padding:0 10px}
+#qk{display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid var(--line);direction:rtl;overflow-x:auto;white-space:nowrap}
+#qk .ctl{height:24px;font-size:11px}#qk .sm{margin-inline-end:2px}
+.pn{padding:10px;direction:rtl;display:flex;flex-direction:column;gap:8px}
+.pn h4{margin:0;font-size:12.5px;color:var(--amb)}
+.cl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.cc{border:1px solid var(--line);border-radius:8px;padding:8px;background:#10151d;display:flex;flex-direction:column;gap:2px}
+.cc b{font-size:20px;direction:ltr;font-variant-numeric:tabular-nums}.cc .st{font-weight:800;font-size:11px}
+.cc.open{border-color:var(--up)}.cc.open .st{color:var(--up)}.cc.shut .st{color:var(--mut)}
+.mt{height:8px;border-radius:4px;background:#222b38;overflow:hidden}.mt i{display:block;height:100%;transition:width .4s,background .4s}
+.fr{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.fr label{min-width:120px;font-weight:700}
+.fr input,.fr select{height:26px;border:1px solid var(--line);border-radius:6px;background:#0f141b;color:var(--txt);font:inherit;padding:0 6px;width:110px;direction:ltr}
+.kp{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.kp div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#10151d}.kp b{display:block;font-size:17px;direction:ltr;font-variant-numeric:tabular-nums}
+.jt{width:100%;border-collapse:collapse;font-size:11px}.jt td,.jt th{padding:3px 5px;border-bottom:1px solid var(--line);text-align:start}.jt th{color:var(--mut);font-weight:700}
+.pos{color:var(--up)}.neg{color:var(--dn)}
 </style></head><body>
 <div id="src"></div>
 <div id="app">
  <div class="pane"><div class="hd" id="mh"></div>
   <div class="hint">الخريطة: كل نقطة عملة. فوق الخط 70 = تشبع شراء، تحت 30 = تشبع بيع. اضغط على نقطة عشان تفتح تفاصيلها.</div>
-  <div id="map" style="flex:1 1 52%;min-height:200px"></div>
+  <div id="map" style="flex:1 1 40%;min-height:160px"></div>
   <div id="chartbox"><div class="hd" id="chtitle" style="justify-content:space-between;flex-wrap:nowrap"></div>
    <div id="chwrap"><canvas id="cv"></canvas></div></div>
   </div>
  <div class="pane"><div id="toast"></div>
-  <div id="tabs"><button data-t="opp" class="act">① الفرص <b id="cnt"></b></button><button data-t="det">② تفاصيل العملة</button><button data-t="flt">③ الفلاتر <b id="fn"></b></button><button data-t="hlp">④ الشرح</button></div>
+  <div id="qk"><span class="sm">سريع:</span><button class="ctl" data-q="mc">توافق 50+</button><button class="ctl" data-q="rr">R:R 1.5+</button><button class="ctl" data-q="fr">الشمعة الحالية</button><button class="ctl" data-q="rs">مسح</button></div>
+  <div id="tabs"><button data-t="opp" class="act">① الفرص <b id="cnt"></b></button><button data-t="det">② تفاصيل العملة</button><button data-t="flt">③ الفلاتر <b id="fn"></b></button><button data-t="hlp">④ الشرح</button><button data-t="ses">⑤ الجلسات</button><button data-t="risk">⑥ المخاطر</button><button data-t="mkt">⑦ نبض السوق</button><button data-t="jrn">⑧ الجورنال</button></div>
   <div class="hint" id="hint"></div>
   <div class="tp act" id="tp-opp">
   <div class="bar">
@@ -107,6 +124,18 @@ select.ctl{padding:0 4px}button.ctl{cursor:pointer}button.ctl.on{border-color:va
    <div class="frow"><button id="rst" class="ctl">امسح كل الفلاتر</button> <button class="ctl" onclick="tab('opp')">شوف النتيجة في الفرص ←</button></div>
   </div>
   <div class="tp" id="tp-hlp"><div id="legend"></div></div>
+  <div class="tp" id="tp-ses"><div class="pn"><h4>جلسات التداول</h4><div class="cl" id="cl"></div><div class="sm">المواعيد المعتادة بتوقيت كل سوق. العطلات الرسمية مش محسوبة.</div></div></div>
+  <div class="tp" id="tp-risk"><div class="pn"><h4>المخاطرة والخسارة اليومية</h4>
+   <div class="fr"><label>رصيد الحساب</label><input id="rb" type="number" min="0" step="100"></div>
+   <div class="fr"><label>مخاطرة الصفقة %</label><input id="rp" type="number" min="0" max="100" step="0.25"></div>
+   <div class="fr"><label>حد الخسارة اليومي</label><input id="rd" type="number" min="0" step="10"></div>
+   <div class="fr"><label>خسارة اليوم لحد دلوقتي</label><input id="rl" type="number" min="0" step="10"></div>
+   <div class="mt"><i id="rbar"></i></div><div id="rtx" class="sm"></div>
+   <h4>حجم الصفقة للعملة المختارة</h4><div id="rsz" class="kp"></div></div></div>
+  <div class="tp" id="tp-mkt"><div class="pn"><h4>نبض السوق (من الـRSI على فريم الخريطة)</h4><div id="mk" class="kp"></div><div id="mkb"></div><div class="sm">محسوب من العملات المعروضة بس. مش نسبة فوق EMA50.</div></div></div>
+  <div class="tp" id="tp-jrn"><div class="pn"><h4>سجل صفقاتك</h4>
+   <div class="fr"><input id="js" placeholder="الرمز" style="width:100px"><select id="jd"><option value="long">شراء</option><option value="short">بيع</option></select><input id="jp" type="number" step="any" placeholder="الربح/الخسارة"><input id="jn" placeholder="ملاحظة" style="width:150px;direction:rtl"><button class="ctl" id="ja">سجّل</button></div>
+   <div id="jk" class="kp"></div><table class="jt" id="jt"></table><div><button class="ctl" id="jx">امسح الكل</button></div></div></div>
  </div>
 </div>
 <div id="tip"></div>
@@ -364,4 +393,64 @@ addEventListener("beforeunload", () => store.set("rsihm_ui", {mc: $("#mc").value
 setInterval(() => $$(".tm").forEach(el => {const i = D.items.find(x => x.full === el.dataset.s); if (i) el.textContent = timer(i);}), 1000);
 tab("opp"); drawMap(); paintArm(); rows(); checkAlarm();
 let _rz; addEventListener("resize", () => {clearTimeout(_rz); _rz = setTimeout(() => {drawMap(); rows(); drawChart(sel);}, 150);});
+</script>
+<script>
+(function(){
+Object.assign(HINT, {ses: "مواعيد فتح وقفل لندن ونيويورك والقاهرة والرياض بتوقيت كل سوق.",
+  risk: "اكتب رصيدك وحدودك. الشاشة بتحسب الخسارة المتبقية وحجم الصفقة من وقف العملة المختارة.",
+  mkt: "صورة سريعة للسوق من العملات اللي على الشاشة: متوسط RSI، كام في تشبع، ومين شراء ومين بيع.",
+  jrn: "سجل صفقاتك بإيدك. الأرقام بتاعتك انت. نسبة الربح مش بتظهر قبل 30 صفقة."});
+const q = k => $('[data-q="' + k + '"]'), fire = (el, ev) => el.dispatchEvent(new Event(ev));
+q("mc").onclick = () => {const v = +$("#mc").value >= 50 ? 0 : 50; $("#mc").value = v; $("#mcv").textContent = v; q("mc").classList.toggle("on", v >= 50); rows();};
+q("rr").onclick = () => {const on = $("#mr").value !== "1.5"; $("#mr").value = on ? "1.5" : "0"; q("rr").classList.toggle("on", on); rows();};
+q("fr").onclick = () => {const on = $("#mf").value !== "0"; $("#mf").value = on ? "0" : "99"; q("fr").classList.toggle("on", on); rows();};
+q("rs").onclick = () => {$("#rst").click(); $$("#qk .ctl").forEach(b => b.classList.remove("on"));};
+
+const Z = [["لندن", "Europe/London", 8, 16.5, [1,2,3,4,5]], ["نيويورك", "America/New_York", 9.5, 16, [1,2,3,4,5]], ["القاهرة (EGX)", "Africa/Cairo", 10, 14.5, [0,1,2,3,4]], ["الرياض (تداول)", "Asia/Riyadh", 10, 15, [0,1,2,3,4]]];
+const WD = {Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6}, hm = m => m < 60 ? Math.round(m) + "د" : Math.floor(m / 60) + "س " + Math.round(m % 60) + "د";
+function clocks(){
+  $("#cl").innerHTML = Z.map(z => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {timeZone: z[1], hour: "2-digit", minute: "2-digit", hour12: false, weekday: "short"}).formatToParts(new Date()).map(x => [x.type, x.value]));
+    const now = (+p.hour % 24) + +p.minute / 60, wd = WD[p.weekday], day = z[4].includes(wd), open = day && now >= z[2] && now < z[3];
+    const note = open ? "يقفل بعد " + hm((z[3] - now) * 60) : day && now < z[2] ? "يفتح بعد " + hm((z[2] - now) * 60) : "مقفول لحد يوم العمل الجاي";
+    return `<div class="cc ${open ? "open" : "shut"}"><span class="sm">${z[0]}</span><b>${p.hour}:${p.minute}</b><span class="st">${open ? "مفتوح" : "مقفول"}</span><span class="sm">${note}</span></div>`;}).join("");
+}
+clocks(); setInterval(clocks, 20000);
+
+const RK = "rsihm_risk", rk = Object.assign({bal: 0, rp: 1, dl: 0, lost: 0}, store.get(RK, {}));
+["rb:bal", "rp:rp", "rd:dl", "rl:lost"].forEach(s => {const [id, k] = s.split(":"); $("#" + id).value = rk[k] || ""; $("#" + id).oninput = () => {rk[k] = +$("#" + id).value || 0; store.set(RK, rk); risk();};});
+function risk(){
+  const used = rk.dl > 0 ? rk.lost / rk.dl : 0, bar = $("#rbar");
+  bar.style.width = Math.min(100, used * 100) + "%"; bar.style.background = used >= 1 ? "var(--dn)" : used >= .6 ? "var(--amb)" : "var(--up)";
+  $("#rtx").textContent = rk.dl > 0 ? (used >= 1 ? "وصلت حد الخسارة اليومي. وقف التداول لليوم." : `المتبقي ${(rk.dl - rk.lost).toLocaleString()} من ${rk.dl.toLocaleString()} (${Math.round(used * 100)}%)`) : "حط حد الخسارة اليومي عشان الشريط يشتغل.";
+  const i = sel && D.items.find(x => x.full === sel), amt = rk.bal * rk.rp / 100;
+  if (!i || !i.plan || !amt){ $("#rsz").innerHTML = `<div class="sm">اختار عملة عليها خطة، واكتب الرصيد والمخاطرة.</div>`; return; }
+  const d = Math.abs(i.plan.entry - i.plan.stop), u = d > 0 ? amt / d : 0;
+  $("#rsz").innerHTML = `<div><span class="sm">العملة</span><b>${esc(i.full)}</b></div><div><span class="sm">مخاطرة بالمبلغ</span><b>${amt.toLocaleString(undefined, {maximumFractionDigits: 2})}</b></div><div><span class="sm">الكمية</span><b>${u >= 1 ? u.toFixed(2) : u.toPrecision(3)}</b></div><div><span class="sm">قيمة الصفقة</span><b>${(u * i.plan.entry).toLocaleString(undefined, {maximumFractionDigits: 0})}</b></div>`;
+}
+const _sel = select; select = function(a, b){_sel(a, b); risk();}; risk();
+
+(function mkt(){
+  const it = D.items.filter(i => i.rsi_map != null), n = it.length || 1, avg = it.reduce((s, i) => s + i.rsi_map, 0) / n;
+  const pc = f => Math.round(it.filter(f).length / n * 100), buys = D.items.filter(i => i.dir > 0).length, sells = D.items.filter(i => i.dir < 0).length;
+  const mood = avg >= 60 ? "شراء قوي" : avg >= 52 ? "ميل للشراء" : avg > 48 ? "متعادل" : avg > 40 ? "ميل للبيع" : "بيع قوي";
+  const K = (l, v, c) => `<div><span class="sm">${l}</span><b${c ? ` style="color:${c}"` : ""}>${v}</b></div>`;
+  $("#mk").innerHTML = K("متوسط RSI", avg.toFixed(1)) + K("الحالة", mood) + K("فوق 50", pc(i => i.rsi_map > 50) + "%") + K("تشبع شراء", pc(i => i.rsi_map >= 70) + "%", "var(--dn)") + K("تشبع بيع", pc(i => i.rsi_map <= 30) + "%", "var(--up)") + K("شراء / بيع", buys + " / " + sells) + K("عدد العملات", it.length);
+  $("#mkb").innerHTML = D.bands.map(b => {const c = it.filter(i => BAND(i.rsi_map) === b).length;
+    return `<div class="row2" style="margin:3px 0"><span style="min-width:90px;color:${b.c}">${A("band", b.name)}</span><div class="mt" style="flex:1"><i style="width:${c / n * 100}%;background:${b.c}"></i></div><b style="min-width:26px;direction:ltr">${c}</b></div>`;}).join("");
+})();
+
+const JK = "rsihm_jrn";
+function jrn(){
+  const L = store.get(JK, []), n = L.length, w = L.filter(t => t.p > 0).length, net = L.reduce((s, t) => s + t.p, 0);
+  const K = (l, v, c) => `<div><span class="sm">${l}</span><b${c ? ` class="${c}"` : ""}>${v}</b></div>`;
+  $("#jk").innerHTML = K("الصفقات", n) + K("الصافي", net.toLocaleString(undefined, {maximumFractionDigits: 2}), net > 0 ? "pos" : net < 0 ? "neg" : "") + K("نسبة الربح", n >= 30 ? Math.round(w / n * 100) + "%" : "غير كافي (" + n + "/30)");
+  $("#jt").innerHTML = n ? "<tr><th>الرمز</th><th>الاتجاه</th><th>النتيجة</th><th>ملاحظة</th></tr>" + L.slice(-15).reverse().map(t => `<tr><td style="direction:ltr">${esc(t.s)}</td><td>${t.d === "long" ? "شراء" : "بيع"}</td><td class="${t.p > 0 ? "pos" : t.p < 0 ? "neg" : ""}" style="direction:ltr">${t.p}</td><td>${esc(t.n)}</td></tr>`).join("") : "";
+}
+$("#ja").onclick = () => {const p = parseFloat($("#jp").value), s = $("#js").value.trim() || sel || "";
+  if (!s || !isFinite(p)){$("#jp").style.borderColor = "var(--dn)"; return;}
+  $("#jp").style.borderColor = ""; const L = store.get(JK, []); L.push({s, d: $("#jd").value, p, n: $("#jn").value.trim(), t: Date.now()}); store.set(JK, L.slice(-500)); $("#jp").value = ""; $("#jn").value = ""; jrn();};
+$("#jx").onclick = () => {const b = $("#jx"); if (b.dataset.arm){store.set(JK, []); delete b.dataset.arm; b.textContent = "امسح الكل"; jrn();} else {b.dataset.arm = 1; b.textContent = "اضغط تاني للتأكيد";}};
+jrn();
+})();
 </script></body></html>

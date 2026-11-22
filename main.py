@@ -650,7 +650,7 @@ def _scan_worker(store, ws_tf, ws_key):
     The chosen timeframe goes first and partial results are published as they arrive."""
     try:
         # just after a (re)start let the first page render before the heavy scan takes the CPU (Streamlit Cloud gives little CPU)
-        wait = 45 - (time.time() - store.get("t0", 0))
+        wait = float(os.environ.get("SCAN_START_DELAY", "10")) - (time.time() - store.get("t0", 0))   # perf: was a fixed 45 s (Streamlit Cloud); env-tunable
         if wait > 0:
             time.sleep(wait)
         ws_alerts, ws_scan, ws_seed, ws_mini, ws_errs = [], {}, None, [], []

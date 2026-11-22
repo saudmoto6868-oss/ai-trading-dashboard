@@ -3594,12 +3594,12 @@ def render_smt_board():
     ar = _ui_lang() == "ar"
     c1, c2 = st.columns([3, 1])
     tfs = c1.multiselect(L("Timeframes"), list(_IM.TF_ORDER[:7])[::-1], default=[t for t in ("15m", "1h", "4h", "1d")], key="smt_tfs")
-    if c2.button(L("Rescan now"), key="smt_rescan"):
-        st.cache_data.clear()
-
     @st.cache_data(ttl=300, show_spinner=False)
     def _run(tfs_t):
         return _IM.scan_pairs(lambda s_, t_: get_klines(s_, t_, 300), tfs=tfs_t)
+
+    if c2.button(L("Rescan now"), key="smt_rescan"):
+        _run.clear()   # perf: was st.cache_data.clear(), which wiped every page's cache
 
     with st.spinner(L("Comparing the correlated pairs...")):
         ev = _run(tuple(tfs or ("1h",)))

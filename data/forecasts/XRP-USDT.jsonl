@@ -1,1 +1,2 @@
 {"id": "XRP-USDT|2026-11-21", "symbol": "XRP-USDT", "class": "Crypto", "tf": "1D", "side": "long", "entry": 0.8932, "stop": 0.8842, "target": 0.9067000000000001, "made_at": "2026-11-21", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "XRP-USDT|2026-11-22", "symbol": "XRP-USDT", "class": "Crypto", "tf": "1D", "side": "long", "entry": 0.9321, "stop": 0.8597, "target": 1.0407000000000002, "made_at": "2026-11-22", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

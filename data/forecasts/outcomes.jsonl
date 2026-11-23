@@ -1,0 +1,7 @@
+{"id": "XRP-USDT|2026-11-21", "symbol": "XRP-USDT", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5, "scored_on": "2026-11-23"}
+{"id": "DOGE-USDT|2026-11-21", "symbol": "DOGE-USDT", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5, "scored_on": "2026-11-23"}
+{"id": "SOL-USDT|2026-11-21", "symbol": "SOL-USDT", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5, "scored_on": "2026-11-23"}
+{"id": "ADA-USDT|2026-11-21", "symbol": "ADA-USDT", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5, "scored_on": "2026-11-23"}
+{"id": "BNB-USDT|2026-11-21", "symbol": "BNB-USDT", "class": "Crypto", "side": "short", "outcome": "timeout", "R": 0.0, "scored_on": "2026-11-23"}
+{"id": "ETH-USDT|2026-11-21", "symbol": "ETH-USDT", "class": "Crypto", "side": "short", "outcome": "timeout", "R": 0.0, "scored_on": "2026-11-23"}
+{"id": "BTC-USDT|2026-11-21", "symbol": "BTC-USDT", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5, "scored_on": "2026-11-23"}

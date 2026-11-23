@@ -13,6 +13,7 @@
 | الشارت (الواجهة) | `modules/ws/*.js` → `scripts/build_workspace.py` → `modules/workspace_app.html` | عدّل الجزء، مش الملف المولّد |
 | الاختبارات | `tests/test_trade_journal.py`، `tests/test_trade_learning.py`، `tests/test_workspace_parts_sync.py` | شغّلهم بعد أي تعديل |
 | الباك تيست والمعمل | `docs/academy/`، `modules/lab_*` | مش جزء من الجورنال |
+| **المحادثات** (كل محادثات الحساب) | `docs/meeting_room/المحادثات/` (فهرس: `README.md`، الصور: `_assets/`) | ملف MD لكل جلسة: ملخص تلقائي في الأول + النص الكامل. التنظيف بالـ regex، وده مش مضمون ١٠٠٪ |
 
 
 المكان ده لكل الحسابات والذكاءات اللي بتشتغل على المشروع. أي حد يفتحه قبل ما يبدأ شغل، ويكتب فيه بعد ما يخلص.

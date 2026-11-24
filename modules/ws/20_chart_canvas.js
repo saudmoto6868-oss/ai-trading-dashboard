@@ -14,10 +14,10 @@ class CandleChart {
   constructor(host){
     this.host = host; this.cv = el("canvas"); host.appendChild(this.cv); this.ctx = this.cv.getContext("2d");
     this.data = []; this.S = 1; this.bw = 9; this.r = 0; this.yZoom = 1; this.yShift = 0; this.tf = "1H"; this.autoCenter = false;
-    this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.dcOn = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.colWide = 0; this.colOwn = false; this.colWideR = 0; this.flowOff = 0; this.colWideC = 0; this.wom = {snaps:[]}; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
+    this.ema = {vwap:false}; this.maL = [{on:true, type:"EMA", len:9, color:"#f0b90b", w:1.2, dash:""}, {on:true, type:"EMA", len:21, color:"#4aa3ff", w:1.2, dash:""}, {on:false, type:"EMA", len:50, color:"#b57cff", w:1.2, dash:""}]; this.rsiOn = false; this.macdOn = false; this.donOn = false; this.mt5On = false; this.dcOn = false; this.lvOn = false; this.llOn = false; this.llD = null; this.divOn = true; this.colOn = false; this.colW = 0; this.colWide = 0; this.colOwn = false; this.colWideR = 0; this.flowOff = 0; this.colWideC = 0; this.wom = {snaps:[]}; this.subOrd = ["rsi","macd","adx","cci","zn","bso","rm","r2","cvd"]; this.adxOn = false; this.cciOn = false; this.psarOn = false; this.znOn = false; this.r2On = false; this.bbShow = true; this.bsoOn = false; this.rmOn = false; this.kzsOn = false; this.gannOn = false; this.liqOn = false; this.liqs = []; this.syncOn = false; this.sync = null; this.syncLog = []; this.astroOn = false;
     this.st = {vwap:{color:"#e6e6e6",w:1.2,dash:"6,3"},
       rsi:{color:"#b57cff",w:1.2,dash:"",len:14,ob:70,os:30,hp:18}, vol:{color:"#848e9c",w:1,dash:"",h:18,delta:1}, of:{hm:"book",hmm:"fix",hmBright:1,color:"#0ecb81",color2:"#f6465d",w:1,dash:"",min:1,dom:1,bsz:1,bop:1,sidec:1,sweepC:"#4aa3ff",absC:"#f0b90b",bigx:2.5, fpMode:"bidask", fpRow:1, fpImb:3, fpStk:3, fpMin:10, fpDiag:1, fpStack:1, fpNaked:1, fpDelta:1, fpAuc:1}, macd:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",fast:12,slow:26,sig:9,hp:18},
-      zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
+      zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, cvd:{color:"#4aa3ff",w:1.4,hp:18}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
       pos26:{color:"#4f8fd8",color2:"#8a94a3",w:1.4,dash:"",ratio:2.6,sw:5,show:3,h1:1,h2:1,wait:80,tx:10,fa:.16,lbl:1,mtf:1,htfL:0,leg:0,path:0,hist:1,histN:8,ha:.08,bw:24,piv:1,pivL:1,meas:1,info:1,ipos:1,mtfT:1,str:1,trd:1,zn:0,arw:0},   // 2.6 position boxes (was s26 with green / red: new key so the calm colours apply to saved layouts too)
       msb:{color:"#0ecb81",color2:"#f6465d",w:2,dash:"",zl:9,zz:1,fib:0.237,tx:10,del:1,fa:0.3,obuF:"#0ecb81",obuB:"#0ecb81",obuT:"#0ecb81",obeF:"#f6465d",obeB:"#f6465d",obeT:"#f6465d",bbuF:"#0ecb81",bbuB:"#0ecb81",bbuT:"#0ecb81",bbeF:"#f6465d",bbeB:"#f6465d",bbeT:"#f6465d"}, gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
       flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:0},   // tgt off by default (2026-11-20): the absorption "reversal" arrow is a fixed 1.5
@@ -31,12 +31,13 @@ class CandleChart {
     cv.addEventListener("pointerup", e => this.up(e));
     cv.addEventListener("pointercancel", e => { (this.tp || new Map()).delete(e.pointerId); this.pinch = null; this.up(e); });   // the browser took the gesture (vertical page scroll)
     cv.addEventListener("pointerleave", () => { if (!this.drag){ this.mouse = null; this.draw(); } });
-    cv.addEventListener("dblclick", e => { const q = this.pt(e), d = this.drawingsVisible && this.tool === "cur" ? this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q.x, q.y)) : null; if (d){ this.sel = d; this.draw(); this.openEditor(d); } else this.fit(); });
+    cv.addEventListener("dblclick", e => { const q = this.pt(e), d = this.drawingsVisible && this.tool === "cur" ? this.draws.slice().reverse().find(x => !x.hidden && this.hit(x, q.x, q.y)) : null; if (d){ this.sel = d; this.draw(); this.openEditor(d); } else if (!(this.ihDbl && this.ihDbl(e))) this.fit(); });   // 2026-11-24: double-click on an indicator drawing opens its row (21e_ind_hits.js)
     cv.addEventListener("contextmenu", e => this.ctxMenu(e));
     cv.tabIndex = 0; cv.style.outline = "none";
     cv.addEventListener("keydown", e => { if (e.key === "Delete" || e.key === "Backspace"){ this.deleteSel(); } else if (e.key === "Escape"){ this.cancelTool(); } });
     this.draws = []; this.drawingsVisible = true; this.tool = "cur"; this.sel = null; this.creating = null; this.setupMode = "lines"; this.drawKey = null; this.onToolChange = null;
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host); this.resize();
+    if (this.ihInit) this.ihInit();   // "what is this?" card after resting the mouse (21e_ind_hits.js)
   }
   destroy(){ this.ro.disconnect(); }
   cw(){ if (!this.colOn) return 0; const r = this.cw0(); return this.colWide > 0 && this.domOn ? Math.min(Math.max(60, Math.round(this.W*0.65 - this.axw)), Math.max(r, this.colW ? 120 : this.W < 520 ? 125 : 150)) : r; }   // the WIDE map needs >= 120 px (two label strips + a map of >= 30 px): below that it drew NOTHING (a blank column on 4H / 1D and in small panels)
@@ -299,23 +300,26 @@ class CandleChart {
       c.fillStyle = hexA(up ? (TH.vu || TH.up) : (TH.vd || TH.dn), .28);   // volume bars: own up / down colours when set (🎨 menu), else the candle colours
       if (this.volOn){ const vh = vmax ? k.v/vmax*PB*(this.st.vol.h/100) : 0, fm = this.fp.get(k.t);
         if (this.st.vol.delta && fm){ const OFc = this.st.of; c.fillStyle = hexA(fm.b >= fm.s ? OFc.color : OFc.color2, .45); }   // real delta colour when live trades exist
-        c.fillRect(x-bwp/2, PB-vh, bwp, vh); }
+        if (this._ihRec) this._ihId = "volume"; c.fillRect(x-bwp/2, PB-vh, bwp, vh); this._ihId = null; }
       c.strokeStyle = col; c.fillStyle = col; c.beginPath(); c.moveTo(Math.round(x)+.5, py(k.h)); c.lineTo(Math.round(x)+.5, py(k.l)); c.stroke();
       const y1 = py(k.o), y2 = py(k.c);
       if (this.fpOn && this.bw >= 44 && this.fp.has(k.t)){ c.lineWidth = 1; c.strokeRect(Math.round(x-bwp/2)+.5, Math.min(y1,y2), bwp, Math.max(1, Math.abs(y1-y2))); }   // footprint candle: body becomes an outline, the cells show the volume
       else c.fillRect(x-bwp/2, Math.min(y1,y2), bwp, Math.max(1, Math.abs(y1-y2)));
     }
+    this._ihId = this._ihRec ? "ma" : null;   // hit log (21e_ind_hits.js): MA / VWAP are drawn inline, not by a painter
     this.maL.forEach((m, j) => {   // Moving averages: every line of the one MA indicator
       const v = this.maV && this.maV[j]; if (!m.on || !v) return;
       c.strokeStyle = m.color; c.lineWidth = DOT ? Math.max(2, (m.w || 1.2)*1.6) : (m.w || 1.2); c.lineCap = DOT ? "round" : "butt"; c.setLineDash(DOT ? [0.1, ds] : m.dash ? m.dash.split(",").map(Number) : []); c.beginPath(); let f = true;
       for (let i = i0; i <= i1; i++){ if (v[i] == null) continue; const y = py(v[i]), x = this.x(i); f ? c.moveTo(x,y) : c.lineTo(x,y); f = false; }
       c.stroke(); c.setLineDash([]); c.lineCap = "butt";
     });
+    if (this._ihRec) this._ihId = "vwap";
     if (this.ema.vwap && this.vwV){
       const sv = this.st.vwap; c.strokeStyle = sv.color; c.lineWidth = sv.w; c.setLineDash(sv.dash ? sv.dash.split(",").map(Number) : []); c.beginPath();
       for (let i = i0; i <= i1; i++){ const y = py(this.vwV[i]), x = this.x(i); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); }
       c.stroke(); c.setLineDash([]);
     }
+    this._ihId = null;
     if (this.bsoOn && this.bbShow) this.paintBB(c, py, dec, i0, i1);
     if (this.volOn && vmax) this.paintDiv(c, "vol", [1], i => this.x(i), i => PB - this.data[i].v/vmax*PB*(this.st.vol.h/100), i0, i1);
     if (this.donOn) this.paintDon(c, py, i0, i1);
@@ -348,18 +352,20 @@ class CandleChart {
       const pl = ov.plan;
       if (pl && this.setupMode === "box"){
         this.paintSetupBox(c, py, pl, dec);
-      } else if (pl){
+      } else if (pl){ if (this._ihRec) this._ihId = "sig";
         const lines = [[pl.entry, "Entry", "#4aa3ff", ""], [pl.stop, "SL", "#f6465d", "5,4"]].concat((pl.tps||[]).map((v,i) => [v, "TP"+(i+1), "#0ecb81", "5,4"]));
         const sp = this.planSpan();
         lines.forEach(([v, lab, col, dash]) => {
           const y = py(v); if (y < 0 || y > PB) return;
           c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash ? dash.split(",").map(Number) : []); c.beginPath(); c.moveTo(sp.x0, y+.5); c.lineTo(sp.x1, y+.5); c.stroke(); c.setLineDash([]);
           c.fillStyle = col; c.fillRect((this.W-this.axw)+1, y-7, this.axw-2, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), (this.W-this.axw)+3, y);
+          if (lab === "Entry"){ c.fillStyle = col; c.font = "9px sans-serif"; c.fillText(this.ovTag(), sp.x0 + 4, y - 7); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }   // source tag (2026-11-24)
         });
       }
       if (pl){ const sp = this.planSpan(), hy = py(pl.entry); this._planH = {x:sp.x1, y:hy, x0:sp.x0};
         c.fillStyle = "#4aa3ff"; c.strokeStyle = "#0b0e11"; c.lineWidth = 1; c.fillRect(sp.x1-4, hy-6, 8, 12); c.strokeRect(sp.x1-4+.5, hy-6+.5, 7, 11); }
     }
+    this._ihId = null;
     if (this.showSig && n) this.paintSigs(c, py, PR, PB, ov);
     if (this.flowOn && this.marks.length && n){
       // order-flow lines: sweep (dot) / absorption (small square). The line starts at the CURRENT candle and runs ahead of it
@@ -435,6 +441,7 @@ class CandleChart {
     subs.forEach((k, j) => {
       const hE = hsub[j] || 50, y0 = PB + hsub.slice(0, j).reduce((x,y) => x+y, 0), h = hE - 4; this._panes.push({k, y0, h}); c.save(); c.beginPath(); c.rect(0, y0, PR, h); c.clip();
       c.fillStyle = TH.pane; c.fillRect(0, y0, PR, h); c.strokeStyle = TH.grid; c.lineWidth = 1; c.strokeRect(.5, y0+.5, PR-1, h-1);
+      if (k === "cvd"){ this.paintCvd(c, y0, h, i0, i1, PR); return; }   // 2026-11-24: CVD pane (21_drawing_tools.js), computed from data + footprint on the fly
       if (!this[k+"V"]){ c.restore(); return; }
       c.textAlign = "left"; c.font = "10px ui-monospace,Menlo,Consolas,monospace";
       const PDOT = !!this.dots, pds = Math.max(3, Math.min(6, Math.round(this.bw*0.22)));

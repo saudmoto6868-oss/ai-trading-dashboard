@@ -27,7 +27,7 @@ for mod_name in ["streamlit", "streamlit.components", "streamlit.components.v1",
 
 import modules.asset_classes
 import modules.tia_intelligence
-import modules.tia_workspace
+import modules.tia_workspace  # noqa: F401
 import modules.tia_page as tia_page
 
 

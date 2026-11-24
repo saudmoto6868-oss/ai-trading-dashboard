@@ -63,13 +63,13 @@ def render_decision_desk(payload: dict | None = None) -> None:
     except Exception:
         pass
     if s.get("against"):
-        st.warning(t(f"فيه إشارة عاكسة: بتخصم 0.10R من دليل المعمل.", "An opposing signal is present: 0.10R is subtracted from the lab evidence."))
+        st.warning(t("فيه إشارة عاكسة: بتخصم 0.10R من دليل المعمل.", "An opposing signal is present: 0.10R is subtracted from the lab evidence."))
     if lv["off"]:
         st.warning(t("كاشفات خارج التقييم (OFF) في المعمل: ", "Detectors that are OFF in the lab: ") + ", ".join(f"`{k}`" for k in lv["off"][:6]))
     plan = s.get("plan") or {}
     if isinstance(plan, dict) and plan:
         st.subheader(t("خطة الماسح", "Scanner plan"))
-        st.dataframe([{t("البند", "Item"): k, t("القيمة", "Value"): str(v)} for k, v in plan.items()], use_container_width=True, hide_index=True)
+        st.dataframe([{t("البند", "Item"): k, t("القيمة", "Value"): str(v)} for k, v in plan.items()], width="stretch", hide_index=True)
     tags = s.get("tags") if t("a", "b") == "a" else (s.get("tags_en") or s.get("tags"))
     if tags:
         st.markdown(t("**الوسوم:** ", "**Tags:** ") + " · ".join(str(x) for x in tags[:12]))

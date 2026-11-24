@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import requests
 import streamlit as st
-from config import FINNHUB_API_KEY, FINNHUB_NEWS_URL
+from config import FINNHUB_NEWS_URL
 from modules.stock_fund import api_key as _finnhub_key   # config.py -> env var -> Streamlit secrets
 
 ASSET_ICONS = {

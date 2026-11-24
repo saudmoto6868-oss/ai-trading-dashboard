@@ -163,7 +163,7 @@ def simulate_arrays(hi, lo, cl, direction, entry: float, stop: float, ex: dict, 
     pos, real, stop_cur, extreme = 1.0, 0.0, stop, entry
     be_done, tp1_done, events = False, False, []
     for i in range(len(cl)):
-        h_, l_, c_ = float(hi[i]), float(lo[i]), float(cl[i])
+        h_, l_ = float(hi[i]), float(lo[i])
         if (l_ <= stop_cur) if long else (h_ >= stop_cur):
             real += pos * sg * (stop_cur - entry) / r0
             events.append((i, "stop", round(stop_cur, 6)))

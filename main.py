@@ -16,39 +16,35 @@ import json
 import os
 import time
 from pathlib import Path
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
 from config import (
-    FOREX_SYMBOLS, METALS_SYMBOLS, STOCK_SYMBOLS, CRYPTO_SYMBOLS,
-    EXTERNAL_LINKS, QUICK_LINK_ICONS, FINVIZ_PATTERNS, FINVIZ_PATTERN_URL,
+    CRYPTO_SYMBOLS,
+    EXTERNAL_LINKS, FINVIZ_PATTERNS, FINVIZ_PATTERN_URL,
     TRADE_TYPES, AUTO_REFRESH_SECONDS, TV_SYMBOL_MAP,
 )
 from modules.data_fetcher import get_mt5_data
 from modules.scorer import (
-    score_symbol, scan_symbol, fetch_tfs, SCAN_TFS, MAX_SAME_SIDE, ALL_SCAN_TFS, CONTEXT_TFS, TF_LABEL, htf_lines, scenarios,
+    score_symbol, scan_symbol, fetch_tfs, SCAN_TFS, MAX_SAME_SIDE,
 )
 from modules.market_cache import fetch_frames, get_klines
 from modules.arabic import (
-    trade_name, tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, DIR_AR, TF_AR, TRADE_AR, n_, scan_entry, dir_name, tf_name,
+    trade_name, tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, n_, scan_entry, dir_name, tf_name,
 )
 from modules.risk_engine import build_trade_plan
-from modules.signals import FAMILY_ICONS
-from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
-from modules.tv_widget import render_tv_chart
+from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
 from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
-from modules.calendar_feed import fetch_calendar
-from modules.chart_scan import (ALL_FILTERS, EMA_FILTERS, MOVE_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
-                                features as cs_features, flag_side, match_filters, mini_chart_svg, move_flags, strategy_flags)
-from modules.news_feed import get_latest_news, ticker_html
-from modules.crypto_extras import render_order_book, render_time_and_sales, search_dexscreener_pairs
+from modules.chart_scan import (ALL_FILTERS, MOVE_FILTERS, PATTERN_FILTERS, RSI_FILTERS, STRATEGY_FILTERS, SHORT as CS_SHORT,
+                                features as cs_features, match_filters, mini_chart_svg, move_flags, strategy_flags)
+from modules.news_feed import get_latest_news
+from modules.crypto_extras import render_order_book, render_time_and_sales
 from modules.dom_panel import (
     build_ladder, ladder_html, classify_trades, trades_html,
     LimitTracker, limit_events_html, fmt_price,
@@ -1175,8 +1171,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77", "Strategy Ledger"]   # 22 = Strategy Ledger (owner 2026-11-24, Trading hub next to the Journal)   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_HUBS = {13: [10, 16, 4, 22, 6], 14: [2, 9, 3, 19, 21], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77", "Preview", "Strategy Ledger"]   # 22 = Preview of built-but-unwired items (owner 2026-11-21, Lab hub)   # 23 = Strategy Ledger (owner 2026-11-24, Trading hub next to the Journal)   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [10, 16, 4, 23, 6], 14: [2, 9, 3, 19, 21, 22], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
 _PAGE_ORDER = [0, 1, 11, 12, 18, 20, 13, 14, 15]   # owner 2026-11-21: V7 (18) back on the top bar with all its parts, next to TIA   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
@@ -1356,7 +1352,7 @@ def _office_bars(rows, title):
         tooltip=["label", "n", "avgR", "net"])
     cost = alt.Chart(_pd.DataFrame({"y": [_OK.COST_R]})).mark_rule(strokeDash=[6, 4], color="#f0b429").encode(y="y:Q")
     st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(title)}</div>", unsafe_allow_html=True)
-    st.altair_chart((bars + cost).properties(height=220), use_container_width=True)
+    st.altair_chart((bars + cost).properties(height=220), width="stretch")
 
 
 def _office_charts():
@@ -1503,7 +1499,7 @@ def _bt_agent(sym, tf):
 def _bt_run_show(strat, sym, tf):
     """Run one strategy on real candles and show the verdict (out-of-sample), metrics, split and equity curve."""
     from modules import strategy_rules as SR, strategy_bt as BT
-    from modules import office_ui as _OU   # also registers the Arabic for the backtest note and chart labels
+    from modules import office_ui as _OU  # noqa: F401 (side effect / kept on purpose)  # also registers the Arabic for the backtest note and chart labels
     from modules.market_cache import get_klines
     side = strat["side"]
     try:
@@ -1530,7 +1526,7 @@ def _bt_run_show(strat, sym, tf):
         eq = _pd.DataFrame([(L(p_), v) for p_, v in seq], columns=[_cp, _cr]); eq[_ct] = range(1, len(eq) + 1); eq[_cc] = eq[_cr].cumsum()
         st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x=alt.X(f"{_ct}:Q"), y=alt.Y(f"{_cc}:Q"),
                         color=alt.Color(f"{_cp}:N", scale=alt.Scale(domain=[L("in-sample"), L("out-of-sample")], range=["#93c5fd", "#2dd4bf"])),
-                        tooltip=[_ct, _cp, _cr, _cc]).properties(height=240), use_container_width=True)
+                        tooltip=[_ct, _cp, _cr, _cc]).properties(height=240), width="stretch")
 
 
 _RULE_IND = {"close": ("Close", "الإغلاق"), "open": ("Open", "الافتتاح"), "high": ("High", "القمة"), "low": ("Low", "القاع"), "volume": ("Volume", "الفوليوم"),
@@ -1548,8 +1544,7 @@ def _rl(table):
 
 def _office_backtest():
     """Build a strategy (rules) and backtest it on real candles: verdict on the frozen out-of-sample part only."""
-    from modules import strategy_rules as SR, strategy_bt as BT
-    from modules.market_cache import get_klines
+    from modules import strategy_rules as SR, strategy_bt as BT  # noqa: F401
     st.caption(L("Rules are kept for this session only (owner decision 2026-10-22). Small runs here; big runs go to GitHub Actions with the owner's approval. No orders, ever."))
     store = SR.SessionStore(st.session_state)
     c = st.columns([1.2, 0.8, 0.8, 0.8, 1])
@@ -1739,11 +1734,11 @@ def _office_detector():
         st.altair_chart(alt.Chart(per).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
             x=alt.X("tf:N", sort=order, title=None), y=alt.Y("net:Q", title=L("net") + " R"),
             color=alt.condition("datum.net > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["tf", "n", "net", "vs_random"]
-        ).properties(height=200), use_container_width=True)
+        ).properties(height=200), width="stretch")
     df = df.assign(win=df["win"].map(lambda w: None if w is None else f"{w:.0f}%"), gate=df["gate"].map(lambda g: L("passed") if g else "-"),
                    side=df["side"].map(L), tf=df["tf"].map(L))
     st.dataframe(df.rename(columns={"tf": L("Timeframe"), "side": L("Side"), "win": L("Win rate"), "avgR": L("avg R"), "net": L("net"), "vs_random": L("vs random"), "gate": L("Gate")}),
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
 
 
@@ -1796,7 +1791,7 @@ def _office_options():
         ts = _pd.DataFrame([{"days": e["days"], "iv": e["iv"], "exp": str(e["exp"])} for e in ex if e["iv"]])
         if len(ts):
             st.altair_chart(alt.Chart(ts).mark_line(point=True, color="#2dd4bf").encode(x=alt.X("days:Q", title=L("Days")), y=alt.Y("iv:Q", title="IV %", scale=alt.Scale(zero=False)),
-                            tooltip=["exp", "days", "iv"]).properties(height=220), use_container_width=True)
+                            tooltip=["exp", "days", "iv"]).properties(height=220), width="stretch")
     with b:
         pick = st.selectbox(L("Expiry"), [str(e["exp"]) for e in ex], index=ex.index(near), key="od_exp")
         d_pick = next(e for e in ex if str(e["exp"]) == pick)
@@ -1807,9 +1802,9 @@ def _office_options():
                     scale=alt.Scale(domain=["calls", "puts"], range=["#2dd4bf", "#f87171"]), legend=alt.Legend(orient="top")), tooltip=["strike", "side", "oi"])
             rl = alt.Chart(_pd.DataFrame({"x": [s["spot"]], "t": [L("Spot (index)")]})).mark_rule(color="#f0b429", strokeDash=[6, 4]).encode(x="x:Q")
             mp = alt.Chart(_pd.DataFrame({"x": [d_pick["max_pain"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q")
-            st.altair_chart((ch + rl + mp).properties(height=220), use_container_width=True)
+            st.altair_chart((ch + rl + mp).properties(height=220), width="stretch")
             st.caption(L("Gold line = spot, purple dotted = max pain for this expiry."))
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, hide_index=True, width="stretch")
     # plain reading of the nearest expiry: description, never a signal
     lines = []
     _oa = _ui_lang() == "ar"
@@ -1860,7 +1855,7 @@ def _office_options():
             ch_ = bars
             for m_ in marks:
                 ch_ = ch_ + m_
-            st.altair_chart(ch_.properties(height=220), use_container_width=True)
+            st.altair_chart(ch_.properties(height=220), width="stretch")
             st.caption(L("Gold = positive GEX, rust = negative; white dashed = spot, purple dotted = gamma flip."))
         st.caption(L("GEX assumes dealers are long the calls and short the puts the public holds; public data cannot confirm who is long or short, and providers disagree. Context, not a trade signal."))
     st.markdown(f"<div class='xo-h'>{html.escape(L('Gamma exposure (GEX)'))}</div>", unsafe_allow_html=True)
@@ -1966,7 +1961,7 @@ def _office_flow_lab():
     df["verdict"] = df["pass"].map(lambda p: L("passed") if p else L("not evidence"))
     st.dataframe(df[["rule", "horizon", "n", "gross_bps", "net_bps", "t", "control_net_bps", "half1", "half2", "verdict"]].rename(columns={
         "rule": L("Rule"), "horizon": L("Horizon (s)"), "gross_bps": L("gross bps"), "net_bps": L("net bps"), "control_net_bps": L("random-sign control"),
-        "half1": L("first half"), "half2": L("second half"), "verdict": L("Verdict")}), hide_index=True, use_container_width=True)
+        "half1": L("first half"), "half2": L("second half"), "verdict": L("Verdict")}), hide_index=True, width="stretch")
     st.caption(L("Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice."))
 
 
@@ -2124,7 +2119,7 @@ def _office_regime():
     if len(h):
         line = alt.Chart(h).mark_line(color="#e3a857").encode(x=alt.X("date:T", title=None), y=alt.Y("score:Q", title=L("Stress score")), tooltip=["date:T", "score:Q", "regime:N"])
         rules = alt.Chart(_pd.DataFrame({"y": [FR.TH, -FR.TH]})).mark_rule(color="#8f877a", strokeDash=[4, 4]).encode(y="y:Q")
-        st.altair_chart((line + rules).properties(height=240), use_container_width=True)
+        st.altair_chart((line + rules).properties(height=240), width="stretch")
         cnt = h["regime"].value_counts()
         st.caption(L("Last 3 years, weekly: ") + " · ".join(f"{names.get(k, k)} {int(v)}" for k, v in cnt.items()))
     st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
@@ -2280,7 +2275,7 @@ def render_alerts_page():
     """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
     and the plan for Radar alerts (task 17). Nothing here sends an order."""
     from modules import office_ui as U
-    from modules.alerts import ALERT_SCORE_THRESHOLD, WATCH_SCORE_MIN, CALL_SCORE_MIN
+    from modules.alerts import WATCH_SCORE_MIN, CALL_SCORE_MIN
     st.markdown(U.CSS, unsafe_allow_html=True)
     tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
     wf = {w["file"]: w for w in U.workflows()}
@@ -2632,7 +2627,6 @@ def render_radar_similar(f):
     """Find similar charts (Finviz, Sep 2026): rank the symbols and past stretches whose recent price path looks like the chosen one."""
     import altair as alt
     import pandas as _pd
-    import numpy as _np
     from modules import fv_screen as FV
     ar = _ui_lang() == "ar"
     A = lambda e, a: a if ar else e
@@ -2656,7 +2650,7 @@ def render_radar_similar(f):
     df = _pd.DataFrame([{A("Symbol", "الرمز"): r["symbol"], A("Match (best stretch)", "التطابق (أحسن فترة)"): r["corr"], A("Match now", "التطابق دلوقتي"): r["corr_now"],
                          A("Ended bars ago", "انتهت من كام شمعة"): r["offset"], A("Window move %", "حركة النافذة %"): r["ret"],
                          A("What followed %", "اللي حصل بعدها %"): r["after"]} for r in res])
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, hide_index=True, width="stretch")
     lines = []
     tz = frames[target]["close"].astype(float).tail(win).values
     z = lambda x: (x - x.mean()) / (x.std() or 1)
@@ -2668,7 +2662,7 @@ def render_radar_similar(f):
         cl = frames[r["symbol"]]["close"].astype(float).values; n = len(cl); seg = cl[n - r["offset"] - win:n - r["offset"]]
         for i, v in enumerate(z(seg)):
             lines.append({"x": i, "z": v, "series": f"{r['symbol']} ({r['corr']:.2f}, {r['offset']} " + A("bars ago", "شمعة فاتت") + ")"})
-    st.altair_chart(alt.Chart(_pd.DataFrame(lines)).mark_line().encode(x=alt.X("x:Q", title=A("bars", "شموع")), y=alt.Y("z:Q", title=A("shape (z-score)", "الشكل (z-score)")), color=alt.Color("series:N", legend=alt.Legend(orient="bottom", title=None))).properties(height=260), use_container_width=True)
+    st.altair_chart(alt.Chart(_pd.DataFrame(lines)).mark_line().encode(x=alt.X("x:Q", title=A("bars", "شموع")), y=alt.Y("z:Q", title=A("shape (z-score)", "الشكل (z-score)")), color=alt.Color("series:N", legend=alt.Legend(orient="bottom", title=None))).properties(height=260), width="stretch")
     st.caption(A("Match = Pearson correlation of the two price paths (1 = same shape, -1 = mirror). 'Best stretch' picks the best of every window in the history, so it is always high on noisy prices: compare it with 'Match now'. 'What followed' is history of that look-alike, a description, not a forecast. Educational, not investment advice.",
                  "التطابق = معامل ارتباط بيرسون بين مسارين للسعر (1 = نفس الشكل، -1 = مقلوب). «أحسن فترة» بتختار أحسن نافذة في التاريخ كله فبتطلع عالية دايماً على الأسعار المتذبذبة: قارنها بـ«التطابق دلوقتي». «اللي حصل بعدها» تاريخ الشبيه ده، وصف مش توقع. تعليمي، مش توصية استثمارية."))
 
@@ -2711,13 +2705,13 @@ def render_radar_perf(f):
     k[3].metric(L("Median") + f" ({sort_by})", f"{v.median():+.2f}%" if len(v) else "-")
     pc = {c: st.column_config.NumberColumn(format="%+.2f%%") for c in spans}
     st.dataframe(df.rename(columns={"Symbol": L("Symbol"), "Price": L("Price"), "Volatility 24 h %": L("Volatility 24 h %")}), hide_index=True,
-                 use_container_width=True, column_config={**pc, L("Price"): st.column_config.NumberColumn(format="%.4g")})
+                 width="stretch", column_config={**pc, L("Price"): st.column_config.NumberColumn(format="%.4g")})
     long = df.melt(id_vars="Symbol", value_vars=list(spans), var_name="span", value_name="pct").dropna()
     st.markdown(f"**{L('Change % by period (heat map)')}**")
     st.altair_chart(alt.Chart(long).mark_rect().encode(
         x=alt.X("span:N", sort=list(spans), title=None), y=alt.Y("Symbol:N", sort=list(df["Symbol"]), title=None),
         color=alt.Color("pct:Q", scale=alt.Scale(scheme="redyellowgreen", domainMid=0), title="%"), tooltip=["Symbol", "span", "pct"]
-    ).properties(height=max(200, 20 * len(df))), use_container_width=True)
+    ).properties(height=max(200, 20 * len(df))), width="stretch")
     st.caption(f"{tf} · {len(df)} / {len(SCAN_SYMBOLS)} " + L("symbols") + " · " + L("Candles from the same source as the charts. Educational, not investment advice."))
 
 
@@ -2739,13 +2733,13 @@ def render_radar_corr(f):
     st.altair_chart(alt.Chart(long).mark_rect().encode(
         x=alt.X("b:N", sort=order, title=None), y=alt.Y("a:N", sort=order, title=None),
         color=alt.Color("corr:Q", scale=alt.Scale(scheme="blueorange", domain=[-1, 1]), title="corr"), tooltip=["a", "b", "corr"]
-    ).properties(height=max(260, 22 * len(order))), use_container_width=True)
+    ).properties(height=max(260, 22 * len(order))), width="stretch")
     pairs = long[long["a"] < long["b"]].sort_values("corr")
     a, b = st.columns(2)
     a.markdown(f"**{L('Move together (corr >= 0.8): treat as one position')}**")
-    a.dataframe(pairs[pairs["corr"] >= 0.8].sort_values("corr", ascending=False).head(12), hide_index=True, use_container_width=True)
+    a.dataframe(pairs[pairs["corr"] >= 0.8].sort_values("corr", ascending=False).head(12), hide_index=True, width="stretch")
     b.markdown(f"**{L('Lowest correlation (diversify / hedge)')}**")
-    b.dataframe(pairs.head(12), hide_index=True, use_container_width=True)
+    b.dataframe(pairs.head(12), hide_index=True, width="stretch")
     st.caption(f"{f['tf']} · " + L("Pearson correlation of returns, last 260 candles. Correlation changes over time; it is not a forecast."))
 
 
@@ -2784,7 +2778,7 @@ def render_radar_signals(f):
     if _rc:
         st.caption(L("Market regime of the scanned symbols now") + ": " + " · ".join(f"{r_} {n_}" for r_, n_ in _rc.most_common()))
     df["Kind"] = df["Kind"].map(L); df["Lab"] = df["Lab"].map(L)
-    st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, use_container_width=True,
+    st.dataframe(df.rename(columns={c: L(c) for c in df.columns}), hide_index=True, width="stretch",
                  column_config={L("Lab net R"): st.column_config.NumberColumn(format="%+.3f")})
     st.caption(L("Lab net R = the weekly lab's average R after 0.1R costs for that detector on the nearest lab timeframe. A signal is a suggestion, not evidence, until it passes the gate."))
 
@@ -2793,7 +2787,6 @@ def render_radar_screener(f):
     """Finviz-style table (owner 2026-10-22): one sortable table for the Radar universe, filtered by the SAME panel as the chart grid (no second set of
     options), and a top-movers bar chart. Same candles as the chart grid (cached)."""
     import pandas as _pd
-    tf = f["tf"]
     data = _radar_data(f)
     if data is None:
         return
@@ -2814,7 +2807,7 @@ def render_radar_screener(f):
     k[3].metric(L("Oversold (RSI ≤ 30)"), int((df["RSI"] <= 30).sum()))
     k[4].metric(L("Overbought (RSI ≥ 70)"), int((df["RSI"] >= 70).sum()))
     shown_df = df.sort_values("20-bar %", ascending=False, na_position="last").assign(Trend=lambda x: x["Trend"].map(L))
-    st.dataframe(shown_df.rename(columns={c: L(c) for c in shown_df.columns}), hide_index=True, use_container_width=True,
+    st.dataframe(shown_df.rename(columns={c: L(c) for c in shown_df.columns}), hide_index=True, width="stretch",
                  column_config={L("Price"): st.column_config.NumberColumn(format="%.4g"),
                                 L("Change %"): st.column_config.NumberColumn(format="%+.2f%%"), L("20-bar %"): st.column_config.NumberColumn(format="%+.2f%%"),
                                 "RSI": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
@@ -2827,7 +2820,7 @@ def render_radar_screener(f):
         st.altair_chart(alt.Chart(top).mark_bar().encode(
             x=alt.X("20-bar %:Q", title="%"), y=alt.Y("Symbol:N", sort="-x", title=None),
             color=alt.condition("datum['20-bar %'] > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["Symbol", "20-bar %", "RSI", "Trend"]
-        ).properties(height=max(160, 18 * len(top))), use_container_width=True)
+        ).properties(height=max(160, 18 * len(top))), width="stretch")
     st.caption(L("Educational, not investment advice. Same candles as the Charts tab; no automatic orders."))
 
 
@@ -3047,7 +3040,7 @@ def _radar_data(f):
 
 
 def render_chart_scanner(f):
-    tf, look, sel, want, n_show = f["tf"], f["look"], f["sel"], f["want"], f["n"]
+    tf, sel, want, n_show = f["tf"], f["sel"], f["want"], f["n"]
     data = _radar_data(f)
     if data is None:
         return
@@ -3267,13 +3260,13 @@ def _academy_path():
             i_cur = ls.index(c_)
             n1, n2 = st.columns(2)
             if i_cur > 0:
-                n1.button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]), use_container_width=True)
+                n1.button("→ " + L("Previous"), key="ac_prev", on_click=_ac_go, args=(ls[i_cur - 1]["id"], ls[i_cur - 1]["level"]), width="stretch")
             if i_cur < len(ls) - 1:
-                n2.button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]), use_container_width=True)
+                n2.button(L("Next") + " ←", key="ac_next", on_click=_ac_go, args=(ls[i_cur + 1]["id"], ls[i_cur + 1]["level"]), width="stretch")
             if c_["id"] in done:
-                st.button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(c_["id"]), use_container_width=True)
+                st.button("↩ " + L("Mark not done"), key="ac_undo", on_click=lambda: done.discard(c_["id"]), width="stretch")
             else:
-                st.button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(c_["id"]), use_container_width=True)
+                st.button("✅ " + L("Mark done"), key="ac_mark", on_click=lambda: done.add(c_["id"]), width="stretch")
         gc = AC.GRADE[c_["grade"]]
         with mid:
             st.markdown(f"<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'><span style='font-size:19px;font-weight:800'>{e(c_['title'])}</span>"
@@ -3352,7 +3345,7 @@ def _academy_refs():
             if x.get("open"):
                 st.warning(f"**{L('Still open')}**" + chr(10) + chr(10).join(f"- {t}" for t in x["open"]))
     st.markdown(f"**{L('Naming map: their term, our term')}**")
-    st.dataframe(_pd.DataFrame([{L("Their term"): g["their"], L("Our term"): g["ours"], L("Where"): g.get("where", ""), L("Note"): g.get("note", "")} for g in R["glossary"]]), hide_index=True, use_container_width=True)
+    st.dataframe(_pd.DataFrame([{L("Their term"): g["their"], L("Our term"): g["ours"], L("Where"): g.get("where", ""), L("Note"): g.get("note", "")} for g in R["glossary"]]), hide_index=True, width="stretch")
     st.markdown(f"**{L('Claims checked against sources')}**")
     if not R["claims"]:
         st.caption(L("No claims checked yet."))
@@ -3397,9 +3390,9 @@ def _academy_schools():
             nav = st.columns(2)
             i0 = [x["id"] for x in sc].index(pick)
             if i0 > 0:
-                nav[0].button("→", key="ac_sprev", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 - 1]["id"]), use_container_width=True)
+                nav[0].button("→", key="ac_sprev", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 - 1]["id"]), width="stretch")
             if i0 < len(sc) - 1:
-                nav[1].button("←", key="ac_snext", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 + 1]["id"]), use_container_width=True)
+                nav[1].button("←", key="ac_snext", on_click=lambda: st.session_state.update(ac_school_r=sc[i0 + 1]["id"]), width="stretch")
         x = by[pick]
         body, chips = AC.badges(x["visual"])
         body, flows = AC.chains(body)
@@ -3475,7 +3468,7 @@ def _academy_schools():
 def render_academy_page():
     """Academy (owner 2026-10-23): three tabs only. Path = our ordered course; Schools = Grok's nine schools in teaching order, each with its diagrams, examples, evidence
     and our review; References = every source as a preliminary reference, the naming map, claims checked against sources, and the general review findings."""
-    from modules import academy as AC, ui_kit as UK
+    from modules import academy as AC, ui_kit as UK  # noqa: F401
     st.markdown(kit_css(), unsafe_allow_html=True)
     view = st.segmented_control(L("Academy"), ["Path", "Schools", "References", "Lab tools"], default="Path", key="ac_view", format_func=lambda v: L(v), label_visibility="collapsed") or "Path"
     if view == "Path":
@@ -3925,7 +3918,15 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
     st.stop()
 
-if PAGE == 22:   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
+if PAGE == 22:   # Preview (owner 2026-11-21): built-but-unwired pages / tools / libraries, for the owner to review; read-only
+    try:
+        from modules.unwired_preview import render as _pv_render
+        _pv_render(st, L)
+    except Exception as _pv_exc:
+        st.error(f"Preview: {type(_pv_exc).__name__}: {_pv_exc}")
+    st.stop()
+
+if PAGE == 23:   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
     try:
         from modules.ledger_page import render as _ledger_render
         _ledger_render()

@@ -47,7 +47,7 @@ word = letters(198, 92, 58)
 open('lockup.svg','w').write(svg(mark()+[word], '22 2 400 236'))
 open('lockup_mid.svg','w').write(svg(mark("mid")+[word], '22 2 400 236'))
 # 3) app icon (chunky, rounded square)
-icon = [f'<rect x="0" y="0" width="200" height="200" rx="46" fill="#0a0a0a"/>', '<g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)">'] + mark(False) + ['</g>']
+icon = ['<rect x="0" y="0" width="200" height="200" rx="46" fill="#0a0a0a"/>', '<g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)">'] + mark(False) + ['</g>']
 open('icon.svg','w').write(svg(icon, '0 0 200 200'))
 # 4) gold small icon
 icon2 = [f'<rect x="0" y="0" width="200" height="200" rx="46" fill="{G}"/>', '<g transform="translate(0,-20) translate(100,120) scale(.78) translate(-100,-120)">'] + mark(False, '#0a0a0a', '#f2f2f2', '#0a0a0a') + ['</g>']

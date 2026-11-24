@@ -1,4 +1,4 @@
-"""Strategy Ledger page (PAGE 22, Trading hub next to the Journal; owner 2026-11-24): every strategy's plans, each one replayed on the
+"""Strategy Ledger page (PAGE 23, Trading hub next to the Journal; owner 2026-11-24): every strategy's plans, each one replayed on the
 candles and explained, ranked per strategy with gradual advice. Data: modules/signal_ledger.py. Read-only except "Grade now"."""
 from __future__ import annotations
 

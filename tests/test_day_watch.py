@@ -1,7 +1,6 @@
 """Watch items (day_plan.watch): context setups (price action, Elliott ...) on 1H / 15m / 5m that agree with the 1D + 4H bias; never a trade; Telegram text + dedupe. Synthetic."""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import numpy as np
 import pandas as pd
 from modules import day_plan as D
 import modules.scorer as SC

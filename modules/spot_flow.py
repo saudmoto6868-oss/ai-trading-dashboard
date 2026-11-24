@@ -141,7 +141,7 @@ def hyperliquid(asset: str) -> dict:
     coin = HL_COIN.get(asset)
     if not coin:
         return {"src": "none", "tape": {"ok": False, "why": "no order-flow feed for this market (Yahoo has no prints)"}}
-    from modules.hl_feed import _post, markets
+    from modules.hl_feed import _post
     out = {"src": "Hyperliquid (perp, thinner than OKX)"}
     out["tape"] = _safe(lambda: parse_trades([{"px": r["px"], "sz": r["sz"], "side": "buy" if r.get("side") == "B" else "sell", "ts": r.get("time")}
                                               for r in _post({"type": "recentTrades", "coin": coin})]))

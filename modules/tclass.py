@@ -494,7 +494,7 @@ def judge(idea: dict, c: dict) -> dict:
     if sb.get("available") and sb.get("bias") not in (want, "neutral"):
         C(1, "Setup timeframe trend is against", "ترند فريم الإعداد ضدك")
     if not c.get("trig"):
-        C(0.5, f"No trigger yet on the entry timeframe {tf['entry']}", f"لسه مفيش إشارة على فريم الدخول {tf['entry']}")
+        C(0.5, f"No trigger yet on the entry timeframe {tf['entry']}", f"لا توجد إشارة بعد على فريم الدخول {tf['entry']}")
     if rr < 1.5:
         C(1.5, f"R:R only {_fix(rr)}", f"الـR:R {_fix(rr)} بس")
     if c.get("late"):
@@ -509,7 +509,7 @@ def judge(idea: dict, c: dict) -> dict:
     if c.get("regime") == "chop":
         C(1, "Market regime: chop (moves die quickly)", "حالة السوق: تذبذب (الحركات بتموت بسرعة)")
     if c.get("regime") in ("hivol", "crash"):
-        C(1, f"Market regime: {c['regime']} (stops get hit by noise)", f"حالة السوق: {c['regime']} (الستوب بيتضرب من الضوضاء)")
+        C(1, f"Market regime: {c['regime']} (stops get hit by noise)", f"حالة السوق: {c['regime']} (الستوب يُضرب بالضوضاء)")
     if (c.get("classOpen") or 0) >= 2:
         C(1, f"{c['classOpen']} open trades already in the same class and direction", f"فيه {c['classOpen']} صفقات مفتوحة في نفس الفئة والاتجاه")
     if jr.get("done", 0) >= 10 and (jr.get("avgR") or 0) < 0:
@@ -531,7 +531,7 @@ def judge(idea: dict, c: dict) -> dict:
         verdict = "WAIT"
         second.append([f"Downgraded to WAIT: the strongest objection is heavy ({worst[1]})", f"نزلت لـ«استنى»: أقوى اعتراض تقيل ({worst[2]})"])
     if verdict == "WAIT" and not idea["now"]:
-        second.append([f"Limit order at {_prec(entry)}: price has not reached the zone", f"أمر معلّق عند {_prec(entry)}: السعر لسه ماوصلش للمنطقة"])
+        second.append([f"Limit order at {_prec(entry)}: price has not reached the zone", f"أمر معلّق عند {_prec(entry)}: السعر لم يصل للمنطقة بعد"])
     pct = max(0, min(100, _round((score + 4) / 12 * 100)))
     conf = len(c.get("confl") or []) + (1 if c.get("vpAt") else 0) + (1 if h.get("n", 0) >= 10 and h["hitPct"] >= 0.55 else 0) + (1 if sb.get("available") and sb.get("bias") == want else 0)
     aplus = (verdict == "TAKE" and bool(b.get("available") and b.get("bias") == want) and bool(c.get("trig")) and conf >= (3 if idea.get("det") in ("elliott", "harmonic", "smt") else 2) and rr >= 2 and not ob and score >= 5

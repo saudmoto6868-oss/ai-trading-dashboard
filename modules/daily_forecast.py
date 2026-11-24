@@ -19,6 +19,7 @@ OUT = FDIR / "outcomes.jsonl"
 SUMMARY = ROOT / "docs" / "forecasts" / "SUMMARY.md"
 HORIZON = 5
 RISK_MULT = 1.5
+TF = "1d"          # the loader's daily name. "1D" was a bug (2026-11-21..24): OKX fell back to 1-hour bars and Hyperliquid refused it.
 
 
 def symbols():
@@ -57,7 +58,7 @@ def record_day(fetch, today=None, folder=None):
     for cls, syms in symbols().items():
         for s in syms:
             try:
-                rows = fetch(s, "1D", 200)
+                rows = fetch(s, TF, 200)
             except Exception as e:  # a missing feed is not a call
                 print(f"skip {s}: {type(e).__name__}", file=sys.stderr)
                 continue
@@ -66,7 +67,7 @@ def record_day(fetch, today=None, folder=None):
             c = baseline_call(rows)
             if not c:
                 continue
-            rec = {"id": f"{s}|{today}", "symbol": s, "class": cls, "tf": "1D", **c, "made_at": today,
+            rec = {"id": f"{s}|{today}", "symbol": s, "class": cls, "tf": TF, **c, "made_at": today,
                    "horizon_bars": HORIZON, "rule": "baseline v0: last zig-zag leg continuation"}
             forecast_log.record(rec, folder=folder or FDIR)
             written.append(rec)
@@ -90,9 +91,9 @@ def score_due(fetch, today=None, folder=None):
         if p.name == "outcomes.jsonl":
             continue
         for fc in _load_jsonl(p):
-            if fc["id"] in done:
+            if fc["id"] in done or fc.get("tf") != TF:   # calls from the 1D bug are never scored
                 continue
-            rows = fetch(fc["symbol"], "1D", 300) or []
+            rows = fetch(fc["symbol"], TF, 300) or []
             after = [r for r in rows if str(r.get("day", "")) > fc["made_at"]]
             if len(after) < fc["horizon_bars"]:
                 continue   # not enough bars yet
@@ -106,10 +107,27 @@ def score_due(fetch, today=None, folder=None):
     return new
 
 
+def valid_ids(folder=None):
+    """Ids of calls recorded on real daily bars (tf == TF). Calls from the 2026-11-21..24 '1D' bug are left out."""
+    base = folder or FDIR
+    ids = set()
+    for p in base.glob("*.jsonl"):
+        if p.name == "outcomes.jsonl":
+            continue
+        ids.update(fc["id"] for fc in _load_jsonl(p) if fc.get("tf") == TF)
+    return ids
+
+
+def scored(folder=None):
+    """Outcome rows of valid calls only."""
+    ok = valid_ids(folder)
+    return [r for r in _load_jsonl((folder or FDIR) / "outcomes.jsonl") if r["id"] in ok]
+
+
 def class_summary(folder=None):
     """[(class, summary dict)] from the scored calls, for screens (brain view). Empty list when nothing is scored yet."""
     from modules import forecast_log
-    res = _load_jsonl((folder or FDIR) / "outcomes.jsonl")
+    res = scored(folder)
     by = {}
     for r in res:
         by.setdefault(r.get("class") or "all", []).append((r["outcome"], r["R"]))
@@ -119,8 +137,11 @@ def class_summary(folder=None):
 def write_summary(folder=None, out=None):
     from modules import forecast_log
     base = folder or FDIR
-    res = _load_jsonl(base / "outcomes.jsonl")
+    res = scored(base)
+    dropped = len(_load_jsonl(base / "outcomes.jsonl")) - len(res)
     lines = ["# Baseline calls: summary (auto)", "", "Rule v0 is a baseline to beat, not a strategy. n < 30 is not evidence; n < 100 is too small.", ""]
+    if dropped:
+        lines += [f"Left out: {dropped} early outcomes (2026-11-21..24) whose calls were made on 1-hour bars by a timeframe bug.", ""]
     by = {}
     for r in res:
         by.setdefault(r.get("class") or "all", []).append((r["outcome"], r["R"]))

@@ -66,8 +66,14 @@ sp.render()
 """, default_timeout=90)
     at.run()
     assert not at.exception, at.exception
-    labels = [t.label for t in at.tabs]
-    assert any("Budget plan" in l or "خطة الميزانية" in l for l in labels), labels
+    # the page picks ONE tab with a segmented control (only the picked tab runs), not st.tabs: open the Budget plan tab
+    opts = at.get("button_group")[0].options
+    assert any("Budget plan" in o or "خطة الميزانية" in o for o in opts), opts
+    at.session_state["sp_tab"] = opts.index(next(o for o in opts if "Budget plan" in o or "خطة الميزانية" in o))
+    at.run()
+    assert not at.exception, at.exception
+    keys = {getattr(w, "key", None) for w in at.number_input}
+    assert {"bp_entry", "bp_stop", "bp_target"} <= keys, keys
     # the swing sizer with a real setup: entry 100, stop 95, target 110 (budget 1000 -> size 200, capped at the 250 swing share)
     at.session_state["bp_entry"] = 100.0
     at.session_state["bp_stop"] = 95.0
@@ -114,7 +120,11 @@ sp.render()
 """, default_timeout=120)
     at.run()
     assert not at.exception, at.exception
-    assert any("Spot chart" in t.label or "شارت السبوت" in t.label for t in at.tabs)
+    opts = at.get("button_group")[0].options          # the page's one-tab picker (segmented control), not st.tabs
+    assert any("Spot chart" in o or "شارت السبوت" in o for o in opts), opts
+    at.session_state["sp_tab"] = opts.index(next(o for o in opts if "Spot chart" in o or "شارت السبوت" in o))
+    at.run()
+    assert not at.exception, at.exception
 print("spot chart tab: OK")
 
 # strategies (2026-11-17): every split adds to 100; library + signals tabs exist; the board filter maps to real lab schools
@@ -137,6 +147,6 @@ sp.render()
 """, default_timeout=180)
     at.run()
     assert not at.exception, at.exception
-    labs = [t.label for t in at.tabs]
+    labs = at.get("button_group")[0].options          # the page's one-tab picker (segmented control), not st.tabs
     assert any("Signals" in l for l in labs) and any("Setup library" in l for l in labs), labs
 print("spot strategies + signals board: OK")

@@ -24,8 +24,9 @@ def _load(p):
 
 
 def rows(folder=None):
-    """Joined outcome rows (symbol, class, side, outcome, R)."""
-    return _load((folder or FDIR) / "outcomes.jsonl")
+    """Outcome rows (symbol, class, side, outcome, R) of valid calls only (see daily_forecast.valid_ids)."""
+    from modules.daily_forecast import scored
+    return scored(folder or FDIR)
 
 
 def verdict(n, lo, hi):

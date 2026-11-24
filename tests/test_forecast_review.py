@@ -19,6 +19,8 @@ for i in range(40):                        # BBB: 25 % wins over 40 calls
 for i in range(5):                         # CCC: too few
     res.append({"id": f"CCC|{i}", "symbol": "CCC", "class": "Forex", "side": "long", "outcome": "timeout", "R": 0.0})
 (tmp / "outcomes.jsonl").write_text("\n".join(json.dumps(r) for r in res), encoding="utf8")
+for sym in ("AAA", "BBB", "CCC"):            # the calls behind the outcomes, on daily bars (only those count)
+    (tmp / f"{sym}.jsonl").write_text("\n".join(json.dumps({"id": r["id"], "symbol": sym, "tf": "1d"}) for r in res if r["symbol"] == sym), encoding="utf8")
 
 t = {r["key"]: r for r in fr.table(fr.rows(tmp), "symbol")}
 assert t["AAA"]["verdict"].startswith("beats") and t["BBB"]["verdict"].startswith("too small") and t["CCC"]["verdict"].startswith("not evidence")

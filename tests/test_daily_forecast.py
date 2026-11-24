@@ -76,3 +76,21 @@ rows = df_.class_summary(folder=tmp)
 assert rows and all("verdict" in s and "n" in s for _, s in rows)
 assert df_.class_summary(folder=Path(tempfile.mkdtemp())) == []
 print("test_daily_forecast class_summary: OK")
+
+# regression (2026-11-24): the loader's daily name is "1d"; calls from the "1D" bug are never scored and are left out of reports
+seen = []
+tmp2 = Path(tempfile.mkdtemp())
+df_.record_day(lambda s, tf, n: (seen.append(tf), down_rows)[1], today="2026-11-20", folder=tmp2)
+assert seen and set(seen) == {"1d"}, set(seen)
+import json as _json
+bad = {"id": "OLD|2026-11-21", "symbol": "OLD", "class": "Crypto", "tf": "1D", "side": "long", "entry": 100, "stop": 99, "target": 101.5,
+       "made_at": "2026-11-21", "horizon_bars": 5}
+(tmp2 / "OLD.jsonl").write_text(_json.dumps(bad) + "\n", encoding="utf8")
+with (tmp2 / "outcomes.jsonl").open("a", encoding="utf8") as f:
+    f.write(_json.dumps({"id": "OLD|2026-11-21", "symbol": "OLD", "class": "Crypto", "side": "long", "outcome": "win", "R": 1.5}) + "\n")
+assert "OLD|2026-11-21" not in df_.valid_ids(tmp2)
+assert all(r["id"] != "OLD|2026-11-21" for r in df_.scored(tmp2))
+new2 = df_.score_due(lambda s, tf, n: later, today="2026-11-30", folder=tmp2)
+assert all(r["id"] != "OLD|2026-11-21" for r in new2)
+assert "Left out: 1" in df_.write_summary(folder=tmp2, out=tmp2 / "S.md")
+print("test_daily_forecast 1d regression: OK")

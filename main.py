@@ -3019,7 +3019,7 @@ def _radar_data(f):
 
 
 def render_chart_scanner(f):
-    tf, look, sel, want, n_show = f["tf"], f["look"], f["sel"], f["want"], f["n"]
+    tf, sel, want, n_show = f["tf"], f["sel"], f["want"], f["n"]
     data = _radar_data(f)
     if data is None:
         return

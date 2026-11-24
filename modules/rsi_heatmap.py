@@ -229,7 +229,7 @@ def _cached_read(sym, candle, chart_tf, deep, _df, vote=0):
 
 def build_items(symbols, detail, setups, frames, chart_tf, timeframes, deep=True, use_flow=True, deep_set=None):
     """One record per symbol for the board (pure apart from the cached flow fetch)."""
-    from modules.rsi_confluence import derive_tags, read_symbol
+    from modules.rsi_confluence import derive_tags
     from modules.rsi_flow import FLOW_TOP_N, feed_of, flow_read
     closed = {s: _closed_frame((frames.get(s) or {}).get(chart_tf)) for s in symbols}
     recs = {}

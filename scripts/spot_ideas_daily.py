@@ -36,7 +36,9 @@ def main(argv=None) -> int:
                 brains.append(spot_brain.run(asset, cls, name))
             except Exception as e:
                 print(f"snapshot brain {asset} skipped: {type(e).__name__}: {e}")
-        print("snapshot:", spot_snapshot.write(spot_snapshot.build(r, brains)), len(brains), "brains")
+        snap = spot_snapshot.build(r, brains)
+        print("snapshot:", spot_snapshot.write(snap), len(brains), "brains")
+        print("ideas logged (new):", spot_snapshot.append_log(snap))
     except Exception as e:
         print(f"snapshot skipped: {type(e).__name__}: {e}")
     if "--no-image" not in argv:

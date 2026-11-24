@@ -848,19 +848,16 @@ Object.assign(CandleChart.prototype, {
       c.fillStyle = "#ffc107"; c.font = fs; c.textAlign = "left"; c.fillText("PRZ "+F(h.prz.lo)+(h.prz.hi - h.prz.lo > 1e-12 ? " – "+F(h.prz.hi) : ""), zx + 3, z0 - 5);
       // title
       c.fillStyle = col; c.fillText((bull ? "▲ " : "▼ ")+h.name+(forming ? " (forming)" : ""), Math.max(8, Math.min(PRx - 150, P[1].x)), Math.max(14, Math.min(P[0].y, P[1].y) - 18));
-      // trade box (drawn only once price has reached the entry and while the trade is still open: no stop / last target touched since its point)
-      const fromI = h.pts[h.pts.length-1].i, filled = harmFilled(h.plan, this.data, fromI), over = harmHit(h.plan, this.data, fromI), live = filled && !over, wait = !filled && !over;
+      // trade box only for a REAL trade: the journal filled it (owner 2026-11-21). A chart touch alone is not a trade, so it gets the arrow, not a box
+      const fromI = h.pts[h.pts.length-1].i, over = harmHit(h.plan, this.data, fromI);
+      const filled = !!journalFill(this.sym, h.plan.entry), live = filled && !over, wait = !filled && !over;
       const pl = h.plan, bx = Math.min(PRx - 150, (forming ? xD : D.x) + 4*bw), bwid = Math.max(110, Math.min(150, PRx - bx - 4)), yE = py(pl.entry), yS = py(pl.stop), yT3 = py(pl.tps[2]);
       if (q === 0 && bwid > 60 && live){   // the trade box only for the newest open pattern, so older ones do not clutter the chart
         c.globalAlpha = A0; c.fillStyle = "rgba(14,203,129,.13)"; c.fillRect(bx, Math.min(yE, yT3), bwid, Math.abs(yT3 - yE)); c.fillStyle = "rgba(246,70,93,.15)"; c.fillRect(bx, Math.min(yE, yS), bwid, Math.abs(yS - yE));
         c.font = "bold 9px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
         [[pl.entry,"#4aa3ff","ENTRY "+F(pl.entry)],[pl.stop,"#f6465d","SL "+F(pl.stop)],[pl.tps[0],"#0ecb81","TP1 "+F(pl.tps[0])+"  R:R "+pl.rr.toFixed(1)],[pl.tps[1],"#0ecb81","TP2 "+F(pl.tps[1])],[pl.tps[2],"#0ecb81","TP3 (A) "+F(pl.tps[2])]].forEach(([v,cl,tx]) => { const y = py(v); c.strokeStyle = cl; c.lineWidth = 1; c.beginPath(); c.moveTo(bx, y+.5); c.lineTo(bx+bwid, y+.5); c.stroke(); c.fillStyle = cl; c.fillText(tx, bx + 3, y - 3); });
-        c.fillStyle = "#b57cff"; c.fillText(Lg("HARMONIC PLAN", "خطة الهارمونيك")+(forming ? " ("+Lg("pending", "معلّقة")+")" : ""), bx + 3, Math.min(yE, yT3, yS) - 12); }
-      else if (q === 0 && wait){   // entry not reached yet: no box, only a dashed entry line and a small waiting label (same idea as the scanner's waiting label)
-        const txt = "⏳ "+h.name+" "+(pl.dir === "long" ? "Long" : "Short")+" @ "+F(pl.entry)+"  SL "+F(pl.stop)+"  TP1 "+F(pl.tps[0])+"  R:R "+pl.rr.toFixed(1)+"  "+Lg("waiting", "انتظار");
-        c.globalAlpha = A0; c.strokeStyle = "rgba(74,163,255,.7)"; c.setLineDash([5,4]); c.beginPath(); c.moveTo(forming ? xD : D.x, yE + .5); c.lineTo(PRx, yE + .5); c.stroke(); c.setLineDash([]);
-        c.font = "10px sans-serif"; c.textAlign = "left"; const tw = c.measureText(txt).width + 12, tx0 = Math.max(4, Math.min(PRx - tw - 4, bx));
-        c.fillStyle = "rgba(0,0,0,.65)"; c.fillRect(tx0, yE - 22, tw, 16); c.fillStyle = "#4aa3ff"; c.fillText(txt, tx0 + 6, yE - 10); }
+        c.fillStyle = "#b57cff"; c.fillText(Lg("✔ HARMONIC PLAN · ENTERED", "✔ خطة الهارمونيك · دخلت")+(forming ? " ("+Lg("pending", "معلّقة")+")" : ""), bx + 3, Math.min(yE, yT3, yS) - 12); }
+      else if (q === 0 && wait){ c.globalAlpha = A0; this.paintPending(c, py, pl, dec, h.name); }   // no journal trade yet: arrow + "possible trade" + ETA, never a box
       c.restore();
     });
     c.font = "11px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
@@ -882,7 +879,7 @@ Object.assign(CandleChart.prototype, {
   py2p(y){ return this._lo + (this.PB-y)/this.PB*(this._hi-this._lo); },
   pt(e){ const r = this.cv.getBoundingClientRect(), x = (e.clientX-r.left)/this.S, y = (e.clientY-r.top)/this.S; return {x, y, t:this.i2t(this.idx(x)), p:this.py2p(y)}; },
   loadDraws(key){ this.drawKey = key; this.sel = null; this.creating = null; try { this.draws = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e){ this.draws = []; } this.draw(); },
-  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws)); } catch(e){} },
+  saveDraws(){ if (!this.drawKey) return; try { localStorage.setItem(this.drawKey, JSON.stringify(this.draws.filter(d => !d._rd))); } catch(e){} },
   setTool(t){ if (t !== "cur" && !this.drawingsVisible){ this.drawingsVisible = true; this.onDrawVis && this.onDrawVis(); }   // choosing a drawing tool while drawings are hidden shows them again: never draw something invisible
     this.tool = t; this.creating = null; if (this.onToolChange) this.onToolChange(t); this.cv.style.cursor = t === "cur" ? "" : "crosshair"; this.draw(); },
   cancelTool(){ if (this.creating){ this.draws = this.draws.filter(d => d !== this.creating); this.creating = null; } this.setTool("cur"); },
@@ -894,8 +891,10 @@ Object.assign(CandleChart.prototype, {
     const item = (label, fn, danger) => { const b = el("button",null,esc(label)); if (danger) b.style.color = "#f6465d"; b.onclick = () => { fn(); m.remove(); }; m.append(b); };
     if (q.x <= this.PR && q.y <= this.PB && isFinite(q.p)){
       item(Lg("Horizontal line at ","خط أفقي عند ")+fmtP(q.p), () => { const d = {id:Date.now()+Math.random(), type:"hline", pts:[{t:q.t, p:q.p}]}; this.draws.push(d); this.sel = d; this.saveDraws(); this.draw(); });
+      if (typeof palarmDialog === "function" && this.sym) item("⏰ "+Lg("Add alert at ","تنبيه عند ")+fmtP(q.p), () => palarmDialog({sym:this.sym, tf:this.tf, v:+q.p.toFixed(8)}, () => this.draw()));
       item(Lg("Copy price ","نسخ السعر ")+fmtP(q.p), () => ctxCopy(String(q.p))); item(Lg("Fit the view","ضبط العرض"), () => this.fit()); }
     if (target) item("🗑 "+T("cmDel"), () => { this.sel = target; this.deleteSel(); }, true);
+    if (typeof palarmManager === "function") item("⏰ "+Lg("Alerts","التنبيهات")+" ("+PAlarm.list.length+")", () => palarmManager(this.sym, () => this.draw()));
     if (this.draws.length) item(T("cmAll")+" ("+this.draws.length+")", () => this.clearDraws());
     if (this.overlay || this.fibLv) item(T("cmOv"), () => { this.overlay = null; this.fibLv = null; this.draw(); });
     if (!m.children.length) item(T("cmNone"), () => {});
@@ -1195,11 +1194,11 @@ Object.assign(CandleChart.prototype, {
     const sy = this.sync, S = this.st.sync, w = x1 - x0; if (w < 120) return;
     const log = this.syncLog || [], st = this.syncStats(), px = this.data.length ? this.data[this.data.length - 1].c : null, G = S.color, R = S.color2, mono = "9px ui-monospace,Menlo,Consolas,monospace";
     const rows = [];   // [kind, ...] drawn top to bottom; height follows the content
-    const stx = st.n ? "n "+st.n+" · "+st.win+"% · "+(st.avg > 0 ? "+" : "")+st.avg+"R" : Lg("no closed setups","مفيش صفقات مقفولة"), stc = !st.n ? "#6b7684" : st.n < 30 ? "#f0b90b" : st.avg > 0 ? "#0ecb81" : "#f6465d";
+    const stx = st.n ? "n "+st.n+" · "+st.win+"% · "+(st.avg > 0 ? "+" : "")+st.avg+"R" : Lg("no closed setups","مفيش صفقات مغلقة"), stc = !st.n ? "#6b7684" : st.n < 30 ? "#f0b90b" : st.avg > 0 ? "#0ecb81" : "#f6465d";
     c.save(); c.font = mono; const stw = c.measureText(stx).width + 10; c.restore(); const chip = w - stw - 12 > 110;   // stats chip in the header if it fits, else its own row
     rows.push(["lights"]); if (!chip) rows.push(["txt", stc, st.n ? "n "+st.n+" · "+Lg("win ","فوز ")+st.win+"% · "+Lg("avg ","متوسط ")+(st.avg > 0 ? "+" : "")+st.avg+"R"+(st.open ? " · "+st.open+Lg(" open"," مفتوحة") : "") : stx, "bold "]);
     if (sy && sy.dir) rows.push(["big", sy.dir > 0 ? G : R, sy.dir > 0 ? Lg("▲ ALL 3 BUY","▲ التلاتة شراء") : Lg("▼ ALL 3 SELL","▼ التلاتة بيع")]);
-    else rows.push(["txt", "#6b7684", Lg("waiting for all three to agree","مستني التلاتة يتفقوا")]);
+    else rows.push(["txt", "#6b7684", Lg("waiting for all three to agree","بانتظار اتفاق الثلاثة")]);
     if (this.gannOn && this._gannLive){ const gl = this._gannLive, ag = sy && sy.dir === gl.dir, ag2 = sy && sy.dir && !ag;
       rows.push(["txt", gl.dir > 0 ? G : R, (gl.dir > 0 ? "▲" : "▼")+" Gann "+(gl.dir > 0 ? Lg("BUY","شراء") : Lg("SELL","بيع"))+" "+fmtP(gl.en)+(ag ? Lg("  ✓ order flow agrees","  ✓ الأوردر فلو متفق") : ag2 ? Lg("  ✗ order flow against","  ✗ الأوردر فلو عكسه") : ""), "bold "]); }
     { const last = log[log.length - 1], cx = sy && sy.cx, side = sy && sy.dir ? sy.dir : last ? last.dir : 0, o = cx && cx.oi, fu = cx && cx.fund != null ? cx.fund : null;
@@ -1550,23 +1549,29 @@ Object.assign(CandleChart.prototype, {
     const x0 = Math.max(0, this.x(i0)), x1 = Math.max(x0 + 30, Math.min(this.PR, this.x(i0 + this.planLen)));
     return {x0, x1};
   },
-  /* a plan is drawn in full only after price has touched its entry (since the setup was loaded); before that it is a small
-     waiting label, so far-away setups do not clutter the chart */
-  paintPending(c, py, pl, dec){
-    const long_ = pl.tps && pl.tps[0] > pl.entry, yE = py(pl.entry), tp = pl.tps && pl.tps.length ? pl.tps[pl.tps.length-1] : pl.entry;
-    const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1), txt = "\u23F3 "+(long_ ? "Long" : "Short")+" @ "+pl.entry.toFixed(dec)+"  SL "+pl.stop.toFixed(dec)+"  TP "+tp.toFixed(dec)+"  R:R "+rr.toFixed(1)+"  waiting";
+  /* developing setup with NO journal trade yet: no box at all. A directional arrow at the last candle pointing at the entry level,
+     a dashed entry line and the label "possible trade" with a rough minutes-to-trigger estimate (not a forecast) */
+  paintPending(c, py, pl, dec, tag){
+    const n = this.data.length; if (!n) return;
+    const long_ = pl.dir ? pl.dir === "long" : pl.tps && pl.tps[0] > pl.entry, yE = py(pl.entry), col = long_ ? "#0ecb81" : "#f6465d";
+    const eta = this.etaMin(pl.entry), txt = (tag ? tag+" \u00B7 " : "") + (long_ ? "\u25B2 possible LONG" : "\u25BC possible SHORT") + (eta != null ? " \u00B7 ~" + eta + " min" : " \u00B7 waiting");
+    const x = Math.min(this.PR - 14, this.x(n-1) + 10), ay = long_ ? yE + 18 : yE - 18;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
-    c.strokeStyle = "rgba(74,163,255,.7)"; c.setLineDash([5,4]); c.beginPath(); c.moveTo(0, yE); c.lineTo(this.PR, yE); c.stroke(); c.setLineDash([]);
-    c.font = "11px sans-serif"; const bw = c.measureText(txt).width + 14, bx = Math.max(4, Math.min(this.PR - bw - 4, this.x(this.data.length-1) - bw / 2)), by = yE - 24;
-    c.fillStyle = "rgba(0,0,0,.65)"; c.fillRect(bx, by, bw, 18); c.fillStyle = "#4aa3ff"; c.textAlign = "left"; c.fillText(txt, bx + 7, by + 13);
+    c.strokeStyle = col; c.globalAlpha = .6; c.setLineDash([5,4]); c.beginPath(); c.moveTo(0, yE); c.lineTo(this.PR, yE); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+    c.fillStyle = col; c.beginPath(); c.moveTo(x, long_ ? ay - 9 : ay + 9); c.lineTo(x - 7, long_ ? ay + 4 : ay - 4); c.lineTo(x + 7, long_ ? ay + 4 : ay - 4); c.closePath(); c.fill();
+    c.font = "11px sans-serif"; const w = c.measureText(txt).width + 12, lx = Math.max(4, Math.min(this.PR - w - 4, x - 12 - w)), ly = ay - 8;
+    c.fillStyle = "rgba(0,0,0,.7)"; c.fillRect(lx, ly, w, 16); c.fillStyle = col; c.textAlign = "left"; c.fillText(txt, lx + 6, ly + 12);
     c.restore();
   },
+  /* minutes until price could reach a level: distance / average absolute move per bar x bar length (rough guide). null = unknown or over 999 min */
+  etaMin(level){ const d = this.data, n = d.length; if (n < 21) return null; let s = 0; for (let i = n-20; i < n; i++) s += Math.abs(d[i].c - d[i-1].c);
+    const per = s/20; if (!(per > 0)) return null; const m = Math.abs(level - d[n-1].c)/per*this.secMs()/60000; return m > 999 ? null : m < 1 ? "<1" : String(Math.round(m)); },
   paintJournal(c, py, dec){
     const d = this.data, tr = this.jtr; if (!tr || !tr.length || !d || !d.length) return;
     const last = d[d.length-1].t;
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
     for (const t of tr){
-      const x0 = this.tx(t.t0), x1 = this.tx(t.t1 || last);
+      const x0 = this.tx(t.t0), x1 = t.t1 ? this.tx(t.t1) : Math.min(this.tx(last), x0 + 30 * (this.bw || 6));   // open trade: the box stops after 30 bars (it used to run to the right edge forever)
       if (!(x1 >= 0) || x0 > this.PR) continue;
       const closed = t.status !== "open", long_ = t.dir === "bullish", w = Math.max(3, x1 - x0);
       const yE = py(t.entry), yS = py(t.sl), yT = py(t.tp1);
@@ -1585,8 +1590,8 @@ Object.assign(CandleChart.prototype, {
     c.restore();
   },
   paintSetupBox(c, py, pl, dec){
-    const ov0 = this.overlay, t00 = ov0 && ov0.t0 != null ? ov0.t0 : -Infinity;
-    if (!this.data.some(b => b.t >= t00 && b.l <= pl.entry && b.h >= pl.entry)) return this.paintPending(c, py, pl, dec);
+    // owner 2026-11-21: a box only for a REAL trade (the journal filled it). A chart touch alone is not a trade: arrow + "possible trade" instead
+    if (!journalFill(this.sym, pl.entry)) return this.paintPending(c, py, pl, dec);
     const n = this.data.length, sp = this.planSpan(), x0 = sp.x0, x1 = sp.x1, w = Math.max(30, x1 - x0), long_ = pl.tps && pl.tps[0] > pl.entry;
     const tp = pl.tps && pl.tps.length ? pl.tps[pl.tps.length-1] : pl.entry, yE = py(pl.entry), yS = py(pl.stop), yT = py(tp);
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
@@ -1596,7 +1601,7 @@ Object.assign(CandleChart.prototype, {
     (pl.tps||[]).forEach((v,i) => { const y = py(v); c.strokeStyle = "rgba(14,203,129,.8)"; c.setLineDash([4,3]); c.beginPath(); c.moveTo(x0,y); c.lineTo(x1,y); c.stroke(); c.setLineDash([]); c.fillStyle = "#0ecb81"; c.textAlign = "left"; c.fillText("TP"+(i+1)+" "+v.toFixed(dec), x0+4, y + (long_ ? 8 : -8)); });
     c.strokeStyle = "rgba(246,70,93,.9)"; c.beginPath(); c.moveTo(x0,yS); c.lineTo(x1,yS); c.stroke();
     c.fillStyle = "#f6465d"; c.fillText("SL "+pl.stop.toFixed(dec), x0+4, yS + (long_ ? 8 : -8));
-    const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1); c.fillStyle = "#4aa3ff"; c.fillText((long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(1)+"  entry "+pl.entry.toFixed(dec), x0+4, yE - 7);
+    const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1); c.fillStyle = "#4aa3ff"; c.fillText("✔ TRADE ENTERED · "+(long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(1)+"  entry "+pl.entry.toFixed(dec), x0+4, yE - 7);
     c.restore();
     [[pl.entry,"Entry","#4aa3ff"],[pl.stop,"SL","#f6465d"]].concat((pl.tps||[]).map((v,i) => [v,"TP"+(i+1),"#0ecb81"])).forEach(([v,lab,col]) => { const y = py(v); if (y<0||y>this.PB) return; c.fillStyle = col; c.fillRect((this.W-this.axw)+1, y-7, this.axw-2, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), (this.W-this.axw)+3, y); });
   },

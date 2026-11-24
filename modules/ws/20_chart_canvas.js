@@ -20,7 +20,7 @@ class CandleChart {
       zn:{color:"#f0e442",color2:"#8a94a3",w:1.4,dash:"",k:5,d:9,s:3,rl:14,sell:85,buy:15,hp:20}, bso:{color:"#4aa3ff",color2:"#f0b90b",w:1.2,dash:"",bb:20,dev:2,k:5,d:3,s:3,fast:12,slow:26,sig:9,hp:20}, rm:{color:"#b57cff",color2:"#f0b90b",w:1.3,dash:"",len:14,ma:8,m1:21,m2:30,m3:40,hi:92,lo:8,hp:18}, r2:{color:"#e6e600",color2:"#00e000",w:1.3,dash:"",len:2,fast:1000,slow:2,sig:2000,hp:20}, adx:{color:"#f0b90b",color2:"#0ecb81",w:1.3,dash:"",len:14,lvl:25,hp:18}, cci:{color:"#26c6da",w:1.3,dash:"",len:20,hp:18}, psar:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",step:.02,max:.2},
       pos26:{color:"#4f8fd8",color2:"#8a94a3",w:1.4,dash:"",ratio:2.6,sw:5,show:3,h1:1,h2:1,wait:80,tx:10,fa:.16,lbl:1,mtf:1,htfL:0,leg:0,path:0,hist:1,histN:8,ha:.08,bw:24,piv:1,pivL:1,meas:1,info:1,ipos:1,mtfT:1,str:1,trd:1,zn:0,arw:0},   // 2.6 position boxes (was s26 with green / red: new key so the calm colours apply to saved layouts too)
       msb:{color:"#0ecb81",color2:"#f6465d",w:2,dash:"",zl:9,zz:1,fib:0.237,tx:10,del:1,fa:0.3,obuF:"#0ecb81",obuB:"#0ecb81",obuT:"#0ecb81",obeF:"#f6465d",obeB:"#f6465d",obeT:"#f6465d",bbuF:"#0ecb81",bbuB:"#0ecb81",bbuT:"#0ecb81",bbeF:"#f6465d",bbeB:"#f6465d",bbeT:"#f6465d"}, gann:{color:"#26c6da",color2:"#f6465d",w:1,dash:"",v3:1,v4:1,v5:1,lcyc:"auto",mtf:"auto",mtfn:3,ctol:.35,ctolT:3,zsrc:"clusters",zw:2,htf:"auto",anc:"best",tq:"off",sqr:1,cbox:0,mode:"auto",src:"auto",start:0,spacing:0,tback:0,dir:"both",shape:4,calc:"avg",cycles:1,sec:1,lbl:1,ext:1,tlv:1,tsp:0,toff:0,tdate:"",star:0,starc:"#f0b90b",spts:8,fan:1,zone:1},liq:{color:"#f6465d",color2:"#0ecb81",w:1,dash:"",min:10000,size:1},astro:{color:"#f0b90b",color2:"#9aa4b2",w:1,dash:"",moon:1,mq:0,asp:1,p1:"jupiter",p2:"saturn",ahel:0,aset:"major",retro:1,rp:"mercury",pl:0,plp:"sun",plhel:0,scale:0,harm:4},sync:{color:"#0ecb81",color2:"#f6465d",w:1,dash:"",book:.15,tape:.2,lim:1,win:60,rr:1.5,cool:3,exp:60},vp:{v:3,mode:"vd",range:"vis",rowpx:3,wpct:10,lbl:0,book:1,walls:1},
-      flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:1},
+      flow:{color:"#f0b90b",color2:"#b57cff",w:1.5,dash:"",anchor:1,len:0,max:6,age:120,tgt:0},   // tgt off by default (2026-11-20): the absorption "reversal" arrow is a fixed 1.5
       dcandle:{tf:"1D",n:1,w:26,gap:6,off:8,lbl:1},
       mt5:{color:"#ffeb3b",w:1.4,dash:"",ema:0,step:.02,max:.2,fr:2,sar:1,frc:1,rib:1,p1:10,p2:20,p3:50,p4:100,p5:200}}; this.overlay = null; this.harmOn = false; this.bvdOn = false; this.ewOn = false; this.volOn = true; this.lockR = null; this.subDrag = null; this.onSubH = null; this.lastBook = null; this.planLen = 40; this.planDrag = false; this._planH = null; this.onPlanLen = null; this.fpOn = false; this.deltaOn = false; this.fp = new Map(); this.bubOn = false; this.dotOn = false; this.domOn = false; this.mkOn = false; this.bub = []; this.dom = new Map(); this.vpOn = false; this.vpLv = null; this._harm = null; this.showSig = true; this.marks = []; this.sigs = []; this.flowOn = true; this.pulse = true; this.mouse = null; this.drag = null; this.onNeedMore = null; XH_CHARTS.add(this); this.W = 0; this.H = 0;
     const cv = this.cv;
@@ -59,7 +59,7 @@ class CandleChart {
   }
   setData(arr, fit){
     this.data = arr; this.calcEma();
-    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
+    if (fit){ const sv = this.viewGet(); this.fit(); if (sv && arr.length > 3 && sv.bw){ this.restoreFrom(sv); this.r = arr.length-1 + Math.round(0.5*this.PR/this.bw); this.clampR(); this.saveView(); /* open always centers the latest candle; saved zoom and price scale are kept */ const lc = arr[arr.length-1].c; if (this.lockR && (lc < this.lockR[0] || lc > this.lockR[1])) this.lockR = null; /* on open only: a saved lock that does not even contain the latest price (taken on stale cached candles) is re-fitted once */ this.draw(); } }   // fit() overwrote the saved view with the default: put back what was saved (zoom, position, price scale) so a reload opens exactly where it was left
     else this.draw();   // 2026-11-09 owner: no auto-follow and no automatic reset of the price scale: the chart moves only when you move it
   }
   restoreFrom(v){ this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); this.saveView(); }
@@ -132,6 +132,7 @@ class CandleChart {
     this.r = anchor - 0.5 + (this.PR - mx)/this.bw; this.clampR(); this.drawSoon(); this.checkMore();
   }
   down(e){
+    if (this.alarmDown && this.alarmDown(e)) return;   // the + beside the price / an alert tag (modules/ws/21d_price_alarms.js)
     { const r1 = this.cv.getBoundingClientRect(), mx1 = (e.clientX - r1.left)/this.S, my1 = (e.clientY - r1.top)/this.S;   // ✕ on the order-flow gauge / sync card
       const hit = k => { const Z = this[k]; return Z && mx1 >= Z.x && mx1 <= Z.x + Z.w && my1 >= Z.y && my1 <= Z.y + Z.h; };
       if (this.colOn && hit("_gaX")){ this.gaOn = false; this._gaX = null; this.onOfX && this.onOfX(); this.draw(); return; }
@@ -166,6 +167,7 @@ class CandleChart {
       const P = this.pinch; if (P.vert){ const dy = Math.max(20, Math.abs(v[0].y - v[1].y)); this._bookFit = false; if (!this.lockR) this.freezeY(); this.zoomY(P.dyP/dy, this.candleY()); P.dyP = dy; this.drawSoon(); return; }   // price pinch: spreading the fingers magnifies the candles, anchored on the middle of the candles (never flies away)
       const f = Math.max(20, Math.abs(v[0].x - v[1].x))/P.d0; this.bw = Math.max(0.6, Math.min(600, P.bw0*f)); this.r = P.anchor - 0.5 + (this.PR - P.mid)/this.bw; this.clampR(); this.drawSoon(); this.checkMore(); return; }
     const rect = this.cv.getBoundingClientRect(); this.mouse = {x:(e.clientX-rect.left)/this.S, y:(e.clientY-rect.top)/this.S}; XH_CHARTS.add(this); xhSync(this);
+    if (this.alarmMove && this.alarmMove(e)) return;   // dragging an alert line (21d_price_alarms.js)
     if (this._tap0 && Math.hypot(e.clientX - this._tap0.x, e.clientY - this._tap0.y) > 8) this._tap0 = null;
     if (this._lp){ this.drawSoon(); return; }   // crosshair mode (long press): move the cross, do not pan
     if (this.axDrag){ this.axw = Math.max(36, Math.min(320, Math.round(this.axDrag.w + (this.axDrag.x - e.clientX)/this.S))); this.drawSoon(); return; }
@@ -194,6 +196,7 @@ class CandleChart {
   saveView(){ if (!this.data.length || this.r == null) return; try { sessionStorage.setItem(this.viewKey(), JSON.stringify({back: (this.data.length-1) - this.r, bw: this.bw, yZoom: this.yZoom, yShift: this.yShift, lk: this.lockR})); } catch(e){} }
   restoreView(){ try { const v = this.viewGet(); if (!v || !this.data.length) return false; this.lockR = v.lk || null; this.bw = v.bw || this.bw; this.yZoom = v.yZoom || 1; this.yShift = v.yShift || 0; this.r = (this.data.length-1) - v.back; this.clampR(); return true; } catch(e){ return false; } }
   up(e){
+    if (this.alarmUp && this.alarmUp(e)) return;   // end of a press on an alert line / tag
     if (this.creating && this.creating.type === "brush"){ const d = this.creating; this.creating = null; if (d.pts.length < 3) this.draws = this.draws.filter(x => x !== d); else { this.sel = d; this.saveDraws(); } this.setTool("cur"); this.draw(); return; }
     if (e && e.pointerType === "touch"){ const t0 = this._tap0, lp = this._lp; this._tap0 = null; clearTimeout(this._lpT); if (this._lp){ this._lp = false; if (!this.xMode) this.mouse = null; this.draw(); }
       if (t0 && !lp && !this.xMode && !this.pinch && Date.now() - t0.t < 350 && (!this.tool || this.tool === "cur") && this.onTap){ const rc = this.cv.getBoundingClientRect(); this.onTap((t0.x - rc.left)/this.S, (t0.y - rc.top)/this.S); } }   // a quick tap = MT5 round menu
@@ -214,6 +217,7 @@ class CandleChart {
     let lo = Infinity, hi = -Infinity;
     for (let i = i0; i <= i1; i++){ const c = this.data[i]; if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
     this.planLevels().forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; });
+    { const lc = this.data.length ? this.data[this.data.length-1].c : 0; (this.planLv || []).forEach(l => { if (l.r && lc && Math.abs(l.p-lc)/lc < 0.25){ if (l.p < lo) lo = l.p; if (l.p > hi) hi = l.p; } }); }   // entry / stop / target sent by the RSI board stay on screen
     if (!isFinite(lo) && !this.lockR){ const k = this.data[this.data.length-1]; if (!k) return [0,1]; lo = k.l; hi = k.h; }   // no candle on screen (dragged off / chart got narrower): last candle's prices, never 0..1 - a 0..1 scale fed into a zoom or a lock threw the scale to absurd prices (-94 million) and the chart stayed blank
     if (this.lockR){ lo = this.lockR[0]; hi = this.lockR[1]; }   // Manual mode: the price scale stays where you left it
     const span = (hi-lo || hi*0.01 || 1)*1.12*this.yZoom, mid = (hi+lo)/2 + this.yShift*span;
@@ -277,7 +281,7 @@ class CandleChart {
     if (this.gannOn) this.paintGannOffset(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGann144(c, py, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
-    this.paintSides(c, py, i0, i1, PB);
+    if (!this.sidesOff) this.paintSides(c, py, i0, i1, PB);   // Radar "Clear ALL" hides these labels too
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);
     if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); }   // the card lives under the order-flow column (paintCol)
     if (this.psarOn && this.psarV){ const S = this.psarV, st = this.st.psar, r = Math.max(1.5, Math.min(3, this.bw*0.22)) * (st.w || 1);
@@ -321,6 +325,7 @@ class CandleChart {
     if (this.dcOn) this.paintHtfCandles(c, py);   // 2026-11-20: higher-timeframe candles (default: today as one big candle), fixed at the right edge
     if (this.lvOn) this.paintLv(c, py, PR);
     if (this.llOn) this.paintLL(c, py, PR, i0, i1);
+    if (this.x77On && this.paintX77) this.paintX77(c, py, PR);   // X77 schools of the live setups on this symbol (24e_x77.js)
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
     this.infoChip(c);
     if (this.ewOn || this.harmOn) this.htfNote(c, 2);   // bigger-timeframe trend, once per paint
@@ -390,6 +395,9 @@ class CandleChart {
     if (this.fibLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left"; this.fibLv.forEach(l => { const y = py(l.p); if (y < 0 || y > PB) return;
       const col = l.r < 0 ? "#0ecb81" : l.r > 1 ? "#f6465d" : "#f0b90b"; c.strokeStyle = col; c.globalAlpha = .8; c.setLineDash([4,3]); c.beginPath(); c.moveTo(0,y+.5); c.lineTo(PR,y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
       c.fillStyle = col; c.fillText(l.r+"  "+l.p.toFixed(dec), 4, y-5); }); c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
+    if (this.planLv){ c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "right"; this.planLv.forEach(l => { const y = py(l.p); if (!isFinite(y) || y < 0 || y > PB) return;   // trade plan sent by the RSI board: [{p, t, c, d}]
+      c.strokeStyle = l.c; c.globalAlpha = .9; c.lineWidth = l.w || 1.2; c.setLineDash(l.d || []); c.beginPath(); c.moveTo(0, y+.5); c.lineTo(PR, y+.5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.lineWidth = 1;
+      c.fillStyle = l.c; c.fillText(l.t+" "+l.p.toFixed(dec), PR-4, y-4); }); c.textAlign = "left"; c.font = "11px ui-monospace,Menlo,Consolas,monospace"; }
     // last price line
     const last = this.data[n-1], ly = py(last.c), lup = last.c >= last.o, lcol = lup ? TH.up : TH.dn;
     if (ly > 0 && ly < PB){
@@ -398,6 +406,7 @@ class CandleChart {
       const rem = candleRem(last.t, this.tf), sec = Math.floor(rem/1000), hh = Math.floor(sec/3600), mm = Math.floor(sec%3600/60), ss = sec%60;
       c.fillStyle = "#2b3139"; c.fillRect((this.W-this.axw)+1, ly+9, this.axw-2, 14); c.fillStyle = "#eaecef"; c.fillText("⏱ "+(hh ? hh+":"+pad2(mm)+":"+pad2(ss) : pad2(mm)+":"+pad2(ss)), (this.W-this.axw)+5, ly+16);
     }
+    if (this.paintAlarms) this.paintAlarms(c, py, PR, PB, dec);   // price alerts (21d_price_alarms.js)
     // crosshair + legend
     let show = last;
     if (!this.mouse && XHS.on && XHS.sym === this.sym && XHS.t != null && this.data.length){   // task 52: time from another chart
@@ -411,6 +420,7 @@ class CandleChart {
       const tx = this.x(ii), label = this.fmtTime(this.data[ii].t, true); const tw = c.measureText(label).width + 10;
       c.fillStyle = "#2b3139"; c.fillRect(tx-tw/2, H-19, tw, 18); c.fillStyle = "#eaecef"; c.textAlign = "center"; c.fillText(label, tx, H-10);
     }
+    if (this.paintPlus) this.paintPlus(c, m, PR, PB, dec);
     const chg = show.o ? (show.c-show.o)/show.o*100 : 0, dcol = show.c >= show.o ? TH.up : TH.dn;
     c.textAlign = "left"; c.fillStyle = "#848e9c";
     const txt = "O "+show.o.toFixed(dec)+"  H "+show.h.toFixed(dec)+"  L "+show.l.toFixed(dec)+"  C "+show.c.toFixed(dec)+"  ";

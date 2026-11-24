@@ -41,3 +41,15 @@ from modules import workspace as W  # noqa: E402
 html = W.build_workspace_html(["BTC-USDT"])
 assert '"spot":' in html and "build_spot" in html and "مكتب السبوت" in html
 print("ok spot snapshot: JSON-clean, setups keep evidence, broken/missing file -> {}, Workspace embeds it and has the widget")
+
+# ideas log: each idea once per day, outcome measured later (not decided here)
+with tempfile.TemporaryDirectory() as d:
+    lp = os.path.join(d, "ideas_log.jsonl")
+    snap2 = {"generated": "2026-11-15T05:00:00Z", "ideas": [{"asset": "GOLD", "kind": "buy", "horizon": "أسابيع لشهور", "entry": (2300.0, 2310.0), "stop": 2280.0, "targets": [2350.0], "rr": 2.5, "conf": 4},
+                                                              {"asset": "BTC", "kind": "avoid", "entry": None, "stop": None}]}
+    assert S.append_log(snap2, lp) == 1
+    assert S.append_log(snap2, lp) == 0                     # same day, same idea: not repeated
+    assert S.append_log({**snap2, "generated": "2026-11-16T05:00:00Z"}, lp) == 1   # next day: a new row
+    rows_ = [json.loads(x) for x in open(lp, encoding="utf-8")]
+    assert len(rows_) == 2 and rows_[0]["entry"] == [2300.0, 2310.0] and "outcome" not in rows_[0]
+print("ok ideas log: once per day, no outcome written (measured later)")

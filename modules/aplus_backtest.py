@@ -46,7 +46,7 @@ def atr(rows, n=14):
     return out
 
 
-def fetch_okx(sym, tf, pages=15, get=None):
+def fetch_okx(sym, tf, pages=40, get=None):
     """Newest-first OKX history pages -> oldest-first rows. `get` is injectable for tests."""
     import requests
     get = get or (lambda url, params: requests.get(url, params=params, timeout=20).json())
@@ -161,7 +161,7 @@ def run_on(rows):
     return res
 
 
-def main(get=None, out=OUT_JSON, pages=15):
+def main(get=None, out=OUT_JSON, pages=40):
     report = {"rules": {"hold_bars": HOLD, "target_R": TARGET_R, "cost_pct": COST * 100, "stop": "0.5 ATR beyond level", "entry": "close of signal bar"},
               "results": {}, "note": "Past candles only. Not a forecast, not a live result."}
     for sym in SYMS:

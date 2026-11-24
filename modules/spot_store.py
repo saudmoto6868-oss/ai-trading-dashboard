@@ -59,6 +59,17 @@ class LocalStore:
         tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf8")
         tmp.replace(self.root / "ledger.json")   # atomic: never a half-written ledger
 
+    def get_json(self, name: str) -> dict | None:
+        p = self.root / safe_name(name)
+        return json.loads(p.read_text(encoding="utf8")) if p.exists() else None
+
+    def put_json(self, name: str, d: dict, msg: str = "") -> None:
+        self.root.mkdir(parents=True, exist_ok=True)
+        p = self.root / safe_name(name)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf8")
+        tmp.replace(p)
+
     def put_file(self, name: str, data: bytes) -> str:
         self.files.mkdir(parents=True, exist_ok=True)
         n = safe_name(name)
@@ -137,6 +148,14 @@ class GitHubStore:
 
     def save(self, d: dict, msg: str = "") -> None:
         self._put("ledger.json", json.dumps(d, ensure_ascii=False, indent=1).encode("utf8"), msg or "spot: ledger update")
+
+    def get_json(self, name: str) -> dict | None:   # another JSON file next to the ledger (price alarms: palarms.json)
+        b = self._get(safe_name(name))
+        return json.loads(b.decode("utf8")) if b else None
+
+    def put_json(self, name: str, d: dict, msg: str = "") -> None:
+        n = safe_name(name)
+        self._put(n, json.dumps(d, ensure_ascii=False, indent=1).encode("utf8"), msg or f"store: {n}")
 
     def put_file(self, name: str, data: bytes) -> str:
         n = safe_name(name)

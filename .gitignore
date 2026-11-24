@@ -25,3 +25,13 @@ data/spot/
 docs/ACTIVITY_LOG_AUTO.md
 data/tia/
 data/two_six/
+data/x77/
+# research outputs rebuilt by scripts (trade review DB, per-event dumps)
+research/trade_db/*.sqlite
+research/htf_arms/events.csv.gz
+
+# trade journal store, lessons and reports (personal trade data, never commit)
+data/journal/
+data/cache/
+# chat archives (owner rule: keep local)
+docs/chats/

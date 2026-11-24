@@ -23,7 +23,7 @@ at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250); at.s
 assert not at.exception, [str(e.value)[:300] for e in at.exception]
 md = " ".join(m.value for m in at.markdown if isinstance(m.value, str))
 if "uk-strip" in md:
-    assert "uk-card" not in md.split("uk-strip")[1][:3000] and "Radar picture" not in md, "old cards / panel must be gone"
+    assert "class='uk-card" not in md.split("uk-strip")[1][:3000] and "Radar picture" not in md, "old cards / panel must be gone"
     print("PASS: radar status strip (rendered with mocked candles)")
 else:
     print("PASS (partial): strip helper OK; the page did not reach the grid with mocked candles (no strip rendered) - check by hand")

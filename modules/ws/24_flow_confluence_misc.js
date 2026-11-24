@@ -302,7 +302,8 @@ Ws.defaults = () => {
   try { const mine = store.get(LS+"_std", null); if (mine && mine.v >= 7 && Array.isArray(mine.panels) && mine.panels.length) return mine.panels.map(p => [p.type, p.rect, JSON.parse(JSON.stringify(p.state || {}))]); } catch(e){}
   return Ws.builtinStandard(); };
 Ws.builtinStandard = () => {
-  const W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700) - 8, 960)), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
+  // fill the VISIBLE area (the frame can be taller than the screen; a fixed 960 px grid sat in the middle of it). Ws.viewRect() = the visible part of the frame
+  const vis = (() => { try { return Ws.viewRect().h; } catch(e){ return 0; } })(), W = Math.max(600, Ws.el.clientWidth || 1200), H = Math.max(400, Math.min((Ws.el.clientHeight || 700), vis || 700) - 8), r = v => Math.round(v), g = 6, GOLD = "HL:xyz:GOLD", S0 = SYMS.includes(GOLD) ? GOLD : SYMS[0];
   const lw = r(W*0.12), chW = r(W*0.58), cw = r((chW - g)/2), x1 = lw + g, x2 = x1 + cw + g, rx = x1 + chW + g, rw = W - rx, pw = r((rw - 2*g)/3), ch = r((H - g)/2), y2 = ch + g;
   const OF = {dcol:true, dom:true, bub:true}, E = {9:true, 21:true, 50:false};   // order-flow column + bubbles + book layer on (no Auto-Center since 2026-11-09: it re-centred the chart on every live tick)
   return [
@@ -315,6 +316,8 @@ Ws.builtinStandard = () => {
     ["limits", {x:rx + pw + g, y:0, w:pw, h:H}, {sym:S0, group:1}],
     ["tape", {x:rx + 2*(pw + g), y:0, w:rw - 2*(pw + g), h:H}, {sym:S0, group:1}],
   ]; };
+Ws.defaultsSolo = () => { const W = Math.max(400, Ws.el.clientWidth || 1100), H = Math.max(300, (Ws.el.clientHeight || 620) - 4), S0 = SYMS[0];
+  return [["chart", {x:0, y:0, w:W, h:H}, {sym:S0, group:1, tf:"1H", ema:{9:true, 21:true, 50:false}}]]; };   // chart-only widget (RSI page tab): one chart, full size; drag / resize / indicators work as in the Workspace
 /* the older layout (signals strip, 15 s + 5 m charts, scanner ...): phones, first visit only */
 Ws.defaultsMobile = () => {
   const W = Ws.el.clientWidth || 1200, H0 = Ws.el.clientHeight || 700, r = v => Math.round(v/10)*10, rh = 150, oy = rh + 10, H = H0 - oy;

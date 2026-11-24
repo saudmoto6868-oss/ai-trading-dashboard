@@ -72,6 +72,21 @@ def _load_options(base_url=OKX):
     return rows
 
 
+def one_per_base(rows):
+    """One instrument per base coin, in the order of the first (busiest) one: the USDT pair when there is one, else the first.
+    Rows come sorted by volume; DOGE-USDT, DOGE-USDC and DOGE-TRY are the same coin, not three setups."""
+    best, order = {}, []
+    for r in rows:
+        parts = r["id"].split("-")
+        base = parts[0]
+        if base not in best:
+            best[base] = r
+            order.append(base)
+        elif len(parts) > 1 and parts[1] == "USDT" and best[base]["id"].split("-")[1:2] != ["USDT"]:
+            best[base] = r
+    return [best[b] for b in order]
+
+
 def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX, wide=False):
     """-> (symbols, note). Crypto + Spot = the dashboard's own list; everything else is discovered live from OKX,
     biggest volume first. Forex / Metals / Stocks only exist as swaps on OKX, so they use Perp even when Spot is picked."""
@@ -104,6 +119,7 @@ def class_symbols(cls, crypto_symbols, top=30, mtype="SPOT", base_url=OKX, wide=
         return (ys, "") if ys else ([], f"OKX list unavailable ({type(e).__name__})")
     sel = [r for r in rows if r["cls"] == cls or (cls == "Metals" and r["cls"] == "Commodities")]
     sel.sort(key=lambda r: r["vol"], reverse=True)
+    sel = one_per_base(sel)
     okx_ids = [r["id"] for r in sel[:top]]
     syms = hl + [s for s in okx_ids if s not in hl] + yahoo_feed.symbols(cls)   # Hyperliquid first (widest TradFi coverage), then OKX, then Yahoo majors
     return syms, ("" if syms else f"OKX lists no {cls} {inst} instruments right now")

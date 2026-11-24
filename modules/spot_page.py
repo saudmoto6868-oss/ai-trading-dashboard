@@ -327,6 +327,13 @@ def _tab_crypto(d, cr, fx):
     if not cr:
         st.warning(T("OKX spot list unavailable right now.", "قايمة OKX سبوت مش متاحة دلوقتي."))
         return
+    try:   # owner 2026-11-21: the coins as a grid of OUR chart widgets (tools, indicators, the plan drawn on the chart), one thin filter line
+        from modules import spot_grid
+        from modules.i18n import lang as _lang
+        spot_grid.render(cr, _plan_for, _n, T, "ar" if _lang() == "ar" else "en")
+    except Exception as e:
+        st.caption(T("Chart grid unavailable", "شبكة الشارتات مش متاحة") + f": {type(e).__name__}: {e}")
+    st.markdown("**" + T("One coin: plan, ladder and list", "عملة واحدة: الخطة والدفعات والقايمة") + "**")
     a, b, c3 = st.columns([1, 2, 1])
     top = a.selectbox(T("Show", "اعرض"), ["50", "100", "200", T("All", "الكل")], key="sp_top")
     q = b.text_input(T("Search", "بحث"), key="sp_q").strip().upper()
@@ -1019,10 +1026,9 @@ def _chart_doc(symbols: tuple, lang: str, height: int) -> str:
     """The full Workspace app (charts, every indicator, footprint / order flow, Elliott, Gann, drawings, alerts) for the spot symbols.
     Cached: the same string is re-sent on reruns, so the frame does not reload and its live feeds keep running."""
     from modules.workspace import build_workspace_html
-    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto")
-    # chart widget only (owner 2026-11-16): own layout store, so the main Workspace layout is untouched; on first open the
-    # layout is one maximised chart on the first symbol. More widgets can still be added from "+ Widget".
-    doc = doc.replace('const LS = "ai_ws_v5";', 'const LS = "ai_ws_spot_v1";', 1)
+    # solo="spot": own layout store (ai_ws_spot_v1), so the main Workspace layout is untouched (the old text replace of the LS line
+    # stopped matching when the app got its modes, and then wrote the Workspace layout); on first open: one maximised chart.
+    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto", solo="spot")
     boot = """<script>window.addEventListener('load',()=>setTimeout(()=>{try{
 if(localStorage.getItem('ai_ws_spot_one'))return;
 XCMD.layout('blank');XCMD.addPanel('chart');XCMD.setSymbol(%s);
@@ -1244,41 +1250,46 @@ def render() -> None:
     px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
-    tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
-                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
-                    T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"), T("Signals & alarms", "الإشارات والتنبيهات")])
-    with tabs[0]:
+    # Only the picked tab runs (st.tabs ran every tab on every rerun, i.e. every auto-refresh). Same tabs, same order.
+    names = [T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"),
+             T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
+             T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
+             T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"),
+             T("Signals & alarms", "الإشارات والتنبيهات")]
+    pick = st.segmented_control(" ", list(range(len(names))), default=0, format_func=lambda i: names[i], key="sp_tab", label_visibility="collapsed")
+    idx = 0 if pick is None else pick
+    if idx == 0:
         _tab_brain(d, px, met, cr, fx)
-    with tabs[1]:
+    elif idx == 1:
         _tab_ideas()
-    with tabs[2]:
+    elif idx == 2:
         _tab_crypto(d, cr, fx)
-    with tabs[3]:
+    elif idx == 3:
         _tab_metals(d, met, fx, fx_src, egp)
-    with tabs[4]:
+    elif idx == 4:
         _tab_ledger(d, px, fx, egp)
-    with tabs[5]:
+    elif idx == 5:
         _tab_alerts(d, px)
-    with tabs[6]:
+    elif idx == 6:
         _tab_news(d)
-    with tabs[7]:
+    elif idx == 7:
         _tab_setup(d, px, fx)
-    with tabs[8]:   # owner 2026-11-06: an option on the side, loaded only on request
+    elif idx == 8:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)
         else:
             st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
-    with tabs[9]:
+    elif idx == 9:
         _tab_budget(d)
-    with tabs[10]:   # heavy (the whole Workspace app): built only on request, like the analyzer
+    elif idx == 10:   # heavy (the whole Workspace app): built only on request, like the analyzer
         if st.session_state.get("spc_on") or st.button(T("Open the spot chart (full Workspace chart + live setups)", "افتح شارت السبوت (شارت الـ Workspace كامل + الإشارات الحية)"), key="spc_open"):
             st.session_state["spc_on"] = True
             _tab_chart(d, cr)
         else:
             st.caption(T("Not loaded until you open it.", "مش بيتحمّل غير لما تفتحه."))
-    with tabs[11]:
+    elif idx == 11:
         _tab_library()
-    with tabs[12]:
+    elif idx == 12:
         _tab_signals(d, px)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

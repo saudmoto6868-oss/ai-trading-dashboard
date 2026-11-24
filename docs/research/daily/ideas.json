@@ -1,6 +1,223 @@
 [
  {
   "name": "Short-Term Reversal Strategy",
+  "name_ar": "استراتيجية الانعكاس قصير الأجل",
+  "source_url": "https://github.com/randomwalkhan/Short-Term-Reversal-Strategy",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من SMA20، أوقف الخسارة عند SMA50، وحدد الهدف عند SMA20.",
+  "evidence": "medium",
+  "evidence_why": "تم إجراء اختبارات خلفية على مجموعة بيانات كبيرة، ولكن لم يتم ذكر تكاليف محددة.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "sma20",
+    "v": 0.0,
+    "off": 0.0
+   },
+   {
+    "a": "close",
+    "op": ">",
+    "b": "sma50",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-23"
+ },
+ {
+  "name": "Vwap Trend Following",
+  "name_ar": "متابعة الاتجاه باستخدام VWAP",
+  "source_url": "https://github.com/OpenByteInc/QuantDinger",
+  "school": "vwap",
+  "side": "long",
+  "markets": "e.g. stocks, futures",
+  "timeframe": "15m",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر VWAP، أوقف الخسارة عند أدنى سعر اليوم، وحدد الهدف عند أعلى سعر اليوم.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو تفاصيل كافية حول حجم العينة.",
+  "rules": [
+   {
+    "a": "close",
+    "op": ">",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-23"
+ },
+ {
+  "name": "EMA Crossover Strategy",
+  "name_ar": "استراتيجية تقاطع EMA",
+  "source_url": "https://github.com/cloudQuant/backtrader",
+  "school": "ma",
+  "side": "long",
+  "markets": "e.g. forex, crypto",
+  "timeframe": "1h",
+  "rules_text_ar": "ادخل عندما يتقاطع EMA9 فوق EMA21، أوقف الخسارة عند أدنى سعر خلال 14 شمعة، وحدد الهدف عند 2% فوق سعر الدخول.",
+  "evidence": "medium",
+  "evidence_why": "تم اختبار الاستراتيجية على بيانات تاريخية، لكن لم يتم ذكر تكاليف محددة.",
+  "rules": [
+   {
+    "a": "ema9",
+    "op": "xa",
+    "b": "ema21",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-23"
+ },
+ {
+  "name": "RSI Overbought/Sold",
+  "name_ar": "RSI مشبع/مباع",
+  "source_url": "https://github.com/rolling-panda-san/notebooks",
+  "school": "other",
+  "side": "both",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "4h",
+  "rules_text_ar": "ادخل في صفقة شراء عندما يكون RSI أقل من 30، وأوقف الخسارة عند 5% تحت سعر الدخول، وحدد الهدف عند 10% فوق سعر الدخول. ادخل في صفقة بيع عندما يكون RSI أعلى من 70.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو تفاصيل كافية حول حجم العينة.",
+  "rules": [],
+  "day": "2026-11-23"
+ },
+ {
+  "name": "VWAP Reversion",
+  "name_ar": "العودة إلى VWAP",
+  "source_url": "https://github.com/Drakkar-Software/OctoBot",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "e.g. stocks, futures",
+  "timeframe": "30m",
+  "rules_text_ar": "ادخل في صفقة شراء عندما يكون السعر أقل من VWAP بحدود 1%، وأوقف الخسارة عند 1% تحت سعر الدخول، وحدد الهدف عند VWAP.",
+  "evidence": "none",
+  "evidence_why": "لا توجد نتائج أو بيانات تدعم هذه الفكرة.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-23"
+ },
+ {
+  "name": "Short-Term Reversal",
+  "name_ar": "استراتيجية الانعكاس قصير الأجل",
+  "source_url": "https://github.com/randomwalkhan/Short-Term-Reversal-Strategy",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من المتوسط المتحرك لمدة 20 فترة، أوقف الخسارة عند 1% من سعر الدخول، الهدف هو 2% من سعر الدخول.",
+  "evidence": "medium",
+  "evidence_why": "استندت إلى تحليل استراتيجيات الانعكاس القصير الأجل مع بيانات تاريخية.",
+  "rules": [
+   {
+    "a": "sma20",
+    "op": "<",
+    "b": "close",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "VWAP Reversion",
+  "name_ar": "العودة إلى VWAP",
+  "source_url": "https://github.com/OpenByteInc/QuantDinger",
+  "school": "vwap",
+  "side": "both",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "1h",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر VWAP، أوقف الخسارة عند 0.5% من سعر الدخول، الهدف هو 1% من سعر الدخول.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو حجم عينة كبير.",
+  "rules": [
+   {
+    "a": "close",
+    "op": ">",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "EMA Crossover",
+  "name_ar": "تقاطع المتوسطات المتحركة",
+  "source_url": "https://github.com/rolling-panda-san/notebooks",
+  "school": "ma",
+  "side": "long",
+  "markets": "e.g. forex, stocks",
+  "timeframe": "15m",
+  "rules_text_ar": "ادخل عندما يتقاطع EMA9 فوق EMA21، أوقف الخسارة عند 1% من سعر الدخول، الهدف هو 3% من سعر الدخول.",
+  "evidence": "medium",
+  "evidence_why": "استندت إلى تحليل تقاطعات المتوسطات المتحركة مع بيانات تاريخية.",
+  "rules": [
+   {
+    "a": "ema9",
+    "op": "xa",
+    "b": "ema21",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "RSI Divergence",
+  "name_ar": "تباين RSI",
+  "source_url": "https://github.com/fasiondog/hikyuu",
+  "school": "other",
+  "side": "long",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "4h",
+  "rules_text_ar": "ادخل عندما يظهر تباين إيجابي بين السعر وRSI، أوقف الخسارة عند 1.5% من سعر الدخول، الهدف هو 2.5% من سعر الدخول.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة.",
+  "rules": [],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "Breakout from High",
+  "name_ar": "اختراق من القمة",
+  "source_url": "https://github.com/chrisleekr/binance-trading-bot",
+  "school": "levels",
+  "side": "long",
+  "markets": "e.g. crypto",
+  "timeframe": "30m",
+  "rules_text_ar": "ادخل عندما يخترق السعر أعلى مستوى يومي، أوقف الخسارة عند 1% من سعر الدخول، الهدف هو 3% من سعر الدخول.",
+  "evidence": "medium",
+  "evidence_why": "استندت إلى تحليل اختراقات المستويات مع بيانات تاريخية.",
+  "rules": [],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "VWAP Bounce",
+  "name_ar": "ارتداد VWAP",
+  "source_url": "https://github.com/Drakkar-Software/OctoBot",
+  "school": "vwap",
+  "side": "short",
+  "markets": "e.g. stocks",
+  "timeframe": "1d",
+  "rules_text_ar": "ادخل عندما يرتد السعر من VWAP، أوقف الخسارة عند 0.7% من سعر الدخول، الهدف هو 1.5% من سعر الدخول.",
+  "evidence": "none",
+  "evidence_why": "لا توجد بيانات أو نتائج موثوقة.",
+  "rules": [],
+  "day": "2026-11-21"
+ },
+ {
+  "name": "Short-Term Reversal Strategy",
   "name_ar": "استراتيجية الانعكاس القصير الأجل",
   "source_url": "https://github.com/randomwalkhan/Short-Term-Reversal-Strategy",
   "school": "mean_reversion",

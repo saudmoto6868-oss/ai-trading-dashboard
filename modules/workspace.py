@@ -172,7 +172,7 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
                          ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
-                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "") -> str:
+                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = "", radar: dict | None = None) -> str:
     news = list(news or [])
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
@@ -216,11 +216,34 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
-        "spot": _spot_snapshot(),   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
+        "solo": solo if solo in ("chart", "radar", "spot") else "",   # "chart" = chart-only widget (RSI page); "radar" = the Radar page grid (modules/ws/24f_radar.js); empty = the full Workspace
+        "radar": radar or {},   # {cols, h, items:[{sym, tf, tag, info, pts}]} for solo="radar" (main.py render_chart_scanner)
+        "spot": _spot_snapshot(),
+        "x77": _x77_cfg(),   # X77 widget: detector key -> school, Arabic names + explanations (modules/x77_detect.py)   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }
     # "</" inside a <script> block would end it early
     payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
-    return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
+    return _template_text().replace("__CONFIG__", payload, 1)
+
+
+_TPL_CACHE: dict = {}
+
+
+def _template_text() -> str:
+    """The 1.15 MB template was re-read from disk on every Streamlit rerun; cache it, reload only when the file changes."""
+    mt = _TEMPLATE.stat().st_mtime_ns
+    if _TPL_CACHE.get("mt") != mt:
+        _TPL_CACHE["mt"] = mt
+        _TPL_CACHE["text"] = _TEMPLATE.read_text(encoding="utf-8")
+    return _TPL_CACHE["text"]
+
+
+def _x77_cfg() -> dict:
+    try:
+        from modules.x77_detect import js_config
+        return js_config()
+    except Exception:   # the widget then says "no X77 map"; the Workspace must never fail on it
+        return {}
 
 
 def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
@@ -290,15 +313,16 @@ def _fh_token() -> str:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = ""):
     import streamlit as st
 
     # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
     # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
-    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
+    # the template's mtime is part of the key: a new build (UI change) is shown at once, not after the 3-10 min reuse window
+    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height, solo, _TEMPLATE.stat().st_mtime_ns)
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
-        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
+        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat, solo=solo)
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
     st.iframe(doc, height=height, alt="Live market workspace")
 

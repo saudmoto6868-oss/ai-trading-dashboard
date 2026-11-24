@@ -12,6 +12,7 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 
 import base64
 import html
+import json
 import os
 import time
 from pathlib import Path
@@ -695,7 +696,7 @@ def _scan_worker(store, ws_tf, ws_key):
                 _slot = ws_scan.setdefault(r_["symbol"], {})
                 if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
                     _slot[e_["tfc"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
-                                        | {"tf": e_["tfc"], "dir": e_["direction"]})
+                                        | {"tf": e_["tfc"], "dir": e_["direction"], "keys": e_.get("keys", [])})   # keys: X77 chart indicator labels this setup by school
                 if r_["score"] >= ALERT_SCORE_THRESHOLD and (tf_ != "1m" or "1m" in SCAN_TFS) and not r_.get("against"):   # 1m only with SCAN_1M=1; no opposing signal (lab: opposed setups lost ~ -280R)
                     tf_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
             for side_ in ("bullish", "bearish"):   # same-direction alerts at one moment are one market-wide bet: keep the best few
@@ -1153,10 +1154,10 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap"]   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 18, 19], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77"]   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 19, 21], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
-_PAGE_ORDER = [0, 1, 11, 12, 20, 13, 14, 15]   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
+_PAGE_ORDER = [0, 1, 11, 12, 18, 20, 13, 14, 15]   # owner 2026-11-21: V7 (18) back on the top bar with all its parts, next to TIA   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
 
 def _nav_to(i):
@@ -1297,9 +1298,13 @@ def _source_status():
 def _source_ping():
     """Is each data source answering right now? (tiny public calls, 4 s timeout; _source_status caches it 60 s). Never sends a key."""
     import requests
+    from modules import market_cache as _mc
     out = {}
-    for name, fn in (("OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=4)),
-                     ("Hyperliquid", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=4))):
+    for name, key, fn in (("OKX", "OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=8)),
+                          ("Hyperliquid", "HL", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=8))):
+        if _mc.recent_ok(key):   # the app's own candle downloads just worked: no extra call (a busy server made the 4 s ping time out = false "down")
+            out[name] = True
+            continue
         try:
             out[name] = bool(fn().ok)
         except Exception:
@@ -2354,6 +2359,16 @@ def _fv_with_ref(df, sym, ref_sym, ref_df):
 
 
 @st.cache_data(ttl=120, show_spinner=False)   # speed: every Radar rerun / page switch used to refetch all candles
+def _plines_ms(df, pl):
+    """Pattern lines in bar indices -> {pattern id: [[t0 ms, p0, t1 ms, p1], ...]} so the Radar's Workspace chart can draw them."""
+    try:
+        ts = pd.to_datetime(df.reset_index(drop=True)["time"])
+        ms = lambda i: int(ts.iloc[int(i)].timestamp() * 1000)   # noqa: E731
+        return {k: [[ms(a), float(p), ms(b), float(q)] for a, p, b, q in v] for k, v in (pl or {}).items()}
+    except Exception:   # extra drawing data: never break the scan
+        return {}
+
+
 def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
     """-> {symbol: {'rsi', 'flags', 'svg', 'price'}} for one timeframe (cached 60 s)."""
     from modules import fv_screen as _FV
@@ -2374,7 +2389,7 @@ def _chart_scan_data(symbols: tuple, tf: str, look: int = 3):
             expl = _CX.explain_both(df, flags)   # hover text (both languages, this result is cached): chart pattern, candle psychology, EMAs
         except Exception:
             expl = {}
-        out[sym] = {"rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "ctx": _RC.context(df), "price": float(df["close"].iloc[-1]),
+        out[sym] = {"plines": _plines_ms(df, f.get("plines")), "rsi": f["rsi"], "regime": f.get("regime"), "flags": flags, "explain": expl, "sides": {k: sorted(v) for k, v in ssides.items()}, "svg": mini_chart_svg(df, lines=f.get("lines")), "ctx": _RC.context(df), "price": float(df["close"].iloc[-1]),
                     "t": time.time(), "ts": _last_ts(df), "fv": _fv_with_ref(df, sym, _ref_sym, _ref_df), "cn": sorted(_FV.candle_set(df)), **_screen_cols(df)}
     return out
 
@@ -2813,13 +2828,15 @@ def _radar_filters(view):
 .st-key-csf [data-baseweb="select"]>div{max-height:56px;overflow-y:auto}
 .st-key-csf [data-testid="stPopover"]{width:100%}.st-key-csf [data-testid="stPopover"] button{width:100%;min-height:30px;background:#161a1e!important;border:1px solid #2b3139!important;border-radius:4px!important;color:#eaecef!important;font-size:11px!important;padding:0 6px!important}.st-key-csf [data-testid="stPopover"] button:hover{border-color:#4a5568!important}
 .st-key-cs_clear_top button{background:#161a1e!important;color:#eaecef!important;border:1px solid #2b3139!important;min-height:30px!important;font-size:11px!important}
-</style>""", unsafe_allow_html=True)
+.st-key-csf [data-testid="stWidgetLabel"]:not([data-testid="stPopoverBody"] *){display:none!important}
+.st-key-csf{padding:2px 6px!important}
+</style>""", unsafe_allow_html=True)   # owner 2026-11-21: the filters are ONE thin line (no labels over the boxes; each box shows its value, the ? help stays in the menus)
     qp = st.query_params
     if "cs_strat" not in st.session_state and qp.get("strat"):   # remembered selection (URL param survives reloads / bookmarks)
         st.session_state["cs_strat"] = [k for k in qp["strat"].split(",") if k in STRATEGY_FILTERS]
     rmap = {"above": "above", "below": "below", "crossed above": "xup", "crossed below": "xdn"}
     rels = ["—", "above", "below", "crossed above", "crossed below"]
-    fold = st.toggle(L("Hide filters"), key="cs_fold", value=False) or view in ("Heat map",)   # one button: hides the filter block; widgets stay rendered so selections are kept
+    fold = view in ("Heat map",)   # owner 2026-11-21: no separate "Hide filters" line; the heat map hides the filter block (widgets stay rendered so selections are kept)
     if fold:
         st.markdown("<style>.st-key-csfw{display:none!important}</style>", unsafe_allow_html=True)
     from modules import fv_screen as _FV
@@ -2881,7 +2898,8 @@ def _radar_filters(view):
         if _browser is not None:
             ss["rp_browser"] = _browser
         _pres = _RP.all_presets(extra=ss.get("rp_browser"))
-        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.4, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8])
+        _grid = view == "Chart grid"   # owner 2026-11-21: the grid's Summary / Open setups / grid size sit on THIS line too (render_chart_scanner fills them)
+        top = st.columns([0.6, 0.9, 0.8, 0.6, 1.1, 0.5, 0.8, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8] + ([0.9, 1.0, 0.8] if _grid else []), vertical_alignment="center")
         st.markdown(kit_css(), unsafe_allow_html=True)
         render_universe_controls(top[1], top[2], top[3])   # Asset class / Market / Universe size, same line
         tf = top[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(_def_tf), key="cs_tf", label_visibility="collapsed") or _def_tf   # one timeframe for EVERY Radar view, first item of the single filter line
@@ -2935,8 +2953,8 @@ def _radar_filters(view):
                 if r_:
                     fv[r_[0]] = r_[1]
         with top[11].popover(L("Symbol") + _n("cs_side", "cs_mode", "cs_regime")):
-            n_show = st.number_input(L("Charts"), min_value=1, max_value=120, value=int(rd.get("n", 20)), step=1, key="cs_n")
-            ncols = int(st.selectbox(L("Columns"), [3, 4, 5, 6, 7, 8], index=3, key="cs_cols", help=L("Charts per row: use more on a wide screen")))
+            ss.setdefault("cs_n", int(rd.get("n", 20)))   # the chart count / columns / height widgets live on the grid's own top line (render_chart_scanner)
+            n_show, ncols = int(ss.get("cs_n") or 20), int(ss.get("cs_cols") or 4)
             side_pick = st.selectbox(L("Side"), _sides, index=_sides.index(rd.get("side", "Both")), key="cs_side", format_func=L)
             mode = st.selectbox(L("Match"), _modes, index=_modes.index(rd.get("mode", "All selected")), key="cs_mode", format_func=L)
             from modules.regime import REGIMES as _RG
@@ -2958,7 +2976,8 @@ def _radar_filters(view):
                 "Above all EMAs": ["above_all"], "Below all EMAs": ["below_all"]}.get(stack, [])
     sel = list(dict.fromkeys(sel_rsi + sel_ema + sel_pat + sel_strat + sel_mom + list(quick or [])))
     want = {"Buy only": "buy", "Sell only": "sell"}.get(side_pick)
-    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime)}
+    return {"cols": ncols, "tf": tf, "n": int(n_show), "want": want, "any": mode == "Any selected", "look": look, "sel": sel, "fv": fv, "regime": list(sel_regime),
+            "slots": tuple(top[13:16]) if _grid else None}
 
 
 def _radar_hits(d, f):
@@ -3031,8 +3050,17 @@ def render_chart_scanner(f):
     _n_all = max(1, len(data))
     _up_pct = 100.0 * _rs.get("up", 0) / _rs["n"] if _rs.get("n") else 0.0
     _dn = _rs.get("dn", 0)
-    with st.expander(L('Summary (KPIs)'), expanded=False):   # collapsed by default: the charts start higher on the page
-        st.markdown(_UK.strip([   # Radar item D (owner 2026-10-24): the six KPI cards and the Radar-picture panel (donut / gauge / bars) became ONE strip with only the important numbers
+    # ONE short top line (owner 2026-11-21): count + Summary + Open setups + grid size; everything else is charts
+    from modules import radar_open_setups as _OS
+    _orows = _OS.open_setups(data, {s_ for s_, _d in shown})
+    ss = st.session_state
+    ss.setdefault("cs_cols", 4)
+    ss.setdefault("cs_h", 360)
+    _tl = f.get("slots") or tuple(st.columns([0.9, 1.0, 0.8, 3.0], vertical_alignment="center")[:3])   # the filter line's last 3 boxes (one line, owner 2026-11-21)
+    with _tl[0].popover(f"{L('Summary')} {len(shown)}/{len(data)}"):
+        st.caption(f"{len(shown)} / {len(data)} {L('symbols match')} · {tf} · {nsel} {L('conditions')}" + (f" · {L('showing')} {int(n_show)}" if len(shown) > n_show else "")
+                   + " · ◆ " + L("suggestion only, no orders"))
+        st.markdown(_UK.strip([
             (L("Matched"), f"{len(shown)} / {len(data)}", f"{L('Timeframe')} {tf} · {nsel} {L('conditions')}", "", L("Charts that pass every chosen filter")),
             (L("Confirmed"), n_conf if nsel else "-", L("every condition holds"), "up" if n_conf else "", L("Every chosen condition holds on this chart")),
             (L("Candidates"), (len(shown) - n_conf) if nsel else "-", L("some conditions hold"), "warn" if nsel and len(shown) - n_conf else "", L("Some chosen conditions hold")),
@@ -3042,28 +3070,21 @@ def render_chart_scanner(f):
              L("High-impact events from the economic calendar in the next hour; the Playbook says no entry +-1 h around them")),
             (L("Data age"), _rs["age"], f"{len(data)} {L('symbols')}", "", ""),
         ]), unsafe_allow_html=True)
-    from modules import radar_open_setups as _OS
-    _orows = _OS.open_setups(data, {s_ for s_, _d in shown})
-    with st.expander(L("Open setups: harmonic + OTE, with direction") + f" ({len(_orows)})", expanded=bool(_orows)):
+    with _tl[1].popover(L("Open setups") + f" ({len(_orows)})"):
         _sm = _OS.summary(_orows)
         st.caption(f"long {_sm['long']} · short {_sm['short']} · unclear {_sm['unclear']} · in the Radar filter {_sm['in_filter']}. "
                    "2.6 boxes and harmonic target prices are not in the scanner data yet (read-only, no orders).")
         if _orows:
             st.dataframe(pd.DataFrame(_orows), hide_index=True, width="stretch", height=240)
-    st.caption(f"{len(shown)} of {len(data)} symbols match (◆ = Radar setup, suggestion only; no automatic orders)" + (f" - showing the first {int(n_show)}" if len(shown) > n_show else "")
-               + "  |  lines: EMA 9 (yellow), 21 (blue), 50 (purple), VWAP (white dashed)")
+    with _tl[2].popover(f"▦ {int(ss.get('cs_n') or n_show)}·{int(ss['cs_cols'])}"):   # grid size: how many charts, per row, height
+        st.number_input(L("Charts"), min_value=1, max_value=60, step=1, key="cs_n", help=L("How many charts in the grid"))
+        st.selectbox(L("Columns"), [1, 2, 3, 4, 5, 6, 7, 8], key="cs_cols", format_func=lambda n: f"{n} " + L("per row"))
+        st.selectbox(L("Height"), [260, 300, 360, 420, 500, 600], key="cs_h", format_func=lambda n: f"{n}px")
     if not shown:
         st.info(L("No symbols match the selected conditions right now."))
         return
-    shown = shown[:int(n_show)]
-    # task 17 (spec 25): a setup is "confirmed" when every chosen condition holds (match = All selected), otherwise "candidate"; never an order
-    def setup_tag(d):   # per chart, from its own conditions
-        return ("<span title='" + _xl("مؤكد: كل الشروط المختارة متحققة. مرشح: بعض الشروط بس. مش أمر تنفيذ",
-                                      "Confirmed: every chosen condition holds. Candidate: only some of them. Not an order.")
-                + "' style='background:#1e3a2a;color:#0ecb81;border-radius:3px;padding:0 4px;margin-right:4px;font-size:10px'>"
-                + (_xl("مؤكد", "Confirmed") if _confirmed(d) else _xl("مرشح", "Candidate")) + "</span>")
-    per_row = int(f.get("cols", 6))   # wide screens: the owner's screen is wide, so six charts per row by default
-    st.markdown(_RADAR_CSS, unsafe_allow_html=True)
+    shown = shown[:int(ss.get("cs_n") or n_show)]
+    per_row, ch_h = int(ss.get("cs_cols") or 4), int(ss.get("cs_h") or 360)
     _top = [s for s, d_ in shown[:3] if nsel and _confirmed(d_)]
     if _top:   # build the trade cards' scanner results side by side (each is cached), instead of one after another
         from concurrent.futures import ThreadPoolExecutor
@@ -3080,78 +3101,86 @@ def render_chart_scanner(f):
             _lad_main = dict(zip(_lt, _ex2.map(lambda t_: _htf_trend(_symt, t_), _lt)))
     except Exception:
         _lad_main = {t_: {} for t_ in _lt}
-    from modules import radar_live as _LIVE
-    _live_on = st.toggle(L('Live charts (OKX, moving)'), key='radar_live_on', value=True, help=L('Each chart moves with the OKX feed and has its own timeframe, price and time axes. Off = the static picture.'))
-    for r0 in range(0, len(shown), per_row):
-        cols = st.columns(per_row)
-        for i_c, (col, (sym, d)) in enumerate(zip(cols, shown[r0:r0 + per_row])):
-            with col:
-                tf_x, d_x = tf, d   # this chart's own timeframe (team task 16); "—" = same as the top Timeframe
-                tf_pick = st.session_state.get(f"cs_tf_{sym}", "—") if r0 + i_c < 20 else "—"   # chosen in the card's "⋯" menu below (value from the previous run)
-                if tf_pick != "—" and tf_pick != tf:
-                    try:
-                        d_one = _chart_scan_data((sym,), tf_pick, look).get(sym)
-                        if d_one:
-                            tf_x, d_x = tf_pick, d_one
-                    except Exception as e_tf:
-                        st.caption(f"{tf_pick}: {e_tf}")
-                # owner 2026-10-22: no row of small tags; one short line, and the explanation opens when the mouse is on the chart
-                n_sig = sum(1 for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_")))
-                tag = (RADAR_TAG + setup_tag(d_x)) if nsel else ""
-                card_s = card_f = ""
-                if nsel and _confirmed(d_x) and r0 + i_c < 3:   # task 17: trade card for the top 10 confirmed
-                    card_s, card_f = _trade_card(sym, tf_x, want)
-                ladder = {t: (_lad_main[t] if tf_x == tf else _htf_trend((sym,), t)) for t in _LADDER.get(tf_x, ())}
-                rsi_v = d_x["rsi"]
-                rcol = "#f6465d" if rsi_v is not None and rsi_v >= 70 else "#0ecb81" if rsi_v is not None and rsi_v <= 30 else "#848e9c"
-                _chg = d_x.get("chg"); _vx = d_x.get("volx")
-                from modules.symbol_icon import icon as _sic
-                _cc = "conf" if (nsel and _confirmed(d_x)) else "cand" if nsel else ""
-                from modules import radar_open_setups as _OS2
-                _sigs = [{"text": k, "dir": _OS2.direction_of(k, d_x)} for k in d_x["flags"] if k in ALL_FILTERS and not k.startswith(("px_", "ma_"))]
-                _lh = _LIVE.live_card_html(sym, tf_x, 300, signals=_sigs) if _live_on else None
-                if _lh:
-                    st.markdown(
-                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
-                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
-                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
-                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
-                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
-                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
-                        , unsafe_allow_html=True)
-                    st.iframe(_lh, height=300, alt=f"Live chart {sym}")
-                    _tip_below = _hover_panel(sym, tf_x, d_x, ladder, card_f).replace("class='xr-tip'", "class='xr-tip' style='display:block;position:static;max-height:240px;overflow-y:auto;margin-top:4px;text-align:right'", 1)
-                    from modules import radar_structure as _RS
-                    _struct = _RS.html_block(_RS.read(d_x))
-                    st.markdown(f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · OKX live</span></div>" + _struct + _tip_below + card_s + "</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown(
-                        f"<div class='xr-card {_cc}'><div style='font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px'>{_sic(sym, 15)}<a href='{html.escape(tv_link(sym, tf_x), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                        f"style='color:#eaecef;font-weight:700;text-decoration:none'>{html.escape(sym.split(':')[-1])}</a>"
-                        f"<b style='color:#eaecef'>{fmt_price(d_x['price'])}</b>"
-                        + (f"<span style='color:{'#0ecb81' if _chg >= 0 else '#f6465d'}'>{_chg:+.2f}%</span>" if _chg is not None else "")
-                        + f"<span style='color:{rcol}'>RSI {rsi_v:.0f}</span>"
-                        + (f"<span style='color:{'#f0b90b' if _vx >= 2 else '#848e9c'}'>vol ×{_vx:.1f}</span>" if _vx else "")
-                        + f"<span style='color:#5e6673;font-size:10px' title='last candle (UTC)'>{html.escape(tf_x)} · {html.escape(d_x.get('ts') or '')}</span></div>"
-                        f"<div class='xr-tile' tabindex='0'><img style='width:100%;border:1px solid #2b3139;border-radius:4px' alt='{html.escape(sym)}' src='{d_x['svg']}'/>"
-                        + _hover_panel(sym, tf_x, d_x, ladder, card_f) + "</div>"
-                        f"<div style='min-height:16px;margin-top:2px'>{tag}<span class='xr-hint'>{n_sig} {html.escape(L('signals'))} · "
-                        f"{html.escape(L('hover the chart for the explanation'))}</span></div>" + card_s + "</div>"
-                        , unsafe_allow_html=True)
-                _an = False
-                if r0 + i_c < 20:   # per-chart controls live in a small menu under the card (100+ charts stay light)
-                    with st.popover("⋯", use_container_width=True):
-                        st.selectbox(L("Timeframe"), ["—"] + _CS_TFS, key=f"cs_tf_{sym}", help=L("Own timeframe for this chart (— = same as the top Timeframe)"))
-                        _an = st.checkbox(_xl("التحليل", "Analysis"), key=f"cs_an_{sym}_{tf_x}", help=_xl("تحليل بلغة بسيطة للإعداد ده (زي تاب الكريبتو)", "Plain-language analysis of this setup (same as the Crypto tab)"))
-                if _an:
-                    try:
-                        r_ = _cs_result(sym, tf_x)
-                        if r_:
-                            explain_symbol(r_)
-                    except Exception as e_:
-                        st.caption(f"Analysis unavailable: {e_}")
+    # owner 2026-11-21: every chart is OUR Workspace chart widget (indicators menu, tools, own timeframe), the scanner's finds as numbered points under it
+    items = []
+    for i_c, (sym, d) in enumerate(shown):
+        card_s = card_f = ""
+        if nsel and _confirmed(d) and i_c < 3:   # task 17: trade card for the top confirmed
+            card_s, card_f = _trade_card(sym, tf, want)
+        info = _hover_panel(sym, tf, d, {t: _lad_main.get(t, {}) for t in _lt}, card_f) + (_radar_structure_html(d) or "") + (card_s or "")
+        items.append({"sym": sym, "tf": tf, "tag": (_xl("مؤكد", "Confirmed") if _confirmed(d) else _xl("مرشح", "Candidate")) if nsel else "",
+                      "info": info, "pts": _radar_points(d)})
+    from modules.workspace import build_workspace_html
+    syms = [it["sym"] for it in items]
+    ys = [s_ for s_ in syms if s_.startswith("Y:")]
+    key = json.dumps([items, per_row, ch_h, _ui_lang(), UI_THEME, os.path.getmtime(os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "workspace_app.html"))], sort_keys=True, default=str)   # a new build of the chart app = a new page
+    last = ss.get("radar_ws_doc")
+    if last and last[0] == key and time.time() - last[2] < 300:   # same grid: the same page (no reload, the charts keep their live feeds)
+        doc = last[1]
+    else:
+        yf = {}
+        if ys:
+            try:
+                from modules.yahoo_feed import embed
+                yf = embed(ys, bars=160)
+            except Exception as e_y:
+                st.caption(f"Yahoo: {type(e_y).__name__}")
+        doc = build_workspace_html(syms, None, "ar" if _ui_lang() == "ar" else "en", solo="radar", radar={"cols": per_row, "h": ch_h, "items": items}, yf=yf,
+                                   ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
+        ss["radar_ws_doc"] = (key, doc, time.time())
+    rows = -(-len(items) // per_row)
+    st.iframe(doc, height=rows * ch_h + 40, alt="Radar charts")   # + the "indicators on ALL charts" bar
 
+
+_PT_IND = {   # Radar flag -> the Workspace chart's indicator (its ƒx menu id) that draws it
+    "st_elliott": "ew", "st_ew3": "ew", "sch_elliott": "ew", "st_harm": "harm", "sch_harmonic": "harm",
+    "st_msb": "msb", "st_ob": "msb", "st_breaker": "msb", "st_mss": "msb", "st_mit": "msb", "st_unicorn": "msb", "sch_ict": "msb",
+    "st_ote": "ote", "st_fib": "ote", "sch_fib": "ote", "st_fvg": "sig", "st_ifvg": "sig", "st_judas": "sig", "st_silver": "sig", "st_m2022": "sig", "st_pd": "sig",
+    "st_smt": "smt", "sch_smt": "smt", "st_kzs": "kzs", "st_sessamd": "kz", "st_orb": "kz", "st_po3": "kz", "sch_session": "kz",
+    "st_donch": "don", "st_turtle55": "don", "st_sma1040": "ma", "st_ma": "ma", "sch_trend": "don", "st_vwap": "vwap", "st_bvd": "bvd",
+    "st_rsidiv": "rsi", "st_macddiv": "macd", "sch_mom": "rsi", "st_sweep": "ll", "sch_liq": "ll", "vol_2x": "volume", "vol_3x": "volume",
+}
+_PT_ORDER = ["ew", "harm", "msb", "ote", "sig", "smt", "kzs", "kz", "ll", "bvd", "don", "vwap", "ma", "rsi", "macd", "volume"]   # main tools first: point 1 opens by itself
+_PT_SR = {"st_rect", "st_dbl", "st_crt", "st_wyck", "sch_level", "sch_rect", "sch_wyck", "dbl_top", "dbl_bottom", "chan_up", "chan_dn", "tl_up", "tl_dn"}
+
+
+def _radar_points(d):
+    """Numbered points under a Radar chart: chart patterns (their own lines), then one point per Workspace indicator that draws a find
+    (Elliott, harmonic, MSB ...), then support / resistance, then the rest as plain labels. Labels are the filter names; dir = the scanner's side."""
+    from modules.chart_scan import ALL_FILTERS as _AF
+    from modules import patterns as _PAT
+    from modules import radar_open_setups as _OS
+    flags = [k for k in d.get("flags", []) if k in _AF and not k.startswith(("px_", "ma_", "stack_", "above_all", "below_all"))]
+    nm = lambda k: (_CX.flag_name(k, L(_AF[k])) if k in _AF else k)[:26]   # noqa: E731
+    out, by_ind, sr, info = [], {}, [], []
+    for pid, lines in (d.get("plines") or {}).items():
+        out.append({"label": L(_PAT.SHORT.get(pid, pid)), "tip": nm(pid), "dir": _OS.direction_of(pid, d), "kind": "lines", "lines": lines})
+    flags.sort(key=lambda k: k.startswith("sch_"))   # the exact find names first; a school flag only adds to its tool's point (or names it when alone)
+    for k in flags:
+        if k.startswith("cp_"):
+            continue
+        ind = "rsi" if k.startswith("rsi_") else _PT_IND.get(k)
+        if ind:
+            by_ind.setdefault(ind, []).append(k)
+        elif k in _PT_SR:
+            sr.append(k)
+        elif not k.startswith("sch_"):
+            info.append(k)
+    for ind in sorted(by_ind, key=lambda i: _PT_ORDER.index(i) if i in _PT_ORDER else 99):
+        ks = by_ind[ind]
+        out.append({"label": nm(ks[0]).replace("School · ", "") + (f" +{len(ks) - 1}" if len(ks) > 1 else ""), "tip": " · ".join(nm(k) for k in ks), "dir": _OS.direction_of(ks[0], d), "kind": "ind", "ind": ind})
+    out.append({"label": L("S/R") + (f" · {nm(sr[0])}" if sr else ""), "tip": " · ".join(nm(k) for k in sr) or L("Daily + weekly support / resistance"),
+                "dir": _OS.direction_of(sr[0], d) if sr else "", "kind": "sr"})
+    out += [{"label": nm(k), "tip": nm(k), "dir": _OS.direction_of(k, d), "kind": "info"} for k in info[:4]]
+    return out
+
+
+def _radar_structure_html(d):
+    try:
+        from modules import radar_structure as _RS
+        return _RS.html_block(_RS.read(d))
+    except Exception:
+        return ""
 
 def _ac_go(lesson_id: str, level: int):
     """Callback: jump to a lesson (sets the level pills and that level's lesson pills before the widgets are drawn)."""
@@ -3397,13 +3426,15 @@ def _academy_schools():
                     st.markdown("<div class='uk-flex' style='gap:6px'>" + "<span style='color:var(--uk-dim)'>→</span>".join(f"<span class='uk-chip' style='font-size:12px;padding:3px 10px'>{e(t)}</span>" for t in fl) + "</div>", unsafe_allow_html=True)
                 st.markdown(body)
         with right:
-            tabs = st.tabs([L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")])
-            with tabs[0]:
+            # one tab runs per rerun (st.tabs ran all four); same content, same order
+            _ac_names = [L("Examples"), L("Evidence"), L("Our review"), L("Machine spec (AI track)")]
+            _ac_pick = st.segmented_control(" ", list(range(4)), default=0, format_func=lambda i: _ac_names[i], key=f"ac_ref_tab_{x['id']}", label_visibility="collapsed") or 0
+            if _ac_pick == 0:
                 st.markdown(x["examples"] or L("No lessons yet."))
-            with tabs[1]:
+            elif _ac_pick == 1:
                 st.info(L("External evidence from published sources. It is context, not the project's lab result."))
                 st.markdown(x["evidence"] or L("No lessons yet."))
-            with tabs[2]:
+            elif _ac_pick == 2:
                 if not x["review"]:
                     st.caption(L("No school-specific review yet; the general findings are in the References tab."))
                 for l_ in x["review"]:
@@ -3416,7 +3447,7 @@ def _academy_schools():
                         st.markdown(chr(10).join(f"- {p_}" for p_ in l_["points"]))
                     if l_["caveats"]:
                         st.warning(chr(10).join(f"- {p_}" for p_ in l_["caveats"]))
-            with tabs[3]:
+            else:
                 st.markdown(x["ai"] or L("No lessons yet."))
 
 
@@ -3444,9 +3475,9 @@ def render_info_strip():
     src = _bg("srcping", _source_ping, {}, ttl=60, wait=1.0)   # never holds the page up when a source is down (4 s timeouts)
     from modules import office_kpi as _OK
     built = (_OK.summary(_OK.load()) or {}).get("built") or "-"
-    dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171'};margin:0 4px'></span>"
+    dot = lambda ok: f"<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:{'#2dd4bf' if ok else '#f87171' if ok is False else '#848e9c'};margin:0 4px'></span>"
     items = [f"<b style='color:#f0b429'>{html.escape(L('Educational, not investment advice'))}</b>"]
-    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down'))}" for n in ("OKX", "Hyperliquid")]
+    items += [f"{dot(src.get(n))}{n} {html.escape(L('live') if src.get(n) else L('down') if src.get(n) is False else L('checking'))}" for n in ("OKX", "Hyperliquid")]
     items.append(f"{html.escape(L('Last lab run'))} {html.escape(str(built))}")
     items.append(html.escape(L("No automatic orders")))
     st.markdown("<div style='display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#a3adba;background:#161a1e;"
@@ -3495,6 +3526,8 @@ if PAGE == 0:   # workspace
         _stk_t = _stock_tickers()
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
         _ws_stat.caption("⏳ Workspace: building the page...")
+        from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
+        _JSYNC.sync()
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
@@ -3618,6 +3651,11 @@ if PAGE == 1:   # cscan
             render_radar_screener(_rf)
         else:
             render_chart_scanner(_rf)
+        try:   # X77 (owner 2026-11-20): send a Radar symbol to the X77 store; saves only
+            from modules.x77_page import send_box as _x77_send
+            _x77_send(SCAN_SYMBOLS)
+        except Exception as _xe:
+            st.caption(f"X77: {type(_xe).__name__}")
     except Exception as _e:
         st.error(f"Chart Scanner error: {type(_e).__name__}: {_e}")
 
@@ -3864,6 +3902,14 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         _two_six_render()
     except Exception as _ts_exc:
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
+    st.stop()
+
+if PAGE == 21:   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders
+    try:
+        from modules.x77_page import render as _x77_render
+        _x77_render()
+    except Exception as _x_exc:
+        st.error(f"X77: {type(_x_exc).__name__}: {_x_exc}")
     st.stop()
 
 if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide research map

@@ -33,6 +33,7 @@ _now = time.time    # injectable clock (tests replace it)
 _cache: dict = {}
 _neg: dict = {}     # key -> (retry_after, message)
 _src: dict = {}     # source -> [consecutive transport failures, paused_until]
+_ok_at: dict = {}   # source -> time of its last successful request (feeds the status strip)
 _lock = threading.Lock()
 _TRANSPORT = (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
 
@@ -51,12 +52,19 @@ def source_paused(src: str) -> bool:
     return bool(st and st[1] > _now())
 
 
+def recent_ok(src: str, within: float = 180.0) -> bool:
+    """True when a real request to this source (OKX / HL / YAHOO) succeeded in the last `within` seconds."""
+    t = _ok_at.get(src)
+    return bool(t and _now() - t < within)
+
+
 def _note(src: str, ok: bool, exc: BaseException | None = None) -> None:
     """Count only transport errors: a bad symbol or a parse error must not pause a whole source."""
     with _lock:
         st = _src.setdefault(src, [0, 0.0])
         if ok:
             st[0], st[1] = 0, 0.0
+            _ok_at[src] = _now()
         elif exc is not None and isinstance(exc, _TRANSPORT):
             st[0] += 1
             if st[0] >= BREAK_AFTER:
@@ -85,6 +93,8 @@ def _fetch_raw(symbol: str, tf: str, limit: int):
             raise
         _note(src, True)
         return df
+    if symbol.startswith("Y:") and tf == "12h":   # Yahoo / Biquote have no 12h: build it from 4h (3 bars, 00:00 UTC)
+        return _resample_from(get_klines(symbol, "4h", limit * 3 + 3), "12h", limit)
     if symbol.startswith("Y:"):   # forex / Nasdaq / EGX / Tadawul: Yahoo feed (OKX does not list them)
         from modules import av_feed, biquote_feed
         errs = []
@@ -130,6 +140,18 @@ def _fetch_raw(symbol: str, tf: str, limit: int):
     return df
 
 
+def _resample_from(df, rule: str, limit: int):
+    """OHLCV candles resampled to a bigger timeframe; only complete-looking buckets with a close."""
+    import pandas as pd
+    d = df.copy()
+    d["time"] = pd.to_datetime(d["time"])
+    out = (d.set_index("time")
+             .resample(rule, origin="start_day")
+             .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+             .dropna(subset=["close"]).reset_index())
+    return out.tail(limit).reset_index(drop=True)
+
+
 def get_klines(symbol: str, tf: str, limit: int = 300):
     """-> DataFrame. Raises only if there is no usable copy at all."""
     key = (symbol, tf, limit)
@@ -159,7 +181,7 @@ def get_klines(symbol: str, tf: str, limit: int = 300):
     return df
 
 
-def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):
+def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4, progress=None):
     """-> (frames, errors); frames[symbol][tf] = DataFrame, errors[symbol] = text."""
     jobs = [(s, tf) for s in symbols for tf in tfs]
     frames = {s: {} for s in symbols}
@@ -179,7 +201,12 @@ def fetch_frames(symbols, tfs, limit: int = 300, workers: int = 4):
         return s, tf, None, err
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for s, tf, df, err in ex.map(run, jobs):
+        for k, (s, tf, df, err) in enumerate(ex.map(run, jobs), 1):
+            if progress:
+                try:
+                    progress(k, len(jobs))
+                except Exception:
+                    pass
             if df is not None:
                 frames[s][tf] = df
             else:

@@ -78,7 +78,6 @@ def get_klines(sym: str, tf: str, limit: int = 300, client=None) -> pd.DataFrame
     if hit and time.time() - hit[0] < _TTL.get(tf, 60):
         return hit[1].tail(limit).reset_index(drop=True)
     bq = client or _client()
-    n = 1
     try:
         df = parse_ohlc(bq.ohlc(bq_sym, interval=tf, limit=500))
     except Exception as e:

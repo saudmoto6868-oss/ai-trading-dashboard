@@ -121,7 +121,7 @@ def _show_images(st) -> None:
                      ("research/cfx/cfx_settings_v7.png", "Indicator settings")):
         p = os.path.join(ROOT, rel)
         if os.path.exists(p):
-            st.image(p, caption=cap, use_container_width=True)
+            st.image(p, caption=cap, width="stretch")
         else:
             st.info(f"{rel} is not in this deployment.")
 
@@ -153,7 +153,7 @@ def render() -> None:
                          ("research/cfx/cfx_settings_v7.png", "Indicator settings")):
             p = os.path.join(ROOT, rel)
             if os.path.exists(p):
-                st.image(p, caption=cap, use_container_width=True)
+                st.image(p, caption=cap, width="stretch")
             else:
                 st.info(f"{rel} is not in this deployment.")
         return
@@ -183,15 +183,15 @@ def render() -> None:
     cats = sorted({q["category"] for q in market})
     pick = st.multiselect("Category", cats, default=cats)
     st.markdown("### Market claims (what outside sources say)")
-    st.dataframe(rows([q for q in market if q["category"] in pick]), use_container_width=True, hide_index=True)
+    st.dataframe(rows([q for q in market if q["category"] in pick]), width="stretch", hide_index=True)
     st.markdown("### Our own pipeline figures (research, not evidence)")
     st.warning("Oscillator variant B: 62 signals on one Sep-Nov sample, 37 against the next-8-bar move / 25 with it (59.7% against). "
                "Two-sided binomial test against 50%: p is about 0.13, so it supports neither 'works' nor 'works inverted'. "
                "The variant was picked after trying three on the same sample. Not an edge.")
-    st.dataframe(rows([q for q in d["claims"] if kind(q) == "own"]), use_container_width=True, hide_index=True)
+    st.dataframe(rows([q for q in d["claims"] if kind(q) == "own"]), width="stretch", hide_index=True)
     with st.expander("Project facts (not market claims)"):
-        st.dataframe(rows([q for q in d["claims"] if kind(q) == "project"]), use_container_width=True, hide_index=True)
+        st.dataframe(rows([q for q in d["claims"] if kind(q) == "project"]), width="stretch", hide_index=True)
     with st.expander("Sources"):
         st.dataframe([{"id": x["id"], "title": x["title"], "type": x["type"], "published": x.get("published"), "fetched": x.get("fetched"), "url": x["url"]}
-                      for x in d["sources"]], use_container_width=True, hide_index=True)
+                      for x in d["sources"]], width="stretch", hide_index=True)
     st.caption("Review and conditions for the next step: docs/V7_CLAUDE_REVIEW_2026-11-10.md and docs/V7_NEXT_STEP_REPLY_2026-11-10.md. Not tested in a browser.")

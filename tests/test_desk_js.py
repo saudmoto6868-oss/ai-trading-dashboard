@@ -5,7 +5,7 @@ import json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from modules.desk_risk import DeskDay, DeskRules, position_size, reward_risk  # noqa: E402
+from modules.desk_risk import DeskDay, position_size, reward_risk  # noqa: E402
 
 SRC = open(os.path.join(ROOT, "modules", "ws", "24c_desk.js"), encoding="utf-8").read()
 ENGINE = re.search(r"/\* DESK-BEGIN.*?\*/(.*?)/\* DESK-END \*/", SRC, re.S).group(1)

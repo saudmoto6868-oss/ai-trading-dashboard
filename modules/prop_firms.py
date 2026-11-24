@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import date
-from typing import Any
 
 import streamlit as st
 
@@ -93,7 +92,6 @@ def _read_local_storage(acc_id: str) -> dict | None:
     """
     key = f"pf_scraped_{acc_id}"
     # We store the result in session_state once read
-    ss_key = f"pf_live_{acc_id}"
     # Render a tiny iframe that reads localStorage and renders JSON in the page
     # Streamlit components can't directly return values without bi-directional JS;
     # we use st.query_params workaround: component writes to a hidden input that
@@ -130,8 +128,7 @@ def _read_local_storage(acc_id: str) -> dict | None:
 }})();
 </script>
 """
-    import streamlit.components.v1 as _comp
-    _comp.html(html, height=220, scrolling=False)
+    st.iframe(html, height=220, alt="Prop firm account data")
     return None
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
@@ -238,6 +235,12 @@ def _days_left(acc: dict) -> int | None:
     ref = acc.get("last_trade_date") or acc.get("purchase_date") or ""
     since = _days_since(ref)
     return None if since is None else limit - since
+
+
+def _days_left_sort(acc: dict) -> int:
+    """Days left for sorting / filtering: no date -> 9999 (last). 0 (due today) stays 0, unlike `_days_left(acc) or 9999`."""
+    dl = _days_left(acc)
+    return 9999 if dl is None else dl
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -694,8 +697,7 @@ def render_prop_firms() -> None:
 
     # Header + summary strip
     active_lst   = [a for a in accounts if a.get("status") == "active"]
-    expiring_lst = [a for a in active_lst if (_days_left(a) or 999) <= 7]
-    closed_lst   = [a for a in accounts if a.get("status") in ("closed","failed")]
+    expiring_lst = [a for a in active_lst if _days_left_sort(a) <= 7]   # 0 days left = due today (was dropped by `or 999`)
 
     h1, h2, h3 = st.columns([3,1,1])
     h1.markdown(
@@ -719,13 +721,13 @@ def render_prop_firms() -> None:
 
     # Filter bar (compact)
     fc1, fc2, fc3 = st.columns([3,2,2])
-    q          = fc1.text_input("", placeholder=_xl("بحث…","Search…"), key="pf_q", label_visibility="collapsed")
-    f_status   = fc2.selectbox("", ["all","active","closed","failed","passed"], key="pf_fs",
+    q          = fc1.text_input(_xl("بحث","Search"), placeholder=_xl("بحث…","Search…"), key="pf_q", label_visibility="collapsed")
+    f_status   = fc2.selectbox(_xl("الحالة","Status"), ["all","active","closed","failed","passed"], key="pf_fs",
                                 label_visibility="collapsed",
                                 format_func=lambda s: {"all":_xl("كل الحالات","All"),"active":_xl("نشط","Active"),
                                                         "closed":_xl("مغلق","Closed"),"failed":_xl("فشل","Failed"),
                                                         "passed":_xl("اجتاز","Passed")}.get(s,s))
-    sort_opt   = fc3.selectbox("", ["timer","name","status"], key="pf_sort",
+    sort_opt   = fc3.selectbox(_xl("الترتيب","Sort"), ["timer","name","status"], key="pf_sort",
                                 label_visibility="collapsed",
                                 format_func=lambda s: {"timer":_xl("العداد","Timer"),"name":_xl("الاسم","Name"),
                                                         "status":_xl("الحالة","Status")}.get(s,s))
@@ -735,7 +737,7 @@ def render_prop_firms() -> None:
                 and (f_status == "all" or a.get("status") == f_status)]
 
     if sort_opt == "timer":
-        filtered.sort(key=lambda a: (_days_left(a) or 9999) if a.get("status")=="active" else 9999)
+        filtered.sort(key=lambda a: _days_left_sort(a) if a.get("status")=="active" else 9999)
     elif sort_opt == "name":
         filtered.sort(key=lambda a: a.get("name",""))
     else:
@@ -760,7 +762,7 @@ def render_prop_firms() -> None:
                     if st.button(
                         _xl("فتح ←","Open →"),
                         key=f"pf_open_{acc['id']}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         st.session_state["pf_open_id"] = acc["id"]
                         st.rerun()

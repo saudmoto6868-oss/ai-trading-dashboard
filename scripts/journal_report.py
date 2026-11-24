@@ -1,6 +1,5 @@
 """Write the journal review for the meeting room: stats, lesson candidates, and one row per closed trade.
 Usage: python3 scripts/journal_report.py   -> data/journal/report.md (git-ignored: data/)"""
-import json
 import sys
 import time
 from pathlib import Path

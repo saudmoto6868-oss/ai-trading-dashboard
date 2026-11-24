@@ -47,7 +47,7 @@ def render_calibration_lab() -> None:
     h = [t("الحالة", "Group"), "n", "avgR", "IS n", "IS avgR", "OOS n", "OOS avgR", t("الفجوة", "Gap"), ""]
     table = [{h[0]: r["side"], h[1]: int(r["n"]), h[2]: round(r["avgR"], 3), h[3]: int(r["is_n"]), h[4]: round(r["is_avgR"], 3), h[5]: int(r["oos_n"]),
               h[6]: round(r["oos_avgR"], 3), h[7]: round(r["is_avgR"] - r["oos_avgR"], 3), h[8]: flag(r)} for r in sorted(ch, key=lambda r: r["n"], reverse=True)]
-    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.dataframe(table, width="stretch", hide_index=True)
     st.caption(t(f"⚠️ = IS أحسن من OOS بأكتر من {_GAP}R (احتمال تشبّع)، 🔘 = n < {MIN_N} (مش دليل)، ✅ = OOS موجب، ➖ = غير ذلك. الملف مفيهوش زمن، فالانحلال عبر الوقت غير معروض.",
                  f"⚠️ = IS beats OOS by more than {_GAP}R (possible over-fit), 🔘 = n < {MIN_N} (not evidence), ✅ = OOS above 0, ➖ = otherwise. The file has no time axis, so decay over time is not shown."))
 
@@ -59,4 +59,4 @@ def render_calibration_lab() -> None:
         h2 = [t("الفريم", "TF"), "n", t("فوز%", "Win%"), "avgR", t("عشوائي avgR", "Random avgR"), t("الفرق", "Diff")]
         st.dataframe([{h2[0]: r["tf"], h2[1]: int(r["n"]), h2[2]: round(r.get("win", 0), 1), h2[3]: round(r["avgR"], 3),
                        h2[4]: None if r.get("base_avgR") is None else round(r["base_avgR"], 3),
-                       h2[5]: None if r.get("base_avgR") is None else round(r["avgR"] - r["base_avgR"], 3)} for r in rows], use_container_width=True, hide_index=True)
+                       h2[5]: None if r.get("base_avgR") is None else round(r["avgR"] - r["base_avgR"], 3)} for r in rows], width="stretch", hide_index=True)

@@ -28,6 +28,9 @@ def test_no_deprecated_html_component_calls_remain():
         source = path.read_text(encoding="utf-8")
         assert "components.html(" not in source, f"deprecated components.html remains in {path.relative_to(ROOT)}"
         assert "components.v1.html(" not in source, f"deprecated components.v1.html remains in {path.relative_to(ROOT)}"
+        # aliased forms the two checks above miss (screen_recorder / prop_firms used these until 2026-11-20)
+        assert "components.v1 import html" not in source, f"aliased components.v1.html import remains in {path.relative_to(ROOT)}"
+        assert "_comp.html(" not in source, f"aliased components.html call remains in {path.relative_to(ROOT)}"
 
     for rel in EXPECTED_IFRAME_FILES:
         source = (ROOT / rel).read_text(encoding="utf-8")

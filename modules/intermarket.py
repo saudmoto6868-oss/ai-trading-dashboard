@@ -8,7 +8,6 @@ a pair whose recent correlation is below smt.MIN_CORR is skipped, never guessed.
 from __future__ import annotations
 
 import hashlib
-from datetime import timezone
 
 import pandas as pd
 

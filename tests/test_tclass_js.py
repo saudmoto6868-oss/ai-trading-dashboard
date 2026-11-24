@@ -6,7 +6,6 @@ import math
 import os
 import re
 import subprocess
-import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 html = open(os.path.join(ROOT, "modules", "workspace_app.html"), encoding="utf8").read()

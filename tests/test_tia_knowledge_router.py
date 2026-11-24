@@ -1,4 +1,3 @@
-import json
 
 from modules.tia_knowledge_router import load_registry, list_routes, resolve_guidance
 

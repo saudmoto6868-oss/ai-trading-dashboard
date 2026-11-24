@@ -136,4 +136,4 @@ def render(st, L=lambda s: s) -> None:
     st.caption(L("{n} lab rows have no t-stat and are not counted as evidence. Costs: {c}R per trade (planning estimate, not measured).").format(n=res["n_untestable"], c=COST_R))
     rows = sorted(res["verdicts"], key=lambda v: -v["t"])[:25]
     st.dataframe([{k: v[k] for k in ("key", "school", "tf", "side", "n", "avgR", "net", "t", "bh", "promote")} | {"why_not": "; ".join(v["why_not"][:2])}
-                  for v in rows], use_container_width=True, hide_index=True)
+                  for v in rows], width="stretch", hide_index=True)

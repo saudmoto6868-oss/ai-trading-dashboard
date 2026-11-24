@@ -29,6 +29,26 @@ def rows(folder=None):
     return scored(folder or FDIR)
 
 
+def journal_rows(path=None):
+    """Closed journal trades (modules/trade_journal, the server-side store) as review rows: win if total R > 0, loss if < 0.
+    'Never filled' trades are left out (not a loss). Same gate as the daily calls. Empty when the journal file is absent,
+    which is the case on the GitHub runner: the journal lives on the app server."""
+    try:
+        from modules import trade_journal as tj
+        trades = tj.all_trades(path)
+    except Exception:
+        return []
+    out = []
+    for t in trades:
+        if t.get("status") not in ("tp", "sl", "exp"):
+            continue
+        r = tj.r_total(t)
+        out.append({"id": t.get("id"), "symbol": t.get("symbol") or "—", "class": t.get("ttype") or "—",
+                    "side": {"bullish": "long", "bearish": "short"}.get(t.get("dir"), "—"),
+                    "outcome": "win" if r > 0 else "loss" if r < 0 else "timeout", "R": round(r, 3)})
+    return out
+
+
 def verdict(n, lo, hi):
     if n < 30:
         return "not evidence (n < 30)"
@@ -83,7 +103,7 @@ def candidates(res, k=5):
     return [r for r in table(res, "symbol") if r["n"] >= 30][:k]
 
 
-def write(folder=None, out=None):
+def write(folder=None, out=None, journal_path=None):
     res = rows(folder)
     lines = ["# Daily calls: review (auto)", "",
              f"Break-even win rate for a {TARGET_R}R target: {BREAK_EVEN:.0%}. A row beats it only with n >= 100 and the 95 % lower bound above it.",
@@ -96,6 +116,13 @@ def write(folder=None, out=None):
     lines += ["## Candidates to study next (n >= 30, cautious ranking)", ""]
     lines += [f"- {r['key']}: n {r['n']}, win rate {r['win_rate']}, lower bound {r['lo']}" for r in candidates(res)] or ["- none yet (no symbol has 30 scored calls)"]
     lines += ["", "## Observations", ""] + [f"- {o}" for o in observations(res)]
+    jr = journal_rows(journal_path)
+    lines += ["", "## Journal trades (closed, from the app's trade journal)", ""]
+    if jr:
+        lines += ["| symbol | n | wins | losses | win rate | 95% CI | avg R | verdict |", "|---|---|---|---|---|---|---|---|"]
+        lines += [f"| {r['key']} | {r['n']} | {r['wins']} | {r['losses']} | {r['win_rate']} | {r['lo']}–{r['hi']} | {r['avg_R']} | {r['verdict']} |" for r in table(jr, "symbol")]
+    else:
+        lines.append("- No closed journal trades here. The journal lives on the app server; its record also shows in the brain view.")
     text = "\n".join(lines) + "\n"
     dest = out or OUT
     dest.parent.mkdir(parents=True, exist_ok=True)

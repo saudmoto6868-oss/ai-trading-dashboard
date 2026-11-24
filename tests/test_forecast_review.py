@@ -30,3 +30,16 @@ txt = fr.write(folder=tmp, out=tmp / "REVIEW.md")
 assert "Candidates to study next" in txt and "AAA" in txt and "not trades" in txt.lower() or "not trades" in txt
 assert fr.write(folder=Path(tempfile.mkdtemp()), out=tmp / "R2.md").count("no scored calls yet") >= 1
 print("test_forecast_review: OK")
+
+# journal trades go through the same gate (never-filled trades are not losses); a missing journal gives no rows
+jp = tmp / "trades.json"
+jt = {f"t{i}": {"id": f"t{i}", "symbol": "BTC-USDT", "dir": "bullish", "ttype": "swing", "status": "tp" if i % 2 else "sl",
+               "exits": [{"level": "tp1" if i % 2 else "sl", "t": 0, "price": 1, "r": 1.5 if i % 2 else -1.0}]} for i in range(6)}
+jt["nf1"] = {"id": "nf1", "symbol": "BTC-USDT", "dir": "bullish", "status": "nf"}
+jp.write_text(json.dumps(jt), encoding="utf8")
+jr = fr.journal_rows(jp)
+assert len(jr) == 6 and sum(1 for r in jr if r["outcome"] == "win") == 3
+assert fr.journal_rows(tmp / "missing.json") == []
+txt2 = fr.write(folder=tmp, out=tmp / "R3.md", journal_path=jp)
+assert "Journal trades" in txt2 and "BTC-USDT" in txt2 and "not evidence" in txt2
+print("test_forecast_review journal: OK")

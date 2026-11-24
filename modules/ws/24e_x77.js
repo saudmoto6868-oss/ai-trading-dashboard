@@ -46,7 +46,9 @@ CandleChart.prototype.paintX77 = function(c, py, PR){
   const ov = this.overlay;   // the chart's own scanner setup for this symbol AND timeframe (same one the chart draws)
   if (!rows.length && ov && ov.plan) rows = [{direction: ov.dir, tf: ov.tf, keys: ov.keys || [], plan: ov.plan}];
   c.save(); c.font = "11px sans-serif"; c.textBaseline = "middle"; c.textAlign = "left";
-  const y0 = 34 + 4*15, line = (txt, y, col) => { const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
+  const maxW = Math.max(40, PR - 44 - 12 - 40);   // stop before the X77 entry tag and the order-flow column (narrow panes cut the text, owner 2026-11-21)
+  const fit = t => { if (c.measureText(t).width <= maxW) return t; while (t.length > 4 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; };
+  const y0 = 34 + 4*15, line = (txt, y, col) => { txt = fit(txt); const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
     c.fillStyle = col; c.fillText(txt, 50, y); };
   if (!rows.length) line("X77: " + (CFG.scanning ? (ar ? "السكانر لسه شغال... استنى" : "scanner still running... wait")
     : (ar ? "مفيش سيتاب حي للرمز ده (السكانر ماطلعش إشارة)" : "no live setup on this symbol (scanner found none)")), y0, "#9aa4b2");

@@ -35,7 +35,8 @@ button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .inote{margin:2px 4px 6px 22px;padding:5px 7px;font-size:11px;line-height:1.45;color:#b7bdc6;background:#0e1217;border-left:2px solid #f0b90b;border-radius:3px;max-width:340px;white-space:normal}
 #strip .chip b{font-weight:700}
 body.solo #bar,body.solo #strip{display:none}body.solo #ws{top:0}
-.rdft{flex:0 0 auto;display:flex;align-items:center;gap:3px;padding:2px 3px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;border-top:1px solid var(--line,#2b3139);scrollbar-width:thin}.rdft button{font-size:10px;line-height:15px;padding:0 5px;border-radius:3px;border:1px solid #2b3139;background:#161a1e;color:#c9d1d9;cursor:pointer}.rdft button.on{background:#3a2f0c!important;border-color:#f0b90b!important;color:#ffd666!important;font-weight:700}.rdft button.long{color:#0ecb81}.rdft button.short{color:#f6465d}.rdft button.long.on{background:#123a26!important;color:#2ef0a0!important}.rdft button.short.on{background:#3a1418!important;color:#ff7b8a!important}.rdft button.info{opacity:.6;cursor:default}.rdft .rdmore{margin-inline-start:auto;font-size:11px}.rdtag{font-size:10px;color:#0ecb81;background:#1e3a2a;border-radius:3px;padding:0 4px}.rdinfo{position:absolute;overflow-y:auto;background:rgba(18,22,27,.98);border:1px solid #2dd4bf66;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:18px;color:#e6e9ee;box-shadow:0 6px 24px rgba(0,0,0,.5)}.rdinfo hr{border:0;border-top:1px solid #2b3139;margin:6px 0}.rdinfo .xr-tip{display:block}
+.rdft{flex:0 0 auto;display:flex;align-items:center;gap:3px;padding:2px 3px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;border-top:1px solid var(--line,#2b3139);scrollbar-width:thin}.rdft button{font-size:10px;line-height:15px;padding:0 5px;border-radius:3px;border:1px solid #2b3139;background:#161a1e;color:#c9d1d9;cursor:pointer}.rdft button.on{background:#3a2f0c!important;border-color:#f0b90b!important;color:#ffd666!important;font-weight:700}.rdft button.long{color:#0ecb81}.rdft button.short{color:#f6465d}.rdft button.long.on{background:#123a26!important;color:#2ef0a0!important}.rdft button.short.on{background:#3a1418!important;color:#ff7b8a!important}.rdft button.info{opacity:.6;cursor:default}.rdft .rdmore{margin-inline-start:auto;font-size:11px}.rdtag{font-size:10px;color:#0ecb81;background:#1e3a2a;border-radius:3px;padding:0 4px}.rdinfo{position:absolute;overflow-y:auto;background:rgba(18,22,27,.98);border:1px solid #2dd4bf66;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:18px;color:#e6e9ee;box-shadow:0 6px 24px rgba(0,0,0,.5)}.rdall{position:absolute;left:0;right:0;top:0;height:28px;display:flex;align-items:center;gap:6px;padding:0 6px;z-index:2147480000;background:var(--bg,#0b0e11);border-bottom:1px solid #2b3139}.rdallb{font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #f0b90b;background:#2a2410;color:#ffd666;cursor:pointer;font-weight:700}.rdchips{display:flex;gap:4px;overflow-x:auto;white-space:nowrap}
+.rdact{font-size:11px;padding:1px 6px;height:21px;border-radius:4px;border:1px solid #2b3139;background:#161a1e;color:#c9d1d9;cursor:pointer;flex:0 0 auto}.rdact.on{background:#3a2f0c;border-color:#f0b90b;color:#ffd666}.rdact.rdclear{border-color:#f6465d;color:#ff8a95;font-weight:700}select.rdact{padding:0 2px}.rdchip{font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid #2b3139;background:#161a1e;color:#c9d1d9;cursor:pointer}.rdpop{position:absolute;top:28px;left:6px;width:340px;max-height:70vh;overflow-y:auto;background:#12161b;border:1px solid #2b3139;border-radius:6px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}.rdq{width:100%;box-sizing:border-box;margin-bottom:4px;background:#0b0e11;color:#eaecef;border:1px solid #2b3139;border-radius:4px;padding:3px 6px;font-size:11px}.rdgh{font-size:10px;color:#848e9c;text-transform:uppercase;margin:6px 0 2px}.rdrow{display:flex;gap:6px;align-items:center;font-size:11px;color:#eaecef;padding:2px 0;cursor:pointer}.rdclr{margin-top:6px;width:100%;font-size:11px;background:#161a1e;color:#eaecef;border:1px solid #2b3139;border-radius:4px;padding:3px}.rdinfo hr{border:0;border-top:1px solid #2b3139;margin:6px 0}.rdinfo .xr-tip{display:block}
 body.rib-out #strip{display:none}body.rib-out:not(.mob) #ws{top:26px}   /* the belt lives in the top bar */
 #strip .lbl{flex:none;color:var(--mut);font-size:10px;text-transform:uppercase}
 .stpop{position:fixed;z-index:2147483000;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:11px}
@@ -2071,7 +2072,7 @@ class CandleChart {
     if (this.gannOn) this.paintGannOffset(c, py, i0, i1, PB);
     if (this.gannOn) this.paintGann144(c, py, PB);
     if (this.liqOn) this.paintLiq(c, py, i0, i1, PB);
-    this.paintSides(c, py, i0, i1, PB);
+    if (!this.sidesOff) this.paintSides(c, py, i0, i1, PB);   // Radar "Clear ALL" hides these labels too
     if (this.astroOn) this.paintAstro(c, py, i0, i1, PB);
     if (this.syncOn){ this.paintSyncMarks(c, py, i0, i1, PB); }   // the card lives under the order-flow column (paintCol)
     if (this.psarOn && this.psarV){ const S = this.psarV, st = this.st.psar, r = Math.max(1.5, Math.min(3, this.bw*0.22)) * (st.w || 1);
@@ -4911,6 +4912,7 @@ class Panel {
     this.lockSync = () => {};   // 2026-11-09 owner: no Manual / Auto button - the price scale is set on open / Fit and then moves only when you zoom or drag the price axis
     this.ofSync = () => {};   // Depth of Trade now lives inside the Indicators menu
     this.gSelTb = groupSelect(0, 0, v => { const c = this.chart; if (!c.ofStepMap) return; c.ofStepMap[c.sym] = v; c._hmMerge = null; c.onOfStep && c.onOfStep(); c.draw(); }); this.gSelTb.style.display = "none";
+    this.tbBtns = {refresh:refreshNow, fit, drw, rf};   // Radar's top bar runs these on every chart (24f_radar.js)
     tb.append(this.indBtn, masterB, xhB, rf, refreshNow, srB, fit, this.gSelTb, palB, drw, shotB, recB, this.cdEl, this.pxEl, this.updEl); this.body.style.overflow = "hidden"; this.body.style.display = "flex"; this.body.style.flexDirection = "column"; tb.style.flex = "none"; tb.style.flexWrap = "nowrap"; tb.style.overflowX = "auto"; this.body.append(tb); if (this._mtfPending){ this._mtfPending.style.flex = "none"; this.body.append(this._mtfPending); }
     const wrap = el("div","chartwrap"); this.body.append(wrap); this.msg = el("div","err"); this.msg.style.cssText = "position:absolute;bottom:22px;left:0;z-index:2;font-size:11px"; this.body.append(this.msg);
     this.chart = new CandleChart(wrap); if (!this.state.chartUid){ this.state.chartUid = Math.random().toString(36).slice(2, 10); Ws.save(); } this.chart.uid = this.state.chartUid; if (!this.state.dvMig){ this.state.dvMig = 1; this.state.drawingsVisible = true; }   /* the pen button used to mean "show" (dim = hidden): one-time reset so nobody keeps drawings hidden by the old meaning */ this.chart.drawingsVisible = this.state.drawingsVisible !== false; syncDrawings(); this.chart.onDrawVis = () => { this.state.drawingsVisible = true; syncDrawings(); Ws.save(); }; this.chart.fibPreset = FIB_PRESETS[this.state.fibp] ? this.state.fibp : "Retracement"; this.state.tf = this.state.tf || "1H"; this.chart.tf = this.state.tf;
@@ -7921,7 +7923,9 @@ CandleChart.prototype.paintX77 = function(c, py, PR){
   const ov = this.overlay;   // the chart's own scanner setup for this symbol AND timeframe (same one the chart draws)
   if (!rows.length && ov && ov.plan) rows = [{direction: ov.dir, tf: ov.tf, keys: ov.keys || [], plan: ov.plan}];
   c.save(); c.font = "11px sans-serif"; c.textBaseline = "middle"; c.textAlign = "left";
-  const y0 = 34 + 4*15, line = (txt, y, col) => { const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
+  const maxW = Math.max(40, PR - 44 - 12 - 40);   // stop before the X77 entry tag and the order-flow column (narrow panes cut the text, owner 2026-11-21)
+  const fit = t => { if (c.measureText(t).width <= maxW) return t; while (t.length > 4 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; };
+  const y0 = 34 + 4*15, line = (txt, y, col) => { txt = fit(txt); const w = c.measureText(txt).width + 12; c.fillStyle = "rgba(11,14,17,.8)"; c.fillRect(44, y - 8, w, 16);   // x 44: clear of the drawing toolbar on the left
     c.fillStyle = col; c.fillText(txt, 50, y); };
   if (!rows.length) line("X77: " + (CFG.scanning ? (ar ? "السكانر لسه شغال... استنى" : "scanner still running... wait")
     : (ar ? "مفيش سيتاب حي للرمز ده (السكانر ماطلعش إشارة)" : "no live setup on this symbol (scanner found none)")), y0, "#9aa4b2");
@@ -7950,13 +7954,77 @@ const RadarMode = {
   layout(saved){
     const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, Ws.el.clientWidth || innerWidth), w = Math.floor(W / cols);
     const old = {}; (saved || []).forEach(p => { if (p && p.type === "chart" && p.state && p.state.sym) old[p.state.sym] = p.state; });
-    return this.items().map((it, i) => ["chart", {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2},
+    return this.items().map((it, i) => ["chart", {x:(i % cols)*w, y:this.BAR + Math.floor(i / cols)*H, w:w - 2, h:H - 2},
       Object.assign({group:0, ema:{9:true, 21:true, 50:false}}, old[it.sym] || {}, {sym:it.sym, tf:this.tf(it.tf), min:false, lock2:true})]);
   },
   // the frame's width is not known yet while the page boots: lay the grid out again once loaded and on every resize (Streamlit resizes the iframe)
   fit(){ const R = CFG.radar || {}, cols = Math.max(1, Math.min(12, +R.cols || 4)), H = Math.max(200, +R.h || 340), W = Math.max(320, document.documentElement.clientWidth || innerWidth), w = Math.floor(W / cols);
-    Ws.panels.filter(p => p.type === "chart").forEach((p, i) => { p.rect = {x:(i % cols)*w, y:Math.floor(i / cols)*H, w:w - 2, h:H - 2}; p.apply(); try { p.chart.resize(); } catch(e){} });
+    Ws.panels.filter(p => p.type === "chart").forEach((p, i) => { p.rect = {x:(i % cols)*w, y:this.BAR + Math.floor(i / cols)*H, w:w - 2, h:H - 2}; p.apply(); try { p.chart.resize(); } catch(e){} });
     document.querySelectorAll(".rdinfo").forEach(x => x.remove()); },
+  BAR: 30,   // height of the "indicators on ALL charts" bar above the grid
+  allKey(){ return LS + "_all"; },
+  allGet(){ const v = store.get(this.allKey(), {}); return v && typeof v === "object" ? v : {}; },
+  // one indicator on / off on every chart (owner 2026-11-21: "pick an indicator once, it goes on all the charts"); remembered for this grid
+  cleanKey(){ return LS + "_clean"; },
+  unclean(){ if (!store.get(this.cleanKey(), false)) return; store.set(this.cleanKey(), false); this.charts().forEach(p => { p.chart.sidesOff = false; p.chart.draw(); }); },   // set by "Clear ALL": the charts stay bare (point 1 does not open by itself) until something is switched on again
+  setAll(id, on){ const m = this.allGet(); m[id] = !!on; store.set(this.allKey(), m); if (on) this.unclean();
+    Ws.panels.forEach(p => { const it = (p.indItems || []).find(x => x.id === id); if (!it || !p.chart) return; try { it.set(!!on); p.state.mode = ""; if (p.indSave) p.indSave(); p.chart.draw(); } catch(e){} });
+    Ws.save(); },
+  // owner 2026-11-21: one button = every chart bare: all indicators, tables, the order-flow column, VWAP / signals / flow / KZ, S/R and the points' lines off
+  clearAll(){ const m = {};
+    Ws.panels.forEach(p => { const ch = p.chart; if (!ch) return;
+      (p.indItems || []).forEach(it => { if (it.id === "zlog" || typeof it.set !== "function") return; m[it.id] = false; try { if (it.get()) it.set(false); } catch(e){} });
+      if (ch.ema){ Object.keys(ch.ema).forEach(k => { ch.ema[k] = false; }); p.state.ema = Object.assign({}, ch.ema); }
+      ch.showSig = false; p.state.sig = false; ch.flowOn = false; p.state.flow = false; ch.kz = false; p.state.kz = false;
+      ch.draws = ch.draws.filter(d => !d._rd); ch.sidesOff = true; p.state.mode = ""; p.state.sr = false; if (p.syncSR) p.syncSR();
+      try { if (p.indSave) p.indSave(); } catch(e){} ch.draw(); });
+    store.set(this.allKey(), m); store.set(this.cleanKey(), true);
+    document.querySelectorAll(".rdpt.on").forEach(b => b.classList.remove("on")); Ws.save(); },
+  charts(){ return Ws.panels.filter(p => p.type === "chart" && p.chart); },
+  // the chart toolbar's own options, run on every chart at once (the symbol stays per chart)
+  actions(bar){
+    const B = (txt, tip, fn, cls) => { const b = el("button", "rdact" + (cls ? " " + cls : ""), txt); b.title = tip; b.onclick = e => { e.stopPropagation(); fn(b); }; bar.append(b); return b; };
+    B("⏻ " + esc(Lg("Clear ALL", "امسح الكل")), Lg("Remove every indicator, table, order-flow column and S/R from ALL charts (drawings you made stay)", "شيل كل المؤشرات والجداول وعمود الأوردر فلو والدعم/المقاومة من كل الشارتات (رسوماتك بتفضل)"),
+      () => { this.clearAll(); if (this._chips) this._chips(); }, "rdclear");
+    const tf = el("select", "rdact"); tf.title = Lg("Timeframe of ALL charts", "فريم كل الشارتات");
+    tf.append(Object.assign(el("option"), {value:"", textContent:"TF ▾"})); TFS.forEach(([v, l]) => tf.append(Object.assign(el("option"), {value:v, textContent:l})));
+    tf.onchange = () => { const v = tf.value; if (v) this.charts().forEach(p => { try { p.setTf(v); } catch(e){} }); tf.value = ""; }; bar.append(tf);
+    B("⟳", Lg("Reload the data of ALL charts (keeps each view)", "إعادة تحميل بيانات كل الشارتات (مع الحفاظ على العرض)"), () => this.charts().forEach(p => p.tbBtns && p.tbBtns.refresh.click()));
+    B(esc(T("fit")), Lg("Fit ALL charts: latest candle back to the middle", "ملاءمة كل الشارتات: آخر شمعة في النص"), () => this.charts().forEach(p => { try { p.chart.centerNow(); } catch(e){} }));
+    const rf = el("select", "rdact"); rf.title = T("rf") + " · " + Lg("ALL charts", "كل الشارتات");
+    rf.append(Object.assign(el("option"), {value:"", textContent:"↻ ▾"})); [["1s",1000],["2s",2000],["5s",5000]].forEach(([l, v]) => rf.append(Object.assign(el("option"), {value:v, textContent:"↻ " + l})));
+    rf.onchange = () => { const v = rf.value; if (v) this.charts().forEach(p => { const s = p.tbBtns && p.tbBtns.rf; if (s){ s.value = v; s.dispatchEvent(new Event("change")); } }); rf.value = ""; }; bar.append(rf);
+    B("S/R", Lg("Daily + weekly support / resistance on ALL charts (click again = off)", "دعم ومقاومة يومي + أسبوعي على كل الشارتات (ضغطة تانية = إيقاف)"), b => {
+      const on = !this.charts().some(p => p.chart.srOn); this.charts().forEach(p => { p.state.sr = on; if (p.syncSR) p.syncSR(); }); if (on) this.unclean(); b.classList.toggle("on", on); Ws.save(); });
+    B("✎✕", Lg("Hide / show the drawings on ALL charts (nothing is deleted)", "إخفاء / إظهار الرسومات على كل الشارتات (مفيش حاجة بتتمسح)"), b => {
+      const hide = this.charts().some(p => p.chart.drawingsVisible !== false);
+      this.charts().forEach(p => { if ((p.chart.drawingsVisible !== false) === hide && p.tbBtns) p.tbBtns.drw.click(); }); b.classList.toggle("on", hide); });
+    const xh = B("✚", Lg("Crosshair sync on ALL charts", "تزامن الكروس على كل الشارتات"), () => xhSet(!XHS.on)); XH_BTNS.add(xh); xh.classList.toggle("on", XHS.on);
+  },
+  applyAll(p){ const m = this.allGet(); Object.keys(m).forEach(id => { const it = (p.indItems || []).find(x => x.id === id); if (it && it.get() !== m[id]) try { it.set(m[id]); } catch(e){} });
+    if (Object.keys(m).length && p.indSave) p.indSave(); },
+  allBar(){
+    const bar = el("div", "rdall"), btn = el("button", "rdallb", "ƒx " + esc(Lg("Indicators on ALL charts", "مؤشرات على كل الشارتات")) + " ▾"), chips = el("span", "rdchips");
+    const pop = el("div", "rdpop"); pop.style.display = "none";
+    const ref = () => (Ws.panels.find(p => p.indItems && p.indItems.length) || {}).indItems || [];
+    const drawChips = () => { chips.innerHTML = ""; const m = this.allGet(), items = ref();
+      Object.keys(m).filter(id => m[id]).forEach(id => { const it = items.find(x => x.id === id); const c = el("button", "rdchip", esc((it ? it.label : id).slice(0, 34)) + " ✕");
+        c.title = Lg("Remove from all charts", "شيله من كل الشارتات"); c.onclick = () => { this.setAll(id, false); drawChips(); render(); }; chips.append(c); }); };
+    const render = () => { pop.innerHTML = ""; const items = ref().filter(it => it.id !== "ma" && it.id !== "zlog" && typeof it.set === "function");
+      const q = el("input"); q.placeholder = Lg("Search indicators…", "ابحث عن مؤشر…"); q.className = "rdq"; pop.append(q);
+      const list = el("div", "rdlist"); pop.append(list); const m = this.allGet();
+      const fill = () => { list.innerHTML = ""; const s = q.value.trim().toLowerCase(); let g0 = null;
+        items.filter(it => !s || String(it.label).toLowerCase().includes(s)).forEach(it => { const g = it.grp ? Lg(it.grp.en, it.grp.ar) : "";
+          if (g && g !== g0){ list.append(el("div", "rdgh", esc(g))); g0 = g; }
+          const row = el("label", "rdrow"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!m[it.id];
+          cb.onchange = () => { this.setAll(it.id, cb.checked); m[it.id] = cb.checked; drawChips(); }; row.append(cb, el("span", null, esc(it.label))); if (it.tip) row.title = it.tip; list.append(row); }); };
+      q.oninput = fill; fill();
+      const clr = el("button", "rdclr", esc(Lg("Turn all of these off on every chart", "اقفل الكل من كل الشارتات")));
+      clr.onclick = () => { Object.keys(this.allGet()).forEach(id => this.setAll(id, false)); store.set(this.allKey(), {}); drawChips(); render(); }; pop.append(clr); };
+    btn.onclick = e => { e.stopPropagation(); if (pop.style.display !== "none"){ pop.style.display = "none"; return; } render(); pop.style.display = "block"; };
+    document.addEventListener("pointerdown", e => { if (pop.style.display !== "none" && !pop.contains(e.target) && e.target !== btn) pop.style.display = "none"; }, true);
+    this._chips = drawChips; bar.append(btn); this.actions(bar); bar.append(chips, pop); Ws.el.append(bar); setTimeout(drawChips, 1500);
+  },
   isOn(p, pt){
     if (pt.kind === "ind"){ const it = (p.indItems || []).find(x => x.id === pt.ind); return !!(it && it.get()); }
     if (pt.kind === "sr") return !!(p.chart && p.chart.srOn);
@@ -7984,7 +8052,7 @@ const RadarMode = {
     if (it.tag) ft.append(el("span", "rdtag", esc(it.tag)));
     const btns = pts.map((pt, i) => { const b = el("button", "rdpt " + (pt.dir || ""), (i + 1) + " · " + esc(pt.label)); b.title = pt.tip || pt.label;
       if (pt.kind === "info"){ b.disabled = true; b.classList.add("info"); }
-      b.onclick = () => { const on = !b.classList.contains("on"); this.toggle(p, pt, on); b.classList.toggle("on", on); }; ft.append(b); return b; });
+      b.onclick = () => { const on = !b.classList.contains("on"); if (on) this.unclean(); this.toggle(p, pt, on); b.classList.toggle("on", on); }; ft.append(b); return b; });
     const more = el("button", "rdmore", "▾"); more.title = Lg("Explanation of this chart (opens under it, over the chart below)", "شرح الشارت ده (بيفتح تحته، فوق الشارت اللي تحته بس)"); ft.append(more);
     p.body.append(ft);
     let box = null; const close = () => { if (box){ box.remove(); box = null; more.textContent = "▾"; } };
@@ -7994,8 +8062,9 @@ const RadarMode = {
       box.style.zIndex = ++Ws.z + 1000; Ws.el.append(box); more.textContent = "▴"; };
     // the chart needs a moment to load its candles (and the indicators menu); then mark what is on and open the first point
     let tries = 0; const sync = () => { if (!p.chart || !p.chart.data.length){ if (++tries < 40) setTimeout(sync, 500); return; }
+      this.applyAll(p); if (store.get(this.cleanKey(), false)){ p.chart.sidesOff = true; p.chart.draw(); }
       btns.forEach((b, i) => b.classList.toggle("on", this.isOn(p, pts[i])));
-      const first = pts.findIndex(x => x.kind !== "info"); if (first >= 0 && !btns[first].classList.contains("on")){ this.toggle(p, pts[first], true); btns[first].classList.add("on"); } };   // the main find (point 1) always opens
+      const first = store.get(this.cleanKey(), false) ? -1 : pts.findIndex(x => x.kind !== "info"); if (first >= 0 && !btns[first].classList.contains("on")){ this.toggle(p, pts[first], true); btns[first].classList.add("on"); } };   // the main find (point 1) always opens
     setTimeout(sync, 300);
   },
 };
@@ -8686,7 +8755,7 @@ function applyLang(rebuild){
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
-  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.fit(); addEventListener("load", () => RadarMode.fit()); { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
+  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); addEventListener("load", () => RadarMode.fit()); { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
   else if (CFG.solo && CFG.solo !== "spot"){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
     else { store.set(LS+"_cls", CFG.cls || ""); Ws.build(Ws.defaultsSolo()); Ws.save(); } }
   else if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));

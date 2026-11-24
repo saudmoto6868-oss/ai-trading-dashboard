@@ -690,6 +690,15 @@ def _scan_worker(store, ws_tf, ws_key):
                 if not e_:
                     continue
                 if e_.get("plan"):
+                    try:   # signal ledger (modules/signal_ledger.py): every scanner plan, replayed and explained later. t0 = the next candle's open (no look-ahead)
+                        from modules import signal_ledger as _SL
+                        _t_last = int(pd.Timestamp(df_["time"].iloc[-1]).value // 1_000_000)
+                        _SL.record({"src": "scanner", "sub": str(e_.get("ttype") or ""), "symbol": r_["symbol"], "tf": tf_, "dir": e_["direction"],
+                                    "entry": e_["plan"]["entry"], "sl": e_["plan"]["stop"], "tps": e_["plan"]["tps"], "t0": _t_last + _SL.tf_ms(tf_),
+                                    "score": e_.get("score"), "max": e_.get("max"), "why": e_.get("keys") or [],
+                                    "ctx": {"against_signal": bool(r_.get("against"))}})
+                    except Exception:
+                        pass   # the ledger must never break the scan
                     ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
                                    | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
                 # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
@@ -703,6 +712,11 @@ def _scan_worker(store, ws_tf, ws_key):
                 ws_alerts.extend(sorted((a for a in tf_alerts if a.get("direction") == side_), key=lambda a: -(a.get("q") or 0))[:MAX_SAME_SIDE])
             publish(False)
         publish(True)
+        try:   # replay the ledger's signals whose time has come (cached candles, at most 60 per pass)
+            from modules import signal_ledger as _SL
+            _SL.grade_pending(get_klines, limit=60)
+        except Exception:
+            pass
         store["key"] = ws_key
         store["built"] = time.time()
     except Exception as ex_:
@@ -1154,8 +1168,8 @@ for _k in list(st.session_state.keys()):
 # the app CPU-throttled on Streamlit Cloud). Now only the open page runs. The choice is kept in the URL (?page=) and the session.
 # 2026-10-18 (owner): Crypto / Forex / Metals / Stocks / Meme pages removed (the Workspace covers them: watchlist classes, widgets);
 # new sections that serve the goal: the honest Lab, the Playbook, and two "soon" sections (AI analyst, alerts & bots).
-_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77"]   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
-_HUBS = {13: [10, 16, 4, 6], 14: [2, 9, 3, 19, 21], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
+_PAGES = ["Workspace", "Radar", "Technical Office", "Playbook", "Journal", "AI", "Alerts", "Academy", "Lab Summary", "Research Hub", "Prop Firms", "Spot", "TIA", "Trading", "Lab", "Learn & AI", "Options & macro", "Trade Intelligence Center", "V7", "2.6 Lab", "RSI Heatmap", "X77", "Strategy Ledger"]   # 22 = Strategy Ledger (owner 2026-11-24, Trading hub next to the Journal)   # 21 = X77 (owner 2026-11-20, Lab hub sub-tab)   # 17 = Trade Intelligence Center (2026-11-10, Learn & AI hub; MR !27 renumbered from 13); 13-15 = hub pages, 16 = options + macro regime (2026-11-09); 4 = Journal (was Stats); 11 = Spot desk (2026-11-06, next to the Radar in the bar); 10 = Prop Firms (added 2026-11-04: inactivity timers, rules, links per account); 8 = Lab Summary; Academy is index 7 (the Workspace guide uses fixed indexes)
+_HUBS = {13: [10, 16, 4, 22, 6], 14: [2, 9, 3, 19, 21], 15: [5, 7, 17]}   # 8 (Lab Summary) lives in Technical Office > Lab results (owner 2026-11-09)   # owner 2026-11-09: Workspace, Radar, then three hubs; each hub shows its old pages as one row of sub-tabs
 _HUB_OF = {c: h for h, cs in _HUBS.items() for c in cs}
 _PAGE_ORDER = [0, 1, 11, 12, 18, 20, 13, 14, 15]   # owner 2026-11-21: V7 (18) back on the top bar with all its parts, next to TIA   # 2026-11-17 sync with main: V7 (18) and 2.6 Lab (19) are sub-tabs of the Lab hub (owner 2026-11-15: fewer top tabs); RSI Heatmap (20) stays on top  #   # 20 = RSI Heatmap (MR !68, 2026-11-14); 19 = 2.6 Lab (own tab, owner 2026-11-13); 18 = V7 (own tab next to TIA, owner 2026-11-12)   # the top bar: Workspace, Radar, Spot (11, its own page with its own tabs: owner 2026-11-09 - keep them, only add / improve), TIA (12, its own page: reviewer decision 2026-11-09), Trading, Lab, Learn & AI
 
@@ -3902,6 +3916,14 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         _two_six_render()
     except Exception as _ts_exc:
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
+    st.stop()
+
+if PAGE == 22:   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
+    try:
+        from modules.ledger_page import render as _ledger_render
+        _ledger_render()
+    except Exception as _lg_exc:
+        st.error(f"Strategy Ledger: {type(_lg_exc).__name__}: {_lg_exc}")
     st.stop()
 
 if PAGE == 21:   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders

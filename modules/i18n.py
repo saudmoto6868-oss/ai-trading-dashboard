@@ -635,6 +635,7 @@ AR.update({
 # Prop Firms page (modules/prop_firms.py) — added 2026-11-04
 AR.update({
     "Prop Firms": "بروب فيرم",
+    "Strategy Ledger": "دفتر الاستراتيجيات",
     "Prop Firm Accounts": "حسابات بروب فيرم",
     "Account tracker — timers, rules, and alerts": "تتبع الحسابات — العدادات، القواعد، والتنبيهات",
     "Total": "إجمالي",

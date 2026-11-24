@@ -35,3 +35,5 @@ data/journal/
 data/cache/
 # chat archives (owner rule: keep local)
 docs/chats/
+# signal ledger (modules/signal_ledger.py): every strategy's plans + reviews, server data, never commit
+data/ledger/

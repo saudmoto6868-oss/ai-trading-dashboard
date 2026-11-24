@@ -28,7 +28,15 @@ def sync() -> int:
     last = int(acks.get(uid, 0))
     fresh = [ev for ev in sorted((e for e in events if isinstance(e, dict)), key=lambda e: int(e.get("seq") or 0))
              if int(ev.get("seq") or 0) > last]
-    saved = TJ.apply_snapshots([ev["rec"] for ev in fresh if isinstance(ev.get("rec"), dict)]) if fresh else 0
+    recs = [ev["rec"] for ev in fresh if isinstance(ev.get("rec"), dict)]
+    sigs = [r for r in recs if r.get("kind") == "sig"]   # chart strategies' new plans -> the signal ledger (modules/signal_ledger.py), not the trade journal
+    saved = TJ.apply_snapshots([r for r in recs if r.get("kind") != "sig"]) if recs else 0
+    if sigs:
+        try:
+            from modules import signal_ledger as SL
+            saved += sum(1 for x in SL.record_many(sigs) if x)
+        except Exception:
+            pass   # a ledger problem must never block the journal
     if fresh:
         last = int(fresh[-1].get("seq") or last)  # bad snapshots are skipped, not re-sent forever
     acks[uid] = last

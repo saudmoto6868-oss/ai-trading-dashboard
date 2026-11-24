@@ -4,4 +4,4 @@ Rule v0 is a baseline to beat, not a strategy. n < 30 is not evidence; n < 100 i
 
 | class | n | wins | losses | timeouts | win rate | 95% CI | avg R | verdict |
 |---|---|---|---|---|---|---|---|---|
-| Crypto | 7 | 5 | 0 | 2 | 1.0 | (0.566, 1.0) | 1.071 | not evidence (n < 30) |
+| Crypto | 21 | 8 | 1 | 12 | 0.889 | (0.565, 0.98) | 0.524 | not evidence (n < 30) |

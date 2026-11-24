@@ -7480,14 +7480,14 @@ const TCE = {
     if (c.bias && c.bias.available && c.bias.bias !== want && c.bias.bias !== "neutral") C(2.5, "Bias timeframe "+c.tf.bias+" is against ("+c.bias.bias+")", "فريم الاتجاه "+c.tf.bias+" ضدك ("+c.bias.bias+")");
     if (!c.bias || !c.bias.available) C(0.5, "No bias timeframe data ("+c.tf.bias+")", "مفيش بيانات لفريم الاتجاه ("+c.tf.bias+")");
     if (c.setupB && c.setupB.available && c.setupB.bias !== want && c.setupB.bias !== "neutral") C(1, "Setup timeframe trend is against", "ترند فريم الإعداد ضدك");
-    if (!c.trig) C(0.5, "No trigger yet on the entry timeframe "+c.tf.entry, "لسه مفيش إشارة على فريم الدخول "+c.tf.entry);
+    if (!c.trig) C(0.5, "No trigger yet on the entry timeframe "+c.tf.entry, "لا توجد إشارة بعد على فريم الدخول "+c.tf.entry);
     if (rr < 1.5) C(1.5, "R:R only "+rr.toFixed(1), "الـR:R "+rr.toFixed(1)+" بس");
     if (c.late) C(1.5, "Late: price already went "+Math.round(c.late*100)+"% of the way to the target", "متأخر: السعر مشي "+Math.round(c.late*100)+"% من المسافة للهدف");
     if (c.hist && c.hist.n >= 10 && c.hist.hitPct < 0.4) C(1.5, "Past bounces reached this target only "+Math.round(c.hist.hitPct*100)+"% of "+c.hist.n, "الارتدادات اللي فاتت وصلت للهدف ده "+Math.round(c.hist.hitPct*100)+"% بس من "+c.hist.n);
     if (c.hist && c.hist.n >= 10 && c.hist.p75 > 0 && Math.abs(tps[0] - entry) > c.hist.p75) C(1, "Target is bigger than 3 of 4 past moves on "+c.tf.setup+" ("+pt(c.hist.p75)+" pts)", "الهدف أكبر من 3 من كل 4 حركات فاتت على "+c.tf.setup+" ("+pt(c.hist.p75)+" نقطة)");
     if (!c.hist || c.hist.n < 10) C(0.5, "Too little history to measure ("+((c.hist && c.hist.n) || 0)+" past cases)", "تاريخ قليل للقياس ("+((c.hist && c.hist.n) || 0)+" حالة)");
     if (c.regime === "chop") C(1, "Market regime: chop (moves die quickly)", "حالة السوق: تذبذب (الحركات بتموت بسرعة)");
-    if (c.regime === "hivol" || c.regime === "crash") C(1, "Market regime: "+c.regime+" (stops get hit by noise)", "حالة السوق: "+c.regime+" (الستوب بيتضرب من الضوضاء)");
+    if (c.regime === "hivol" || c.regime === "crash") C(1, "Market regime: "+c.regime+" (stops get hit by noise)", "حالة السوق: "+c.regime+" (الستوب يُضرب بالضوضاء)");
     if (c.classOpen >= 2) C(1, c.classOpen+" open trades already in the same class and direction", "فيه "+c.classOpen+" صفقات مفتوحة في نفس الفئة والاتجاه");
     if (c.jr && c.jr.done >= 10 && c.jr.avgR < 0) C(1.5, "This idea type loses in your journal ("+c.jr.done+" trades, "+c.jr.avgR.toFixed(2)+"R)", "النوع ده خسران في الجورنال بتاعك ("+c.jr.done+" صفقة، "+c.jr.avgR.toFixed(2)+"R)");
     if (c.scalp && c.ses === "off-KZ") C(0.5, "Scalp outside the kill zones", "سكالب برة الكيل زون");
@@ -7500,7 +7500,7 @@ const TCE = {
     let verdict = vetoes.length ? "SKIP" : score >= 3 && rr >= 1.5 ? (idea.now ? "TAKE" : "WAIT") : score >= 1 ? "WAIT" : "SKIP";
     const worst = cons.slice().sort((a, b) => b[0] - a[0])[0];
     if (verdict === "TAKE" && worst && worst[0] >= 2){ verdict = "WAIT"; second.push(["Downgraded to WAIT: the strongest objection is heavy ("+worst[1]+")", "نزلت لـ«استنى»: أقوى اعتراض تقيل ("+worst[2]+")"]); }
-    if (verdict === "WAIT" && !idea.now) second.push(["Limit order at "+entry.toPrecision(6)+": price has not reached the zone", "أمر معلّق عند "+entry.toPrecision(6)+": السعر لسه ماوصلش للمنطقة"]);
+    if (verdict === "WAIT" && !idea.now) second.push(["Limit order at "+entry.toPrecision(6)+": price has not reached the zone", "أمر معلّق عند "+entry.toPrecision(6)+": السعر لم يصل للمنطقة بعد"]);
     const pct = Math.max(0, Math.min(100, Math.round((score + 4)/12*100)));
     // A+ (Academy checklist): a TAKE with the higher timeframe behind it, a trigger on the entry timeframe, >= 2 independent confirmations,
     // R:R >= 2 with a clear path to the target, and no regime / journal objection -> grade A+; other TAKE = A, WAIT = B, SKIP = C

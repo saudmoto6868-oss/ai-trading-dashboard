@@ -562,3 +562,28 @@ def brain_lines(path: Path | None = None, top: int = 5, ar: bool = False) -> lis
         if len(out) >= top:
             break
     return out
+
+
+def record_setups(symbols, fetch, path: Path | None = None) -> int:
+    """The brain's setup detectors (modules/day_plan.scan_setups: CISD, CRT, sweeps, Model 2022, Elliott wave 3 / 5 / C, SMT ...) as ledger signals,
+    one strategy per detector: src = "setup:<key>". fetch(symbol, tf) -> DataFrame (cached). t0 = the open of the candle after the last one seen.
+    Returns how many plans were offered (duplicates of a waiting plan are dropped by record_many)."""
+    from modules import day_plan
+    alerts = day_plan.scan_setups(list(symbols), fetch)
+    last = {}
+    sigs = []
+    for a in alerts:
+        k = (a["symbol"], a["tf"])
+        if k not in last:
+            try:
+                last[k] = _bars_from_df(fetch(a["symbol"], a["tf"]))[-1][0]
+            except Exception:
+                last[k] = None
+        if not last[k]:
+            continue
+        wb = a.get("with_bias")
+        sigs.append({"src": "setup:" + str(a["key"]), "sub": (a.get("names") or [""])[0], "symbol": a["symbol"], "tf": a["tf"], "dir": a["direction"],
+                     "entry": a["entry"], "sl": a["stop"], "tps": a["tps"], "t0": last[k] + tf_ms(a["tf"]), "why": a.get("schools") or [],
+                     "ctx": {"htf": "with" if wb else "against" if wb is False else None}})
+    record_many(sigs, path)
+    return len(sigs)

@@ -712,6 +712,13 @@ def _scan_worker(store, ws_tf, ws_key):
                 ws_alerts.extend(sorted((a for a in tf_alerts if a.get("direction") == side_), key=lambda a: -(a.get("q") or 0))[:MAX_SAME_SIDE])
             publish(False)
         publish(True)
+        try:   # the brain's setup detectors (CISD, CRT, sweeps, Model 2022, Elliott ...) -> the ledger, each detector its own strategy; every 15 min, capped symbols
+            from modules import signal_ledger as _SL
+            if time.time() - store.get("ledger_setups_t", 0) >= 900:
+                store["ledger_setups_t"] = time.time()
+                _SL.record_setups(syms_[:int(os.environ.get("LEDGER_SETUP_SYMBOLS", "20") or 20)], lambda s_, t_: get_klines(s_, t_, 300))
+        except Exception:
+            pass
         try:   # replay the ledger's signals whose time has come (cached candles, at most 60 per pass)
             from modules import signal_ledger as _SL
             _SL.grade_pending(get_klines, limit=60)

@@ -53,6 +53,11 @@ from unittest import mock
 from streamlit.testing.v1 import AppTest
 
 
+def _picker(at):
+    """Labels of the Spot desk part picker (sp_tab, a segmented control since 2026-11-18)."""
+    return [o.content for o in at.get("button_group")[0].proto.options]
+
+
 def boom(*a, **k):
     raise requests.ConnectionError("blocked in test")
 
@@ -66,8 +71,11 @@ sp.render()
 """, default_timeout=90)
     at.run()
     assert not at.exception, at.exception
-    labels = [t.label for t in at.tabs]
-    assert any("Budget plan" in l or "خطة الميزانية" in l for l in labels), labels
+    # 2026-11-18 the Spot tabs became one picker (sp_tab, only the picked part runs): pick "Budget plan" (index 9) and check its sizer is there
+    at.session_state["sp_tab"] = 9
+    at.run()
+    assert not at.exception, at.exception
+    assert any(getattr(w, "key", None) == "bp_entry" for w in at.number_input), [getattr(w, "key", None) for w in at.number_input]
     # the swing sizer with a real setup: entry 100, stop 95, target 110 (budget 1000 -> size 200, capped at the 250 swing share)
     at.session_state["bp_entry"] = 100.0
     at.session_state["bp_stop"] = 95.0
@@ -114,7 +122,10 @@ sp.render()
 """, default_timeout=120)
     at.run()
     assert not at.exception, at.exception
-    assert any("Spot chart" in t.label or "شارت السبوت" in t.label for t in at.tabs)
+    assert any("Spot chart" in l or "شارت السبوت" in l for l in _picker(at))   # 2026-11-18: tabs -> one picker (sp_tab)
+    at.session_state["sp_tab"] = 10
+    at.run()
+    assert not at.exception, at.exception
 print("spot chart tab: OK")
 
 # strategies (2026-11-17): every split adds to 100; library + signals tabs exist; the board filter maps to real lab schools
@@ -137,6 +148,10 @@ sp.render()
 """, default_timeout=180)
     at.run()
     assert not at.exception, at.exception
-    labs = [t.label for t in at.tabs]
+    labs = _picker(at)
     assert any("Signals" in l for l in labs) and any("Setup library" in l for l in labs), labs
+    for k in (11, 12):   # open the library and the signals board
+        at.session_state["sp_tab"] = k
+        at.run()
+        assert not at.exception, (k, at.exception)
 print("spot strategies + signals board: OK")

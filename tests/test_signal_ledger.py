@@ -140,4 +140,21 @@ with tempfile.TemporaryDirectory() as d:
     L.grade_pending(lambda *a: late_df, p, now_ms=NOW)
     assert L.all_signals(p)[0]["status"] == "lost"
 
+# 14) the brain's setup detectors -> one strategy per detector key, t0 after the last candle, bias -> ctx.htf
+from modules import day_plan  # noqa: E402
+_orig = day_plan.scan_setups
+day_plan.scan_setups = lambda syms, fetch: [
+    {"symbol": "BTC-USDT", "key": "cisd", "tf": "1h", "direction": "bullish", "names": ["CISD"], "schools": ["ICT"], "entry": 100, "stop": 98, "tps": [102, 104], "with_bias": True},
+    {"symbol": "BTC-USDT", "key": "crt", "tf": "1h", "direction": "bearish", "names": ["CRT"], "schools": [], "entry": 100, "stop": 102, "tps": [97], "with_bias": False}]
+try:
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "s.json"
+        one = pd.DataFrame({"time": pd.to_datetime([T0, T0 + H], unit="ms"), "open": [1.0, 1.0], "high": [1.0, 1.0], "low": [1.0, 1.0], "close": [1.0, 1.0]})
+        assert L.record_setups(["BTC-USDT"], lambda s_, t_: one, p) == 2
+        S = {x["src"]: x for x in L.all_signals(p)}
+        assert set(S) == {"setup:cisd", "setup:crt"} and S["setup:cisd"]["t0"] == T0 + 2 * H, S
+        assert S["setup:cisd"]["ctx"]["htf"] == "with" and S["setup:crt"]["ctx"]["htf"] == "against" and S["setup:cisd"]["why"] == ["ICT"]
+finally:
+    day_plan.scan_setups = _orig
+
 print("ok signal_ledger")

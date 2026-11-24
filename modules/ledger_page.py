@@ -33,6 +33,8 @@ def _w(pair) -> str:
 
 def _src(k: str) -> str:
     head, _, rest = k.partition(" · ")
+    if head.startswith("setup:"):   # the brain's setup detectors, one strategy each
+        return _t("Setup ", "سيتاب ") + head[6:].upper() + (" · " + rest if rest else "")
     return _w(_SRC.get(head, (head, head))) + (" · " + rest if rest else "")
 
 

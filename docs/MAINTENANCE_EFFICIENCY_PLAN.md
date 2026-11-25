@@ -49,6 +49,23 @@
 
 > كل ده لسه **مش مقاس على جهاز المالك ولا على السيرفر المنشور** — المرحلة 0 بتقيسه.
 
+### 2.1 أول baseline (2026-11-26، `python3 scripts/perf_baseline.py`، Mac المالك، أوفلاين بشبكة مقفولة)
+اتاخد بعد M4 / M5. أرقام أوفلاين: بتبيّن التغيير بين PR والتاني، **مش** زمن السيرفر المنشور. "طلبات الشبكة" فيها خيوط الخلفية كمان.
+
+| الصفحة | أول تشغيل ث | rerun ث | طلبات شبكة |
+|---|---|---|---|
+| Workspace (0) | 3.12 | 1.24 | 54 |
+| Radar (1) | 2.49 | 1.25 | 9 |
+| Spot (11) | 2.30 | 1.38 | 27 |
+| TIA (12) | 1.92 | 1.67 | 8 |
+| V7 (18) | 1.95 | 1.58 | 2 |
+| RSI Heatmap (20) | 2.41 | 1.32 | 4 |
+| Trading (13) | 2.22 | 1.54 | 2 |
+| Lab (14) | 3.04 | 1.85 | 4 |
+| Learn & AI (15) | 2.05 | 1.48 | 2 |
+
+استيراد pandas بارد: 2.17 ث. `workspace_app.html` = 1,260 KB. 36 `setInterval`، 4 `new WebSocket`، 5 خيوط في `main.py`.
+
 ---
 
 ## 3. شكل النسخة الخفيفة (الهدف)
@@ -200,20 +217,20 @@ tests/                     # نفس الاختبارات + parity قبل/بعد 
 ## 8. توزيع المهام والملكية (عشان مفيش اتنين على نفس الملف)
 | المهمة | الملفات (الملكية) | الحالة | مين |
 |---|---|---|---|
-| M0 قياس baseline (0.3–0.6) | `scripts/perf_baseline.py` (جديد) | مفتوح | — |
-| M1 المتصفح: إيقاف المخفي + مؤقت مركزي + WS مشترك (1.2–1.4) | `modules/ws/*` | مفتوح | — |
-| M2 `st.fragment` بدل autorefresh (1.5) | `main.py` (الجزء 140–210 + الأجزاء الحية) | مفتوح | — |
+| M0 قياس baseline (0.3–0.6) | `scripts/perf_baseline.py` (جديد) | ✅ جزئي (0.3 أوفلاين + 0.5 + 0.6): `python3 scripts/perf_baseline.py`؛ 0.1/0.2 على جهاز المالك و0.4 (`PERF_LOG`) لسه | Claude (حساب Mohamed) |
+| M1 المتصفح: إيقاف المخفي + مؤقت مركزي + WS مشترك (1.2–1.4) | `modules/ws/*` | جزئي: 1.2 ✅ (الشارت في تاب مخفي بيتحدّث كل 30 ث، والمصغّر كل 15 ث، ويرجع فورًا). 1.3 و1.4 لسه | Claude (حساب Mohamed) |
+| M2 `st.fragment` بدل autorefresh (1.5) | `main.py` (الجزء 140–210 + الأجزاء الحية) | مؤجّل لبعد M7: الـautorefresh مقفول افتراضيًا، والصح إن كل صفحة تحدد جزءها الحي بعد التقسيم | — |
 | M3 اختبار ميزانية الحجم (1.6) | `tests/test_workspace_size_budget.py` | ✅ #278 `a58ae29` | Claude (جلسة المراجعة) |
-| M4 الـ2 `st.tabs` (1.7) | `intelligence_center_ui.py`، `two_six_lab.py` | مفتوح | — |
-| M5 Spot (1.8) | `modules/spot_page.py` | مفتوح | — |
-| M6 خريطة اعتماديات الشارت (2.1) | `docs/WORKSPACE_DEPS.md` (جديد) | مفتوح | — |
+| M4 الـ2 `st.tabs` (1.7) | `intelligence_center_ui.py`، `two_six_lab.py` | ✅ (اختيار واحد؛ AppTest على كل الاختيارات) | Claude (حساب Mohamed) |
+| M5 Spot (1.8) | `modules/spot_page.py` | ✅ (الأسعار بتتحمّل للتابات اللي محتاجاها بس؛ AppTest على الـ13 تاب) | Claude (حساب Mohamed) |
+| M6 خريطة اعتماديات الشارت (2.1) | `docs/WORKSPACE_DEPS.md` (جديد) | ✅ `python3 scripts/ws_deps.py` → `docs/WORKSPACE_DEPS.md` | Claude (حساب Mohamed) |
 | M7 `st.navigation` في `main.py` (4.1) | `main.py` + `app/` (جديد) | مفتوح (بعد M0 + M1) | — |
 | M8 workers (3.1) | `workers/` (جديد) | مستني اختيار §10 | — |
 | M9 تجهيز Oracle Free (§10.2) | `deploy/oracle/` (جديد) | مستني المالك يعمل الحساب | — |
-| **M10** CI للاختبارات كلها على كل PR (الحارس قبل ما أجينتس كتير يشتغلوا بالتوازي) | `.github/workflows/tests.yml` (جديد) | مفتوح — **أولوية** | — |
-| M11 حارس ruff (F821/F811/F601 يفشل؛ F401/F841 تحذير) في نفس الـCI | `.github/workflows/tests.yml` | مفتوح (مع M10) | — |
+| **M10** CI للاختبارات كلها على كل PR (الحارس قبل ما أجينتس كتير يشتغلوا بالتوازي) | `.github/workflows/tests.yml` (جديد) | ✅ `.github/workflows/tests.yml` + `scripts/run_tests.py` | Claude (حساب Mohamed) |
+| M11 حارس ruff (F821/F811/F601 يفشل؛ F401/F841 تحذير) في نفس الـCI | `.github/workflows/tests.yml` | ✅ في نفس الـworkflow (ruff 0.14.0) | Claude (حساب Mohamed) |
 | M12 الـWorker يشغّل `telegram-alerts.yml` في ميعاده | `market-radar-bot/worker/` | مستني P0-2 (deploy) | — |
-| M13 تحديث الـactions اللي على Node 20 | `.github/workflows/*.yml` | مفتوح (بعد M10) | — |
+| M13 تحديث الـactions اللي على Node 20 | `.github/workflows/*.yml` | ✅ checkout / setup-python / upload-artifact / cache → v6 (Node 24) | Claude (حساب Mohamed) |
 
 **مهام تتعمل بالتوازي من غير تصادم:** M0 + M4 + M5 + M6 + M10. اللي على `modules/ws/*` (M1) واللي على `main.py` (M2) كل واحدة لحساب واحد بس.
 

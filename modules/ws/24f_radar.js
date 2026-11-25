@@ -57,6 +57,10 @@ const RadarMode = {
     B("✎✕", Lg("Hide / show the drawings on ALL charts (nothing is deleted)", "إخفاء / إظهار الرسومات على كل الشارتات (مفيش حاجة بتتمسح)"), b => {
       const hide = this.charts().some(p => p.chart.drawingsVisible !== false);
       this.charts().forEach(p => { if ((p.chart.drawingsVisible !== false) === hide && p.tbBtns) p.tbBtns.drw.click(); }); b.classList.toggle("on", hide); });
+    const pal = el("select", "rdact"); pal.title = Lg("Candle colours of ALL charts", "ألوان شموع كل الشارتات");   // same presets as the chart's 🎨 menu
+    const PRE = [["🎨 ▾", undefined], [Lg("Theme default", "افتراضي الثيم"), null], ["TradingView", {up:"#26a69a", dn:"#ef5350"}], [Lg("Blue / Orange", "أزرق / برتقالي"), {up:"#2196f3", dn:"#ff9800"}], [Lg("Mono", "أبيض / رمادي"), {up:"#e6e6e6", dn:"#6b6b6b"}]];
+    PRE.forEach(([n], i) => pal.append(Object.assign(el("option"), {value:i, textContent:n})));
+    pal.onchange = () => { const v = PRE[+pal.value][1]; if (v !== undefined) this.charts().forEach(p => { p.chart.pal = v ? Object.assign({}, v) : null; p.state.pal = p.chart.pal; p.chart.draw(); }); pal.value = 0; Ws.save(); }; bar.append(pal);
     const xh = B("✚", Lg("Crosshair sync on ALL charts", "تزامن الكروس على كل الشارتات"), () => xhSet(!XHS.on)); XH_BTNS.add(xh); xh.classList.toggle("on", XHS.on);
   },
   applyAll(p){ const m = this.allGet(); Object.keys(m).forEach(id => { const it = (p.indItems || []).find(x => x.id === id); if (it && it.get() !== m[id]) try { it.set(m[id]); } catch(e){} });

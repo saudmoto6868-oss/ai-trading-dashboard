@@ -113,7 +113,7 @@ tests/                     # نفس الاختبارات + parity بين الق�
 | 1.3 | مؤقت مركزي واحد بدل الـ`setInterval` المتفرقة (بنفس التوقيتات) | `modules/ws/*` |
 | 1.4 | WebSocket واحد مشترك لكل مصدر | `modules/ws/*` (مكان فتح الاتصالات الأربعة) |
 | 1.5 | `st_autorefresh` → `st.fragment(run_every)` للأجزاء الحية بس | `main.py` |
-| 1.6 | اختبار ميزانية حجم `workspace_app.html` (يمنع إنه يكبر تاني من غير ما حد ياخد باله) | `tests/test_workspace_size_budget.py` |
+| 1.6 | ✅ (#278 `a58ae29`) اختبار ميزانية حجم `workspace_app.html` (يمنع إنه يكبر تاني من غير ما حد ياخد باله) | `tests/test_workspace_size_budget.py` |
 | 1.7 | تحويل الـ2 `st.tabs` الباقيين لاختيار | `intelligence_center_ui.py`، `two_six_lab.py` |
 | 1.8 | بند 2026-11-09 (Spot): تحميل البيانات بعد اختيار التاب، مش قبله (`_fx`، `_prices`) | `modules/spot_page.py` |
 
@@ -202,7 +202,7 @@ tests/                     # نفس الاختبارات + parity بين الق�
 | M0 قياس baseline (0.3–0.6) | `scripts/perf_baseline.py` (جديد) | مفتوح | — |
 | M1 المتصفح: إيقاف المخفي + مؤقت مركزي + WS مشترك (1.2–1.4) | `modules/ws/*` | مفتوح | — |
 | M2 `st.fragment` بدل autorefresh (1.5) | `main.py` (الجزء 140–210 + الأجزاء الحية) | مفتوح | — |
-| M3 اختبار ميزانية الحجم (1.6) | `tests/test_workspace_size_budget.py` | شغّال | Claude (جلسة المراجعة) |
+| M3 اختبار ميزانية الحجم (1.6) | `tests/test_workspace_size_budget.py` | ✅ #278 `a58ae29` | Claude (جلسة المراجعة) |
 | M4 الـ2 `st.tabs` (1.7) | `intelligence_center_ui.py`، `two_six_lab.py` | مفتوح | — |
 | M5 Spot (1.8) | `modules/spot_page.py` | مفتوح | — |
 | M6 خريطة اعتماديات الشارت (2.1) | `docs/WORKSPACE_DEPS.md` (جديد) | مفتوح | — |

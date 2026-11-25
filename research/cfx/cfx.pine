@@ -41,7 +41,7 @@ haSource     = input.bool(true, "Use Heikin Ashi source for the filter only", gr
 grpRisk = "Risk / RR"
 atrLen       = input.int(14, "ATR length", group=grpRisk)
 slBufAtr     = input.float(0.15, "SL buffer (ATR)", step=0.01, group=grpRisk)
-rr1Min       = input.float(1.5, "Hard gate: RR1 minimum", step=0.1, group=grpRisk)
+rr1Min       = input.float(2.0, "Hard gate: RR1 minimum", step=0.1, group=grpRisk)
 riskPct      = input.float(0.5, "DEFAULT_RISK_PERCENT (display only here)", step=0.1, group=grpRisk)
 
 grpTime = "Killzones (America/New_York times — DST handled by timezone=)"

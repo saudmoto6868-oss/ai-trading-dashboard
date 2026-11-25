@@ -202,7 +202,7 @@ tests/                     # نفس الاختبارات + parity بين الق�
 | M0 قياس baseline (0.3–0.6) | `scripts/perf_baseline.py` (جديد) | مفتوح | — |
 | M1 المتصفح: إيقاف المخفي + مؤقت مركزي + WS مشترك (1.2–1.4) | `modules/ws/*` | مفتوح | — |
 | M2 `st.fragment` بدل autorefresh (1.5) | `main.py` (الجزء 140–210 + الأجزاء الحية) | مفتوح | — |
-| M3 اختبار ميزانية الحجم (1.6) | `tests/test_workspace_size_budget.py` | مفتوح | — |
+| M3 اختبار ميزانية الحجم (1.6) | `tests/test_workspace_size_budget.py` | شغّال | Claude (جلسة المراجعة) |
 | M4 الـ2 `st.tabs` (1.7) | `intelligence_center_ui.py`، `two_six_lab.py` | مفتوح | — |
 | M5 Spot (1.8) | `modules/spot_page.py` | مفتوح | — |
 | M6 خريطة اعتماديات الشارت (2.1) | `docs/WORKSPACE_DEPS.md` (جديد) | مفتوح | — |

@@ -115,6 +115,7 @@
 | 2 | الأكاديمية | MEETING_ACADEMY.md |
 | 3 | تنبيهات/Setup | MEETING_ALERTS_SETUP.md |
 | 4 | ترندات AI | MEETING_AI_TRENDS_TOOLS.md |
+| 5 | **جارفز وهرمس وبوتات التليجرام** | [MEETING_BOTS_JARVIS_HERMES.md](MEETING_BOTS_JARVIS_HERMES.md) |
 | — | **أساسيات مؤسسات/محترفين** | [INSTITUTIONAL_FOUNDATIONS.md](INSTITUTIONAL_FOUNDATIONS.md) |
 
 ## قبل ما تبدأ
@@ -1195,3 +1196,6 @@ break-even لـ3R = 25%. النتيجة كلها تحته، وكل الـfolds �
   - الباقي حوالي -0.11R.
   - **التحفظ:** أحكام المعمل محسوبة على الفترة كلها، فيه تسريب جزئي.
 - **مسجّل مسبقًا للاختبار القادم:** القاعدة دي بالظبط، على أفكار بعد 2026-11-20 بس. النجاح يكون صافي أكبر من صفر بـt > 2 وn ≥ 100. لحد ما ده يحصل، الفلتر الصارم هو اللي في `v_studied`.
+
+## 2026-11-25 — [Claude] فرع جديد: جارفز وهرمس وبوتات التليجرام
+اتعمل محضر 5: [MEETING_BOTS_JARVIS_HERMES.md](MEETING_BOTS_JARVIS_HERMES.md). أي شغل على Jarvis أو Hermes أو XPiX يتكتب هناك: البوتات، المشاكل المفتوحة، المطلوب من المالك، والمحضر.

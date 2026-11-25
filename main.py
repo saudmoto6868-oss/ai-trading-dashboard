@@ -3519,14 +3519,17 @@ if PAGE == 0:   # workspace
         _stk_t = _stock_tickers()
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
         _ws_stat.caption("⏳ Workspace: building the page...")
-        from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
-        _JSYNC.sync()
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
                          ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
                          ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         _ws_stat.empty()
+        try:   # mounted AFTER the workspace (like the guide bridge): mounted before it, the hidden iframe could miss Streamlit's 60 s ready window on a slow load and show a yellow warning
+            from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
+            _JSYNC.sync()
+        except Exception:
+            pass
         try:
             from modules.guide_ai import render_bridge
             render_bridge()   # hidden: lets the guide character ask Claude without the key reaching the browser

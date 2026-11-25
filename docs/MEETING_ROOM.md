@@ -116,6 +116,7 @@
 | 2 | الأكاديمية | MEETING_ACADEMY.md |
 | 3 | تنبيهات/Setup | MEETING_ALERTS_SETUP.md |
 | 4 | ترندات AI | MEETING_AI_TRENDS_TOOLS.md |
+| 5 | **جارفز وهرمس وبوتات التليجرام** | [MEETING_BOTS_JARVIS_HERMES.md](MEETING_BOTS_JARVIS_HERMES.md) |
 | — | **أساسيات مؤسسات/محترفين** | [INSTITUTIONAL_FOUNDATIONS.md](INSTITUTIONAL_FOUNDATIONS.md) |
 
 ## قبل ما تبدأ
@@ -1242,3 +1243,6 @@ break-even لـ3R = 25%. النتيجة كلها تحته، وكل الـfolds �
 - كل إجراء: قياس قبل → تعديل → قياس بعد → اختبارات → يتسجّل هنا. مفيش كاش عشوائي ولا تقليل حداثة البيانات من غير ما نقيس.
 - الشارت: عدّل `modules/ws/*` وابنِ بـ`scripts/build_workspace.py`، مش الملف المولّد.
 - **ماتجربش لحد دلوقتي:** السيرفر المنشور، جهاز المالك الحقيقي، بيانات حية.
+
+## 2026-11-25 — [Claude] فرع جديد: جارفز وهرمس وبوتات التليجرام
+اتعمل محضر 5: [MEETING_BOTS_JARVIS_HERMES.md](MEETING_BOTS_JARVIS_HERMES.md). أي شغل على Jarvis أو Hermes أو XPiX يتكتب هناك: البوتات، المشاكل المفتوحة، المطلوب من المالك، والمحضر.

@@ -1,0 +1,1 @@
+{"id": "HL:xyz:GOLD|2026-11-25", "symbol": "HL:xyz:GOLD", "class": "Metals", "tf": "1d", "side": "short", "entry": 3550.8, "stop": 4149.0, "target": 2653.5000000000005, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

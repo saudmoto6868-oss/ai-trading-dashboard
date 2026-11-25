@@ -7,6 +7,137 @@
   "side": "both",
   "markets": "e.g. stocks, crypto",
   "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من المتوسط المتحرك لمدة 20 فترة، اوقف الخسارة عند 1% فوق الدخول، الهدف هو 2%.",
+  "evidence": "medium",
+  "evidence_why": "تمت دراسة الاستراتيجية مع بيانات تاريخية، لكن لم يتم ذكر حجم العينة.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "sma20",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "VWAP Reversion",
+  "name_ar": "العودة إلى VWAP",
+  "source_url": "https://github.com/OpenByteInc/QuantDinger",
+  "school": "vwap",
+  "side": "long",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "1h",
+  "rules_text_ar": "ادخل عندما يكون السعر أقل من VWAP، اوقف الخسارة عند 0.5% فوق الدخول، الهدف هو 1.5%.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو حجم عينة محدد.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "<",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "EMA Crossover",
+  "name_ar": "تقاطع المتوسطات المتحركة",
+  "source_url": "https://github.com/rolling-panda-san/notebooks",
+  "school": "ma",
+  "side": "long",
+  "markets": "e.g. forex",
+  "timeframe": "15m",
+  "rules_text_ar": "ادخل عندما يتقاطع EMA9 فوق EMA21، اوقف الخسارة عند 1% تحت الدخول، الهدف هو 2%.",
+  "evidence": "medium",
+  "evidence_why": "تمت دراسة الاستراتيجية مع بيانات تاريخية، لكن لم يتم ذكر حجم العينة.",
+  "rules": [
+   {
+    "a": "ema9",
+    "op": "xa",
+    "b": "ema21",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "RSI Overbought/Sold",
+  "name_ar": "RSI المبالغ فيه/المبالغ فيه",
+  "source_url": "https://github.com/chrisleekr/binance-trading-bot",
+  "school": "other",
+  "side": "both",
+  "markets": "e.g. crypto",
+  "timeframe": "30m",
+  "rules_text_ar": "ادخل عندما يكون RSI أقل من 30 للشراء، أو أعلى من 70 للبيع، اوقف الخسارة عند 1% تحت/فوق الدخول، الهدف هو 2%.",
+  "evidence": "weak",
+  "evidence_why": "لا توجد نتائج خارج العينة أو حجم عينة محدد.",
+  "rules": [],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "VWAP Breakout",
+  "name_ar": "اختراق VWAP",
+  "source_url": "https://github.com/Drakkar-Software/OctoBot",
+  "school": "vwap",
+  "side": "long",
+  "markets": "e.g. stocks",
+  "timeframe": "1d",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر VWAP، اوقف الخسارة عند 1% تحت الدخول، الهدف هو 3%.",
+  "evidence": "none",
+  "evidence_why": "لا توجد نتائج أو بيانات لدعم هذا الادعاء.",
+  "rules": [
+   {
+    "a": "close",
+    "op": "xa",
+    "b": "vwap",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "Session High/Low Break",
+  "name_ar": "اختراق أعلى/أدنى جلسة",
+  "source_url": "https://github.com/fasiondog/hikyuu",
+  "school": "levels",
+  "side": "both",
+  "markets": "e.g. forex",
+  "timeframe": "5m",
+  "rules_text_ar": "ادخل عندما يتجاوز السعر أعلى أو أدنى مستوى للجلسة، اوقف الخسارة عند 1% تحت/فوق الدخول، الهدف هو 2%.",
+  "evidence": "medium",
+  "evidence_why": "تمت دراسة الاستراتيجية مع بيانات تاريخية، لكن لم يتم ذكر حجم العينة.",
+  "rules": [
+   {
+    "a": "high",
+    "op": "xa",
+    "b": "pdh",
+    "v": 0.0,
+    "off": 0.0
+   },
+   {
+    "a": "low",
+    "op": "xa",
+    "b": "pdl",
+    "v": 0.0,
+    "off": 0.0
+   }
+  ],
+  "day": "2026-11-25"
+ },
+ {
+  "name": "Short-Term Reversal Strategy",
+  "name_ar": "استراتيجية الانعكاس قصير الأجل",
+  "source_url": "https://github.com/randomwalkhan/Short-Term-Reversal-Strategy",
+  "school": "mean_reversion",
+  "side": "both",
+  "markets": "e.g. stocks, crypto",
+  "timeframe": "5m",
   "rules_text_ar": "ادخل عندما يكون السعر أقل من SMA20، أوقف الخسارة عند SMA50، وحدد الهدف عند SMA20.",
   "evidence": "medium",
   "evidence_why": "تم إجراء اختبارات خلفية على مجموعة بيانات كبيرة، ولكن لم يتم ذكر تكاليف محددة.",

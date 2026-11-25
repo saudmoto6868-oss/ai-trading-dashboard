@@ -1,0 +1,1 @@
+{"id": "HL:xyz:NVDA|2026-11-25", "symbol": "HL:xyz:NVDA", "class": "Stocks", "tf": "1d", "side": "short", "entry": 151.92, "stop": 211.01, "target": 63.28499999999998, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

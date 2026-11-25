@@ -1,0 +1,1 @@
+{"id": "HL:xyz:TSLA|2026-11-25", "symbol": "HL:xyz:TSLA", "class": "Stocks", "tf": "1d", "side": "short", "entry": 381.23, "stop": 404.39, "target": 346.49000000000007, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

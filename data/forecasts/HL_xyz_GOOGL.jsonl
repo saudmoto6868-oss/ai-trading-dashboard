@@ -1,0 +1,1 @@
+{"id": "HL:xyz:GOOGL|2026-11-25", "symbol": "HL:xyz:GOOGL", "class": "Stocks", "tf": "1d", "side": "short", "entry": 276.28, "stop": 304.96, "target": 233.25999999999996, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

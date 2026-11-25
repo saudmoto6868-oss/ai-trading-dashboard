@@ -1,0 +1,1 @@
+{"id": "HL:xyz:BRENTOIL|2026-11-25", "symbol": "HL:xyz:BRENTOIL", "class": "Oil & Gas", "tf": "1d", "side": "short", "entry": 87.489, "stop": 94.569, "target": 76.869, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

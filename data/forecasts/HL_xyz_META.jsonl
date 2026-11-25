@@ -1,0 +1,1 @@
+{"id": "HL:xyz:META|2026-11-25", "symbol": "HL:xyz:META", "class": "Stocks", "tf": "1d", "side": "short", "entry": 583.62, "stop": 651.7, "target": 481.49999999999994, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

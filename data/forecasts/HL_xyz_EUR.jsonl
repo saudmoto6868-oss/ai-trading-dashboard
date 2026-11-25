@@ -1,0 +1,1 @@
+{"id": "HL:xyz:EUR|2026-11-25", "symbol": "HL:xyz:EUR", "class": "Forex", "tf": "1d", "side": "short", "entry": 1.0949, "stop": 1.1281, "target": 1.0450999999999997, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

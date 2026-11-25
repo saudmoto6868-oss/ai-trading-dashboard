@@ -1,0 +1,1 @@
+{"id": "HL:xyz:GBP|2026-11-25", "symbol": "HL:xyz:GBP", "class": "Forex", "tf": "1d", "side": "short", "entry": 1.3103, "stop": 1.3502, "target": 1.2504499999999998, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

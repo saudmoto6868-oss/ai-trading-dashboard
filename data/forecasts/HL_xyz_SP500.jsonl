@@ -1,0 +1,1 @@
+{"id": "HL:xyz:SP500|2026-11-25", "symbol": "HL:xyz:SP500", "class": "Indices", "tf": "1d", "side": "short", "entry": 7150.8, "stop": 7649.8, "target": 6402.3, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

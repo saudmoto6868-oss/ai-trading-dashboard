@@ -1,6 +1,6 @@
 """Every Radar list option (fv_screen.FILTERS, 410) and every scanner condition (chart_scan.ALL_FILTERS, 96) run on 65 fixed synthetic OHLC series: none may crash, and the number that match at least once must not drop.
 A condition that never matches on random series is NOT proof of a bug (extreme thresholds, special shapes): the table is printed for review. Run: python tests/test_radar_conditions_sweep.py"""
-import sys, math, collections
+import sys, collections
 import os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import numpy as np, pandas as pd
 from modules import fv_screen as F

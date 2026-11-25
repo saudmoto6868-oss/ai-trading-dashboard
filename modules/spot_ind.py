@@ -253,7 +253,6 @@ def _elliott_core(df: pd.DataFrame):
                 return {"kind": "impulse_up" if bull else "impulse_down", "labels": lab, "pivots": zz, "rules": r,
                         "targets": _fib_targets(seg[0][1], seg[5][1], bull, done=True)}
     a, b, c = zz[-3:]
-    bull_abc = a[2] == "H"            # H L H ... a correction down that may be ending
     return {"kind": "abc", "labels": [(a[0], a[1], "A"), (b[0], b[1], "B"), (c[0], c[1], "C")][-3:], "pivots": zz,
             "targets": _fib_targets(b[1], c[1], c[1] > b[1], done=False)}
 

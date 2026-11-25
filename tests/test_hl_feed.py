@@ -1,9 +1,7 @@
 """Hyperliquid TradFi feed (server side) with a mocked API: market list, categories, candles, asset-class lists, scanner.
 Run: python tests/test_hl_feed.py"""
-import json
 import os
 import sys
-import time
 
 import numpy as np
 

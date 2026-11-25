@@ -49,7 +49,7 @@ def _journal_block(plays, times, sym, tf, last_close) -> None:
                  "why taken": " · ".join(r["why_taken"]), "why rejected": " · ".join(r["why_rejected"]),
                  "review": r["review"], "follow-up": r["followup"], "note": r.get("note", "")}
                 for r in sorted(rows, key=lambda r: r["time"], reverse=True)[:100]]
-        st.dataframe(pd.DataFrame(view), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(view), hide_index=True, width="stretch")
 
 
 def render() -> None:
@@ -79,7 +79,7 @@ def render() -> None:
                  "TP1": round(p["tp1"], 2), "TP2": round(p["tp2"], 2)} for p in reversed(plays)]
         st.subheader("Setups (latest first)")
         st.caption(f"{len(plays)} setups on these {len(df)} candles · the chart shows the latest {len(shown)}")
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         done = [p["status"] for p in plays if p["status"] in ("TP2", "stopped", "TP1 then stop")]
         if done:
             st.caption("Closed on this replay: " + ", ".join(f"{k} {done.count(k)}" for k in ("TP2", "TP1 then stop", "stopped"))

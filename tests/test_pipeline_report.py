@@ -1,11 +1,11 @@
 """Tests for modules/pipeline_report.py — synthetic data only."""
-import sys, json
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from modules.pipeline_report import (
     tier_distribution, gate_passed, top_by_avgr,
-    chain_breakdown, fmt_r, _gap_flag, TIER_ORDER
+    chain_breakdown, fmt_r, _gap_flag
 )
 
 ROWS = [

@@ -159,7 +159,7 @@ def _ema(c, n):
 
 
 def spot_only(b: dict, flow: dict | None = None, cot: dict | None = None) -> list[dict]:
-    from modules import spot_ind as I
+    from modules import spot_ind as I  # noqa: F401
     R, st = b["reads"], b.get("stats", {})
     frames = b.get("frames") or {}
     out = []

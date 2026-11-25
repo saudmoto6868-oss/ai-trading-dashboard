@@ -1,5 +1,5 @@
 """Daily baseline calls: call rule, one record per symbol per day, scoring after the horizon, summary file (synthetic, no network)."""
-import os, sys, tempfile, json
+import os, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules import daily_forecast as df_

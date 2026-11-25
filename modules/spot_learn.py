@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = ROOT / "data" / "spot" / "brain_log.jsonl"
-HORIZON_DAYS = {"day": 3, "week": 28, "month": 90, "year": 365}
+HORIZON_DAYS = {"day": 3, "week": 28, "month": 90, "year": 365, "4h": 3, "1d": 10, "1w": 56, "1mo": 180}   # brain horizons + setup timeframes (setup lab: 1D 10 days, 1W 8 weeks)
 BUY_SIDE = {"buy", "accumulate"}
 SELL_SIDE = {"sell", "reduce"}
 MIN_N, MIN_T = 30, 3.0
@@ -44,6 +44,22 @@ def record(brain: dict, path: Path | None = None, when: datetime | None = None) 
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     return len(rows)
+
+
+def record_setups(brain: dict, path: Path | None = None, when: datetime | None = None) -> int:
+    """Log EVERY live setup the desk shows for this market (not only the brain's verdict), so every option is kept and
+    compared over time. Buy setups score as 'buy', exit setups as 'sell'. Nothing here changes any weight."""
+    p = Path(path or LOG)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    t = (when or _now()).replace(microsecond=0).isoformat()
+    n = 0
+    with open(p, "a", encoding="utf8") as f:
+        for x in brain.get("setups") or []:
+            row = {"time": t, "asset": brain.get("asset"), "id": x.get("id"), "horizon": x.get("tf"), "verdict": "buy" if x.get("side") == "buy" else "sell",
+                   "price": brain.get("price"), "entry": x.get("entry"), "stop": x.get("stop"), "target": x.get("target"), "kind": "setup"}
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            n += 1
+    return n
 
 
 def load(path: Path | None = None) -> list[dict]:
@@ -131,7 +147,7 @@ def summary(scored: list[dict]) -> dict:
     """{'horizon|verdict': {n, hit_pct, mean_pct, t, label}} - the label is the only thing the brain may read."""
     groups: dict[str, list[dict]] = {}
     for r in scored:
-        groups.setdefault(f"{r['horizon']}|{r['verdict']}", []).append(r)
+        groups.setdefault(r.get("id") or f"{r['horizon']}|{r['verdict']}", []).append(r)
     res = {}
     for k, rs in sorted(groups.items()):
         rets = [float(x["ret"]) for x in rs]
@@ -158,3 +174,22 @@ def report_ar(res: dict) -> str:
         h, verdict = k.split("|")
         lines.append(f"• {h} / {verdict}: {v['label']} · نجاح {v['hit_pct']:.0f}% · متوسط {v['mean_pct']:+.2f}%")
     return "\n".join(lines)
+
+
+def stability(scored: list[dict]) -> dict:
+    """Does a group hold up over time? Splits each group's outcomes by scoring time into an earlier and a later half.
+    Same sign and both halves with n >= 10 -> 'holds'; sign flip -> 'flips'; too few -> 'not yet'. Labels only, no weights."""
+    groups: dict[str, list[dict]] = {}
+    for r in scored:
+        groups.setdefault(r.get("id") or f"{r['horizon']}|{r['verdict']}", []).append(r)
+    out = {}
+    for k, rs in groups.items():
+        rs = sorted(rs, key=lambda x: x["time"])
+        mid = len(rs) // 2
+        a, b = [float(x["ret"]) for x in rs[:mid]], [float(x["ret"]) for x in rs[mid:]]
+        if len(a) < 10 or len(b) < 10:
+            out[k] = "not yet"
+            continue
+        ma, mb = sum(a) / len(a), sum(b) / len(b)
+        out[k] = "holds" if (ma > 0) == (mb > 0) else "flips"
+    return out

@@ -71,4 +71,23 @@ worse = [{"horizon": "week", "verdict": "accumulate", "ret": -0.02 - 0.001 * (i 
 assert L.summary(worse)["week|accumulate"]["label"].startswith("كان أسوأ")
 assert "مش دليل" in L.report_ar({"day|buy": L.summary(few)["day|buy"]})
 assert L.report_ar({}).startswith("🧠")
+# 9. every live setup is logged (options kept side by side), scored by its own id, never by a verdict
+br2 = {"asset": "GOLD", "price": 100.0, "horizons": {}, "setups": [
+    {"id": "ew_w2", "tf": "1w", "side": "buy", "entry": (99, 101), "stop": 95, "target": 110},
+    {"id": "cl_death", "tf": "1d", "side": "exit", "entry": None, "stop": None, "target": None}]}
+tmp2 = Path(tempfile.mkdtemp()) / "setups.jsonl"
+assert L.record_setups(br2, tmp2, when=T0) == 2
+srows = L.load(tmp2)
+assert {r["id"] for r in srows} == {"ew_w2", "cl_death"} and {r["verdict"] for r in srows} == {"buy", "sell"}
+sc = L.score(srows, {"GOLD": bars(T0 + timedelta(days=1), [100] * 60)}, now=T0 + timedelta(days=200))
+assert {r["id"] for r in sc} == {"ew_w2", "cl_death"}
+assert set(L.summary(sc)) == {"ew_w2", "cl_death"}
+assert L.summary(sc)["ew_w2"]["n"] == 1
+
+# 10. stability: a group that keeps its sign in both halves 'holds'; a sign flip 'flips'; too few rows 'not yet'
+hold = [{"id": "x", "time": (T0 + timedelta(days=i)).isoformat(), "ret": 0.01 + 0.001 * i} for i in range(24)]
+flip = [{"id": "y", "time": (T0 + timedelta(days=i)).isoformat(), "ret": (0.02 if i < 12 else -0.02)} for i in range(24)]
+few = [{"id": "z", "time": (T0 + timedelta(days=i)).isoformat(), "ret": 0.01} for i in range(5)]
+st = L.stability(hold + flip + few)
+assert st == {"x": "holds", "y": "flips", "z": "not yet"}, st
 print("test_spot_learn OK")

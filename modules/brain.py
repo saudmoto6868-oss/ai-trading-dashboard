@@ -145,7 +145,7 @@ def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, 
     lines = [f"🧠 <b>{'مراجعة المخ' if ar else 'Brain review'}</b> · {a['n']} {'فكرة متقيّمة' if ar else 'graded ideas'} · {'متوسط' if ar else 'avg'} {a['avg_r']:+.2f}R · {a['win']}% {'رابحة' if ar else 'wins'}"]
     rows = sorted(st["school"].items(), key=lambda kv: -kv[1]["n"])[:6]
     for name, r in rows:
-        lines.append(f"• {esc(name)}: n={r['n']} · {r['avg_r']:+.2f}R · {r['win']}%" + ("" if r["evidence"] else (" · ⚠ مش دليل (n<30)" if ar else " · ⚠ not evidence (n<30)")))
+        lines.append(f"• {esc(name)}: n={r['n']} · {r['avg_r']:+.2f}R · {r['win']}%" + ("" if r["evidence"] else (" · ⚠ مش دليل (n&lt;30)" if ar else " · ⚠ not evidence (n&lt;30)")))
     if agents:
         lines.append("\n" + agents)
     lines.append("\n<i>R قبل التكاليف. المخ بيسجّل ويقيّم ويقترح بس؛ أي ترقية بتعدي على اللاب الأسبوعي.</i>" if ar else "\n<i>R before costs. The brain logs, grades and suggests only; any promotion goes through the weekly lab.</i>")

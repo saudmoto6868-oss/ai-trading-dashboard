@@ -32,7 +32,7 @@ class Panel {
     bLock.onpointerdown = e => e.stopPropagation(); bLock.onclick = () => { this.locked = !this.locked; this.state.lock2 = this.locked || undefined; this.applyLock(); Ws.save(); };
     const bMin = el("button",null,"–"), bMax = el("button",null,"▢"), bX = el("button",null,"✕");
     [bMin,bMax,bX].forEach(b => b.onpointerdown = e => e.stopPropagation());
-    bMin.onclick = () => { this.min = !this.min; this.state.min = this.min; this.root.classList.toggle("min", this.min); Ws.save(); };
+    bMin.onclick = () => { this.min = !this.min; this.state.min = this.min; this.root.classList.toggle("min", this.min); Ws.save(); if (!this.min && this.kick) this.kick(); };
     bMax.onclick = () => this.toggleMax(); bX.onclick = () => { if (!this.locked) this.close(); };
     // per-widget colours: header/border accent + body tint (saved with the layout)
     const mkCol = (title, key) => { const i = el("input"); i.type = "color"; i.title = title; i.className = "pc"; i.value = this.state[key] || (key === "col" ? "#1e2329" : "#0b0e11");
@@ -685,7 +685,8 @@ class Panel {
         if (sd && sd.sym === sym && sd.tf === tf && !this.chart.data.length){ this.chart.setData(sd.rows.map(x => ({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]})), true); this.msg.textContent += " — showing saved snapshot"; }
       }
       if (!this.chart.data.length) fails++;
-      this.timer = setTimeout(() => loop(!this.chart.data.length), !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || (/^HL:/.test(sym) ? hlPoll(tf) : 2000)));   // Hyperliquid: 6 s (its request weight is limited per minute; 4 gold charts polling every 2 s alone were ~1500 of 1200)
+      { const ms = !this.chart.data.length && fails ? Math.min(15000, 2000*Math.pow(2, fails-1)) : (this.state.rf || (/^HL:/.test(sym) ? hlPoll(tf) : 2000));
+        this.timer = setTimeout(() => loop(!this.chart.data.length), document.hidden ? Math.max(ms, 30000) : this.min ? Math.max(ms, 15000) : ms); }   // M1: hidden tab 30 s, minimised widget 15 s; wake() / un-minimise kick it back at once   // Hyperliquid: 6 s (its request weight is limited per minute; 4 gold charts polling every 2 s alone were ~1500 of 1200)
     };
     this.kick = () => { if (tok !== this.tok) return; clearTimeout(this.timer); loop(!this.chart.data.length); };   // restart the polling right now (tab came back, network came back)
     loop(true);

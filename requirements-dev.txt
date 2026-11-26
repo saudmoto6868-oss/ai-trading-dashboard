@@ -1,3 +1,4 @@
 # Developer / test requirements. The Streamlit deploy stays on requirements.txt (same precedent as requirements-extra.txt).
 -r requirements.txt
 pytest>=8
+playwright   # tests/test_bot_spot.py, tests/test_xpix_bot_plan.py drive a real headless Chromium

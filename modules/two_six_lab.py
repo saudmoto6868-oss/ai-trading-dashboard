@@ -93,10 +93,9 @@ def render() -> None:
 
 
 def _research_status() -> None:
-    overview, engines, evidence = st.tabs(
-        ["Overview", "Strategy engines", "Evidence & next steps"]
-    )
-    with overview:
+    # one view at a time: only the picked section runs (maintenance plan M4)
+    view = st.segmented_control("View", ["Overview", "Strategy engines", "Evidence & next steps"], default="Overview", key="tsl_status_view", label_visibility="collapsed") or "Overview"
+    if view == "Overview":
         left, right = st.columns(2)
         with left:
             st.subheader("Independent research pipeline")
@@ -129,7 +128,7 @@ def _research_status() -> None:
             "increasing unique times, positive OHLC values, and OHLC integrity."
         )
 
-    with engines:
+    if view == "Strategy engines":
         h1, h2 = st.columns(2)
         with h1:
             st.subheader("H1 · Retracement Entry")
@@ -158,7 +157,7 @@ def _research_status() -> None:
                 "- Must not inherit H1 results"
             )
 
-    with evidence:
+    if view == "Evidence & next steps":
         st.subheader("Validation backlog")
         items = [
             "Run unit tests after CI quota returns",

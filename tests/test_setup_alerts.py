@@ -5,6 +5,10 @@ import pandas as pd
 from modules import day_plan as D
 import modules.scorer as SC
 
+import re as _re
+def _tg_html_ok(t):   # Telegram HTML: every "<" must open/close an allowed tag (raw "n<30" made Telegram reject whole messages, 2026-11-25)
+    return all(_re.match(r"</?(b|i|u|s|a|code|pre|tg-spoiler|blockquote)(\s[^>]*)?>", t[m.start():]) for m in _re.finditer("<", t))
+
 df = pd.DataFrame({"time": pd.date_range("2026-11-06", periods=80, freq="1h"), "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5, "volume": 1.0})
 def sig(key, fam, d, **p):
     return {"key": key, "family": fam, "name": f"{key} {d}", "direction": d, "icon": "x", "prices": p}
@@ -24,6 +28,7 @@ try:
     assert c["entry"] > c["stop"] and c["tps"][0] > c["entry"] and c["move_points"] >= 100 and c["risk_points"] > 0
     assert D.setup_alerts("HL:xyz:GOLD", frames, min_points=10**7) == []                       # a move that cannot reach the threshold is dropped
     t = D.format_setup(c, ar=True)
+    assert _tg_html_ok(t) and _tg_html_ok(D.format_setup(c, ar=False)), "format_setup is not valid Telegram HTML"
     assert "CISD" in t and "مع اتجاه" in t and "نقطة" in t and len(t) < 3900
     assert "against" in D.format_setup(next(x for x in a if x["key"] == "ew3"), ar=False)
     res = D.scan_setups(["HL:xyz:GOLD"], lambda s_, t_: df)

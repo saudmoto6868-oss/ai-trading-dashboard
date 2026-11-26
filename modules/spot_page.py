@@ -1246,8 +1246,6 @@ def _tab_signals(d, px) -> None:
 def render() -> None:
     d = load()
     st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
-    fx, fx_src = _fx(d)
-    px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
     # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
     # Only the picked tab runs (st.tabs ran every tab on every rerun, i.e. every auto-refresh). Same tabs, same order.
@@ -1258,6 +1256,9 @@ def render() -> None:
              T("Signals & alarms", "الإشارات والتنبيهات")]
     pick = st.segmented_control(" ", list(range(len(names))), default=0, format_func=lambda i: names[i], key="sp_tab", label_visibility="collapsed")
     idx = 0 if pick is None else pick
+    # load prices only for the tabs that use them (maintenance plan M5 / 2026-11-09 item)
+    fx, fx_src = _fx(d) if idx in (0, 2, 3, 4, 7) else (None, "")
+    px, met, cr = _prices() if idx in (0, 2, 3, 4, 5, 7, 8, 10, 12) else ({}, {}, [])
     if idx == 0:
         _tab_brain(d, px, met, cr, fx)
     elif idx == 1:

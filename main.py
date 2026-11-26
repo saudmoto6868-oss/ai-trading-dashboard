@@ -3501,7 +3501,8 @@ def render_info_strip():
 
 render_info_strip()
 
-if PAGE == 0:   # workspace
+def _page_0():   # workspace
+    global _DP, _JSYNC, _cal, _cmc, _e, _err, _mac, _n, _news, _stk, _stk_t, _tfs, _tga, _tga_e2, _tga_n2, _ws_stat, _yf, _yf_job, cached_ws, render_bridge, world_errs, world_items, ws_lang, ws_links   # M7: same module-level names as before the page became a function
     _ws_stat = st.empty()   # loading steps shown while the server builds the Workspace (cleared once it is sent)
     try:
         _ws_stat.caption("⏳ Workspace: scan state...")
@@ -3540,14 +3541,17 @@ if PAGE == 0:   # workspace
         _stk_t = _stock_tickers()
         _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
         _ws_stat.caption("⏳ Workspace: building the page...")
-        from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
-        _JSYNC.sync()
         _tfs = get_tf_stats()
         render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
                          scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
                          ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
                          ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
         _ws_stat.empty()
+        try:   # mounted AFTER the workspace (like the guide bridge): mounted before it, the hidden iframe could miss Streamlit's 60 s ready window on a slow load and show a yellow warning
+            from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
+            _JSYNC.sync()
+        except Exception:
+            pass
         try:
             from modules.guide_ai import render_bridge
             render_bridge()   # hidden: lets the guide character ask Claude without the key reaching the browser
@@ -3625,7 +3629,8 @@ def render_smt_board():
         st.markdown(_IMU.event_card(e, ar=ar), unsafe_allow_html=True)
 
 
-if PAGE == 1:   # cscan
+def _page_1():   # cscan
+    global SCAN_SYMBOLS, _IMU, _OLD_RV, _ac_msg2, _acm, _disp, _e, _il, _o, _rf, _rv, _x77_send, _xe   # M7: same module-level names as before the page became a function
     try:   # one tab bar, charts first (owner 2026-10-22/23); ONE filter panel under it feeds every view; only the open view runs
         # views merged (owner 2026-11-16): Screener + Signal list, and Similar charts + Correlation + Performance under "Compare"
         _OLD_RV = {"Signal list": ("Screener", "Signal list"), "Similar charts": ("Compare", "Similar charts"), "Correlation": ("Compare", "Correlation"), "Performance": ("Compare", "Performance")}
@@ -3678,16 +3683,17 @@ if PAGE == 1:   # cscan
 # The Workspace shows "scanning..." and picks the results up on the next normal run.
 
 
-if PAGE == 2:   # lab
+def _page_2():   # lab
     render_lab_page()
 
-if PAGE == 7:   # academy (owner 2026-10-23): lessons from the team's research, each with a status and a review verdict
+def _page_7():   # academy (owner 2026-10-23): lessons from the team's research, each with a status and a review verdict
     render_academy_page()
 
-if PAGE == 3:   # playbook
+def _page_3():   # playbook
     render_playbook_page()
 
-if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
+def _page_5():   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
+    global _U, _adx, _ai_tab, _c, render_ai_page   # M7: same module-level names as before the page became a function
     if st.session_state.get("ai_tab") not in ("Mr X", "Backtest agent"):   # 2026-11-09: Agent desk folded under Mr X (owner approved)
         st.session_state.pop("ai_tab", None)
     _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
@@ -3707,7 +3713,7 @@ if PAGE == 5:   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent
             [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
         _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
-if PAGE == 6:   # alerts (owner 2026-10-22: built as a real page)
+def _page_6():   # alerts (owner 2026-10-22: built as a real page)
     render_alerts_page()
 
 def render_kpi_strip(jdf):
@@ -3789,14 +3795,16 @@ def _stats_journal_kpis(jdf):
         st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
 
 
-if PAGE == 8:   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
+def _page_8():   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
+    global _lab_exc, render_lab_summary   # M7: same module-level names as before the page became a function
     try:
         from modules.lab_summary import render_lab_summary
         render_lab_summary(_scan_store().get("payload") or {})
     except Exception as _lab_exc:
         st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
     st.stop()
-if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
+def _page_9():   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
+    global _HUB_TABS, _hi, _hub_exc, _hub_fn, _hub_mod, _hub_tab, _hub_ui, _il_hub   # M7: same module-level names as before the page became a function
     try:
         import importlib as _il_hub
         from modules import hub_ui as _hub_ui
@@ -3815,7 +3823,8 @@ if PAGE == 9:   # Research Hub (owner 2026-10-29): separate tabs that read each 
     except Exception as _hub_exc:
         st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
     st.stop()
-if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+def _page_4():   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
+    global _c, _dd, _e, _html, _jdf, _m, _mc, _mc_render, _mc_summary, _msg, _pd, _ret, _risk, _st, _stab, _up, perf_stats, quantstats_html, returns_from_trades   # M7: same module-level names as before the page became a function
     if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
         st.session_state.pop("stats_tab", None)
     _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
@@ -3870,7 +3879,8 @@ if PAGE == 4:   # journal (2026-11-09: mock Edge Map / Robustness / Execution an
         except Exception as _e:
             st.error(f"Could not read the file: {type(_e).__name__}: {_e}")
 
-if PAGE == 10:   # prop firms (added 2026-11-04)
+def _page_10():   # prop firms (added 2026-11-04)
+    global _pf_exc, render_prop_firms   # M7: same module-level names as before the page became a function
     try:
         from modules.prop_firms import render_prop_firms
         render_prop_firms()
@@ -3878,7 +3888,8 @@ if PAGE == 10:   # prop firms (added 2026-11-04)
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
     st.stop()
 
-if PAGE == 12:   # TIA institutional intelligence terminal (new standalone parent-company workspace)
+def _page_12():   # TIA institutional intelligence terminal (new standalone parent-company workspace)
+    global _tia_exc, render_tia   # M7: same module-level names as before the page became a function
     try:
         from modules.tia_page import render_tia
         render_tia()
@@ -3886,7 +3897,8 @@ if PAGE == 12:   # TIA institutional intelligence terminal (new standalone paren
         st.error(f"TIA: {type(_tia_exc).__name__}: {_tia_exc}")
     st.stop()
 
-if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
+def _page_11():   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
+    global _sp_exc, _spot_render   # M7: same module-level names as before the page became a function
     try:
         from modules.spot_page import render as _spot_render
         _spot_render()
@@ -3894,7 +3906,8 @@ if PAGE == 11:   # Spot desk: crypto + metals, ledger / invoices, alerts (added 
         st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
     st.stop()
 
-if PAGE == 17:   # Trade Intelligence Center (MR !27, additive; knowledge + meeting journal, read-only over Lab / Radar / Spot)
+def _page_17():   # Trade Intelligence Center (MR !27, additive; knowledge + meeting journal, read-only over Lab / Radar / Spot)
+    global _tic_exc, _tic_render   # M7: same module-level names as before the page became a function
     try:
         from modules.intelligence_center_ui import render as _tic_render
         _tic_render()
@@ -3902,7 +3915,8 @@ if PAGE == 17:   # Trade Intelligence Center (MR !27, additive; knowledge + meet
         st.error(f"Trade Intelligence Center: {type(_tic_exc).__name__}: {_tic_exc}")
     st.stop()
 
-if PAGE == 18:   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md
+def _page_18():   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md
+    global _v7_exc, _v7_render   # M7: same module-level names as before the page became a function
     try:
         from modules.v7_page import render as _v7_render
         _v7_render()
@@ -3910,7 +3924,8 @@ if PAGE == 18:   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7;
         st.error(f"V7 Research: {type(_v7_exc).__name__}: {_v7_exc}")
     st.stop()
 
-if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status only, no orders / prices
+def _page_19():   # 2.6 Strategy Intelligence (owner 2026-11-13): research status only, no orders / prices
+    global _ts_exc, _two_six_render   # M7: same module-level names as before the page became a function
     try:
         from modules.two_six_lab import render as _two_six_render
         _two_six_render()
@@ -3918,7 +3933,8 @@ if PAGE == 19:   # 2.6 Strategy Intelligence (owner 2026-11-13): research status
         st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
     st.stop()
 
-if PAGE == 22:   # Preview (owner 2026-11-21): built-but-unwired pages / tools / libraries, for the owner to review; read-only
+def _page_22():   # Preview (owner 2026-11-21): built-but-unwired pages / tools / libraries, for the owner to review; read-only
+    global _pv_exc, _pv_render   # M7: same module-level names as before the page became a function
     try:
         from modules.unwired_preview import render as _pv_render
         _pv_render(st, L)
@@ -3926,7 +3942,7 @@ if PAGE == 22:   # Preview (owner 2026-11-21): built-but-unwired pages / tools /
         st.error(f"Preview: {type(_pv_exc).__name__}: {_pv_exc}")
     st.stop()
 
-if PAGE == 23:   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
+def _page_23():   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
     try:
         from modules.ledger_page import render as _ledger_render
         _ledger_render()
@@ -3934,7 +3950,8 @@ if PAGE == 23:   # Strategy Ledger (owner 2026-11-24): every strategy's plans re
         st.error(f"Strategy Ledger: {type(_lg_exc).__name__}: {_lg_exc}")
     st.stop()
 
-if PAGE == 21:   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders
+def _page_21():   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders
+    global _x77_render, _x_exc   # M7: same module-level names as before the page became a function
     try:
         from modules.x77_page import render as _x77_render
         _x77_render()
@@ -3942,7 +3959,8 @@ if PAGE == 21:   # X77 (owner 2026-11-20): saved items + chart labels by school;
         st.error(f"X77: {type(_x_exc).__name__}: {_x_exc}")
     st.stop()
 
-if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
+def _page_20():   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
+    global _rsi_heatmap_render, _rsi_hm_exc   # M7: same module-level names as before the page became a function
     try:
         from modules.rsi_heatmap import render as _rsi_heatmap_render
         _rsi_heatmap_render()
@@ -3950,7 +3968,8 @@ if PAGE == 20:   # RSI Heatmap Intelligence (MR !68): additive market-wide resea
         st.error(f"RSI Heatmap: {type(_rsi_hm_exc).__name__}: {_rsi_hm_exc}")
     st.stop()
 
-if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+def _page_16():   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
+    global _fn, _nm, _om_exc   # M7: same module-level names as before the page became a function
     st.markdown(kit_css(), unsafe_allow_html=True)
     for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
         try:
@@ -3960,3 +3979,10 @@ if PAGE == 16:   # Trading > Options & macro (2026-11-09, moved out of the Techn
         if _nm == "Macro regime":
             st.divider()
     st.stop()
+
+
+
+# M7 (maintenance plan 4.1): one function per page, exactly one runs (the old `if PAGE == N:` blocks, same order of indexes).
+_PAGE_FN = {0: _page_0, 1: _page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 6: _page_6, 8: _page_8, 9: _page_9, 4: _page_4, 10: _page_10, 12: _page_12, 11: _page_11, 17: _page_17, 18: _page_18, 19: _page_19, 22: _page_22, 23: _page_23, 21: _page_21, 20: _page_20, 16: _page_16}
+if PAGE in _PAGE_FN:
+    _PAGE_FN[PAGE]()

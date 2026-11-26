@@ -37,9 +37,13 @@ from modules.risk_engine import build_trade_plan
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.workspace import render_workspace, seed_from_df
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
-from modules.page_kit import md_sections as _md_sections, office_bars as _office_bars, kit_theme as _kit_theme, kit_css   # moved out of main.py (M7)
+from modules.page_kit import md_sections as _md_sections, office_bars as _office_bars, kit_css, xl as _xl, has_secret as _has_secret   # moved out of main.py (M7)
 from modules.page_playbook import render_playbook_page   # Playbook page moved out of main.py (M7)
 from modules.page_academy import render_academy_page   # Academy page moved out of main.py (M7)
+from modules import page_options as _pg16   # page 16 moved out of main.py (M7)
+from modules import page_alerts as _pg6   # page 6 moved out of main.py (M7)
+from modules import page_journal as _pg4   # page 4 moved out of main.py (M7)
+from modules import page_hub as _pg9   # page 9 moved out of main.py (M7)
 from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
@@ -443,11 +447,6 @@ def render_scanner(results, notice, key):
     st.caption(_xl("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.",
                    "Stars = how many of the 7 signal families agree. Coloured boxes = the strategy that gave the signal."))
     return filtered
-
-
-def _xl(ar_text, en_text):
-    """One language at a time: the Arabic text on the Arabic site, the English text otherwise."""
-    return ar_text if _ui_lang() == "ar" else en_text
 
 
 def _rtl(lines, bullets=True):
@@ -1278,13 +1277,6 @@ def _source_ping():
     return out
 
 
-def _has_secret(name):
-    try:
-        return bool(os.environ.get(name) or st.secrets.get(name))
-    except Exception:
-        return bool(os.environ.get(name))
-
-
 def _office_charts():
     from modules import office_kpi as _OK
     d = _OK.load()
@@ -1672,142 +1664,6 @@ def _office_detector():
     st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
 
 
-def _office_options():
-    """Technical Office > Options desk: the crypto option market from Deribit's free public book (no chart needed). Per-expiry put/call,
-    max pain, ATM IV, skew proxy and OI walls, the IV term structure, and plain-Arabic reading lines. Context, not a trade signal."""
-    import altair as alt
-    import pandas as _pd
-    from modules import office_ui as U, options_desk as OD
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    cur = st.segmented_control(L("Underlying"), ["BTC", "ETH"], default="BTC", key="od_cur", label_visibility="collapsed") or "BTC"
-
-    @st.cache_data(ttl=120, show_spinner=False)
-    def _rows(c):
-        return OD.fetch(c)
-    try:
-        rows = _rows(cur)
-    except Exception as e:
-        st.warning(f"Deribit: {type(e).__name__}: {e}")
-        return
-    s = OD.summarize(rows)
-    ex = s["expiries"]
-    try:
-        @st.cache_data(ttl=1800, show_spinner=False)
-        def _dv(c):
-            return OD.dvol(c)
-        hist = _dv(cur)
-        rk = OD.iv_rank([v for _d, v in hist])
-    except Exception:
-        hist, rk = [], None
-    if not ex:
-        st.info(L("No option data."))
-        return
-    t = s["totals"]
-    near = next((e for e in ex if e["days"] >= 1), ex[0])
-    st.markdown("<div class='xo-row'>" + U.indicators(f"{cur} · Deribit", [
-        (L("Spot (index)"), f"{s['spot']:,.0f}", "", None),
-        (L("Open interest"), f"{t['oi']:,.0f} {cur}", "", None),
-        (L("Put / call (open interest)"), f"{t['pc_oi']}" if t["pc_oi"] else "-", L("all expiries"), "warn" if t["pc_oi"] and t["pc_oi"] > 1 else None),
-        (L("Volume (24 h)"), f"{t['vol']:,.0f} {cur}", "", None),
-        (L("Nearest expiry"), str(near["exp"]), f"{near['days']} " + L("days"), None),
-        (L("ATM IV, nearest"), f"{near['iv']}%" if near["iv"] else "-", L("annualised"), None),
-        (L("IV rank (1 year)"), f"{rk['rank']:.0f}%" if rk else "-", (f"DVOL {rk['now']} · " + L("min") + f" {rk['min']} / " + L("max") + f" {rk['max']} · " + L("percentile") + f" {rk['percentile']:.0f}%") if rk else L("DVOL history not available"), None)]) + "</div>", unsafe_allow_html=True)
-    df = _pd.DataFrame([{L("Expiry"): str(e["exp"]), L("Days"): e["days"], L("Open interest"): e["oi"], "P/C OI": e["pc_oi"], "P/C vol": e["pc_vol"],
-                         L("Max pain"): e["max_pain"], "ATM IV %": e["iv"], L("Skew ±10% (put IV - call IV)"): e["skew10"],
-                         L("Biggest strikes"): " · ".join(f"{int(k)}{c} ({oi:,.0f})" for k, c, oi in e["walls"])} for e in ex])
-    a, b = st.columns([1, 1])
-    with a:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('IV term structure'))}</div>", unsafe_allow_html=True)
-        ts = _pd.DataFrame([{"days": e["days"], "iv": e["iv"], "exp": str(e["exp"])} for e in ex if e["iv"]])
-        if len(ts):
-            st.altair_chart(alt.Chart(ts).mark_line(point=True, color="#2dd4bf").encode(x=alt.X("days:Q", title=L("Days")), y=alt.Y("iv:Q", title="IV %", scale=alt.Scale(zero=False)),
-                            tooltip=["exp", "days", "iv"]).properties(height=220), width="stretch")
-    with b:
-        pick = st.selectbox(L("Expiry"), [str(e["exp"]) for e in ex], index=ex.index(near), key="od_exp")
-        d_pick = next(e for e in ex if str(e["exp"]) == pick)
-        ks = _pd.DataFrame(OD.strikes(rows, d_pick["exp"], s["spot"]), columns=["strike", "calls", "puts"])
-        if len(ks):
-            lng = ks.melt("strike", var_name="side", value_name="oi")
-            ch = alt.Chart(lng).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("oi:Q", title=L("Open interest")), color=alt.Color("side:N",
-                    scale=alt.Scale(domain=["calls", "puts"], range=["#2dd4bf", "#f87171"]), legend=alt.Legend(orient="top")), tooltip=["strike", "side", "oi"])
-            rl = alt.Chart(_pd.DataFrame({"x": [s["spot"]], "t": [L("Spot (index)")]})).mark_rule(color="#f0b429", strokeDash=[6, 4]).encode(x="x:Q")
-            mp = alt.Chart(_pd.DataFrame({"x": [d_pick["max_pain"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q")
-            st.altair_chart((ch + rl + mp).properties(height=220), width="stretch")
-            st.caption(L("Gold line = spot, purple dotted = max pain for this expiry."))
-    st.dataframe(df, hide_index=True, width="stretch")
-    # plain reading of the nearest expiry: description, never a signal
-    lines = []
-    _oa = _ui_lang() == "ar"
-    _ot = lambda e, a: a if _oa else e   # English / Arabic text of this reading, chosen by the site language
-    if near["pc_oi"]:
-        lines.append(_ot(f"Put / call ratio by open interest for the nearest expiry ({near['exp']}) = {near['pc_oi']}: ", f"نسبة puts / calls بالـ open interest لأقرب استحقاق ({near['exp']}) = {near['pc_oi']}: ") +
-                     (_ot("more puts than calls; often protection and hedge positions, not necessarily a bearish bet.", "puts أكتر من calls؛ غالباً حماية ومراكز هيدج، مش رهان هابط بالضرورة.") if near["pc_oi"] > 1.1 else
-                      _ot("more calls than puts; seen with optimism or with covered-call selling, not necessarily a rise.", "calls أكتر من puts؛ بيحصل مع التفاؤل أو مع بيع calls مغطاة، مش بالضرورة صعود.") if near["pc_oi"] < 0.8 else _ot("roughly balanced.", "متوازنة تقريباً.")))
-    if near["max_pain"] and s["spot"]:
-        dist = (near["max_pain"] / s["spot"] - 1) * 100
-        lines.append(_ot(f"Max pain = {near['max_pain']:,.0f} ({dist:+.1f}% from the price). The pull toward it tends to matter only in the last day or two before expiry.",
-                         f"الـ max pain = {near['max_pain']:,.0f} ({dist:+.1f}% عن السعر). نظرية الشد ناحيته بتبقى ذات معنى في آخر يوم أو يومين قبل الاستحقاق بس."))
-    wk = next((e for e in ex if e["days"] >= 7 and e["skew10"] is not None), None)   # the 1-day wings are illiquid, so skew is read from >= 7 days
-    if wk:
-        lines.append(_ot(f"Skew for the {wk['exp']} expiry (put IV 10% below minus call IV 10% above) = ", f"السكيو لاستحقاق {wk['exp']} (IV بوت 10% تحت ناقص IV كول 10% فوق) = ") + f"{wk['skew10']:+.1f}: " +
-                     (_ot("the market pays more for protection against a fall.", "السوق بيدفع أكتر للحماية من النزول.") if wk["skew10"] > 3 else _ot("the market pays more for upside.", "السوق بيدفع أكتر للصعود.") if wk["skew10"] < -3 else _ot("no clear tilt.", "مفيش ميل واضح.")))
-    if rk:
-        lines.append(_ot(f"IV rank over one year = {rk['rank']:.0f}% (DVOL {rk['now']} between a low of {rk['min']} and a high of {rk['max']}): ", f"الـ IV rank سنة = {rk['rank']:.0f}% (الـ DVOL {rk['now']} بين أقل {rk['min']} وأعلى {rk['max']}): ") +
-                     (_ot("implied volatility is cheap relative to the year; options are not expensive and the market is not pricing stress.", "التقلب الضمني رخيص نسبياً مقارنة بالسنة؛ الأوبشنز غير غالية، والسوق مش مسعّر توتر.") if rk["rank"] < 25 else
-                      _ot("implied volatility is expensive relative to the year; the market is pricing stress or an event.", "التقلب الضمني غالي نسبياً؛ السوق مسعّر توتر أو حدث.") if rk["rank"] > 75 else _ot("mid-range for the year.", "وسط السنة.")) + _ot(" (A description, not a signal.)", " (وصف، مش إشارة.)"))
-    ivs = [e for e in ex if e["iv"] and e["days"] >= 1]
-    if len(ivs) >= 3:
-        lines.append(_ot("IV structure: ", "هيكل الـ IV: ") + (_ot("inverted (near expiries cost more than far ones): the market is tense in the short term.", "مقلوب (القريب أغلى من البعيد): السوق متوتر على المدى القصير.") if ivs[0]["iv"] > ivs[-1]["iv"] + 2 else
-                                       _ot("normal (far expiries cost more): relative calm.", "طبيعي (البعيد أغلى): هدوء نسبي.") if ivs[-1]["iv"] > ivs[0]["iv"] + 2 else _ot("flat.", "مسطح.")))
-    st.markdown(f"<div class='xo-card' dir='{'rtl' if _oa else 'ltr'}' style='line-height:24px'><b>" + _ot("Reading of the nearest expiry (context, not a signal)", "قراءة أقرب استحقاق (سياق مش إشارة)") + "</b><br>" + "<br>".join(html.escape(x) for x in lines) + "</div>", unsafe_allow_html=True)
-    # GEX (gamma exposure) from the same book: call wall, put wall, gamma flip (modules/gex.py). Naive dealer sign; context, not a signal.
-    def _gex_block(chain, spot, mult, title, days):
-        from modules import gex as GX
-        _td = _pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
-        gx, tb = GX.levels(chain, spot, _td, max_days=days, mult=mult), GX.by_strike(chain, spot, _td, max_days=days, mult=mult)
-        if not gx["n_contracts"]:
-            st.info(L("No open interest to compute GEX."))
-            return
-        f = lambda v: f"{v:,.0f}" if v else "-"
-        st.markdown("<div class='xo-row'>" + U.indicators(title, [
-            (L("Call wall"), f(gx["call_wall"]), L("strike with the most call gamma"), None),
-            (L("Put wall"), f(gx["put_wall"]), L("strike with the most put gamma"), None),
-            (L("Gamma flip"), f(gx["gamma_flip"]), L("total GEX changes sign near here"), None),
-            (L("Net GEX per 1% move"), f"${gx['net_gex'] / 1e6:,.1f}M", L("positive = moves dampened, negative = moves can extend"), "warn" if gx["net_gex"] < 0 else None)]) + "</div>", unsafe_allow_html=True)
-        nb = tb[(tb.index >= spot * 0.8) & (tb.index <= spot * 1.2)].reset_index()
-        if len(nb):
-            nb["side"] = nb["net_gex"].map(lambda v: "+" if v >= 0 else "-")
-            bars = alt.Chart(nb).mark_bar().encode(x=alt.X("strike:Q", title=L("Strike")), y=alt.Y("net_gex:Q", title="GEX $ / 1%"),
-                                                   color=alt.Color("side:N", scale=alt.Scale(domain=["+", "-"], range=["#e3a857", "#b8574a"]), legend=None), tooltip=["strike", "call_gex", "put_gex", "net_gex"])
-            marks = [alt.Chart(_pd.DataFrame({"x": [spot]})).mark_rule(color="#eaecef", strokeDash=[6, 4]).encode(x="x:Q")]
-            if gx["gamma_flip"]:
-                marks.append(alt.Chart(_pd.DataFrame({"x": [gx["gamma_flip"]]})).mark_rule(color="#a78bfa", strokeDash=[2, 3]).encode(x="x:Q"))
-            ch_ = bars
-            for m_ in marks:
-                ch_ = ch_ + m_
-            st.altair_chart(ch_.properties(height=220), width="stretch")
-            st.caption(L("Gold = positive GEX, rust = negative; white dashed = spot, purple dotted = gamma flip."))
-        st.caption(L("GEX assumes dealers are long the calls and short the puts the public holds; public data cannot confirm who is long or short, and providers disagree. Context, not a trade signal."))
-    st.markdown(f"<div class='xo-h'>{html.escape(L('Gamma exposure (GEX)'))}</div>", unsafe_allow_html=True)
-    try:
-        _gex_block(OD.gex_chain(rows), s["spot"], 1, f"GEX · {cur} · " + L("expiries up to 45 days"), 45)
-    except Exception as _e:
-        st.warning(f"GEX: {type(_e).__name__}: {_e}")
-    with st.expander(L("GEX for a US index / stock (Cboe, 15 min delayed)")):
-        _us = (st.text_input(L("Symbol"), value="SPX", key="od_gex_us") or "SPX").strip().upper()
-        if st.button(L("Load"), key="od_gex_us_go"):
-            try:
-                from modules import cboe_options as CB
-                _px, _chain = CB.fetch(_us)
-                if not _px:
-                    st.warning(L("Cboe sent no underlying price."))
-                else:
-                    _gex_block(_chain, float(_px), 100, f"GEX · {_us} · Cboe · " + L("expiries up to 30 days"), 30)
-            except Exception as _e:
-                st.warning(f"Cboe: {type(_e).__name__}: {_e}")
-    st.caption(L("The open interest and volume do not say if a trade opened or closed a position, or whether it was a hedge or a bet; put/call and walls are context. IV rank uses Deribit's DVOL daily history. Free Deribit data, about 2 minutes old. Educational, not investment advice."))
-
-
 def _flow_zone_section():
     """Flow lab > confluence-zone forward test: judge the zone log exported from the Workspace (menu 'Export zone test log')."""
     import json as _json
@@ -2019,42 +1875,6 @@ def _office_strategy_map():
     st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
 
 
-def _office_regime():
-    """Technical Office > Macro regime: risk-on / neutral / risk-off from five FRED series (modules/fred_regime.py), walk-forward with
-    publication delays (no look-ahead). A description of financial conditions, not a trade signal."""
-    import altair as alt
-    import pandas as _pd
-    from modules import office_ui as U, fred_regime as FR
-    st.markdown(U.CSS, unsafe_allow_html=True)
-
-    @st.cache_data(ttl=6 * 3600, show_spinner=False)
-    def _load():
-        return FR.load_all()
-    frames, errs = _load()
-    if errs:
-        st.caption(L("Not loaded: ") + ", ".join(errs))
-    if not frames:
-        st.warning(L("FRED did not answer; try again later."))
-        return
-    now = _pd.Timestamp.now(tz="UTC").tz_localize(None)
-    r = FR.regime_at(frames, now)
-    if r["score"] is None:
-        st.info(L("Not enough FRED history yet."))
-        return
-    names = {"risk-on": L("Risk on"), "neutral": L("Neutral"), "risk-off": L("Risk off")}
-    items = [(L("Regime now"), names[r["regime"]], L("score") + f" {r['score']:+.2f} · {r['n']}/5 " + L("series"), "warn" if r["regime"] == "risk-off" else None)]
-    items += [(L(p["label"]), f"{p['value']:.2f}", f"z {p['z']:+.2f} · " + L("known since") + f" {p['known_since'].date()}", "warn" if p["contrib"] > 1 else None) for p in r["parts"]]
-    st.markdown("<div class='xo-row'>" + U.indicators(L("Macro regime (FRED)"), items) + "</div>", unsafe_allow_html=True)
-    h = FR.history(frames, start=now - _pd.DateOffset(years=3), end=now)
-    if len(h):
-        line = alt.Chart(h).mark_line(color="#e3a857").encode(x=alt.X("date:T", title=None), y=alt.Y("score:Q", title=L("Stress score")), tooltip=["date:T", "score:Q", "regime:N"])
-        rules = alt.Chart(_pd.DataFrame({"y": [FR.TH, -FR.TH]})).mark_rule(color="#8f877a", strokeDash=[4, 4]).encode(y="y:Q")
-        st.altair_chart((line + rules).properties(height=240), width="stretch")
-        cnt = h["regime"].value_counts()
-        st.caption(L("Last 3 years, weekly: ") + " · ".join(f"{names.get(k, k)} {int(v)}" for k, v in cnt.items()))
-    st.caption(L("Each point uses only data that was public on that day (publication delay 1 day for the daily series, 5-7 days for the weekly ones); every series is compared with its own previous 252 values. Above +0.5 = risk off, below -0.5 = risk on. A description of financial conditions, not a trade signal: it has not been backtested as a timing rule. Free FRED data, no key."))
-
-
 def _office_control():
     """Technical Office > Control room: status, gauge, alerts, charts, system map; under it the work board (left) and the GitHub workflows (right)."""
     _office_overview()
@@ -2110,47 +1930,6 @@ def render_lab_page():
         tabs.get(pick or "Control room", _office_overview)()
     except Exception as e:
         st.error(f"Technical Office: {type(e).__name__}: {e}")
-
-
-def render_alerts_page():
-    """Alerts (owner 2026-10-22): control-room cards for every alert source with its real state, the Telegram link,
-    and the plan for Radar alerts (task 17). Nothing here sends an order."""
-    from modules import office_ui as U
-    from modules.alerts import WATCH_SCORE_MIN, CALL_SCORE_MIN
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    tg = _has_secret("TELEGRAM_BOT_TOKEN") and _has_secret("TELEGRAM_CHAT_ID")
-    wf = {w["file"]: w for w in U.workflows()}
-    tgw = wf.get("telegram-alerts.yml", {})
-    st.markdown(U.chips([(L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
-                             (L("Telegram workflow"), tgw.get("schedule") or "-", "ok" if tgw else "off"),
-                             (L("Dashboard banners"), L("on"), "ok"),
-                             (L("1m alerts"), L("off"), "warn")]), unsafe_allow_html=True)
-    _al, _ar_ = st.columns([3, 2])   # 2026-11-09: one page, sources left, Telegram + Radar plan right (was 3 tabs)
-    with _al:
-        st.markdown("<div class='xo-row'>" + U.tools(L("Alert sources"), [
-            (L("Scanner alerts (Workspace)"), L("WATCH ≥") + f" {WATCH_SCORE_MIN} · " + L("CALL ≥") + f" {CALL_SCORE_MIN} + " + L("trigger"), L("on: banners + sound"), "ok"),
-            (L("Telegram (sidebar)"), L("top alerts while the dashboard is open"), L("key set") if tg else L("needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"), "ok" if tg else "warn"),
-            (L("Telegram (GitHub Actions)"), L("runs without the dashboard open"), (L("every 30 min") if tgw else L("missing")), "ok" if tgw else "bad"),
-            (L("1m alerts"), L("switched off: -147R of -150R in the journal"), L("off"), "warn"),
-            (L("Radar confirmed setups"), L("every chosen condition holds, with entry / stop"), L("task 17, after the ranking"), "off"),
-            (L("Order-flow sync alerts"), L("book + tape agree with the setup"), L("waiting for the order-flow sync fix"), "off"),
-            (L("News alarm"), L("strong news event: blinking light, short Arabic summary, source"), L("chat item 24.1, open"), "off"),
-            (L("Paper-trading bot"), L("follows only rules that passed the lab, own track record"), L("planned, never real orders"), "off")]) + "</div>", unsafe_allow_html=True)
-    with _ar_:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('Telegram'))}</div>", unsafe_allow_html=True)
-        st.caption(L("Telegram alerts go out two ways: from the sidebar while the dashboard is open, and from the GitHub Actions workflow every 30 minutes without it."))
-        st.markdown(U.table([L("Setting"), L("Where"), L("Value")], [
-            [L("Bot token and chat id"), "Streamlit secrets / GitHub secrets", U.badge(L("key set") if tg else L("no key"), "ok" if tg else "warn")],
-            [L("Schedule"), ".github/workflows/telegram-alerts.yml", U.esc(tgw.get("schedule") or "-")],
-            [L("Timeframes / top / minimum quality"), "TG_TFS · TG_TOP · TG_MIN_Q · TG_MIN_STARS", "1h,1d · 3 · 60 · 4"],
-            [L("Already-sent memory"), ".tg_sent.json (actions/cache)", L("no repeats")]]), unsafe_allow_html=True)
-        st.caption(L("Use the sidebar > Telegram alerts > Send test message to check the link. The keys never go into the code or the chat."))
-        st.markdown(f"<div class='xo-h' style='margin-top:8px'>{html.escape(L('Radar alerts (task 17)'))}</div>", unsafe_allow_html=True)
-        st.caption(L("Planned (task 17, owner decision 2026-10-22): an alert only for Radar setups marked confirmed (every chosen condition holds), "
-                      "with the entry, stop and target from the existing rules, the detector's lab evidence, and the Radar mark. Suggestion only - no orders."))
-        st.markdown(U.table([L("Field"), L("Source")], [[L("Symbol, timeframe, strategy"), "Radar"], [L("Entry / stop / target"), L("existing scanner rules")],
-                                                      [L("Evidence"), "data/strategy_lab.json (net avg R, n)"], [L("Invalidation"), L("stop level")], [L("Status"), L("confirmed only")]]), unsafe_allow_html=True)
-    st.caption(L("Educational, not investment advice. No automatic orders."))
 
 
 def render_soon_page(i):
@@ -3269,33 +3048,6 @@ def _page_5():   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agen
             [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
         _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
-def _page_6():   # alerts (owner 2026-10-22: built as a real page)
-    render_alerts_page()
-
-def render_kpi_strip(jdf):
-    """KPI strip for the journal upload: six headline numbers, an evidence badge, and breakdowns by symbol / strategy."""
-    from modules.kpi import COST_R, GATE_N, breakdown, kpis
-    k = kpis(jdf)
-    ev = k["evidence"]
-    badge_col = {"passes gate": "🟢", "not yet": "🟠", "not evidence": "⚪"}[ev["badge"]]
-    st.markdown(f"**{badge_col} {L('Evidence')}: {L(ev['badge'])}** "
-                f"· n = {k['n']} ({L('needs')} {GATE_N}+) · t = {ev['t']:.2f} · "
-                f"{L('avg R in both halves')}: {ev['halves'][0]:+.2f} / {ev['halves'][1]:+.2f}")
-    c = st.columns(6)
-    c[0].metric(L("Trades"), k["n"])
-    c[1].metric(L("Win rate"), f"{k['win_rate']*100:.0f}%" if k["n"] else "–")
-    c[2].metric(L("Expectancy (R)"), f"{k['expectancy_r']:+.2f}" if k["n"] else "–")
-    c[3].metric(L("Profit factor"), ("∞" if k["profit_factor"] == float("inf") else f"{k['profit_factor']:.2f}") if k["n"] else "–")
-    c[4].metric(L("Max drawdown (R)"), f"{k['max_dd_r']:.1f}" if k["n"] else "–")
-    c[5].metric(L("After costs (R)"), f"{k['net_expectancy_r']:+.2f}" if k["n"] else "–")
-    st.caption(L("Costs = {c} R per trade (planning estimate, not measured). Grey = under {n} trades, not evidence.").format(c=COST_R, n=GATE_N))
-    for key, label in (("symbol", L("By symbol")), ("strategy", L("By strategy"))):
-        if key in jdf.columns:
-            st.markdown(f"**{label}**")
-            _bd = breakdown(jdf, key).assign(badge=lambda x: x["badge"].map(L))
-            st.dataframe(_bd.rename(columns={key: L("Symbol" if key == "symbol" else "Strategy"), "win_rate": L("Win rate"), "expectancy_r": L("Expectancy (R)"), "badge": L("Evidence")}), hide_index=True)
-
-
 def _stats_lab():
     """Stats > Lab evidence: what the weekly lab really measured, in the control-room style; nothing estimated."""
     from modules import office_kpi as _OK, office_ui as U
@@ -3326,31 +3078,6 @@ def _stats_lab():
     st.caption(L("vs random = avg R minus the random-entry baseline on the same bars. 'no t yet' = the lab has not measured the t-stat for this row, so it cannot pass the gate."))
 
 
-def _stats_journal_kpis(jdf):
-    """Stats > My journal: net R, profit factor, drawdown in R, and live vs backtest (lab average)."""
-    from modules import office_kpi as _OK, office_ui as U
-    col = next((c for c in jdf.columns if str(c).strip().lower() in ("r", "r_multiple", "rr")), None)
-    if col is None:
-        return
-    j = _OK.journal_kpis(jdf[col].tolist())
-    if not j["n"]:
-        return
-    la = _OK.lab_avg(_OK.load())
-    diff = None if la is None else round(j["avgR"] - la, 3)
-    st.markdown(U.CSS + "<div class='xo-row'>" + U.indicators(L("Journal in R"), [
-        (L("Trades"), j["n"], L("closed"), None),
-        (L("Win rate"), f"{j['win']*100:.0f}%", "", None),
-        (L("avg R"), f"{j['avgR']:+.3f}", L("net") + f" {j['net']:+.3f}", "ok" if j["net"] > 0 else "bad"),
-        (L("Profit factor"), "-" if j["pf"] is None else j["pf"], L("gains / losses"), "ok" if (j["pf"] or 0) > 1 else "bad"),
-        (L("Max drawdown"), f"{j['maxdd']}R", L("from the equity peak"), "warn" if j["maxdd"] < 0 else None),
-        ("t", "-" if j["t"] is None else j["t"], L("evidence needs t > 3 and n >= 100"), "ok" if (j["t"] or 0) > 3 and j["n"] >= 100 else None),
-        (L("Live vs backtest"), "-" if diff is None else f"{diff:+.3f}R", L("your avg R minus the lab's") + ("" if la is None else f" ({la:+.3f})"),
-         None if diff is None else "ok" if diff >= 0 else "warn"),
-        (L("Total"), f"{j['total']:+.2f}R", "", None)]) + "</div>", unsafe_allow_html=True)
-    if j["n"] < 30:
-        st.caption(L("Fewer than 30 trades: the live vs backtest comparison is noise for now."))
-
-
 def _page_8():   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
     global _lab_exc, render_lab_summary   # M7: same module-level names as before the page became a function
     try:
@@ -3359,82 +3086,6 @@ def _page_8():   # lab summary (summary on top; the former Validation Lab / Cali
     except Exception as _lab_exc:
         st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
     st.stop()
-def _page_9():   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
-    global _HUB_TABS, _hi, _hub_exc, _hub_fn, _hub_mod, _hub_tab, _hub_ui, _il_hub   # M7: same module-level names as before the page became a function
-    try:
-        import importlib as _il_hub
-        from modules import hub_ui as _hub_ui
-        _hub_ui.set_theme(*_kit_theme())   # hub tabs follow the Theme menu like Radar / Technical Office
-        _HUB_TABS = {"Command Center": [("hub_ui", "render_overview")],   # 2026-11-09: 8 tabs -> 4 (owner approved); each group runs its parts one under the other
-                     "Truth, funnel & consensus": [("hub_truth", "render"), ("hub_funnel", "render"), ("hub_consensus", "render")],
-                     "Plateau & regime": [("hub_plateau", "render"), ("hub_regime", "render")],
-                     "Trail & decay": [("hub_trail", "render"), ("hub_decay", "render")]}   # the trail publishes the live R series the decay watch reads
-        if st.session_state.get("hub_tab") not in _HUB_TABS:
-            st.session_state.pop("hub_tab", None)
-        _hub_tab = st.segmented_control(" ", list(_HUB_TABS), default="Command Center", format_func=L, key="hub_tab", label_visibility="collapsed") or "Command Center"
-        for _hi, (_hub_mod, _hub_fn) in enumerate(_HUB_TABS[_hub_tab]):   # only the open group is imported and run
-            if _hi:
-                st.divider()
-            getattr(_il_hub.import_module("modules." + _hub_mod), _hub_fn)(st, L)
-    except Exception as _hub_exc:
-        st.error(_xl("Research Hub: ", "Research Hub: ") + str(_hub_exc))
-    st.stop()
-def _page_4():   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
-    global _c, _dd, _e, _html, _jdf, _m, _mc, _mc_render, _mc_summary, _msg, _pd, _ret, _risk, _st, _stab, _up, perf_stats, quantstats_html, returns_from_trades   # M7: same module-level names as before the page became a function
-    if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
-        st.session_state.pop("stats_tab", None)
-    _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"
-    if _stab == "Monte Carlo":
-        from modules.quant_montecarlo import render as _mc_render
-        _mc_render()
-        st.stop()
-    st.subheader(L("Performance report (QuantStats)"))
-    st.caption(L("The Workspace journal lives in your browser, so export it first: Journal widget > CSV button. Upload that file here. "
-                 "Returns = R x the % of the account you risk per trade. Evidence from the dashboard's own signals only - not a proven edge."))
-    import pandas as _pd
-    from modules.perf_report import perf_stats, quantstats_html, returns_from_trades
-    _up = st.file_uploader(L("Journal CSV (columns: time, r)"), type=["csv"], key="perf_csv")
-    _risk = st.number_input(L("Risk per trade (% of account)"), min_value=0.1, max_value=10.0, value=1.0, step=0.1, key="perf_risk")
-    if _up is not None:
-        try:
-            _jdf = _pd.read_csv(_up)
-            render_kpi_strip(_jdf)
-            _stats_journal_kpis(_jdf)
-            _ret = returns_from_trades(_jdf, float(_risk))
-            if len(_ret) < 5:
-                st.warning(L("Need at least 5 closed trades for meaningful statistics."))
-            else:
-                _st = perf_stats(_ret)
-                _c = st.columns(4)
-                _c[0].metric(L("Trades"), _st["n"]); _c[1].metric(L("Total return"), f"{_st['total_return']*100:.1f}%")
-                _c[2].metric(L("Max drawdown"), f"{_st['max_drawdown']*100:.1f}%"); _c[3].metric(L("Win rate"), f"{_st['win_rate']*100:.0f}%")
-                _c = st.columns(3)
-                _c[0].metric("Sharpe", f"{_st['sharpe']:.2f}"); _c[1].metric("Sortino", f"{_st['sortino']:.2f}"); _c[2].metric(L("Stats source"), _st["source"])
-                st.line_chart((1 + _ret).cumprod().rename("equity"))
-                from modules.mc_journal import mc_summary as _mc_summary
-                with st.expander(_xl("فحص الحظ — Monte Carlo على صفقاتك الحقيقية", "Luck check - Monte Carlo on your real trades"), expanded=False):
-                    _dd = st.slider(_xl("حد الخسارة الكاملة (هبوط من القمة %)", "Ruin threshold (drop from peak %)"), 10, 50, 20, 5, key="mc_ruin") / 100
-                    _mc = _mc_summary(_ret.values, ruin_dd=_dd, seed=7)
-                    if _mc.get("ok"):
-                        _m = st.columns(4)
-                        _m[0].metric(_xl("P-value (المتوسط > 0)", "P-value (mean > 0)"), f"{_mc['p_value']:.3f}")
-                        _m[1].metric(_xl("احتمال الخسارة الكاملة", "Ruin probability"), f"{_mc['ruin']*100:.1f}%")
-                        _m[2].metric(_xl("نطاق النهاية 5% / 95%", "Final range 5% / 95%"), f"{_mc['final_p5']:.2f}x / {_mc['final_p95']:.2f}x")
-                        _m[3].metric(_xl("عدد الصفقات", "Trades"), _mc["n"])
-                        _msg = {"not_evidence": _xl("أقل من 30 صفقة = مش دليل.", "Under 30 trades = NOT evidence."),
-                                "could_be_luck": _xl("النتيجة ممكن تكون حظ (P-value مش صغير).", "The result could be luck (p-value is not small)."),
-                                "unlikely_luck": _xl("المتوسط مش غالبًا حظ على العينة دي، بس ده مش إثبات حافة مستقبلية.", "The average is unlikely to be luck in this sample, but it does not prove a future edge.")}[_mc["verdict"]]
-                        (st.warning if _mc["verdict"] != "unlikely_luck" else st.info)(_msg)
-                        st.caption(_xl("إعادة سحب صفقاتك الفعلية (5000 مسار بنفس عدد الصفقات)؛ P-value من اختبار bootstrap بخط مقارنة صفري المتوسط. وصف للماضي، مش توقع ولا نصيحة.",
-                                       "Resamples your actual trades (5000 runs of the same number of trades); the p-value is a bootstrap test against the same trades with zero mean. A description of the past, not a forecast or advice."))
-                _html = quantstats_html(_ret)
-                if _html:
-                    st.iframe(_html, height=900, alt="QuantStats performance report")
-                else:
-                    st.info(L("QuantStats is not installed here, so only the built-in statistics are shown."))
-        except Exception as _e:
-            st.error(f"Could not read the file: {type(_e).__name__}: {_e}")
-
 # Pages that are one module call (M7 / 4.2): index -> (error label, module, function, comment). The page imports its module only when opened.
 _MODULE_PAGES = {
     10: ("Prop Firms", "modules.prop_firms", "render_prop_firms", "prop firm account tracker (added 2026-11-04)"),
@@ -3462,22 +3113,12 @@ def _module_page(i):
         st.error(f"{label}: {type(e).__name__}: {e}")
     st.stop()
 
-def _page_16():   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
-    global _fn, _nm, _om_exc   # M7: same module-level names as before the page became a function
-    st.markdown(kit_css(), unsafe_allow_html=True)
-    for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
-        try:
-            _fn()
-        except Exception as _om_exc:
-            st.error(f"{_nm}: {type(_om_exc).__name__}: {_om_exc}")
-        if _nm == "Macro regime":
-            st.divider()
-    st.stop()
-
-
-
 # M7 (maintenance plan 4.1): one function per page, exactly one runs (the old `if PAGE == N:` blocks, same order of indexes).
-_PAGE_FN = {0: _page_0, 1: _page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 6: _page_6, 8: _page_8, 9: _page_9, 4: _page_4, 16: _page_16}
+_PAGE_FN = {0: _page_0, 1: _page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 8: _page_8}
 _PAGE_FN.update({i: (lambda i=i: _module_page(i)) for i in _MODULE_PAGES})
+_PAGE_FN[9] = _pg9.render_page
+_PAGE_FN[4] = _pg4.render_page
+_PAGE_FN[6] = _pg6.render_page
+_PAGE_FN[16] = _pg16.render_page
 if PAGE in _PAGE_FN:
     _PAGE_FN[PAGE]()

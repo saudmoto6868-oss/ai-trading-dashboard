@@ -13,7 +13,6 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 import base64
 import html
 import os
-import time
 from pathlib import Path
 
 import streamlit as st
@@ -21,20 +20,9 @@ import streamlit as st
 from config import (
     CRYPTO_SYMBOLS,
     EXTERNAL_LINKS, FINVIZ_PATTERNS, FINVIZ_PATTERN_URL,
-    TRADE_TYPES, AUTO_REFRESH_SECONDS, TV_SYMBOL_MAP,
+    AUTO_REFRESH_SECONDS,
 )
-from modules.data_fetcher import get_mt5_data
-from modules.scorer import (
-    score_symbol,
-)
-from modules.market_cache import get_klines
-from modules.arabic import (
-    trade_name, tags_html, trade_chip_html, tag_for, signal_ar, htf_lines_ar, scenarios_ar, tv_link, chart_svg, n_, dir_name, tf_name,
-)
-from modules.risk_engine import build_trade_plan
-from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
-from modules.page_kit import md_sections as _md_sections, xl as _xl   # moved out of main.py (M7)
 from modules.page_playbook import render_playbook_page   # Playbook page moved out of main.py (M7)
 from modules.page_academy import render_academy_page   # Academy page moved out of main.py (M7)
 from modules import page_options as _pg16   # page 16 moved out of main.py (M7)
@@ -43,18 +31,15 @@ from modules import page_journal as _pg4   # page 4 moved out of main.py (M7)
 from modules import page_hub as _pg9   # page 9 moved out of main.py (M7)
 from modules import page_radar as _pg1   # page 1 (Radar) moved out of main.py (M7)
 from modules import page_workspace as _pg0, page_lab as _pg2, page_ai as _pg5   # pages 0, 2, 5, 8 moved out of main.py (M7)
-from modules.page_lab import _source_ping, _office_charts   # still used by the info strip / control room
+from modules.page_lab import _source_ping   # still used by the info strip / control room
 from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
 from modules.macro import api_key, fetch_macro
 from modules.news_feed import get_latest_news
-from modules.crypto_extras import render_order_book, render_time_and_sales
 from modules.dom_panel import (
-    build_ladder, ladder_html, classify_trades, trades_html,
-    LimitTracker, limit_events_html, fmt_price,
-    ORDERFLOW_CSS, LEGEND_HTML, TapeMemory, DomMemory, hits_from, mark_absorption,
-    tape_stats, stats_html,
+    fmt_price,
+    ORDERFLOW_CSS,
 )
 
 try:
@@ -279,213 +264,9 @@ elif UI_THEME == "hud":   # theme 2 "Orbit HUD": misty sky behind the page, squa
 header_box = st.container()
 
 
-# ---- Data helpers -------------------------------------------------------------
-@st.cache_data(ttl=2, show_spinner=False)
-def cached_book(sym: str):
-    return render_order_book(sym, limit=50)
-
-
-@st.cache_data(ttl=2, show_spinner=False)
-def cached_trades(sym: str):
-    return render_time_and_sales(sym, limit=100)
-
-
-def score_mt5_group(symbols):
-    """Returns (results, notice). MT5 only exists on Windows, so on the cloud
-    server this gives ONE friendly notice instead of one warning per symbol."""
-    results, errors = [], []
-    for sym in symbols:
-        try:
-            df = get_mt5_data(sym, "H1")
-            if df is not None and len(df) > 60:
-                res = score_symbol(df, timeframe_label="H1")
-                res["symbol"] = sym
-                results.append(res)
-        except RuntimeError as e:
-            if "not available" in str(e):
-                return [], ("This watchlist needs MetaTrader 5 (Windows). It is not available on the "
-                            "cloud server - run the dashboard locally with MT5 open to fill it. "
-                            "The chart on the right still works.")
-            errors.append(f"{sym}: {e}")
-        except Exception as e:
-            errors.append(f"{sym}: {e}")
-    return results, ("; ".join(errors) if errors else "")
-
-
 from modules.page_bg import (   # background scan / workers / caches, moved out of main.py (M7)
-    scan_crypto_group, _bg,
+    _bg,
 )
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def _scan_cached(symbols: tuple, tf: str):
-    return scan_crypto_group(list(symbols), tf)
-
-
-# ---- Compact watchlist ----------------------------------------------------------
-def _nearest(levels, price, below):
-    vals = []
-    for x in levels or []:
-        try:
-            vals.append(float(x))
-        except (TypeError, ValueError):
-            pass
-    cand = [v for v in vals if (v < price if below else v > price)]
-    if not cand:
-        return None
-    return max(cand) if below else min(cand)
-
-
-def watchlist_html(rows):
-    out = []
-    for r in sorted(rows, key=lambda r: -r["score"]):
-        score, mx = int(r["score"]), int(r["max_score"])
-        ratio = score / mx if mx else 0
-        col = "#0ecb81" if ratio >= 0.75 else ("#f0b90b" if ratio >= 0.5 else "#848e9c")
-        stars = "★" * score + "☆" * (mx - score)
-        bias = str(r["trend_bias"])
-        b = bias.lower()
-        arrow, bcol = ("▲", "#0ecb81") if "bull" in b or "up" in b else (
-            ("▼", "#f6465d") if "bear" in b or "down" in b else ("◆", "#848e9c"))
-        reasons = ", ".join(r["reasons"]) if r["reasons"] else "no signals"
-        sup = _nearest(r.get("supports"), r["price"], True)
-        res = _nearest(r.get("resistances"), r["price"], False)
-        sr = f"S {fmt_price(sup) if sup else '-'} &middot; R {fmt_price(res) if res else '-'}"
-        out.append(
-            "<div style='border-bottom:1px solid #2b3139;padding:5px 2px'>"
-            "<div style='display:flex;justify-content:space-between;font-size:13px'>"
-            f"<b>{html.escape(str(r['symbol']))}</b><span>{fmt_price(r['price'])}</span></div>"
-            "<div style='display:flex;justify-content:space-between;font-size:12px'>"
-            f"<span style='color:{col}'>{stars} {score}/{mx}</span>"
-            f"<span style='color:{bcol}'>{arrow} {html.escape(bias)}</span></div>"
-            f"<div style='font-size:11px;color:#848e9c'>{trade_chip_html(str(r['trade_type']))}"
-            f" &middot; {html.escape(reasons)}</div>"
-            f"<div style='font-size:11px;color:#848e9c'>{sr}</div></div>"
-        )
-    return "".join(out)
-
-
-def render_watchlist(results, notice, key):
-    """Trade-type filter sits right above the list it filters."""
-    selected = st.multiselect(L("Trade type"), TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
-    filtered = [r for r in results if r["trade_type"] in selected]
-    if notice:
-        st.caption(notice)
-    elif not filtered:
-        st.info(L("No symbols match the current filter."))
-    else:
-        st.markdown(watchlist_html(filtered), unsafe_allow_html=True)
-    return filtered
-
-
-def _stars(n, mx):
-    return "\u2605" * n + "\u2606" * (mx - n)
-
-
-def render_scanner(results, notice, key):
-    """Scanner watchlist. Each coin = one row: FULL SYMBOL first, price, stars,
-    direction, trade type, then coloured strategy tag boxes. The Arabic
-    analysis sits in a collapsed expander under the row. The trade-type filter
-    is tucked away in a collapsed expander at the bottom."""
-    selected = st.session_state.get(f"tt_{key}", TRADE_TYPES)
-    filtered = [r for r in results if r["trade_type"] in selected]
-    if notice:
-        st.caption(notice)
-    if not filtered and not notice:
-        st.info(_xl("لا توجد رموز مطابقة للفلتر الحالي.", "No symbols match the current filter."))
-    for r in sorted(filtered, key=lambda r: (-r["score"], r["symbol"])):
-        arrow, acol = {"bullish": ("\u25B2", "#0ecb81"), "bearish": ("\u25BC", "#f6465d")}.get(r["direction"], ("\u25C6", "#848e9c"))
-        ratio = r["score"] / r["max_score"] if r["max_score"] else 0
-        scol = "#0ecb81" if ratio >= 0.57 else ("#f0b90b" if ratio >= 0.28 else "#848e9c")
-        st.markdown(
-            "<div style='border-top:1px solid #2b3139;padding:6px 2px 2px 2px'>"
-            "<div style='display:flex;justify-content:space-between;align-items:baseline'>"
-            f"<span style='font-size:15px;font-weight:700'>{html.escape(r['symbol'])}</span>"
-            f"<span style='font-size:12px;color:#848e9c'>{fmt_price(r['price'])}</span></div>"
-            "<div style='display:flex;justify-content:space-between;align-items:center;margin:2px 0'>"
-            f"<span style='color:{scol};font-size:12px'>{_stars(r['score'], r['max_score'])}</span>"
-            f"<span style='color:{acol};font-size:12px'>{arrow} {dir_name(r['direction'])}</span>"
-            f"<span>{trade_chip_html(r['trade_type'])}</span></div>"
-            f"<div>{tags_html(r['signals'], tv_link(r['symbol'], r['timeframe']))}</div></div>",
-            unsafe_allow_html=True,
-        )
-        with st.expander(_xl("التحليل", "Analysis")):
-            explain_symbol(r)
-    with st.expander(L("Trade type filter")):
-        st.multiselect(_xl("نوع الصفقة", "Trade type"), TRADE_TYPES, default=TRADE_TYPES, key=f"tt_{key}")
-    st.caption(_xl("النجوم = عدد عائلات الإشارات المتفقة من 7. المربعات الملونة = الاستراتيجية التي أعطت الإشارة.",
-                   "Stars = how many of the 7 signal families agree. Coloured boxes = the strategy that gave the signal."))
-    return filtered
-
-
-def _rtl(lines, bullets=True):
-    items = "".join(f"<li>{html.escape(x)}</li>" for x in lines) if bullets else "".join(f"<div>{html.escape(x)}</div>" for x in lines)
-    body = f"<ul style='margin:2px 0;padding-inline-start:18px'>{items}</ul>" if bullets else items
-    d_, a_ = ("rtl", "right") if _ui_lang() == "ar" else ("ltr", "left")
-    return f"<div dir='{d_}' style='text-align:{a_};font-size:13px'>{body}</div>"
-
-
-def explain_symbol(r):
-    """The 'why was this flagged' panel - in the page language (Arabic or English)."""
-    tf = tf_name(r["timeframe"])
-    ar_ = _ui_lang() == "ar"
-    d_, a_ = ("rtl", "right") if ar_ else ("ltr", "left")
-    st.markdown(
-        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; السعر {fmt_price(r['price'])} "
-         f"&middot; فحص {tf} &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} نجوم "
-         f"&middot; {trade_chip_html(r['trade_type'])}</div>") if ar_ else
-        (f"<div dir='{d_}' style='text-align:{a_}'><b>{html.escape(r['symbol'])}</b> &middot; Price {fmt_price(r['price'])} "
-         f"&middot; {tf} scan &middot; {dir_name(r['direction'])} &middot; {r['score']}/{r['max_score']} stars "
-         f"&middot; {trade_chip_html(r['trade_type'])}</div>"), unsafe_allow_html=True)
-    if not r["signals"]:
-        st.markdown(_rtl([_xl("إشارات مختلطة أو غير موجودة حاليا - لا يوجد ما يُنفَّذ.", "Mixed or no signals right now - nothing to act on.") if not r.get("mixed")
-                          else _xl("الأدلة الصاعدة والهابطة تلغي بعضها - لا يوجد اتجاه مسيطر.", "The bullish and bearish evidence cancel each other - no dominant direction.")], bullets=False), unsafe_allow_html=True)
-    else:
-        rows = []
-        for s_ in r["signals"]:
-            name, detail = signal_ar(s_)
-            rows.append(f"[{tag_for(s_)[0]}] {name}: {detail}")
-        st.markdown(_rtl(rows), unsafe_allow_html=True)
-    if r.get("against"):
-        st.markdown(_rtl([_xl("ضد الاتجاه: " + "، ".join(signal_ar(a)[0] for a in r["against"]),
-                              "Against the direction: " + ", ".join(signal_ar(a)[0] for a in r["against"]))], bullets=False), unsafe_allow_html=True)
-    if r["htf"]:
-        st.markdown(f"<div dir='{d_}' style='text-align:{a_}'><b>{_xl('الفريمات الأعلى', 'Higher timeframes')}</b></div>", unsafe_allow_html=True)
-        st.markdown(_rtl(htf_lines_ar(r)), unsafe_allow_html=True)
-    plan = None
-    if r["direction"] in ("bullish", "bearish"):
-        plan = build_trade_plan({**r, "trend_bias": r["direction"]})
-        side = _xl("شراء" if plan["direction"] == "Long" else "بيع", "Long" if plan["direction"] == "Long" else "Short")
-        st.markdown(
-            (f"<div dir='{d_}' style='text-align:{a_}'><b>الخطة ({side})</b> - دخول {n_(plan['entry'])} - وقف {n_(plan['stop_loss'])} - "
-             f"هدف 1 {n_(plan['take_profits'][0])} / هدف 2 {n_(plan['take_profits'][1])} / هدف 3 {n_(plan['take_profits'][2])}</div>") if ar_ else
-            (f"<div dir='{d_}' style='text-align:{a_}'><b>Plan ({side})</b> - entry {plan['entry']} - stop {plan['stop_loss']} - "
-             f"target 1 {plan['take_profits'][0]} / target 2 {plan['take_profits'][1]} / target 3 {plan['take_profits'][2]}</div>"),
-            unsafe_allow_html=True)
-        st.markdown(f"<div dir='{d_}' style='text-align:{a_}'><b>{_xl('السيناريوهات', 'Scenarios')}</b></div>", unsafe_allow_html=True)
-        st.markdown(_rtl(scenarios_ar(r)), unsafe_allow_html=True)
-    if r["symbol"] in TV_SYMBOL_MAP or "-" in r["symbol"]:
-        try:
-            svg = chart_svg(get_klines(r["symbol"], r["timeframe"], 300), r, plan)
-        except Exception:
-            svg = ""
-        if svg:
-            b64 = base64.b64encode(svg.encode('utf-8')).decode('ascii')
-            st.markdown(f"<img style='width:100%;max-width:640px' src='data:image/svg+xml;base64,{b64}'/>", unsafe_allow_html=True)
-            st.caption(_xl("رسم تقريبي للسيناريو: الشموع الأخيرة + مناطق الإشارات + الدخول/الوقف/الأهداف (الخط الأصفر = مسار الهدف الأول).",
-                           "Rough sketch of the scenario: the latest candles + signal zones + entry/stop/targets (the yellow line = the path to the first target)."))
-        st.link_button(_xl("افتح الشارت على TradingView", "Open the chart on TradingView"), tv_link(r["symbol"], r["timeframe"]))
-    if r.get("errors"):
-        st.caption(_xl("ملاحظات الكواشف: ", "Detector notes: ") + "; ".join(r["errors"]))
-
-
-def fire_alerts(filtered):
-    """Banners show on every refresh; the beep only for signals not alerted before."""
-    seen = st.session_state.setdefault("alerted", set())
-    strong = {(r["symbol"], r["score"]) for r in filtered if r["score"] >= ALERT_SCORE_THRESHOLD}
-    is_new = bool(strong - seen)
-    seen |= strong
-    check_and_fire_alerts(filtered, play_sound=(play_sound and is_new))
 
 
 # ---- Crypto order-flow panels ----------------------------------------------------
@@ -493,161 +274,6 @@ def fire_alerts(filtered):
 # re-running the heavy scanner. Older Streamlit versions fall back to the
 # normal page auto-refresh.
 _fragment = getattr(st, "fragment", None)
-
-
-def live_fragment(fn):
-    if _fragment is None:
-        return fn
-    return _fragment(run_every=f"{fast_secs}s")(fn)
-
-
-def get_tape(sym):
-    """Classified trades + 'is_new' flash flags + absorption marks. The DOM and
-    Time&Sales panels both call this; calls within 1.5 s share one result so
-    the 'new print' flags are consumed only once."""
-    cache = st.session_state.setdefault("tape_cache", {})
-    hit = cache.get(sym)
-    if hit and time.time() - hit[0] < 1.5:
-        return hit[1]
-    mem = st.session_state.setdefault("tape_mem", {}).setdefault(sym, TapeMemory())
-    t = classify_trades(cached_trades(sym), smart_mult=smart_mult, whale_mult=smart_mult * 2.5)
-    t = mem.mark(t)
-    t = mark_absorption(t, vol_mult=absorb_mult)
-    cache[sym] = (time.time(), t)
-    return t
-
-
-@live_fragment
-def render_dom(sym):
-    st.markdown(f"**Depth of Market** &middot; {html.escape(sym)}", unsafe_allow_html=True)
-    try:
-        bids, asks = cached_book(sym)
-    except Exception as e:
-        st.warning(f"Order book unavailable: {e}")
-        return None
-    try:
-        tape = get_tape(sym)
-    except Exception:
-        tape = None
-    ladder = build_ladder(bids, asks, depth=12)
-    mem = st.session_state.setdefault("dom_mem", {}).setdefault(sym, DomMemory())
-    absorb_prices = set()
-    if tape is not None and not tape.empty and "absorb" in tape.columns:
-        absorb_prices = {round(float(p), 8) for p in tape.loc[tape["absorb"], "price"]}
-    st.markdown(
-        ladder_html(ladder, big_mult=big_order_mult, hits=hits_from(tape),
-                    changes=mem.changes(ladder), absorb_prices=absorb_prices),
-        unsafe_allow_html=True,
-    )
-    st.caption(L("★ glowing = big resting order (blinks white when trades hit it). "
-               "Level flash = just traded. Blue outline = size grew."))
-    return bids, asks
-
-
-@live_fragment
-def render_trades(sym):
-    st.markdown(L("**Time & Sales** &middot; Smart / Whale / Absorb"), unsafe_allow_html=True)
-    try:
-        trades = get_tape(sym)
-        ab = ""
-        if not trades.empty and "absorb" in trades.columns and trades["absorb"].any():
-            dirs = trades.loc[trades["absorb"], "absorb_dir"]
-            ab = "by " + dirs.mode().iat[0]
-        st.markdown(stats_html(tape_stats(trades), ab), unsafe_allow_html=True)
-        st.markdown(trades_html(trades, max_rows=20), unsafe_allow_html=True)
-        st.markdown(LEGEND_HTML, unsafe_allow_html=True)
-        return trades
-    except Exception as e:
-        st.warning(f"Time & sales unavailable: {e}")
-        return None
-
-
-def render_limit_tracking(sym, book, trades):
-    st.markdown(L("**Limit Tracking** &middot; big limit orders placed / pulled / filled"), unsafe_allow_html=True)
-    if book is None:
-        return
-    trackers = st.session_state.setdefault("limit_trackers", {})
-    tracker = trackers.get(sym)
-    if tracker is None or tracker.big_mult != big_order_mult:
-        tracker = trackers[sym] = LimitTracker(big_mult=big_order_mult)
-    tracker.update(book[0], book[1], trades)
-    st.markdown(limit_events_html(tracker.events_df()), unsafe_allow_html=True)
-    st.caption(L("Snapshot based (compares each refresh), so quick spoof-and-cancel "
-               "inside one refresh is not seen. PULLED = vanished without trading."))
-
-
-MINI_CSS = """<style>
-.mini{height:150px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
-.mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
-.mini th{color:#848e9c;font-weight:400;text-align:left;padding:2px 4px;position:sticky;top:0;background:#161a1e}
-.mini td{padding:2px 4px;white-space:nowrap;border-top:1px solid #20262c}
-.mini a.tg{display:inline-block;border-radius:3px;padding:0 4px;margin-right:2px;font-size:10px;font-weight:600;font-family:sans-serif;border:0;cursor:help;text-decoration:none}
-.mini a{color:#4aa3ff;text-decoration:none;border:1px solid #2b3139;border-radius:3px;padding:0 4px}
-div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{min-height:30px;font-size:12px}
-div[data-testid="stVerticalBlock"]{gap:.35rem}
-</style>"""
-
-
-def _spark_svg(vals, pl, long_, w=64, h=20):
-    """Tiny price-shape picture: recent closes + entry/SL/TP1 lines, as an <img> data URI."""
-    if not vals or len(vals) < 5:
-        return ""
-    lv = list(vals) + [pl["entry"], pl["stop"], pl["tps"][0]]
-    lo, hi = min(lv), max(lv)
-    span = (hi - lo) or 1.0
-    y = lambda v: round(h - 1 - (v - lo) / span * (h - 2), 1)
-    pts = " ".join(f"{round(i * (w - 1) / (len(vals) - 1), 1)},{y(v)}" for i, v in enumerate(vals))
-    col = "#0ecb81" if long_ else "#f6465d"
-    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' width='{w}' height='{h}'>"
-           f"<line x1='0' x2='{w}' y1='{y(pl['tps'][0])}' y2='{y(pl['tps'][0])}' stroke='#0ecb81' stroke-dasharray='2 2' stroke-width='.8'/>"
-           f"<line x1='0' x2='{w}' y1='{y(pl['stop'])}' y2='{y(pl['stop'])}' stroke='#f6465d' stroke-dasharray='2 2' stroke-width='.8'/>"
-           f"<polyline fill='none' stroke='{col}' stroke-width='1.2' points='{pts}'/></svg>")
-    return f"<img width='{w}' height='{h}' src='data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}'/>"
-
-
-TT_OPTIONS = {"All": ("All", "الكل"), "Scalp": ("Scalp", "سكالب"), "Day Trade": ("Day trade", "داي تريد"), "Swing": ("Swing", "سوينج"), "Position": ("Position", "بوزيشن")}   # (English, Arabic): pick with _ui_lang()
-
-
-def _strength_bar(pct):
-    col = "#0ecb81" if pct >= 60 else ("#f0b90b" if pct >= 40 else "#848e9c")
-    return (f"<span style='display:inline-block;width:34px;height:6px;background:#2b3139;border-radius:3px;vertical-align:middle'>"
-            f"<span style='display:block;width:{pct}%;height:6px;background:{col};border-radius:3px'></span></span> <b style='color:{col}'>{pct}%</b>")
-
-
-def mini_scanner_html(mini, side="All", ttype="All", n=7):
-    rows, seen = [], set()
-    for e in sorted(mini, key=lambda x: (-x.get("score", 0), x.get("symbol", ""))):
-        if side != "All" and e["direction"] != ("bullish" if side == "Long" else "bearish"):
-            continue
-        if ttype != "All" and e.get("ttype") != ttype:
-            continue
-        pl = e["plan"]
-        key = (e["symbol"], e["direction"], e.get("tfk"))
-        if key in seen:
-            continue
-        seen.add(key)
-        long_ = e["direction"] == "bullish"
-        pct = round(100 * e.get("score", 0) / max(1, e.get("max", 7)))
-        strat = "".join(f"<a class='tg' href='{html.escape(e.get('tv', '#'), quote=True)}' target='_blank' rel='noopener noreferrer' "
-                        f"title='{html.escape(t[3] if len(t) > 3 else '', quote=True)}' style='background:{html.escape(t[1])};color:{html.escape(t[2])}'>{html.escape(t[0])}</a>"
-                        for t in (e.get("tags") if _ui_lang() == "ar" else (e.get("tags_en") or []))[:4]) or "-"   # tags_en: English text + tooltip (the payload itself is Arabic)
-        rows.append(
-            "<tr>"
-            f"<td><b>{html.escape(e['symbol'])}</b> <span style='color:#848e9c'>{html.escape(str(e.get('tfk', '')))}</span></td>"
-            f"<td style='color:{'#0ecb81' if long_ else '#f6465d'};font-weight:700'>{'Long' if long_ else 'Short'}</td>"
-            f"<td style='color:#f0b90b'>{html.escape(str(e.get('trade', '')) if _ui_lang() == 'ar' else trade_name(str(e.get('ttype', '')), False))}</td>"
-            f"<td>{strat}</td><td>{_spark_svg(e.get('spark'), pl, long_)}</td>"
-            f"<td style='color:#f6465d'>{fmt_price(pl['stop'])}</td>"
-            f"<td style='color:#0ecb81'>{fmt_price(pl['tps'][0])}</td>"
-            f"<td>{_strength_bar(pct)}</td>"
-            f"<td><a href='{html.escape(e.get('tv', '#'), quote=True)}' target='_blank' rel='noopener noreferrer'>TV</a></td></tr>"
-        )
-        if len(rows) >= n:
-            break
-    if not rows:
-        return f"<div class='mini' style='padding:6px;color:#848e9c;font-size:11px'>{'لا توجد صفقات جاهزة الآن' if _ui_lang() == 'ar' else 'No ready trades right now'}</div>"
-    return ("<div class='mini'><table><tr><th>Pair</th><th>Side</th><th>Type</th><th>Setup</th><th>Shape</th><th>SL</th><th>TP1</th><th>Strength</th><th></th></tr>"
-            + "".join(rows) + "</table></div>")
 
 
 def site_icon_b64_uri(domain):
@@ -910,84 +536,6 @@ if PAGE != 0:   # every page after the Workspace (owner 2026-11-09): full width,
 .st-key-hubnav [data-testid="stRadioOption"]>div>div:first-child:not([data-testid]){{display:none!important}} .st-key-hubnav [data-testid="stRadioOption"] p{{font-size:12px;color:#c3c9d1}}
 .st-key-hubnav label:has(input:checked){{background:rgba(240,185,11,.10);border-bottom:2px solid {ui_accent}}} .st-key-hubnav label:has(input:checked) p{{color:{ui_accent};font-weight:600}}</style>""", unsafe_allow_html=True)
 
-def _office_control_room():
-    """Technical Office v2 header (control-room layout, owner's reference images 2026-10-22): gate, headline KPIs, best per
-    trading style, warnings. Every number comes from data/strategy_lab.json (modules/office_kpi.py); nothing is estimated."""
-    from modules import office_kpi as _OK
-    d = _OK.load(); s = _OK.summary(d)
-    if not s:
-        return
-    b = s["best"] or {}
-    c = st.columns(6)
-    c[0].metric(L("Passed the evidence gate"), f"{s['passed']} / {s['candidates']}", help=L("n >= 100, t > 3, net > 0 and both halves positive after 0.1R costs"))
-    c[1].metric(L("Detectors in the lab"), s["detectors"])
-    c[2].metric(L("OFF (no longer decide a trade)"), len(s["off"]), help=", ".join(s["off"]) or "-")
-    c[3].metric(L("Best net avg R (n >= 100)"), f"{b.get('net', 0):+.3f}" if b else "-", help=(f"{b['key']} {b['tf']} · n {b['n']} · vs random {b['vs_random']:+.3f}" if b else None))
-    c[4].metric(L("Cost per trade"), f"{_OK.COST_R}R")
-    c[5].metric(L("Last lab run"), s["built"] or "-", help=f"{s['symbols']} symbols")
-    sty = _OK.styles(d)
-    lbl = {"Scalp": L("Scalp"), "Day": L("Day trade"), "Swing": L("Swing"), "Position": L("Position")}
-    st.markdown("| " + " | ".join([L("Style"), L("Lab timeframes"), L("Strongest detector (n >= 100)"), "n", L("net avg R"), L("vs random")]) + " |\n|---|---|---|---|---|---|\n"
-                + "\n".join(f"| {lbl[x['style']]} | {x['tfs']} | {(x['key'] + ' ' + x['tf']) if x['key'] else '-'} | {x['n'] or '-'} | "
-                            f"{'' if x['net'] is None else format(x['net'], '+.3f')} | {'' if x['vs_random'] is None else format(x['vs_random'], '+.3f')} |" for x in sty))
-    warn = []
-    pb_dates = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
-    if pb_dates and s["built"] and s["built"] not in pb_dates[0]:
-        warn.append(L("The Playbook summary is older than the last lab run") + f" ({pb_dates[0].split(' ')[2]} / {s['built']})")
-    if not s["passed"]:
-        warn.append(L("Nothing has passed the evidence gate yet: every signal is a suggestion, not evidence."))
-    for w in warn:
-        st.warning(w)
-    st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
-    st.divider()
-
-
-def render_soon_page(i):
-    if i == 5:
-        st.subheader(L("AI Analyst (planned)"))
-        st.markdown(L("- Explains each setup in plain words (why, risk, what cancels it), reads it aloud - phase 1 (read-aloud) is already in the Workspace.\n"
-                      "- Answers questions about the open chart using the stored short analysis, not raw candles (token budget: cached per setup, daily cap).\n"
-                      "- Weekly summary of your journal: what works for YOU, by school / timeframe / session."))
-    else:
-        st.subheader(L("Alerts & Bots (planned)"))
-        st.markdown(L("- One place for every alert rule: scanner, order-flow sync, Gann zones, liquidations - with on/off and minimum quality.\n"
-                      "- Delivery: Telegram (already working from the sidebar), browser push, e-mail.\n"
-                      "- Paper-trading bot that follows only the rules that passed the lab, with its own honest track record."))
-    st.caption(L("Not built yet - this page shows the plan. Tell me which part to build first."))
-
-
-TV_INTERVALS = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 hour", "240": "4 hour", "D": "1 day", "W": "1 week"}
-CHART_H = 225  # two stacked charts ~ the height of the DOM ladder
-
-# Radar setups (team task 17): a suggestion only; nothing here places an order
-RADAR_TAG = "<span title='Radar setup: suggestion only, no automatic orders' style='color:#f0b90b;font-weight:700;font-size:10px;margin-right:4px;cursor:help'>◆ RADAR</span>"
-
-_QUICK_CHIPS = [   # (filter key, icon, short name): the same keys as the dropdown filters, one click each (owner 2026-10-23: shapes and colours, not only buttons)
-    ("rsi_lt30", "🟢", "RSI<30"), ("rsi_gt70", "🔴", "RSI>70"), ("chan_up", "📈", "Channel ↑"), ("chan_dn", "📉", "Channel ↓"),
-    ("tl_up", "🔺", "Trendline ↑"), ("tl_dn", "🔻", "Trendline ↓"), ("dbl_bottom", "🟦", "Double bottom"), ("dbl_top", "🟧", "Double top"),
-    ("chg_up2", "🚀", "+2%"), ("chg_dn2", "💥", "−2%"), ("vol_2x", "🔊", "Vol 2×"), ("vol_3x", "⚡", "Vol 3×"),
-    ("stack_bull", "🐂", "Bull stack"), ("stack_bear", "🐻", "Bear stack"), ("above_all", "☁️", "Above EMAs"), ("below_all", "🌧️", "Below EMAs"),
-    ("st_elliott", "🌊", "Elliott"), ("st_msb", "🧱", "SMC MSB+OB"), ("st_unicorn", "🦄", "Unicorn"), ("st_ob", "📦", "Order block"),
-]
-_QUICK_NAME = {k: (i, n) for k, i, n in _QUICK_CHIPS}
-
-
-def _quick_lbl(k):
-    i, n = _QUICK_NAME[k]
-    return f"{i} {L(n)}"
-
-_RADAR_CSS = """<style>
-.xr-tile{position:relative}
-.xr-tile img{display:block}
-.xr-tip{display:none;position:absolute;left:0;right:0;top:0;z-index:30;max-height:340px;overflow-y:auto;background:rgba(18,22,27,.97);
- border:1px solid #2dd4bf66;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:18px;color:#e6e9ee;text-align:right;
- box-shadow:0 6px 24px rgba(0,0,0,.5)}
-.xr-tip hr{border:0;border-top:1px solid #2b3139;margin:6px 0}
-.xr-tile:hover .xr-tip,.xr-tile:focus-within .xr-tip{display:block}
-.xr-hint{font-size:10px;color:#848e9c}
-</style>"""
-
-
 def render_info_strip():
     """Item 44: one thin line under the header - 'educational, not advice' plus whether each data source answers and the
     date of the last lab run. Off switch: Theme & language menu > 'Info strip'. Hidden in Workspace focus mode."""
@@ -1018,36 +566,6 @@ def _page_7():   # academy (owner 2026-10-23): lessons from the team's research,
 
 def _page_3():   # playbook
     render_playbook_page()
-
-def _stats_lab():
-    """Stats > Lab evidence: what the weekly lab really measured, in the control-room style; nothing estimated."""
-    from modules import office_kpi as _OK, office_ui as U
-    d = _OK.load(); s = _OK.summary(d) or {}
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    if not s:
-        st.info(L("No lab file yet (data/strategy_lab.json)."))
-        return
-    b = s.get("best") or {}; la = _OK.lab_avg(d)
-    st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
-                L("n >= 100 · t > 3 · net > 0 · both halves positive, after 0.1R"), L("groups passed")) +
-                U.indicators(L("Indicators"), [
-                    (L("Detectors in the lab"), s.get("detectors", "-"), f"{s.get('symbols', 0)} " + L("symbols"), None),
-                    (L("Last lab run"), s.get("built") or "-", L("weekly"), "info"),
-                    (L("Best net avg R (n >= 100)"), f"{b['net']:+.3f}" if b else "-", f"{b.get('key', '')} {b.get('tf', '')} · n {b.get('n', '')}", "ok" if b and b["net"] > 0 else None),
-                    (L("All detectors, avg R"), f"{la:+.3f}" if la is not None else "-", L("net") + f" {la - _OK.COST_R:+.3f}" if la is not None else "", "ok" if la and la > _OK.COST_R else "bad"),
-                    (L("OFF (no longer decide a trade)"), len(s.get("off", [])), ", ".join(s.get("off", [])), None),
-                    (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None)]) + "</div>", unsafe_allow_html=True)
-    _office_charts()
-    rows = _OK.top_rows(d)
-    fmt = lambda v, p="+.3f": "-" if v is None else format(v, p)
-    st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Strongest detector x timeframe (n >= 100), by net avg R'))}</div>", unsafe_allow_html=True)
-    st.markdown(U.table([L("Detector"), L("Timeframe"), L("School"), "n", L("Win rate"), L("avg R"), L("net"), L("vs random"), "t", L("Gate")],
-                        [[U.esc(r["key"]), U.esc(r["tf"]), U.esc(L(r["school"] or "-")), r["n"], "-" if r["win"] is None else f"{r['win']:.0f}%",   # the lab stores win as a percent
-                          fmt(r["avgR"]), fmt(r["net"]), fmt(r["vs_random"]), fmt(r["t"], ".2f"),
-                          U.badge(L("passed") if r["gate"] else (L("no t yet") if r["t"] is None else L("not yet")), "ok" if r["gate"] else "warn")]
-                         for r in rows]), unsafe_allow_html=True)
-    st.caption(L("vs random = avg R minus the random-entry baseline on the same bars. 'no t yet' = the lab has not measured the t-stat for this row, so it cannot pass the gate."))
-
 
 # Pages that are one module call (M7 / 4.2): index -> (error label, module, function, comment). The page imports its module only when opened.
 _MODULE_PAGES = {

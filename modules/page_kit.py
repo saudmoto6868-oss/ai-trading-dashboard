@@ -1,10 +1,11 @@
 """Small helpers shared by pages that moved out of main.py (maintenance plan M7 / 4.2)."""
 import html
+import os
 from pathlib import Path
 
 import streamlit as st
 
-from modules.i18n import L
+from modules.i18n import L, lang as _ui_lang
 from modules.workspace import ui_vars as _ui_vars
 
 
@@ -59,3 +60,15 @@ def kit_css():
     from modules import ui_kit as _K
     t, r = kit_theme()
     return _K.css(t, r)
+
+
+def xl(ar_text, en_text):
+    """One language at a time: the Arabic text on the Arabic site, the English text otherwise."""
+    return ar_text if _ui_lang() == "ar" else en_text
+
+
+def has_secret(name):
+    try:
+        return bool(os.environ.get(name) or st.secrets.get(name))
+    except Exception:
+        return bool(os.environ.get(name))

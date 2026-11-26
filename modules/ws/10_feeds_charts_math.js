@@ -73,7 +73,10 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
   trPush(x){ if (!x || !x.coin) return; const b = this.tr[x.coin] = this.tr[x.coin] || {ids:new Set(), rows:[]}, id = String(x.tid || x.hash || x.time);
     if (b.ids.has(id)) return; b.ids.add(id); b.rows.push({tradeId:id, ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"});
     if (b.rows.length > 600){ b.rows.sort((p, q) => +q.ts - +p.ts); b.rows.length = 400; b.ids = new Set(b.rows.map(r => r.tradeId)); } },
-  async trades(coin){ if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
+  /* M1 1.4: a coin nobody asked about for 60 s is unsubscribed and its buffer dropped (charts call trades() on every poll; there is no close hook) */
+  trAsk:{}, trSweep(){ const now = Date.now(); this.trSub.forEach(c => { if (now - (this.trAsk[c] || 0) > 60000){ this.trSub.delete(c); delete this.tr[c]; delete this.trAsk[c];
+    try { this.ws && this.ws.send(JSON.stringify({method:"unsubscribe", subscription:{type:"trades", coin:c}})); } catch(e){} } }); },
+  async trades(coin){ this.trAsk[coin] = Date.now(); if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
     const b = this.tr[coin], sd = this.seedT = this.seedT || {}; if ((!b || b.rows.length < 10) && Date.now() - (sd[coin] || 0) > 4000){ sd[coin] = Date.now(); const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // REST seed at most every 4 s per coin (it costs ~20 of the 1200 request weight per minute; the socket fills the buffer on its own)   // seed / socket down: REST
     return (this.tr[coin] || {rows:[]}).rows.slice().sort((p, q) => +q.ts - +p.ts).slice(0, 300); },
   async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
@@ -82,15 +85,15 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
       const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
     this.list = L; this.t = Date.now(); },
   start(){ if (this.on) return; this.on = true; this.state = "connecting";
-    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
+    const poll = async () => { this.trSweep(); try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
-    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
+    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; clearInterval(this.ping); ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
     ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
       if (m.channel === "trades" && Array.isArray(m.data)){ m.data.forEach(x => this.trPush(x)); return; }
       const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
       Object.entries(mids).forEach(([k, v]) => { const id = "HL:"+k; if (this.q[id] && +v > 0) this.q[id].last = +v; }); };
-    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait); this.wait = Math.min(60000, this.wait*2); };
+    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait + Math.random()*1000); this.wait = Math.min(30000, this.wait*2); };
     ws.onerror = () => { try { ws.close(); } catch(e){} }; }
 };
 // OKX timeframe -> Hyperliquid candle interval (bars Hyperliquid does not have -> clear error)

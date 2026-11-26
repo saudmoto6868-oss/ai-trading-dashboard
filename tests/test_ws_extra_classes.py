@@ -7,6 +7,6 @@ assert all(c in CLASSES for c in d), d
 assert {"Metals", "Indices", "Forex", "Oil & Gas", "Stocks", "Bonds"} <= set(d), d              # every class except Crypto (chosen), Options (no candles), EGX / Tadawul (no feed)
 assert "Options" not in d and "Crypto" not in d
 assert sum(d.values()) <= 16, "keep the extra scan small (rate limits)"
-src = open(os.path.join(os.path.dirname(__file__), "..", "main.py"), encoding="utf-8").read()
+src = open(os.path.join(os.path.dirname(__file__), "..", "modules", "page_bg.py"), encoding="utf-8").read()   # _ws_universe moved out of main.py (M7)
 assert "for cls, n in WS_EXTRA:" in src and "from modules.asset_classes import WS_EXTRA" in src
 print("PASS: ws extra classes", d)

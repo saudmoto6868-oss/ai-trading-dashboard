@@ -52,4 +52,18 @@ for lg in ("en", "ar"):
         assert not at.exception and "bos" in at.dataframe[0].value.to_string()
     else:
         assert "الستوب ضيق" in md, md[:300]
+# the REAL app opens it as page 23 (Trading hub; main.py page table), network blocked
+import requests  # noqa: E402
+
+
+def _blocked(*a, **k):
+    raise requests.exceptions.ConnectionError("blocked in test")
+
+
+requests.get = requests.post = requests.Session.request = _blocked
+at = AppTest.from_file(os.path.join(ROOT, "main.py"), default_timeout=250)
+at.session_state["page"] = 23
+at.run()
+assert not at.exception, at.exception
+assert any("Strategy Ledger" in h.value for h in at.subheader), [h.value for h in at.subheader]
 print("ok ledger page app")

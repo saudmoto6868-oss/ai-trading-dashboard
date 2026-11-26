@@ -3888,84 +3888,31 @@ def _page_10():   # prop firms (added 2026-11-04)
         st.error(f"Prop Firms: {type(_pf_exc).__name__}: {_pf_exc}")
     st.stop()
 
-def _page_12():   # TIA institutional intelligence terminal (new standalone parent-company workspace)
-    global _tia_exc, render_tia   # M7: same module-level names as before the page became a function
-    try:
-        from modules.tia_page import render_tia
-        render_tia()
-    except Exception as _tia_exc:
-        st.error(f"TIA: {type(_tia_exc).__name__}: {_tia_exc}")
-    st.stop()
+# Pages that are one module call (M7 / 4.2): index -> (error label, module, function, comment). The page imports its module only when opened.
+_MODULE_PAGES = {
+    12: ("TIA", "modules.tia_page", "render_tia", "TIA institutional intelligence terminal (new standalone parent-company workspace)"),
+    11: ("Spot", "modules.spot_page", "render", "Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)"),
+    17: ("Trade Intelligence Center", "modules.intelligence_center_ui", "render", "knowledge + meeting journal, read-only over Lab / Radar / Spot (MR !27)"),
+    18: ("V7 Research", "modules.v7_page", "render", "read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md"),
+    19: ("2.6 Lab", "modules.two_six_lab", "render", "2.6 Strategy Intelligence (owner 2026-11-13): research status only, no orders / prices"),
+    22: ("Preview", "modules.unwired_preview", "render", "built-but-unwired pages / tools / libraries for the owner to review; read-only (owner 2026-11-21)"),
+    21: ("X77", "modules.x77_page", "render", "saved items + chart labels by school; saves / labels only, no orders (owner 2026-11-20)"),
+    20: ("RSI Heatmap", "modules.rsi_heatmap", "render", "additive market-wide research map (MR !68)"),
+    23: ("Strategy Ledger", "modules.ledger_page", "render", "every strategy's plans replayed on the candles, explained and ranked; read-only (owner 2026-11-24)"),
+}
 
-def _page_11():   # Spot desk: crypto + metals, ledger / invoices, alerts (added 2026-11-06)
-    global _sp_exc, _spot_render   # M7: same module-level names as before the page became a function
-    try:
-        from modules.spot_page import render as _spot_render
-        _spot_render()
-    except Exception as _sp_exc:
-        st.error(f"Spot: {type(_sp_exc).__name__}: {_sp_exc}")
-    st.stop()
 
-def _page_17():   # Trade Intelligence Center (MR !27, additive; knowledge + meeting journal, read-only over Lab / Radar / Spot)
-    global _tic_exc, _tic_render   # M7: same module-level names as before the page became a function
+def _module_page(i):
+    label, mod, fn, _ = _MODULE_PAGES[i]
     try:
-        from modules.intelligence_center_ui import render as _tic_render
-        _tic_render()
-    except Exception as _tic_exc:
-        st.error(f"Trade Intelligence Center: {type(_tic_exc).__name__}: {_tic_exc}")
-    st.stop()
-
-def _page_18():   # V7 research (Lab hub, 2026-11-10): read-only view of data/v7; conditions in docs/V7_NEXT_STEP_REPLY_2026-11-10.md
-    global _v7_exc, _v7_render   # M7: same module-level names as before the page became a function
-    try:
-        from modules.v7_page import render as _v7_render
-        _v7_render()
-    except Exception as _v7_exc:
-        st.error(f"V7 Research: {type(_v7_exc).__name__}: {_v7_exc}")
-    st.stop()
-
-def _page_19():   # 2.6 Strategy Intelligence (owner 2026-11-13): research status only, no orders / prices
-    global _ts_exc, _two_six_render   # M7: same module-level names as before the page became a function
-    try:
-        from modules.two_six_lab import render as _two_six_render
-        _two_six_render()
-    except Exception as _ts_exc:
-        st.error(f"2.6 Lab: {type(_ts_exc).__name__}: {_ts_exc}")
-    st.stop()
-
-def _page_22():   # Preview (owner 2026-11-21): built-but-unwired pages / tools / libraries, for the owner to review; read-only
-    global _pv_exc, _pv_render   # M7: same module-level names as before the page became a function
-    try:
-        from modules.unwired_preview import render as _pv_render
-        _pv_render(st, L)
-    except Exception as _pv_exc:
-        st.error(f"Preview: {type(_pv_exc).__name__}: {_pv_exc}")
-    st.stop()
-
-def _page_23():   # Strategy Ledger (owner 2026-11-24): every strategy's plans replayed on the candles, explained and ranked; read-only
-    try:
-        from modules.ledger_page import render as _ledger_render
-        _ledger_render()
-    except Exception as _lg_exc:
-        st.error(f"Strategy Ledger: {type(_lg_exc).__name__}: {_lg_exc}")
-    st.stop()
-
-def _page_21():   # X77 (owner 2026-11-20): saved items + chart labels by school; saves / labels only, no orders
-    global _x77_render, _x_exc   # M7: same module-level names as before the page became a function
-    try:
-        from modules.x77_page import render as _x77_render
-        _x77_render()
-    except Exception as _x_exc:
-        st.error(f"X77: {type(_x_exc).__name__}: {_x_exc}")
-    st.stop()
-
-def _page_20():   # RSI Heatmap Intelligence (MR !68): additive market-wide research map
-    global _rsi_heatmap_render, _rsi_hm_exc   # M7: same module-level names as before the page became a function
-    try:
-        from modules.rsi_heatmap import render as _rsi_heatmap_render
-        _rsi_heatmap_render()
-    except Exception as _rsi_hm_exc:
-        st.error(f"RSI Heatmap: {type(_rsi_hm_exc).__name__}: {_rsi_hm_exc}")
+        import importlib
+        f = getattr(importlib.import_module(mod), fn)
+        if i == 22:   # Preview takes (st, L); statements, not one expression (Streamlit magic would print its None)
+            f(st, L)
+        else:
+            f()
+    except Exception as e:
+        st.error(f"{label}: {type(e).__name__}: {e}")
     st.stop()
 
 def _page_16():   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
@@ -3983,6 +3930,7 @@ def _page_16():   # Trading > Options & macro (2026-11-09, moved out of the Tech
 
 
 # M7 (maintenance plan 4.1): one function per page, exactly one runs (the old `if PAGE == N:` blocks, same order of indexes).
-_PAGE_FN = {0: _page_0, 1: _page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 6: _page_6, 8: _page_8, 9: _page_9, 4: _page_4, 10: _page_10, 12: _page_12, 11: _page_11, 17: _page_17, 18: _page_18, 19: _page_19, 22: _page_22, 23: _page_23, 21: _page_21, 20: _page_20, 16: _page_16}
+_PAGE_FN = {0: _page_0, 1: _page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 6: _page_6, 8: _page_8, 9: _page_9, 4: _page_4, 10: _page_10, 16: _page_16}
+_PAGE_FN.update({i: (lambda i=i: _module_page(i)) for i in _MODULE_PAGES})
 if PAGE in _PAGE_FN:
     _PAGE_FN[PAGE]()

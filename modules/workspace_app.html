@@ -450,6 +450,9 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
 <script>
 "use strict";
 const CFG = __CONFIG__;
+/* M1 1.3: timers that only repaint the screen skip while the browser tab is hidden; each skipped one runs once when the tab is shown again */
+const VIS_MISSED = new Set(), visOnly = fn => () => { if (document.hidden){ VIS_MISSED.add(fn); return; } fn(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) return; const a = [...VIS_MISSED]; VIS_MISSED.clear(); a.forEach(f => { try { f(); } catch(e){} }); });
 /* blink diagnostics (console only, no UI): a page load line says whether Streamlit re-created this iframe; a long-task line says the main thread was blocked (>120 ms) */
 try { const k = "xpix_loads", a = JSON.parse(localStorage.getItem(k) || "[]"); a.push(Date.now()); localStorage.setItem(k, JSON.stringify(a.slice(-20)));
   console.info("[XPIX] page load #" + a.length + (a.length > 1 ? " (" + Math.round((a[a.length-1] - a[a.length-2])/1000) + " s after the previous load)" : " (first)")); } catch(e){}
@@ -911,7 +914,7 @@ function sparkSvg(e, W, H){ const v = (e && e.spark) || [], pl = e && e.plan; W 
   const all = v.concat([pl.entry, pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), y = p => (H-2-(p-lo)/((hi-lo)||1)*(H-4)).toFixed(1), pts = v.map((p, i) => (i*(W-1)/(v.length-1)).toFixed(1)+","+y(p)).join(" "), ln = (p, c, d) => '<line x1="0" x2="'+W+'" y1="'+y(p)+'" y2="'+y(p)+'" stroke="'+c+'" stroke-width=".8"'+(d ? ' stroke-dasharray="2 2"' : '')+'/>';
   return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle">'+ln(pl.tps[0], "#0ecb81", 1)+ln(pl.stop, "#f6465d", 1)+ln(pl.entry, "#4aa3ff", 0)+'<polyline points="'+pts+'" fill="none" stroke="'+(e.direction === "bullish" ? "#0ecb81" : "#f6465d")+'" stroke-width="1.2"/></svg>'; }
 const clsCounts = () => { const n = {}; try { readyList(true).forEach(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; }); } catch(e){} return n; };   // ready setups per class (before the class filter): what the scan really produced
-const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(() => { if (CLS_SELS.size) clsBroadcast(); }, 5000);   // every class select shows the one shared FILT.cls
+const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(visOnly(() => { if (CLS_SELS.size) clsBroadcast(); }), 5000);   // every class select shows the one shared FILT.cls
 const clsOk = sym => !FILT.cls || FILT.cls === "All" || FILT.cls === "__best" || symClass(sym) === FILT.cls;
 const clsOptions = () => [["All", T("fAll")], ["__best", Lg("Best of all","الأفضل من الكل")]].concat(CLS_LIST.map(c => [c, catL(c)]));
 function readyList(noCls){
@@ -4660,7 +4663,7 @@ const OFM = {
     rs.value = S.omR; ws.value = S.omW; bx.type = "checkbox"; bx.checked = S.omB; bl.append(bx, document.createTextNode(" "+Lg("Trades","صفقات"))); bl.style.cssText = "font-size:11px;color:#9aa4b2;display:flex;align-items:center;gap:2px";
     rs.onchange = () => { S.omR = +rs.value; Ws.save(); OFM.draw(p); }; ws.onchange = () => { S.omW = +ws.value; Ws.save(); OFM.draw(p); }; bx.onchange = () => { S.omB = bx.checked; Ws.save(); OFM.draw(p); };
     tb.append(p.symSel, rs, ws, bl); const wrap = el("div"); wrap.style.cssText = "position:relative;flex:1;min-height:0"; const cv = el("canvas"); cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block"; wrap.append(cv); p.ofmCv = cv;
-    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden) OFM.draw(p); }, 1000);
+    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden && !p.min) OFM.draw(p); }, 1000);
     p.destroy = () => { ro.disconnect(); clearInterval(iv); cancelAnimationFrame(p.om.raf); }; p.resub(); },
   resub(p, sym){
     p.om.snaps = []; p.om.trades = []; p.setTitle();
@@ -5008,7 +5011,7 @@ class Panel {
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
-    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
+    this.cdTimer = setInterval(visOnly(() => { if (!this.min) this.tickCd(); }), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -5797,7 +5800,7 @@ class Panel {
       box.innerHTML = h+'</table>'; info.textContent = rows.length+"/"+syms.length+(waiting ? " · "+Lg("loading","بيحمّل")+" "+waiting : "")+(errs ? " · "+errs+" "+Lg("failed","فشل") : "");
       box.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s)); };
     grp.onchange = () => { S.rg = grp.value; Ws.save(); draw(); load(); }; oc.onchange = () => { S.rw = oc.checked; Ws.save(); draw(); };
-    HL.start(); draw(); load(); const iv = setInterval(() => { draw(); load(); }, 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
+    HL.start(); draw(); load(); const iv = setInterval(visOnly(() => { draw(); load(); }), 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
     this.unwatch = () => { clearInterval(iv); clearTimeout(iv2); };
   }
   /* ---- journal: funded-account style analytics (equity curve, stat cards, win/loss calendar) ---- */
@@ -6382,7 +6385,7 @@ class Panel {
       const live = readyList(); let e = Setup.sel ? (live.find(x => key(x) === key(Setup.sel)) || Setup.sel) : live[0]; cur = e || null;
       box.innerHTML = e ? setupHtml(e) : '<div class="m" style="padding:12px">'+esc(CFG.scanning ? T("scanning") : T("rdEmpty"))+'</div>';
     };
-    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(draw, 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
+    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(visOnly(draw), 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
   }
   build_notes(){
     const ta = el("textarea"); ta.className = "fill"; ta.style.cssText = "width:100%;height:100%;border:0;border-radius:0;resize:none"; ta.value = this.state.txt || "";
@@ -6989,7 +6992,7 @@ Ws.drawStrip = () => {
     requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 })();
-Alerts.subs.add(() => Ws.drawStrip()); setInterval(() => Ws.drawStrip(), 5000); setTimeout(() => Ws.drawStrip(), 300);
+Alerts.subs.add(() => Ws.drawStrip()); setInterval(visOnly(() => Ws.drawStrip()), 5000); setTimeout(() => Ws.drawStrip(), 300);
 Ws.showOnChart = c => {
   Setup.sel = c; Setup.subs.forEach(f => f());
   const ch = Ws.panels.find(p => p.type === "chart"); if (!ch) return;
@@ -7914,7 +7917,7 @@ Panel.prototype.build_x77 = function(){
     box.querySelectorAll(".cd").forEach(d => d.onclick = () => { const e = rows[+d.dataset.i]; if (e) Ws.broadcast(this, e.symbol); });
   };
   this.resub = () => { this.setTitle(); draw(); };
-  const tm = setInterval(draw, 15000); this.unsubs.push(() => clearInterval(tm)); draw();
+  const tm = setInterval(visOnly(draw), 15000); this.unsubs.push(() => clearInterval(tm)); draw();
 };
 // Chart indicator "X77" (Indicators menu, Sessions & signals group): the same school labels drawn on the chart.
 // One line per live setup on this symbol (top left) + a small "X77" tag at its entry price. Labels only.
@@ -8849,7 +8852,7 @@ function applyLang(rebuild){
   rail.addEventListener("pointermove", e => { if (sy == null) return; const dy = (e.screenY - sy)*2.2; sy = e.screenY; try { const sc = scroller(); sc ? sc.scrollBy({top:dy}) : window.parent.scrollBy({top:dy}); } catch(e){} });
   const end = () => { sy = null; }; rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
   let q = 0; const sched = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; place(); }); };
-  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(place, 1500); place();
+  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
 

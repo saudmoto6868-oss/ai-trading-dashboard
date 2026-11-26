@@ -1,5 +1,8 @@
 "use strict";
 const CFG = __CONFIG__;
+/* M1 1.3: timers that only repaint the screen skip while the browser tab is hidden; each skipped one runs once when the tab is shown again */
+const VIS_MISSED = new Set(), visOnly = fn => () => { if (document.hidden){ VIS_MISSED.add(fn); return; } fn(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) return; const a = [...VIS_MISSED]; VIS_MISSED.clear(); a.forEach(f => { try { f(); } catch(e){} }); });
 /* blink diagnostics (console only, no UI): a page load line says whether Streamlit re-created this iframe; a long-task line says the main thread was blocked (>120 ms) */
 try { const k = "xpix_loads", a = JSON.parse(localStorage.getItem(k) || "[]"); a.push(Date.now()); localStorage.setItem(k, JSON.stringify(a.slice(-20)));
   console.info("[XPIX] page load #" + a.length + (a.length > 1 ? " (" + Math.round((a[a.length-1] - a[a.length-2])/1000) + " s after the previous load)" : " (first)")); } catch(e){}

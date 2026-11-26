@@ -352,7 +352,7 @@ def ws_lite() -> bool:
 
 # Loader of the lite page: asks Streamlit for the page data, then runs the script from the browser's Cache API (Streamlit
 # serves component .js with "Cache-Control: public" and no validator, so the plain HTTP cache does not keep it).
-# New page data (a new stamp) reloads the frame, like a new st.iframe document did.
+# New page data (a new stamp) is applied in place by Ws.applyCfg; a layout change reloads the frame, like a new st.iframe document did.
 _LITE_LOADER = """<script>
 (function(){
   const JS = "__JS__", send = (type, x) => window.parent.postMessage(Object.assign({isStreamlitMessage:true, type}, x || {}), "*");
@@ -365,7 +365,9 @@ _LITE_LOADER = """<script>
   window.addEventListener("message", async ev => { const d = ev.data || {}; if (d.type !== "streamlit:render") return; const a = d.args || {};
     send("streamlit:setFrameHeight", {height: a.height || 860});
     if (stamp === null){ stamp = a.stamp; window.__WS_CFG__ = a.cfg || {}; const s = document.createElement("script"); s.textContent = await code(); document.body.appendChild(s); }
-    else if (a.stamp !== stamp) location.reload(); });
+    else if (a.stamp !== stamp){ stamp = a.stamp; let ok = false;   // new page data: applied in place when only data changed (Ws.applyCfg), else a reload
+      try { ok = typeof Ws !== "undefined" && !!Ws.applyCfg && Ws.applyCfg(a.cfg || {}); } catch(e){ console.error(e); }
+      if (!ok) location.reload(); } });
   send("streamlit:componentReady", {apiVersion:1});
 })();
 </script>

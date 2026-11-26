@@ -993,10 +993,11 @@ const Alerts = {
   },
   clear(){ this.list = []; store.set(LS+"_alerts", this.list); this.subs.forEach(f => f()); }
 };
-(CFG.alerts || []).forEach(a => {
+const cfgAlerts = () => (CFG.alerts || []).forEach(a => {   // also run by Ws.applyCfg (new page data); Alerts.add skips ids it has
   const bull = a.direction === "bullish";
   Alerts.add(a.id, "scan", a.symbol, a.symbol+" · "+(bull ? "Long" : "Short")+" · "+a.score+"/"+a.max, bull ? "#0ecb81" : "#f6465d", a);
 });
+cfgAlerts();
 
 const YF = CFG.yf || {}, YF_BAR = {"15m":"15m","1H":"1h","4H":"4h","1D":"1d"};
 function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Tadawul): candles were embedded by the server from Yahoo Finance, answered here in OKX's shape (newest first)
@@ -8860,6 +8861,20 @@ function applyLang(rebuild){
   try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
+
+/* M2 / P6: new page data from Streamlit (WS_LITE page) is applied without reloading the frame: data keys update CFG and the widgets
+   are rebuilt from the current layout (the same path as the rebuild above); the live sockets and the parsed script stay.
+   A changed layout key (symbols, language, theme, mode, build...) returns false and the loader reloads the frame instead. */
+Ws.applyCfg = n => {
+  const DATA = ["news","world","feedStatus","ready","smtx","scan","scanning","tfstats","cmc","macrof","stockf","cal","alerts","spot","seed","meme","links","filters","x77","gannoos"];
+  const diff = Object.keys(Object.assign({}, CFG, n)).filter(k => JSON.stringify(CFG[k]) !== JSON.stringify(n[k]));
+  if (diff.some(k => !DATA.includes(k))) return false;
+  if (!diff.length) return true;
+  diff.forEach(k => { CFG[k] = n[k]; });
+  cfgAlerts();
+  const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save();
+  return true;
+};
 
 /* XCMD: a small, SAFE command layer for outside drivers (the XPiX Telegram bot through Playwright, tests, a human in the console). docs/XPIX_BOT_BRIEF.md.
    Read + view + draw only: it never places or changes an order, never opens an outside page, never touches keys. Every call returns {ok:true,...} or {ok:false,err}. */

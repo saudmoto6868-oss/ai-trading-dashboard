@@ -260,3 +260,17 @@ function applyLang(rebuild){
   try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
+
+/* M2 / P6: new page data from Streamlit (WS_LITE page) is applied without reloading the frame: data keys update CFG and the widgets
+   are rebuilt from the current layout (the same path as the rebuild above); the live sockets and the parsed script stay.
+   A changed layout key (symbols, language, theme, mode, build...) returns false and the loader reloads the frame instead. */
+Ws.applyCfg = n => {
+  const DATA = ["news","world","feedStatus","ready","smtx","scan","scanning","tfstats","cmc","macrof","stockf","cal","alerts","spot","seed","meme","links","filters","x77","gannoos"];
+  const diff = Object.keys(Object.assign({}, CFG, n)).filter(k => JSON.stringify(CFG[k]) !== JSON.stringify(n[k]));
+  if (diff.some(k => !DATA.includes(k))) return false;
+  if (!diff.length) return true;
+  diff.forEach(k => { CFG[k] = n[k]; });
+  cfgAlerts();
+  const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save();
+  return true;
+};

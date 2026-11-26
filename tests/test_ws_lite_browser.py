@@ -1,5 +1,6 @@
 """M1 phase 2 / P4: the lite Workspace (WS_LITE) boots from a component page, keeps its 1.2 MB script in the browser's Cache API
-(fetched once, not again on a page reload), and reloads itself when Streamlit sends new page data (a new stamp).
+(fetched once, not again on a page reload), applies new page data in place (Ws.applyCfg, M2 / P6) and reloads itself only when a
+layout key (here: the language) changes.
 Real headless Chromium against a local server; a fake parent plays Streamlit's component messages (MOCK-TESTED ONLY)."""
 import functools
 import http.server
@@ -63,6 +64,9 @@ with sync_playwright() as pw:
     p.on("pageerror", lambda e: errs.append(str(e)[:160]))
     p.route("**/*", lambda r: r.continue_() if r.request.url.startswith(base) else r.abort())
     p.add_init_script("window.__cfg = %s;" % __import__("json").dumps(cfg))
+    p.add_init_script("""if (window !== window.top){ window.__live = new Set(); const si = setInterval, ci = clearInterval;
+      window.setInterval = (f, ms, ...r) => { const id = si(f, ms, ...r); window.__live.add(id); return id; };
+      window.clearInterval = id => { window.__live.delete(id); return ci(id); }; }""")
 
     def fr():
         return next(f for f in p.frames if "index.html" in f.url)
@@ -85,11 +89,35 @@ with sync_playwright() as pw:
     p.reload()
     booted()
     assert n_js() == 1, ("second page load must run the script from the Cache API", hits)
-    p.evaluate("() => { window.__stamp = 'b'; document.getElementById('f').contentWindow.__old = 1; render(); }")
-    p.wait_for_function("() => { try { return !document.getElementById('f').contentWindow.__old; } catch(e){ return false; } }", timeout=10000)
+    # same page data, new stamp: nothing to do, no reload
+    p.evaluate("() => { document.getElementById('f').contentWindow.__old = 1; window.__stamp = 'b'; render(); }")
+    p.wait_for_timeout(800)
+    assert fr().evaluate("window.__old === 1"), "same data must not reload the frame"
+    # only data changed (news): applied in place (Ws.applyCfg), widgets rebuilt, no reload, no timer pile-up
+    fr().evaluate("() => { Ws.build(Ws.defaults()); Ws.save(); }")   # ?blank=1 starts empty: give it the standard widgets
+    p.wait_for_timeout(1500)
+    live0 = fr().evaluate("window.__live.size")
+    n0 = fr().evaluate("Ws.panels.length")
+    for i, stamp in enumerate("cde"):
+        p.evaluate("([s, h]) => { window.__cfg = Object.assign({}, window.__cfg, {news:[{headline:h, source:'x', url:'', summary:'', datetime:''}]}); window.__stamp = s; render(); }", [stamp, "NEWS-%d" % i])
+        p.wait_for_timeout(800)
+    assert fr().evaluate("window.__old === 1"), "a data-only change must not reload the frame"
+    assert fr().evaluate("CFG.news[0].headline") == "NEWS-2"
+    assert fr().evaluate("Ws.panels.length") == n0 and n0 > 0
+    live1 = fr().evaluate("window.__live.size")
+    assert live1 <= live0 + 3, ("rebuilding the widgets must not pile up timers", live0, live1)
+    # a layout key changed (language): the frame reloads and boots again
+    p.evaluate("() => { window.__cfg = Object.assign({}, window.__cfg, {lang:'ar'}); window.__stamp = 'f'; render(); }")
+    for _ in range(100):
+        try:
+            if not fr().evaluate("window.__old === 1"):
+                break
+        except Exception:
+            pass
+        p.wait_for_timeout(100)
     booted()
-    assert n_js() == 1, hits
+    assert fr().evaluate("CFG.lang") == "ar" and n_js() == 1, hits
     assert not errs, errs
     b.close()
 srv.shutdown()
-print("ok ws lite: boots, script fetched once over 3 loads, new stamp reloads; index %d bytes, %s %d bytes" % (len(index), js_name, len(js)))
+print("ok ws lite: boots, script fetched once, data applied in place (timers %d -> %d), language change reloads;" % (live0, live1) + " index %d bytes, %s %d bytes" % (len(index), js_name, len(js)))

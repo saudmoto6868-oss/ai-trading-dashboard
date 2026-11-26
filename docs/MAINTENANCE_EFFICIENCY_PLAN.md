@@ -224,7 +224,7 @@ tests/                     # نفس الاختبارات + parity قبل/بعد 
 | M4 الـ2 `st.tabs` (1.7) | `intelligence_center_ui.py`، `two_six_lab.py` | ✅ (اختيار واحد؛ AppTest على كل الاختيارات) | Claude (حساب Mohamed) |
 | M5 Spot (1.8) | `modules/spot_page.py` | ✅ (الأسعار بتتحمّل للتابات اللي محتاجاها بس؛ AppTest على الـ13 تاب) | Claude (حساب Mohamed) |
 | M6 خريطة اعتماديات الشارت (2.1) | `docs/WORKSPACE_DEPS.md` (جديد) | ✅ `python3 scripts/ws_deps.py` → `docs/WORKSPACE_DEPS.md` | Claude (حساب Mohamed) |
-| M7 `st.navigation` في `main.py` (4.1) | `main.py` + `app/` (جديد) | مفتوح (بعد M0 + M1) | — |
+| M7 `st.navigation` في `main.py` (4.1) | `main.py` + `app/` (جديد) | خطوة 1 ✅: كل `if PAGE == N:` بقت `def _page_N()` + dispatch بقاموس (رأي Fable: `st.navigation` بعد ما الصفحات تبقى ملفات، لأنه بيغيّر الـURL وحالة الـwidgets). AppTest للـ23 فهرس قبل/بعد: نفس النتيجة | Claude (حساب Mohamed) |
 | M8 workers (3.1) | `workers/` (جديد) | مستني اختيار §10 | — |
 | M9 تجهيز Oracle Free (§10.2) | `deploy/oracle/` (جديد) | مستني المالك يعمل الحساب | — |
 | **M10** CI للاختبارات كلها على كل PR (الحارس قبل ما أجينتس كتير يشتغلوا بالتوازي) | `.github/workflows/tests.yml` (جديد) | ✅ `.github/workflows/tests.yml` + `scripts/run_tests.py` | Claude (حساب Mohamed) |

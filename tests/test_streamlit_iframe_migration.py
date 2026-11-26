@@ -43,7 +43,7 @@ def test_no_deprecated_html_component_calls_remain():
     assert "html,body" in header_html and "overflow:hidden" in header_html
     assert "html,body" in workspace_html and "overflow:hidden" in workspace_html
     assert "overflow:hidden!important" in tv_source
-    main_source = (ROOT / "main.py").read_text(encoding="utf-8")
+    main_source = (ROOT / "modules/page_journal.py").read_text(encoding="utf-8")   # the Journal page moved out of main.py (M7)
     assert 'st.iframe(_html, height=900, alt="QuantStats performance report")' in main_source
 
 

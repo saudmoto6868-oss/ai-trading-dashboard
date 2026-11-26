@@ -1,1 +1,2 @@
 {"id": "HL:xyz:JPY|2026-11-25", "symbol": "HL:xyz:JPY", "class": "Forex", "tf": "1d", "side": "long", "entry": 159.25, "stop": 156.03, "target": 164.07999999999998, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:JPY|2026-11-26", "symbol": "HL:xyz:JPY", "class": "Forex", "tf": "1d", "side": "long", "entry": 159.1, "stop": 156.03, "target": 163.70499999999998, "made_at": "2026-11-26", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

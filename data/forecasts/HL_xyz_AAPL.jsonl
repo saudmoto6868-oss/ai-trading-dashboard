@@ -1,1 +1,2 @@
 {"id": "HL:xyz:AAPL|2026-11-25", "symbol": "HL:xyz:AAPL", "class": "Stocks", "tf": "1d", "side": "short", "entry": 352.72, "stop": 361.0, "target": 340.30000000000007, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:AAPL|2026-11-26", "symbol": "HL:xyz:AAPL", "class": "Stocks", "tf": "1d", "side": "short", "entry": 356.62, "stop": 361.0, "target": 350.05, "made_at": "2026-11-26", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

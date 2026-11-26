@@ -7,7 +7,6 @@ from modules.page_kit import kit_theme as _kit_theme, xl as _xl
 
 
 def render_page():   # Research Hub (owner 2026-10-29): separate tabs that read each other only through data/hub snapshots (docs/RESEARCH_HUB.md)
-    global _HUB_TABS, _hi, _hub_exc, _hub_fn, _hub_mod, _hub_tab, _hub_ui, _il_hub   # module-level names, as in main.py before (M7)
     try:
         import importlib as _il_hub
         from modules import hub_ui as _hub_ui

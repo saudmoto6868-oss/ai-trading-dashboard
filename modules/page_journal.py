@@ -56,7 +56,6 @@ def _stats_journal_kpis(jdf):
 
 
 def render_page():   # journal (2026-11-09: mock Edge Map / Robustness / Execution and the duplicate Lab evidence tab removed - the lab lives in Lab > Technical Office)
-    global _c, _dd, _e, _html, _jdf, _m, _mc, _mc_render, _mc_summary, _msg, _pd, _ret, _risk, _st, _stab, _up, perf_stats, quantstats_html, returns_from_trades   # module-level names, as in main.py before (M7)
     if st.session_state.get("stats_tab") not in ("My journal", "Monte Carlo"):
         st.session_state.pop("stats_tab", None)
     _stab = st.segmented_control(" ", ["My journal", "Monte Carlo"], default="My journal", format_func=L, key="stats_tab", label_visibility="collapsed") or "My journal"

@@ -180,7 +180,6 @@ def _office_regime():
 
 
 def render_page():   # Trading > Options & macro (2026-11-09, moved out of the Technical Office): macro regime first (short), then the options desk + GEX
-    global _fn, _nm, _om_exc   # module-level names, as in main.py before (M7)
     st.markdown(kit_css(), unsafe_allow_html=True)
     for _nm, _fn in (("Macro regime", _office_regime), ("Options desk", _office_options)):
         try:

@@ -12,7 +12,6 @@ The whole page re-runs every few seconds (auto-refresh) so data stays live.
 
 import base64
 import html
-import json
 import os
 import time
 from pathlib import Path
@@ -34,9 +33,8 @@ from modules.arabic import (
 )
 from modules.risk_engine import build_trade_plan
 from modules.alerts import check_and_fire_alerts, ALERT_SCORE_THRESHOLD
-from modules.workspace import render_workspace
 from modules.i18n import L, RTL_CSS, lang as _ui_lang
-from modules.page_kit import md_sections as _md_sections, office_bars as _office_bars, kit_css, xl as _xl, has_secret as _has_secret   # moved out of main.py (M7)
+from modules.page_kit import md_sections as _md_sections, xl as _xl   # moved out of main.py (M7)
 from modules.page_playbook import render_playbook_page   # Playbook page moved out of main.py (M7)
 from modules.page_academy import render_academy_page   # Academy page moved out of main.py (M7)
 from modules import page_options as _pg16   # page 16 moved out of main.py (M7)
@@ -44,8 +42,8 @@ from modules import page_alerts as _pg6   # page 6 moved out of main.py (M7)
 from modules import page_journal as _pg4   # page 4 moved out of main.py (M7)
 from modules import page_hub as _pg9   # page 9 moved out of main.py (M7)
 from modules import page_radar as _pg1   # page 1 (Radar) moved out of main.py (M7)
-from modules.page_radar_filters import _strat_name   # shared
-from modules.page_radar_data import _CS_TFS   # shared with the Technical Office / AI pages
+from modules import page_workspace as _pg0, page_lab as _pg2, page_ai as _pg5   # pages 0, 2, 5, 8 moved out of main.py (M7)
+from modules.page_lab import _source_ping, _office_charts   # still used by the info strip / control room
 from modules import office_ui as _OUI   # noqa: F401  (registers the Technical Office Arabic keys in i18n.AR at import)
 from modules.site_icons import site_icon_b64
 from modules.header_bar import render_header_bar
@@ -315,7 +313,7 @@ def score_mt5_group(symbols):
 
 
 from modules.page_bg import (   # background scan / workers / caches, moved out of main.py (M7)
-    scan_crypto_group, _bg, _scan_store, _tg_sent, get_tf_stats, _ws_universe, _dayplan_watch, _dayplan_events, _smt_events, build_ws_payload,
+    scan_crypto_group, _bg,
 )
 
 
@@ -578,20 +576,6 @@ def render_limit_tracking(sym, book, trades):
                "inside one refresh is not seen. PULLED = vanished without trading."))
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _world_news():
-    from modules.world_news import fetch_world
-    return fetch_world()
-
-
-def _smt_chips(lang):
-    try:
-        from modules import intermarket as _IM
-        return _IM.chips(_smt_events(), ar=(lang == "ar"))
-    except Exception:
-        return []
-
-
 MINI_CSS = """<style>
 .mini{height:150px;min-height:60px;resize:vertical;overflow:auto;border:1px solid #2b3139;border-radius:6px;background:#161a1e}
 .mini table{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
@@ -757,18 +741,8 @@ def _fred_rows():
     return snapshot()
 
 
-from modules.context_feeds import cmc_data as _cmc_data, stock_fund as _stock_fund   # moved to modules/context_feeds.py
 
 
-def _stock_tickers():
-    if asset_cls == "Stocks":
-        t = tuple(s.split("-")[0] for s in ACTIVE_SYMBOLS[:10] if s.split("-")[0].isalpha())
-        if t:
-            return t
-    return ()
-
-
-from modules.context_feeds import macro_fund as _macro_fund   # moved to modules/context_feeds.py
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -821,7 +795,7 @@ try:
 except Exception:
     pass
 # ---- One asset-class dropdown for scanner / ready trades / watchlist ---------------
-from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, MEME_BASES, class_symbols
+from modules.asset_classes import CLASSES as ASSET_CLASSES, MARKET_TYPES, class_symbols
 asset_cls = st.session_state.get("asset_cls", "Crypto")      # the two selectors live at the top of the Chart Scanner tab
 market_type = st.session_state.get("market_type", "Spot")
 SCAN_SYMBOLS, _ac_msg = class_symbols(asset_cls, CRYPTO_SYMBOLS, mtype=MARKET_TYPES.get(market_type, "SPOT"))
@@ -968,676 +942,6 @@ def _office_control_room():
     st.divider()
 
 
-@st.cache_data(ttl=60, show_spinner=False)
-def _source_status():
-    return _source_ping()
-
-
-def _source_ping():
-    """Is each data source answering right now? (tiny public calls, 4 s timeout; _source_status caches it 60 s). Never sends a key."""
-    import requests
-    from modules import market_cache as _mc
-    out = {}
-    for name, key, fn in (("OKX", "OKX", lambda: requests.get("https://www.okx.com/api/v5/public/time", timeout=8)),
-                          ("Hyperliquid", "HL", lambda: requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=8))):
-        if _mc.recent_ok(key):   # the app's own candle downloads just worked: no extra call (a busy server made the 4 s ping time out = false "down")
-            out[name] = True
-            continue
-        try:
-            out[name] = bool(fn().ok)
-        except Exception:
-            out[name] = False
-    return out
-
-
-def _office_charts():
-    from modules import office_kpi as _OK
-    d = _OK.load()
-    if not d:
-        return
-    a, b = st.columns(2)
-    with a:
-        _office_bars(_OK.pooled(d, "tf"), L("avg R by timeframe (dashed = 0.1R cost)"))
-    with b:
-        _office_bars(_OK.pooled(d, "school"), L("avg R by school (dashed = 0.1R cost)"))
-
-
-def _holdouts():
-    """Frozen holdout results on disk (data/holdout_*.json from modules/lab_holdout.py): [{'key', 'pass', 'n', 'net', 't'}]."""
-    import json as _json
-    out = []
-    for p in sorted((Path(__file__).resolve().parent / "data").glob("holdout_*.json")):
-        try:
-            j = _json.loads(p.read_text(encoding="utf-8")); r = j["result"]
-            out.append({"key": j["frozen"]["key"], "pass": bool(r["pass"]), "n": r["n"], "net": r["net_avgR"], "t": r["t_vs_random"]})
-        except (OSError, ValueError, KeyError):
-            continue
-    return out
-
-
-def _office_overview():
-    """Control room: status bar, evidence gauge, alerts, indicators, system map, tools (owner's reference images)."""
-    from modules import office_kpi as _OK, office_ui as U
-    s = _OK.summary(_OK.load()) or {}
-    board = U.load_tasks().get("tasks", []); cnt = U.task_counts(board); src = _source_status()
-    fred = _has_secret("FRED_API_KEY"); tg = _has_secret("TELEGRAM_BOT_TOKEN")
-    b = s.get("best") or {}
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    st.markdown(U.chips([(L("OKX"), L("live") if src.get("OKX") else L("down"), "ok" if src.get("OKX") else "bad"),
-                         (L("Hyperliquid"), L("live") if src.get("Hyperliquid") else L("down"), "ok" if src.get("Hyperliquid") else "bad"),
-                         ("FRED", L("key set") if fred else L("no key"), "ok" if fred else "off"),
-                         (L("Telegram"), L("key set") if tg else L("no key"), "ok" if tg else "off"),
-                         (L("Last lab run"), s.get("built") or "-", "info"),
-                         (L("Blocked tasks"), cnt.get("blocked", 0), "bad" if cnt.get("blocked") else "ok")]), unsafe_allow_html=True)
-    al = []
-    if not s.get("passed"):
-        al.append((L("Nothing has passed the evidence gate yet"), L("info"), "info",
-                   L("The lab gives a t-stat to") + f" {s.get('det_t', 0)} / {s.get('det_rows', 0)} " + L("detector rows (and") + f" {s.get('chain_t', 0)} / {s.get('chain_rows', 0)} " + L("chain rows): a row without t cannot pass the gate")))
-    pb = [k for k in _md_sections("STRATEGIES.md") if k.startswith("Lab results ")]
-    if pb and s.get("built") and s["built"] not in pb[0]:
-        al.append((L("The Playbook summary is older than the last lab run"), L("degraded"), "warn", f"{pb[0].split(' ')[2]} / {s['built']}"))
-    for t in board:
-        if t.get("status") == "blocked":
-            _ar = _ui_lang() == "ar"
-            al.append((t.get("title_ar") if _ar and t.get("title_ar") else t["title"], L("blocked"), "bad", t.get("next_ar") if _ar and t.get("next_ar") else t.get("next", "")))
-    if not src.get("Hyperliquid", True):
-        al.append((L("Hyperliquid is not answering"), L("down"), "bad", L("gold / oil / index charts stop updating")))
-    st.markdown("<div class='xo-row'>" + U.gauge(s.get("passed", 0), s.get("candidates", 0), L("Evidence gate"),
-                L("n >= 100 · t > 3 · net > 0 · both halves positive, after 0.1R"), L("groups passed")) +
-                U.alerts(L("Alerts"), al[:5]) +
-                U.indicators(L("Indicators"), [
-                    (L("Detectors in the lab"), s.get("detectors", "-"), f"{s.get('symbols', 0)} " + L("symbols"), None),
-                    (L("OFF (no longer decide a trade)"), len(s.get("off", [])), ", ".join(s.get("off", [])), None),
-                    (L("Best net avg R (n >= 100)"), f"{b['net']:+.3f}" if b else "-", f"{b.get('key', '')} {b.get('tf', '')} · n {b.get('n', '')}", "ok" if b and b["net"] > 0 else None),
-                    (L("Cost per trade"), f"{_OK.COST_R}R", L("planning estimate"), None),
-                    (L("Tasks in review"), cnt.get("review", 0), L("waiting for Gemini / owner"), "info"),
-                    (L("Open tasks"), cnt.get("open", 0) + cnt.get("waiting", 0), L("work board"), None),
-                    (L("Rows with a t-stat"), f"{s.get('det_t', 0)} / {s.get('det_rows', 0)}", L("detector x timeframe; the gate needs t > 3"), "bad" if not s.get("det_t") else None),
-                    (L("Holdout tests run"), f"{len(_holdouts())}", L("frozen holdouts on older candles") + " · " + L("passed") + f" {sum(1 for h in _holdouts() if h['pass'])}", None)]) + "</div>", unsafe_allow_html=True)
-    _office_charts()
-    hl = "ok" if src.get("Hyperliquid") else "bad"
-    st.markdown(U.system_map(L("System map"), L("From data to decision to evidence; every node shows its state"), [
-        [("OKX", L("crypto · candles, book, trades"), "ok" if src.get("OKX") else "bad"), ("Hyperliquid", L("gold · oil · indices · FX"), hl),
-         ("FRED", L("macro data"), "ok" if fred else "off"), (L("News & calendar"), L("Grok watch every 6 h"), "ok")],
-        [(L("Detectors") + f" · {s.get('detectors', '-')}", L("OFF") + f": {len(s.get('off', []))}", "ok")],
-        [(L("Scanner & Radar"), L("confirmed first, then candidates"), "ok"), (L("Order flow"), L("footprint · book · tape"), hl),
-         (L("Backtest"), L("rules + engine, verdict on out-of-sample"), "info"), (L("Strategy import"), L("text / video link -> rules"), "off")],
-        [(L("Alerts · Telegram"), L("confirmed only, never orders"), "ok" if tg else "off"), (L("Journal"), L("in the browser · CSV export"), "info"),
-         (L("Model inventory"), L("gate verdict per strategy"), "info")]]), unsafe_allow_html=True)
-    st.caption(L("Educational, not investment advice. Source: data/strategy_lab.json (weekly lab)."))
-
-
-def _office_board():
-    from modules import office_ui as U
-    d = U.load_tasks(); tasks = d.get("tasks", [])
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    cnt = U.task_counts(tasks)
-    st.markdown(U.chips([(L(k), v, U.STATUS_TONE.get(k, "off")) for k, v in sorted(cnt.items())]), unsafe_allow_html=True)
-    areas = sorted({t.get("area", "-") for t in tasks})
-    pick = st.segmented_control(L("Area"), ["All"] + areas, default="All", format_func=L, key="to_board_area")
-    ar = _ui_lang() == "ar"
-    tx = lambda t, k: t.get(k + "_ar") if ar and t.get(k + "_ar") else t.get(k, "")
-    rows = [[U.badge(t.get("p", "-"), {"P1": "bad", "P2": "warn", "P3": "info"}.get(t.get("p"), "off")), U.esc(t.get("wbs", "")), U.esc(tx(t, "title")), U.esc(L(t.get("area", ""))), U.esc(tx(t, "owner")),
-             U.badge(L(t.get("status", "open")), U.STATUS_TONE.get(t.get("status", "open"), "off")), U.esc(t.get("gate", "")), U.esc(tx(t, "next"))]
-            for t in tasks if pick in (None, "All") or t.get("area") == pick]
-    st.markdown(U.table([L("Priority"), L("WBS"), L("Task"), L("Area"), L("Owner"), L("Status"), L("Gate"), L("Next step")], rows), unsafe_allow_html=True)
-    st.caption(L("Work board updated") + f" {d.get('updated', '-')} · data/office_tasks.json · " + L("every change is also written in the meeting room"))
-
-
-def _bt_agent(sym, tf):
-    """Backtest agent (owner 2026-10-22): explain the idea in words, the agent turns it into rules, the dashboard tests them."""
-    from modules import strategy_agent as A, strategy_rules as SR
-    from modules import ai_provider as AP
-    st.markdown(f"**{L('Explain your idea to the backtest agent')}**")
-    hist = st.session_state.setdefault("bt_agent_hist", [])
-    for h in hist[-6:]:
-        with st.chat_message("user"):
-            st.write(h["q"])
-        with st.chat_message("assistant"):
-            st.write(h["a"])
-    prov, key = AP.pick()
-    if not key:
-        st.info(L("The agent needs a ChatGPT key (OPENAI_API_KEY) or the free Gemini key (GEMINI_API_KEY) in Streamlit secrets. Until then, build the rules by hand in Technical Office > Backtest."))
-        return
-    st.caption(L("Answered by") + (" ChatGPT" if prov == "openai" else " Gemini"))
-    q = st.text_area(L("Your idea"), key="bt_agent_q", placeholder=L("e.g. buy when RSI 14 is under 30 and the close is above the 200 EMA, on the daily chart"))
-    c = st.columns([1, 1, 4])
-    if c[0].button(L("Ask the agent"), key="bt_agent_go") and q.strip():
-        try:
-            ans = A.ask(q.strip(), hist, key, provider=prov)
-        except Exception as e:
-            st.error(f"{type(e).__name__}: {e}")
-            return
-        hist.append({"q": q.strip(), "a": ans.get("reply", "")}); st.session_state["bt_agent_last"] = ans
-    if c[1].button(L("New conversation"), key="bt_agent_reset"):
-        st.session_state["bt_agent_hist"] = []; st.session_state.pop("bt_agent_last", None)
-    ans = st.session_state.get("bt_agent_last")
-    if not ans:
-        return
-    if ans.get("questions"):
-        st.markdown("**" + L("The agent asks") + ":** " + " · ".join(ans["questions"]))
-    if ans.get("assumptions"):
-        st.caption(L("Assumptions / not testable here") + ": " + " · ".join(ans["assumptions"]))
-    st.code(SR.to_json(ans["strategy"]) if not ans["errors"] else json.dumps(ans["strategy"], ensure_ascii=False, indent=1), language="json")
-    if ans["errors"]:
-        from modules import office_ui as _OU
-        st.warning(" · ".join(_OU.rule_error(x, _ui_lang() == "ar") for x in ans["errors"]))
-        return
-    b = st.columns([1.4, 1, 3])
-    if b[0].button(L("Test the agent's rules"), type="primary", key="bt_agent_run"):
-        _bt_run_show(ans["strategy"], sym, tf)
-    if b[1].button(L("Save rule"), key="bt_agent_save"):
-        SR.SessionStore(st.session_state).save(ans["strategy"]); st.success(L("Saved for this session"))
-
-
-def _bt_run_show(strat, sym, tf):
-    """Run one strategy on real candles and show the verdict (out-of-sample), metrics, split and equity curve."""
-    from modules import strategy_rules as SR, strategy_bt as BT
-    from modules import office_ui as _OU  # noqa: F401 (side effect / kept on purpose)  # also registers the Arabic for the backtest note and chart labels
-    from modules.market_cache import get_klines
-    side = strat["side"]
-    try:
-        df = get_klines(sym.strip(), tf, 1000)
-        res = BT.run(df, SR.evaluate(strat, df), side=side)
-    except Exception as e:
-        st.error(f"{type(e).__name__}: {e}")
-        return
-    ev = res.get("evidence") or {}; ins = res.get("in_sample") or {}
-    m = st.columns(5)
-    m[0].metric(L("Out-of-sample trades"), res.get("n", 0))
-    m[1].metric(L("net avg R"), "-" if not res.get("n") else f"{res['net_expectancy_r']:+.3f}")
-    m[2].metric(L("Win rate"), "-" if not res.get("n") else f"{res['win_rate'] * 100:.0f}%")
-    m[3].metric(L("Verdict"), L(ev.get("badge", "not evidence")))
-    m[4].metric(L("In-sample (info)"), f"{ins.get('n', 0)} · " + ("-" if not ins.get("n") else f"{ins['net_expectancy_r']:+.3f}R"))
-    sp = res.get("split") or {}
-    st.caption(L("Split frozen before any trade") + f": {L('in-sample')} {sp.get('in_sample_bars')} / {L('out-of-sample')} {sp.get('out_of_sample_bars')} " + L("candles")
-               + f" · {len(df)} " + L("candles") + " " + L("loaded (the dashboard fetch is capped; long histories run in GitHub Actions)") + " · " + L(res.get("note", "")))
-    seq = [("in-sample", v) for v in ins.get("net_r", [])] + [("out-of-sample", v) for v in res.get("net_r", [])]
-    if seq:   # equity curve in R after costs: in-sample first (information), then the out-of-sample part the verdict uses
-        import altair as alt
-        import pandas as _pd
-        _cp, _cr, _ct, _cc = L("part"), L("net R"), L("trade"), L("cumulative net R")   # column names shown in the chart and its tooltip
-        eq = _pd.DataFrame([(L(p_), v) for p_, v in seq], columns=[_cp, _cr]); eq[_ct] = range(1, len(eq) + 1); eq[_cc] = eq[_cr].cumsum()
-        st.altair_chart(alt.Chart(eq).mark_line(point=True).encode(x=alt.X(f"{_ct}:Q"), y=alt.Y(f"{_cc}:Q"),
-                        color=alt.Color(f"{_cp}:N", scale=alt.Scale(domain=[L("in-sample"), L("out-of-sample")], range=["#93c5fd", "#2dd4bf"])),
-                        tooltip=[_ct, _cp, _cr, _cc]).properties(height=240), width="stretch")
-
-
-_RULE_IND = {"close": ("Close", "الإغلاق"), "open": ("Open", "الافتتاح"), "high": ("High", "القمة"), "low": ("Low", "القاع"), "volume": ("Volume", "الفوليوم"),
-             "sma": ("SMA", "متوسط بسيط SMA"), "ema": ("EMA", "متوسط أسي EMA"), "rsi": ("RSI", "RSI"), "atr": ("ATR", "ATR (المدى)"), "roc": ("ROC", "معدل التغير ROC"),
-             "hh": ("Highest high", "أعلى قمة"), "ll": ("Lowest low", "أقل قاع"), "macd_hist": ("MACD histogram", "هيستوجرام MACD"), "adx": ("ADX", "ADX (قوة الترند)"), "bbw": ("Bollinger width", "عرض بولينجر")}
-_RULE_OPS = {">": ("above", "أكبر من"), ">=": ("at least", "أكبر من أو يساوي"), "<": ("below", "أصغر من"), "<=": ("at most", "أصغر من أو يساوي"),
-             "crosses_above": ("crosses above", "يقطع لفوق"), "crosses_below": ("crosses below", "يقطع لتحت")}
-
-
-def _rl(table):
-    """format_func for the rule builder: readable names (Arabic when the page is Arabic) instead of the raw code names."""
-    ar = _ui_lang() == "ar"
-    return lambda k: (table.get(k, (k, k))[1 if ar else 0])
-
-
-def _office_backtest():
-    """Build a strategy (rules) and backtest it on real candles: verdict on the frozen out-of-sample part only."""
-    from modules import strategy_rules as SR, strategy_bt as BT  # noqa: F401
-    st.caption(L("Rules are kept for this session only (owner decision 2026-10-22). Small runs here; big runs go to GitHub Actions with the owner's approval. No orders, ever."))
-    store = SR.SessionStore(st.session_state)
-    c = st.columns([1.2, 0.8, 0.8, 0.8, 1])
-    sym = c[0].text_input(L("Symbol"), "BTC-USDT", key="bt_sym")
-    tf = c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="bt_tf")   # the labels the data feeds use (see _CS_TFS)
-    side = c[2].selectbox(L("Side"), list(SR.SIDES), format_func=L, key="bt_side")
-    logic = c[3].selectbox(L("Logic"), list(SR.LOGIC), key="bt_logic")
-    name = c[4].text_input(L("Name"), "my rule", key="bt_name")
-    _bt_agent(sym, tf)
-    st.markdown(f"**{L('Or build the rules by hand')}**")
-    inds = list(SR.INDICATORS)
-    rules = []
-    for i in range(int(st.number_input(L("Rules"), 1, 6, 1, key="bt_nr"))):
-        r = st.columns([1, 0.6, 1, 1, 0.6])
-        ind = r[0].selectbox(L("Indicator") + f" {i + 1}", inds, index=inds.index("close") if i == 0 else inds.index("rsi"), key=f"bt_i{i}", format_func=_rl(_RULE_IND))
-        per = r[1].number_input(L("Period"), 2, 500, 14 if i == 0 else 20, key=f"bt_p{i}") if SR.INDICATORS[ind] else None
-        op = r[2].selectbox(L("Condition"), list(SR.OPS), index=SR.OPS.index("crosses_above") if i == 0 else SR.OPS.index("<"), key=f"bt_o{i}", format_func=_rl(_RULE_OPS))
-        vk = r[3].selectbox(L("Compare with"), [L("number")] + inds, index=1 + inds.index("ema") if i == 0 else 0, key=f"bt_vk{i}", format_func=lambda k: k if k == L("number") else _rl(_RULE_IND)(k))
-        if vk == L("number"):
-            val = float(r[4].number_input(L("Value"), value=70.0, key=f"bt_v{i}"))
-        else:
-            val = {"indicator": vk}
-            if SR.INDICATORS[vk]:
-                val["period"] = int(r[4].number_input(L("Period"), 2, 500, 50, key=f"bt_vp{i}"))
-        rule = {"indicator": ind, "op": op, "value": val}
-        if per is not None:
-            rule["period"] = int(per)
-        rules.append(rule)
-    strat = {"name": name, "side": side, "logic": logic, "rules": rules}
-    errs = SR.validate(strat)
-    with st.expander("JSON", expanded=False):
-        st.code(SR.to_json(strat) if not errs else str(strat), language="json")
-    if errs:
-        from modules import office_ui as _OU
-        st.error(" · ".join(_OU.rule_error(x, _ui_lang() == "ar") for x in errs))
-        return
-    b = st.columns([1, 1, 4])
-    if b[0].button(L("Save rule"), key="bt_save"):
-        store.save(strat); st.success(L("Saved for this session"))
-    run = b[1].button(L("Run backtest"), type="primary", key="bt_run")
-    if store.names():
-        st.caption(L("Saved this session") + ": " + ", ".join(store.names()))
-    if run:
-        _bt_run_show(strat, sym, tf)
-
-
-def _office_ops():
-    from modules import office_ui as U
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    wf = U.workflows()
-    rows = [[U.esc(L(w["name"])), U.esc(w["file"]), U.esc(w["schedule"] or "-"), "✓" if w["manual"] else "",
-             U.badge(L("writes to the repo"), "warn") if w["writes"] else ""] for w in wf]
-    st.markdown(U.table([L("Workflow"), L("File"), L("Schedule (UTC cron)"), L("Manual run"), L("Repo writes")], rows), unsafe_allow_html=True)
-    st.caption(L("Protecting main is on hold until the workflows that push to main open a pull request instead (owner rule: protect only if nothing breaks)."))
-
-
-def _office_lab():
-    st.caption(L("Real OKX / Hyperliquid candles, run weekly by GitHub Actions, every result against a random-direction baseline. "
-                 "Evidence bar: n >= 100 and t > 3. Under 30 trades = not evidence. Judge by the net avg R column (0.1R costs per trade taken off); avg R alone has no costs."))
-    lab, flt = _md_sections("STRATEGY_LAB.md"), _md_sections("STRATEGIES.md")
-    if not lab:
-        st.info(L("No lab results yet - they appear after the first weekly run."))
-        return
-    first = [k for k in lab if k.startswith("Gann zone trades OUT OF SAMPLE")] + [k for k in lab if k.startswith("Gann time cycles")] + \
-            [k for k in lab if k.startswith("Gann astro")] + [k for k in lab if k.startswith("Trend filter")]
-    filt = [k for k in flt if k.startswith("Filter on/off backtest")]
-    from modules import office_ui as _OU
-    _la = _ui_lang() == "ar"
-    for k in first[:1]:
-        with st.expander(_OU.lab_title(k, _la), expanded=True):
-            st.markdown(_OU.lab_md(lab[k], _la, L))
-    for k in filt:
-        with st.expander(L("Group-A filters ON vs OFF (item 1)"), expanded=True):
-            st.markdown(_OU.lab_md(flt[k], _la, L))
-    for k in first[1:]:
-        with st.expander(_OU.lab_title(k, _la), expanded=False):
-            st.markdown(_OU.lab_md(lab[k], _la, L))
-    rest = [k for k in lab if k not in first]
-    if rest:
-        pick = st.selectbox(L("More tables"), rest, key="lab_more", format_func=lambda k_: _OU.lab_title(k_, _la))
-        st.markdown(_OU.lab_md(lab[pick], _la, L))
-
-
-# Scanner presets by trading style (Playbook > By trading style): Radar timeframe + the detectors that style uses
-_SCAN_PRESETS = {
-    "Scalp": {"tf": "5m", "strat": ["st_judas", "st_sweep", "st_crt", "st_ote", "st_kzs"], "mode": "Any selected"},
-    "Day": {"tf": "1h", "strat": ["st_cisd", "st_rsidiv", "st_sessamd", "st_m2022"], "mode": "Any selected"},
-    "Swing": {"tf": "1d", "strat": ["st_tl", "st_macddiv", "st_bvd", "st_donch"], "mode": "Any selected"},
-    "Position": {"tf": "1w", "strat": ["st_turtle55", "st_sma1040", "st_donch"], "mode": "Any selected"},
-}
-
-
-def _office_scanner():
-    """Technical Office > Scanner control (owner 2026-10-22: control the scanner from the office). Sets the Radar's
-    timeframe, chart count, match mode, side and detectors for this session, by trading style or by hand, and shows the
-    lab's number for every chosen detector on that timeframe before you open the Radar."""
-    from modules import office_kpi as _OK, office_ui as U
-    from modules.chart_scan import STRATEGY_FILTERS as _SF
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    cur = st.session_state.get("radar_def", {})
-    style = st.segmented_control(L("Preset by trading style"), ["Manual"] + list(_SCAN_PRESETS), default="Manual", format_func=L, key="sc_style")
-    p = _SCAN_PRESETS.get(style or "Manual", {})
-    c = st.columns(4)
-    tf = c[0].selectbox(L("Timeframe"), _CS_TFS, index=_CS_TFS.index(p.get("tf") or cur.get("tf") or "1h"), key=f"sc_tf_{style}")
-    n = c[1].number_input(L("Charts"), 1, 120, int(cur.get("n", 20)), key="sc_n")
-    modes = ["All selected", "Any selected"]
-    mode = c[2].selectbox(L("Match"), modes, index=modes.index(p.get("mode") or cur.get("mode") or "All selected"), format_func=L, key=f"sc_mode_{style}")
-    sides = ["Both", "Buy only", "Sell only"]
-    side = c[3].selectbox(L("Side"), sides, index=sides.index(cur.get("side", "Both")), format_func=L, key="sc_side")
-    strat = st.multiselect(L("Detectors"), list(_SF), default=p.get("strat") or cur.get("strat", []), format_func=_strat_name, key=f"sc_strat_{style}")
-    lab = _OK.load()
-    rows, weak = [], []
-    for k in strat:
-        ev = _OK.evidence(lab, _SF[k][1][1], tf) if _SF[k][1][0] == "key" else None
-        if ev and ev["net"] <= 0:
-            weak.append(_strat_name(k))
-        rows.append([U.esc(_strat_name(k)), U.esc(ev["tf"]) if ev else "-", ev["n"] if ev else "-", f"{ev['net']:+.3f}" if ev else "-",
-                     U.badge(L("OFF") if ev and ev["off"] else L("passed") if ev and ev["gate"] else L("not evidence") if ev else L("no lab row"),
-                             "bad" if ev and (ev["off"] or ev["net"] <= 0) else "ok" if ev and ev["gate"] else "warn")])
-    if rows:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('What the lab says about these detectors on this timeframe'))}</div>", unsafe_allow_html=True)
-        st.markdown(U.table([L("Detector"), L("Lab timeframe"), "n", L("net"), L("Gate")], rows), unsafe_allow_html=True)
-        if weak:
-            st.warning(L("Negative after costs on the lab's numbers:") + " " + ", ".join(weak))
-    a, b = st.columns([1, 3])
-    if a.button(L("Apply to the Radar"), type="primary", key="sc_apply"):
-        st.session_state["radar_def"] = {"tf": tf, "n": int(n), "mode": mode, "side": side, "strat": strat}
-        for k_ in ("cs_tf", "cs_n", "cs_mode", "cs_side"):
-            st.session_state.pop(k_, None)
-        st.session_state["cs_strat"] = list(strat)
-        st.query_params["strat"] = ",".join(strat) if strat else ""
-        b.success(L("Saved for this session. Open the Radar page to see it."))
-    if cur:
-        st.caption(L("Radar now") + f": {cur.get('tf')} · {cur.get('n')} {L('charts')} · {L(cur.get('mode', ''))} · {L(cur.get('side', ''))} · "
-                   + (", ".join(_strat_name(k) for k in cur.get("strat", []) if k in _SF) or "-"))
-
-
-def _office_detector():
-    """Technical Office > Detector analysis: one detector's full lab card - every timeframe and side, best timeframe,
-    vs random, gate, OFF, and which trading style it fits; bars of net R per timeframe."""
-    import altair as alt
-    import pandas as _pd
-    from modules import office_kpi as _OK, office_ui as U
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    lab = _OK.load()
-    keys = _OK.detector_keys(lab)
-    if not keys:
-        st.info(L("No lab file yet (data/strategy_lab.json)."))
-        return
-    k = st.selectbox(L("Detector"), keys, index=keys.index("liqline") if "liqline" in keys else 0, key="det_key")
-    c = _OK.detector_card(lab, k)
-    b, a = c["best"] or {}, c["all"] or {}
-    st.markdown("<div class='xo-row'>" + U.indicators(f"{k} · {L(c['school'] or '-')}", [
-        (L("All timeframes"), f"{a.get('net', 0):+.3f}R" if a else "-", f"n {a.get('n', '-')} · " + L("net"), "bad" if a and a["net"] <= 0 else "ok" if a else None),
-        (L("Best timeframe"), f"{b.get('tf', '-')}", f"{L('net')} {b['net']:+.3f}R · n {b['n']}" if b else "", "ok" if b and b["net"] > 0 else "bad" if b else None),
-        (L("vs random"), f"{b['vs_random']:+.3f}" if b else "-", L("best timeframe minus random entries"), "ok" if b and b["vs_random"] > 0 else "warn" if b else None),
-        (L("Status"), L("OFF") if c["off"] else L("passed") if b and b.get("gate") else L("not evidence"),
-         L("n >= 300 and avg R <= -0.06") if c["off"] else (L("n under 100 on the best timeframe") if not c["best_is_evidence_size"] else L("needs t > 3 and both halves positive")),
-         "bad" if c["off"] else "ok" if b and b.get("gate") else "warn"),
-        (L("Trading styles"), " · ".join(L(s) for s in c["styles"]) or "-", L("from the timeframes it was tested on"), None)]) + "</div>", unsafe_allow_html=True)
-    try:   # a frozen holdout on older candles, when one was run for this detector (modules/lab_holdout.py)
-        import json as _json
-        ho = _json.loads((Path(__file__).resolve().parent / "data" / f"holdout_{k}_1d.json").read_text(encoding="utf-8"))
-        hr = ho["result"]
-        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Frozen holdout on older candles (1d)'))}</div>", unsafe_allow_html=True)
-        st.markdown("<div class='xo-row'>" + U.indicators(L("Holdout") + f" · {len(ho['per_symbol'])} " + L("symbols"), [
-            ("n", hr["n"], L("signals"), None),
-            (L("net avg R"), f"{hr['net_avgR']:+.3f}", L("gross") + f" {hr['gross_avgR']:+.3f}", "ok" if hr["net_avgR"] > 0 else "bad"),
-            (L("Random entries"), f"{hr['random_avgR']:+.3f}", L("gross avg R of random direction on the same bars"), "warn"),
-            ("t", f"{hr['t_vs_random']}", L("vs random; the bar is 3"), "bad" if hr["t_vs_random"] <= 3 else "ok"),
-            (L("Halves"), f"{hr['h1']['net_avgR']:+.3f} / {hr['h2']['net_avgR']:+.3f}", L("net, first / second half"), None),
-            (L("Verdict"), L("passed") if hr["pass"] else L("not evidence"), L("rule frozen before the run"), "ok" if hr["pass"] else "warn")]) + "</div>", unsafe_allow_html=True)
-    except (OSError, ValueError, KeyError):
-        pass
-    df = _pd.DataFrame(c["rows"])
-    if df.empty:
-        return
-    per = df[(df["side"] == "all") & (df["tf"] != "all")]
-    if len(per):
-        order = [t for t in ("1m", "15m", "1h", "4h", "1d") if t in set(per["tf"])]
-        st.altair_chart(alt.Chart(per).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
-            x=alt.X("tf:N", sort=order, title=None), y=alt.Y("net:Q", title=L("net") + " R"),
-            color=alt.condition("datum.net > 0", alt.value("#2dd4bf"), alt.value("#f87171")), tooltip=["tf", "n", "net", "vs_random"]
-        ).properties(height=200), width="stretch")
-    df = df.assign(win=df["win"].map(lambda w: None if w is None else f"{w:.0f}%"), gate=df["gate"].map(lambda g: L("passed") if g else "-"),
-                   side=df["side"].map(L), tf=df["tf"].map(L))
-    st.dataframe(df.rename(columns={"tf": L("Timeframe"), "side": L("Side"), "win": L("Win rate"), "avgR": L("avg R"), "net": L("net"), "vs_random": L("vs random"), "gate": L("Gate")}),
-                 hide_index=True, width="stretch")
-    st.caption(L("All numbers from the weekly lab file; net = avg R - 0.1R. Educational, not investment advice."))
-
-
-def _flow_zone_section():
-    """Flow lab > confluence-zone forward test: judge the zone log exported from the Workspace (menu 'Export zone test log')."""
-    import json as _json
-    from modules import zone_eval as ZE, office_ui as U
-    st.markdown(f"<div class='xo-h'>{html.escape(L('Confluence zones: forward test'))}</div>", unsafe_allow_html=True)
-    st.caption(L("The Workspace logs every confluence zone and follows the price; a zone 'holds' when price, after touching it, moves 6 bp back to where it came from before moving 6 bp through it. Every zone has a control level (the mirror price) tracked the same way. Export from the chart's indicator menu: 'Export zone test log'."))
-    ups = st.file_uploader(L("Zone test logs (.json, one per symbol)"), type=["json"], accept_multiple_files=True, key="zl_up")
-    if not ups:
-        return
-    try:
-        recs = ZE.load([_json.loads(u.getvalue().decode("utf-8", "ignore")) for u in ups])
-    except (ValueError, AttributeError) as e:
-        st.error(f"{type(e).__name__}: {e}")
-        return
-    j = ZE.judge(recs)
-    st.markdown("<div class='xo-row'>" + U.indicators(L("Zones"), [
-        (L("Zones logged"), j["zones"], f"{L('touched')} {j['zone_touched']}", None),
-        (L("Zones held / broke"), f"{j['zone_hold']} / {j['zone_break']}", L("after touching"), None),
-        (L("Control held / broke"), f"{j['ctrl_hold']} / {j['ctrl_break']}", L("mirror level, same rule"), None),
-        (L("Paired zones"), j["paired"], L("both resolved; the gate needs 100"), "warn" if j["paired"] < ZE.GATE_N else None),
-        (L("Zone minus control"), "-" if j["diff"] is None else f"{j['diff']:+.3f}", f"t {j['t']} · " + L("halves") + f" {j['half1']} / {j['half2']}", "ok" if j["pass"] else "warn"),
-        (L("Verdict"), L("passed") if j["pass"] else L("not evidence"), L("t > 3, both halves positive, n >= 100"), "ok" if j["pass"] else "warn")]) + "</div>", unsafe_allow_html=True)
-    if j["by_strength"]:
-        st.markdown(U.table([L("Sources agreeing"), L("Paired zones"), L("Zone minus control")], [[k, v["n"], "-" if v["diff"] is None else f"{v['diff']:+.3f}"] for k, v in j["by_strength"].items()]), unsafe_allow_html=True)
-    st.divider()
-
-
-def _office_flow_lab():
-    """Technical Office > Flow lab: the forward-test judge for order-flow signals (modules/flow_log.py). Reads the collector's log
-    (or an uploaded one), fills the forward returns, tests the frozen rules after costs against a random-sign control, and applies
-    the lab's gate. Nothing here is a trade signal; a rule only earns trust by passing."""
-    import json as _json
-    import pandas as _pd
-    from modules import flow_log as FL, office_ui as U
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    if _ui_lang() == "ar":
-        st.markdown("<div class='xo-card' dir='rtl' style='line-height:25px'><b>الفكرة:</b> الدفتر والشريط ما لهمش تاريخ طويل نختبر عليه، فبنختبرهم <b>للأمام</b>: "
-                    "الـ collector بيسجل كل ثواني مؤشرات الدفتر والشريط، والحكم بيقيس عائد السعر بعدها بـ 5 ثواني و30 ثانية و5 دقايق وساعة، "
-                    "بقواعد مجمدة، بعد التكلفة، ومقارنة بإشارة عشوائية. القاعدة تعدّي بس لو <b>n ≥ 100 ، t > 3 ، والنصين موجبين</b>.</div>", unsafe_allow_html=True)
-    else:
-        st.markdown("<div class='xo-card' dir='ltr' style='line-height:25px'><b>The idea:</b> the order book and the tape have no long history to test on, so they are tested <b>forward</b>: "
-                    "the collector records the book and tape indicators every few seconds, and the judge measures the price return 5 seconds, 30 seconds, 5 minutes and one hour later, "
-                    "with frozen rules, after costs, and against a random-sign control. A rule passes only if <b>n ≥ 100, t > 3 and both halves are positive</b>.</div>", unsafe_allow_html=True)
-    _flow_zone_section()
-    up = st.file_uploader(L("Flow log (.jsonl)"), type=["jsonl", "json", "txt"], key="fl_up")
-    rows = []
-    if up is not None:
-        for ln in up.getvalue().decode("utf-8", "ignore").splitlines():
-            try:
-                r_ = _json.loads(ln)
-            except ValueError:
-                continue
-            if isinstance(r_, dict) and all(k in r_ for k in ("sym", "t", "mid")):   # a row without these cannot be labelled
-                rows.append(r_)
-        rows.sort(key=lambda r: (r["sym"], r["t"]))
-        src = up.name
-    else:
-        rows = FL.load(); src = str(FL.PATH)
-    c = st.columns([1, 1, 2])
-    cost = c[0].number_input(L("Cost per trade (bps)"), 0.0, 100.0, float(FL.COST_BPS), 1.0, key="fl_cost",
-                             help=L("Taker fee both ways + half spread + slippage; a planning number. 10 bps = 0.10%"))
-    secs = c[1].selectbox(L("Collect now (seconds)"), [0, 60, 120, 300], format_func=lambda x: "-" if not x else str(x), key="fl_secs")
-    if secs and c[2].button(L("Collect BTC / ETH / SOL now") + f" ({secs} s)", key="fl_go"):
-        with st.spinner(L("Collecting from OKX ...")):
-            n = FL.collect(["BTC-USDT", "ETH-USDT", "SOL-USDT"], int(secs), 2.0)
-        st.success(f"{n} " + L("rows added"))
-        rows = FL.load()
-    if not rows:
-        st.info(L("No log yet. Collect from the button above, or run: python modules/flow_log.py collect BTC-USDT,ETH-USDT,SOL-USDT 3600 2"))
-        return
-    j = FL.judge(rows, float(cost))
-    st.markdown("<div class='xo-row'>" + U.indicators(L("Log") + f" · {src}", [
-        (L("Rows"), f"{j['rows']:,}", ", ".join(j["symbols"]), None),
-        (L("Hours covered"), f"{j['hours']}", L("a few hours is a pipeline test, not evidence"), "warn" if j["hours"] < 24 else "ok"),
-        (L("Rules x horizons tried"), j["trials"], L("every variant counts as a trial; t > 3 is the bar"), None),
-        (L("Passed the gate"), len(j["passed"]), L("n >= 100, t > 3, both halves positive, after cost"), "ok" if j["passed"] else "bad")]) + "</div>", unsafe_allow_html=True)
-    df = _pd.DataFrame([r for r in j["results"] if r["n"]])
-    if df.empty:
-        st.info(L("Not enough rows for any horizon yet."))
-        return
-    df["verdict"] = df["pass"].map(lambda p: L("passed") if p else L("not evidence"))
-    st.dataframe(df[["rule", "horizon", "n", "gross_bps", "net_bps", "t", "control_net_bps", "half1", "half2", "verdict"]].rename(columns={
-        "rule": L("Rule"), "horizon": L("Horizon (s)"), "gross_bps": L("gross bps"), "net_bps": L("net bps"), "control_net_bps": L("random-sign control"),
-        "half1": L("first half"), "half2": L("second half"), "verdict": L("Verdict")}), hide_index=True, width="stretch")
-    st.caption(L("Rules are frozen in modules/flow_log.py (RULES): imb = book imbalance, ofi = top-of-book order-flow imbalance, cvd = taker buy minus sell. Poll cadence limits what is seen. Educational, not investment advice."))
-
-
-def _office_flow_manual():
-    """Technical Office > Flow manual: chartless methods (order book, tape, funding / OI, options) - what each measures, how to read it,
-    how it is used, where it breaks, the evidence, which tool shows it, the daily routine and the forward-test protocol."""
-    from modules import flow_manual as _FMM, office_ui as U
-    from modules.i18n import lang as _lang
-    _ar = _lang() == "ar"; _dir = "rtl" if _ar else "ltr"; FM = type("FM", (), _FMM.get(_ar))
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:26px'><b style='font-size:16px'>" + ("الخلاصة: نعتمد عليها بإيه؟" if _ar else "Bottom line: what can we rely on them for?") + "</b><br>"
-                + "<br>".join("• " + x for x in FM.HEADLINE) + "</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Tools we have and their limits'))}</div>", unsafe_allow_html=True)
-    st.markdown(U.table([L("Tool"), L("Shows"), L("Where"), L("Data"), L("Limits")], [[f"<b>{U.esc(a)}</b>", U.esc(b), U.esc(c), U.esc(d), U.esc(e)] for a, b, c, d, e in FM.TOOLS]), unsafe_allow_html=True)
-    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Methods: how to read, how to use, where it breaks'))}</div>", unsafe_allow_html=True)
-    for m in FM.METHODS:
-        tt, tone = FM.TIERS[m["tier"]]
-        with st.expander(m["title"] + " — " + tt.split(" · ")[0], expanded=False):
-            st.markdown(f"<div dir='{_dir}' style='line-height:25px'>{U.badge(tt, tone)}<br><b>{'بيقيس:' if _ar else 'Measures:'}</b> {U.esc(m['measures'])}<br><b>{'إزاي تقراه:' if _ar else 'How to read it:'}</b><ol style='margin:4px 0'>"
-                        + "".join(f"<li>{U.esc(x)}</li>" for x in m["read"]) + f"</ol><b>{'الاستخدام:' if _ar else 'How it is used:'}</b> {U.esc(m['setup'])}<br><b>{'بيفشل فين:' if _ar else 'Where it fails:'}</b> {U.esc(m['fails'])}<br>"
-                        f"<b>{'الدليل:' if _ar else 'Evidence:'}</b> {U.esc(m['evidence'])}<br><b>{'الداتا عندنا:' if _ar else 'Our data:'}</b> {U.esc(m['data'])}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Daily routine'))}</div>", unsafe_allow_html=True)
-    st.markdown(U.table([L("Step"), L("What to do")], [[f"<b>{U.esc(a)}</b>", U.esc(b)] for a, b in FM.ROUTINE]), unsafe_allow_html=True)
-    a, b = st.columns(2)
-    with a:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('Forward test: how a flow signal earns trust'))}</div>", unsafe_allow_html=True)
-        st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:24px'>" + "<br>".join(f"{i}. {U.esc(x)}" for i, x in enumerate(FM.FORWARD_TEST, 1)) + "</div>", unsafe_allow_html=True)
-    with b:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('What is still missing'))}</div>", unsafe_allow_html=True)
-        st.markdown("<div class='xo-card' dir='" + _dir + "' style='line-height:24px'>" + "<br>".join("• " + U.esc(x) for x in FM.MISSING) + "</div>", unsafe_allow_html=True)
-    st.caption(L("Research sources are named per method (OPENED = read in full, otherwise a search snippet or background knowledge). Educational, not investment advice."))
-
-
-def _office_strategy_map():
-    """Technical Office > Strategy map (owner 2026-10-22): an indicator is one measurement, a strategy is parts with different jobs.
-    Clusters (what repeats what), the strongest member of each from the lab, whether stacking helps, the named strategies as
-    role slots with redundancy warnings, and the gaps. Every number is the weekly lab's; the explanations are guidance."""
-    from modules import office_kpi as _OK, office_ui as U, strategy_map as _SM
-    st.markdown(U.CSS, unsafe_allow_html=True)
-    lab = _OK.load()
-    from modules.i18n import lang as _lang
-    _ar = _lang() == "ar"; _dir = "rtl" if _ar else "ltr"
-    if _ar:
-        st.markdown(
-            "<div class='xo-card' dir='rtl' style='line-height:24px'><b>القاعدة:</b> المؤشر قياس واحد (RSI مثلاً)، والكاشف حدث بيظهر على شمعة (زي FVG)، "
-            "والاستراتيجية مجموعة أجزاء كل جزء ليه وظيفة: <b>سياق ← إعداد ← زناد ← فلتر ← خروج ← حجم</b>. "
-            "<b>جزء واحد لكل وظيفة، وجزء واحد لكل عنقود</b>: لو اتنين بيقيسوا نفس الشيء فالتاني تكرار مش تأكيد. "
-            "مستوى الدليل مكتوب لكل استراتيجية بصراحة، والأرقام جاية من المعمل الأسبوعي بس.</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(
-            "<div class='xo-card' dir='ltr' style='line-height:24px'><b>The rule:</b> an indicator is one measurement (RSI, for example), a detector is an event that shows on a candle (like FVG), "
-            "and a strategy is a set of parts where each part has a job: <b>context → setup → trigger → filter → exit → size</b>. "
-            "<b>One part per job, and one part per cluster</b>: if two measure the same thing, the second is a repeat, not a confirmation. "
-            "The evidence level is stated openly for each strategy, and the numbers come only from the weekly lab.</div>", unsafe_allow_html=True)
-    # 1. clusters
-    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Clusters: what repeats what'))}</div>", unsafe_allow_html=True)
-    rows = []
-    for cl, (name, meas, rule) in _SM.clusters(_ar).items():
-        mem = _SM.members(lab, cl); best = _SM.cluster_best(lab, cl)
-        names = " · ".join(_SM.comp_name(m["id"], _ar) for m in mem)
-        if best:
-            bb = best["best"]
-            rep = f"{U.esc(_SM.comp_name(best['id'], _ar))} {U.esc(bb['tf'])} · {bb['net']:+.3f}R · n {bb['n']}" + ("" if bb["net"] > 0 else f" <span style='color:#f87171'>({html.escape(L('below the cost'))})</span>")
-        else:
-            rep = "<span style='color:#a3adba'>" + ("مفيش عضو بـ n ≥ 100" if _ar else "No member with n ≥ 100") + "</span>"
-        rows.append([f"<b>{U.esc(name)}</b>", U.esc(meas), U.esc(names), rep, U.esc(rule)])
-    st.markdown(U.table([L("Cluster"), L("Measures"), L("Members"), L("Strongest member (lab, n >= 100)"), L("Redundancy rule")], rows), unsafe_allow_html=True)
-    # 2. agreement between detectors + does stacking help
-    a, b = st.columns(2)
-    with a:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('Detectors that fire together (lab)'))}</div>", unsafe_allow_html=True)
-        pr = [[U.esc(r["a"]), U.esc(r["b"]), r["together"], f"{100 - r['rate']:.0f}%"]
-              for r in sorted(lab.get("conflicts", []), key=lambda r: r["rate"])[:12]]
-        st.markdown(U.table([L("Detector"), L("Detector"), L("Bars together"), L("Same direction")], pr), unsafe_allow_html=True)
-        st.caption(L("High same-direction share + many shared bars = the pair adds little to each other. About 50% = the pair is noise together."))
-    with b:
-        st.markdown(f"<div class='xo-h'>{html.escape(L('Does stacking more families help? (lab)'))}</div>", unsafe_allow_html=True)
-        sk = _SM.stacking(lab)
-        st.markdown(U.table([L("Agreeing families"), "n", L("net")], [[U.esc(k.replace("families", L("families"))), n, U.badge(f"{v:+.3f}R" + ("" if n >= _OK.GATE_N else " · n<100"), "ok" if v > 0 and n >= _OK.GATE_N else "bad" if v <= 0 else "warn")] for k, n, v in sk]), unsafe_allow_html=True)
-        st.caption(L("Rows without opposing signals. More agreeing families gave no clear improvement (4+ was the worst row), and every row with n >= 100 is below zero after costs."))
-    # 3. strategies
-    st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Strategies as parts by role'))}</div>", unsafe_allow_html=True)
-    names = {b["id"]: _SM.bp_text(b["id"], _ar)["name"] for b in _SM.BLUEPRINTS}
-    pick = st.selectbox(L("Strategy"), list(names), format_func=names.get, key="sm_pick")
-    bp = _SM.BP[pick]; bpt = _SM.bp_text(pick, _ar)
-    ev_t, ev_tone = _SM.evidence(_ar)[bp["evidence"]]
-    st.markdown(f"<div class='xo-row'><div class='xo-card' dir='{_dir}' style='flex:1 1 100%'><b style='font-size:16px'>{U.esc(bpt['name'])}</b> "
-                f"{U.badge(L(bp['style']), 'info')} {U.badge(ev_t, ev_tone)}<div class='xo-sub' style='margin-top:6px'>{U.esc(bpt['evidence_note'])}</div></div></div>", unsafe_allow_html=True)
-    prow = []
-    for (role, cid, _note_ar), note in zip(bp["parts"], bpt["parts"]):
-        c = _SM.component(cid); card = _OK.detector_card(lab, c["src"][1]) if c["src"][0] == "lab" and not c["src"][1].startswith("chain:") and lab else {}
-        bb = card.get("best")
-        prow.append([U.esc(_SM.roles(_ar)[role].split(" (")[0]), f"<b>{U.esc(_SM.comp_name(cid, _ar))}</b>", U.esc(_SM.clusters(_ar)[c["cluster"]][0]), U.esc(note),
-                     f"{U.esc(bb['tf'])} {bb['net']:+.3f}R · n {bb['n']}" if bb else "<span style='color:#a3adba'>-</span>"])
-    st.markdown(U.table([L("Role"), L("Part"), L("Cluster"), L("What it does here"), L("Lab (best timeframe)")], prow), unsafe_allow_html=True)
-    for w in _SM.check(bp["parts"], _ar) + ([bpt["warn"]] if bpt.get("warn") else []):
-        st.warning(w)
-    if bp.get("lab"):
-        lr = []
-        for k in bp["lab"]:
-            c = _OK.detector_card(lab, k)
-            if c.get("best"):
-                lr.append([U.esc(k), U.esc(c["best"]["tf"]), c["best"]["n"], f"{c['best']['net']:+.3f}", f"{c['best']['vs_random']:+.3f}",
-                           U.badge(L("OFF") if c["off"] else L("passed") if c["best"]["gate"] else L("not evidence"), "bad" if c["off"] else "ok" if c["best"]["gate"] else "warn")])
-        if lr:
-            st.markdown(U.table([L("Detector"), L("Timeframe"), "n", L("net"), L("vs random"), L("Gate")], lr), unsafe_allow_html=True)
-    if bp.get("rules"):
-        c1 = st.columns([1.2, 0.8, 3])
-        sym = c1[0].text_input(L("Symbol"), "BTC-USDT", key=f"sm_sym_{pick}")
-        tfs = ["1h", "4h", "1d"]
-        tf = c1[1].selectbox(L("Timeframe"), tfs, index=tfs.index(bp.get("tf", "1d")), key=f"sm_tf_{pick}")
-        with st.expander("JSON", expanded=False):
-            from modules import strategy_rules as _SR
-            st.code(_SR.to_json(bp["rules"]), language="json")
-        if st.button(L("Try it on real candles"), type="primary", key=f"sm_run_{pick}"):
-            _bt_run_show(bp["rules"], sym, tf)
-        st.caption(L("Exploratory run: every variant you try counts as another trial. A real verdict needs a frozen out-of-sample window recorded in the meeting room before the run. Exit here = the engine's standard ATR stop and 1.5R target."))
-    else:
-        st.info(bpt.get("needs") or "")
-    # 4. gaps
-    gp = _SM.gaps(lab, _ar)
-    if gp:
-        st.markdown(f"<div class='xo-h' style='margin-top:10px'>{html.escape(L('Gaps: where the dashboard is thin'))}</div>", unsafe_allow_html=True)
-        st.markdown(U.table([L("Cluster"), L("Gap")], [[U.esc(n), U.esc(t)] for n, t in gp]), unsafe_allow_html=True)
-    st.caption(L("Taxonomy from practitioner and academic sources (labelled per strategy); numbers from data/strategy_lab.json. Educational, not investment advice."))
-
-
-def _office_control():
-    """Technical Office > Control room: status, gauge, alerts, charts, system map; under it the work board (left) and the GitHub workflows (right)."""
-    _office_overview()
-    a, b = st.columns([2, 1])
-    with a:
-        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Work board'))}</div>", unsafe_allow_html=True)
-        _office_board()
-    with b:
-        st.markdown(f"<div class='xo-h' style='margin-top:6px'>{html.escape(L('Operations'))}</div>", unsafe_allow_html=True)
-        _office_ops()
-
-
-def _office_lab_all():
-    """Technical Office > Lab results: the Lab Summary on top (was its own page), then one detector's card (left) next to the weekly lab tables (right)."""
-    try:
-        from modules.lab_summary import render_lab_summary
-        render_lab_summary(_scan_store().get("payload") or {})
-    except Exception as _ls_exc:
-        st.error(L("Lab Summary") + f": {_ls_exc}")
-    st.divider()
-    a, b = st.columns(2)
-    with a:
-        _office_detector()
-    with b:
-        _office_lab()
-
-
-def _office_strategies():
-    """Technical Office > Strategies: scanner presets for the Radar (folded), the strategy map, then the rule builder / backtest."""
-    with st.expander(L("Scanner presets -> Radar"), expanded=False):
-        _office_scanner()
-    _office_strategy_map()
-    st.divider()
-    st.markdown(f"<div class='xo-h'>{html.escape(L('Backtest your own rules'))}</div>", unsafe_allow_html=True)
-    _office_backtest()
-
-
-def _office_flow():
-    """Technical Office > Order flow: the forward-test judge on top, the manual (methods, tools, routine) under it - one tab (2026-11-09)."""
-    _office_flow_lab()
-    st.divider()
-    _office_flow_manual()
-
-
-def render_lab_page():
-    """Technical Office v2: one tab bar, only the open tab runs. Options desk + Macro regime live in Trading > Options & macro (2026-11-09)."""
-    tabs = {"Control room": _office_control, "Lab results": _office_lab_all, "Strategies": _office_strategies, "Order flow": _office_flow}   # 2026-11-09: 9 tabs -> 4
-    if st.session_state.get("to_tab") not in tabs:   # a tab that moved (Options desk, Macro regime, Flow manual / lab) must not break an open session
-        st.session_state.pop("to_tab", None)
-    st.markdown(kit_css(), unsafe_allow_html=True)
-    pick = st.segmented_control(L("Technical Office"), list(tabs), default="Control room", format_func=L, key="to_tab", label_visibility="collapsed")
-    try:
-        tabs.get(pick or "Control room", _office_overview)()
-    except Exception as e:
-        st.error(f"Technical Office: {type(e).__name__}: {e}")
-
-
 def render_soon_page(i):
     if i == 5:
         st.subheader(L("AI Analyst (planned)"))
@@ -1704,106 +1008,16 @@ def render_info_strip():
 
 render_info_strip()
 
-def _page_0():   # workspace
-    global _DP, _JSYNC, _cal, _cmc, _e, _err, _mac, _n, _news, _stk, _stk_t, _tfs, _tga, _tga_e2, _tga_n2, _ws_stat, _yf, _yf_job, cached_ws, render_bridge, world_errs, world_items, ws_lang, ws_links   # M7: same module-level names as before the page became a function
-    _ws_stat = st.empty()   # loading steps shown while the server builds the Workspace (cleared once it is sent)
-    try:
-        _ws_stat.caption("⏳ Workspace: scan state...")
-        ws_lang = st.session_state.get("ws_lang", "en")
-        cached_ws = build_ws_payload(_ws_universe(ACTIVE_SYMBOLS))
-        if tg_on and not cached_ws.get("loading"):
-            from modules import telegram_alerts as _tga
-            _n, _err = _tga.dispatch(cached_ws.get("alerts") or [], _tg_sent(), int(tg_top), int(tg_min))
-            try:   # day plan (timeframe confluence): the best new plans, one message each (not repeated for 4 hours)
-                from modules import day_plan as _DP
-                _tga_n2, _tga_e2 = _DP.dispatch(_dayplan_events(), _tg_sent(), _tga.send, top_n=int(tg_top))
-                if _tga_e2:
-                    st.sidebar.warning("Telegram day plan: " + _tga_e2)
-                _DP.dispatch(_dayplan_watch(), _tg_sent(), _tga.send, top_n=2, resend_after_s=2 * 3600, fmt=lambda it_: _DP.format_watch(it_))   # heads-ups: context setups that agree with the 1D + 4H bias
-            except Exception:
-                pass
-            if _err:
-                st.sidebar.warning("Telegram: " + _err)
-            elif _n:
-                st.sidebar.caption(f"Telegram: sent {_n} alert(s).")
-        _ws_stat.caption("⏳ Workspace: news / calendar / macro feeds...")
-        world_items, world_errs = _bg("world", _world_news, ([], ["world news loading..."]))
-        ws_links = [{"name": n, "url": u} for n, u in EXTERNAL_LINKS.items() if n != "Finviz Patterns"]
-        ws_links.append({"name": "Finviz", "url": EXTERNAL_LINKS["Finviz Patterns"],
-                         "patterns": [{"name": L(k), "url": FINVIZ_PATTERN_URL.format(signal=v)} for k, v in FINVIZ_PATTERNS.items()]})
-        _yf = {}
-        if any(x.startswith("Y:") for x in ACTIVE_SYMBOLS):
-            def _yf_job(syms=tuple(ACTIVE_SYMBOLS)):
-                from modules.yahoo_feed import embed as _yf_embed
-                return _yf_embed(syms)
-            _yf = _bg("yf|" + ",".join(ACTIVE_SYMBOLS), _yf_job, {}, ttl=120)
-        _cal = _bg("cal", _calendar_rows, [])
-        _news = _bg("news", lambda: get_latest_news("general", 15), [])
-        _cmc = _bg("cmc", _cmc_data, None)
-        _mac = _bg("macro", _macro_fund, None)
-        _stk_t = _stock_tickers()
-        _stk = _bg("stocks|" + ",".join(_stk_t), lambda: _stock_fund(_stk_t), None)
-        _ws_stat.caption("⏳ Workspace: building the page...")
-        _tfs = get_tf_stats()
-        render_workspace(ACTIVE_SYMBOLS, _news, ws_lang, yf=_yf, cal=_cal, height=min(ws_height, 860) if _IS_MOBILE else ws_height, alerts=cached_ws["alerts"], seed=cached_ws["seed"],
-                         scan=cached_ws["scan"], links=ws_links, asset_cls=asset_cls, meme=[b + "-USDT" for b in MEME_BASES], world=world_items, tfstats=_tfs,
-                         ready=cached_ws.get("mini", []), smt=_smt_chips(ws_lang), scanning=bool(cached_ws.get("loading")), cmc=_cmc, macrof=_mac, stockf=_stk, world_errs=world_errs,
-                         ui_theme="" if UI_THEME == "classic" else UI_THEME, ui_bg=UI_BG, ui_mat=UI_MAT)
-        _ws_stat.empty()
-        try:   # mounted AFTER the workspace (like the guide bridge): mounted before it, the hidden iframe could miss Streamlit's 60 s ready window on a slow load and show a yellow warning
-            from modules import journal_sync as _JSYNC   # browser journal -> server store (one journal, see modules/trade_journal.py)
-            _JSYNC.sync()
-        except Exception:
-            pass
-        try:
-            from modules.guide_ai import render_bridge
-            render_bridge()   # hidden: lets the guide character ask Claude without the key reaching the browser
-        except Exception:
-            pass
-        if world_errs:
-            st.caption(L("World Monitor feeds unavailable:") + " " + ", ".join(world_errs[:4]))
-        if cached_ws.get("errs"):
-            st.caption(L("Scan problems:") + " " + " | ".join(L(x_) for x_ in cached_ws["errs"][:3]))
-        st.caption(L("Drag a title bar to move, drag the corner to resize, - minimise, square = maximise (double-click title too). "
-                   "Widgets with the same # in the title bar share one symbol. Layout is remembered in your browser. "
-                   "Data comes straight from OKX in your browser, no refresh needed."))
-    except Exception as _e:
-        st.error(f"Workspace error: {type(_e).__name__}: {_e}")
-
 # (removed 2026-10-17) a "sleep 5 s + st.rerun()" loop used to run here while the background scan was busy: every rerun rebuilt and
 # re-sent the Workspace, so its frame reloaded every 5 s (blank page) and the CPU never rested (the app got throttled).
 # The Workspace shows "scanning..." and picks the results up on the next normal run.
 
-
-def _page_2():   # lab
-    render_lab_page()
 
 def _page_7():   # academy (owner 2026-10-23): lessons from the team's research, each with a status and a review verdict
     render_academy_page()
 
 def _page_3():   # playbook
     render_playbook_page()
-
-def _page_5():   # AI (owner 2026-10-22): Mr X, the backtest agent, and the agent desk in one tab bar
-    global _U, _adx, _ai_tab, _c, render_ai_page   # M7: same module-level names as before the page became a function
-    if st.session_state.get("ai_tab") not in ("Mr X", "Backtest agent"):   # 2026-11-09: Agent desk folded under Mr X (owner approved)
-        st.session_state.pop("ai_tab", None)
-    _ai_tab = st.segmented_control(L("AI"), ["Mr X", "Backtest agent"], default="Mr X", format_func=L, key="ai_tab", label_visibility="collapsed")
-    if _ai_tab == "Backtest agent":
-        _c = st.columns([1.2, 0.8, 4])
-        _bt_agent(_c[0].text_input(L("Symbol"), "BTC-USDT", key="ai_bt_sym"), _c[1].selectbox(L("Timeframe"), ["1h", "4h", "1d"], index=2, key="ai_bt_tf"))
-    else:
-        from modules.ai_page import render_ai_page
-        render_ai_page(ACTIVE_SYMBOLS, L)
-        from modules import office_ui as _U
-        st.markdown(_U.CSS, unsafe_allow_html=True)
-        _adx = st.expander(L("Agent desk"), expanded=False)
-        _adx.markdown(L("The agent desk turns what you say into a task for the meeting room (goal, owner, files, acceptance, gate, expected cost) and hands it to the right account. It never merges, never runs a paid job and never trades."))
-        _adx.markdown(_U.table([L("Needs"), L("Status")], [
-            [L("A model key (OpenAI or the free Gemini key)"), _U.badge(L("key set") if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else L("no key"), "ok" if (_has_secret("OPENAI_API_KEY") or _has_secret("GEMINI_API_KEY")) else "warn")],
-            [L("A GitHub token limited to this repository (write the meeting room, open an @claude request)"), _U.badge(L("key set") if _has_secret("GITHUB_TOKEN_DESK") else L("no key"), "ok" if _has_secret("GITHUB_TOKEN_DESK") else "warn")],
-            [L("A daily spending cap"), _U.badge(L("owner decision"), "off")]]), unsafe_allow_html=True)
-        _adx.caption(L("Until these are set, write tasks in the meeting room; the site manager distributes them."))
 
 def _stats_lab():
     """Stats > Lab evidence: what the weekly lab really measured, in the control-room style; nothing estimated."""
@@ -1835,14 +1049,6 @@ def _stats_lab():
     st.caption(L("vs random = avg R minus the random-entry baseline on the same bars. 'no t yet' = the lab has not measured the t-stat for this row, so it cannot pass the gate."))
 
 
-def _page_8():   # lab summary (summary on top; the former Validation Lab / Calibration / Class rotation / Evidence summary tabs as collapsed sections)
-    global _lab_exc, render_lab_summary   # M7: same module-level names as before the page became a function
-    try:
-        from modules.lab_summary import render_lab_summary
-        render_lab_summary(_scan_store().get("payload") or {})
-    except Exception as _lab_exc:
-        st.error(_xl("ملخص المعمل: ", "Lab Summary: ") + str(_lab_exc))
-    st.stop()
 # Pages that are one module call (M7 / 4.2): index -> (error label, module, function, comment). The page imports its module only when opened.
 _MODULE_PAGES = {
     10: ("Prop Firms", "modules.prop_firms", "render_prop_firms", "prop firm account tracker (added 2026-11-04)"),
@@ -1871,7 +1077,7 @@ def _module_page(i):
     st.stop()
 
 # M7 (maintenance plan 4.1): one function per page, exactly one runs (the old `if PAGE == N:` blocks, same order of indexes).
-_PAGE_FN = {0: _page_0, 1: _pg1._page_1, 2: _page_2, 7: _page_7, 3: _page_3, 5: _page_5, 8: _page_8}
+_PAGE_FN = {0: _pg0._page_0, 1: _pg1._page_1, 2: _pg2._page_2, 7: _page_7, 3: _page_3, 5: _pg5._page_5, 8: _pg2._page_8}
 _PAGE_FN.update({i: (lambda i=i: _module_page(i)) for i in _MODULE_PAGES})
 _PAGE_FN[9] = _pg9.render_page
 _PAGE_FN[4] = _pg4.render_page
@@ -1879,6 +1085,7 @@ _PAGE_FN[6] = _pg6.render_page
 _PAGE_FN[16] = _pg16.render_page
 from types import SimpleNamespace as _NS
 st.session_state["_rt"] = _NS(UI_THEME=UI_THEME, UI_BG=UI_BG, UI_MAT=UI_MAT, SCAN_SYMBOLS=SCAN_SYMBOLS, asset_cls=asset_cls,   # per-session values for moved pages (page_kit.rt)
-                              market_type=market_type, _ac_msg=_ac_msg)
+                              market_type=market_type, _ac_msg=_ac_msg, ACTIVE_SYMBOLS=ACTIVE_SYMBOLS, _IS_MOBILE=_IS_MOBILE,
+                              tg_on=tg_on, tg_top=tg_top, tg_min=tg_min, ws_height=ws_height)
 if PAGE in _PAGE_FN:
     _PAGE_FN[PAGE]()

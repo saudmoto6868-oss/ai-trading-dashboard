@@ -154,3 +154,23 @@ sp.render()
         at.run()
         assert not at.exception, (k, at.exception)
 print("spot strategies + signals board: OK")
+
+# 2026-11-26: setup-library entries are ZONES (low, high): the tables showed them with _n -> abs(tuple) crashed the Signals board (CI found it with real data)
+assert SP._n((101.5, 99.25)) == "99.25 – 101.50" and SP._n((None, 5.0)) == "5.00" and SP._n(()) == "—" and SP._n(123456.0) == "123,456"
+assert SP._buy_lvl((99.25, 101.5)) == 101.5 and SP._buy_lvl(100.0) == 100.0 and SP._buy_lvl((None,)) is None
+with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
+    at = AppTest.from_string("""
+import modules.spot_page as sp, tempfile, streamlit as st
+from modules.spot_store import LocalStore
+sp.STORE = LocalStore(tempfile.mkdtemp())
+row = {"school": "ew", "name": "EW wave 2", "side": "buy", "tf": "1d", "entry": (99.0, 101.0), "stop": 95.0, "target": 120.0, "ev_label": "-", "why": "test", "price": 100.0}
+sp._board_scan = lambda assets: ([dict(row, asset=a) for a in assets[:2]], [])
+sp._lab_ok = lambda r: True
+st.session_state["sg_on"] = True
+st.session_state["sp_tab"] = 12
+sp.render()
+""", default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception   # the board with a zone entry renders (it crashed before)
+    assert any("99.00 – 101.00" in str(df.value.to_string()) for df in at.dataframe)
+print("spot entry zones: OK")

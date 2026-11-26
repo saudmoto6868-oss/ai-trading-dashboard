@@ -125,6 +125,9 @@ def _prices() -> tuple[dict, dict, list]:
 
 
 def _n(x, nd=2):
+    if isinstance(x, (tuple, list)):   # an entry ZONE (low, high) from the setup library: show it as "low – high" (was a crash: abs(tuple))
+        v = sorted(y for y in x if y is not None)
+        return " – ".join(_n(y, nd) for y in v) if v else "—"
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return "—"
     if x == 0:
@@ -132,6 +135,14 @@ def _n(x, nd=2):
     if abs(x) >= 100000:
         return f"{x:,.0f}"
     return f"{x:,.{nd}f}" if abs(x) >= 1 else f"{x:,.6f}"
+
+
+def _buy_lvl(x):
+    """Alert level for a buy entry: a zone (low, high) alerts at its TOP (the first price touched on the way down); a number stays as it is."""
+    if isinstance(x, (tuple, list)):
+        v = [float(y) for y in x if y is not None]
+        return max(v) if v else None
+    return x
 
 
 # ---------------------------------------------------------------- plan view (shared by crypto + metals)
@@ -1100,7 +1111,7 @@ def _tab_chart(d, cr) -> None:
         pick = st.selectbox(T("Make alerts from", "اعمل تنبيهات من"), range(len(buys)), format_func=lambda i: f"{buys[i]['name']} · {buys[i]['tf']} · {_n(buys[i]['entry'])}", key="spc_pick")
         if st.button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="spc_add"):
             r = buys[pick]
-            d["alerts"].append(C.new_alert(asset, "buy", r["entry"], r["name"]))
+            d["alerts"].append(C.new_alert(asset, "buy", _buy_lvl(r["entry"]), r["name"]))
             if r.get("stop"):
                 d["alerts"].append(C.new_alert(asset, "stop", r["stop"], r["name"]))
             if r.get("target"):
@@ -1212,7 +1223,7 @@ def _tab_signals(d, px) -> None:
                                 format_func=lambda k: f"{buys[k]['asset']} · {buys[k]['name']} · {buys[k]['tf']} · {_n(buys[k]['entry'])}")
             if a2[1].button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="sg_add"):
                 r = buys[i]
-                d["alerts"].append(C.new_alert(r["asset"], "buy", r["entry"], r["name"]))
+                d["alerts"].append(C.new_alert(r["asset"], "buy", _buy_lvl(r["entry"]), r["name"]))
                 if r.get("stop"):
                     d["alerts"].append(C.new_alert(r["asset"], "stop", r["stop"], r["name"]))
                 if r.get("target"):

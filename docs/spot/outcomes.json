@@ -222,6 +222,23 @@
    ],
    "status": "open",
    "result": "no fill"
+  },
+  {
+   "day": "2026-11-27",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1382.015307342743,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "no fill"
   }
  ],
  "summary": {},

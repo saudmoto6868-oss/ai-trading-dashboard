@@ -62,3 +62,23 @@ except ValueError:
 ok += 1
 
 print(f"test_spot_brain_lazy: {ok} groups passed")
+
+# 5) TTL cache: a second run inside the TTL does not fetch again; a cleared cache fetches again.
+from modules import spot_data
+spot_data._cache.clear()
+hits = {"flow": 0, "news": 0}
+def _flow(*a, **k):
+    hits["flow"] += 1
+    return tsb.flow
+def _news(*a, **k):
+    hits["news"] += 1
+    return []
+spot_flow.fetch = _flow
+spot_news.fetch = _news
+spot_brain.run("GOLD", "metals", "الدهب", candles=tsb.get, horizons=("day",))
+spot_brain.run("GOLD", "metals", "الدهب", candles=tsb.get, horizons=("day",))
+assert hits == {"flow": 1, "news": 1}, hits
+spot_data._cache.clear()
+spot_brain.run("GOLD", "metals", "الدهب", candles=tsb.get, horizons=("day",))
+assert hits == {"flow": 2, "news": 2}, hits
+print("test_spot_brain_lazy: cache group passed")

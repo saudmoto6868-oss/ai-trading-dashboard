@@ -167,6 +167,8 @@ def think(b: dict, flow: dict | None = None, cot: dict | None = None, news: dict
 
 ALL_HZ = ("day", "week", "month", "year")
 # Which network inputs each horizon's verdict reads (see think()). Only these are fetched, and only when asked for.
+# Cache lifetimes (seconds): news moves fast, order flow is live-ish, COT is weekly data. Setups are not cached (they depend on the bundle).
+NEWS_TTL, FLOW_TTL, COT_TTL = 900, 300, 3600
 HZ_NEEDS = {"day": {"flow", "news", "setups"}, "week": {"news", "ideas", "setups"}, "month": {"cot", "setups"}, "year": {"setups"}}
 
 
@@ -184,10 +186,13 @@ def run(asset: str, cls: str, name: str, candles=None, holdings=None, news_items
     b = spot_dash.load_bundle(asset, candles)
     tagged, nt = [], None
     if "news" in need:
-        tagged = spot_news.tag(spot_news.fetch() if news_items is None else news_items)
+        from modules.spot_data import _cached
+        raw = _cached(("sp_news",), NEWS_TTL, spot_news.fetch) if news_items is None else news_items
+        tagged = spot_news.tag(raw)
         nt = spot_news.tilt(tagged, asset)
-    fl = (spot_flow.fetch(asset, cls) if flow is None else flow) if "flow" in need else None
-    ct = (spot_inst.fetch(asset) if cot is None else cot) if "cot" in need else None
+    from modules.spot_data import _cached
+    fl = (_cached(("sp_flow", asset, cls), FLOW_TTL, lambda: spot_flow.fetch(asset, cls)) if flow is None else flow) if "flow" in need else None
+    ct = (_cached(("sp_cot", asset), COT_TTL, lambda: spot_inst.fetch(asset)) if cot is None else cot) if "cot" in need else None
     ideas, log = spot_ideas.build(asset, cls, name, b, nt) if "ideas" in need else ([], [])
     setups = []
     if "setups" in need:

@@ -342,7 +342,9 @@ def render_workspace(symbols: list, news: list | None = None, lang: str = "en", 
     fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height, solo, _TEMPLATE.stat().st_mtime_ns, lite)
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
-        doc = (workspace_cfg if lite else build_workspace_html)(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat, solo=solo)
+        from modules.perf_log import timed
+        with timed("render_workspace build (%s)" % ("lite" if lite else "html")):   # PERF_LOG=1 (M0 0.4)
+            doc = (workspace_cfg if lite else build_workspace_html)(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat, solo=solo)
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
     if lite:   # same page data, but the 1.2 MB script comes from the browser's cache (M1 phase 2 / P4)
         _lite_component()(cfg=doc, stamp=str(st.session_state["ws_html_sent"][2]), height=height, key="ws_lite_" + (solo or "main"), default=None)

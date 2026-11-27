@@ -73,6 +73,7 @@
 - [2026-11-25] [Claude] **Jarvis و Hermes من غير الماك:** الـ Cloudflare worker (ريبو `market-radar-bot`، commit على main) بقى يشغّل البوتين: Jarvis = Claude (بينفّذ)، و Hermes = ChatGPT (بيراجع). كل بوت ليه ذاكرته، وعندهم فويس وصور و `/room` و `/order`. محتاج: `JARVIS_BOT_TOKEN` و `HERMES_BOT_TOKEN` + مفاتيح Cloudflare + deploy. OpenClaw على الماك هيبطل يستقبل رسايلهم بعدها.
 
 - [2026-11-25] [Claude، جلسة المراجعة] **تنبيهات الداشبورد:** 7 من 8 تشغيلات `telegram-alerts.yml` فاشلة. سببين: (1) `n<30` خام في رسايل HTML → اتصلح #277؛ (2) `TELEGRAM_CHAT_ID` في الداشبورد رقم بوت → على المالك (مشكلة 8). والـXPiX: الحالة بقت على فرع `bot-state` (bot #1) وكرون الـWorker عند :15/:45 (bot #2) — اتأكد إنهم لسه سليمين بعد `e8632e1` و`24165a5` (اختبارات الريبو كلها بتعدي، 2026-11-27). التفاصيل: `docs/maintenance/REVIEW_SESSION_HANDOFF.md`.
+- [2026-11-27] [Claude، حساب Team الجديد] **اتعمل:** `git pull` على main فشل (الفرع المحلي متفرّع عن origin/main، والـcheckout على `docs/meeting-room-branches-2026-11-26`)، فقريت الملف من origin/main. نسخة احتياطية `~/openclaw_backup_20261127_1428` (5.9G، أرشيف بس). `claude -p` على haiku رد `ok`. السبب في الـlogs: (1) تعارض `getUpdates` على Telegram الساعة 12:35 (poller تاني على نفس التوكن، مصدره مجهول)؛ (2) DNS `ENOTFOUND` متقطّع لـTelegram وAnthropic؛ (3) turnين وقفوا 600 ثانية (`CLI produced no output`) وفشل الـfallback. اتعمل restart للـgateway (PID 86673)، والاتنين polling شغال من غير تعارض بعد الـrestart. **اتجرّب فعلًا:** claude CLI، الـrestart، الـpolling للاتنين. **لسه:** "تجربة" للاتنين (المالك يبعتها)؛ سبب `Message failed` بتاع Hermes يوم 20/11 مش متأكد منه؛ `tools.media.audio` للفويس؛ السيشن الكبيرة (443k) لسه ماتأرشفتش؛ مصدر الـpoller التاني.
 ---
 
 ## 6) تسليم للحساب الجديد (Claude Team) — 2026-11-27
@@ -125,3 +126,45 @@
 
 **بعد ما تخلص:** اكتب سطر في المحضر فوق: اتعمل إيه، إيه اللي اتجرّب فعلًا، وإيه اللي لسه.
 **مراجع:** `market-radar-bot/docs/CONVERSATION_LOG.md` (القصة كاملة)، والمحضر ده.
+
+## 7) جرد الخدمات على الماك — 2026-11-27 (قبل وبعد)
+| البند | قبل | بعد | يقوم لوحده بعد restart؟ |
+|---|---|---|---|
+| OpenClaw gateway (18789) + Dashboard | شغال | شغال (Dashboard = 200) | نعم: `ai.openclaw.gateway` (KeepAlive) |
+| واجهات Jarvis / Hermes المحلية (18801 / 18802) | شغالين | شغالين، ردّوا على "تجربة" | نعم: `local.agent-apps` (KeepAlive) |
+| Telegram polling (Jarvis + Hermes) | تعارض 12:35 | شغال، مفيش تعارض بعد الريستارت | عن طريق الـ gateway |
+| Ollama `qwen3.5:4b` (11434) | شغال من Ollama.app | شغال، `ollama list` و`openclaw infer` ردّوا. اتضاف Ollama.app كـ login item. الريستارت الكامل لسه ماتجربش (الإغلاق اتلغى) | نعم بعد تسجيل الدخول (login item) |
+| سيرفر MCP `6868-brain` | المنفذ 8765 مشغول بـ PID 85720 | **شغال على 8766** عن طريق `com.6868.mcp-http` (KeepAlive). بدون توكن 401، بالتوكن 200، وtool call بيرجّع البيانات | نعم (LaunchAgent) |
+| نفق ngrok لعقل 6868 | ❌ | **شغال** `moocher-mumble-utensil.ngrok-free.dev` ← 8766 عن طريق `com.6868.ngrok` (KeepAlive). من برّه بدون توكن: 401 | نعم (LaunchAgent) |
+| Grok (xAI) | مش متسجّل | مش متسجّل | محتاج تسجيل دخول المالك |
+
+**ملاحظات:**
+- PID 85720 (`http.server` على 8765) ماتلمسش، وسايبه شغال زي ما اتطلب.
+- launchd بيقدر يقرا `research/trade_db` و`docs` من غير Full Disk Access، فمحتاجناش نسخة في `~/6868-data`.
+- ملف `com.6868.mcp-http.plist` فيه `8765` زيادة في آخر الـ arguments (اتعدّل من برّه). مش مؤثرة لأن السيرفر بياخد أول رقم بعد `--http`، بس تتشال لو عايز نظافة.
+
+**المفتوح:**
+- تجربة الـ restart الكامل لـ Ollama (الإغلاق اتلغى من نافذة تأكيد).
+- التجربة على تليجرام: المالك يبعت "تجربة" لـ `@xpix77bot` و`@hermes_6868_77_bot`.
+
+### 7.1) تحديث السرعة — 2026-11-27 (بعد الجرد)
+- **الصوت (STT):** `~/.openclaw/tools/stt-daemon.py` بقى `small` بس (turbo كان 52 ثانية على نفس المقطع، small 25 ثانية، والنص واحد). Telegram voice بيمر على نفس الـdaemon عن طريق `stt-local.py`. مقطع 4 ثواني اتحوّل في 6.4 ثانية والـload حوالي 14. الـbackup: `stt-daemon.py.bak-20261127-pre-small`.
+- **الرد (الشات):** الافتراضي `claude-cli/claude-haiku-5-5` والاحتياطي `claude-sonnet-5-5` (موجودين في `openclaw.json` من قبل). الرد في الـapps بقى حوالي 4 ثواني. Ollama مش في الـfallback.
+- **مهام الفيديو (kokoro / Remotion):** ماتوقفتش. وقت شغلها الصوت بيتأخر لحد 54 ثانية، وده المفتوح.
+- **الباقي:**
+  - تجربة "تجربة" على تليجرام: المالك.
+  - اختبار الـ restart الكامل (Ollama / MCP / ngrok): لما المالك يعمل الريستارت.
+  - أرشفة السيشنات: مش متعملة، والسيشنات دلوقتي صغيرة.
+  - مصدر الـ poller التاني على 12:35: مجهول.
+  - مصادر الذهب في فيديو Jarvis (Hyperliquid xyz:GOLD): مش متعملة.
+
+### 7.2) متابعة — 2026-11-27
+- **أرشفة السيشن الكبيرة:** `agent:main:telegram:direct:1469230681` (242k) اتأرشفت بـ `openclaw sessions archive` (مش اتمسحت). السيشن الجاية بتبدأ جديدة. `agent:main:main` (100k) سايبها.
+- **مصدر الذهب (Hyperliquid `xyz:GOLD`):** اتختبر read-only: `candleSnapshot` رجّع 289 شمعة 15m. لازم `SSL_CERT_FILE` يتحط على شهادة certifi (`.../site-packages/certifi/cacert.pem`) عشان Python يشتغل.
+- **المفتوح:** `data2/fetch.py` لسه Yahoo بس (`GC=F`). `README` بتاع template-2 بيقول `build_spec3.py` و`fetch` من Hyperliquid، بس الملفين مش موجودين. الشغل ده محتاج قرار: يتبنى ولا لأ.
+- **الريستارت الكامل، وتجربة "تجربة" على تليجرام:** لسه، والمالك.
+
+### 7.3) pipeline الذهب من Hyperliquid — 2026-11-27
+- `video-studio/data2/fetch.py` بيجيب `xyz:GOLD` من Hyperliquid (15m/1h/1d/1wk) وFRED للـDXY/TNX، ويكتب ملفات بشكل Yahoo عشان `analysis2.py` و`build_spec3.py` يشتغلوا من غير تعديل. اتشغّل ونجح: 1000 شمعة 15m، سعر 3645.5.
+- `build_spec3.py` كتب `specs/gold_template2.json` (الـbackup: `specs/gold_template2.pre-hl-<وقت>.json`).
+- **مفتوح:** مستويات السيناريوهات مكتوبة بإيد في `build_spec3.py`، لازم تتراجع بعد كل تحديث للداتا. الفضة `si_1d` تاريخها 1970 (بيانات قديمة). الـDXY من 19 نوفمبر والـTNX من 23 نوفمبر (تأخير FRED). الفيديو ماتعملش render.

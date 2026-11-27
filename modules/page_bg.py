@@ -65,8 +65,10 @@ def _bg(name, fn, default, ttl=300, wait=1.5):
             S["busy"].add(name)
 
         def job():
+            from modules.perf_log import timed
             try:
-                S["val"][name] = fn()
+                with timed("_bg " + name):   # PERF_LOG=1 (M0 0.4)
+                    S["val"][name] = fn()
                 S["t"][name] = time.time()
             except Exception:
                 S["t"][name] = time.time() - ttl + 60   # retry in a minute
@@ -103,54 +105,56 @@ def _scan_worker(store, ws_tf, ws_key):
             ws_seed = seed_from_df(syms_[0], "1h", get_klines(syms_[0], "1h", 300))
         except Exception:
             ws_seed = None
-        for tf_ in [ws_tf] + [t for t in SCAN_TFS if t != ws_tf]:
-            tf_alerts = []
-            try:
-                ws_results, _ws_notice = scan_crypto_group(syms_, tf_)
-                if _ws_notice:
-                    ws_errs.append(f"{tf_}: {_ws_notice[:120]}")
-            except Exception as ex_:
-                ws_errs.append(f"{tf_}: {ex_}")
-                publish(False)
-                continue
-            for r_ in ws_results:
+        from modules.perf_log import timed
+        with timed("scan worker %d symbols" % len(syms_)):   # PERF_LOG=1 (M0 0.4): the whole scan, all timeframes
+            for tf_ in [ws_tf] + [t for t in SCAN_TFS if t != ws_tf]:
+                tf_alerts = []
                 try:
-                    df_ = get_klines(r_["symbol"], tf_, 300)
-                    e_ = scan_entry(r_, df_)
-                    if e_:
-                        try:
-                            from modules.telegram_alerts import quality as _tq
-                            e_["q"], e_["qwhy"] = _tq(r_, e_)   # evidence rank 0-100 (used to pick what goes to Telegram)
-                        except Exception:
-                            e_["q"], e_["qwhy"] = 0, []
-                        e_["spark"] = [round(float(x), 6) for x in df_["close"].iloc[-41:-1]]
-                except Exception:
-                    e_ = None
-                if not e_:
+                    ws_results, _ws_notice = scan_crypto_group(syms_, tf_)
+                    if _ws_notice:
+                        ws_errs.append(f"{tf_}: {_ws_notice[:120]}")
+                except Exception as ex_:
+                    ws_errs.append(f"{tf_}: {ex_}")
+                    publish(False)
                     continue
-                if e_.get("plan"):
-                    try:   # signal ledger (modules/signal_ledger.py): every scanner plan, replayed and explained later. t0 = the next candle's open (no look-ahead)
-                        import pandas as pd
-                        from modules import signal_ledger as _SL
-                        _t_last = int(pd.Timestamp(df_["time"].iloc[-1]).value // 1_000_000)
-                        _SL.record({"src": "scanner", "sub": str(e_.get("ttype") or ""), "symbol": r_["symbol"], "tf": tf_, "dir": e_["direction"],
-                                    "entry": e_["plan"]["entry"], "sl": e_["plan"]["stop"], "tps": e_["plan"]["tps"], "t0": _t_last + _SL.tf_ms(tf_),
-                                    "score": e_.get("score"), "max": e_.get("max"), "why": e_.get("keys") or [],
-                                    "ctx": {"against_signal": bool(r_.get("against"))}})
+                for r_ in ws_results:
+                    try:
+                        df_ = get_klines(r_["symbol"], tf_, 300)
+                        e_ = scan_entry(r_, df_)
+                        if e_:
+                            try:
+                                from modules.telegram_alerts import quality as _tq
+                                e_["q"], e_["qwhy"] = _tq(r_, e_)   # evidence rank 0-100 (used to pick what goes to Telegram)
+                            except Exception:
+                                e_["q"], e_["qwhy"] = 0, []
+                            e_["spark"] = [round(float(x), 6) for x in df_["close"].iloc[-41:-1]]
                     except Exception:
-                        pass   # the ledger must never break the scan
-                    ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
-                                   | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
-                # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
-                _slot = ws_scan.setdefault(r_["symbol"], {})
-                if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
-                    _slot[e_["tfc"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
-                                        | {"tf": e_["tfc"], "dir": e_["direction"], "keys": e_.get("keys", [])})   # keys: X77 chart indicator labels this setup by school
-                if r_["score"] >= ALERT_SCORE_THRESHOLD and (tf_ != "1m" or "1m" in SCAN_TFS) and not r_.get("against"):   # 1m only with SCAN_1M=1; no opposing signal (lab: opposed setups lost ~ -280R)
-                    tf_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
-            for side_ in ("bullish", "bearish"):   # same-direction alerts at one moment are one market-wide bet: keep the best few
-                ws_alerts.extend(sorted((a for a in tf_alerts if a.get("direction") == side_), key=lambda a: -(a.get("q") or 0))[:MAX_SAME_SIDE])
-            publish(False)
+                        e_ = None
+                    if not e_:
+                        continue
+                    if e_.get("plan"):
+                        try:   # signal ledger (modules/signal_ledger.py): every scanner plan, replayed and explained later. t0 = the next candle's open (no look-ahead)
+                            import pandas as pd
+                            from modules import signal_ledger as _SL
+                            _t_last = int(pd.Timestamp(df_["time"].iloc[-1]).value // 1_000_000)
+                            _SL.record({"src": "scanner", "sub": str(e_.get("ttype") or ""), "symbol": r_["symbol"], "tf": tf_, "dir": e_["direction"],
+                                        "entry": e_["plan"]["entry"], "sl": e_["plan"]["stop"], "tps": e_["plan"]["tps"], "t0": _t_last + _SL.tf_ms(tf_),
+                                        "score": e_.get("score"), "max": e_.get("max"), "why": e_.get("keys") or [],
+                                        "ctx": {"against_signal": bool(r_.get("against"))}})
+                        except Exception:
+                            pass   # the ledger must never break the scan
+                        ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
+                                       | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
+                    # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
+                    _slot = ws_scan.setdefault(r_["symbol"], {})
+                    if e_["tfc"] not in _slot or e_["score"] > _slot[e_["tfc"]]["score"]:
+                        _slot[e_["tfc"]] = ({k: e_[k] for k in ("tfc", "tags", "zones", "plan", "score", "max", "tv", "trade", "spark", "ttype", "ew")}
+                                            | {"tf": e_["tfc"], "dir": e_["direction"], "keys": e_.get("keys", [])})   # keys: X77 chart indicator labels this setup by school
+                    if r_["score"] >= ALERT_SCORE_THRESHOLD and (tf_ != "1m" or "1m" in SCAN_TFS) and not r_.get("against"):   # 1m only with SCAN_1M=1; no opposing signal (lab: opposed setups lost ~ -280R)
+                        tf_alerts.append(e_ | {"id": f"scan|{r_['symbol']}|{tf_}|{r_['direction']}|{r_['score']}|{ws_key[1]}"})
+                for side_ in ("bullish", "bearish"):   # same-direction alerts at one moment are one market-wide bet: keep the best few
+                    ws_alerts.extend(sorted((a for a in tf_alerts if a.get("direction") == side_), key=lambda a: -(a.get("q") or 0))[:MAX_SAME_SIDE])
+                publish(False)
         publish(True)
         try:   # the brain's setup detectors (CISD, CRT, sweeps, Model 2022, Elliott ...) -> the ledger, each detector its own strategy; every 15 min, capped symbols
             from modules import signal_ledger as _SL

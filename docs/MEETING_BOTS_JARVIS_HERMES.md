@@ -39,6 +39,7 @@
 | 5 | الفويس والصور في XPiX | مفيش `GEMINI_API_KEY` والـ worker متعملهوش deploy | مفتاح Gemini مجاني + deploy | المالك |
 | 6 | Hermes مالوش شغلانة | — | قرار: نقفله ولا نديله شغلانة (مثلًا: يراجع الصفقات من `6868-brain`) | المالك |
 | 7 | صفقات تليجرام مش داخلة مخزن `6868-brain` | `source=telegram` لسه مش موجود في `build_db` | PR #262 | — |
+| 8 | **تنبيهات الداشبورد** (`telegram-alerts.yml`: سيتابات، SMT، سيولة، أخبار) **مابتوصلش خالص** | **مؤكد من اللوج:** كل إرسال بيرجع 403 "the bot can't send messages to the bot" = secret `TELEGRAM_CHAT_ID` في ريبو **الداشبورد** رقم بوت مش رقم شات المالك. + رسايل المخ كانت بترجع 400 بسبب `n<30` خام في HTML | ✅ الـ400 اتصلح (#277 `a7e2f30`: `n&lt;30` + إعادة إرسال كنص). الـ403 = تغيير الـsecret | المالك |
 
 ---
 
@@ -51,6 +52,7 @@
 3. تشغيل "Deploy XPiX chat room".
 4. `/new` لـ Jarvis و Hermes، وبعدين سكريبت الفويس وسكريبت التشخيص.
 5. قرار Hermes.
+6. ريبو **ai-trading-dashboard** → Secrets → `TELEGRAM_CHAT_ID` = رقم شاتك (نفس اللي في `market-radar-bot`، اللي رسايله بتوصل). من غيره ولا تنبيه من الداشبورد بيوصل (مشكلة 8).
 
 ## 4) التوصيات
 - كل حاجة جديدة تبقى أمر في بوت موجود، مش بوت جديد (قاعدة المالك).
@@ -69,3 +71,57 @@
 - [2026-11-25] [Claude] سكرين من المالك: Jarvis (`@xpix77bot`) **بيرد تاني**. مشكلته في فيديو الدهب: Yahoo بيرجّع 429، و Stooq عايز تحقق جافاسكريبت، ومشكلة شهادة SSL اتحلّت بـ `SSL_CERT_FILE`. التوصية: يخلّي مصدر الدهب الأساسي Hyperliquid `xyz:GOLD` (candleSnapshot، من غير مفتاح، 24/7، هو نفسه اللي المنصة والرادار بيستخدموه)، والاحتياطي Binance `PAXGUSDT`، و Yahoo آخر حاجة. وموافقة على تعديل skill الـ video-studio بالترتيب ده.
 - [2026-11-25] [Claude] سكرين Hermes (`@hermes_6868_77_bot`): كان بيفهم الفويس ويرد لحد 19/11. يوم 20/11 طلّع "⚠️ Message failed"، والفويس بتاع 21/11 مااترَدّش عليه. يعني Hermes واقف من 20/11، والسبب لسه مش معروف (حدود الاشتراك أو error في الموديل أو الـ gateway). المطلوب: `/new` + restart، وبعدين الـ logs.
 - [2026-11-25] [Claude] **Jarvis و Hermes من غير الماك:** الـ Cloudflare worker (ريبو `market-radar-bot`، commit على main) بقى يشغّل البوتين: Jarvis = Claude (بينفّذ)، و Hermes = ChatGPT (بيراجع). كل بوت ليه ذاكرته، وعندهم فويس وصور و `/room` و `/order`. محتاج: `JARVIS_BOT_TOKEN` و `HERMES_BOT_TOKEN` + مفاتيح Cloudflare + deploy. OpenClaw على الماك هيبطل يستقبل رسايلهم بعدها.
+
+- [2026-11-25] [Claude، جلسة المراجعة] **تنبيهات الداشبورد:** 7 من 8 تشغيلات `telegram-alerts.yml` فاشلة. سببين: (1) `n<30` خام في رسايل HTML → اتصلح #277؛ (2) `TELEGRAM_CHAT_ID` في الداشبورد رقم بوت → على المالك (مشكلة 8). والـXPiX: الحالة بقت على فرع `bot-state` (bot #1) وكرون الـWorker عند :15/:45 (bot #2) — اتأكد إنهم لسه سليمين بعد `e8632e1` و`24165a5` (اختبارات الريبو كلها بتعدي، 2026-11-27). التفاصيل: `docs/maintenance/REVIEW_SESSION_HANDOFF.md`.
+---
+
+## 6) تسليم للحساب الجديد (Claude Team) — 2026-11-27
+**من:** Claude (السيشن السحابية اللي اشتغلت على البوتات من الأول). **إلى:** حساب Claude Team الجديد المربوط على المشروع.
+**المطلوب:** تمسك ملف البوتات بدل الحساب القديم، من غير ما حاجة تبوظ.
+
+**القصة باختصار:**
+- Jarvis (`@xpix77bot`) و Hermes (`@hermes_6868_77_bot`) شغالين على OpenClaw على الماك، وعقلهم `claude` CLI.
+- الحساب القديم اتغيّر، وده الأرجح هو سبب "⚠️ Message failed" و 💾 والسكوت. Hermes واقف من 20/11.
+- بوت XPiX (`@XPiX_7bot`) شغال على GitHub في ريبو `market-radar-bot`، ومش متأثر بالحساب.
+
+**خطوات على الماك (بالترتيب، ومفيش حذف):**
+1. **نسخة احتياطية الأول:** `cp -R ~/.openclaw ~/openclaw_backup_$(date +%Y%m%d_%H%M)`.
+2. **اتأكد إن `claude` CLI على الحساب الجديد:** `claude -p "say ok" --model claude-haiku-5-5`. لو فشل، المالك يعمل `/login` بنفسه.
+3. `openclaw status`، وبعدين ابحث في الـ logs عن 401 / 429 / limit / context / compact.
+   - الـ logs غالبًا في `~/.openclaw/logs/` أو `/tmp/openclaw/`.
+   - **خبّي أي توكن** قبل ما تكتب أي حاجة.
+4. **سيشن جديدة للاتنين بدل `/new`:**
+   - انقل ملفات السيشن الكبيرة لفولدر أرشيف، ماتمسحهاش.
+   - السيشن الرئيسية كانت حوالي 443 ألف توكن.
+5. **الموديلات (توفير):**
+   - الافتراضي `claude-cli/claude-haiku-5-5` والاحتياطي Sonnet.
+   - شيل أي تثبيت على Fable/Opus.
+   - heartbeat كل ساعتين، والكرون على Haiku.
+6. `openclaw gateway restart`، وبعدين اطلب من المالك يبعت "تجربة" للاتنين.
+7. **الفويس:**
+   - Hermes كان بيفهم الفويس لحد 19/11، يعني التحويل كان شغال.
+   - اتأكد إن `tools.media.audio` لسه مظبوط. لو مش موجود: Whisper محلي (`brew install whisper-cpp ffmpeg` + موديل `ggml-small`).
+8. **Jarvis / video-studio:**
+   - مصدر الدهب الأساسي Hyperliquid `xyz:GOLD`، عن طريق `POST https://api.hyperliquid.xyz/info` بـ `{"type":"candleSnapshot","req":{"coin":"xyz:GOLD","interval":"15m","startTime":..,"endTime":..}}`.
+   - الاحتياطي Binance `PAXGUSDT`، و Yahoo آخر حاجة لأنه بيرجّع 429.
+   - خلّي `SSL_CERT_FILE` محفوظ.
+
+**ممنوعات:**
+- ماتغيّرش webhook بوتات Jarvis / Hermes.
+- ماتحطش `JARVIS_BOT_TOKEN` / `HERMES_BOT_TOKEN` في GitHub Secrets من غير قرار المالك.
+- **السبب:** ده بينقل البوتين لـ Cloudflare، و OpenClaw هيبطل يستقبل رسايلهم. القرار للمالك: يفضلوا على الماك ولا يتنقلوا.
+
+**قواعد ثابتة:**
+- مفيش مفاتيح في الريبو ولا في الشات، ولو اتلصق مفتاح المالك يغيّره.
+- قراءة وعرض ورسم بس، ومفيش أوامر تداول.
+- ممنوع لمس بيانات دخول TradingView أو MT5 أو Exness.
+- ممنوع اختراع أسعار أو نسب. أقل من 30 = مش دليل.
+- الرد بالمصري باختصار، والدمج على main بإذن المالك.
+
+**اللي مستني المالك (ماتعملوش بداله):**
+- مفاتيح Cloudflare و `GEMINI_API_KEY` في `market-radar-bot`.
+- `claude setup-token` ← `CLAUDE_CODE_OAUTH_TOKEN` (للـ `@claude` و `/order`).
+- قرار Hermes.
+
+**بعد ما تخلص:** اكتب سطر في المحضر فوق: اتعمل إيه، إيه اللي اتجرّب فعلًا، وإيه اللي لسه.
+**مراجع:** `market-radar-bot/docs/CONVERSATION_LOG.md` (القصة كاملة)، والمحضر ده.

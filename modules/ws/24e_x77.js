@@ -36,7 +36,7 @@ Panel.prototype.build_x77 = function(){
     box.querySelectorAll(".cd").forEach(d => d.onclick = () => { const e = rows[+d.dataset.i]; if (e) Ws.broadcast(this, e.symbol); });
   };
   this.resub = () => { this.setTitle(); draw(); };
-  const tm = setInterval(draw, 15000); this.unsubs.push(() => clearInterval(tm)); draw();
+  const tm = setInterval(visOnly(draw), 15000); this.unsubs.push(() => clearInterval(tm)); draw();
 };
 // Chart indicator "X77" (Indicators menu, Sessions & signals group): the same school labels drawn on the chart.
 // One line per live setup on this symbol (top left) + a small "X77" tag at its entry price. Labels only.

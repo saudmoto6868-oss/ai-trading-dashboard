@@ -452,6 +452,9 @@ body.mat-carbon .panel{border-color:#2c2f34}body.mat-carbon .ph{box-shadow:inset
 <script>
 "use strict";
 const CFG = __CONFIG__;
+/* M1 1.3: timers that only repaint the screen skip while the browser tab is hidden; each skipped one runs once when the tab is shown again */
+const VIS_MISSED = new Set(), visOnly = fn => () => { if (document.hidden){ VIS_MISSED.add(fn); return; } fn(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) return; const a = [...VIS_MISSED]; VIS_MISSED.clear(); a.forEach(f => { try { f(); } catch(e){} }); });
 /* blink diagnostics (console only, no UI): a page load line says whether Streamlit re-created this iframe; a long-task line says the main thread was blocked (>120 ms) */
 try { const k = "xpix_loads", a = JSON.parse(localStorage.getItem(k) || "[]"); a.push(Date.now()); localStorage.setItem(k, JSON.stringify(a.slice(-20)));
   console.info("[XPIX] page load #" + a.length + (a.length > 1 ? " (" + Math.round((a[a.length-1] - a[a.length-2])/1000) + " s after the previous load)" : " (first)")); } catch(e){}
@@ -522,7 +525,10 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
   trPush(x){ if (!x || !x.coin) return; const b = this.tr[x.coin] = this.tr[x.coin] || {ids:new Set(), rows:[]}, id = String(x.tid || x.hash || x.time);
     if (b.ids.has(id)) return; b.ids.add(id); b.rows.push({tradeId:id, ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"});
     if (b.rows.length > 600){ b.rows.sort((p, q) => +q.ts - +p.ts); b.rows.length = 400; b.ids = new Set(b.rows.map(r => r.tradeId)); } },
-  async trades(coin){ if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
+  /* M1 1.4: a coin nobody asked about for 60 s is unsubscribed and its buffer dropped (charts call trades() on every poll; there is no close hook) */
+  trAsk:{}, trSweep(){ const now = Date.now(); this.trSub.forEach(c => { if (now - (this.trAsk[c] || 0) > 60000){ this.trSub.delete(c); delete this.tr[c]; delete this.trAsk[c];
+    try { this.ws && this.ws.send(JSON.stringify({method:"unsubscribe", subscription:{type:"trades", coin:c}})); } catch(e){} } }); },
+  async trades(coin){ this.trAsk[coin] = Date.now(); if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
     const b = this.tr[coin], sd = this.seedT = this.seedT || {}; if ((!b || b.rows.length < 10) && Date.now() - (sd[coin] || 0) > 4000){ sd[coin] = Date.now(); const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // REST seed at most every 4 s per coin (it costs ~20 of the 1200 request weight per minute; the socket fills the buffer on its own)   // seed / socket down: REST
     return (this.tr[coin] || {rows:[]}).rows.slice().sort((p, q) => +q.ts - +p.ts).slice(0, 300); },
   async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
@@ -531,15 +537,15 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
       const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
     this.list = L; this.t = Date.now(); },
   start(){ if (this.on) return; this.on = true; this.state = "connecting";
-    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
+    const poll = async () => { this.trSweep(); try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
-    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
+    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; clearInterval(this.ping); ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
     ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
       if (m.channel === "trades" && Array.isArray(m.data)){ m.data.forEach(x => this.trPush(x)); return; }
       const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
       Object.entries(mids).forEach(([k, v]) => { const id = "HL:"+k; if (this.q[id] && +v > 0) this.q[id].last = +v; }); };
-    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait); this.wait = Math.min(60000, this.wait*2); };
+    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait + Math.random()*1000); this.wait = Math.min(30000, this.wait*2); };
     ws.onerror = () => { try { ws.close(); } catch(e){} }; }
 };
 // OKX timeframe -> Hyperliquid candle interval (bars Hyperliquid does not have -> clear error)
@@ -914,7 +920,7 @@ function sparkSvg(e, W, H){ const v = (e && e.spark) || [], pl = e && e.plan; W 
   const all = v.concat([pl.entry, pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), y = p => (H-2-(p-lo)/((hi-lo)||1)*(H-4)).toFixed(1), pts = v.map((p, i) => (i*(W-1)/(v.length-1)).toFixed(1)+","+y(p)).join(" "), ln = (p, c, d) => '<line x1="0" x2="'+W+'" y1="'+y(p)+'" y2="'+y(p)+'" stroke="'+c+'" stroke-width=".8"'+(d ? ' stroke-dasharray="2 2"' : '')+'/>';
   return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle">'+ln(pl.tps[0], "#0ecb81", 1)+ln(pl.stop, "#f6465d", 1)+ln(pl.entry, "#4aa3ff", 0)+'<polyline points="'+pts+'" fill="none" stroke="'+(e.direction === "bullish" ? "#0ecb81" : "#f6465d")+'" stroke-width="1.2"/></svg>'; }
 const clsCounts = () => { const n = {}; try { readyList(true).forEach(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; }); } catch(e){} return n; };   // ready setups per class (before the class filter): what the scan really produced
-const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(() => { if (CLS_SELS.size) clsBroadcast(); }, 5000);   // every class select shows the one shared FILT.cls
+const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(visOnly(() => { if (CLS_SELS.size) clsBroadcast(); }), 5000);   // every class select shows the one shared FILT.cls
 const clsOk = sym => !FILT.cls || FILT.cls === "All" || FILT.cls === "__best" || symClass(sym) === FILT.cls;
 const clsOptions = () => [["All", T("fAll")], ["__best", Lg("Best of all","الأفضل من الكل")]].concat(CLS_LIST.map(c => [c, catL(c)]));
 function readyList(noCls){
@@ -990,10 +996,11 @@ const Alerts = {
   },
   clear(){ this.list = []; store.set(LS+"_alerts", this.list); this.subs.forEach(f => f()); }
 };
-(CFG.alerts || []).forEach(a => {
+const cfgAlerts = () => (CFG.alerts || []).forEach(a => {   // also run by Ws.applyCfg (new page data); Alerts.add skips ids it has
   const bull = a.direction === "bullish";
   Alerts.add(a.id, "scan", a.symbol, a.symbol+" · "+(bull ? "Long" : "Short")+" · "+a.score+"/"+a.max, bull ? "#0ecb81" : "#f6465d", a);
 });
+cfgAlerts();
 
 const YF = CFG.yf || {}, YF_BAR = {"15m":"15m","1H":"1h","4H":"4h","1D":"1d"};
 function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Tadawul): candles were embedded by the server from Yahoo Finance, answered here in OKX's shape (newest first)
@@ -1440,11 +1447,13 @@ const WSX = {
   conns:{}, subs:{},
   conn(kind){
     let c = this.conns[kind]; if (c) return c;
-    c = this.conns[kind] = {ws:null, ready:false, kind};
+    c = this.conns[kind] = {ws:null, ready:false, kind, wait:3000};
+    /* M1 1.4: retry after 3 s, doubling to 30 s, plus up to 1 s jitter so many tabs do not reconnect at the same moment; a good open resets it */
+    const retry = () => { setTimeout(open, c.wait + Math.random()*1000); c.wait = Math.min(30000, c.wait*2); };
     const open = () => {
-      let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return setTimeout(open, 5000); }
+      let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return retry(); }
       c.ws = ws;
-      ws.onopen = () => { c.ready = true; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
+      ws.onopen = () => { c.ready = true; c.wait = 3000; clearInterval(c.ping); Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
         c.ping = setInterval(() => { try{ ws.send("ping"); }catch(e){} }, 20000); };
       ws.onmessage = ev => {
         c.last = Date.now(); if (ev.data === "pong") return;
@@ -1452,7 +1461,7 @@ const WSX = {
         if (!m.arg || !m.data) return;
         const x = this.subs[JSON.stringify(m.arg)]; if (x) x.cbs.forEach(cb => { try{ cb(m.data); }catch(e){ console.error(e); } });
       };
-      ws.onclose = () => { c.ready = false; clearInterval(c.ping); setTimeout(open, 3000); };
+      ws.onclose = () => { c.ready = false; clearInterval(c.ping); retry(); };
       ws.onerror = () => { try{ ws.close(); }catch(e){} };
     };
     open(); return c;
@@ -4849,7 +4858,7 @@ const OFM = {
     rs.value = S.omR; ws.value = S.omW; bx.type = "checkbox"; bx.checked = S.omB; bl.append(bx, document.createTextNode(" "+Lg("Trades","صفقات"))); bl.style.cssText = "font-size:11px;color:#9aa4b2;display:flex;align-items:center;gap:2px";
     rs.onchange = () => { S.omR = +rs.value; Ws.save(); OFM.draw(p); }; ws.onchange = () => { S.omW = +ws.value; Ws.save(); OFM.draw(p); }; bx.onchange = () => { S.omB = bx.checked; Ws.save(); OFM.draw(p); };
     tb.append(p.symSel, rs, ws, bl); const wrap = el("div"); wrap.style.cssText = "position:relative;flex:1;min-height:0"; const cv = el("canvas"); cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block"; wrap.append(cv); p.ofmCv = cv;
-    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden) OFM.draw(p); }, 1000);
+    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden && !p.min) OFM.draw(p); }, 1000);
     p.destroy = () => { ro.disconnect(); clearInterval(iv); cancelAnimationFrame(p.om.raf); }; p.resub(); },
   resub(p, sym){
     p.om.snaps = []; p.om.trades = []; p.setTitle();
@@ -5199,7 +5208,7 @@ class Panel {
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
-    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
+    this.cdTimer = setInterval(visOnly(() => { if (!this.min) this.tickCd(); }), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -5992,7 +6001,7 @@ class Panel {
       box.innerHTML = h+'</table>'; info.textContent = rows.length+"/"+syms.length+(waiting ? " · "+Lg("loading","بيحمّل")+" "+waiting : "")+(errs ? " · "+errs+" "+Lg("failed","فشل") : "");
       box.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s)); };
     grp.onchange = () => { S.rg = grp.value; Ws.save(); draw(); load(); }; oc.onchange = () => { S.rw = oc.checked; Ws.save(); draw(); };
-    HL.start(); draw(); load(); const iv = setInterval(() => { draw(); load(); }, 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
+    HL.start(); draw(); load(); const iv = setInterval(visOnly(() => { draw(); load(); }), 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
     this.unwatch = () => { clearInterval(iv); clearTimeout(iv2); };
   }
   /* ---- journal: funded-account style analytics (equity curve, stat cards, win/loss calendar) ---- */
@@ -6577,7 +6586,7 @@ class Panel {
       const live = readyList(); let e = Setup.sel ? (live.find(x => key(x) === key(Setup.sel)) || Setup.sel) : live[0]; cur = e || null;
       box.innerHTML = e ? setupHtml(e) : '<div class="m" style="padding:12px">'+esc(CFG.scanning ? T("scanning") : T("rdEmpty"))+'</div>';
     };
-    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(draw, 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
+    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(visOnly(draw), 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
   }
   build_notes(){
     const ta = el("textarea"); ta.className = "fill"; ta.style.cssText = "width:100%;height:100%;border:0;border-radius:0;resize:none"; ta.value = this.state.txt || "";
@@ -7184,7 +7193,7 @@ Ws.drawStrip = () => {
     requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 })();
-Alerts.subs.add(() => Ws.drawStrip()); setInterval(() => Ws.drawStrip(), 5000); setTimeout(() => Ws.drawStrip(), 300);
+Alerts.subs.add(() => Ws.drawStrip()); setInterval(visOnly(() => Ws.drawStrip()), 5000); setTimeout(() => Ws.drawStrip(), 300);
 Ws.showOnChart = c => {
   Setup.sel = c; Setup.subs.forEach(f => f());
   const ch = Ws.panels.find(p => p.type === "chart"); if (!ch) return;
@@ -8109,7 +8118,7 @@ Panel.prototype.build_x77 = function(){
     box.querySelectorAll(".cd").forEach(d => d.onclick = () => { const e = rows[+d.dataset.i]; if (e) Ws.broadcast(this, e.symbol); });
   };
   this.resub = () => { this.setTitle(); draw(); };
-  const tm = setInterval(draw, 15000); this.unsubs.push(() => clearInterval(tm)); draw();
+  const tm = setInterval(visOnly(draw), 15000); this.unsubs.push(() => clearInterval(tm)); draw();
 };
 // Chart indicator "X77" (Indicators menu, Sessions & signals group): the same school labels drawn on the chart.
 // One line per live setup on this symbol (top left) + a small "X77" tag at its entry price. Labels only.
@@ -8955,7 +8964,7 @@ function applyLang(rebuild){
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
-  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); addEventListener("load", () => RadarMode.fit()); { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
+  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); (document.readyState === "complete" ? setTimeout(() => RadarMode.fit(), 0) : addEventListener("load", () => RadarMode.fit()));   /* the lite page runs this script after the load event */ { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
   else if (CFG.solo && CFG.solo !== "spot"){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
     else { store.set(LS+"_cls", CFG.cls || ""); Ws.build(Ws.defaultsSolo()); Ws.save(); } }
   else if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
@@ -9044,9 +9053,23 @@ function applyLang(rebuild){
   rail.addEventListener("pointermove", e => { if (sy == null) return; const dy = (e.screenY - sy)*2.2; sy = e.screenY; try { const sc = scroller(); sc ? sc.scrollBy({top:dy}) : window.parent.scrollBy({top:dy}); } catch(e){} });
   const end = () => { sy = null; }; rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
   let q = 0; const sched = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; place(); }); };
-  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(place, 1500); place();
+  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
+
+/* M2 / P6: new page data from Streamlit (WS_LITE page) is applied without reloading the frame: data keys update CFG and the widgets
+   are rebuilt from the current layout (the same path as the rebuild above); the live sockets and the parsed script stay.
+   A changed layout key (symbols, language, theme, mode, build...) returns false and the loader reloads the frame instead. */
+Ws.applyCfg = n => {
+  const DATA = ["news","world","feedStatus","ready","smtx","scan","scanning","tfstats","cmc","macrof","stockf","cal","alerts","spot","seed","meme","links","filters","x77","gannoos"];
+  const diff = Object.keys(Object.assign({}, CFG, n)).filter(k => JSON.stringify(CFG[k]) !== JSON.stringify(n[k]));
+  if (diff.some(k => !DATA.includes(k))) return false;
+  if (!diff.length) return true;
+  diff.forEach(k => { CFG[k] = n[k]; });
+  cfgAlerts();
+  const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save();
+  return true;
+};
 
 /* XCMD: a small, SAFE command layer for outside drivers (the XPiX Telegram bot through Playwright, tests, a human in the console). docs/XPIX_BOT_BRIEF.md.
    Read + view + draw only: it never places or changes an order, never opens an outside page, never touches keys. Every call returns {ok:true,...} or {ok:false,err}. */

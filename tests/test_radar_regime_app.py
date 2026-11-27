@@ -44,7 +44,8 @@ MC.fetch_frames = fake_frames
 MC.get_klines = lambda sym, tf, limit=300, *a, **k: frame("trend", 5)
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-src = open(os.path.join(ROOT, "main.py"), encoding="utf8").read()
+import glob  # noqa: E402
+src = "".join(open(f, encoding="utf8").read() for f in sorted(glob.glob(os.path.join(ROOT, "modules", "page_radar*.py"))))   # the Radar moved out of main.py (M7)
 assert '"regime": f.get("regime")' in src and 'f.get("regime") and d.get("regime") not in f["regime"]' in src
 for view in ("Chart grid", "Signal list", "Screener"):
     for pick in ([], ["Trend"], ["Chop", "Hi-Vol"]):

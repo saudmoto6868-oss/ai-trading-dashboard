@@ -14,7 +14,7 @@ EXPECTED_IFRAME_FILES = (
     "modules/spot_page.py",
     "modules/tia_workspace.py",
     "modules/veles_robustness.py",
-    "main.py",
+    "modules/page_radar.py",   # the Radar grid iframe moved out of main.py (M7)
 )
 
 

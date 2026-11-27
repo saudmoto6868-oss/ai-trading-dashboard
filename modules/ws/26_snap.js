@@ -168,7 +168,7 @@ function applyLang(rebuild){
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
-  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); addEventListener("load", () => RadarMode.fit()); { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
+  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); (document.readyState === "complete" ? setTimeout(() => RadarMode.fit(), 0) : addEventListener("load", () => RadarMode.fit()));   /* the lite page runs this script after the load event */ { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
   else if (CFG.solo && CFG.solo !== "spot"){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
     else { store.set(LS+"_cls", CFG.cls || ""); Ws.build(Ws.defaultsSolo()); Ws.save(); } }
   else if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
@@ -257,6 +257,20 @@ function applyLang(rebuild){
   rail.addEventListener("pointermove", e => { if (sy == null) return; const dy = (e.screenY - sy)*2.2; sy = e.screenY; try { const sc = scroller(); sc ? sc.scrollBy({top:dy}) : window.parent.scrollBy({top:dy}); } catch(e){} });
   const end = () => { sy = null; }; rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
   let q = 0; const sched = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; place(); }); };
-  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(place, 1500); place();
+  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
+
+/* M2 / P6: new page data from Streamlit (WS_LITE page) is applied without reloading the frame: data keys update CFG and the widgets
+   are rebuilt from the current layout (the same path as the rebuild above); the live sockets and the parsed script stay.
+   A changed layout key (symbols, language, theme, mode, build...) returns false and the loader reloads the frame instead. */
+Ws.applyCfg = n => {
+  const DATA = ["news","world","feedStatus","ready","smtx","scan","scanning","tfstats","cmc","macrof","stockf","cal","alerts","spot","seed","meme","links","filters","x77","gannoos"];
+  const diff = Object.keys(Object.assign({}, CFG, n)).filter(k => JSON.stringify(CFG[k]) !== JSON.stringify(n[k]));
+  if (diff.some(k => !DATA.includes(k))) return false;
+  if (!diff.length) return true;
+  diff.forEach(k => { CFG[k] = n[k]; });
+  cfgAlerts();
+  const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save();
+  return true;
+};

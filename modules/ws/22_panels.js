@@ -286,7 +286,7 @@ class Panel {
     // task 54 (second tab flashing): the pulse only redraws in a visible tab; a hidden tab does not keep repainting the chart
     this.animTimer = setInterval(() => { if (!document.hidden && this.chart.flowOn && this.chart.marks.length){ this.chart.pulse = !this.chart.pulse; this.chart.draw(); } }, 450);
     this.chart.showSig = this.state.sig !== false; sg.classList.toggle("on", this.chart.showSig); vw.classList.toggle("on", !!this.chart.ema.vwap);
-    this.cdTimer = setInterval(() => this.tickCd(), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
+    this.cdTimer = setInterval(visOnly(() => { if (!this.min) this.tickCd(); }), 1000); this.flowIv = setInterval(() => { if (this.chart && this.chart.colOn && !document.hidden) this.chart.draw(); }, 1000);   // was 300 ms: repainted the whole canvas ~3x/s per chart
     this.chart.onNeedMore = () => this.loadMore();
     this.tfSel.value = this.state.tf;
     this.resub();
@@ -1079,7 +1079,7 @@ class Panel {
       box.innerHTML = h+'</table>'; info.textContent = rows.length+"/"+syms.length+(waiting ? " · "+Lg("loading","بيحمّل")+" "+waiting : "")+(errs ? " · "+errs+" "+Lg("failed","فشل") : "");
       box.querySelectorAll(".wr").forEach(r => r.onclick = () => Ws.broadcast(this, r.dataset.s)); };
     grp.onchange = () => { S.rg = grp.value; Ws.save(); draw(); load(); }; oc.onchange = () => { S.rw = oc.checked; Ws.save(); draw(); };
-    HL.start(); draw(); load(); const iv = setInterval(() => { draw(); load(); }, 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
+    HL.start(); draw(); load(); const iv = setInterval(visOnly(() => { draw(); load(); }), 60000), iv2 = setTimeout(() => { draw(); load(); }, 2500);
     this.unwatch = () => { clearInterval(iv); clearTimeout(iv2); };
   }
   /* ---- journal: funded-account style analytics (equity curve, stat cards, win/loss calendar) ---- */
@@ -1664,7 +1664,7 @@ class Panel {
       const live = readyList(); let e = Setup.sel ? (live.find(x => key(x) === key(Setup.sel)) || Setup.sel) : live[0]; cur = e || null;
       box.innerHTML = e ? setupHtml(e) : '<div class="m" style="padding:12px">'+esc(CFG.scanning ? T("scanning") : T("rdEmpty"))+'</div>';
     };
-    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(draw, 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
+    draw(); Alerts.subs.add(draw); Setup.subs.add(draw); const iv = setInterval(visOnly(draw), 15000); this.unwatch = () => { Alerts.subs.delete(draw); Setup.subs.delete(draw); clearInterval(iv); };
   }
   build_notes(){
     const ta = el("textarea"); ta.className = "fill"; ta.style.cssText = "width:100%;height:100%;border:0;border-radius:0;resize:none"; ta.value = this.state.txt || "";

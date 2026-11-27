@@ -58,7 +58,7 @@ function sparkSvg(e, W, H){ const v = (e && e.spark) || [], pl = e && e.plan; W 
   const all = v.concat([pl.entry, pl.stop, pl.tps[0]]), lo = Math.min(...all), hi = Math.max(...all), y = p => (H-2-(p-lo)/((hi-lo)||1)*(H-4)).toFixed(1), pts = v.map((p, i) => (i*(W-1)/(v.length-1)).toFixed(1)+","+y(p)).join(" "), ln = (p, c, d) => '<line x1="0" x2="'+W+'" y1="'+y(p)+'" y2="'+y(p)+'" stroke="'+c+'" stroke-width=".8"'+(d ? ' stroke-dasharray="2 2"' : '')+'/>';
   return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle">'+ln(pl.tps[0], "#0ecb81", 1)+ln(pl.stop, "#f6465d", 1)+ln(pl.entry, "#4aa3ff", 0)+'<polyline points="'+pts+'" fill="none" stroke="'+(e.direction === "bullish" ? "#0ecb81" : "#f6465d")+'" stroke-width="1.2"/></svg>'; }
 const clsCounts = () => { const n = {}; try { readyList(true).forEach(e => { const c = symClass(e.symbol); n[c] = (n[c] || 0) + 1; }); } catch(e){} return n; };   // ready setups per class (before the class filter): what the scan really produced
-const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(() => { if (CLS_SELS.size) clsBroadcast(); }, 5000);   // every class select shows the one shared FILT.cls
+const CLS_SELS = new Set(), clsBroadcast = () => { const n = clsCounts(); CLS_SELS.forEach(x => { if (!x.isConnected){ CLS_SELS.delete(x); return; } [...x.options].forEach(o => { if (CLS_LIST.includes(o.value)) o.textContent = catL(o.value) + " (" + (n[o.value] || 0) + ")"; }); x.value = FILT.cls || "All"; }); }; setInterval(visOnly(() => { if (CLS_SELS.size) clsBroadcast(); }), 5000);   // every class select shows the one shared FILT.cls
 const clsOk = sym => !FILT.cls || FILT.cls === "All" || FILT.cls === "__best" || symClass(sym) === FILT.cls;
 const clsOptions = () => [["All", T("fAll")], ["__best", Lg("Best of all","الأفضل من الكل")]].concat(CLS_LIST.map(c => [c, catL(c)]));
 function readyList(noCls){
@@ -134,10 +134,11 @@ const Alerts = {
   },
   clear(){ this.list = []; store.set(LS+"_alerts", this.list); this.subs.forEach(f => f()); }
 };
-(CFG.alerts || []).forEach(a => {
+const cfgAlerts = () => (CFG.alerts || []).forEach(a => {   // also run by Ws.applyCfg (new page data); Alerts.add skips ids it has
   const bull = a.direction === "bullish";
   Alerts.add(a.id, "scan", a.symbol, a.symbol+" · "+(bull ? "Long" : "Short")+" · "+a.score+"/"+a.max, bull ? "#0ecb81" : "#f6465d", a);
 });
+cfgAlerts();
 
 const YF = CFG.yf || {}, YF_BAR = {"15m":"15m","1H":"1h","4H":"4h","1D":"1d"};
 function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Tadawul): candles were embedded by the server from Yahoo Finance, answered here in OKX's shape (newest first)

@@ -240,10 +240,6 @@ def main(argv):
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
-
-
 def _lessons() -> list:
     """Journal lesson candidates for the review text; empty on any error so the review still goes out."""
     out = []
@@ -258,3 +254,7 @@ def _lessons() -> list:
     except Exception:
         pass
     return out
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

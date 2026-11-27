@@ -200,7 +200,7 @@ Ws.drawStrip = () => {
     requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 })();
-Alerts.subs.add(() => Ws.drawStrip()); setInterval(() => Ws.drawStrip(), 5000); setTimeout(() => Ws.drawStrip(), 300);
+Alerts.subs.add(() => Ws.drawStrip()); setInterval(visOnly(() => Ws.drawStrip()), 5000); setTimeout(() => Ws.drawStrip(), 300);
 Ws.showOnChart = c => {
   Setup.sel = c; Setup.subs.forEach(f => f());
   const ch = Ws.panels.find(p => p.type === "chart"); if (!ch) return;

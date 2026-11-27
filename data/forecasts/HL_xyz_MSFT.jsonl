@@ -1,2 +1,3 @@
 {"id": "HL:xyz:MSFT|2026-11-25", "symbol": "HL:xyz:MSFT", "class": "Stocks", "tf": "1d", "side": "short", "entry": 492.47, "stop": 529.17, "target": 437.42000000000013, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
 {"id": "HL:xyz:MSFT|2026-11-26", "symbol": "HL:xyz:MSFT", "class": "Stocks", "tf": "1d", "side": "long", "entry": 494.7, "stop": 480.91, "target": 515.385, "made_at": "2026-11-26", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:MSFT|2026-11-27", "symbol": "HL:xyz:MSFT", "class": "Stocks", "tf": "1d", "side": "long", "entry": 500.2, "stop": 480.91, "target": 529.135, "made_at": "2026-11-27", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

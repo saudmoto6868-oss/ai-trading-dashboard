@@ -3,11 +3,13 @@ const WSX = {
   conns:{}, subs:{},
   conn(kind){
     let c = this.conns[kind]; if (c) return c;
-    c = this.conns[kind] = {ws:null, ready:false, kind};
+    c = this.conns[kind] = {ws:null, ready:false, kind, wait:3000};
+    /* M1 1.4: retry after 3 s, doubling to 30 s, plus up to 1 s jitter so many tabs do not reconnect at the same moment; a good open resets it */
+    const retry = () => { setTimeout(open, c.wait + Math.random()*1000); c.wait = Math.min(30000, c.wait*2); };
     const open = () => {
-      let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return setTimeout(open, 5000); }
+      let ws; try { ws = new WebSocket(WSB + "/" + kind); } catch(e){ return retry(); }
       c.ws = ws;
-      ws.onopen = () => { c.ready = true; Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
+      ws.onopen = () => { c.ready = true; c.wait = 3000; clearInterval(c.ping); Object.values(this.subs).filter(x => x.kind === kind).forEach(x => ws.send(JSON.stringify({op:"subscribe", args:[x.arg]})));
         c.ping = setInterval(() => { try{ ws.send("ping"); }catch(e){} }, 20000); };
       ws.onmessage = ev => {
         c.last = Date.now(); if (ev.data === "pong") return;
@@ -15,7 +17,7 @@ const WSX = {
         if (!m.arg || !m.data) return;
         const x = this.subs[JSON.stringify(m.arg)]; if (x) x.cbs.forEach(cb => { try{ cb(m.data); }catch(e){ console.error(e); } });
       };
-      ws.onclose = () => { c.ready = false; clearInterval(c.ping); setTimeout(open, 3000); };
+      ws.onclose = () => { c.ready = false; clearInterval(c.ping); retry(); };
       ws.onerror = () => { try{ ws.close(); }catch(e){} };
     };
     open(); return c;

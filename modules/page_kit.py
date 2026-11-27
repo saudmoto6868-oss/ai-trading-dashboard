@@ -72,3 +72,9 @@ def has_secret(name):
         return bool(os.environ.get(name) or st.secrets.get(name))
     except Exception:
         return bool(os.environ.get(name))
+
+
+def rt():
+    """This session's runtime values (theme, symbols, asset class...), set by main.py before the page runs (M7).
+    Moved pages read them here, not from module globals, which every session shares."""
+    return st.session_state["_rt"]

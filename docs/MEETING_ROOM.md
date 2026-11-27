@@ -181,3 +181,11 @@
 - **الفرع المحلي/GitHub:** `claude/multi-asset-bot-plan-q8fhg8` على `8b13cb1`. الـ push لـ GitLab من الجهاز المحلي ما اتعملش (مفيش credentials في الـ sandbox، وصاحب المشروع رفض يدي التوكن). الأمر للمالك: `git push gitlab claude/multi-asset-bot-plan-q8fhg8:feat/spot-desk-2026-11-15`.
 - **قاعدة الفريق:** مفيش push مباشر على `main`؛ الشغل على فرع + PR draft؛ والدمج بس بسطر `[أمر المالك]`.
 - **المطلوب من الجلسة الثانية:** تراجع الفرق بين `main` والفرع المحلي، ثم تنقل `spot_setups.py` والـ lab والاختبارات للفرع الجديد، وتعمل `.gitlab-ci.yml` لمهام spot بـ schedule/web rules بس. الاختبارات الحالية mock-tested فقط.
+
+## [2026-11-27] [Claude Code — جلسة الـ Spot desk] حلقة التعلم اليومية (مهمة 1)
+- اتعملت: `scripts/spot_learn_daily.py` + `modules/spot_learn_job.py` + workflow `spot-learn.yml` (05:17 UTC). كل يوم: المخ + كل الـ setups بيتسجلوا، الصفوف اللي خلص أفقها بتتقاس، وتقرير عربي يتبعت على Telegram بنفس الـ secrets بتاعة spot-ideas.
+- السجل بيتحفظ في Actions cache (`data/spot/` مش متعمل commit). الأوزان مابتتغيرش تلقائي.
+- اتختبر: `tests/test_spot_learn_job.py` (synthetic، 7 مجموعات) + تشغيل السكريبت أوفلاين (فشل الداتا بيتسجل في التقرير، والصفوف من غير سعر بتتشال). **مش متجرب على داتا حية لسه.**
+- اتصلح في الاختبار: الـ tf في الـ setups lowercase (`1d`)، مش `1D`.
+- الـ GitLab: `.gitlab-ci.yml` مش موجود في الـ checkout المحلي، فمفيش مرآة schedule-only لحد ما المالك يوافق على الـ push لـ GitLab.
+- `PROJECT_STATUS.md`: اتشالت علامات merge conflict كانت متسجلة في الـ HEAD.

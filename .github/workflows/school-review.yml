@@ -1,6 +1,22 @@
-# Manual: ask Gemini (and DeepSeek / OpenAI if their secrets exist) to review the trading schools; saves docs/reviews/*.md
+# Ask external models to review the schools and our daily-calls record; saves docs/reviews/*.md (opinions, not evidence).
+# owner 2026-11-24: free first, paid as an option. The weekly schedule runs the FREE tier on the daily-calls review only
+# (Gemini on the key's free tier + OpenRouter ":free" models). DeepSeek (paid) runs only when "paid" is picked by hand.
 name: School review
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: "41 6 * * 0"          # weekly, Sunday 06:41 UTC: free tier, daily-calls review
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "free (Gemini + OpenRouter free models) or paid (adds DeepSeek)"
+        required: false
+        default: "free"
+        type: choice
+        options: [free, paid]
+      topics:
+        description: "topics, space-separated (empty = calls_review on schedule, all topics by hand)"
+        required: false
+        default: ""
 permissions:
   contents: write
 concurrency:
@@ -22,7 +38,9 @@ jobs:
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: python -m modules.school_review
+          SCHOOL_REVIEW_TIER: ${{ github.event.inputs.tier || 'free' }}
+          TOPICS: ${{ github.event.inputs.topics || (github.event_name == 'schedule' && 'calls_review' || '') }}
+        run: python -m modules.school_review $TOPICS
       - name: Commit reviews
         run: |
           git config user.name "github-actions[bot]"

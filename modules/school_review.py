@@ -138,15 +138,45 @@ ROUTES = {
     "schools": ["gemini", "openrouter"],
     "scalp4h": ["gemini", "openrouter"],
     "risk": ["gemini", "openrouter"],
+    "calls_review": ["gemini", "openrouter"],
 }
 
+# owner 2026-11-24: free first, paid as an option. "free" = Gemini (free tier of the key's plan) + OpenRouter ":free" models;
+# "paid" adds DeepSeek. The weekly schedule runs free only; paid runs only when someone picks it by hand.
+FREE = ("gemini", "openrouter")
+PAID = ("deepseek",)
 
-def run(topics=None, providers=None, log=print):
+
+def providers_for(topic: str, tier: str = "free") -> list:
+    base = [p for p in ROUTES.get(topic, list(FREE)) if p in FREE]
+    return base + list(PAID) if tier == "paid" else base
+
+
+def calls_review_prompt() -> str:
+    """The daily-calls review (docs/forecasts) for a second opinion. The model gets our numbers, not market data."""
+    parts = []
+    for name in ("REVIEW.md", "SUMMARY.md"):
+        f = ROOT / "docs" / "forecasts" / name
+        if f.exists():
+            parts.append(f"--- {name} ---\n" + f.read_text(encoding="utf-8")[:6000])
+    body = "\n\n".join(parts) or "(no review file yet)"
+    return ("Below is the automatic review of our daily baseline calls (one call per symbol per day, last zig-zag leg continuation, "
+            "stop at the leg start, target 1.5R, horizon 5 daily bars; break-even win rate 40 %). Act as a sceptical reviewer: "
+            "1) what the numbers do and do not show, given the sample sizes; 2) risks of reading too much into them (multiple comparisons, "
+            "regime, costs); 3) at most five concrete, measurable next tests for our lab, each with the rule and the evidence gate "
+            "(n >= 100, t > 3, both halves positive, after costs). No price predictions, no trade advice. English, concise.\n\n" + body)
+
+
+TOPICS["calls_review"] = None   # built at run time from the latest review files
+
+
+def run(topics=None, providers=None, log=print, tier=None):
     OUT.mkdir(parents=True, exist_ok=True)
+    tier = tier or os.environ.get("SCHOOL_REVIEW_TIER", "free")
     done = []
     for t in topics or TOPICS:
-        prompt = (CONTEXT + "\n\n" if CONTEXT else "") + TOPICS[t]
-        for name in providers or ROUTES.get(t, list(PROVIDERS)):
+        prompt = calls_review_prompt() if t == "calls_review" else (CONTEXT + "\n\n" if CONTEXT else "") + TOPICS[t]
+        for name in providers or providers_for(t, tier):
             try:
                 text = PROVIDERS[name](prompt)
             except Exception as e:  # one failing model must not stop the others
@@ -157,7 +187,7 @@ def run(topics=None, providers=None, log=print):
                 continue
             f = OUT / f"{t}-{name}.md"
             f.write_text(f"# {t} - {name}\n\n_Model opinion, not evidence. Verify every source._\n\n{text}\n", encoding="utf-8")
-            done.append(str(f.relative_to(ROOT)))
+            done.append(str(f.relative_to(ROOT)) if f.is_relative_to(ROOT) else str(f))
             log(f"saved {f.name}")
             time.sleep(2)
     (OUT / "index.json").write_text(json.dumps({"files": done, "built": int(time.time())}, indent=1), encoding="utf-8")

@@ -21,5 +21,17 @@ data/spot/
 # the brain (modules/brain.py): its memory lives in the GitHub Actions cache
 .brain_*
 
-# Auto activity log: written locally by the hook, never committed (owner decision on GitLab, 2026-11-12)
+# Claude Code activity hook writes this on every tool call: local only, never commit (commit spam got the GitHub account suspended)
 docs/ACTIVITY_LOG_AUTO.md
+data/tia/
+data/two_six/
+data/x77/
+# research outputs rebuilt by scripts (trade review DB, per-event dumps)
+research/trade_db/*.sqlite
+research/htf_arms/events.csv.gz
+
+# trade journal store, lessons and reports (personal trade data, never commit)
+data/journal/
+data/cache/
+# chat archives (owner rule: keep local)
+docs/chats/

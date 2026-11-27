@@ -43,14 +43,16 @@ bias_rows = rows_from([100 + 0.2 * i + 2 * math.sin(i / 3.0) for i in range(200)
 rj = random.Random(42); ctxs = []
 for q in range(300):
     side = rj.choice([1, -1]); e = 100.0; st_ = e - side * rj.uniform(0.3, 3); t1 = e + side * rj.uniform(0.2, 8)
-    idea = {"det": "bounce", "side": side, "entry": e, "stop": st_, "tps": [t1, t1 + side * rj.uniform(-1, 4)], "now": rj.random() < 0.7, "level": e - side * rj.uniform(0, 1)}
+    if q % 4 == 0:   # strong cases too, so A+ gets exercised
+        st_ = e - side * 1; t1 = e + side * rj.uniform(2.5, 4)
+    idea = {"det": rj.choice(["bounce", "struct", "elliott", "vwap", "harmonic"]), "side": side, "entry": e, "stop": st_, "tps": [t1, t1 + side * rj.uniform(-1, 4)], "now": rj.random() < 0.7, "level": e - side * rj.uniform(0, 1)}
     lv = [{"p": e + rj.uniform(-8, 8), "src": rj.choice(["support", "resistance", "VP HVN"])} for _ in range(rj.randint(0, 5))]
     ctx = {"tf": {"bias": "1H", "setup": "15m", "entry": "5m"}, "ps": rj.choice([1, 0.1, 0.01]), "atr": rj.uniform(0.3, 2), "levels": lv,
            "bias": rj.choice([{"available": False}, {"available": True, "bias": "bull"}, {"available": True, "bias": "bear"}, {"available": True, "bias": "neutral"}]),
            "setupB": rj.choice([{"available": True, "bias": "bull"}, {"available": True, "bias": "bear"}, {"available": False}]),
            "trig": rj.choice(["", "rejection candle", "BOS 5m"]), "confl": rj.sample(["VP", "SMT", "Elliott", "Harmonic"], rj.randint(0, 4)), "vpAt": rj.choice(["", "POC", "HVN"]),
            "hist": rj.choice([{"n": 0}, {"n": rj.randint(1, 60), "hitPct": rj.random(), "p75": rj.uniform(0, 6)}]), "late": rj.choice([0, rj.uniform(0.4, 1)]),
-           "regime": rj.choice([None, "trend", "chop", "hivol", "crash"]), "news": rj.choice(["", "", "USD CPI"]), "openSame": rj.random() < 0.1, "openOpp": rj.random() < 0.1,
+           "regime": rj.choice([None, "trend", "chop", "hivol", "crash"]), "regime_bad": rj.random() < 0.3, "news": rj.choice(["", "", "USD CPI"]), "openSame": rj.random() < 0.1, "openOpp": rj.random() < 0.1,
            "classOpen": rj.randint(0, 3), "jr": rj.choice([None, {"done": rj.randint(0, 30), "avgR": rj.uniform(-1, 1)}]), "scalp": rj.random() < 0.5, "ses": rj.choice(["off-KZ", "London KZ", "Asia", ""])}
     ctxs.append([idea, ctx])
 
@@ -104,7 +106,8 @@ for q, (idea, ctx) in enumerate(ctxs):
     pj = P.judge(idea, ctx)
     close(J["__judge"][q], pj, f"judge[{q}]")
     vs[pj["verdict"]] = vs.get(pj["verdict"], 0) + 1
-assert len(vs) == 3, vs
+    vs[pj["grade"]] = vs.get(pj["grade"], 0) + 1
+assert all(k in vs for k in ('TAKE', 'WAIT', 'SKIP', 'A+', 'A', 'B', 'C')), vs
 assert [P.point_size(s, p) for s, p in [("Y:EURUSD=X", 1.1), ("Y:USDJPY=X", 150), ("HL:xyz:GOLD", 2400), ("BTC-USDT", 6e4), ("HL:xyz:SP500", 5e3), ("DOGE-USDT", .15)]] == [0.0001, 0.01, 0.1, 1, 1, 0.00001]
 import pandas as pd  # noqa: E402
 rg = cases["range"]

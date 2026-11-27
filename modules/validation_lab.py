@@ -154,7 +154,7 @@ def render_validation_lab() -> None:
                       h[4]: round(float(r.get("win", 0)), 1), h[5]: round(avg, 3),
                       h[6]: None if base is None else round(float(base), 3), h[7]: None if base is None else round(avg - float(base), 3),
                       h[8]: icon.get(t, "")})
-    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.dataframe(table, width="stretch", hide_index=True)
 
     # ── footnotes ─────────────────────────────────────────────────
     st.caption(_t(

@@ -48,7 +48,7 @@ def ring(score, size=96, label="", fill=False):
 def line(vals, W=420, H=150, levels=None, dots=True, col=A, area=True):
     v = np.asarray([x for x in vals if x is not None and math.isfinite(x)], float)
     if len(v) < 3:
-        return f'<div class="s">مفيش داتا</div>'
+        return '<div class="s">مفيش داتا</div>'
     lv = [x for x in (levels or []) if x[0] is not None]
     lo, hi = min(v.min(), *[x[0] for x in lv]) if lv else v.min(), max(v.max(), *[x[0] for x in lv]) if lv else v.max()
     pad = (hi - lo) * .08 or 1
@@ -152,16 +152,30 @@ def render(br: dict, markets: list | None = None) -> str:
         dots = "".join(f'<span title="{k}" class="dot" style="background:{A if v > 0 else "#a7adb8" if v < 0 else L};margin:0 2px"></span>' for k, v in r["votes"].items())
         votes.append(f"<tr><td>{nm}</td><td>{dots}</td></tr>")
     ew = (w1.get("elliott") or {}).get("kind")
+    from modules.elliott_shapes import SHAPE_AR
     gn = ((w1.get("gann") or {}).get("fit") or {})
     pats = ", ".join(sorted({i["title"] for i in br.get("ideas", [])})) or "—"
     out.append('<div class="row" style="grid-template-columns:1fr 1fr 1fr">'
                + _tile("المدارس · MA RSI MACD SMC ICT اليوت", f"<table>{''.join(votes)}</table>")
                + _tile("اليوت · جان", f'<div class="ln">اليوت أسبوعي: <b class="a">{e({"impulse_up": "دافعة صاعدة", "impulse_down": "دافعة هابطة", "abc": "تصحيح ABC"}.get(ew, "—"))}</b></div>'
+                       f'<div class="ln">شكل: <b class="a">{e(SHAPE_AR.get((w1.get("elliott") or {}).get("shape"), "—"))}</b> · هارمونيك: <b class="a">{e(((w1.get("harmonic") or {}).get("name")) or "—")}</b> (وصف فقط)</div>'
                        f'<div class="ln">جان: دورة {gn.get("tsp", "—")} أسبوع · الانعكاس بعد {gn.get("bars_to_turn", "—")}</div>'
                        f'<div class="ln">مربع التسعة الأقرب: {" / ".join(f(v) for v in sorted((w1.get("gann") or {}).get("sq9", []), key=lambda v: abs(v - (px or 0)))[:2])}</div>')
                + _tile("السيت أبات الشغالة دلوقتي", "".join(
                    f'<div class="ln">{"🟢" if x["side"] == "buy" else "🔴"} <b>{e(x["tf"])}</b> {e(x["name"][:58])}<div class="s">{e(x["ev_label"])}</div></div>'
                    for x in (br.get("setups") or [])[:7]) or f'<div class="ln">{e(pats)}</div>', f'{len(br.get("setups") or [])}') + "</div>")
+    try:   # daily baseline calls: the measured record (auto, see modules/daily_forecast.py); a comparison line, not a strategy
+        from modules.daily_forecast import class_summary
+        rows = class_summary()
+        from modules.forecast_review import candidates, rows as rv_rows
+        cands = candidates(rv_rows())
+    except Exception:
+        rows, cands = [], []
+    body = "".join(f'<div class="ln"><b>{e(c)}</b> · n {s["n"]} · {e(s["win_rate"] if s["win_rate"] is not None else "—")} · <span class="s">{e(s["verdict"])}</span></div>' for c, s in rows) \
+        or '<div class="ln">لسه مفيش توقعات متقيّمة. التسجيل اليومي أوتوماتيك، والتقييم بعد 5 شموع يومية.</div>'
+    if cands:
+        body += '<div class="ln">مرشحين للدراسة (للـ lab، مش صفقات): ' + " · ".join(f'{e(r["key"])} ({r["n"]}، الحد الأدنى {r["lo"]})' for r in cands[:3]) + '</div>'
+    out.append('<div class="row" style="grid-template-columns:1fr">' + _tile("سجل التوقعات اليومي (baseline، مش استراتيجية)", body, f'{sum(s["n"] for _, s in rows)}') + "</div>")
     out.append('</div><div class="col">')
     # right column: KPI tiles 2 cols + rings + amber bars
     dv = fl.get("deriv") or {}

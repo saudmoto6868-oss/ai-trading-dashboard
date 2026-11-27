@@ -1,0 +1,216 @@
+{
+ "rules": {
+  "hold_bars": 48,
+  "target_R": 2.0,
+  "cost_pct": 0.1,
+  "stop": "0.5 ATR beyond level",
+  "entry": "close of signal bar"
+ },
+ "results": {
+  "BTC-USDT 1H": {
+   "bars": 4000,
+   "from": 1780959600000,
+   "to": 1795356000000,
+   "setups": {
+    "pullback": {
+     "n": 99,
+     "meanR": -0.302,
+     "winPct": 30.3,
+     "t": -2.3,
+     "verdict": "not evidence",
+     "trainR": -0.317,
+     "testR": -0.268
+    },
+    "retest": {
+     "n": 82,
+     "meanR": -0.36,
+     "winPct": 29.3,
+     "t": -2.33,
+     "verdict": "not evidence",
+     "trainR": -0.405,
+     "testR": -0.257
+    },
+    "control": {
+     "n": 181,
+     "meanR": -0.27,
+     "winPct": 38.7,
+     "t": -2.44,
+     "verdict": "not evidence",
+     "trainR": -0.304,
+     "testR": -0.166
+    }
+   }
+  },
+  "BTC-USDT 4H": {
+   "bars": 4000,
+   "from": 1737763200000,
+   "to": 1795348800000,
+   "setups": {
+    "pullback": {
+     "n": 103,
+     "meanR": -0.199,
+     "winPct": 30.1,
+     "t": -1.51,
+     "verdict": "not evidence",
+     "trainR": -0.112,
+     "testR": -0.402
+    },
+    "retest": {
+     "n": 86,
+     "meanR": -0.263,
+     "winPct": 27.9,
+     "t": -1.81,
+     "verdict": "not evidence",
+     "trainR": -0.219,
+     "testR": -0.376
+    },
+    "control": {
+     "n": 189,
+     "meanR": -0.206,
+     "winPct": 32.3,
+     "t": -2.01,
+     "verdict": "not evidence",
+     "trainR": -0.222,
+     "testR": -0.161
+    }
+   }
+  },
+  "ETH-USDT 1H": {
+   "bars": 4000,
+   "from": 1780959600000,
+   "to": 1795356000000,
+   "setups": {
+    "pullback": {
+     "n": 102,
+     "meanR": -0.297,
+     "winPct": 28.4,
+     "t": -2.24,
+     "verdict": "not evidence",
+     "trainR": -0.251,
+     "testR": -0.414
+    },
+    "retest": {
+     "n": 70,
+     "meanR": -0.07,
+     "winPct": 37.1,
+     "t": -0.39,
+     "verdict": "not evidence",
+     "trainR": 0.026,
+     "testR": -0.291
+    },
+    "control": {
+     "n": 172,
+     "meanR": -0.229,
+     "winPct": 36.0,
+     "t": -2.07,
+     "verdict": "not evidence",
+     "trainR": -0.142,
+     "testR": -0.498
+    }
+   }
+  },
+  "ETH-USDT 4H": {
+   "bars": 4000,
+   "from": 1737763200000,
+   "to": 1795348800000,
+   "setups": {
+    "pullback": {
+     "n": 94,
+     "meanR": -0.26,
+     "winPct": 27.7,
+     "t": -1.94,
+     "verdict": "not evidence",
+     "trainR": -0.325,
+     "testR": -0.088
+    },
+    "retest": {
+     "n": 85,
+     "meanR": -0.055,
+     "winPct": 34.1,
+     "t": -0.36,
+     "verdict": "not evidence",
+     "trainR": -0.027,
+     "testR": -0.129
+    },
+    "control": {
+     "n": 179,
+     "meanR": -0.138,
+     "winPct": 32.4,
+     "t": -1.31,
+     "verdict": "not evidence",
+     "trainR": -0.269,
+     "testR": 0.253
+    }
+   }
+  },
+  "SOL-USDT 1H": {
+   "bars": 4000,
+   "from": 1780959600000,
+   "to": 1795356000000,
+   "setups": {
+    "pullback": {
+     "n": 102,
+     "meanR": 0.108,
+     "winPct": 41.2,
+     "t": 0.75,
+     "verdict": "not evidence",
+     "trainR": 0.131,
+     "testR": 0.06
+    },
+    "retest": {
+     "n": 81,
+     "meanR": -0.061,
+     "winPct": 37.0,
+     "t": -0.38,
+     "verdict": "not evidence",
+     "trainR": -0.106,
+     "testR": 0.038
+    },
+    "control": {
+     "n": 183,
+     "meanR": -0.241,
+     "winPct": 33.9,
+     "t": -2.28,
+     "verdict": "not evidence",
+     "trainR": -0.277,
+     "testR": -0.133
+    }
+   }
+  },
+  "SOL-USDT 4H": {
+   "bars": 4000,
+   "from": 1737763200000,
+   "to": 1795348800000,
+   "setups": {
+    "pullback": {
+     "n": 99,
+     "meanR": -0.179,
+     "winPct": 29.3,
+     "t": -1.31,
+     "verdict": "not evidence",
+     "trainR": -0.373,
+     "testR": 0.338
+    },
+    "retest": {
+     "n": 84,
+     "meanR": 0.098,
+     "winPct": 38.1,
+     "t": 0.62,
+     "verdict": "not evidence",
+     "trainR": 0.12,
+     "testR": 0.045
+    },
+    "control": {
+     "n": 183,
+     "meanR": -0.048,
+     "winPct": 35.0,
+     "t": -0.45,
+     "verdict": "not evidence",
+     "trainR": -0.086,
+     "testR": 0.069
+    }
+   }
+  }
+ },
+ "note": "Past candles only. Not a forecast, not a live result."
+}

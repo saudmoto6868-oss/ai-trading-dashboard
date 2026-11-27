@@ -159,12 +159,20 @@ def ui_theme_bg(theme: str) -> str:
 MRX_LIVE = os.environ.get("MRX_LIVE", "").strip() == "1"
 
 
-def build_workspace_html(symbols: list, news: list | None = None, lang: str = "en",
+def _spot_snapshot() -> dict:
+    try:
+        from modules import spot_snapshot
+        return spot_snapshot.load()
+    except Exception:
+        return {}
+
+
+def workspace_cfg(symbols: list, news: list | None = None, lang: str = "en",
                          api_base: str = "https://www.okx.com", alerts: list | None = None,
                          ws_base: str = "wss://ws.okx.com/ws/v5", seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                          filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
                          asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None,
-                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "") -> str:
+                         fh_token: str = "", cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = "", radar: dict | None = None) -> str:
     news = list(news or [])
     status = [str(n.get("headline", "")) for n in news if n.get("status")]   # placeholder rows from the news fetcher = status lines, not headlines
     if world_errs:
@@ -208,10 +216,39 @@ def build_workspace_html(symbols: list, news: list | None = None, lang: str = "e
         "build": _build_id(),
         "ui": ui_theme or "", "uiBg": ui_bg or "", "mrxOn": MRX_LIVE, "mat": ui_mat or "", "uiVars": ui_vars(ui_theme or ""), "mrx": presenter_faces() if MRX_LIVE else {},   # dashboard theme from the top bar (+ its blurred background image as a data URI)
         "cal": [{k: e.get(k) for k in ("title", "country", "ts", "impact")} for e in (cal or [])][:120],   # economic calendar for the news check   # browser-visible on purpose (websocket from the viewer); empty = feature off
+        "solo": solo if solo in ("chart", "radar", "spot") else "",   # "chart" = chart-only widget (RSI page); "radar" = the Radar page grid (modules/ws/24f_radar.js); empty = the full Workspace
+        "radar": radar or {},   # {cols, h, items:[{sym, tf, tag, info, pts}]} for solo="radar" (main.py render_chart_scanner)
+        "spot": _spot_snapshot(),
+        "x77": _x77_cfg(),   # X77 widget: detector key -> school, Arabic names + explanations (modules/x77_detect.py)   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }
+    return cfg
+
+
+def build_workspace_html(*args, **kw) -> str:
+    """The full page: the template with the page data (workspace_cfg) baked in."""
     # "</" inside a <script> block would end it early
-    payload = json.dumps(cfg, ensure_ascii=False).replace("</", "<\\/")
-    return _TEMPLATE.read_text(encoding="utf-8").replace("__CONFIG__", payload, 1)
+    payload = json.dumps(workspace_cfg(*args, **kw), ensure_ascii=False).replace("</", "<\\/")
+    return _template_text().replace("__CONFIG__", payload, 1)
+
+
+_TPL_CACHE: dict = {}
+
+
+def _template_text() -> str:
+    """The 1.15 MB template was re-read from disk on every Streamlit rerun; cache it, reload only when the file changes."""
+    mt = _TEMPLATE.stat().st_mtime_ns
+    if _TPL_CACHE.get("mt") != mt:
+        _TPL_CACHE["mt"] = mt
+        _TPL_CACHE["text"] = _TEMPLATE.read_text(encoding="utf-8")
+    return _TPL_CACHE["text"]
+
+
+def _x77_cfg() -> dict:
+    try:
+        from modules.x77_detect import js_config
+        return js_config()
+    except Exception:   # the widget then says "no X77 map"; the Workspace must never fail on it
+        return {}
 
 
 def seed_from_df(symbol: str, tf: str, df, bars: int = 200) -> dict | None:
@@ -281,18 +318,85 @@ def _fh_token() -> str:
 def render_workspace(symbols: list, news: list | None = None, lang: str = "en", height: int = 860,
                      alerts: list | None = None, seed: dict | None = None, scan: dict | None = None, links: list | None = None,
                      filters: dict | None = None, ready: list | None = None, smt: list | None = None, scanning: bool = False,
-                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = ""):
-    import streamlit.components.v1 as components
+                     asset_cls: str = "Crypto", meme: list | None = None, world: list | None = None, tfstats: dict | None = None, cmc: dict | None = None, macrof: dict | None = None, stockf: dict | None = None, world_errs: list | None = None, yf: dict | None = None, cal: list | None = None, ui_theme: str = "", ui_bg: str = "", ui_mat: str = "", solo: str = ""):
+    import streamlit as st
 
     # The page data is baked into the iframe HTML, so any change to it reloads the iframe (the blink). Reuse the last HTML
     # while the layout is the same and the data is fresh enough; the browser keeps its own live feeds in the meantime.
-    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height)
+    # the template's mtime is part of the key: a new build (UI change) is shown at once, not after the 3-10 min reuse window
+    lite = ws_lite()
+    fp = (tuple(symbols), lang, asset_cls, ui_theme, ui_bg, ui_mat, height, solo, _TEMPLATE.stat().st_mtime_ns, lite)
     doc = _ws_html_reuse(fp, scanning)
     if doc is None:
-        doc = build_workspace_html(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat)
-        import streamlit as st
+        doc = (workspace_cfg if lite else build_workspace_html)(symbols, news, lang, alerts=alerts, seed=seed, scan=scan, links=links, filters=filters, ready=ready, smt=smt, scanning=scanning, asset_cls=asset_cls, meme=meme, world=world, tfstats=tfstats, cmc=cmc, macrof=macrof, stockf=stockf, world_errs=world_errs, yf=yf, fh_token=_fh_token(), cal=cal, ui_theme=ui_theme, ui_bg=ui_bg, ui_mat=ui_mat, solo=solo)
         st.session_state["ws_html_sent"] = (fp, doc, time.time())
-    components.html(doc, height=height, scrolling=False)
+    if lite:   # same page data, but the 1.2 MB script comes from the browser's cache (M1 phase 2 / P4)
+        _lite_component()(cfg=doc, stamp=str(st.session_state["ws_html_sent"][2]), height=height, key="ws_lite_" + (solo or "main"), default=None)
+        return
+    st.iframe(doc, height=height, alt="Live market workspace")
+
+
+def ws_lite() -> bool:
+    """WS_LITE (env or Streamlit Secrets; default off): serve the Workspace as a component whose script the browser keeps.
+    A link with ?ws_lite=1 or ?ws_lite=0 overrides it, so the owner can compare both on the same app."""
+    try:
+        import streamlit as st
+        q = str(st.query_params.get("ws_lite", "") or "")
+        if q in ("0", "1"):
+            return q == "1"
+        v = os.environ.get("WS_LITE", "") or str(st.secrets.get("WS_LITE", "") or "")
+    except Exception:
+        v = os.environ.get("WS_LITE", "")
+    return v.strip().lower() in ("1", "true", "on", "yes")
+
+
+# Loader of the lite page: asks Streamlit for the page data, then runs the script from the browser's Cache API (Streamlit
+# serves component .js with "Cache-Control: public" and no validator, so the plain HTTP cache does not keep it).
+# New page data (a new stamp) is applied in place by Ws.applyCfg; a layout change reloads the frame, like a new st.iframe document did.
+_LITE_LOADER = """<script>
+(function(){
+  const JS = "__JS__", send = (type, x) => window.parent.postMessage(Object.assign({isStreamlitMessage:true, type}, x || {}), "*");
+  let stamp = null;
+  const code = async () => { try { const c = await caches.open("xpix-ws-lite"); let r = await c.match(JS);
+      if (!r){ const f = await fetch(JS); if (!f.ok) throw new Error("HTTP " + f.status); await c.put(JS, f.clone()); r = f;
+        (await c.keys()).forEach(k => { if (!k.url.endsWith("/" + JS)) c.delete(k); }); }
+      return await r.text(); }
+    catch(e){ const f = await fetch(JS); return await f.text(); } };   // no Cache API (plain http): normal fetch
+  window.addEventListener("message", async ev => { const d = ev.data || {}; if (d.type !== "streamlit:render") return; const a = d.args || {};
+    send("streamlit:setFrameHeight", {height: a.height || 860});
+    if (stamp === null){ stamp = a.stamp; window.__WS_CFG__ = a.cfg || {}; const s = document.createElement("script"); s.textContent = await code(); document.body.appendChild(s); }
+    else if (a.stamp !== stamp){ stamp = a.stamp; let ok = false;   // new page data: applied in place when only data changed (Ws.applyCfg), else a reload
+      try { ok = typeof Ws !== "undefined" && !!Ws.applyCfg && Ws.applyCfg(a.cfg || {}); } catch(e){ console.error(e); }
+      if (!ok) location.reload(); } });
+  send("streamlit:componentReady", {apiVersion:1});
+})();
+</script>
+"""
+_LITE: dict = {}
+
+
+def _lite_component():
+    """Split the template once per build into index.html (style + boot + loader) and app.<sha8>.js (the script) and serve them as a component."""
+    import hashlib
+    import tempfile
+    tpl = _template_text()
+    if _LITE.get("mt") != _TPL_CACHE["mt"]:
+        i = tpl.index("__CONFIG__")
+        s, e = tpl.rindex("<script>", 0, i), tpl.rindex("</script>")
+        js = tpl[s + len("<script>"):e].replace("__CONFIG__", "window.__WS_CFG__", 1)
+        name = "app.%s.js" % hashlib.sha256(js.encode("utf-8")).hexdigest()[:8]
+        d = Path(tempfile.gettempdir()) / "xpix_ws_lite"
+        d.mkdir(exist_ok=True)
+        # shortcut: old app.*.js files stay in the temp folder (a frame still on the old index may ask for one); fine until builds pile up
+        for fn, text in ((name, js), ("index.html", tpl[:s] + _LITE_LOADER.replace("__JS__", name) + tpl[e + len("</script>"):])):
+            tmp = d / (fn + ".tmp")
+            tmp.write_text(text, encoding="utf-8")
+            os.replace(tmp, d / fn)
+        if "fn" not in _LITE:
+            from streamlit.components.v1 import declare_component
+            _LITE["fn"] = declare_component("xpix_ws_lite", path=str(d))
+        _LITE["mt"] = _TPL_CACHE["mt"]
+    return _LITE["fn"]
 
 
 WS_HTML_REFRESH_SECS = 180   # send new page data at most this often (when the scan is idle)

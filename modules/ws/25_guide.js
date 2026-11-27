@@ -88,7 +88,7 @@ const GLive = {
     ws.onerror = () => {};
     return true; },
   errText(t){ const G = Guide, e = (t && t.err) || "";
-    return e === "nokey-live" ? G.G("Live calls need GEMINI_API_KEY in Secrets.", "المكالمة الحية محتاجة GEMINI_API_KEY في Secrets.") : e === "cap" ? G.G("Today's call limit is reached.", "خلصت مكالمات النهارده.")
+    return e === "nokey-live" ? G.G("Live calls need GEMINI_API_KEY in Secrets.", "المكالمة الحية محتاجة GEMINI_API_KEY في Secrets.") : e === "cap" ? G.G("Today's call limit is reached.", "خلصت مكالمات اليوم.")
       : G.G("Couldn't start the call (" + e + (t && t.msg ? ": " + t.msg : "") + ").", "معرفتش أبدأ المكالمة (" + e + (t && t.msg ? ": " + t.msg : "") + ")."); },
   poke(){ clearTimeout(this._idle); if (!this.stream) this._idle = setTimeout(() => { if (this.on && !this.stream && !this.playing.length) this.stop(true); }, 120000); },   // voice mode closes after 2 quiet minutes
   async text(q){ if (this.on && this.ws && this.ws.readyState === 1){ this.poke(); this.said = ""; this.send({clientContent:{turns:[{role:"user", parts:[{text:q}]}], turnComplete:true}}); return true; }
@@ -307,7 +307,7 @@ const Guide = {
   async goTo(get){ let r = get(); if (!r) return null; if (!(await this.reveal(r))) r = get(); if (r){ this.point(r); this.flash(r); } return r; },   // scroll the target on screen if needed, point at it, spotlight it
   up(){ this.point(new DOMRect(innerWidth/2, this.view().t, 10, 10)); },
   flash(r){ if (!r) return; const f = el("div", "g-spot"); Object.assign(f.style, {left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px"}); this.root.append(f); setTimeout(() => f.remove(), 2600); },
-  page(i, name){ try { const ls = window.parent.document.querySelectorAll(".st-key-page label"); if (ls[i]){ ls[i].click(); return true; } } catch(e){} return false; },
+  page(i, name){ try { const P = window.parent, u = new URL(P.location.href); u.searchParams.set("page", i); P.location.href = u.href; return true; } catch(e){} return false; },   // fixed page index via ?page= (the tab bar order no longer matches the indexes)
   live: {
     chart(g){ const p = g.chart(); if (!p) return ""; const c = p.chart, d = c.data[c.data.length-1]; return d ? g.G(" Now: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" at "+d.c+".", " دلوقتي: "+p.state.sym+" "+(p.state.tf || c.tf || "")+" على "+d.c+".") : ""; },
     vp(g){ const p = g.chart(); if (!p || !p.chart._vp2) return g.G(" Turn it on from Indicators > Volume profile.", " شغّله من المؤشرات ← Volume profile."); const v = p.chart._vp2, tb = v.f.dl.reduce((a,b) => a+b, 0);
@@ -356,8 +356,8 @@ const Guide = {
     const ans = await new Promise(res => { const to = setTimeout(() => { window.__xpixGuideAnswer = null; res(null); }, 35000); window.__xpixGuideAnswer = a => { if (a.id !== id) return; clearTimeout(to); window.__xpixGuideAnswer = null; res(a); }; b.ask({id, q, ctx:this.ctx()}); });
     this.man.classList.remove("think");
     if (ans && ans.err && ans.err !== "cap" && ans.err !== "nokey"){ const c = (ans.err.match(/\d{3}/) || [""])[0];   // say why the AI did not answer instead of failing silently
-      this._aiErr = c === "429" ? this.G("AI daily limit reached (provider).", "حد الذكاء المجاني خلص النهارده.") : c === "400" || c === "401" || c === "403" ? this.G("The AI key was rejected - check it in Secrets.", "مفتاح الذكاء مرفوض، راجعه في Secrets.") : this.G("AI not answering right now ("+ans.err+").", "الذكاء مش بيرد دلوقتي ("+ans.err+")."); } else this._aiErr = "";
-    if (!ans || ans.err){ if (ans && ans.err === "cap") { this.speak(this.G("I've hit today's question limit. Built-in answers still work.", "خلّصت عدد أسئلة النهارده. الإجابات الجاهزة لسه شغالة.")); return true; } return false; }
+      this._aiErr = c === "429" ? this.G("AI daily limit reached (provider).", "حد الذكاء المجاني خلص اليوم.") : c === "400" || c === "401" || c === "403" ? this.G("The AI key was rejected - check it in Secrets.", "مفتاح الذكاء مرفوض، راجعه في Secrets.") : this.G("AI not answering right now ("+ans.err+").", "الذكاء مش بيرد دلوقتي ("+ans.err+")."); } else this._aiErr = "";
+    if (!ans || ans.err){ if (ans && ans.err === "cap") { this.speak(this.G("I've hit today's question limit. Built-in answers still work.", "خلّصت عدد أسئلة اليوم. الإجابات الجاهزة لسه شغالة.")); return true; } return false; }
     const pg = {scanner:1, lab:2, playbook:3, stats:4, alerts_page:6}[ans.page];
     if (pg){ this.up(); this.speak(ans.say); await this.wait(1600); this.page(pg); return true; }
     if (ans.go && ans.go !== "none"){ const r = this.target(ans.go); if (r) await this.goTo(() => this.target(ans.go), ans.go === "vp" ? "left" : null); }
@@ -482,7 +482,7 @@ const M5 = {
   history(){ const r = document.getElementById("m5"), cl = this.trades("closed").filter(t => t.status === "tp" || t.status === "sl"), n = cl.length, sumR = cl.reduce((a, t) => a + (t.r || 0), 0), w = cl.filter(t => t.r > 0).length;
     let h = this.top(Lg("History","السجل"), "menu", []) + '<div class="m5acc"><div><span>'+Lg("Profit","الربح")+'</span><b class="'+(sumR >= 0 ? "up" : "dn")+'">'+(sumR >= 0 ? "+" : "")+sumR.toFixed(2)+' R</b></div><div><span>'+Lg("Trades","الصفقات")+'</span><b>'+n+'</b></div><div><span>'+Lg("Win rate","نسبة الكسب")+'</span><b>'+(n ? Math.round(100*w/n)+"%" : "—")+'</b></div></div>'
       + (n < 30 ? '<div class="m5warn">'+Lg("Under 30 trades: not evidence yet.","أقل من 30 صفقة: لسه مش دليل.")+'</div>' : "") + '<div class="m5list">';
-    if (!n) h += '<div class="m5empty">'+Lg("No closed tracked setups yet.","لسه مفيش صفقات مقفولة.")+'</div>';
+    if (!n) h += '<div class="m5empty">'+Lg("No closed tracked setups yet.","لا توجد صفقات مغلقة بعد.")+'</div>';
     cl.slice(0, 200).forEach(t => { const L = t.dir === "bullish"; h += '<div class="m5row m5tr"><div class="m5l"><b>'+esc(t.symbol.replace(/-/g, ""))+', <i class="'+(L ? "up" : "dn")+'">'+(L ? "buy" : "sell")+'</i></b><small>'+fmtP(t.entry)+' → '+(t.status === "tp" ? fmtP(t.tp1) : fmtP(t.sl))+'</small><small>'+new Date(t.t1 || t.t0).toLocaleString()+'</small></div><div class="m5pr '+(t.r >= 0 ? "up" : "dn")+'">'+(t.r >= 0 ? "+" : "")+(t.r || 0).toFixed(2)+' R</div></div>'; });
     r.innerHTML = h + '</div>'; this.wire(r, {}); },
   messages(){ const r = document.getElementById("m5"), al = (Alerts.list || []).slice(0, 60), nw = (CFG.news || []).slice(0, 30);

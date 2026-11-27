@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import date
-from typing import Any
 
 import streamlit as st
 
@@ -93,7 +92,6 @@ def _read_local_storage(acc_id: str) -> dict | None:
     """
     key = f"pf_scraped_{acc_id}"
     # We store the result in session_state once read
-    ss_key = f"pf_live_{acc_id}"
     # Render a tiny iframe that reads localStorage and renders JSON in the page
     # Streamlit components can't directly return values without bi-directional JS;
     # we use st.query_params workaround: component writes to a hidden input that
@@ -130,8 +128,7 @@ def _read_local_storage(acc_id: str) -> dict | None:
 }})();
 </script>
 """
-    import streamlit.components.v1 as _comp
-    _comp.html(html, height=220, scrolling=False)
+    st.iframe(html, height=220, alt="Prop firm account data")
     return None
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
@@ -240,6 +237,12 @@ def _days_left(acc: dict) -> int | None:
     return None if since is None else limit - since
 
 
+def _days_left_sort(acc: dict) -> int:
+    """Days left for sorting / filtering: no date -> 9999 (last). 0 (due today) stays 0, unlike `_days_left(acc) or 9999`."""
+    dl = _days_left(acc)
+    return 9999 if dl is None else dl
+
+
 # ── CSS ───────────────────────────────────────────────────────────────────────
 _CSS = """
 <style>
@@ -321,7 +324,7 @@ def _list_card_html(acc: dict) -> str:
     color = acc.get("color","#f0b429")
     t_cls, t_txt = _timer_text(acc)
     ds = _days_since(acc.get("last_trade_date") or "")
-    trade_note = _xl(f"آخر صفقة: {ds}ي","f{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
+    trade_note = _xl(f"آخر صفقة: {ds}ي",f"{ds}d since trade") if ds is not None else _xl("لا صفقات","no trades")
     size_txt = f'{acc.get("size","?")} {acc.get("currency","USD")}'
     return (
         f'<div class="pfc-card-top">'
@@ -502,18 +505,13 @@ def _render_detail(acc: dict, accounts: list[dict]) -> None:
     st.divider()
 
     # Tabs
-    t_overview, t_live, t_rules, t_cal, t_equity = st.tabs([
-        _xl("نظرة عامة","Overview"),
-        _xl("🔗 الحساب","🔗 Live"),
-        _xl("القواعد","Rules"),
-        _xl("التقويم","Calendar"),
-        _xl("منحنى الأسهم","Equity"),
-    ])
-    with t_overview: _detail_overview(acc)
-    with t_live:     _detail_live(acc)
-    with t_rules:    _detail_rules(acc)
-    with t_cal:      _detail_calendar(acc)
-    with t_equity:   _detail_equity(acc)
+    # 2026-11-09 (owner: few tabs, side by side): Calendar / Equity tabs only said "needs the firm's API" -> removed
+    c_left, c_right = st.columns(2)
+    with c_left:
+        _detail_overview(acc)
+        _detail_rules(acc)
+    with c_right:
+        _detail_live(acc)
 
     st.divider()
 
@@ -602,11 +600,29 @@ def _account_form(existing: dict | None = None) -> dict | None:
 
 
 # ── AI rules extractor ────────────────────────────────────────────────────────
+def _is_public_http_url(url: str) -> bool:
+    """Only http(s) to a public address: blocks file:, localhost, private and link-local targets (SSRF).
+    shortcut: checks the host's IPs once, not each redirect hop, upgrade with a no-redirect opener if this page ever fetches untrusted links."""
+    import ipaddress, socket
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(url)
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        for info in socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP):
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def _ai_extract_rules(firm_name: str, firm_url: str) -> dict:
     """Fetch firm page and extract rules via Claude or Gemini. Returns partial dict."""
     import urllib.request, re as _re
     raw_text = ""
-    if firm_url:
+    if firm_url and _is_public_http_url(firm_url):
         try:
             req = urllib.request.Request(firm_url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=8) as r:
@@ -632,7 +648,7 @@ consistency_rule, other_rules, inactivity_limit, account_type"""
         if api_key:
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
-                model=st.secrets.get("GUIDE_MODEL","claude-3-5-haiku-20241022"),
+                model=st.secrets.get("GUIDE_MODEL","claude-haiku-4-5-20251001"),
                 max_tokens=512,
                 messages=[{"role":"user","content":prompt}],
             )
@@ -681,8 +697,7 @@ def render_prop_firms() -> None:
 
     # Header + summary strip
     active_lst   = [a for a in accounts if a.get("status") == "active"]
-    expiring_lst = [a for a in active_lst if (_days_left(a) or 999) <= 7]
-    closed_lst   = [a for a in accounts if a.get("status") in ("closed","failed")]
+    expiring_lst = [a for a in active_lst if _days_left_sort(a) <= 7]   # 0 days left = due today (was dropped by `or 999`)
 
     h1, h2, h3 = st.columns([3,1,1])
     h1.markdown(
@@ -706,13 +721,13 @@ def render_prop_firms() -> None:
 
     # Filter bar (compact)
     fc1, fc2, fc3 = st.columns([3,2,2])
-    q          = fc1.text_input("", placeholder=_xl("بحث…","Search…"), key="pf_q", label_visibility="collapsed")
-    f_status   = fc2.selectbox("", ["all","active","closed","failed","passed"], key="pf_fs",
+    q          = fc1.text_input(_xl("بحث","Search"), placeholder=_xl("بحث…","Search…"), key="pf_q", label_visibility="collapsed")
+    f_status   = fc2.selectbox(_xl("الحالة","Status"), ["all","active","closed","failed","passed"], key="pf_fs",
                                 label_visibility="collapsed",
                                 format_func=lambda s: {"all":_xl("كل الحالات","All"),"active":_xl("نشط","Active"),
                                                         "closed":_xl("مغلق","Closed"),"failed":_xl("فشل","Failed"),
                                                         "passed":_xl("اجتاز","Passed")}.get(s,s))
-    sort_opt   = fc3.selectbox("", ["timer","name","status"], key="pf_sort",
+    sort_opt   = fc3.selectbox(_xl("الترتيب","Sort"), ["timer","name","status"], key="pf_sort",
                                 label_visibility="collapsed",
                                 format_func=lambda s: {"timer":_xl("العداد","Timer"),"name":_xl("الاسم","Name"),
                                                         "status":_xl("الحالة","Status")}.get(s,s))
@@ -722,7 +737,7 @@ def render_prop_firms() -> None:
                 and (f_status == "all" or a.get("status") == f_status)]
 
     if sort_opt == "timer":
-        filtered.sort(key=lambda a: (_days_left(a) or 9999) if a.get("status")=="active" else 9999)
+        filtered.sort(key=lambda a: _days_left_sort(a) if a.get("status")=="active" else 9999)
     elif sort_opt == "name":
         filtered.sort(key=lambda a: a.get("name",""))
     else:
@@ -733,9 +748,9 @@ def render_prop_firms() -> None:
         st.info(_xl("لا توجد حسابات","No accounts found"))
     else:
         # render in rows of 3
-        rows = [filtered[i:i+3] for i in range(0, len(filtered), 3)]
+        rows = [filtered[i:i+4] for i in range(0, len(filtered), 4)]
         for row in rows:
-            cols = st.columns(len(row))
+            cols = st.columns(4)
             for col, acc in zip(cols, row):
                 with col:
                     card_html = (
@@ -747,7 +762,7 @@ def render_prop_firms() -> None:
                     if st.button(
                         _xl("فتح ←","Open →"),
                         key=f"pf_open_{acc['id']}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         st.session_state["pf_open_id"] = acc["id"]
                         st.rerun()

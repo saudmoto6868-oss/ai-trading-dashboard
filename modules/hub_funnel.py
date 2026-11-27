@@ -78,7 +78,7 @@ def funnel(rows: list, bonf_t: float | None = None) -> dict:
     verdict_stages = stages[2:]   # "Testable" only says a row had no t-stat (missing data), not that the rule failed a test
     untested = sorted(k for k, v in schools.items() if v[0] > 0 and v[1] == 0)   # schools where NO row has a t-stat: the funnel cannot judge them at all
     return {"untested_schools": untested, "closest": closest, "stages": stages, "schools": schools, "survivors": survivors, "bonferroni_t": round(bonf, 2),
-            "tested": len(rows), "survived": last, "kill_rate": round(100 * (1 - last / len(rows)), 1) if rows else None,
+            "tested": len(rows), "survived": last, "kill_rate": round(100 * (1 - last / len(rows)), 2) if rows else None,
             "biggest_kill": max(verdict_stages, key=lambda s: s["killed"])["name"] if verdict_stages and any(s["killed"] for s in verdict_stages) else None}
 
 
@@ -149,10 +149,10 @@ def render(st, L=lambda s: s) -> None:
                    + L(" None clears the bar for all trials." if t3_n else " Those few are too weak to tell from luck."))
     if res["closest"]:
         st.markdown("**" + L("Closest candidates (positive net R in both halves)") + "**")
-        st.dataframe(res["closest"], hide_index=True, use_container_width=True)
+        st.dataframe(res["closest"], hide_index=True, width="stretch")
     st.markdown("**" + L("Survivors by school at each stage") + "**")
-    st.dataframe([{"school": k, **dict(zip(STAGE_NAMES, v))} for k, v in sorted(res["schools"].items(), key=lambda kv: -kv[1][0])], hide_index=True, use_container_width=True)
+    st.dataframe([{"school": k, **dict(zip(STAGE_NAMES, v))} for k, v in sorted(res["schools"].items(), key=lambda kv: -kv[1][0])], hide_index=True, width="stretch")
     st.markdown("**" + L("Break-even win rate by reward:risk (pure target/stop trades, 0.10R cost)") + "**")
     st.dataframe([{"R:R": b["rr"], "break-even win %": b["breakeven_win_pct"], "lab win %": b["lab_win_pct"], "lab net R": b["lab_net_r"], "n": b["lab_n"], "reading": b["note"]}
-                  for b in res["breakeven"]], hide_index=True, use_container_width=True)
+                  for b in res["breakeven"]], hide_index=True, width="stretch")
     st.caption(L("The lab's 'win' is any trade with R > 0, so a time exit can count as a win while paying less than the target. Trust the measured net R, not win% alone."))

@@ -87,15 +87,15 @@ function wsRecBtn(){
 /* widget menu: the native <select> stays (layouts, tests, XCMD use it) but is hidden on desktop; a styled menu opens from the "+ Widget" button:
    colour per group, bigger text, and a short code badge per widget (TC = Trade Classes, SC = Setup Card, DOM, T&S ...) */
 const WGROUPS = () => [
-  [Lg("Decision","القرار"), "#f0b90b", ["tclass","setup","chart","signals","alerts"]],
-  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["dom","tape","limits","risk"]],
+  [Lg("Decision","القرار"), "#f0b90b", ["tclass","spot","x77","setup","chart","signals","alerts"]],
+  [Lg("Execution / order flow","التنفيذ والأوردر فلو"), "#0ecb81", ["ofdesk","ofm","dom","tape","limits","risk"]],
   [Lg("Markets","الأسواق"), "#4aa3ff", ["tvc","scanner","watch","valuelv","rsihm","fundhm","posn","liq","web"]],
   [Lg("Context (fundamental)","السياق (الأساسي)"), "#b57cff", ["fund","macrof","stockf","cmc","news"]],
   [Lg("Review","المراجعة"), "#ff8a3d", ["journal","notes"]],
   [Lg("Settings","الإعدادات"), "#9aa3ad", ["settings"]]];
-const WCODE = {tclass:"TC", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
+const WCODE = {ofdesk:"OFD", ofm:"MAP", tclass:"TC", spot:"SP", x77:"X77", setup:"SC", chart:"CH", signals:"SG", alerts:"AL", dom:"DOM", tape:"T&S", limits:"LIM", risk:"RSK", tvc:"TV", scanner:"SCN", watch:"WL", valuelv:"VAL", rsihm:"RSI", fundhm:"FHM", posn:"OI", liq:"LIQ", web:"WEB",
   fund:"FA", macrof:"MAC", stockf:"STK", cmc:"CMC", news:"NWS", journal:"JRN", notes:"NTS", settings:"SET", "@std":"STD", "@save":"SAV", "@trading":"TRD", "@blank":"NEW"};
-const WNEW = new Set(["tclass"]);   // gets a small NEW mark in the menu
+const WNEW = new Set(["ofdesk", "ofm", "x77"]);   // gets a small NEW mark in the menu
 function wMenuBtn(sel){
   if (!document.getElementById("wmCss")){ const st = el("style"); st.id = "wmCss"; st.textContent =
     "#wmBtn{font-weight:700;padding:2px 10px;border-radius:5px;border:1px solid #f0b90b;color:#f0b90b;background:rgba(240,185,11,.08);cursor:pointer}#wmBtn:hover,#wmBtn.on{background:#f0b90b;color:#000}"
@@ -168,13 +168,18 @@ function applyLang(rebuild){
   lang = CFG.lang || (saved && saved.lang) || "en";
   document.documentElement.lang = lang; document.body.classList.toggle("rtl", lang === "ar"); document.body.classList.toggle("mob", MOB); document.body.classList.toggle("tch", TCH); document.body.classList.toggle("tab", TAB); document.body.classList.toggle("mt5", MT5); buildBar();
   if (MOB) document.addEventListener("click", e => { const b = e.target.closest(".dt > :first-child"); if (b) b.parentElement.classList.toggle("open"); }, true);
-  if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
+  if (CFG.solo === "radar"){ document.body.classList.add("solo", "radar"); Ws.build(RadarMode.layout(saved && Array.isArray(saved.panels) ? saved.panels : [])); Ws.save(); RadarMode.allBar(); RadarMode.fit(); (document.readyState === "complete" ? setTimeout(() => RadarMode.fit(), 0) : addEventListener("load", () => RadarMode.fit()));   /* the lite page runs this script after the load event */ { let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => RadarMode.fit(), 150); }); } }   // Radar page grid: one chart per scanned symbol
+  else if (CFG.solo && CFG.solo !== "spot"){ document.body.classList.add("solo"); if (saved && saved.v >= 7 && Array.isArray(saved.panels) && saved.panels.length){ const same = store.get(LS+"_cls", null) === (CFG.cls || ""); store.set(LS+"_cls", CFG.cls || ""); Ws.build(saved.panels.map(p => [p.type, p.rect, same ? p.state : Object.assign({}, p.state, {sym:SYMS[0]})])); if (!same) Ws.save(); }   // a new market on the RSI page: the chart starts on its first symbol, size and indicators stay
+    else { store.set(LS+"_cls", CFG.cls || ""); Ws.build(Ws.defaultsSolo()); Ws.save(); } }
+  else if (saved && saved.v >= 7 && Array.isArray(saved.panels)) Ws.build(saved.panels.map(p => [p.type, p.rect, p.state]));
   else if (MOB){ const keep = ["chart","setup","signals","watch","alerts","tape"]; Ws.build(Ws.defaultsMobile().filter(([t, , st]) => keep.includes(t) && !(t === "chart" && st.tf === "15s")).sort((a, b) => keep.indexOf(a[0]) - keep.indexOf(b[0]))); Ws.save(); }   // phone, first visit: a short stacked set instead of an empty screen
   else if (/[?&]blank=1\b/.test(location.search)) Ws.build([]);   // ?blank=1 (the mock tests build their own layouts) keeps the old empty start
   else { Ws.build(Ws.defaults()); Ws.save(); }   // first visit / a fresh browser / any automation: the STANDARD layout (watch list + 4 charts with order flow + DOM / limits / tape), never an empty workspace; "Blank" in the Layout menu still gives a blank canvas
   if (CFG.mat && CFG.mat !== "none") document.body.classList.add("mat-" + CFG.mat);
-  try { welcome(); } catch(e){}
+  try { if (!CFG.solo) welcome(); } catch(e){}
   if (CFG.mrxOn) try { Guide.init(); if (store.get(LS+"_gon", true) !== false) setTimeout(() => Guide.open(), 1500); } catch(e){ console.error(e); }   // off until the official launch (MRX_LIVE=1): no presenter on screen, no photo in the DOM   // the presenter comes on stage by himself after start-up unless he was sent off (✕)
+  if (CFG.solo) addEventListener("message", e => { const m = e.data; if (!m || m.t !== "sym" || !SYMS.includes(m.s)) return; const p = Ws.panels.find(x => x.type === "chart"); if (!p) return;
+    if (p.state.sym !== m.s) p.setSymbol(m.s); p.chart.planLv = Array.isArray(m.lv) && m.lv.length ? m.lv : null; try { p.chart.draw(); } catch(e_){} });   // the RSI board that embeds this chart sends the selected symbol
   window.__ws = Ws; Ws.histPush(); setTimeout(() => { try { localStorage.removeItem(LS + "_boot"); } catch(e){} }, 5000);   // a freeze while drawing blocks this timer, so the flag stays
   if (window.__wsSafeBoot){ const n = document.createElement("div"); n.style.cssText = "position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:9999;background:#2b2410;color:#f0b90b;border:1px solid #f0b90b;border-radius:6px;padding:6px 12px;font:12px sans-serif";
     n.textContent = Lg("The Workspace did not load last time, so its saved layout was reset (journal kept). Add widgets with + Widget.", "الورك سبيس ما فتحش آخر مرة، فاتعمل reset للترتيب المحفوظ (الجورنال محفوظ). ضيف الويدجتات من + Widget.");
@@ -252,6 +257,20 @@ function applyLang(rebuild){
   rail.addEventListener("pointermove", e => { if (sy == null) return; const dy = (e.screenY - sy)*2.2; sy = e.screenY; try { const sc = scroller(); sc ? sc.scrollBy({top:dy}) : window.parent.scrollBy({top:dy}); } catch(e){} });
   const end = () => { sy = null; }; rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
   let q = 0; const sched = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; place(); }); };
-  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(place, 1500); place();
+  try { window.parent.addEventListener("scroll", sched, true); window.parent.addEventListener("resize", sched); } catch(e){} setInterval(visOnly(place), 1500); place();
   window.__xpixRail = {place, rail};   // for tests
 })();
+
+/* M2 / P6: new page data from Streamlit (WS_LITE page) is applied without reloading the frame: data keys update CFG and the widgets
+   are rebuilt from the current layout (the same path as the rebuild above); the live sockets and the parsed script stay.
+   A changed layout key (symbols, language, theme, mode, build...) returns false and the loader reloads the frame instead. */
+Ws.applyCfg = n => {
+  const DATA = ["news","world","feedStatus","ready","smtx","scan","scanning","tfstats","cmc","macrof","stockf","cal","alerts","spot","seed","meme","links","filters","x77","gannoos"];
+  const diff = Object.keys(Object.assign({}, CFG, n)).filter(k => JSON.stringify(CFG[k]) !== JSON.stringify(n[k]));
+  if (diff.some(k => !DATA.includes(k))) return false;
+  if (!diff.length) return true;
+  diff.forEach(k => { CFG[k] = n[k]; });
+  cfgAlerts();
+  const snap = Ws.panels.map(p => [p.type, p.max && p.prev ? p.prev : p.rect, p.state]); Ws.clear(); Ws.build(snap); Ws.save();
+  return true;
+};

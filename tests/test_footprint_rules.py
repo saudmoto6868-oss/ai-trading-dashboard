@@ -2,7 +2,6 @@
 Rules are descriptions of one bar, never predictions. Skipped when node is not installed."""
 import json
 import os
-import re
 import shutil
 import subprocess
 

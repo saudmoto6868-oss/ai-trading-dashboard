@@ -1,10 +1,13 @@
 """Watch items (day_plan.watch): context setups (price action, Elliott ...) on 1H / 15m / 5m that agree with the 1D + 4H bias; never a trade; Telegram text + dedupe. Synthetic."""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import numpy as np
 import pandas as pd
 from modules import day_plan as D
 import modules.scorer as SC
+
+import re as _re
+def _tg_html_ok(t):   # Telegram HTML: every "<" must open/close an allowed tag (raw "n<30" made Telegram reject whole messages, 2026-11-25)
+    return all(_re.match(r"</?(b|i|u|s|a|code|pre|tg-spoiler|blockquote)(\s[^>]*)?>", t[m.start():]) for m in _re.finditer("<", t))
 
 df = pd.DataFrame({"time": pd.date_range("2026-11-06", periods=80, freq="1h"), "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5, "volume": 1.0})
 def sig(key, fam, d):
@@ -28,7 +31,8 @@ try:
 finally:
     D.tf_view, SC.cached_detect = orig_tv, orig_cd
 txt = D.format_watch(w, ar=True)
-assert "للمراقبة" in txt and "HL:xyz:GOLD" in txt and "n<30" in txt and len(txt) < 3900
+assert _tg_html_ok(txt) and _tg_html_ok(D.format_watch(w, ar=False)), "format_watch is not valid Telegram HTML"
+assert "للمراقبة" in txt and "HL:xyz:GOLD" in txt and "n&lt;30" in txt and len(txt) < 3900
 assert "Nothing" in D.format_watch([], ar=False)
 sent, box = {}, []
 n, _ = D.dispatch(w, sent, lambda t: box.append(t) or None, top_n=2, now=1000.0, fmt=lambda it: D.format_watch(it))

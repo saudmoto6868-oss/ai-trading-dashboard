@@ -1,5 +1,8 @@
 "use strict";
 const CFG = __CONFIG__;
+/* M1 1.3: timers that only repaint the screen skip while the browser tab is hidden; each skipped one runs once when the tab is shown again */
+const VIS_MISSED = new Set(), visOnly = fn => () => { if (document.hidden){ VIS_MISSED.add(fn); return; } fn(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) return; const a = [...VIS_MISSED]; VIS_MISSED.clear(); a.forEach(f => { try { f(); } catch(e){} }); });
 /* blink diagnostics (console only, no UI): a page load line says whether Streamlit re-created this iframe; a long-task line says the main thread was blocked (>120 ms) */
 try { const k = "xpix_loads", a = JSON.parse(localStorage.getItem(k) || "[]"); a.push(Date.now()); localStorage.setItem(k, JSON.stringify(a.slice(-20)));
   console.info("[XPIX] page load #" + a.length + (a.length > 1 ? " (" + Math.round((a[a.length-1] - a[a.length-2])/1000) + " s after the previous load)" : " (first)")); } catch(e){}
@@ -7,7 +10,7 @@ try { new PerformanceObserver(l => l.getEntries().forEach(e => { if (e.duration 
 const API = CFG.apiBase || "https://www.okx.com";
 const WSB = CFG.wsBase || "wss://ws.okx.com/ws/v5";   // OKX retires WebSocket port 8443 on 2026-10-31: standard TLS port 443
 const SYMS = CFG.symbols.slice();
-const LS = "ai_ws_v5";
+const LS = CFG.solo === "radar" ? "ai_ws_radar" : CFG.solo === "spot" ? "ai_ws_spot_v1" : CFG.solo ? "ai_ws_solo" : "ai_ws_v5";   // spot = the Spot page chart (full app, own layout; was a text replace that stopped matching and wrote the Workspace layout)   // radar = the Radar page grid (modules/ws/24f_radar.js)   // solo = the chart-only widget on the RSI page: its own saved layout, never the Workspace one
 // Auto-Center is a per-tab choice: kept in sessionStorage, not in the shared state (other tabs and browsers were inheriting it)
 const acGet = () => { try { return sessionStorage.getItem("ai_ac") === "1"; } catch(e){ return false; } };   // OFF by default (free chart, like TradingView): with it on, every live tick and every data load re-centres the view on the latest candle and undoes a manual pan. The ⊙ button turns it on; the STANDARD layout charts start with it on (state.ac)
 const acSet = v => { try { sessionStorage.setItem("ai_ac", v ? "1" : "0"); } catch(e){} };
@@ -70,7 +73,10 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
   trPush(x){ if (!x || !x.coin) return; const b = this.tr[x.coin] = this.tr[x.coin] || {ids:new Set(), rows:[]}, id = String(x.tid || x.hash || x.time);
     if (b.ids.has(id)) return; b.ids.add(id); b.rows.push({tradeId:id, ts:String(x.time), px:String(x.px), sz:String(x.sz), side:x.side === "B" ? "buy" : "sell"});
     if (b.rows.length > 600){ b.rows.sort((p, q) => +q.ts - +p.ts); b.rows.length = 400; b.ids = new Set(b.rows.map(r => r.tradeId)); } },
-  async trades(coin){ if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
+  /* M1 1.4: a coin nobody asked about for 60 s is unsubscribed and its buffer dropped (charts call trades() on every poll; there is no close hook) */
+  trAsk:{}, trSweep(){ const now = Date.now(); this.trSub.forEach(c => { if (now - (this.trAsk[c] || 0) > 60000){ this.trSub.delete(c); delete this.tr[c]; delete this.trAsk[c];
+    try { this.ws && this.ws.send(JSON.stringify({method:"unsubscribe", subscription:{type:"trades", coin:c}})); } catch(e){} } }); },
+  async trades(coin){ this.trAsk[coin] = Date.now(); if (!this.trSub.has(coin)){ this.trSub.add(coin); this.start(); this.trSend(coin); }
     const b = this.tr[coin], sd = this.seedT = this.seedT || {}; if ((!b || b.rows.length < 10) && Date.now() - (sd[coin] || 0) > 4000){ sd[coin] = Date.now(); const t = await this.post({type:"recentTrades", coin}); (t || []).forEach(x => this.trPush(x)); }   // REST seed at most every 4 s per coin (it costs ~20 of the 1200 request weight per minute; the socket fills the buffer on its own)   // seed / socket down: REST
     return (this.tr[coin] || {rows:[]}).rows.slice().sort((p, q) => +q.ts - +p.ts).slice(0, 300); },
   async ctx(){ const [meta, ctxs] = await this.post({type:"metaAndAssetCtxs", dex:HL_DEX}); const L = [];
@@ -79,15 +85,15 @@ const HL = {q:{}, list:[], state:"off", ws:null, wait:3000, t:0, tr:{}, trSub:ne
       const o = this.q[id] = Object.assign(this.q[id] || {}, {open:+c.prevDayPx || 0, vol}); if (!o.last || !this.ws) o.last = px; L.push({id, vol, cat:hlCat(id)}); });
     this.list = L; this.t = Date.now(); },
   start(){ if (this.on) return; this.on = true; this.state = "connecting";
-    const poll = async () => { try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
+    const poll = async () => { this.trSweep(); try { await this.ctx(); if (this.state !== "live") this.state = "rest"; } catch(e){ this.state = "error: "+(e.message || e); } setTimeout(poll, this.ws ? 30000 : 8000); };
     poll(); this.sock(); },
   sock(){ let ws; try { ws = new WebSocket(HL_API.replace(/^http/, "ws")+"/ws"); } catch(e){ return; }
-    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
+    ws.onopen = () => { this.ws = ws; this.state = "live"; this.wait = 3000; clearInterval(this.ping); ws.send(JSON.stringify({method:"subscribe", subscription:{type:"allMids", dex:HL_DEX}})); this.trSub.forEach(c => this.trSend(c)); this.ping = setInterval(() => { try { ws.send(JSON.stringify({method:"ping"})); } catch(e){} }, 30000); };
     ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
       if (m.channel === "trades" && Array.isArray(m.data)){ m.data.forEach(x => this.trPush(x)); return; }
       const mids = m.channel === "allMids" && m.data && m.data.mids; if (!mids) return;
       Object.entries(mids).forEach(([k, v]) => { const id = "HL:"+k; if (this.q[id] && +v > 0) this.q[id].last = +v; }); };
-    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait); this.wait = Math.min(60000, this.wait*2); };
+    ws.onclose = () => { this.ws = null; clearInterval(this.ping); if (this.state === "live") this.state = "rest"; setTimeout(() => this.sock(), this.wait + Math.random()*1000); this.wait = Math.min(30000, this.wait*2); };
     ws.onerror = () => { try { ws.close(); } catch(e){} }; }
 };
 // OKX timeframe -> Hyperliquid candle interval (bars Hyperliquid does not have -> clear error)
@@ -139,7 +145,7 @@ const HARM_TOL = 0.10;   // ratio tolerance: 6 % found almost nothing on live-li
 const HARM_RULES = {
   "Gartley":{b:[.618,.618],c:[.382,.886],d:[.786,.786]}, "Bat":{b:[.382,.5],c:[.382,.886],d:[.886,.886]},
   "Butterfly":{b:[.786,.786],c:[.382,.886],d:[1.272,1.618]}, "Crab":{b:[.382,.618],c:[.382,.886],d:[1.618,1.618]},
-  "Cypher":{b:[.382,.618],cx:[1.13,1.414],d:[.786,.786]}};
+  "Cypher":{b:[.382,.618],cx:[1.272,1.414],d:[.786,.786]}};
 const harmIn = (v, r) => v >= r[0]*(1-HARM_TOL) && v <= r[1]*(1+HARM_TOL);
 function harmCheck(X, A, B, C, D){   // mirrors modules/harmonic.py
   const xa = Math.abs(A-X), ab = Math.abs(A-B); if (xa <= 0 || ab <= 0) return null;

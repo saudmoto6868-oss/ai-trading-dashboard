@@ -40,6 +40,6 @@ assert not at.exception, [str(e.value)[:200] for e in at.exception]
 labs = [m.label for m in at.metric]
 assert any("P-value" in l for l in labs) and any("Ruin" in l or "الخسارة" in l for l in labs), labs
 print("ok real app shows the luck check:", [m.value for m in at.metric if "P-value" in m.label or "Ruin" in m.label])
-src = open(os.path.join(ROOT, "main.py"), encoding="utf8").read()
+src = open(os.path.join(ROOT, "modules", "page_journal.py"), encoding="utf8").read()   # the Journal page moved out of main.py (M7)
 assert "mc_summary as _mc_summary" in src and "Luck check" in src
 print("ok journal Monte Carlo wired:", {k: mc[k] for k in ("n", "p_value", "ruin", "verdict")})

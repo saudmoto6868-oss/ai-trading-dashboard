@@ -10,7 +10,7 @@ RULES = {
     "Bat":       dict(b=(0.382, 0.5),   c=(0.382, 0.886), d=(0.886, 0.886)),
     "Butterfly": dict(b=(0.786, 0.786), c=(0.382, 0.886), d=(1.272, 1.618)),
     "Crab":      dict(b=(0.382, 0.618), c=(0.382, 0.886), d=(1.618, 1.618)),
-    "Cypher":    dict(b=(0.382, 0.618), cx=(1.13, 1.414), d=(0.786, 0.786)),
+    "Cypher":    dict(b=(0.382, 0.618), cx=(1.272, 1.414), d=(0.786, 0.786)),
 }
 
 
@@ -101,7 +101,7 @@ def vol_dev(df, k=4.0, lo=0.002, hi=0.04, n=200):
 def find_harmonics(df, max_age=12, dev=0.012, vol=False):
     """Patterns whose D point is recent. vol=True: swing size from vol_dev() instead of dev.
     -> [{name, dir:'bull'|'bear', pts:[(i,price)]*5, forming:bool, fit:0..1}]"""
-    h, l, c = df["high"].values, df["low"].values, df["close"].values
+    h, l = df["high"].values, df["low"].values
     piv = zigzag(h, l, vol_dev(df) if vol else dev)
     n = len(df)
     res = []

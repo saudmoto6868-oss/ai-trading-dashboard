@@ -6,7 +6,6 @@ AGAINST it, 'partial' = anything else. It is context shown next to the stars and
 proven edge (no real-data backtest yet)."""
 from __future__ import annotations
 
-import pandas as pd
 
 from modules.signals import fractal_pivots
 

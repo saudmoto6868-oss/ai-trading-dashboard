@@ -25,7 +25,7 @@ timeframe actually CONFIRMS the trigger, not from the tab it was fetched on.
 """
 
 from modules.signals import (
-    BULL, BEAR, PRIMARY_FAMILIES, CONFIRM_FAMILIES, ALL_FAMILIES, detect_all, sr_levels, fp,
+    BULL, BEAR, PRIMARY_FAMILIES, ALL_FAMILIES, detect_all, sr_levels, fp,
 )
 
 # T4 (MEETING_ALERTS_SETUP.md): context families shown as flags, not counted as stars.
@@ -213,7 +213,8 @@ def scan_symbol(symbol: str, frames: dict, trigger_tf: str, peers: dict | None =
     volsz = vol_target_weight(df, trigger_tf)
     price = float(df["close"].iloc[-1])
     order = {f: i for i, f in enumerate(ALL_FAMILIES)}
-    mine.sort(key=lambda s: order[s["family"]])
+    # a family outside the 8 star families (context "PA", 2026-11-20: KeyError 'PA' broke the Telegram scan) sorts last
+    mine.sort(key=lambda s: order.get(s["family"], len(order)))
     try:
         from modules.context import market_context
         ctx = market_context(df, direction if direction != "neutral" else None)

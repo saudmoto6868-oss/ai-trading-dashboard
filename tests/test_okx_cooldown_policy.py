@@ -1,6 +1,6 @@
 """Static checks for the cross-tab OKX cooldown policy in workspace_app.html (plain script, no browser).
 The browser check lives in tests/browser/okx_two_tabs_mock.js (mock only)."""
-import os, re
+import os
 src = open(os.path.join(os.path.dirname(__file__), "..", "modules", "workspace_app.html"), encoding="utf-8").read()
 i = src.index("function okx(path){"); body = src[i:i + 4200]
 checks = {

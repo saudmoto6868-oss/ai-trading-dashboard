@@ -163,7 +163,7 @@ def simulate_arrays(hi, lo, cl, direction, entry: float, stop: float, ex: dict, 
     pos, real, stop_cur, extreme = 1.0, 0.0, stop, entry
     be_done, tp1_done, events = False, False, []
     for i in range(len(cl)):
-        h_, l_, c_ = float(hi[i]), float(lo[i]), float(cl[i])
+        h_, l_ = float(hi[i]), float(lo[i])
         if (l_ <= stop_cur) if long else (h_ >= stop_cur):
             real += pos * sg * (stop_cur - entry) / r0
             events.append((i, "stop", round(stop_cur, 6)))
@@ -301,7 +301,7 @@ def format_watch(items, ar: bool = True, limit: int = 6) -> str:
         bias = ("اتجاه 1D+4H صاعد" if up else "اتجاه 1D+4H هابط") if ar else ("1D+4H bias up" if up else "1D+4H bias down")
         lines.append(f"\n{'🟢' if up else '🔴'} <b>{esc(w['symbol'])}</b> {w['tf'].upper()} · {bias} · {w['price']}\n"
                      f"{esc(', '.join(w['names']))}\n<i>{esc(', '.join(w['schools']))}</i>")
-    lines.append("\n<i>سياق مش إشارة دخول؛ ما اتقاسش في اللاب لسه (n<30).</i>" if ar else "\n<i>Context, not an entry signal; not measured by the lab yet (n<30).</i>")
+    lines.append("\n<i>سياق مش إشارة دخول؛ ما اتقاسش في اللاب لسه (n&lt;30).</i>" if ar else "\n<i>Context, not an entry signal; not measured by the lab yet (n&lt;30).</i>")
     return "\n".join(lines)[:3900]
 
 
@@ -374,7 +374,7 @@ def format_setup(a: dict, ar: bool = True) -> str:
     return (f"🔔 <b>{esc(a['key'].upper())}</b> {'🟢' if up else '🔴'} <b>{esc(a['symbol'])}</b> {a['tf'].upper()} · {wb[0] if ar else wb[1]}\n"
             f"{'دخول' if ar else 'Entry'} {a['entry']} · {'وقف' if ar else 'Stop'} {a['stop']} ({a['risk_points']} {'نقطة' if ar else 'pts'}) · {'أهداف' if ar else 'Targets'} {' / '.join(str(x) for x in a['tps'])} · "
             f"{'حركة محتملة' if ar else 'possible move'} {a['move_points']} {'نقطة' if ar else 'pts'}\n<i>{esc(', '.join(a['names']))} · {esc(session_label(a['session'], ar))}</i>\n"
-            f"<i>{'تنبيه سيتاب مش توصية؛ ما اتقاسش كله في اللاب (n<30 للجديد).' if ar else 'A setup alert, not advice; new detectors are not lab-measured yet (n<30).'}</i>")[:3900]
+            f"<i>{'تنبيه سيتاب مش توصية؛ ما اتقاسش كله في اللاب (n&lt;30 للجديد).' if ar else 'A setup alert, not advice; new detectors are not lab-measured yet (n&lt;30).'}</i>")[:3900]
 
 
 def scan(symbols, fetch, mode: str = "conf", **kw) -> list:

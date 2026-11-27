@@ -1,0 +1,92 @@
+"""TIA unified market workspace and Intelligence Director UI.
+
+Owner 2026-11-10: the market / symbol / Run Director controls are NOT Streamlit widgets any more (CSS could not shrink them): they live inside the
+workspace toolbar (modules/tia_workspace.py) and talk to this page through URL parameters tia_mkt / tia_sym / tia_run.
+"""
+from __future__ import annotations
+import streamlit as st
+
+
+def render_tia():
+    from modules.asset_classes import CLASSES
+    from modules.tia_intelligence import symbols_for_class, director_report
+    # 2026-11-17: one view runs at a time (same pattern as Technical Office): Terminal (default) or Markets (the desk's market map)
+    view = st.segmented_control("TIA view", ["Terminal", "Markets"], default="Terminal", key="tia_view", label_visibility="collapsed")
+    if view == "Markets":
+        from modules.market_map_view import render_market_map
+        render_market_map()
+        return
+    qp = st.query_params
+    market = qp.get("tia_mkt") if qp.get("tia_mkt") in CLASSES else CLASSES[0]
+    catalog = symbols_for_class(market, top=60)
+    symbols = catalog.get("symbols") or []
+    if not symbols:
+        st.warning("No verified symbols are currently available for this tab. No placeholder prices will be shown.")
+        return
+    selected = qp.get("tia_sym") if qp.get("tia_sym") in symbols else symbols[0]
+    key = f"tia_director_{market}_{selected}"
+    if qp.get("tia_run"):
+        with st.spinner("Collecting available market evidence and reconciling sources…"):
+            st.session_state[key] = director_report(selected, market)
+        try:
+            del st.query_params["tia_run"]   # a reload must not run the Director again
+        except Exception:
+            pass
+    report = st.session_state.get(key)
+
+    ctrl = {"markets": list(CLASSES), "market": market, "symbols": list(symbols), "selected": selected,
+            "agents": {"ran": bool(report), "stance": (report or {}).get("stance"),
+                          "sources": {k: (v or {}).get("status") for k, v in ((report or {}).get("sources") or {}).items()},
+                          "tech": {k: {"status": (v or {}).get("status"), "trend": (v or {}).get("trend")} for k, v in ((report or {}).get("technical") or {}).items()},
+                          "warnings": [str(w)[:140] for w in ((report or {}).get("warnings") or [])[:6]]}}
+    from modules.tia_workspace import render_tia_workspace
+    render_tia_workspace(height=900, universe=market, symbols=[selected] + [s for s in symbols if s != selected], ctrl=ctrl)
+    if catalog.get("note"):
+        st.caption(catalog["note"])
+
+    if report:
+        st.markdown("### TIA Intelligence Director")
+        stance = report.get("stance", "UNAVAILABLE")
+        st.subheader(stance)
+        st.write(report.get("director_summary", ""))
+        technical = report.get("technical") or {}
+        cols = st.columns(max(1, min(4, len(technical))))
+        for col, (tf, item) in zip(cols, technical.items()):
+            with col:
+                if item.get("status") == "ok":
+                    st.metric(tf.upper(), item.get("trend", "—"), f"RSI {item.get('rsi14', '—')} · {item.get('return20_pct', '—')}% / 20 bars")
+                else:
+                    st.metric(tf.upper(), "UNAVAILABLE")
+        try:   # Director track record (2026-11-20): how past BULLISH / BEARISH runs did 3 days later; under 30 scored runs it says "not evidence"
+            from modules import tia_intelligence as _TI, tia_scoring as _TS
+            from modules.market_cache import get_klines as _gk
+            tr = _TS.track_record(_TI.LOG_PATH, _gk)
+            if tr is None:
+                st.caption("Director track record: no runs logged yet.")
+            else:
+                w = tr["wilson95"]
+                st.caption(f"Director track record ({tr['horizon_days']}d, direction only, no costs): runs {tr['runs']} · scored {tr['scored']} · pending {tr['pending']} · abstained {tr['abstain']}"
+                           + (f" · hit rate {tr['hit_rate']*100:.0f}% (95% {w[0]*100:.0f}–{w[1]*100:.0f}%)" if tr["scored"] else "") + f" · {tr['verdict']}")
+        except Exception:
+            pass   # the track record must never break the Director view
+        hold = report.get("holdings") or {}
+        if hold.get("held"):
+            st.info(f"Spot ledger: you hold {hold.get('qty')} {hold.get('asset')} at an average of {hold.get('avg_usd')} USD (unrealised {hold.get('unreal_pct')}%). The Director does not change this position.")
+        elif hold.get("held") is False:
+            st.caption(f"Spot ledger: no open {hold.get('asset')} position.")
+        sch = report.get("schools") or {}
+        if sch.get("ok"):
+            import pandas as pd
+            st.markdown(f"**Desk schools (1D / 1W / 1M)** · score {sch.get('score')} · {sch.get('action', '')}")
+            rows = [{k: v for k, v in r.items() if k in ("tf", "regime", "trend") or str(k).startswith("v_")} for r in sch.get("rows", [])]
+            if rows:
+                st.dataframe(pd.DataFrame(rows), hide_index=True)
+        else:
+            st.caption("Desk schools unavailable: " + str(sch.get("why", "not run")))
+        src = report.get("sources") or {}
+        st.caption("Source coverage: " + " · ".join(f"{k}: {v.get('status')}" for k, v in src.items()))
+        for warning in report.get("warnings", []):
+            st.warning(warning)
+        with st.expander("Evidence and provenance"):
+            st.json({"sources": src, "technical": technical, "flow": report.get("flow"), "options": report.get("options")})
+        st.caption("Research bias only. No order execution. Conflicting or unavailable evidence reduces confidence.")

@@ -1,5 +1,5 @@
 """Event clock, Daily Top 7, Brain memory and the brain cron (modules/event_clock.py, daily_top.py, brain.py, brain_cron.py). Synthetic, no network, no Telegram."""
-import os, sys, tempfile, json
+import os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -8,6 +8,10 @@ import pandas as pd
 tmp = Path(tempfile.mkdtemp())
 os.environ.update(BRAIN_LOG=str(tmp / "log.jsonl"), BRAIN_GRADED=str(tmp / "graded.json"), BRAIN_SENT=str(tmp / "sent.json"))
 from modules import event_clock as E, daily_top as T, brain as B, brain_cron as C, day_plan as D, intermarket as IM
+
+import re as _re
+def _tg_html_ok(t):   # Telegram HTML: every "<" must open/close an allowed tag (raw "n<30" made Telegram reject whole messages, 2026-11-25)
+    return all(_re.match(r"</?(b|i|u|s|a|code|pre|tg-spoiler|blockquote)(\s[^>]*)?>", t[m.start():]) for m in _re.finditer("<", t))
 
 U = lambda *a: datetime(*a, tzinfo=timezone.utc)
 
@@ -72,7 +76,8 @@ assert B.grade(entries, graded, fetch_after, now + 8 * 3600) == 0               
 st = B.stats(entries, graded)
 assert st["all"]["n"] == 3 and st["all"]["win"] == 100.0 and not st["all"]["evidence"] and st["school"]["Fibonacci"]["n"] == 3
 rv = B.review_text(entries, graded)
-assert "مراجعة المخ" in rv and "Fibonacci" in rv and "n<30" in rv
+assert _tg_html_ok(rv) and _tg_html_ok(B.review_text(entries, graded, ar=False)), "review_text is not valid Telegram HTML"
+assert "مراجعة المخ" in rv and "Fibonacci" in rv and "n&lt;30" in rv
 B.save_graded(graded); assert B.load_graded() == graded
 
 # 4) the cron pass: heads-ups + the Top 7 slot + once-only sending + dry mode

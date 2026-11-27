@@ -1,5 +1,5 @@
 """Price grouping: fixed book levels grouped at 1000 / 10 / 0.01 give the expected rows (runs the real functions from workspace_app.html in node)."""
-import json, os, re, shutil, subprocess, sys
+import json, os, shutil, subprocess, sys
 src = open(os.path.join(os.path.dirname(__file__), "..", "modules", "workspace_app.html"), encoding="utf-8").read()
 for name in ("GROUP_STEPS", "tickOfLevels", "groupBook", "groupStepFor"):
     assert name in src, name

@@ -456,7 +456,6 @@ def chart_svg(df: pd.DataFrame, res: dict, plan: dict | None, bars: int = 70, wi
     n = len(d)
     left, right, top, bot = 8, 74, 10, 18
     pw, ph = width - left - right, height - top - bot
-    long = res["direction"] == "bullish"
     levels = []  # (price, label, color, dash)
     zones = []
     for s in res.get("signals", []):
@@ -589,7 +588,17 @@ def scan_entry(r: dict, df: pd.DataFrame, ar: bool | None = None) -> dict | None
         "symbol": r["symbol"], "direction": r["direction"], "score": int(r["score"]), "max": int(r["max_score"]),
         "trade": trade_name(r["trade_type"], ar), "ttype": r["trade_type"], "tfk": r["timeframe"], "tf": tf_name(r["timeframe"], ar),
         "tfc": TF_CHART.get(r["timeframe"], "1H"), "tags": tags, "tags_en": _tags(False), "zones": zones,
+        "keys": sorted({s.get("key", "other") for s in r["signals"]}),   # detector keys: the Workspace X77 widget maps them to schools
         "plan": {"entry": round(plan["entry"], 6), "stop": round(plan["stop_loss"], 6),
                  "tps": [round(x, 6) for x in plan["take_profits"]]},
         "eta": eta_ar(df, plan, r["timeframe"], ar), "tv": tv_link(r["symbol"], r["timeframe"]),
+        "lab": _lab_card(r),   # backtest beside the signal: weekly-lab row per detector (owner 2026-11-20)
     }
+
+
+def _lab_card(r):
+    try:
+        from modules.lab_tiers import card
+        return card([s.get("key") for s in r.get("signals", [])], r.get("timeframe", ""))
+    except Exception:   # no lab file / bad row: the card simply shows nothing
+        return []

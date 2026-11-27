@@ -1,7 +1,7 @@
 """modules/zone_collector.py offline: synthetic books/trades through the real engine, no network."""
 import json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from modules import zone_collector as C, zone_eval as E  # noqa: E402
+from modules import zone_collector as C, zone_eval as E  # noqa: E402,F401
 
 
 def test_run_logs_zone_and_resolves():

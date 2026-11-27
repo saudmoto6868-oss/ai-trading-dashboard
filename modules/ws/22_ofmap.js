@@ -34,7 +34,7 @@ const OFM = {
     rs.value = S.omR; ws.value = S.omW; bx.type = "checkbox"; bx.checked = S.omB; bl.append(bx, document.createTextNode(" "+Lg("Trades","صفقات"))); bl.style.cssText = "font-size:11px;color:#9aa4b2;display:flex;align-items:center;gap:2px";
     rs.onchange = () => { S.omR = +rs.value; Ws.save(); OFM.draw(p); }; ws.onchange = () => { S.omW = +ws.value; Ws.save(); OFM.draw(p); }; bx.onchange = () => { S.omB = bx.checked; Ws.save(); OFM.draw(p); };
     tb.append(p.symSel, rs, ws, bl); const wrap = el("div"); wrap.style.cssText = "position:relative;flex:1;min-height:0"; const cv = el("canvas"); cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block"; wrap.append(cv); p.ofmCv = cv;
-    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden) OFM.draw(p); }, 1000);
+    p.body.append(tb, wrap); const ro = new ResizeObserver(() => OFM.draw(p)); ro.observe(wrap); const iv = setInterval(() => { if (!document.hidden && !p.min) OFM.draw(p); }, 1000);
     p.destroy = () => { ro.disconnect(); clearInterval(iv); cancelAnimationFrame(p.om.raf); }; p.resub(); },
   resub(p, sym){
     p.om.snaps = []; p.om.trades = []; p.setTitle();

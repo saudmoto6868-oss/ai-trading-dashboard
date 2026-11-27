@@ -1,0 +1,42 @@
+name: XPiX poller
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"        # every 5 minutes (GitHub may delay scheduled runs)
+  workflow_dispatch: {}           # "Run workflow" button for a manual test
+
+permissions:
+  contents: read                  # reads the repo only; never pushes
+
+concurrency:
+  group: xpix-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Restore Telegram update offset
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6
+        with:
+          path: data/xpix_poll_state.json
+          key: xpix-poll-${{ github.run_id }}
+          restore-keys: xpix-poll-
+      - name: Answer owner messages
+        env:
+          XPIX_BOT_TOKEN: ${{ secrets.XPIX_BOT_TOKEN }}
+          XPIX_OWNER_CHAT_ID: ${{ secrets.XPIX_OWNER_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/xpix_poll.py
+      - name: Save Telegram update offset
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6
+        with:
+          path: data/xpix_poll_state.json
+          key: xpix-poll-${{ github.run_id }}

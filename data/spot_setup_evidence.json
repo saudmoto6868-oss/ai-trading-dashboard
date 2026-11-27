@@ -1,0 +1,1072 @@
+{
+ "run": "2026-11-23 12:44",
+ "markets_ok": [
+  "BTC",
+  "ETH",
+  "SOL",
+  "XRP",
+  "BNB",
+  "DOGE",
+  "ADA",
+  "AVAX",
+  "LINK",
+  "LTC",
+  "BCH",
+  "XLM",
+  "GOLD",
+  "SILVER",
+  "COPPER",
+  "PLATINUM",
+  "EURUSD"
+ ],
+ "markets_failed": [
+  "OIL (ValueError)"
+ ],
+ "setups": {
+  "cl_200w_loss|1w": {
+   "school": "Classic",
+   "side": "exit",
+   "n": 40,
+   "mean_pct": -4.984669002528756,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 47.5,
+   "t": 0.2312456922025348
+  },
+  "cl_200w_reclaim|1w": {
+   "school": "Classic",
+   "side": "buy",
+   "n": 47,
+   "mean_pct": 5.938230871958746,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 51.06382978723404,
+   "t": -0.03995318814865395
+  },
+  "cl_52w_break|1w": {
+   "school": "Classic",
+   "side": "buy",
+   "n": 47,
+   "mean_pct": 6.9229077653127025,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 63.829787234042556,
+   "t": 0.18563752598587668
+  },
+  "cl_bb_squeeze|1d": {
+   "school": "Classic",
+   "side": "buy",
+   "n": 12,
+   "mean_pct": 1.1136396445415329,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 66.66666666666666,
+   "t": 1.067462714102334
+  },
+  "cl_bb_squeeze|1w": {
+   "school": "Classic",
+   "side": "buy",
+   "n": 12,
+   "mean_pct": 43.81879119324362,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 75.0,
+   "t": 1.578132385910339
+  },
+  "cl_death|1d": {
+   "school": "Classic",
+   "side": "exit",
+   "n": 3,
+   "mean_pct": -0.051300522287160234,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 33.33333333333333,
+   "t": -0.12405615715440856
+  },
+  "cl_golden|1d": {
+   "school": "Classic",
+   "side": "buy",
+   "n": 12,
+   "mean_pct": -0.05337008354851606,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 58.333333333333336,
+   "t": 0.09864984040293268
+  },
+  "div_bear_premium|1d": {
+   "school": "Momentum / divergence",
+   "side": "exit",
+   "n": 10,
+   "mean_pct": -0.5659897744323672,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 70.0,
+   "t": -0.3916039282487467
+  },
+  "div_bear_premium|1w": {
+   "school": "Momentum / divergence",
+   "side": "exit",
+   "n": 12,
+   "mean_pct": -2.2266197425514047,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 50.0,
+   "t": 0.4368329900183454
+  },
+  "div_hidden_bull|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 14,
+   "mean_pct": -1.304552504902826,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 28.57142857142857,
+   "t": -0.36368925984021655
+  },
+  "div_hidden_bull|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 26,
+   "mean_pct": 5.1151124713125995,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 53.84615384615385,
+   "t": -0.16799496513498016
+  },
+  "div_macd_hist|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 65,
+   "mean_pct": -4.889373714017179,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 26.153846153846157,
+   "t": -3.0753916516990443
+  },
+  "div_macd_hist|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 63,
+   "mean_pct": 3.0973771896907456,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 65.07936507936508,
+   "t": -0.9890597028603796
+  },
+  "div_obv|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 65,
+   "mean_pct": -3.3132041542381745,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 27.692307692307693,
+   "t": -1.6950756489576724
+  },
+  "div_obv|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 64,
+   "mean_pct": 1.2602058502464009,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 54.6875,
+   "t": -1.5356794960024898
+  },
+  "div_triple|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 4,
+   "mean_pct": 7.168856141228725,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 75.0,
+   "t": 0.09183344551777681
+  },
+  "ew_w2|1d": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 42,
+   "mean_pct": 1.4883752069619185,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 40.476190476190474,
+   "t": 1.1814374134642842
+  },
+  "ew_w2|1w": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 71,
+   "mean_pct": -1.616009644836629,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 33.80281690140845,
+   "t": -1.467829820023157
+  },
+  "ew_w3_go|1d": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 10,
+   "mean_pct": 4.824626060835933,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 70.0,
+   "t": 1.9855545393619252
+  },
+  "ew_w3_go|1w": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 20,
+   "mean_pct": -1.405308407864037,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 50.0,
+   "t": -1.248865805161092
+  },
+  "ew_w4|1d": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": -0.008095559990117795,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 0.0,
+   "t": null
+  },
+  "ew_w4|1w": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": -13.478809991580132,
+   "base_pct": 7.535081983724277,
+   "pos_pct": 0.0,
+   "t": null
+  },
+  "ew_w5_done|1d": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 9,
+   "mean_pct": -1.5767658815442793,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 55.55555555555556,
+   "t": -0.41770556567334194
+  },
+  "ew_w5_done|1w": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 21,
+   "mean_pct": 0.22136765158281718,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 38.095238095238095,
+   "t": 2.3037105474681656
+  },
+  "gann_1x1|1d": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": 2.9717895341325073,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 100.0,
+   "t": null
+  },
+  "gann_50|1d": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 25,
+   "mean_pct": -2.5535876177627923,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 36.0,
+   "t": -1.547387879165926
+  },
+  "gann_50|1w": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 27,
+   "mean_pct": 4.00766811848336,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 55.55555555555556,
+   "t": -0.6909921759783985
+  },
+  "gann_anniv|1d": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 43,
+   "mean_pct": 2.2203090308118734,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 53.48837209302325,
+   "t": 1.8183009960935825
+  },
+  "gann_sq9_time|1d": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 6,
+   "mean_pct": -0.3229526474397596,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 50.0,
+   "t": -0.0066802067753978
+  },
+  "harm:bat|1d": {
+   "school": "Harmonic",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": -4.32586658401185,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 0.0,
+   "t": null
+  },
+  "harm:bat|1w": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 1,
+   "mean_pct": 34.17342482844668,
+   "base_pct": -7.535081983724277,
+   "pos_pct": 100.0,
+   "t": null
+  },
+  "harm:butterfly|1d": {
+   "school": "Harmonic",
+   "side": "buy",
+   "n": 5,
+   "mean_pct": 2.369166543840766,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 80.0,
+   "t": 1.0171955451676098
+  },
+  "harm:butterfly|1w": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 5,
+   "mean_pct": 13.30401680837639,
+   "base_pct": -7.535081983724277,
+   "pos_pct": 60.0,
+   "t": 1.627070271201995
+  },
+  "harm:crab|1w": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 1,
+   "mean_pct": 42.24357395089102,
+   "base_pct": -7.535081983724277,
+   "pos_pct": 100.0,
+   "t": null
+  },
+  "harm:cypher|1d": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 3,
+   "mean_pct": 5.667710095645495,
+   "base_pct": 0.2999434094510023,
+   "pos_pct": 66.66666666666666,
+   "t": 0.6685200890606292
+  },
+  "harm:gartley|1d": {
+   "school": "Harmonic",
+   "side": "buy",
+   "n": 2,
+   "mean_pct": 34.32574680025928,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 100.0,
+   "t": 1.8410108707454003
+  },
+  "harm:gartley|1w": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 10,
+   "mean_pct": -28.61569182680267,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 40.0,
+   "t": -1.1797160190375178
+  },
+  "radar:abc|1d": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 8,
+   "mean_pct": -0.8416733781156107,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 25.0,
+   "t": -0.6326737136473841
+  },
+  "radar:abc|1w": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 9,
+   "mean_pct": -11.041341225792454,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 22.22222222222222,
+   "t": -1.0088205017711371
+  },
+  "radar:breaker|1d": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 8,
+   "mean_pct": 2.8587920559266315,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 37.5,
+   "t": 0.4087321497701594
+  },
+  "radar:breaker|1w": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 18,
+   "mean_pct": 4.572040916732604,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 50.0,
+   "t": 0.9768133085447736
+  },
+  "radar:breakout|1d": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 58,
+   "mean_pct": 2.625193624492281,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 60.3448275862069,
+   "t": 1.144847460911203
+  },
+  "radar:breakout|1w": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 89,
+   "mean_pct": 1.920313175824888,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 47.19101123595505,
+   "t": 1.9430227285517458
+  },
+  "radar:cisd|1d": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 45,
+   "mean_pct": -1.8131332827792772,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 42.22222222222222,
+   "t": -1.0383024218199879
+  },
+  "radar:cisd|1w": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 73,
+   "mean_pct": 0.6303770020283858,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 46.57534246575342,
+   "t": -2.125936709309625
+  },
+  "radar:crt|1d": {
+   "school": "Liquidity",
+   "side": "exit",
+   "n": 48,
+   "mean_pct": -0.07991024910700742,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 37.5,
+   "t": -0.5683198008581241
+  },
+  "radar:dbl|1d": {
+   "school": "Chart patterns (range)",
+   "side": "buy",
+   "n": 44,
+   "mean_pct": 2.3517580904099766,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 59.09090909090909,
+   "t": 1.6710091499894104
+  },
+  "radar:dbl|1w": {
+   "school": "Chart patterns (range)",
+   "side": "buy",
+   "n": 68,
+   "mean_pct": 4.06666863951545,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 45.588235294117645,
+   "t": -0.413288231862716
+  },
+  "radar:donch|1d": {
+   "school": "Trend (hedge fund)",
+   "side": "exit",
+   "n": 135,
+   "mean_pct": -0.7638107927915573,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 50.37037037037037,
+   "t": -0.4856667039452287
+  },
+  "radar:donch|1w": {
+   "school": "Trend (hedge fund)",
+   "side": "exit",
+   "n": 226,
+   "mean_pct": -1.6778911275672739,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 42.92035398230089,
+   "t": 2.0678061475664298
+  },
+  "radar:ema_stack|1d": {
+   "school": "Trend (MA)",
+   "side": "exit",
+   "n": 196,
+   "mean_pct": 0.3218050303353389,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 50.0,
+   "t": 0.6453582608413229
+  },
+  "radar:ema_stack|1w": {
+   "school": "Trend (MA)",
+   "side": "exit",
+   "n": 315,
+   "mean_pct": -3.6512396232424673,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 41.58730158730159,
+   "t": 1.1815491728116858
+  },
+  "radar:ew3|1d": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 69,
+   "mean_pct": -1.7335444953522405,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 49.275362318840585,
+   "t": -1.615396341738877
+  },
+  "radar:ew3|1w": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 89,
+   "mean_pct": -8.327711551809264,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 29.213483146067414,
+   "t": -0.657289627703362
+  },
+  "radar:ew5|1d": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 15,
+   "mean_pct": -0.2679760593579609,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 40.0,
+   "t": -0.8744892025296918
+  },
+  "radar:ew5|1w": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 11,
+   "mean_pct": -11.378223815794799,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 18.181818181818183,
+   "t": -3.302231964138449
+  },
+  "radar:fib|1d": {
+   "school": "Fibonacci",
+   "side": "buy",
+   "n": 103,
+   "mean_pct": 2.039011749389843,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 58.252427184466015,
+   "t": 1.7892058157648283
+  },
+  "radar:fib|1w": {
+   "school": "Fibonacci",
+   "side": "buy",
+   "n": 219,
+   "mean_pct": 4.578108943380169,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 57.077625570776256,
+   "t": -0.5241957934931633
+  },
+  "radar:fvg|1d": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 120,
+   "mean_pct": 1.7112809374147668,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 55.833333333333336,
+   "t": 1.1948058220322761
+  },
+  "radar:fvg|1w": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 201,
+   "mean_pct": -0.9666355551893893,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 47.2636815920398,
+   "t": 1.0141412848919538
+  },
+  "radar:level|1d": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 90,
+   "mean_pct": -1.2991059318779192,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 46.666666666666664,
+   "t": -1.7463383292680519
+  },
+  "radar:level|1w": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 68,
+   "mean_pct": 5.409839716369711,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 55.88235294117647,
+   "t": 2.37076572624972
+  },
+  "radar:liqline|1d": {
+   "school": "Liquidity",
+   "side": "exit",
+   "n": 88,
+   "mean_pct": 0.8046720485165708,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 55.68181818181818,
+   "t": 0.7705150437339852
+  },
+  "radar:liqline|1w": {
+   "school": "Liquidity",
+   "side": "exit",
+   "n": 146,
+   "mean_pct": 1.977456657957421,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 47.94520547945205,
+   "t": 1.4351591279743547
+  },
+  "radar:m2022|1d": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 55,
+   "mean_pct": 0.13496233704797467,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 47.27272727272727,
+   "t": -0.34576507754343705
+  },
+  "radar:m2022|1w": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 113,
+   "mean_pct": -7.752690976012685,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 45.13274336283185,
+   "t": -2.9985329445347673
+  },
+  "radar:ma_cross|1d": {
+   "school": "Trend (MA)",
+   "side": "buy",
+   "n": 96,
+   "mean_pct": -1.5495280574273995,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 52.083333333333336,
+   "t": -1.5398469167190272
+  },
+  "radar:ma_cross|1w": {
+   "school": "Trend (MA)",
+   "side": "buy",
+   "n": 172,
+   "mean_pct": -3.799699657141754,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 45.93023255813954,
+   "t": -3.130026000902212
+  },
+  "radar:macd_div|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 57,
+   "mean_pct": 2.6769172741587335,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 63.1578947368421,
+   "t": 1.803396045309025
+  },
+  "radar:macd_div|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 104,
+   "mean_pct": 5.230242108423737,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 46.15384615384615,
+   "t": 0.19534844617201053
+  },
+  "radar:msb_ob|1d": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 72,
+   "mean_pct": -1.6762728545306071,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 41.66666666666667,
+   "t": -0.8473689672492356
+  },
+  "radar:msb_ob|1w": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 141,
+   "mean_pct": -0.624670673765715,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 45.39007092198582,
+   "t": 1.6236807612850217
+  },
+  "radar:ob|1d": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 41,
+   "mean_pct": -3.620210199050039,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 29.268292682926827,
+   "t": -2.2582043168772072
+  },
+  "radar:ob|1w": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 99,
+   "mean_pct": 4.256636413808778,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 52.52525252525253,
+   "t": 2.7939647713238815
+  },
+  "radar:ohl_break|1d": {
+   "school": "Levels / breakouts",
+   "side": "buy",
+   "n": 53,
+   "mean_pct": -2.701005512659802,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 45.28301886792453,
+   "t": -1.137139585089277
+  },
+  "radar:ohl_break|1w": {
+   "school": "Levels / breakouts",
+   "side": "buy",
+   "n": 89,
+   "mean_pct": 5.470845635214011,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 60.67415730337079,
+   "t": -0.19537598467395573
+  },
+  "radar:ohl_open|1d": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 137,
+   "mean_pct": -0.2555690512987561,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 48.175182481751825,
+   "t": -0.908206796058574
+  },
+  "radar:ohl_open|1w": {
+   "school": "Levels / breakouts",
+   "side": "buy",
+   "n": 273,
+   "mean_pct": -2.002057465997904,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 49.08424908424908,
+   "t": -2.299110672495507
+  },
+  "radar:ote|1d": {
+   "school": "Fibonacci",
+   "side": "exit",
+   "n": 39,
+   "mean_pct": 1.7034062752658408,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 58.97435897435898,
+   "t": 0.5533005352881424
+  },
+  "radar:ote|1w": {
+   "school": "Fibonacci",
+   "side": "buy",
+   "n": 81,
+   "mean_pct": -6.881366713666111,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 50.617283950617285,
+   "t": -1.9317822936979565
+  },
+  "radar:pa_engulf|1d": {
+   "school": "Price action",
+   "side": "exit",
+   "n": 16,
+   "mean_pct": 5.230471034817054,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 93.75,
+   "t": 2.8040042799481526
+  },
+  "radar:pa_engulf|1w": {
+   "school": "Price action",
+   "side": "buy",
+   "n": 45,
+   "mean_pct": 19.08171992666448,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 60.0,
+   "t": 1.5125783553484282
+  },
+  "radar:pa_inside|1d": {
+   "school": "Price action",
+   "side": "exit",
+   "n": 16,
+   "mean_pct": -0.6183898110377826,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 56.25,
+   "t": -0.4082643043442257
+  },
+  "radar:pa_inside|1w": {
+   "school": "Price action",
+   "side": "buy",
+   "n": 43,
+   "mean_pct": -3.598977258196296,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 37.2093023255814,
+   "t": -2.8566574041387955
+  },
+  "radar:pa_pin|1d": {
+   "school": "Price action",
+   "side": "buy",
+   "n": 17,
+   "mean_pct": -2.173700261427375,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 41.17647058823529,
+   "t": -0.523322609001956
+  },
+  "radar:pa_pin|1w": {
+   "school": "Price action",
+   "side": "buy",
+   "n": 22,
+   "mean_pct": -7.529977048865387,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 45.45454545454545,
+   "t": -2.4738602998946475
+  },
+  "radar:pa_star|1d": {
+   "school": "Price action",
+   "side": "buy",
+   "n": 2,
+   "mean_pct": -5.47777026092019,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 0.0,
+   "t": -5.740988910670262
+  },
+  "radar:pa_star|1w": {
+   "school": "Price action",
+   "side": "exit",
+   "n": 14,
+   "mean_pct": 6.691048508307344,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 50.0,
+   "t": 1.8681747846506331
+  },
+  "radar:rect|1d": {
+   "school": "Chart patterns (range)",
+   "side": "buy",
+   "n": 2,
+   "mean_pct": 2.589533382453546,
+   "base_pct": -0.2999434094510023,
+   "pos_pct": 100.0,
+   "t": 1.1684124021483517
+  },
+  "radar:rect|1w": {
+   "school": "Chart patterns (range)",
+   "side": "exit",
+   "n": 5,
+   "mean_pct": 2.977052525089232,
+   "base_pct": -7.535081983724277,
+   "pos_pct": 20.0,
+   "t": 0.3042476549972137
+  },
+  "radar:rsi_div|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 52,
+   "mean_pct": -0.44438103761784786,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 48.07692307692308,
+   "t": 0.15852589841682432
+  },
+  "radar:rsi_div|1w": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 100,
+   "mean_pct": 3.047245033469858,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 52.0,
+   "t": -0.7165435671574827
+  },
+  "radar:sma1040|1d": {
+   "school": "Trend (hedge fund)",
+   "side": "buy",
+   "n": 56,
+   "mean_pct": 0.22648087415281892,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 58.92857142857143,
+   "t": -0.011976317872071636
+  },
+  "radar:sma1040|1w": {
+   "school": "Trend (hedge fund)",
+   "side": "buy",
+   "n": 110,
+   "mean_pct": -2.29231657418823,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 40.909090909090914,
+   "t": -2.51662107301981
+  },
+  "radar:sweep|1d": {
+   "school": "Liquidity",
+   "side": "buy",
+   "n": 169,
+   "mean_pct": -1.5414759002544407,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 39.053254437869825,
+   "t": -1.8677609195104043
+  },
+  "radar:sweep|1w": {
+   "school": "Liquidity",
+   "side": "buy",
+   "n": 241,
+   "mean_pct": -3.1527841466520856,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 52.69709543568465,
+   "t": -3.313089068311213
+  },
+  "radar:tlbreak|1d": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 122,
+   "mean_pct": 0.01835801737426197,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 54.91803278688525,
+   "t": -0.545895658268188
+  },
+  "radar:tlbreak|1w": {
+   "school": "Levels / breakouts",
+   "side": "exit",
+   "n": 202,
+   "mean_pct": 8.244327062894728,
+   "base_pct": -4.4029275157290995,
+   "pos_pct": 52.97029702970298,
+   "t": 3.5124454489327626
+  },
+  "radar:turtle55|1d": {
+   "school": "Trend (hedge fund)",
+   "side": "exit",
+   "n": 76,
+   "mean_pct": 2.7240172851695212,
+   "base_pct": 0.6687481754620564,
+   "pos_pct": 55.26315789473685,
+   "t": 1.4087487989082885
+  },
+  "radar:turtle55|1w": {
+   "school": "Trend (hedge fund)",
+   "side": "exit",
+   "n": 90,
+   "mean_pct": -2.301050982262329,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 45.55555555555556,
+   "t": 1.21883960924952
+  },
+  "radar:unicorn|1d": {
+   "school": "SMC / ICT",
+   "side": "exit",
+   "n": 18,
+   "mean_pct": -2.6930352135671782,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 33.33333333333333,
+   "t": -1.2107991353032042
+  },
+  "radar:unicorn|1w": {
+   "school": "SMC / ICT",
+   "side": "buy",
+   "n": 28,
+   "mean_pct": 0.24680773210554652,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 60.71428571428571,
+   "t": -0.8264747321364507
+  },
+  "radar:vwap|1d": {
+   "school": "Trend (MA)",
+   "side": "buy",
+   "n": 240,
+   "mean_pct": 1.6077328365601113,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 57.91666666666667,
+   "t": 3.126319857139205
+  },
+  "radar:vwap|1w": {
+   "school": "Trend (MA)",
+   "side": "exit",
+   "n": 420,
+   "mean_pct": -4.324450255722642,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 48.095238095238095,
+   "t": 0.8448678452612891
+  },
+  "radar:wavec|1d": {
+   "school": "Elliott wave",
+   "side": "exit",
+   "n": 10,
+   "mean_pct": 1.2258531801666406,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 60.0,
+   "t": 0.3839263039214378
+  },
+  "radar:wavec|1w": {
+   "school": "Elliott wave",
+   "side": "buy",
+   "n": 10,
+   "mean_pct": -1.851573068742146,
+   "base_pct": 4.4029275157290995,
+   "pos_pct": 10.0,
+   "t": -1.9756301518008121
+  },
+  "radar:wyck|1d": {
+   "school": "Wyckoff",
+   "side": "exit",
+   "n": 10,
+   "mean_pct": 0.0885642700418865,
+   "base_pct": -0.24529865623711208,
+   "pos_pct": 50.0,
+   "t": 0.1737361998782609
+  },
+  "radar:wyck|1w": {
+   "school": "Wyckoff",
+   "side": "exit",
+   "n": 23,
+   "mean_pct": 6.505092488585369,
+   "base_pct": -6.116132803430148,
+   "pos_pct": 60.86956521739131,
+   "t": 2.835138326033672
+  },
+  "radar:zombie|1d": {
+   "school": "Liquidity",
+   "side": "buy",
+   "n": 44,
+   "mean_pct": 0.6891760454475737,
+   "base_pct": 0.24529865623711208,
+   "pos_pct": 54.54545454545454,
+   "t": 0.31670522952714986
+  },
+  "radar:zombie|1w": {
+   "school": "Liquidity",
+   "side": "buy",
+   "n": 59,
+   "mean_pct": 8.509773543554429,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 55.932203389830505,
+   "t": 0.29569141401202087
+  },
+  "val_200w|1w": {
+   "school": "Cycle value",
+   "side": "buy",
+   "n": 252,
+   "mean_pct": 13.33747240998433,
+   "base_pct": 6.116132803430148,
+   "pos_pct": 56.34920634920635,
+   "t": 2.128896532845687
+  },
+  "val_mayer|1d": {
+   "school": "Cycle value",
+   "side": "buy",
+   "n": 12,
+   "mean_pct": 9.714526150848368,
+   "base_pct": -0.6687481754620564,
+   "pos_pct": 66.66666666666666,
+   "t": 1.8271790826050816
+  },
+  "div_triple|1d": {
+   "school": "Momentum / divergence",
+   "side": "buy",
+   "n": 3,
+   "mean_pct": -1.733549340650938,
+   "base_pct": -1.553879613888586,
+   "pos_pct": 0.0,
+   "t": -0.498734323343001
+  },
+  "gann_1x1|1w": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": 0.5102567297459171,
+   "base_pct": 2.8364861131276777,
+   "pos_pct": 100.0,
+   "t": null
+  },
+  "gann_sq9_time|1w": {
+   "school": "Gann",
+   "side": "buy",
+   "n": 1,
+   "mean_pct": -3.4695751915634454,
+   "base_pct": 2.8364861131276777,
+   "pos_pct": 0.0,
+   "t": null
+  },
+  "harm:cypher|1w": {
+   "school": "Harmonic",
+   "side": "exit",
+   "n": 4,
+   "mean_pct": 2.191260109684648,
+   "base_pct": -2.8364861131276777,
+   "pos_pct": 50.0,
+   "t": 1.5874960226887216
+  }
+ },
+ "note": "1W: 8-week forward return, 1D: 10-day; vs the baseline of all steps; exit setups sign-flipped; order-flow / COT setups not tested (no history)."
+}

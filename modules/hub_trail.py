@@ -145,5 +145,5 @@ def render(st, L=lambda s: s) -> None:
         st.error(L("{n} record(s) have an untrustworthy outcome time and are excluded from the R series.").format(n=s["flagged"]))
     st.dataframe([{"time": x["t"], "symbol": x["symbol"], "tf": x["tf"], "dir": x["dir"],
                    **{k: f"{v[0]} {v[1]}".strip() for k, v in x["stages"].items()}, "flags": "; ".join(x["flags"])}
-                  for x in sorted(res["rows"], key=lambda x: -(x["t"] or 0))[:200]], hide_index=True, use_container_width=True)
+                  for x in sorted(res["rows"], key=lambda x: -(x["t"] or 0))[:200]], hide_index=True, width="stretch")
     st.caption(L("The live R series is published for the Decay Watch tab. 'Unproven' is the honest default until the Truth Court promotes a rule."))

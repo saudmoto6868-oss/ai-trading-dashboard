@@ -1,6 +1,6 @@
 """Every text the Research Hub shows through L() has an Arabic entry, templates keep their placeholders, and the computed verdicts translate
 (plain script). A missing entry would silently stay English, so this guards it."""
-import sys, os, ast, glob, re, tempfile, json
+import sys, os, ast, glob, re, tempfile
 from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from modules import i18n, hub_ui, hub_core, hub_truth, hub_trail, hub_consensus, hub_decay, hub_funnel

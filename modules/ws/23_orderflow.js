@@ -211,7 +211,7 @@ const FlowRead = (() => {
     let bb = -Infinity, ba = Infinity; if (snap){ (snap.bids || []).forEach(x => { if (x.p > bb) bb = x.p; }); (snap.asks || []).forEach(x => { if (x.p < ba) ba = x.p; }); }
     const mid = isFinite(bb) && isFinite(ba) ? (bb + ba)/2 : null; F.mid = mid;
     if (stale != null && stale > 6) lines.push({sev:5, side:null, p:null, en:"Book data is "+Math.round(stale)+" s old: the reading is unreliable", ar:"داتا الدفتر قديمة ("+Math.round(stale)+" ث): القراءة مش موثوقة"});
-    if (mid == null) return {tilt:{book:null, tape:null, lim:0, dir:0, label:{en:"no book", ar:"مفيش دفتر"}}, lines, facts:F};
+    if (mid == null) return {tilt:{book:null, tape:null, lim:0, dir:0, label:{en:"no book", ar:"لا يوجد دفتر"}}, lines, facts:F};
     let bd = 0, ad = 0; snap.bids.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) bd += x.q; }); snap.asks.forEach(x => { if (Math.abs(x.p - mid)/mid <= 0.005) ad += x.q; });
     const book = bd + ad > 0 ? (bd - ad)/(bd + ad) : null; F.book = {bid:bd, ask:ad, v:book};
     const T = (ctx.trades || []).filter(x => x.t >= now - 120000); let b2 = 0, s2 = 0, b30 = 0, s30 = 0; T.forEach(x => { const buy = x.side === "Buy"; if (buy) b2 += x.q; else s2 += x.q; if (x.t >= now - 30000){ if (buy) b30 += x.q; else s30 += x.q; } });

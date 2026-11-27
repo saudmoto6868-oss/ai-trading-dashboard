@@ -78,7 +78,7 @@ def main(argv=None) -> int:
         sent[key(c)] = time.time(); n += 1
     save_state(sent)
     print(f"sent {n}" + (f"; Telegram error: {err}" if err else ""))
-    return 1 if err else 0
+    return 1 if err and not T.no_secrets(err) else 0   # missing secrets: do not fail the job (see tg_cron)
 
 
 if __name__ == "__main__":

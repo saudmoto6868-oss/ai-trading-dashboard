@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.12"
           cache: pip
@@ -43,5 +43,7 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Strategy lab results $(date -u +%F)"
           # the generated files are the bot's: on a conflict keep the fresh results (-X theirs = this commit during a rebase); fail loudly if the push never lands
-          ok=0; for i in 1 2 3; do git pull --rebase -X theirs origin main && git push origin HEAD:main && { ok=1; break; }; git rebase --abort 2>/dev/null || true; sleep 5; done
+          # push target: main only for the scheduled run; a manual run on a branch pushes back to that branch (never to main)
+          TARGET="${GITHUB_REF_NAME:-main}"; if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then TARGET=main; fi
+          ok=0; for i in 1 2 3; do git pull --rebase -X theirs origin "$TARGET" && git push origin HEAD:"$TARGET" && { ok=1; break; }; git rebase --abort 2>/dev/null || true; sleep 5; done
           [ "$ok" = 1 ] || { echo "results NOT pushed"; exit 1; }

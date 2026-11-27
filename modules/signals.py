@@ -409,7 +409,7 @@ def fib_bull(df):
     zz = zigzag(df)
     if len(zz) < 2 or zz[-1][2] != "H" or zz[-2][2] != "L":
         return []
-    (ia, a, _), (ib, b, _) = zz[-2], zz[-1]
+    (_, a, _), (ib, b, _) = zz[-2], zz[-1]
     leg = b - a
     atr = float(atr_series(df).iloc[ib])
     price = float(df["close"].iloc[-1])
@@ -779,7 +779,7 @@ def ote_bull(df):
     zz = zigzag(df)
     if len(zz) < 2 or zz[-1][2] != "H" or zz[-2][2] != "L":
         return []
-    (ia, a, _), (ib, b, _) = zz[-2], zz[-1]
+    (_, a, _), (ib, b, _) = zz[-2], zz[-1]
     leg = b - a
     atr = float(atr_series(df).iloc[ib])
     price = float(df["close"].iloc[-1])

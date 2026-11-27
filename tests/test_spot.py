@@ -95,7 +95,6 @@ def boom(*a, **k):
     raise requests.ConnectionError("blocked in test")
 
 
-import tempfile
 with mock.patch("requests.get", boom), mock.patch("requests.post", boom):
     at = AppTest.from_string("""
 import modules.spot_page as sp, tempfile
@@ -105,7 +104,7 @@ sp.render()
 """, default_timeout=60)
     at.run()
     assert not at.exception, at.exception
-    assert len(at.tabs) >= 5
+    assert len(at.get("segmented_control")) >= 1   # tab picker (only the picked tab renders)
     for lang in ("ar",):
         at.session_state["ws_lang"] = lang
         at.run()
@@ -133,9 +132,15 @@ sp.render()
 """, default_timeout=120)
 at.run()
 assert not at.exception, at.exception
-txt = " ".join(m.value for m in at.markdown) + " ".join(str(x.value) for x in at.metric) + " ".join(w.value for w in at.warning)
+# only the picked tab renders now: walk every tab once and collect what each shows
+txt, frames = "", 0
+for i in range(9):
+    at.session_state["sp_tab"] = i; at.run()
+    assert not at.exception, (i, at.exception)
+    txt += " ".join(m.value for m in at.markdown) + " ".join(str(x.value) for x in at.metric) + " ".join(w.value for w in at.warning)
+    frames += len(at.dataframe)
 assert "Buy zone" in txt, txt[:500]
-assert len(at.dataframe) >= 5, len(at.dataframe)
+assert frames >= 5, frames
 at.session_state["ws_lang"] = "ar"; at.run()
 assert not at.exception, at.exception
 print("test_spot OK")

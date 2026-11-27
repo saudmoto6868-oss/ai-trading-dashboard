@@ -2,7 +2,6 @@
 
 Verdict format asked of the model: one word on the first line (APPROVE / APPROVE_WITH_CHANGES / REJECT), then the
 reasons with line numbers. The output is a review opinion, not evidence of a trading edge."""
-import json
 import os
 import sys
 

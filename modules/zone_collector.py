@@ -243,7 +243,7 @@ def run(symbols, seconds, out_dir=ROOT, log=print, fetch=poll, sleep=time.sleep,
                 bad += 1; log(f"{s}: {type(e).__name__}: {e}"); sleep(2); continue
             o = st[s]; new = [x for x in trades if x["id"] > o["seen"]] if o["seen"] else []
             o["seen"] = max([x["id"] for x in trades] + [o["seen"]]); o["trades"] = (o["trades"] + new)[-600:]
-            eng = o["eng"]; evs = eng.update(t, bids, asks, o["trades"])
+            eng = o["eng"]; eng.update(t, bids, asks, o["trades"])
             mid = (max(p for p, _ in bids) + min(p for p, _ in asks)) / 2; tk = _tick([p for p, _ in bids + asks]) or mid * 1e-4
             ab = absorb_events(o["trades"], t, mid)
             window = [e for e in eng.ev if t - e["t"] <= 120_000] + ab

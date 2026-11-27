@@ -250,30 +250,7 @@ def _tab_analyzer(cr, met):
         return
     from modules import spot_dash
     from modules.i18n import lang
-    import streamlit.components.v1 as components
-    components.html(spot_dash.render(bd, lang() == "ar"), height=2450, scrolling=True)
-
-
-def _tab_library():
-    """Every setup of every school the spot desk knows + its weekly lab evidence (modules/spot_setups.py)."""
-    from modules import spot_setups as SS
-    rows = SS.library()
-    run = "—"
-    try:
-        run = json.loads(SS.EVIDENCE.read_text(encoding="utf8")).get("run", "—")
-    except Exception:
-        pass
-    st.caption(T(f"{len(rows)} setups. Weekly lab (Mondays): every setup on 1W and 1D, walk-forward on 18 markets; 'worked' needs n >= 30 and t >= 3. Last run: {run}",
-                 f"{len(rows)} سيت أب. المعمل الأسبوعي (كل اتنين): كل سيت أب على الأسبوعي واليومي على 18 سوق من غير ما يشوف المستقبل؛ «اشتغل» محتاج 30 مرة على الأقل و t ≥ 3. آخر تشغيل: {run}"))
-    schools = sorted({r["school"] for r in rows})
-    pick = st.multiselect(T("Schools", "المدارس"), schools, default=schools, key="sp_lib_sch")
-    q = st.text_input(T("Search", "بحث"), key="sp_lib_q").strip().lower()
-    show = [r for r in rows if r["school"] in pick and (not q or q in (r["name"] + r["id"] + r.get("why", "")).lower())]
-    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Side", "النوع"): r["side"], T("Source", "المصدر"): r["source"],
-                                T("Evidence", "النتيجة"): " · ".join(f"{k}: {v}" for k, v in r["evidence"].items()), T("Meaning", "معناه"): r.get("why", "")} for r in show]),
-                 hide_index=True, width="stretch", height=520)
-    st.caption(T("Adding a setup = one rule in spot_setups.py (CATALOG + spot_only); the next Monday lab measures it automatically. New ideas are reviewed by the school-review job (topic 'spot_setups').",
-                 "إضافة سيت أب = قاعدة واحدة في spot_setups.py (CATALOG + spot_only)، ومعمل الاتنين اللي بعده بيقيسه لوحده. الأفكار الجديدة بتتراجع في مهمة مراجعة المدارس (موضوع spot_setups)."))
+    st.iframe(spot_dash.render(bd, lang() == "ar"), height=2450, alt="Spot dashboard")
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -310,14 +287,13 @@ def _tab_brain(d, px, met, cr, fx):
     for m in marks:
         m["score"] = 20 if m["wk"] > 0.3 else -20 if m["wk"] < -0.3 else 0
     from modules import spot_brain_view
-    import streamlit.components.v1 as components
     # owner 2026-11-27: the key view fits one 1440x900 screen with no page scroll; the full mosaic is one click away.
     view = st.radio(T("View", "العرض"), [T("Key view (one screen)", "العرض الأساسي (شاشة واحدة)"), T("Full detail", "التفاصيل الكاملة")],
                     horizontal=True, key="sp_br_view", label_visibility="collapsed")
     if view == T("Full detail", "التفاصيل الكاملة"):
-        components.html(spot_brain_view.render(br, marks), height=1400, scrolling=True)
+        st.iframe(spot_brain_view.render(br, marks), height=1400, alt="Spot brain analysis")
     else:
-        components.html(spot_brain_view.render_key(br, marks), height=620, scrolling=False)
+        st.iframe(spot_brain_view.render_key(br, marks), height=620, alt="Spot brain key view")
     with st.expander(T("How it decided (thinking log)", "فكّر إزاي (سجل التفكير)")):
         for k, h in br["horizons"].items():
             st.markdown(f"**{h['label']}: {h['verdict_ar']} ({h['score']:+d})** - " + " · ".join(h["reasons"]))
@@ -346,8 +322,7 @@ def _tab_ideas():
             st.error(f"{type(e).__name__}: {e}")
             return
     from modules import spot_board
-    import streamlit.components.v1 as components
-    components.html(spot_board.render(r), height=3700, scrolling=True)
+    st.iframe(spot_board.render(r), height=3700, alt="Spot market board")
     if st.button(T("Send today's ideas to Telegram", "ابعت أفكار النهارده على تليجرام"), key="sp_id_tg"):
         from modules import spot_ideas, telegram_alerts
         err = telegram_alerts.send(spot_ideas.telegram_text(r))
@@ -358,6 +333,13 @@ def _tab_crypto(d, cr, fx):
     if not cr:
         st.warning(T("OKX spot list unavailable right now.", "قايمة OKX سبوت مش متاحة دلوقتي."))
         return
+    try:   # owner 2026-11-21: the coins as a grid of OUR chart widgets (tools, indicators, the plan drawn on the chart), one thin filter line
+        from modules import spot_grid
+        from modules.i18n import lang as _lang
+        spot_grid.render(cr, _plan_for, _n, T, "ar" if _lang() == "ar" else "en")
+    except Exception as e:
+        st.caption(T("Chart grid unavailable", "شبكة الشارتات مش متاحة") + f": {type(e).__name__}: {e}")
+    st.markdown("**" + T("One coin: plan, ladder and list", "عملة واحدة: الخطة والدفعات والقايمة") + "**")
     a, b, c3 = st.columns([1, 2, 1])
     top = a.selectbox(T("Show", "اعرض"), ["50", "100", "200", T("All", "الكل")], key="sp_top")
     q = b.text_input(T("Search", "بحث"), key="sp_q").strip().upper()
@@ -614,8 +596,7 @@ def _tab_ledger(d, px, fx, egp):
     html = C.invoice_html(tx)
     a.download_button(T("Invoice (HTML, print / save PDF)", "الفاتورة (HTML للطباعة / PDF)"), html.encode("utf8"), file_name=f"invoice_{tx.get('invoice_no') or tx['id']}.html", mime="text/html")
     if b.button(T("Print preview", "معاينة الطباعة"), key="sp_prev"):
-        import streamlit.components.v1 as components
-        components.html(html, height=560, scrolling=True)
+            st.iframe(html, height=560, alt="Spot invoice preview")
     if c3.button(T("Delete record", "امسح التسجيل"), key="sp_del"):
         st.session_state["sp_del_ask"] = sel
     if st.session_state.get("sp_del_ask") == sel:
@@ -871,36 +852,451 @@ def _tab_news(d):
                  "سكرابينج (قرارك) + مهمة أسبوعية تلخص كل حساب قال إيه وتوصياته. لحد كده القايمة لينكات بس."))
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _btc_200d() -> tuple[float | None, float | None]:
+    """(BTC last close, 200-day average) from the app's own candles; (None, None) when the feed is down."""
+    try:
+        from modules import spot_data
+        df = spot_data.candles("BTC-USDT", "1d", 260)
+        if df is None or len(df) < 200:
+            return None, None
+        return float(df["close"].iloc[-1]), float(df["close"].tail(200).mean())
+    except Exception:
+        return None, None
+
+
+_JCOLS = ["date", "asset", "entry", "stop", "target", "size", "result", "note"]
+
+
+def _tab_budget(d) -> None:
+    """Budget plan (owner 2026-11-16): fixed budget split into DCA / swing / reserve, swing sizer with loss cap,
+    monthly loss cap, trade journal and weekly review. Plan only - nothing here places an order."""
+    from modules import spot_budget as B
+    plan = {**B.DEFAULT_PLAN, **d.get("budget_plan", {})}
+    plan["split"] = {**B.DEFAULT_SPLIT, **plan.get("split", {})}
+    plan["dca_weights"] = {**B.DEFAULT_DCA_WEIGHTS, **plan.get("dca_weights", {})}
+    journal = d.get("journal", [])
+    st.caption(T("Plan only - nothing here places an order. The numbers are for your own review.",
+                 "خطة بس - مفيش هنا أمر بيتنفذ. الأرقام للمراجعة بتاعتك."))
+
+    st.markdown("**" + T("1. Market mode", "1. حالة السوق") + "**")
+    _px, _ma = _btc_200d()
+    mm = st.columns(4)
+    fg = mm[0].number_input(T("Fear & greed (0-100)", "مؤشر الخوف والجشع (0-100)"), 0, 100, int(plan.get("fear_greed", 50)), key="bp_fg",
+                            help=T("Type today's value (CoinMarketCap or alternative.me).", "اكتب قيمة النهارده (CoinMarketCap أو alternative.me)."))
+    bpx = mm[1].number_input(T("BTC price", "سعر BTC"), min_value=0.0, value=float(_px or 0.0), key="bp_btc")
+    bma = mm[2].number_input(T("BTC 200-day average", "متوسط 200 يوم لـ BTC"), min_value=0.0, value=float(_ma or 0.0), key="bp_ma")
+    M = B.market_mode(fg, bpx, bma)
+    _mname = {"accumulate": T("Accumulate (DCA only)", "تجميع (DCA بس)"), "normal": T("Normal", "عادي"), "defend": T("Defend (buy less, check sells)", "دفاع (اشتري أقل وراجع البيع)")}[M["mode"]]
+    mm[3].metric(T("Mode", "الوضع"), _mname, f"DCA ×{M['dca_mult']:g}")
+    st.caption(T("Swing trades allowed: ", "السوينج مسموح: ") + (T("yes", "أيوه") if M["swing_ok"] else T("no", "لأ"))
+               + T(" · The 200-day line is a reading only: as a buy / sell system it lost to holding BTC in a 3-year test (+16% vs +81%, 14 trades, not evidence).",
+                   " · خط الـ 200 يوم قراءة بس: كنظام شراء وبيع خسر قدام الاحتفاظ بـ BTC في اختبار 3 سنين (+16% مقابل +81%، 14 صفقة، مش دليل)."))
+    st.markdown("**" + T("2. Budget and DCA", "2. الميزانية و DCA") + "**")
+
+    def _apply_strategy():   # fills the split boxes before they are drawn
+        sp_ = B.STRATEGIES[st.session_state["bp_strat"]]["split"]
+        st.session_state["bp_s_dca"], st.session_state["bp_s_swing"], st.session_state["bp_s_res"] = sp_["dca"], sp_["swing"], sp_["reserve"]
+    _names = list(B.STRATEGIES)
+    _cur = plan.get("strategy") if plan.get("strategy") in _names else _names[0]
+    _pick = st.selectbox(T("Strategy", "الاستراتيجية"), _names, index=_names.index(_cur), key="bp_strat", on_change=_apply_strategy)
+    st.caption(T(B.STRATEGIES[_pick]["en"], B.STRATEGIES[_pick]["ar"]) + T(" You can still change the percentages below.", " وتقدر تغير النسب تحت."))
+    budget = st.number_input(T("Budget (USD)", "الميزانية (دولار)"), min_value=0.0, value=float(plan["budget"]), step=50.0, key="bp_budget")
+    s = st.columns(3)
+    sp = {"dca": s[0].number_input("DCA %", 0.0, 100.0, float(plan["split"]["dca"]), key="bp_s_dca"),
+          "swing": s[1].number_input(T("Swing %", "سوينج %"), 0.0, 100.0, float(plan["split"]["swing"]), key="bp_s_swing"),
+          "reserve": s[2].number_input(T("Reserve %", "احتياطي %"), 0.0, 100.0, float(plan["split"]["reserve"]), key="bp_s_res")}
+    if abs(sum(sp.values()) - 100) > 0.01:
+        st.caption(T("The percentages do not add to 100 - they are normalised.", "النسب مش مجموعها 100 - بتتعدّل تلقائيًا."))
+    amounts = B.split_budget(budget, sp)
+    m = st.columns(3)
+    m[0].metric("DCA", f"${amounts['dca']:,.2f}")
+    m[1].metric(T("Swing", "سوينج"), f"${amounts['swing']:,.2f}")
+    m[2].metric(T("Reserve", "احتياطي"), f"${amounts['reserve']:,.2f}")
+
+    st.markdown("**" + T("DCA schedule", "جدول DCA") + "**")
+    w = st.columns(3)
+    weeks = int(w[0].number_input(T("Weeks", "عدد الأسابيع"), 1, 104, int(plan["dca_weeks"]), key="bp_weeks"))
+    wb = w[1].number_input("BTC %", 0.0, 100.0, float(plan["dca_weights"]["BTC"]), key="bp_w_btc")
+    we = w[2].number_input("ETH %", 0.0, 100.0, float(plan["dca_weights"]["ETH"]), key="bp_w_eth")
+    rows = B.dca_schedule(amounts["dca"], weeks, {"BTC": wb, "ETH": we})
+    if rows:
+        st.caption(T(f"Every week: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})",
+                     f"كل أسبوع: ${rows[0]['total']:,.2f} (BTC ${rows[0]['BTC']:,.2f} / ETH ${rows[0]['ETH']:,.2f})"))
+    if rows:
+        st.info(T(f"This week with the mode: ${rows[0]['total'] * M['dca_mult']:,.2f} (base ${rows[0]['total']:,.2f} × {M['dca_mult']:g}).",
+                  f"الأسبوع ده حسب الوضع: ${rows[0]['total'] * M['dca_mult']:,.2f} (الأساس ${rows[0]['total']:,.2f} × {M['dca_mult']:g})."))
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=200)
+
+    st.markdown("**" + T("3. Dip-buy ladder (limit orders from the reserve)", "3. سلم الشراء في النزول (أوامر Limit من الاحتياطي)") + "**")
+    lc = st.columns(2)
+    lcoin = lc[0].selectbox(T("Coin", "العملة"), ["BTC", "ETH"], key="bp_lcoin")
+    lpx = lc[1].number_input(T("Current price", "السعر الحالي"), min_value=0.0, value=float(bpx if lcoin == "BTC" else 0.0), key="bp_lpx")
+    _bl = B.buy_ladder(lpx, amounts["reserve"])
+    if _bl:
+        st.dataframe(pd.DataFrame(_bl), hide_index=True, width="stretch")
+    else:
+        st.caption(T("Enter the current price to see the ladder.", "اكتب السعر الحالي عشان السلم يظهر."))
+
+    st.markdown("**" + T("4. Sell ladder (profit taking above your average cost)", "4. سلم البيع (جني أرباح فوق متوسط التكلفة)") + "**")
+    sc = st.columns(2)
+    s_cost = sc[0].number_input(T("Average cost", "متوسط التكلفة"), min_value=0.0, value=0.0, format="%.8f", key="bp_scost")
+    s_qty = sc[1].number_input(T("Quantity held", "الكمية"), min_value=0.0, value=0.0, format="%.8f", key="bp_sqty")
+    _sl = B.sell_ladder(s_cost, s_qty)
+    if _sl:
+        st.dataframe(pd.DataFrame(_sl), hide_index=True, width="stretch")
+        st.caption(T("25% of the position is kept after the last step.", "25% من المركز بيفضل بعد آخر درجة."))
+
+    st.markdown("**" + T("5. Rebalance (target shares, 5% band)", "5. إعادة التوازن (النسب المستهدفة، هامش 5%)") + "**")
+    rc = st.columns(3)
+    _vals = {"BTC": rc[0].number_input(T("BTC value (USD)", "قيمة BTC بالدولار"), min_value=0.0, value=0.0, key="bp_vbtc"),
+             "ETH": rc[1].number_input(T("ETH value (USD)", "قيمة ETH بالدولار"), min_value=0.0, value=0.0, key="bp_veth"),
+             "USDT": rc[2].number_input(T("Cash (USD)", "الكاش بالدولار"), min_value=0.0, value=0.0, key="bp_vusd")}
+    _core = sp["dca"] + sp["swing"]
+    _rb = B.rebalance(_vals, {"BTC": _core * wb / max(wb + we, 1e-9), "ETH": _core * we / max(wb + we, 1e-9), "USDT": sp["reserve"]})
+    if _rb:
+        st.dataframe(pd.DataFrame(_rb), hide_index=True, width="stretch")
+        st.caption(T("action_usd: + buy, - sell, 0 = inside the band (do nothing).", "action_usd: + شراء، - بيع، 0 = جوه الهامش (ماتعملش حاجة)."))
+
+    st.markdown("**" + T("6. Strategies tested by the platform lab", "6. الاستراتيجيات اللي معمل المنصة اختبرها") + "**")
+    try:
+        from modules import spot_setups as _SS
+        _st = B.strategy_table(_SS.evidence())
+    except Exception:   # the setup lab is not part of this build
+        _st = []
+    if _st:
+        _f = st.radio(T("Show", "اعرض"), ["buy", "exit", "all"], horizontal=True, key="bp_stf", label_visibility="collapsed")
+        st.dataframe(pd.DataFrame([r for r in _st if _f == "all" or r["use as"] == _f]), hide_index=True, width="stretch", height=260)
+        st.caption(T("avg % = average move after the signal (1W: 8 weeks, 1D: 10 days); normal % = any week / day. 'worked' needs n >= 30 and t >= 3. "
+                     "Today no BUY setup passes; the tested signals are stronger as exit / avoid warnings.",
+                     "avg % = متوسط الحركة بعد الإشارة (أسبوعي: 8 أسابيع، يومي: 10 أيام)؛ normal % = أي أسبوع / يوم عادي. 'اشتغل' محتاج n >= 30 و t >= 3. "
+                     "النهارده مفيش إشارة شراء عدّت الشرط؛ الإشارات المختبرة أقوى كتحذير خروج / تجنب."))
+    else:
+        st.caption(T("No lab results file yet.", "لسه مفيش ملف نتايج المعمل."))
+
+    st.markdown("**" + T("7. Swing trade sizer (spot, long only)", "7. حاسبة صفقة السوينج (سبوت، شراء بس)") + "**")
+    if not M["swing_ok"]:
+        st.warning(T("Mode says no swing trades now (fear / below the 200-day line / greed).", "الوضع بيقول مفيش سوينج دلوقتي (خوف / تحت خط 200 يوم / جشع)."))
+    r = st.columns(4)
+    coin = r[0].selectbox(T("Coin", "العملة"), ["BTC", "ETH"], key="bp_coin")
+    entry = r[1].number_input(T("Entry price", "سعر الدخول"), min_value=0.0, value=0.0, format="%.8f", key="bp_entry")
+    stop = r[2].number_input(T("Stop price", "سعر وقف الخسارة"), min_value=0.0, value=0.0, format="%.8f", key="bp_stop")
+    target = r[3].number_input(T("Target price", "سعر الهدف"), min_value=0.0, value=0.0, format="%.8f", key="bp_target")
+    rk = st.columns(2)
+    risk = rk[0].number_input(T("Max loss per trade (% of budget)", "أقصى خسارة للصفقة (% من الميزانية)"), 0.1, 5.0, float(plan["risk_pct"]), key="bp_risk")
+    mc = rk[1].number_input(T("Monthly loss cap (% of budget)", "حد الخسارة الشهرية (%)"), 0.5, 50.0, float(plan["monthly_cap_pct"]), key="bp_mcap")
+    stop_pct = B.stop_pct_from_prices(entry, stop)
+    if stop_pct is None:
+        st.info(T("Enter an entry price and a stop price below it.", "ادخل سعر دخول وسعر وقف أقل منه."))
+    else:
+        size = min(B.position_size(budget, risk, stop_pct), amounts["swing"])
+        loss = B.loss_at_stop(size, stop_pct)
+        rr = B.reward_risk(entry, stop, target)
+        a = st.columns(4)
+        a[0].metric(T("Stop distance", "مسافة الوقف"), f"{stop_pct:.2f}%")
+        a[1].metric(T("Position", "حجم المركز"), f"${size:,.2f}")
+        a[2].metric(T("Loss if stopped", "الخسارة لو اتوقف"), f"${loss:,.2f}")
+        a[3].metric(T("Reward : risk", "الربح : الخسارة"), "-" if rr is None else f"1 : {rr}")
+        st.caption(T(f"About {size / entry:.6f} {coin} before fees.", f"حوالي {size / entry:.6f} {coin} قبل الرسوم."))
+        if rr is None or rr < plan["min_rr"]:
+            st.warning(T(f"Reward to risk must be at least 1:{plan['min_rr']:g}.", f"نسبة الربح للخسارة لازم تكون 1:{plan['min_rr']:g} على الأقل."))
+        if B.open_count(journal) >= int(plan["max_open"]):
+            st.error(T(f"{plan['max_open']} swing trades are already open - close one first.", f"فيه {plan['max_open']} صفقات سوينج مفتوحة بالفعل - اقفل واحدة الأول."))
+        cap = B.monthly_cap(budget, mc)
+        if B.month_loss(journal, B.today_ym()) + loss > cap:
+            st.error(T(f"This trade would pass the monthly cap (${cap:,.2f}). Do not open it.",
+                       f"الصفقة دي هتعدّي حد الخسارة الشهرية (${cap:,.2f}). ماتفتحهاش."))
+
+    st.markdown("**" + T("Trade journal (every trade, open and closed)", "سجل الصفقات (كل صفقة، مفتوحة ومقفولة)") + "**")
+    st.caption(T("Result = profit (+) or loss (-) in USD when the trade is closed. Leave it empty while open.",
+                 "النتيجة = ربح (+) أو خسارة (-) بالدولار لما الصفقة تتقفل. سيبها فاضية لو لسه مفتوحة."))
+    df = pd.DataFrame(journal, columns=_JCOLS) if journal else pd.DataFrame(columns=_JCOLS)
+    edited = st.data_editor(df, num_rows="dynamic", hide_index=True, width="stretch", key="bp_journal")
+    st.markdown("**" + T("Weekly review (tick each week, not saved)", "المراجعة الأسبوعية (علّم كل أسبوع، مش بيتحفظ)") + "**")
+    for i, item in enumerate(B.WEEKLY_CHECKLIST):
+        st.checkbox(T(item, item), key=f"bp_chk_{i}")
+    if st.button(T("Save plan and journal", "احفظ الخطة والسجل"), key="bp_save"):
+        d["budget_plan"] = {"strategy": _pick, "fear_greed": int(fg), "budget": budget, "split": sp, "dca_weeks": weeks, "dca_weights": {"BTC": wb, "ETH": we},
+                            "risk_pct": risk, "monthly_cap_pct": mc, "max_open": plan["max_open"], "min_rr": plan["min_rr"]}
+        clean = edited.where(pd.notna(edited), None)
+        d["journal"] = [rec for rec in clean.to_dict("records") if str(rec.get("asset") or "").strip()]
+        if save(d, "budget plan"):
+            st.success(T("Saved.", "اتحفظ."))
+
+
+CHART_SYMS = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "BNB-USDT", "HL:xyz:GOLD", "HL:xyz:SILVER"]
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _chart_doc(symbols: tuple, lang: str, height: int) -> str:
+    """The full Workspace app (charts, every indicator, footprint / order flow, Elliott, Gann, drawings, alerts) for the spot symbols.
+    Cached: the same string is re-sent on reruns, so the frame does not reload and its live feeds keep running."""
+    from modules.workspace import build_workspace_html
+    # solo="spot": own layout store (ai_ws_spot_v1), so the main Workspace layout is untouched (the old text replace of the LS line
+    # stopped matching when the app got its modes, and then wrote the Workspace layout); on first open: one maximised chart.
+    doc = build_workspace_html(list(symbols), [], lang, asset_cls="Crypto", solo="spot")
+    boot = """<script>window.addEventListener('load',()=>setTimeout(()=>{try{
+if(localStorage.getItem('ai_ws_spot_one'))return;
+XCMD.layout('blank');XCMD.addPanel('chart');XCMD.setSymbol(%s);
+const p=Ws.panels[0];if(p&&!p.max)p.toggleMax();Ws.save();localStorage.setItem('ai_ws_spot_one','1');
+}catch(e){}},600));</script>""" % json.dumps(symbols[0])
+    return doc.replace("</body>", boot + "</body>", 1) if "</body>" in doc else doc + boot
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _live_setups(asset: str) -> list[dict]:
+    from modules import spot_dash, spot_setups
+    return spot_setups.scan(spot_dash.load_bundle(asset))
+
+
+def _tab_chart(d, cr) -> None:
+    """Spot chart desk (owner 2026-11-16): the Workspace chart inside the Spot page + this market's live setups, one click to alerts."""
+    try:
+        from modules.i18n import lang as _lang
+        lg = _lang()
+    except Exception:
+        lg = "en"
+    held = sorted({str(t.get("asset", "")).upper() for t in d.get("txs", []) if t.get("asset")})
+    okx = {r["base"] for r in (cr or [])}
+    syms = list(dict.fromkeys(CHART_SYMS + [f"{a}-USDT" for a in held if a in okx]))
+    c = st.columns([1.2, 1, 3])
+    asset = c[0].selectbox(T("Signals for", "الإشارات لـ"), [x.split("-")[0].split(":")[-1] for x in syms], key="spc_asset")
+    hgt = int(c[1].selectbox(T("Chart height", "ارتفاع الشارت"), [640, 760, 880, 1000], index=1, key="spc_h"))
+    c[2].caption(T("Inside the chart: + Widget adds charts, DOM, tape, footprint and order-flow panels; the indicator menu has Elliott, Gann, SMC, 2.6 and the rest; "
+                   "panels follow the same symbol. Nothing here places an order.",
+                   "جوه الشارت: + Widget بيضيف شارتات و DOM و Tape وفوت برنت وأوردر فلو؛ قايمة المؤشرات فيها إليوت وجان و SMC و 2.6 والباقي؛ "
+                   "البانلز بتمشي على نفس الرمز. مفيش هنا أي أمر بيتنفذ."))
+    try:
+        st.iframe(_chart_doc(tuple(syms), lg, hgt), height=hgt, alt="Spot chart")
+    except Exception as e:
+        st.error(T("Chart could not be built", "الشارت ماتبناش") + f": {type(e).__name__}: {e}")
+    try:   # the spot plan of this market as ONE horizontal strip (same engine as the Crypto / Metals plan card)
+        from modules import spot_data as _sd
+        _mk = {"GOLD": "gold", "SILVER": "silver"}.get(asset)
+        _my = next((v for k_, v in _sd.METAL_Y.items() if _mk and k_.lower() == _mk), None)
+        pl = _plan_for(_my or f"{asset}-USDT")
+    except Exception:
+        pl = {}
+    if pl.get("ok"):
+        k = st.columns(6)
+        k[0].metric(T("Plan score", "درجة الخطة"), pl.get("score"))
+        k[1].metric(T("Action", "الإجراء"), str(pl.get("action", "—")))
+        k[2].metric(T("Buy 1", "شراء 1"), _n(pl["buys"][0]) if pl.get("buys") else "—")
+        k[3].metric(T("Buy 2", "شراء 2"), _n(pl["buys"][1]) if len(pl.get("buys") or []) > 1 else "—")
+        k[4].metric(T("Target 1", "هدف 1"), _n(pl["sells"][0]) if pl.get("sells") else "—")
+        k[5].metric(T("Invalidation", "الإلغاء"), _n(pl.get("invalidation")))
+    else:
+        st.caption(T("Plan strip unavailable (data feed).", "شريط الخطة مش متاح (مصدر البيانات)."))
+    st.markdown("**" + T(f"Live setups on {asset} (every school, with the lab verdict)", f"الإشارات الحية على {asset} (كل المدارس، مع حكم المعمل)") + "**")
+    try:
+        rows = _live_setups(asset)
+    except Exception as e:
+        rows = []
+        st.caption(T("Setups unavailable (data feed)", "الإشارات مش متاحة (مصدر البيانات)") + f": {type(e).__name__}")
+    if not rows:
+        st.caption(T("No live setup on this market now.", "مفيش إشارة حية على السوق ده دلوقتي."))
+        return
+    side = st.radio(T("Side", "النوع"), ["all", "buy", "exit"], horizontal=True, key="spc_side", label_visibility="collapsed")
+    rows = [r for r in rows if side == "all" or r["side"] == side]
+    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "الإشارة"): r["name"], T("Use", "الاستخدام"): r["side"], "TF": r["tf"],
+                                T("Entry", "دخول"): _n(r["entry"]), T("Stop", "وقف"): _n(r["stop"]), T("Target", "هدف"): _n(r["target"]),
+                                T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"]} for r in rows]), hide_index=True, width="stretch", height=260)
+    buys = [r for r in rows if r["side"] == "buy" and r.get("entry")]
+    if buys:
+        pick = st.selectbox(T("Make alerts from", "اعمل تنبيهات من"), range(len(buys)), format_func=lambda i: f"{buys[i]['name']} · {buys[i]['tf']} · {_n(buys[i]['entry'])}", key="spc_pick")
+        if st.button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="spc_add"):
+            r = buys[pick]
+            d["alerts"].append(C.new_alert(asset, "buy", r["entry"], r["name"]))
+            if r.get("stop"):
+                d["alerts"].append(C.new_alert(asset, "stop", r["stop"], r["name"]))
+            if r.get("target"):
+                d["alerts"].append(C.new_alert(asset, "sell", r["target"], r["name"]))
+            if save(d):
+                st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+                _notify(d, T(f"Alerts armed for {asset}: {r['name']} entry {_n(r['entry'])}", f"اتسجلت تنبيهات {asset}: {r['name']} دخول {_n(r['entry'])}"))
+
+
+def _tab_library():
+    """Every setup of every school the spot desk knows + its weekly lab evidence (modules/spot_setups.py)."""
+    from modules import spot_setups as SS
+    rows = SS.library()
+    run = "—"
+    try:
+        run = json.loads(SS.EVIDENCE.read_text(encoding="utf8")).get("run", "—")
+    except Exception:
+        pass
+    st.caption(T(f"{len(rows)} setups. Weekly lab (Mondays): every setup on 1W and 1D, walk-forward on 18 markets; 'worked' needs n >= 30 and t >= 3. Last run: {run}",
+                 f"{len(rows)} سيت أب. المعمل الأسبوعي (كل اتنين): كل سيت أب على الأسبوعي واليومي على 18 سوق من غير ما يشوف المستقبل؛ «اشتغل» محتاج 30 مرة على الأقل و t ≥ 3. آخر تشغيل: {run}"))
+    schools = sorted({r["school"] for r in rows})
+    pick = st.multiselect(T("Schools", "المدارس"), schools, default=schools, key="sp_lib_sch")
+    q = st.text_input(T("Search", "بحث"), key="sp_lib_q").strip().lower()
+    show = [r for r in rows if r["school"] in pick and (not q or q in (r["name"] + r["id"] + r.get("why", "")).lower())]
+    st.dataframe(pd.DataFrame([{T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Side", "النوع"): r["side"], T("Source", "المصدر"): r["source"],
+                                T("Evidence", "النتيجة"): " · ".join(f"{k}: {v}" for k, v in r["evidence"].items()), T("Meaning", "معناه"): r.get("why", "")} for r in show]),
+                 hide_index=True, width="stretch", height=520)
+    st.caption(T("Adding a setup = one rule in spot_setups.py (CATALOG + spot_only); the next Monday lab measures it automatically. New ideas are reviewed by the school-review job (topic 'spot_setups').",
+                 "إضافة سيت أب = قاعدة واحدة في spot_setups.py (CATALOG + spot_only)، ومعمل الاتنين اللي بعده بيقيسه لوحده. الأفكار الجديدة بتتراجع في مهمة مراجعة المدارس (موضوع spot_setups)."))
+
+
+# ---------------------------------------------------------------- signals board (owner 2026-11-17)
+# spot strategy -> which schools' setups it reads (None = every school) and which side
+SIGNAL_STRATEGIES = {
+    "All setups": (None, None),
+    "Value / cycle accumulation": (("Cycle value", "Classic"), "buy"),
+    "Reversal (divergence, harmonic, Elliott)": (("Momentum / divergence", "Harmonic", "Elliott wave", "Fibonacci"), "buy"),
+    "Trend following": (("Trend (MA)", "Trend (hedge fund)", "Levels / breakouts"), "buy"),
+    "Smart money (SMC / ICT, liquidity)": (("SMC / ICT", "Liquidity"), "buy"),
+    "Gann price + time": (("Gann",), None),
+    "Exit / take-profit warnings": (None, "exit"),
+}
+
+
+def _board_assets(d) -> list[str]:
+    from modules import spot_ideas
+    held = [str(t.get("asset", "")).upper() for t in d.get("txs", []) if t.get("asset")]
+    al = [str(a.get("asset", "")).upper() for a in d.get("alerts", [])]
+    return list(dict.fromkeys([u[0] for u in spot_ideas.UNIVERSE] + ["XRP", "BNB"] + held + al))
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _board_scan(assets: tuple) -> tuple[list, list]:
+    """Live setups of every school on every market, side by side. -> (rows, markets that failed)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(a):
+        try:
+            return a, _live_setups(a), None
+        except Exception as e:
+            return a, [], type(e).__name__
+    rows, bad = [], []
+    with ThreadPoolExecutor(4) as ex:
+        for a, got, err in ex.map(one, assets):
+            if err:
+                bad.append(f"{a} ({err})")
+            rows += [{**r, "asset": a} for r in got]
+    return rows, bad
+
+
+def _lab_ok(r) -> bool:
+    return not str(r.get("ev_label", "")).startswith("كان أسوأ")
+
+
+def _tab_signals(d, px) -> None:
+    """Every live setup from every school on every spot market + the setups behind each alert. Read only."""
+    assets = _board_assets(d)
+    c = st.columns([2, 1.2, 1, 1])
+    strat = c[0].selectbox(T("Spot strategy", "استراتيجية السبوت"), list(SIGNAL_STRATEGIES), key="sg_strat",
+                           help=T("Each strategy reads the setups of its own schools.", "كل استراتيجية بتقرا إشارات المدارس بتاعتها."))
+    tfs = c[1].multiselect("TF", ["1mo", "1w", "1d", "4h"], default=["1w", "1d"], key="sg_tf")
+    hide_bad = c[2].toggle(T("Hide setups the lab found worse", "اخفي اللي المعمل لقاه أسوأ"), value=True, key="sg_hide")
+    go = c[3].button(T("Scan the markets", "امسح الأسواق"), key="sg_go")
+    if go:
+        st.session_state["sg_on"] = True
+    if not st.session_state.get("sg_on"):
+        st.caption(T(f"Not scanned yet: {len(assets)} markets, every school. Press the button (first scan can take a minute; cached 15 min).",
+                     f"لسه ماتمسحش: {len(assets)} سوق، كل المدارس. دوس الزرار (أول مسح ممكن ياخد دقيقة؛ بيتخزن 15 دقيقة)."))
+        return
+    with st.spinner(T("Scanning every market...", "بمسح كل الأسواق...")):
+        rows, bad = _board_scan(tuple(assets))
+    if bad:
+        st.caption(T("No data for: ", "مفيش داتا لـ: ") + ", ".join(bad))
+    schools, side = SIGNAL_STRATEGIES[strat]
+    show = [r for r in rows if (not schools or any(str(r.get("school", "")).startswith(s_) for s_ in schools)) and (not side or r["side"] == side)
+            and (not tfs or r["tf"] in tfs) and (not hide_bad or _lab_ok(r))]
+    by = {}
+    for r in show:
+        by.setdefault(r["asset"], []).append(r)
+    st.markdown("**" + T(f"{len(show)} live setups on {len(by)} markets", f"{len(show)} إشارة حية على {len(by)} سوق") + "**")
+    if show:
+        st.dataframe(pd.DataFrame([{T("Market", "السوق"): r["asset"], T("School", "المدرسة"): r["school"], T("Setup", "السيت أب"): r["name"], T("Use", "الاستخدام"): r["side"],
+                                    "TF": r["tf"], T("Entry", "دخول"): _n(r["entry"]), T("Stop", "وقف"): _n(r["stop"]), T("Target", "هدف"): _n(r["target"]),
+                                    T("Lab", "المعمل"): r["ev_label"], T("Why", "السبب"): r["why"]} for r in show]), hide_index=True, width="stretch", height=340)
+        buys = [r for r in show if r["side"] == "buy" and r.get("entry")]
+        if buys:
+            a2 = st.columns([3, 1])
+            i = a2[0].selectbox(T("Make alerts from", "اعمل تنبيهات من"), range(len(buys)), key="sg_pick",
+                                format_func=lambda k: f"{buys[k]['asset']} · {buys[k]['name']} · {buys[k]['tf']} · {_n(buys[k]['entry'])}")
+            if a2[1].button(T("Add entry / stop / target alerts", "ضيف تنبيهات الدخول / الوقف / الهدف"), key="sg_add"):
+                r = buys[i]
+                d["alerts"].append(C.new_alert(r["asset"], "buy", r["entry"], r["name"]))
+                if r.get("stop"):
+                    d["alerts"].append(C.new_alert(r["asset"], "stop", r["stop"], r["name"]))
+                if r.get("target"):
+                    d["alerts"].append(C.new_alert(r["asset"], "sell", r["target"], r["name"]))
+                if save(d):
+                    st.success(T("Alerts added - see the Alerts tab.", "التنبيهات اتضافت - شوف تاب التنبيهات."))
+    else:
+        st.caption(T("No live setup matches this strategy now.", "مفيش إشارة حية مطابقة للاستراتيجية دي دلوقتي."))
+    # the setups behind every alert: fired first, then armed
+    al = sorted(d.get("alerts", []), key=lambda a: (a.get("fired_at") is None, str(a.get("fired_at") or "")), reverse=False)
+    st.markdown("**" + T("Alerts and the setups behind them", "التنبيهات والسيت أبات اللي وراها") + "**")
+    if not al:
+        st.caption(T("No alerts yet.", "لسه مفيش تنبيهات."))
+        return
+    allby = {}
+    for r in rows:
+        if _lab_ok(r):
+            allby.setdefault(r["asset"], []).append(r)
+    out = []
+    for a in al[:60]:
+        live = allby.get(a["asset"], [])
+        same = [r for r in live if (a["kind"] == "buy") == (r["side"] == "buy")]
+        out.append({T("Status", "الحالة"): T("FIRED", "اتضرب") if a.get("fired_at") else T("armed", "شغال"), T("Market", "السوق"): a["asset"],
+                    T("Alert", "التنبيه"): f"{a['kind']} @ {_n(a['price'])}", T("Now", "السعر"): _n((px or {}).get(a["asset"])),
+                    T("Note", "ملاحظة"): a.get("note", ""), T("When", "إمتى"): str(a.get("fired_at") or "")[:16],
+                    T("Live setups (same side)", "سيت أبات حية (نفس الاتجاه)"): " · ".join(f"{r['name']} {r['tf']}" for r in same[:5]) or "—",
+                    T("Schools", "المدارس"): ", ".join(sorted({str(r['school']) for r in same})[:5]) or "—"})
+    st.dataframe(pd.DataFrame(out), hide_index=True, width="stretch", height=280)
+
+
 def render() -> None:
     d = load()
     st.markdown("### " + T("Spot desk - crypto + metals", "السبوت - كريبتو + معادن"))
-    fx, fx_src = _fx(d)
-    px, met, cr = _prices()
     egp = st.toggle(T("Show metals / ledger in EGP", "اعرض المعادن والسجل بالجنيه"), key="sp_egp", value=True)
-    tabs = st.tabs([T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"), T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"),
-                    T("News & sources", "الأخبار والمصادر"), T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"), T("Setup library", "مكتبة السيت أبات")])
-    with tabs[0]:
+    # owner 2026-11-09: these tabs stay as they are - add to them and improve them, never remove or merge them
+    # Only the picked tab runs (st.tabs ran every tab on every rerun, i.e. every auto-refresh). Same tabs, same order.
+    names = [T("Spot brain", "العقل المدبر"), T("Daily ideas", "الأفكار اليومية"), T("Crypto", "كريبتو"), T("Metals", "المعادن"),
+             T("Ledger & invoices", "السجل والفواتير"), T("Alerts", "التنبيهات"), T("News & sources", "الأخبار والمصادر"),
+             T("Storage, Excel & fields", "التخزين والإكسل والخانات"), T("Analyzer (optional)", "المحلل (اختياري)"),
+             T("Budget plan", "خطة الميزانية"), T("Spot chart", "شارت السبوت"), T("Setup library", "مكتبة السيت أبات"),
+             T("Signals & alarms", "الإشارات والتنبيهات")]
+    pick = st.segmented_control(" ", list(range(len(names))), default=0, format_func=lambda i: names[i], key="sp_tab", label_visibility="collapsed")
+    idx = 0 if pick is None else pick
+    # load prices only for the tabs that use them (maintenance plan M5 / 2026-11-09 item)
+    fx, fx_src = _fx(d) if idx in (0, 2, 3, 4, 7) else (None, "")
+    px, met, cr = _prices() if idx in (0, 2, 3, 4, 5, 7, 8, 10, 12) else ({}, {}, [])
+    if idx == 0:
         _tab_brain(d, px, met, cr, fx)
-    with tabs[1]:
+    elif idx == 1:
         _tab_ideas()
-    with tabs[2]:
+    elif idx == 2:
         _tab_crypto(d, cr, fx)
-    with tabs[3]:
+    elif idx == 3:
         _tab_metals(d, met, fx, fx_src, egp)
-    with tabs[4]:
+    elif idx == 4:
         _tab_ledger(d, px, fx, egp)
-    with tabs[5]:
+    elif idx == 5:
         _tab_alerts(d, px)
-    with tabs[6]:
+    elif idx == 6:
         _tab_news(d)
-    with tabs[7]:
+    elif idx == 7:
         _tab_setup(d, px, fx)
-    with tabs[8]:   # owner 2026-11-06: an option on the side, loaded only on request
+    elif idx == 8:   # owner 2026-11-06: an option on the side, loaded only on request
         if st.session_state.get("sp_an_on") or st.button(T("Open the analyzer (1M / 1W / 1D / 4H + every school)", "افتح المحلل (شهري / أسبوعي / يومي / 4 ساعات + كل المدارس)"), key="sp_an_open"):
             st.session_state["sp_an_on"] = True
             _tab_analyzer(cr, met)
         else:
             st.caption(T("Not loaded until you open it (it downloads 4 timeframes).", "مش بيتحمّل غير لما تفتحه (بيحمّل 4 فريمات)."))
-    with tabs[9]:
+    elif idx == 9:
+        _tab_budget(d)
+    elif idx == 10:   # heavy (the whole Workspace app): built only on request, like the analyzer
+        if st.session_state.get("spc_on") or st.button(T("Open the spot chart (full Workspace chart + live setups)", "افتح شارت السبوت (شارت الـ Workspace كامل + الإشارات الحية)"), key="spc_open"):
+            st.session_state["spc_on"] = True
+            _tab_chart(d, cr)
+        else:
+            st.caption(T("Not loaded until you open it.", "مش بيتحمّل غير لما تفتحه."))
+    elif idx == 11:
         _tab_library()
+    elif idx == 12:
+        _tab_signals(d, px)
     st.caption(T("Suggestions only - nothing here places an order.", "اقتراحات بس - مفيش هنا أي أمر بيتنفذ."))

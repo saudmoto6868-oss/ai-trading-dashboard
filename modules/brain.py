@@ -117,17 +117,45 @@ def stats(entries, graded: dict) -> dict:
     return {"all": row(groups["all"]["all"]), "school": {k: row(v) for k, v in groups["school"].items()}, "key": {k: row(v) for k, v in groups["key"].items()}}
 
 
-def review_text(entries, graded: dict, day: str | None = None, ar: bool = True) -> str:
+def school_weights(entries, graded: dict, min_n: int = 10, shrink_n: int = 20, lo: float = 0.7, hi: float = 1.3) -> dict:
+    """EXPERIMENTAL score multiplier per school from its graded average R: mult = 1 + k * avg_r where k = n / (n + shrink_n) shrinks small samples toward 1.0, clamped to [lo, hi].
+    Only schools with n >= min_n get a weight (others stay 1.0). Under n = 30 this is NOT evidence, it is a gentle nudge to the ranking only; it never touches the scanner, stars or the lab.
+    Switch off with BRAIN_ADAPT=0."""
+    if os.environ.get("BRAIN_ADAPT", "1") == "0":
+        return {}
+    out = {}
+    for name, r in stats(entries, graded)["school"].items():
+        n = r["n"]
+        if n < min_n:
+            continue
+        k = n / (n + shrink_n)
+        out[name] = round(max(lo, min(hi, 1.0 + k * r["avg_r"])), 3)
+    return out
+
+
+def review_text(entries, graded: dict, day: str | None = None, ar: bool = True, agents: str = "", lessons: list | None = None) -> str:
     """The daily review message: how the last graded ideas did, per school, with the n<30 warning."""
     import html
     esc = html.escape
     st = stats(entries, graded)
     a = st["all"]
     if not a["n"]:
-        return ("🧠 <b>مراجعة المخ</b>\nلسه مفيش أفكار اتقيّمت (بتتقيّم بعد 6 ساعات على الأقل)." if ar else "🧠 <b>Brain review</b>\nNo idea has been graded yet (they are graded 6 h or more after the list).")
+        empty = ("🧠 <b>مراجعة المخ</b>\nلسه مفيش أفكار اتقيّمت (بتتقيّم بعد 6 ساعات على الأقل)." if ar else "🧠 <b>Brain review</b>\nNo idea has been graded yet (they are graded 6 h or more after the list).")
+        return empty + _lesson_block(lessons, ar, esc)
     lines = [f"🧠 <b>{'مراجعة المخ' if ar else 'Brain review'}</b> · {a['n']} {'فكرة متقيّمة' if ar else 'graded ideas'} · {'متوسط' if ar else 'avg'} {a['avg_r']:+.2f}R · {a['win']}% {'رابحة' if ar else 'wins'}"]
     rows = sorted(st["school"].items(), key=lambda kv: -kv[1]["n"])[:6]
     for name, r in rows:
-        lines.append(f"• {esc(name)}: n={r['n']} · {r['avg_r']:+.2f}R · {r['win']}%" + ("" if r["evidence"] else (" · ⚠ مش دليل (n<30)" if ar else " · ⚠ not evidence (n<30)")))
+        lines.append(f"• {esc(name)}: n={r['n']} · {r['avg_r']:+.2f}R · {r['win']}%" + ("" if r["evidence"] else (" · ⚠ مش دليل (n&lt;30)" if ar else " · ⚠ not evidence (n&lt;30)")))
+    if agents:
+        lines.append("\n" + agents)
     lines.append("\n<i>R قبل التكاليف. المخ بيسجّل ويقيّم ويقترح بس؛ أي ترقية بتعدي على اللاب الأسبوعي.</i>" if ar else "\n<i>R before costs. The brain logs, grades and suggests only; any promotion goes through the weekly lab.</i>")
+    lines.append(_lesson_block(lessons, ar, esc).rstrip())
     return "\n".join(lines)[:3900]
+
+
+def _lesson_block(lessons, ar: bool, esc) -> str:
+    """Journal lesson candidates: shown as suggestions only. Empty string when there are none."""
+    if not lessons:
+        return ""
+    head = "دروس من الجورنال (مرشحات، غير مطبّقة)" if ar else "Journal lessons (candidates, not applied)"
+    return "\n<b>" + head + "</b>\n" + "\n".join(f"• {esc(x)}" for x in lessons)

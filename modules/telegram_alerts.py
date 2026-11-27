@@ -143,6 +143,18 @@ def send(text: str, token: str | None = None, chat: str | None = None) -> str | 
         d = r.json().get("description", "")
     except Exception:
         d = ""
+    if r.status_code == 400 and "parse entities" in d:   # one stray "<" must not lose the alert: resend as plain text (tags stripped)
+        import html as _html
+        import re as _re
+        plain = _html.unescape(_re.sub(r"</?[a-zA-Z][^>]*>", "", text))
+        try:
+            r2 = requests.post(API.format(token=t), json={"chat_id": c, "text": plain, "disable_web_page_preview": True}, timeout=12)
+            if r2.status_code == 200:
+                return None
+        except requests.RequestException:
+            pass
+    if "can't send messages to the bot" in d:   # TELEGRAM_CHAT_ID holds a bot's id: nothing can ever be delivered
+        return f"HTTP {r.status_code}: {d[:100]} -> TELEGRAM_CHAT_ID is a bot id; set it to YOUR chat id (the one market-radar-bot uses)"
     return f"HTTP {r.status_code}: {d[:100]}"
 
 
@@ -157,3 +169,11 @@ def dispatch(alerts: list[dict], sent: dict, top_n: int = 3, min_q: int = 60) ->
             break
         mark(a, sent); n += 1
     return n, err
+
+
+NO_SECRETS = "no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID in Secrets"
+
+
+def no_secrets(err) -> bool:
+    """True when a send failed only because the Telegram secrets are not set (not a real send error)."""
+    return bool(err) and str(err).startswith(NO_SECRETS)

@@ -1,0 +1,246 @@
+{
+ "rule": {
+  "open_bars": 30,
+  "min_n": 30,
+  "cost_pct": 0.1
+ },
+ "rows": [
+  {
+   "day": "2026-11-21",
+   "asset": "GOLD",
+   "kind": "pattern",
+   "entry": [
+    3417.653176535281,
+    3515.39990234375
+   ],
+   "stop": 3231.129355629366,
+   "targets": [
+    4157.7001953125,
+    4398.0,
+    4584.0
+   ],
+   "status": "no feed"
+  },
+  {
+   "day": "2026-11-21",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1380.623023292353,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-22",
+   "asset": "GOLD",
+   "kind": "pattern",
+   "entry": [
+    3417.653176535281,
+    3515.39990234375
+   ],
+   "stop": 3231.129355629366,
+   "targets": [
+    4157.7001953125,
+    4398.0,
+    4584.0
+   ],
+   "status": "no feed"
+  },
+  {
+   "day": "2026-11-22",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1380.623023292353,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-23",
+   "asset": "SOL",
+   "kind": "divergence",
+   "entry": [
+    64.84,
+    75.9
+   ],
+   "stop": 57.21756067700464,
+   "targets": [
+    90.74,
+    95.2,
+    97.67
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-23",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1385.1424501998858,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-24",
+   "asset": "SOL",
+   "kind": "divergence",
+   "entry": [
+    64.84,
+    69.38
+   ],
+   "stop": 57.18841781986178,
+   "targets": [
+    83.98,
+    90.74,
+    95.2
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-24",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1384.1767359141716,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "still open"
+  },
+  {
+   "day": "2026-11-25",
+   "asset": "SOL",
+   "kind": "divergence",
+   "entry": [
+    64.84,
+    66.52
+   ],
+   "stop": 57.043989248433206,
+   "targets": [
+    83.98,
+    90.74,
+    95.2
+   ],
+   "status": "open",
+   "result": "no fill"
+  },
+  {
+   "day": "2026-11-25",
+   "asset": "GOLD",
+   "kind": "pattern",
+   "entry": [
+    3398.6810771314613,
+    3484.5
+   ],
+   "stop": 3216.4167263740196,
+   "targets": [
+    4157.7001953125,
+    4398.0,
+    4584.0
+   ],
+   "status": "no feed"
+  },
+  {
+   "day": "2026-11-25",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1620.38
+   ],
+   "stop": 1382.015307342743,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "no fill"
+  },
+  {
+   "day": "2026-11-26",
+   "asset": "SOL",
+   "kind": "divergence",
+   "entry": [
+    64.84,
+    71.32
+   ],
+   "stop": 57.043989248433206,
+   "targets": [
+    90.74,
+    95.2,
+    97.67
+   ],
+   "status": "open",
+   "result": "no fill"
+  },
+  {
+   "day": "2026-11-26",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1382.015307342743,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "no fill"
+  },
+  {
+   "day": "2026-11-27",
+   "asset": "ETH",
+   "kind": "discount",
+   "entry": [
+    1518.32,
+    1638.8
+   ],
+   "stop": 1382.015307342743,
+   "targets": [
+    1934.34,
+    1981.26,
+    2029.07
+   ],
+   "status": "open",
+   "result": "no fill"
+  }
+ ],
+ "summary": {},
+ "note": "Measured from the log, not decided here. Past prices only; not a forecast."
+}

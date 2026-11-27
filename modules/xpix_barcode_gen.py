@@ -4,7 +4,7 @@ src = open("gen.py").read(); exec(src.split("word = letters(")[0].replace("open(
 H, PW, PB = 172, 139, 57          # panel: height, top width, bottom width (slanted right edge)
 FG = '#e3e4e8'
 out = [f'<path fill="{FG}" d="M0 0 H{PW} L{PB} {H} H0 Z"/>']
-out.append(letters(20, 50, 25, '#0b0b0c', '#0b0b0c').replace('scale(0.25)', 'scale(0.235)'))
+out.append(letters(20, 50, 25, '#0b0b0c', '#0b0b0c').replace('scale(0.25)', 'scale(0.235)'))  # noqa: F821 (letters() comes from exec of gen.py above)
 # barcode: widths from the digits 6 8 6 8 and Fibonacci (deterministic), tops at 0 or a step down
 rnd = random.Random(6868); x = 149; fib = [1, 1, 2, 3, 5, 8]; seq = [6, 8, 6, 8]
 while x < 542:

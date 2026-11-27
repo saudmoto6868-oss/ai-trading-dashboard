@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install pandas numpy requests tzdata
       - name: Restore what was already sent
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830  # v4 (restore + save split 2026-11-20: a failed step must not drop the learning state)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6 (restore + save split 2026-11-20: a failed step must not drop the learning state)
         with:
           path: |
             .tg_sent.json
@@ -73,7 +73,7 @@ jobs:
         run: python -m modules.signal_log
       - name: Save sent memory, brain log, graded ideas, signal log (always, even if a step failed)
         if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6
         with:
           path: |
             .tg_sent.json
@@ -83,7 +83,7 @@ jobs:
             .brain_graded.json
             .signal_log.jsonl
           key: tg-sent-${{ github.run_id }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         if: always()
         with:
           name: signal-log

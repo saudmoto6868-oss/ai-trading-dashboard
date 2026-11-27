@@ -1,0 +1,49 @@
+# M10 + M11 (docs/MAINTENANCE_EFFICIENCY_PLAN.md): the guard before many agents work in parallel.
+# Every PR to main runs the whole tests/ folder and a small ruff check; a red check = do not merge.
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.14.0
+      - name: Errors (fail) - undefined name, redefined, repeated dict key
+        run: ruff check --select F821,F811,F601 --output-format github .
+      - name: Warnings only - unused import / variable
+        run: ruff check --select F401,F841 --exit-zero --statistics .
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: All tests (plain scripts; pytest files via pytest)
+        run: python scripts/run_tests.py --timeout 600   # test_harmonic_lab walks 1,090 bars x every detector: ~4 min

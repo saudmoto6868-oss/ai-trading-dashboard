@@ -1,1 +1,3 @@
 {"id": "HL:xyz:AMZN|2026-11-25", "symbol": "HL:xyz:AMZN", "class": "Stocks", "tf": "1d", "side": "short", "entry": 249.96, "stop": 275.0, "target": 212.40000000000003, "made_at": "2026-11-25", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:AMZN|2026-11-26", "symbol": "HL:xyz:AMZN", "class": "Stocks", "tf": "1d", "side": "long", "entry": 247.88, "stop": 245.5, "target": 251.45, "made_at": "2026-11-26", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:AMZN|2026-11-27", "symbol": "HL:xyz:AMZN", "class": "Stocks", "tf": "1d", "side": "long", "entry": 250.62, "stop": 245.5, "target": 258.3, "made_at": "2026-11-27", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}

@@ -294,7 +294,7 @@ def render(b: dict, ar: bool = True) -> str:
         ob = [z for z in r["obs"] if z["side"] == "bull"]
         smc_rows.append(f"<tr><td>{T(*TF_NAME[tf])}</td><td>{(ev['kind'] + ' ' + ('↑' if ev['dir'] == 'up' else '↓')) if ev else '—'}</td>"
                         f"<td>{_f(ob[-1]['lo']) + '–' + _f(ob[-1]['hi']) if ob else '—'}</td><td>{_f(fv[-1]['lo']) + '–' + _f(fv[-1]['hi']) if fv else '—'}</td>"
-                        f"<td>{(f'{dr['pos'] * 100:.0f}%') if dr else '—'}</td></tr>")
+                        f"<td>{(format(dr['pos'] * 100, '.0f') + '%') if dr else '—'}</td></tr>")
     ew_rows, gn_rows, hm_rows = [], [], []
     for tf in ("1mo", "1w", "1d"):
         r = reads.get(tf) or {}

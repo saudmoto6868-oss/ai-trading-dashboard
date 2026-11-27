@@ -50,11 +50,10 @@ def render() -> None:
       <p class="tic-sub">Knowledge · Research · Evidence · Decisions &nbsp; <span class="tic-chip">PAGE 17</span></p>
     </section>
     """, unsafe_allow_html=True)
-    overview, library, research, room = st.tabs(
-        ["Command Center", "Knowledge", "Research", "Meeting Room"]
-    )
+    # one view at a time: only the picked section runs (maintenance plan M4)
+    view = st.segmented_control("View", ["Command Center", "Knowledge", "Research", "Meeting Room"], default="Command Center", key="tic_view", label_visibility="collapsed") or "Command Center"
 
-    with overview:
+    if view == "Command Center":
         snap = build_command_snapshot()
         tasks = snap.get("tasks") or {}
         academy = snap.get("academy") or {}
@@ -124,7 +123,7 @@ def render() -> None:
             st.caption("لا توجد لقطات بحث منشورة أو لم تُقرأ بعد.")
         st.caption(f"Snapshot generated: {snap.get('generated_at', '—')}")
 
-    with library:
+    if view == "Knowledge":
         st.markdown("### Shared knowledge")
         knowledge.initialize()
         q = st.text_input("Search title, summary or details", key="tic_knowledge_query")
@@ -235,7 +234,7 @@ def render() -> None:
         if not rows:
             st.caption("لا توجد سجلات مطابقة. ستظهر هنا المعرفة بعد فهرستها ومراجعتها.")
 
-    with research:
+    if view == "Research":
         st.markdown("### Research Hub · published snapshots")
         snap = build_command_snapshot()
         hub = snap.get("research_hub") or {}
@@ -273,7 +272,7 @@ def render() -> None:
         st.write("- Playbook: accepted operating rules and execution guidance.")
         st.write("- Radar / Technical Office / Spot: remain in their existing pages and retain their own controls.")
 
-    with room:
+    if view == "Meeting Room":
         st.markdown("### Meeting Room")
         st.caption("سجل تراكمي: طلبات المالك، القرارات، ما اكتمل، الخطوات التالية، العوائق وتقارير الوكلاء.")
         st.markdown("#### Task handoff · proposal only")

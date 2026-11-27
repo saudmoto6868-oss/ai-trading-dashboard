@@ -311,7 +311,13 @@ def _tab_brain(d, px, met, cr, fx):
         m["score"] = 20 if m["wk"] > 0.3 else -20 if m["wk"] < -0.3 else 0
     from modules import spot_brain_view
     import streamlit.components.v1 as components
-    components.html(spot_brain_view.render(br, marks), height=1400, scrolling=True)
+    # owner 2026-11-27: the key view fits one 1440x900 screen with no page scroll; the full mosaic is one click away.
+    view = st.radio(T("View", "العرض"), [T("Key view (one screen)", "العرض الأساسي (شاشة واحدة)"), T("Full detail", "التفاصيل الكاملة")],
+                    horizontal=True, key="sp_br_view", label_visibility="collapsed")
+    if view == T("Full detail", "التفاصيل الكاملة"):
+        components.html(spot_brain_view.render(br, marks), height=1400, scrolling=True)
+    else:
+        components.html(spot_brain_view.render_key(br, marks), height=620, scrolling=False)
     with st.expander(T("How it decided (thinking log)", "فكّر إزاي (سجل التفكير)")):
         for k, h in br["horizons"].items():
             st.markdown(f"**{h['label']}: {h['verdict_ar']} ({h['score']:+d})** - " + " · ".join(h["reasons"]))

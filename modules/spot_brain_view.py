@@ -200,3 +200,82 @@ def render(br: dict, markets: list | None = None) -> str:
                '<div class="s" style="margin-top:8px">قواعد من المدارس والأوردر فلو وتقارير COT، لسه من غير باك تيست لكل مدة. السبوت شراء بس - «بيع» هنا يعني تخرج من اللي معاك. مفيش أي أمر بيتنفذ.</div></div>')
     out.append("</body></html>")
     return "".join(out)
+
+
+# ---------------------------------------------------------------- key view (one screen, no page scroll)
+KEY_CSS = f"""<style>*{{box-sizing:border-box}}html,body{{margin:0;height:100%;overflow:hidden;background:{BG};color:{T};font-family:Inter,Segoe UI,Tahoma,Arial,sans-serif}}
+.kg{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto auto minmax(0,1fr) minmax(0,1fr);gap:8px;padding:8px;height:100vh;overflow:hidden}}
+.kc{{background:{P};border:1px solid {L};border-radius:4px;padding:7px 9px;min-width:0;min-height:0;overflow:hidden}}
+.kt{{font-size:11px;color:{D};letter-spacing:.04em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.kl{{font-size:12px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.kbar{{height:5px;background:{L};border-radius:3px;margin:4px 0 6px;overflow:hidden}} .kbar i{{display:block;height:100%;background:{A}}}
+.kn{{font-size:17px;font-weight:800;direction:ltr}} svg{{width:100%;height:auto;max-height:100%;direction:ltr}}
+.kfoot{{grid-column:1/-1;font-size:10px;color:{D};align-self:end}}
+@media(max-width:1000px){{html,body{{overflow:auto}}.kg{{height:auto;grid-template-columns:1fr 1fr}}}}</style>"""
+
+
+def render_key(br: dict, markets: list | None = None) -> str:
+    """The Spot brain's key view on ONE screen (owner 2026-11-27): top strip (market, price, decision), four horizon
+    cards, weekly levels chart, flow + COT, holdings guard, setups, news. Same data as render(); details stay in render()."""
+    b = br["bundle"]
+    R = b["reads"]
+    px = br["price"]
+    hz = br["horizons"]
+    fl = br.get("raw_flow") or {}
+    ct = br.get("raw_cot") or {}
+    best = max(hz.values(), key=lambda h: h["score"])
+    w1 = R.get("1w") or {}
+    wkchg = (float(w1["c"][-1] / w1["c"][-2] - 1) * 100) if w1.get("ok") else None
+    plan = b.get("plan") or {}
+    wl = [(plan.get("invalidation"), "إلغاء", RED, "4 3")] + [(x, f"شراء{i + 1}", A, "2 3") for i, x in enumerate(plan.get("buys", [])[:3])] + \
+         [(x, f"T{i + 1}", A2, "6 3") for i, x in enumerate(plan.get("sells", [])[:2])]
+    out = [f'<html dir="rtl"><head><meta charset="utf-8">{KEY_CSS}</head><body><div class="kg">']
+    # top strip
+    out.append(f'<div class="kc" style="grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'
+               f'<span class="a" style="font-weight:800">العقل المدبر</span><span class="kl">{e(br["name"])}</span>'
+               f'<span class="kn" dir="ltr">{f(px)}</span>'
+               f'<span class="kl" dir="ltr" style="color:{A if (wkchg or 0) >= 0 else RED}">{(wkchg or 0):+.2f}% أسبوع</span>'
+               f'<span style="margin-inline-start:auto;font-size:15px;font-weight:800">القرار: {e(best["verdict_ar"])}</span>'
+               f'<span class="kl" style="color:{D}">{e(best["label"])}</span></div>')
+    # four horizon cards
+    for k, lab in HZ:
+        h = hz[k]
+        ent = h.get("entry")
+        lv = f'دخول {f(ent[0])}-{f(ent[1])} · وقف {f(h.get("stop"))} · هدف {f(h.get("target"))}' if ent else "مفيش مستوى دخول"
+        rr = f' · {h["rr"]:.1f}R' if h.get("rr") else ""
+        out.append(f'<div class="kc"><div class="kt">{e(lab)}</div><div style="display:flex;justify-content:space-between;align-items:baseline">'
+                   f'<b style="font-size:14px">{e(h["verdict_ar"])}</b><span class="kl" dir="ltr">{h["score"]:+d}</span></div>'
+                   f'<div class="kbar"><i style="width:{max(0, min(100, (h["score"] + 100) / 2)):.0f}%"></i></div>'
+                   f'<div class="kl" dir="ltr" style="white-space:normal" title="{e(lv + rr)}">{e(lv + rr)}</div>'
+                   f'<div class="kl" style="color:{D}">{e(" · ".join(h["reasons"][:2]))}</div></div>')
+    # weekly levels chart (spans two columns)
+    chart = line(list(w1.get("c", []))[-104:], 700, 150, wl) if w1.get("ok") else '<div class="kl" style="color:%s">مفيش داتا أسبوعية</div>' % D
+    out.append(f'<div class="kc" style="grid-column:span 2;min-height:0"><div class="kt">الأسبوعي · مستويات الخطة</div>{chart}</div>')
+    # flow + COT
+    dv = fl.get("deriv") or {}
+    tiles = [("التمويل", f'{dv["funding"]:+.4f}%' if dv.get("funding") is not None else "—"),
+             ("OI أسبوع", f'{dv["oi_chg_7d"]:+.1f}%' if dv.get("oi_chg_7d") is not None else "—"),
+             ("لونج/شورت", f'{dv["ls_ratio"]:.2f}' if dv.get("ls_ratio") else "—"),
+             ("COT التجار", f'{ct["comm_idx"]:.0f}%' if ct.get("ok") else "—")]
+    out.append('<div class="kc"><div class="kt">فلو وفلوس ذكية</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+               + "".join(f'<div><div class="kt" style="margin:0">{e(a)}</div><div class="kl" dir="ltr" style="font-weight:700">{e(v)}</div></div>' for a, v in tiles)
+               + "</div></div>")
+    # holdings guard
+    gbars = "".join(f'<div class="kl">{e(x.get("action_ar", ""))} · <span style="color:{D}">{e(x.get("why", "")[:60])}</span></div>' for x in (br.get("guard") or [])[:3])
+    out.append(f'<div class="kc"><div class="kt">اللي معاك · الحماية</div>{gbars or "<div class=kl style=color:%s>مفيش مركز للسوق ده</div>" % D}</div>')
+    # setups (span 2)
+    sets = "".join(f'<div class="kl">{"🟢" if x.get("side") == "buy" else "🔴"} <b>{e(x.get("tf", ""))}</b> {e(str(x.get("name", ""))[:56])} '
+                   f'<span style="color:{D}">· {e(str(x.get("ev_label", ""))[:40])}</span></div>' for x in (br.get("setups") or [])[:4])
+    out.append(f'<div class="kc" style="grid-column:span 2"><div class="kt">أقوى الـ setups (قواعد، مش باك تيست)</div>{sets or "<div class=kl style=color:%s>مفيش setup دلوقتي</div>" % D}</div>')
+    # news
+    nws = (br.get("news") or {}).get("items", [])[:2]
+    news = "".join(f'<div class="kl">{e(x["title"][:70])}</div>' for x in nws) or f'<div class="kl" style="color:{D}">مفيش خبر مرتبط</div>'
+    out.append(f'<div class="kc"><div class="kt">أخبار</div>{news}</div>')
+    # best entry (buy levels from the weekly plan)
+    buys = [x for x in (plan.get("buys") or [])[:3]]
+    bl = "".join(f'<div class="kl" dir="ltr">شراء{i + 1}: {f(x)}</div>' for i, x in enumerate(buys))
+    out.append(f'<div class="kc"><div class="kt">أفضل دخول (السلم)</div>{bl or "<div class=kl style=color:%s>مفيش سلم شراء</div>" % D}'
+               f'<div class="kl" dir="ltr" style="color:{RED}">إلغاء: {f(plan.get("invalidation"))}</div></div>')
+    out.append(f'<div class="kfoot">قرارات وقواعد، مش أمر تنفيذ ومش وعد بربح · التفاصيل والمدارس الكاملة في تبويب "التفاصيل" · {e(b.get("source", ""))}</div>')
+    out.append("</div></body></html>")
+    return "".join(out)

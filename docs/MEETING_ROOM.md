@@ -189,3 +189,6 @@
 - اتصلح في الاختبار: الـ tf في الـ setups lowercase (`1d`)، مش `1D`.
 - الـ GitLab: `.gitlab-ci.yml` مش موجود في الـ checkout المحلي، فمفيش مرآة schedule-only لحد ما المالك يوافق على الـ push لـ GitLab.
 - `PROJECT_STATUS.md`: اتشالت علامات merge conflict كانت متسجلة في الـ HEAD.
+- [2026-11-27] مهمة 2 (الخطة): `modules/spot_checklist.py` (حجم المركز بمخاطرة 1%، سقف 25%، وقف أقصاه 20%، checklist قبل أي شراء، وتقسيم الهدف 1/3 + 1/3 + الباقي متحرك). `docs/SPOT_PLAN.md` فيه كل استراتيجية بوسمها. **مش معروض على الصفحة لسه.** Mock/synthetic بس.
+- [2026-11-27] مهمة 3 (شاشة واحدة): `render_key()` في `spot_brain_view.py` — تبويب العقل المدبر بيفتح "العرض الأساسي" (620 بكسل من غير سكرول)، و"التفاصيل الكاملة" هو الـ mosaic القديم بزرار. Playwright على 1440×900 و1440×620 (بيانات synthetic): مفيش سكرول ومفيش كارت مقطوع. **شريط Streamlit الحقيقي لسه ماتقاسش** (Streamlit مش متركب في الـ sandbox أصلًا قبل الجلسة دي، واتركب دلوقتي للـ AppTest بس). التفاصيل: `docs/SPOT_LAYOUT.md`.
+- ملاحظة: `st.components.v1.html` بيطلع تحذير إنه هيتشال بعد 2026-06-01 (Streamlit 1.66). ترحيل لـ `st.iframe` شغل منفصل.

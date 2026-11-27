@@ -163,3 +163,8 @@
 - **مصدر الذهب (Hyperliquid `xyz:GOLD`):** اتختبر read-only: `candleSnapshot` رجّع 289 شمعة 15m. لازم `SSL_CERT_FILE` يتحط على شهادة certifi (`.../site-packages/certifi/cacert.pem`) عشان Python يشتغل.
 - **المفتوح:** `data2/fetch.py` لسه Yahoo بس (`GC=F`). `README` بتاع template-2 بيقول `build_spec3.py` و`fetch` من Hyperliquid، بس الملفين مش موجودين. الشغل ده محتاج قرار: يتبنى ولا لأ.
 - **الريستارت الكامل، وتجربة "تجربة" على تليجرام:** لسه، والمالك.
+
+### 7.3) pipeline الذهب من Hyperliquid — 2026-11-27
+- `video-studio/data2/fetch.py` بيجيب `xyz:GOLD` من Hyperliquid (15m/1h/1d/1wk) وFRED للـDXY/TNX، ويكتب ملفات بشكل Yahoo عشان `analysis2.py` و`build_spec3.py` يشتغلوا من غير تعديل. اتشغّل ونجح: 1000 شمعة 15m، سعر 3645.5.
+- `build_spec3.py` كتب `specs/gold_template2.json` (الـbackup: `specs/gold_template2.pre-hl-<وقت>.json`).
+- **مفتوح:** مستويات السيناريوهات مكتوبة بإيد في `build_spec3.py`، لازم تتراجع بعد كل تحديث للداتا. الفضة `si_1d` تاريخها 1970 (بيانات قديمة). الـDXY من 19 نوفمبر والـTNX من 23 نوفمبر (تأخير FRED). الفيديو ماتعملش render.

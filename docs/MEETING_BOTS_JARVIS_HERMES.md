@@ -126,3 +126,21 @@
 
 **بعد ما تخلص:** اكتب سطر في المحضر فوق: اتعمل إيه، إيه اللي اتجرّب فعلًا، وإيه اللي لسه.
 **مراجع:** `market-radar-bot/docs/CONVERSATION_LOG.md` (القصة كاملة)، والمحضر ده.
+
+## 7) جرد الخدمات على الماك — 2026-11-27 (قبل وبعد)
+| البند | قبل | بعد | يقوم لوحده بعد restart؟ |
+|---|---|---|---|
+| OpenClaw gateway (18789) + Dashboard | شغال | شغال (Dashboard = 200) | نعم: `ai.openclaw.gateway` (KeepAlive) |
+| واجهات Jarvis / Hermes المحلية (18801 / 18802) | شغالين | شغالين، ردّوا على "تجربة" | نعم: `local.agent-apps` (KeepAlive) |
+| OpenClaw app | مش موجود في Applications | — | n/a (الـ gateway بيتشغل من الـ CLI) |
+| Telegram polling (Jarvis + Hermes) | شغال، فيه تعارض 12:35 | شغال، من غير تعارض بعد الريستارت | عن طريق الـ gateway |
+| Ollama `qwen3.5:4b` (11434) | شغال من Ollama.app | شغال، `openclaw infer` رد "أوكي" (بطيء ~3 دقايق) | ❓ Ollama.app مش login item |
+| سيرفر MCP `6868-brain` على 8765 | ❌ المنفذ مشغول بـ `python -m http.server` (PID 85720، مجلد scratch) | ❌ لسه. اختبار على 8766: 401 بدون توكن، 200 بالتوكن | ❌ اتعمل `com.6868.mcp-http` (KeepAlive)، **مش محمّل** |
+| نفق ngrok لعقل 6868 | ❌ مش شغال | ❌ لسه. اتعمل `com.6868.ngrok`، **مش محمّل** | ❌ |
+| Grok (xAI) | مش متسجّل | مش متسجّل | محتاج تسجيل دخول المالك |
+
+**المفتوح:**
+- إيقاف PID 85720 (المنفذ 8765) ده قرار المالك.
+- الـ `history` فيه `ngrok http 80 --url ...` مش 8765، فالـ plist بيستخدم 8765 حسب المحضر. محتاج تأكيد.
+- macOS بيمنع الـ launchd من قراءة `Documents`، فالسيرفر محتاج Full Disk Access لـ `python3` (المالك بس).
+- التجربة على تليجرام: المالك يبعت "تجربة" لـ `@xpix77bot` و `@hermes_6868_77_bot`.

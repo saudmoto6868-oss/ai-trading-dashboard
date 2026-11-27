@@ -63,9 +63,11 @@ def record_day(fetch, today=None, folder=None):
                 print(f"skip {s}: {type(e).__name__}", file=sys.stderr)
                 continue
             if rows is None or len(rows) < 40:
+                print(f"no call {s}: only {0 if rows is None else len(rows)} daily bars (need 40)", file=sys.stderr)
                 continue
             c = baseline_call(rows)
             if not c:
+                print(f"no call {s}: no clean leg today (no two confirmed pivots, or the close already broke the leg start)", file=sys.stderr)
                 continue
             rec = {"id": f"{s}|{today}", "symbol": s, "class": cls, "tf": TF, **c, "made_at": today,
                    "horizon_bars": HORIZON, "rule": "baseline v0: last zig-zag leg continuation"}

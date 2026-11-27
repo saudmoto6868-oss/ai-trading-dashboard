@@ -157,3 +157,9 @@
   - أرشفة السيشنات: مش متعملة، والسيشنات دلوقتي صغيرة.
   - مصدر الـ poller التاني على 12:35: مجهول.
   - مصادر الذهب في فيديو Jarvis (Hyperliquid xyz:GOLD): مش متعملة.
+
+### 7.2) متابعة — 2026-11-27
+- **أرشفة السيشن الكبيرة:** `agent:main:telegram:direct:1469230681` (242k) اتأرشفت بـ `openclaw sessions archive` (مش اتمسحت). السيشن الجاية بتبدأ جديدة. `agent:main:main` (100k) سايبها.
+- **مصدر الذهب (Hyperliquid `xyz:GOLD`):** اتختبر read-only: `candleSnapshot` رجّع 289 شمعة 15m. لازم `SSL_CERT_FILE` يتحط على شهادة certifi (`.../site-packages/certifi/cacert.pem`) عشان Python يشتغل.
+- **المفتوح:** `data2/fetch.py` لسه Yahoo بس (`GC=F`). `README` بتاع template-2 بيقول `build_spec3.py` و`fetch` من Hyperliquid، بس الملفين مش موجودين. الشغل ده محتاج قرار: يتبنى ولا لأ.
+- **الريستارت الكامل، وتجربة "تجربة" على تليجرام:** لسه، والمالك.

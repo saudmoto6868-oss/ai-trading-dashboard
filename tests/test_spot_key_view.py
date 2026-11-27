@@ -28,3 +28,15 @@ out = os.environ.get("SPOT_KEY_OUT") or os.path.join(tempfile.gettempdir(), "spo
 with open(out, "w", encoding="utf8") as fh:
     fh.write(h)
 print("test_spot_key_view OK")
+
+# Timeframe skills: unavailable scalp is dropped, the mapping to brain horizons is fixed, and the key view shows only
+# the asked horizons (the brain computes all four, but a hidden horizon may use missing inputs).
+from modules import spot_brain, spot_skills as SK
+assert SK.horizons_for(("scalp", "day", "yearly")) == ("day", "year"), SK.horizons_for(("scalp", "day", "yearly"))
+assert SK.horizons_for(SK.DEFAULT) == ("day", "week", "month", "year")
+assert not SK.available("scalp") and SK.horizons_for(("scalp",)) == ()
+with contextlib.redirect_stdout(io.StringIO()):
+    br2 = spot_brain.run("GOLD", "metals", "الدهب", candles=tsb.get, flow=tsb.flow, news_items=[], horizons=("day", "week"))
+h2 = V.render_key(br2, markets)
+assert "يوم-3" in h2 and "أسبوع-4" in h2 and "شهر-3" not in h2 and "6-12 شهر" not in h2, "hidden horizons leaked"
+print("test_spot_key_view: skills + asked horizons OK")

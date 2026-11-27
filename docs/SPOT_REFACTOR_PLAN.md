@@ -27,3 +27,11 @@ Branch: `claude/multi-asset-bot-plan-q8fhg8` (PR #297 is a draft: do not mark re
 1. OK to start steps 1–6 in this order?
 2. Timeframe pairs above: keep as written, or change any?
 3. Which horizons show by default on the key view (scalp, day, swing, monthly, yearly)?
+
+## Progress (2026-11-27, branch `claude/multi-asset-bot-plan-q8fhg8`)
+- Step 1 done: dead `report_ar` removed (`b19dd12`).
+- Step 2 done (core): `spot_brain.run(horizons=...)` fetches only the inputs the asked horizons need; holdings = all inputs (`d36c4f0`). TTL cache for news 15 min, flow 5 min, COT 1 h (`1f932c6`). Setups are not cached (they depend on the bundle). Tools are still in shared modules, not one module per tool with lazy import: not done.
+- Step 3 done (partial): `modules/spot_skills.py`, skill picker on the brain tab (defaults: day, swing, monthly, yearly), key view shows only the asked horizons. **Scalp is listed but unavailable**: the bundle has no 15m / 1H candles yet.
+- Step 5 done: one-screen check re-run at 1440×900 and 1440×620, with 4 horizons and with 2. No scroll, no clipped card. Synthetic data only.
+- Step 4 (visuals from brain output only) and step 6 (full test pass after each step) are not done as separate items. The full detail mosaic still shows all four horizons.
+- Not tested: live data, real Streamlit chrome.

@@ -237,7 +237,8 @@ def render_key(br: dict, markets: list | None = None) -> str:
     hz = br["horizons"]
     fl = br.get("raw_flow") or {}
     ct = br.get("raw_cot") or {}
-    best = max(hz.values(), key=lambda h: h["score"])
+    asked = br.get("horizons_asked") or [k for k, _ in HZ]
+    best = max((hz[k] for k in asked), key=lambda h: h["score"])
     w1 = R.get("1w") or {}
     wkchg = (float(w1["c"][-1] / w1["c"][-2] - 1) * 100) if w1.get("ok") else None
     plan = b.get("plan") or {}
@@ -253,6 +254,8 @@ def render_key(br: dict, markets: list | None = None) -> str:
                f'<span class="kl" style="color:{D}">{e(best["label"])}</span></div>')
     # four horizon cards
     for k, lab in HZ:
+        if k not in asked:
+            continue
         h = hz[k]
         ent = h.get("entry")
         lv = f'دخول {f(ent[0])}-{f(ent[1])} · وقف {f(h.get("stop"))} · هدف {f(h.get("target"))}' if ent else "مفيش مستوى دخول"

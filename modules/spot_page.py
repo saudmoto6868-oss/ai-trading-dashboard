@@ -254,10 +254,10 @@ def _tab_analyzer(cr, met):
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _brain(asset: str, cls: str, name: str, holdings_key: str) -> dict:
+def _brain(asset: str, cls: str, name: str, holdings_key: str, horizons: tuple = ()) -> dict:
     import json as _j
     from modules import spot_brain
-    return spot_brain.run(asset, cls, name, holdings=_j.loads(holdings_key))
+    return spot_brain.run(asset, cls, name, holdings=_j.loads(holdings_key), horizons=horizons or None)
 
 
 def _tab_brain(d, px, met, cr, fx):
@@ -271,9 +271,17 @@ def _tab_brain(d, px, met, cr, fx):
     asset, cls, name = uni[pick]
     import json as _j
     pos = [{k: p.get(k) for k in ("asset", "qty", "avg_usd", "unreal_pct")} for p in C.positions(d["txs"], px, fx)]
+    from modules import spot_skills as SK
+    labels = {k: f'{v["ar"]}' for k, v in SK.SKILLS.items()}
+    picked = st.multiselect(T("Timeframe skills", "مهارات الفريمات"), list(SK.SKILLS), default=list(SK.DEFAULT),
+                            format_func=lambda k: labels[k] + ("" if SK.available(k) else " (مش متاح)"), key="sp_br_skills")
+    hz_asked = SK.horizons_for(picked)
+    if not hz_asked:
+        st.info(T("Pick at least one available timeframe skill.", "اختار مهارة فريم واحدة على الأقل."))
+        return
     with st.spinner(T("Thinking: schools, order flow, institutions, news ...", "بفكر: المدارس والأوردر فلو والمؤسسات والأخبار ...")):
         try:
-            br = _brain(asset, cls, name, _j.dumps(pos, default=str))
+            br = _brain(asset, cls, name, _j.dumps(pos, default=str), hz_asked)
         except Exception as e:
             st.error(f"{type(e).__name__}: {e}")
             return

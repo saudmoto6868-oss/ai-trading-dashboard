@@ -69,8 +69,6 @@ noise = [{"horizon": "day", "verdict": "buy", "ret": (0.03 if i % 2 else -0.03),
 assert L.summary(noise)["day|buy"]["label"].startswith("مفيش"), L.summary(noise)
 worse = [{"horizon": "week", "verdict": "accumulate", "ret": -0.02 - 0.001 * (i % 3), "outcome": "stop"} for i in range(40)]
 assert L.summary(worse)["week|accumulate"]["label"].startswith("كان أسوأ")
-assert "مش دليل" in L.report_ar({"day|buy": L.summary(few)["day|buy"]})
-assert L.report_ar({}).startswith("🧠")
 # 9. every live setup is logged (options kept side by side), scored by its own id, never by a verdict
 br2 = {"asset": "GOLD", "price": 100.0, "horizons": {}, "setups": [
     {"id": "ew_w2", "tf": "1w", "side": "buy", "entry": (99, 101), "stop": 95, "target": 110},

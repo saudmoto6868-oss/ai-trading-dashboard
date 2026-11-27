@@ -166,16 +166,6 @@ def summary(scored: list[dict]) -> dict:
     return res
 
 
-def report_ar(res: dict) -> str:
-    if not res:
-        return "🧠 سجل قرارات المخ: لسه مفيش قرارات اتقاست (لازم الأفق يخلص الأول)."
-    lines = ["🧠 سجل قرارات المخ (ما بيغيّرش الأوزان لحد n ≥ 30 و t ≥ 3):"]
-    for k, v in res.items():
-        h, verdict = k.split("|")
-        lines.append(f"• {h} / {verdict}: {v['label']} · نجاح {v['hit_pct']:.0f}% · متوسط {v['mean_pct']:+.2f}%")
-    return "\n".join(lines)
-
-
 def stability(scored: list[dict]) -> dict:
     """Does a group hold up over time? Splits each group's outcomes by scoring time into an earlier and a later half.
     Same sign and both halves with n >= 10 -> 'holds'; sign flip -> 'flips'; too few -> 'not yet'. Labels only, no weights."""

@@ -606,4 +606,6 @@ st.session_state["_rt"] = _NS(UI_THEME=UI_THEME, UI_BG=UI_BG, UI_MAT=UI_MAT, SCA
                               market_type=market_type, _ac_msg=_ac_msg, ACTIVE_SYMBOLS=ACTIVE_SYMBOLS, _IS_MOBILE=_IS_MOBILE,
                               tg_on=tg_on, tg_top=tg_top, tg_min=tg_min, ws_height=ws_height)
 if PAGE in _PAGE_FN:
-    _PAGE_FN[PAGE]()
+    from modules.perf_log import timed as _timed
+    with _timed("page %s" % PAGE):   # PERF_LOG=1 (M0 0.4)
+        _PAGE_FN[PAGE]()

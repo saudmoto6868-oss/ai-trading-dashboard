@@ -25,7 +25,7 @@ const { chromium } = require('playwright');
   console.log('state', JSON.stringify(out));
   await p.waitForTimeout(4000);   // let the frame box fetch its frames
   const box = await p.evaluate(() => { const ch = Ws.panels.find(q => q.type === 'chart' && q.chart && q.chart.data.length).chart; ch.draw();
-    const st = ch._ewMtf || {}; return Object.keys(st).filter(k => st[k] && st[k].v).map(k => k.split('|')[1] + ':' + st[k].v.state); });
+    const st = ch._ewMtf || {}; return Object.keys(st).filter(k => st[k] && st[k].v).map(k => k.split('|')[1] + ':' + st[k].v.line); });
   console.log('frame rows', box.length, JSON.stringify(box.slice(0, 9)));
   await p.keyboard.press('x'); const off = await p.evaluate(() => CandleChart.projOn); await p.keyboard.press('x'); const on = await p.evaluate(() => CandleChart.projOn);
   console.log('X toggles', off === false && on === true ? 'ok' : 'FAIL', 'errors', errs.length, errs.slice(0, 3).join(' | '));

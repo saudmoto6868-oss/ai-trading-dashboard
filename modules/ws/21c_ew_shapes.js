@@ -163,8 +163,8 @@ Object.assign(CandleChart.prototype, {
       const high = q.k === "H"; if (high ? nb >= 3 : ns >= 3) continue; if (high) nb++; else ns++;
       const x0 = this.x(q.i), y = py(q.p), col = high ? "#4aa3ff" : "#f6465d";
       c.save(); c.setLineDash([2,3]); c.strokeStyle = col; c.globalAlpha = .6; c.beginPath(); c.moveTo(x0, y); c.lineTo(PR, y); c.stroke(); c.restore();
-      c.save(); c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "right"; c.textBaseline = high ? "bottom" : "top";
-      c.fillText(high ? Lg("BSL · buy-side liquidity", "BSL · سيولة شراء") : Lg("SSL · sell-side liquidity", "SSL · سيولة بيع"), PR - 4, y + (high ? -2 : 2)); c.restore();
+      c.save(); c.font = "bold 9px sans-serif"; c.fillStyle = col; c.textAlign = "left"; c.textBaseline = high ? "bottom" : "top";   // label at the swing itself, clear of the corner boxes
+      c.fillText(high ? Lg("BSL · buy-side liquidity", "BSL · سيولة شراء") : Lg("SSL · sell-side liquidity", "SSL · سيولة بيع"), Math.min(x0 + 6, PR - 130), y + (high ? -2 : 2)); c.restore();
     }
   },
   ewSubLine(c, n){   // the count inside the newest wave (smaller swing size). One line; labels only.
@@ -176,8 +176,10 @@ Object.assign(CandleChart.prototype, {
 });
 /* SIDES-END */
 /* PROJ-BEGIN expected zone for the wave that is forming (a description, not a forecast). Key X hides / shows it. */
-CandleChart.projOn = true;
-document.addEventListener("keydown", e => { if ((e.key === "x" || e.key === "X") && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) CandleChart.projOn = !CandleChart.projOn; });
+CandleChart.projOn = true; CandleChart.mtfOn = true;
+document.addEventListener("keydown", e => { if (e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return;   // Ctrl+F stays the browser find
+  if (e.key === "x" || e.key === "X") CandleChart.projOn = !CandleChart.projOn;
+  if (e.key === "f" || e.key === "F") CandleChart.mtfOn = !CandleChart.mtfOn; });
 Object.assign(CandleChart.prototype, {
   paintProjection(c, py){
     const f = this._ewf; if (!CandleChart.projOn || !f || !f.pts || f.pts.length < 2) return;
@@ -221,20 +223,19 @@ Object.assign(CandleChart.prototype, {
 /* EWMTF-BEGIN compact multi-timeframe Elliott status, top-right corner (labels only; reuses ewCount / ewForming / EWShape on each frame's candles) */
 const EW_MTF_FRAMES = ["1Y","1M","1W","1D","4H","1H","15m","5m","1m"];   // 1Y is built from the monthly candles (no yearly feed needed)
 Object.assign(CandleChart.prototype, {
-  ewFrameSummary(rows, tf){   // one frame -> {tf, state, shape, next} (state text only; no forecast)
+  ewFrameSummary(rows, tf){   // one frame -> {tf, line}: a short status (done / forming / next) + the shape, labels only
     const o = {data: rows, tf, ewForming: CandleChart.prototype.ewForming};
     const list = CandleChart.prototype.ewCount.call(o), f = o._ewf;
     const z = harmZigzag(rows, zzDev(rows, 2.5, 0.001, 0.025), 3);
     const shape = EWShape.tail(z.map(q => q.p));
-    let state = "—", next = null;
-    if (list.length){
-      const top = list[0];
-      if (top.pts.length >= 6 && top.abc.length >= 3) { state = Lg("impulse done, ABC done", "دافعة خلصت، والـ ABC خلص"); next = Lg("new impulse", "دافعة جديدة"); }
-      else if (top.pts.length >= 6) { state = Lg("impulse 1-5 done", "دافعة 1-5 خلصت"); next = Lg("ABC next", "ABC جاي"); }
-      else if (top.abc.length) { state = Lg("ABC forming", "ABC بيتكون"); next = Lg("ABC C next", "الموجة C جاية"); }
-    }
-    if (f){ state = Lg("forming, wave ", "بتتكون، موجة ") + f.next; next = Lg("wave ", "موجة ") + f.next; }
-    return {tf, state, shape: shape ? (EWShape_AR_OR_EN(shape)) : "—", next: next || "—"};
+    let st = "";
+    if (list.length){ const top = list[0];
+      if (top.pts.length >= 6 && top.abc.length >= 3) st = Lg("1-5 ✓ ABC ✓", "1-5 ✓ ABC ✓");
+      else if (top.pts.length >= 6) st = Lg("1-5 ✓ → ABC", "1-5 ✓ ← ABC");
+      else if (top.abc.length) st = Lg("ABC → C", "ABC ← C"); }
+    if (f) st = Lg("→ wave " + f.next, "← موجة " + f.next);
+    const sh = shape ? EWShape_AR_OR_EN(shape) : "";
+    return {tf, line: (st || "—") + (sh ? "  ·  " + sh : "")};
   },
   ewMTFBox(c){   // top-right corner: one line per frame, newest frames first; cached 5 min per frame; drawn only when Elliott is on
     if (!this.sym) return;
@@ -253,12 +254,16 @@ Object.assign(CandleChart.prototype, {
       if (store[k] && store[k].v) rows.push(store[k].v);
     }
     if (!rows.length) return;
-    const PR = this.PR, lh = 12, W = 230, H = 16 + rows.length*lh;
-    c.save(); c.globalAlpha = .85; c.fillStyle = "#0b0e11"; c.fillRect(PR - W - 6, 4, W, H); c.globalAlpha = 1;
-    c.font = "bold 10px sans-serif"; c.fillStyle = "#f0b90b"; c.textAlign = "left"; c.textBaseline = "top";
-    c.fillText(Lg("Elliott by frame", "إليوت حسب الفريم"), PR - W, 6);
-    c.font = "9px ui-monospace,Menlo,Consolas,monospace"; c.fillStyle = "#c9d1d9";
-    rows.forEach((r, i) => c.fillText(r.tf + "  " + r.state + "  ·  " + r.shape + "  ·  → " + r.next, PR - W, 20 + i*lh));
+    if (CandleChart.mtfOn === false) return;   // key F hides / shows the frame box
+    const PR = this.PR, small = PR < 520, show = small ? rows.filter(r => ["1W","1D","4H","1H"].includes(r.tf)) : rows;
+    if (!show.length) return;
+    c.save(); c.font = (small ? "8px" : "9px") + " ui-monospace,Menlo,Consolas,monospace";
+    const lines = show.map(r => r.tf.padEnd(3) + " " + r.line), title = Lg("Elliott · frames (F)", "إليوت · الفريمات (F)");
+    const lh = small ? 10 : 11, W = Math.min(Math.max(...lines.map(t => c.measureText(t).width), c.measureText(title).width, 90) + 12, Math.max(120, PR*0.5)), H = 14 + show.length*lh;
+    const x0 = PR - W - 4, y0 = 4;
+    c.globalAlpha = .82; c.fillStyle = "#0b0e11"; c.fillRect(x0, y0, W, H); c.globalAlpha = 1;
+    c.textAlign = "left"; c.textBaseline = "top"; c.fillStyle = "#f0b90b"; c.fillText(title, x0 + 5, y0 + 2);
+    c.fillStyle = "#c9d1d9"; lines.forEach((t, i) => c.fillText(t, x0 + 5, y0 + 13 + i*lh, W - 8));
     c.restore();
   }
 });

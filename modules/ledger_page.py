@@ -10,7 +10,7 @@ import streamlit as st
 from modules import signal_ledger as SL
 from modules.i18n import lang
 
-_SRC = {"scanner": ("Server scanner", "سكانر السيرفر"), "kzs": ("Kill Zone Sniper", "كيل زون سنايبر"), "2.6": ("2.6 strategy", "استراتيجية 2.6"),
+_SRC = {"scanner": ("Server scanner", "سكانر السيرفر"), "orderflow": ("Order flow (direction test: stop 1 ATR, target 1.5 ATR)", "الأوردر فلو (اختبار اتجاه: ستوب 1 ATR، هدف 1.5 ATR)"), "kzs": ("Kill Zone Sniper", "كيل زون سنايبر"), "2.6": ("2.6 strategy", "استراتيجية 2.6"),
         "gann": ("Gann zones", "زونات جان"), "harmonic": ("Harmonic patterns", "الأنماط التوافقية")}
 _LEVEL = {"collecting": ("collecting (n < 10)", "بنجمّع (أقل من 10)"), "lean": ("lean, NOT evidence (10-29)", "ميل، مش دليل (10-29)"),
           "evidence": ("evidence (n >= 30, positive after costs)", "دليل (30+، موجب بعد التكاليف)"),

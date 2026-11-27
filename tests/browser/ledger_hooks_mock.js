@@ -23,6 +23,17 @@ const { chromium } = require('playwright');
     const Pr = CandleChart.prototype, hooked = ['kzsCalc', 'paintS26', 'gannTrades', 'paintHarm'].filter(f => /after\.call/.test(String(Pr[f])));
     ch.kzsOn = true; ch.s26On = true; ch.harmOn = true; ch.gannOn = true; ch.paint(); ch.paint();
     return { a1, a2, a3, got, ms: ch.secMs(), last: d[n - 2].t, sym: ch.sym, tf: ch.tf, hooked }; });
+  // order flow: a live absorption on the bid -> one "orderflow / absorb" direction test (stop 1 ATR, target 1.5 ATR); an old one is not sent
+  const of = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'chart'), ch = P.chart, d = ch.data, n = d.length, got = [];
+    Ledger.bridge = () => ({ push: rec => got.push(rec) }); const rows = d.slice(-14), atr = rows.reduce((s, k) => s + (k.h - k.l), 0) / rows.length, px = d[n - 1].c;
+    P.flt = P.flt || { events: [] }; P.flt.events = [{ t: d[n - 1].t + 1000, ev: 'ABSORB', side: 'bid', p: px }];
+    P.syncMarks(); const fresh = got.filter(x => x.src === 'orderflow');
+    P.flt.events = [{ t: d[n - 10].t, ev: 'ABSORB', side: 'ask', p: px + 5 }]; got.length = 0; P.syncMarks();
+    return { fresh, old: got.filter(x => x.src === 'orderflow').length, atr, px }; });
+  const o = of.fresh[0] || {};
+  chk(of.fresh.length === 1 && o.sub === 'absorb' && o.dir === 'long' && o.entry === of.px, 'live absorption -> one orderflow/absorb test ' + JSON.stringify(o).slice(0, 160));
+  chk(Math.abs(o.sl - (of.px - of.atr)) < 1e-9 && Math.abs(o.tps[0] - (of.px + 1.5 * of.atr)) < 1e-9 && /test rule/.test((o.why || [])[0]), 'stop 1 ATR, target 1.5 ATR, rule stated');
+  chk(of.old === 0, 'an event older than the two newest candles is not sent (forward only)');
   const g = r.got[0] || {};
   chk(r.a1 === true && r.a2 === false && r.a3 === false, 'one send per plan, plans without a target refused ' + JSON.stringify([r.a1, r.a2, r.a3]));
   chk(g.kind === 'sig' && /^sig:/.test(g.id) && g.src === 'kzs' && g.sub === 'London' && g.symbol === r.sym && g.tf === String(r.tf).toLowerCase(), 'payload shape ' + JSON.stringify(g).slice(0, 200));

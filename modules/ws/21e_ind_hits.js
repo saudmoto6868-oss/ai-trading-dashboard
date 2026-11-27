@@ -73,7 +73,7 @@ Object.assign(CandleChart.prototype, {
     return {name: it ? it.label : id, help: (typeof indHelp === "function" && indHelp(id)) || (it && it.tip) || (ex ? ex[lang === "ar" ? 1 : 0] : ""), src, menu: !!it, on: it ? it.on : null};
   },
   ihRecord_(id){   // 2026-11-27: the strategy's own track record from the signal ledger (server, CFG.ledger), so the card says how this source has done
-    const SRC = {sig:"scanner", mk:"scanner", kzs:"kzs", s26:"2.6", gann:"gann", harm:"harmonic"}, k = SRC[id];
+    const SRC = {sig:"scanner", mk:"scanner", kzs:"kzs", s26:"2.6", gann:"gann", harm:"harmonic", dot:"orderflow", flow:"orderflow", sync:"orderflow"}, k = SRC[id];
     if (!k || typeof CFG === "undefined") return ""; const L = (CFG.ledger || {})[k];
     if (!L || !L.n) return Lg("Ledger: no graded trade of this strategy yet", "الدفتر: لسه مفيش صفقة متقيّمة للاستراتيجية دي") + (L && L.sig ? " (" + L.sig + Lg(" signals waiting / not filled", " إشارة مستنية / ماتنفذتش") + ")" : "");
     const lv = {collecting:Lg("watch only, n < 10", "مراقبة بس، أقل من 10"), lean:Lg("lean, NOT evidence", "ميل، مش دليل"), evidence:Lg("evidence after costs", "دليل بعد التكاليف"), evidence_weak:Lg("n >= 30, edge not proven", "30+، الميزة مش مثبتة")}[L.lvl] || L.lvl;

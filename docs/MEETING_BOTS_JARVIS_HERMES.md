@@ -132,15 +132,17 @@
 |---|---|---|---|
 | OpenClaw gateway (18789) + Dashboard | شغال | شغال (Dashboard = 200) | نعم: `ai.openclaw.gateway` (KeepAlive) |
 | واجهات Jarvis / Hermes المحلية (18801 / 18802) | شغالين | شغالين، ردّوا على "تجربة" | نعم: `local.agent-apps` (KeepAlive) |
-| OpenClaw app | مش موجود في Applications | — | n/a (الـ gateway بيتشغل من الـ CLI) |
-| Telegram polling (Jarvis + Hermes) | شغال، فيه تعارض 12:35 | شغال، من غير تعارض بعد الريستارت | عن طريق الـ gateway |
-| Ollama `qwen3.5:4b` (11434) | شغال من Ollama.app | شغال، `openclaw infer` رد "أوكي" (بطيء ~3 دقايق) | ❓ Ollama.app مش login item |
-| سيرفر MCP `6868-brain` على 8765 | ❌ المنفذ مشغول بـ `python -m http.server` (PID 85720، مجلد scratch) | ❌ لسه. اختبار على 8766: 401 بدون توكن، 200 بالتوكن | ❌ اتعمل `com.6868.mcp-http` (KeepAlive)، **مش محمّل** |
-| نفق ngrok لعقل 6868 | ❌ مش شغال | ❌ لسه. اتعمل `com.6868.ngrok`، **مش محمّل** | ❌ |
+| Telegram polling (Jarvis + Hermes) | تعارض 12:35 | شغال، مفيش تعارض بعد الريستارت | عن طريق الـ gateway |
+| Ollama `qwen3.5:4b` (11434) | شغال من Ollama.app | شغال، `ollama list` و`openclaw infer` ردّوا. اتضاف Ollama.app كـ login item. الريستارت الكامل لسه ماتجربش (الإغلاق اتلغى) | نعم بعد تسجيل الدخول (login item) |
+| سيرفر MCP `6868-brain` | المنفذ 8765 مشغول بـ PID 85720 | **شغال على 8766** عن طريق `com.6868.mcp-http` (KeepAlive). بدون توكن 401، بالتوكن 200، وtool call بيرجّع البيانات | نعم (LaunchAgent) |
+| نفق ngrok لعقل 6868 | ❌ | **شغال** `moocher-mumble-utensil.ngrok-free.dev` ← 8766 عن طريق `com.6868.ngrok` (KeepAlive). من برّه بدون توكن: 401 | نعم (LaunchAgent) |
 | Grok (xAI) | مش متسجّل | مش متسجّل | محتاج تسجيل دخول المالك |
 
+**ملاحظات:**
+- PID 85720 (`http.server` على 8765) ماتلمسش، وسايبه شغال زي ما اتطلب.
+- launchd بيقدر يقرا `research/trade_db` و`docs` من غير Full Disk Access، فمحتاجناش نسخة في `~/6868-data`.
+- ملف `com.6868.mcp-http.plist` فيه `8765` زيادة في آخر الـ arguments (اتعدّل من برّه). مش مؤثرة لأن السيرفر بياخد أول رقم بعد `--http`، بس تتشال لو عايز نظافة.
+
 **المفتوح:**
-- إيقاف PID 85720 (المنفذ 8765) ده قرار المالك.
-- الـ `history` فيه `ngrok http 80 --url ...` مش 8765، فالـ plist بيستخدم 8765 حسب المحضر. محتاج تأكيد.
-- macOS بيمنع الـ launchd من قراءة `Documents`، فالسيرفر محتاج Full Disk Access لـ `python3` (المالك بس).
-- التجربة على تليجرام: المالك يبعت "تجربة" لـ `@xpix77bot` و `@hermes_6868_77_bot`.
+- تجربة الـ restart الكامل لـ Ollama (الإغلاق اتلغى من نافذة تأكيد).
+- التجربة على تليجرام: المالك يبعت "تجربة" لـ `@xpix77bot` و`@hermes_6868_77_bot`.

@@ -69,7 +69,15 @@ Object.assign(CandleChart.prototype, {
     let src = "";
     if (id === "sig" || id === "mk"){ const ov = this.overlay; src = ov ? Lg("Source: server scanner plan for ", "المصدر: خطة سكانر السيرفر لـ ")+(this.sym || "")+" · "+(ov.tf || this.tf)+(ov.score != null ? " · "+Lg("score ","سكور ")+ov.score+(ov.max ? "/"+ov.max : "") : "")+(ov.ttype ? " · "+ov.ttype : "")+((ov.tags || []).length ? "\n"+Lg("Why: ","ليه: ")+ov.tags.slice(0, 8).join(" · ") : "") : Lg("Source: server scanner (no plan for this timeframe right now)", "المصدر: سكانر السيرفر (مفيش خطة للفريم ده دلوقتي)"); }
     if (id === "harm") src = Lg("Source: the harmonic pattern's own plan (entry at D, targets from the AD leg) - not the scanner", "المصدر: خطة نموذج الهارمونيك نفسه (الدخول عند D والأهداف من ضلع AD) - مش السكانر");
+    const rec = this.ihRecord_(id); if (rec) src = (src ? src + "\n" : "") + rec;
     return {name: it ? it.label : id, help: (typeof indHelp === "function" && indHelp(id)) || (it && it.tip) || (ex ? ex[lang === "ar" ? 1 : 0] : ""), src, menu: !!it, on: it ? it.on : null};
+  },
+  ihRecord_(id){   // 2026-11-27: the strategy's own track record from the signal ledger (server, CFG.ledger), so the card says how this source has done
+    const SRC = {sig:"scanner", mk:"scanner", kzs:"kzs", s26:"2.6", gann:"gann", harm:"harmonic"}, k = SRC[id];
+    if (!k || typeof CFG === "undefined") return ""; const L = (CFG.ledger || {})[k];
+    if (!L || !L.n) return Lg("Ledger: no graded trade of this strategy yet", "الدفتر: لسه مفيش صفقة متقيّمة للاستراتيجية دي") + (L && L.sig ? " (" + L.sig + Lg(" signals waiting / not filled", " إشارة مستنية / ماتنفذتش") + ")" : "");
+    const lv = {collecting:Lg("watch only, n < 10", "مراقبة بس، أقل من 10"), lean:Lg("lean, NOT evidence", "ميل، مش دليل"), evidence:Lg("evidence after costs", "دليل بعد التكاليف"), evidence_weak:Lg("n >= 30, edge not proven", "30+، الميزة مش مثبتة")}[L.lvl] || L.lvl;
+    return Lg("Ledger record: ", "سجل الدفتر: ") + L.n + Lg(" trades · win ", " صفقة · فوز ") + (L.win != null ? L.win + "%" : "—") + " · " + (L.avg != null ? (L.avg >= 0 ? "+" : "") + L.avg + "R" : "—") + " · " + lv;
   },
   ihHide(){ clearTimeout(this._ihT); if (this._ihTip){ this._ihTip.remove(); this._ihTip = null; } },
   ihShow(ids, cx, cy){

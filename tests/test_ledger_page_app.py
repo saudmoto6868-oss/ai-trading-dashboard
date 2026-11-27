@@ -52,6 +52,11 @@ for lg in ("en", "ar"):
         assert not at.exception and "bos" in at.dataframe[0].value.to_string()
     else:
         assert "الستوب ضيق" in md, md[:300]
+# the chart card's per-strategy record (modules/workspace._ledger_cfg -> CFG.ledger)
+from modules.workspace import _ledger_cfg  # noqa: E402
+lc = _ledger_cfg()
+assert lc["scanner"]["n"] == 7 and lc["kzs"]["n"] == 7 and lc["scanner"]["lvl"] == "collecting" and lc["scanner"]["avg"] is not None, lc
+
 # the REAL app opens it as page 23 (Trading hub; main.py page table), network blocked
 import requests  # noqa: E402
 

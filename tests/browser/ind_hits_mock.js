@@ -26,10 +26,11 @@ const { chromium } = require('playwright');
   const at = (x, y) => [g.x + x * g.S, g.y + y * g.S];
   const [lx, ly] = at(g.lab[2] + g.lab[4] / 2, g.lab[3] + g.lab[5] / 2);
   // 1) rest the mouse: nothing before 3 s, the card after
+  await p.evaluate(() => { CFG.ledger = { scanner: { n: 12, sig: 15, lvl: 'lean', win: 58.3, avg: 0.31, style: 'split' } }; });   // the strategy's ledger record shows on the card
   await p.mouse.move(lx - 40, ly + 30); await p.mouse.move(lx, ly, { steps: 4 }); await p.waitForTimeout(1500);
   chk(!(await p.$('.ihtip')), 'no card before the dwell time');
   await p.waitForTimeout(2000); const tip = await p.$('.ihtip'); const tt = tip ? await tip.innerText() : '';
-  chk(/SIG/.test(tt) && /scanner|سكانر/i.test(tt) && /BOS/.test(tt), 'card names Signals (SIG) + scanner source + tags: ' + tt.replace(/\s+/g, ' ').slice(0, 160));
+  chk(/SIG/.test(tt) && /scanner|سكانر/i.test(tt) && /BOS/.test(tt) && /Ledger record: 12 trades · win 58.3% · \+0.31R · lean/.test(tt), 'card names Signals (SIG) + scanner source + tags: ' + tt.replace(/\s+/g, ' ').slice(0, 160));
   // 2) click the card -> Indicators window open on the sig row, flashing
   if (tip) { await p.click('.ihtip .ihrow'); await p.waitForTimeout(200); }
   const fl = await p.evaluate(() => { const P = Ws.panels.find(q => q.type === 'chart'), row = P.indPop.querySelector('[data-ind="sig"]'); return { open: P.indPop.style.display !== 'none', flash: !!row && row.classList.contains('iflash'), card: !!document.querySelector('.ihtip') }; });

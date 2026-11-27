@@ -134,10 +134,11 @@ const Alerts = {
   },
   clear(){ this.list = []; store.set(LS+"_alerts", this.list); this.subs.forEach(f => f()); }
 };
-(CFG.alerts || []).forEach(a => {
+const cfgAlerts = () => (CFG.alerts || []).forEach(a => {   // also run by Ws.applyCfg (new page data); Alerts.add skips ids it has
   const bull = a.direction === "bullish";
   Alerts.add(a.id, "scan", a.symbol, a.symbol+" · "+(bull ? "Long" : "Short")+" · "+a.score+"/"+a.max, bull ? "#0ecb81" : "#f6465d", a);
 });
+cfgAlerts();
 
 const YF = CFG.yf || {}, YF_BAR = {"15m":"15m","1H":"1h","4H":"4h","1D":"1d"};
 function yfOkx(path){   // markets OKX does not list (forex / indices / EGX / Tadawul): candles were embedded by the server from Yahoo Finance, answered here in OKX's shape (newest first)

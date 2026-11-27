@@ -332,7 +332,7 @@ class CandleChart {
     if (this.x77On && this.paintX77) this.paintX77(c, py, PR);   // X77 schools of the live setups on this symbol (24e_x77.js)
     if (this.smtOn) this.paintSmt(c, py, dec, i0, i1);
     this.infoChip(c);
-    if (this.ewOn || this.harmOn) this.htfNote(c, 2);   // bigger-timeframe trend, once per paint
+    if (this.ewOn || this.harmOn) this.htfNote(c, 8);   // bigger-timeframe trend, once per paint (row 8: rows 0-7 are the Harmonic and Elliott notes)
     if (this.harmOn) this.paintHarm(c, py, dec);
     if (this.vpOn) this.paintVp(c, py, dec, PR, PB, i0, i1);
     if (this.bvdOn) this.paintBvd(c, py, dec, i0, i1);

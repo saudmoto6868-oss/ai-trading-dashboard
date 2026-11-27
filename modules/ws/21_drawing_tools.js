@@ -800,7 +800,8 @@ Object.assign(CandleChart.prototype, {
   indNote(c, row, txt){
     if (this.infoOpen === false || this.H < 340 || this.W < 520) return;   // description text folded; also hidden on a small chart (these grey "nothing found" lines would sit on the candles)   // small grey line under the price header: an indicator is ON but found nothing (so "nothing shows" is not mistaken for "broken")
     c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic"; const w = c.measureText(txt).width + 10, y = 34 + row*15;
-    c.globalAlpha = .7; c.fillStyle = "#000"; c.fillRect(6, y - 11, w, 14); c.globalAlpha = 1; c.fillStyle = "#9aa4b1"; c.fillText(txt, 11, y); c.restore();
+    const nx = this.noteX || 6;   // clear of the drawing toolbar when the panel has one
+    c.globalAlpha = .7; c.fillStyle = "#000"; c.fillRect(nx, y - 11, w, 14); c.globalAlpha = 1; c.fillStyle = "#9aa4b1"; c.fillText(txt, nx + 5, y); c.restore();
   },
   paintEWforming(c, py){   // dashed line through the pivots of the impulse in progress + "forming: wave N next" (and the rule that cancelled a longer count)
     const f = this._ewf; if (!f) return; const col = f.up ? "#0ecb81" : "#f6465d";

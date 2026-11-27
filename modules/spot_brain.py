@@ -165,22 +165,40 @@ def think(b: dict, flow: dict | None = None, cot: dict | None = None, news: dict
             "ideas": [i for i in (ideas or [])], "stats": st, "setups": setups or []}
 
 
-def run(asset: str, cls: str, name: str, candles=None, holdings=None, news_items=None, flow=None, cot=None) -> dict:
-    """Network path: load everything for one market and think (flow / cot / news injectable for tests)."""
+ALL_HZ = ("day", "week", "month", "year")
+# Which network inputs each horizon's verdict reads (see think()). Only these are fetched, and only when asked for.
+HZ_NEEDS = {"day": {"flow", "news", "setups"}, "week": {"news", "ideas", "setups"}, "month": {"cot", "setups"}, "year": {"setups"}}
+
+
+def run(asset: str, cls: str, name: str, candles=None, holdings=None, news_items=None, flow=None, cot=None, horizons=None) -> dict:
+    """Network path: load what the asked horizons need and think. horizons=None -> all four (old behaviour).
+    The holdings guard reads every horizon, so any holdings means every input is fetched. Unrequested horizons are
+    still computed by think() but may use missing inputs: callers must show only the horizons they asked for."""
     from modules import spot_dash, spot_flow, spot_ideas, spot_inst, spot_news
+    want = set(horizons or ALL_HZ)
+    if not want <= set(ALL_HZ):
+        raise ValueError(f"unknown horizon: {sorted(want - set(ALL_HZ))}")
+    need = set().union(*(HZ_NEEDS[h] for h in want))
+    if holdings:
+        need = {"flow", "cot", "news", "ideas", "setups"}
     b = spot_dash.load_bundle(asset, candles)
-    tagged = spot_news.tag(spot_news.fetch() if news_items is None else news_items)
-    nt = spot_news.tilt(tagged, asset)
-    fl = spot_flow.fetch(asset, cls) if flow is None else flow
-    ct = spot_inst.fetch(asset) if cot is None else cot
-    ideas, log = spot_ideas.build(asset, cls, name, b, nt)
-    from modules import spot_setups
-    try:
-        setups = spot_setups.scan(b, fl, ct)
-    except Exception as e:
-        setups, log = [], log + [f"مكتبة السيت أبات: {type(e).__name__}"]
+    tagged, nt = [], None
+    if "news" in need:
+        tagged = spot_news.tag(spot_news.fetch() if news_items is None else news_items)
+        nt = spot_news.tilt(tagged, asset)
+    fl = (spot_flow.fetch(asset, cls) if flow is None else flow) if "flow" in need else None
+    ct = (spot_inst.fetch(asset) if cot is None else cot) if "cot" in need else None
+    ideas, log = spot_ideas.build(asset, cls, name, b, nt) if "ideas" in need else ([], [])
+    setups = []
+    if "setups" in need:
+        from modules import spot_setups
+        try:
+            setups = spot_setups.scan(b, fl, ct)
+        except Exception as e:
+            setups, log = [], log + [f"مكتبة السيت أبات: {type(e).__name__}"]
     out = think(b, fl, ct, nt, ideas, holdings, setups)
-    out.update({"name": name, "cls": cls, "bundle": b, "raw_flow": fl, "raw_cot": ct, "log": log, "tagged": tagged[:8]})
+    out.update({"name": name, "cls": cls, "bundle": b, "raw_flow": fl, "raw_cot": ct, "log": log, "tagged": tagged[:8],
+                "horizons_asked": sorted(want, key=ALL_HZ.index)})
     return out
 
 

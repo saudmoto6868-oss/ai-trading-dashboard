@@ -217,6 +217,24 @@
 - اتصلح تجميد قديم في كارت الصفقة (حلقة رسم أثناء تحميل سياق الأوردر بوك، ودايمًا مع رموز Yahoo).
 - mock-tested only. مش دليل ربح لحد 30 صفقة forward على الأقل.
 
+## [2026-11-15] [Claude Code — حساب سعود، جلسة الـ Spot desk] حالة الشغل للجلسة الثانية
+- **فرع GitLab جديد:** `feat/spot-desk-2026-11-15` اتعمل من `main` (commit `4b79d9a0`) عن طريق GitLab tools. **مفيش أي commit فيه لسه** والـ `main` ما اتلمسش.
+- **اللي موجود على GitLab `main` أصلًا:** `modules/spot_page.py` و`modules/spot_brain.py`.
+- **اللي ناقص على GitLab `main`:** `modules/spot_setups.py` (مكتبة الـ setups) و`scripts/spot_setups_lab.py` و`tests/test_spot_setups.py` وباقي شغل الـ setup library. محتاج يتنقل للفرع الجديد بعد مراجعة تعارضات مع الـ commits اللي دخلت `main` اليوم.
+- **الفرع المحلي/GitHub:** `claude/multi-asset-bot-plan-q8fhg8` على `8b13cb1`. الـ push لـ GitLab من الجهاز المحلي ما اتعملش (مفيش credentials في الـ sandbox، وصاحب المشروع رفض يدي التوكن). الأمر للمالك: `git push gitlab claude/multi-asset-bot-plan-q8fhg8:feat/spot-desk-2026-11-15`.
+- **قاعدة الفريق:** مفيش push مباشر على `main`؛ الشغل على فرع + PR draft؛ والدمج بس بسطر `[أمر المالك]`.
+- **المطلوب من الجلسة الثانية:** تراجع الفرق بين `main` والفرع المحلي، ثم تنقل `spot_setups.py` والـ lab والاختبارات للفرع الجديد، وتعمل `.gitlab-ci.yml` لمهام spot بـ schedule/web rules بس. الاختبارات الحالية mock-tested فقط.
+
+## [2026-11-27] [Claude Code — جلسة الـ Spot desk] حلقة التعلم اليومية (مهمة 1)
+- اتعملت: `scripts/spot_learn_daily.py` + `modules/spot_learn_job.py` + workflow `spot-learn.yml` (05:17 UTC). كل يوم: المخ + كل الـ setups بيتسجلوا، الصفوف اللي خلص أفقها بتتقاس، وتقرير عربي يتبعت على Telegram بنفس الـ secrets بتاعة spot-ideas.
+- السجل بيتحفظ في Actions cache (`data/spot/` مش متعمل commit). الأوزان مابتتغيرش تلقائي.
+- اتختبر: `tests/test_spot_learn_job.py` (synthetic، 7 مجموعات) + تشغيل السكريبت أوفلاين (فشل الداتا بيتسجل في التقرير، والصفوف من غير سعر بتتشال). **مش متجرب على داتا حية لسه.**
+- اتصلح في الاختبار: الـ tf في الـ setups lowercase (`1d`)، مش `1D`.
+- الـ GitLab: `.gitlab-ci.yml` مش موجود في الـ checkout المحلي، فمفيش مرآة schedule-only لحد ما المالك يوافق على الـ push لـ GitLab.
+- `PROJECT_STATUS.md`: اتشالت علامات merge conflict كانت متسجلة في الـ HEAD.
+- [2026-11-27] مهمة 2 (الخطة): `modules/spot_checklist.py` (حجم المركز بمخاطرة 1%، سقف 25%، وقف أقصاه 20%، checklist قبل أي شراء، وتقسيم الهدف 1/3 + 1/3 + الباقي متحرك). `docs/SPOT_PLAN.md` فيه كل استراتيجية بوسمها. **مش معروض على الصفحة لسه.** Mock/synthetic بس.
+- [2026-11-27] مهمة 3 (شاشة واحدة): `render_key()` في `spot_brain_view.py` — تبويب العقل المدبر بيفتح "العرض الأساسي" (620 بكسل من غير سكرول)، و"التفاصيل الكاملة" هو الـ mosaic القديم بزرار. Playwright على 1440×900 و1440×620 (بيانات synthetic): مفيش سكرول ومفيش كارت مقطوع. **شريط Streamlit الحقيقي لسه ماتقاسش** (Streamlit مش متركب في الـ sandbox أصلًا قبل الجلسة دي، واتركب دلوقتي للـ AppTest بس). التفاصيل: `docs/SPOT_LAYOUT.md`.
+- ملاحظة: `st.components.v1.html` بيطلع تحذير إنه هيتشال بعد 2026-06-01 (Streamlit 1.66). ترحيل لـ `st.iframe` شغل منفصل.
 ## 2026-11-08 — خطة Order Flow Desk (محادثة صوتية جروك ↔ المالك)
 
 ### الفكرة

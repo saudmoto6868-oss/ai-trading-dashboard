@@ -1,0 +1,47 @@
+name: Spot learning (daily)
+
+# Daily Spot learning job: runs the brain, logs its verdicts and setups, scores matured rows, sends an Arabic report
+# to Telegram (scripts/spot_learn_daily.py). Read-only towards markets: no orders, no automatic weight changes.
+# The JSONL log lives in the Actions cache (data/spot/ is git-ignored, so nothing is committed).
+on:
+  schedule:
+    - cron: "17 5 * * *"        # 05:17 UTC = 07:17 Cairo, after the spot-ideas run
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spot-learn
+  cancel-in-progress: false
+
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Restore the learning log
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: data/spot/brain_log.jsonl
+          key: spot-learn-log-${{ github.run_id }}
+          restore-keys: |
+            spot-learn-log-
+      - run: pip install pandas numpy requests
+      - name: Run the learning cycle and send the report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/spot_learn_daily.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        if: always()
+        with:
+          name: spot-learn-log
+          path: data/spot/brain_log.jsonl
+          if-no-files-found: ignore
+          retention-days: 30

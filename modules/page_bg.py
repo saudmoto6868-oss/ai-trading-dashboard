@@ -133,6 +133,16 @@ def _scan_worker(store, ws_tf, ws_key):
                     if not e_:
                         continue
                     if e_.get("plan"):
+                        try:   # signal ledger (modules/signal_ledger.py): every scanner plan, replayed and explained later. t0 = the next candle's open (no look-ahead)
+                            import pandas as pd
+                            from modules import signal_ledger as _SL
+                            _t_last = int(pd.Timestamp(df_["time"].iloc[-1]).value // 1_000_000)
+                            _SL.record({"src": "scanner", "sub": str(e_.get("ttype") or ""), "symbol": r_["symbol"], "tf": tf_, "dir": e_["direction"],
+                                        "entry": e_["plan"]["entry"], "sl": e_["plan"]["stop"], "tps": e_["plan"]["tps"], "t0": _t_last + _SL.tf_ms(tf_),
+                                        "score": e_.get("score"), "max": e_.get("max"), "why": e_.get("keys") or [],
+                                        "ctx": {"against_signal": bool(r_.get("against"))}})
+                        except Exception:
+                            pass   # the ledger must never break the scan
                         ws_mini.append({k: e_.get(k) for k in ("symbol", "direction", "tfk", "ttype", "trade", "tags", "tags_en", "plan", "score", "max", "tv", "spark")}
                                        | {"keys": [str(x_.get("key")) for x_ in (r_.get("signals") or []) if x_.get("key")][:20], "against": bool(r_.get("against"))})   # detector keys + opposing flag for the Evidence summary tab
                     # one entry per symbol AND chart timeframe: the chart only draws the setup that belongs to the timeframe it shows
@@ -146,6 +156,18 @@ def _scan_worker(store, ws_tf, ws_key):
                     ws_alerts.extend(sorted((a for a in tf_alerts if a.get("direction") == side_), key=lambda a: -(a.get("q") or 0))[:MAX_SAME_SIDE])
                 publish(False)
         publish(True)
+        try:   # the brain's setup detectors (CISD, CRT, sweeps, Model 2022, Elliott ...) -> the ledger, each detector its own strategy; every 15 min, capped symbols
+            from modules import signal_ledger as _SL
+            if time.time() - store.get("ledger_setups_t", 0) >= 900:
+                store["ledger_setups_t"] = time.time()
+                _SL.record_setups(syms_[:int(os.environ.get("LEDGER_SETUP_SYMBOLS", "20") or 20)], lambda s_, t_: get_klines(s_, t_, 300))
+        except Exception:
+            pass
+        try:   # replay the ledger's signals whose time has come (cached candles, at most 60 per pass)
+            from modules import signal_ledger as _SL
+            _SL.grade_pending(get_klines, limit=60)
+        except Exception:
+            pass
         store["key"] = ws_key
         store["built"] = time.time()
     except Exception as ex_:

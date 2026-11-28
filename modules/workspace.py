@@ -219,6 +219,7 @@ def workspace_cfg(symbols: list, news: list | None = None, lang: str = "en",
         "solo": solo if solo in ("chart", "radar", "spot") else "",   # "chart" = chart-only widget (RSI page); "radar" = the Radar page grid (modules/ws/24f_radar.js); empty = the full Workspace
         "radar": radar or {},   # {cols, h, items:[{sym, tf, tag, info, pts}]} for solo="radar" (main.py render_chart_scanner)
         "spot": _spot_snapshot(),
+        "ledger": _ledger_cfg(),   # per-strategy track record from the signal ledger (modules/signal_ledger.py) for the chart's "what is this?" card
         "x77": _x77_cfg(),   # X77 widget: detector key -> school, Arabic names + explanations (modules/x77_detect.py)   # Spot desk snapshot (docs/spot/snapshot.json, written daily; owner 2026-11-15)
     }
     return cfg
@@ -284,6 +285,19 @@ def _build_id() -> str:
     except Exception:
         pass
     return ""
+
+
+def _ledger_cfg() -> dict:
+    """{strategy: {n, sig, lvl, win, avg, style}} from the signal ledger, for the chart card. Small; {} when there is no ledger or on any error."""
+    try:
+        from modules import signal_ledger as SL
+        out = {}
+        for k, r in list(SL.stats(by="src").items())[:60]:
+            b = r.get(r.get("best_style") or "split") or {}
+            out[k] = {"n": r.get("n", 0), "sig": r.get("signals", 0), "lvl": r.get("level"), "win": b.get("win_pct"), "avg": b.get("avg_r"), "style": r.get("best_style")}
+        return out
+    except Exception:
+        return {}
 
 
 def _fp_server() -> str:

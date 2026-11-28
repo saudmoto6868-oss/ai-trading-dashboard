@@ -170,7 +170,7 @@ Object.assign(CandleChart.prototype, {
   paintMk(c, py, PR){   // small BUY / SELL badge at the entry with its target
     const ov = this.overlay, pl = ov && ov.plan; if (!pl || !this.data.length) return; const OF = this.st.of, long_ = (pl.tps && pl.tps[0] || 0) > pl.entry, col = long_ ? OF.color : OF.color2, x = this.x(this.data.length-1) + 14, y = py(pl.entry), dc = pl.entry >= 100 ? 2 : pl.entry >= 1 ? 4 : 6;
     c.fillStyle = col; c.beginPath(); long_ ? (c.moveTo(x, y-6), c.lineTo(x-6, y+5), c.lineTo(x+6, y+5)) : (c.moveTo(x, y+6), c.lineTo(x-6, y-5), c.lineTo(x+6, y-5)); c.closePath(); c.fill();
-    c.font = "bold 10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText((long_ ? "BUY " : "SELL ")+pl.entry.toFixed(dc), x+9, y);
+    c.font = "bold 10px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText((long_ ? "BUY " : "SELL ")+pl.entry.toFixed(dc), x+9, y); c.font = "9px sans-serif"; c.globalAlpha = .75; c.fillText(this.ovTag(), x+9, y + 11); c.globalAlpha = 1; c.font = "bold 10px sans-serif";
     (pl.tps || []).slice(0, 3).forEach((v, n) => { const ty = py(v); c.fillStyle = col; c.beginPath(); c.arc(x, ty, 3, 0, 6.3); c.fill(); c.fillText("TP"+(n+1)+" "+v.toFixed(dc), x+9, ty); });
     c.fillStyle = "#f6465d"; c.beginPath(); c.arc(x, py(pl.stop), 3, 0, 6.3); c.fill(); c.fillText("SL "+pl.stop.toFixed(dc), x+9, py(pl.stop));
   },
@@ -217,6 +217,13 @@ Object.assign(CandleChart.prototype, {
     const big = this.fpOn && bw >= 44, mid = bw >= 20, fs = Math.max(9, Math.min(15, Math.round(bw/9)));
     if (this.fpOn && this.fpCov){ c.save(); c.fillStyle = "rgba(139,141,152,.9)"; c.textAlign = "left"; c.font = "10px sans-serif"; const dt = new Date(this.fpCov), z = n => String(n).padStart(2, "0");
       c.fillText(Lg("Footprint recorded without gaps since ", "الفوت برينت مسجّل بلا فجوات منذ ") + z(dt.getDate()) + "/" + z(dt.getMonth()+1) + " " + z(dt.getHours()) + ":" + z(dt.getMinutes()), 8, this.PB - 6); c.restore(); }
+    if (this.fpOn){   // 2026-11-24 owner: "the footprint only has 2-3 candles". Say WHY on the chart: how many visible candles have real per-price data, and where history must come from
+      let have = 0, tot = 0; for (let i = i0; i <= i1; i++){ tot++; if (this.fp.has(d[i].t)) have++; }
+      const hl = /^(HL:|Y:)/.test(this.sym || ""), srv = typeof CFG !== "undefined" && CFG.fpServer;
+      const msg = hl ? Lg("Footprint: no trade-by-trade feed for this market (Hyperliquid / Yahoo) - candles only", "الفوت برينت: مفيش صفقات بالتفصيل للسوق ده (Hyperliquid / Yahoo) - شموع بس")
+        : Lg("Footprint: real data on "+have+" of "+tot+" visible candles", "الفوت برينت: بيانات حقيقية على "+have+" من "+tot+" شمعة ظاهرة")+(srv ? "" : Lg(" · history = only what this browser saw (OKX gives 100 prints per call). Full history needs the recorder: FOOTPRINT_SERVER_URL", " · التاريخ = اللي المتصفح ده شافه بس (OKX بيدي 100 صفقة في الطلب). التاريخ الكامل محتاج المسجّل: FOOTPRINT_SERVER_URL"));
+      if (hl || have < tot){ c.save(); c.font = "10px sans-serif"; c.textAlign = "left"; c.fillStyle = "rgba(240,185,11,.85)"; c.fillText(msg, 8, this.PB - (this.fpCov ? 19 : 6)); c.restore(); }
+      this.fpHave = {have, tot}; }
     // price step of one footprint row ~ 11px tall
     const lo = this._lo, hi = this._hi, rowPx = fs+3, raw = (hi-lo)/Math.max(1, PB/rowPx), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), step0 = [1,2,2.5,5,10].map(x => x*mag).find(x => x >= raw) || raw;
     const OF = this.st.of, FM = OF.fpMode || "bidask", step = step0*(OF.fpRow || 1); this._fpStep = step; c.save(); c.textBaseline = "middle"; c.font = fs+"px ui-monospace,Menlo,Consolas,monospace";
@@ -614,6 +621,24 @@ Object.assign(CandleChart.prototype, {
     const B = this.bsoV; if (!B) return; const line = (arr, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(arr[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } c.stroke(); };
     c.save(); c.globalAlpha = .07; c.fillStyle = "#26c6da"; c.beginPath(); for (let i = i0; i <= i1; i++){ const x = this.x(i), y = py(B.up[i]); i === i0 ? c.moveTo(x,y) : c.lineTo(x,y); } for (let i = i1; i >= i0; i--) c.lineTo(this.x(i), py(B.lo[i])); c.fill();
     c.globalAlpha = .85; line(B.up, "#26c6da", 1); line(B.lo, "#26c6da", 1); c.setLineDash([4,3]); line(B.mid, "#26c6da", 1); c.setLineDash([]); c.restore();
+  },
+  cvdSeries(i0, i1){   // 2026-11-24 CVD pane: per visible candle {d: delta, real: has footprint trades}; cumulative from i0. Estimate = volume x (2*close position in range - 1)
+    const d = this.data, out = []; let cum = 0;
+    for (let i = i0; i <= i1; i++){ const k = d[i]; if (!k) continue; const m = this.fp.get(k.t), real = !!(m && (m.b + m.s) > 0 && !m.part), rg = k.h - k.l;
+      const dv = m && (m.b + m.s) > 0 ? m.b - m.s : (rg > 0 ? (k.v || 0)*(((k.c - k.l) - (k.h - k.c))/rg) : 0); cum += dv; out.push({i, d:dv, cum, real}); }
+    return out; },
+  paintCvd(c, y0, h, i0, i1, PR){   // called inside paintSub's clipped pane (it saved + clipped); must restore
+    const S = this.cvdSeries(i0, i1), st = this.st.cvd || {color:"#4aa3ff", w:1.4}, OF = this.st.of || {};
+    if (!S.length){ c.restore(); return; }
+    let lo = 0, hi = 0, dm = 1e-12; S.forEach(p => { lo = Math.min(lo, p.cum); hi = Math.max(hi, p.cum); dm = Math.max(dm, Math.abs(p.d)); }); const sp = (hi - lo) || 1;
+    const y = v => y0 + 4 + (hi - v)/sp*(h - 8), yb0 = y0 + h - 2, bw = Math.max(1, this.bw*0.5);
+    S.forEach(p => { const x = this.x(p.i), hh = Math.abs(p.d)/dm*(h*0.35); c.globalAlpha = p.real ? .55 : .25; c.fillStyle = p.real ? (p.d >= 0 ? (OF.color || "#0ecb81") : (OF.color2 || "#f6465d")) : "#848e9c"; c.fillRect(x - bw/2, yb0 - hh, bw, Math.max(1, hh)); });
+    c.globalAlpha = 1; c.strokeStyle = "#2b3139"; c.beginPath(); c.moveTo(0, y(0) + .5); c.lineTo(PR, y(0) + .5); c.stroke();
+    for (let j = 1; j < S.length; j++){ const a = S[j-1], b = S[j], real = a.real && b.real; c.strokeStyle = real ? st.color : "#848e9c"; c.lineWidth = real ? st.w : 1; c.setLineDash(real ? [] : [2,3]);
+      c.beginPath(); c.moveTo(this.x(a.i), y(a.cum)); c.lineTo(this.x(b.i), y(b.cum)); c.stroke(); }
+    c.setLineDash([]); c.restore();
+    const nr = S.filter(p => p.real).length; c.fillStyle = "#848e9c"; c.font = "10px ui-monospace,Menlo,Consolas,monospace"; c.textAlign = "left";
+    c.fillText("CVD · "+Lg("real on ", "حقيقية على ")+nr+"/"+S.length+(nr < S.length ? Lg(" · grey dotted = ~estimate from candle shape", " · الرمادي المنقّط = ~تقدير من شكل الشمعة") : ""), 6, y0 + 8);
   },
   paintX(c, k, y0, h, i0, i1, PR){   // the three extra oscillator panes: zn = scalp zones (Stoch+RSI), bso = Bollinger + Stoch + OsMA, rm = RSI + MA with extreme levels
     const st = this.st[k], y = v => y0 + h - 2 - v/100*(h-4), L = (v, col, dash) => { c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(dash || []); c.beginPath(); c.moveTo(0, y(v)+.5); c.lineTo(PR, y(v)+.5); c.stroke(); c.setLineDash([]); };
@@ -1552,6 +1577,8 @@ Object.assign(CandleChart.prototype, {
   },
   /* developing setup with NO journal trade yet: no box at all. A directional arrow at the last candle pointing at the entry level,
      a dashed entry line and the label "possible trade" with a rough minutes-to-trigger estimate (not a forecast) */
+  ovTag(){   // 2026-11-24 owner: every trade on the chart says where it comes from. The scanner overlay = "SCAN <tf> <score>/<max>"
+    const ov = this.overlay; return "SCAN "+((ov && ov.tf) || this.tf || "")+(ov && ov.score != null ? " "+ov.score+(ov.max ? "/"+ov.max : "") : ""); },
   paintPending(c, py, pl, dec, tag){
     const n = this.data.length; if (!n) return;
     const long_ = pl.dir ? pl.dir === "long" : pl.tps && pl.tps[0] > pl.entry, yE = py(pl.entry), col = long_ ? "#0ecb81" : "#f6465d";
@@ -1585,14 +1612,14 @@ Object.assign(CandleChart.prototype, {
       c.strokeStyle = "#0ecb81"; c.beginPath(); c.moveTo(x0, yT); c.lineTo(x1, yT); c.stroke();
       const lab = t.status === "tp" ? "TP ✓ "+(+t.r).toFixed(2)+"R" : t.status === "sl" ? "SL ✗ "+(+t.r).toFixed(2)+"R" : t.status === "nf" ? "no fill" : t.status === "exp" ? "expired" : "open";
       c.font = "10px sans-serif"; c.textAlign = "left"; c.fillStyle = closed ? "#848e9c" : (long_ ? "#0ecb81" : "#f6465d");
-      c.fillText((long_ ? "Long" : "Short")+" · "+lab, Math.max(x0, 0) + 4, yE - 6);
+      c.fillText("J"+(t.tfk ? " "+t.tfk : "")+" · "+(long_ ? "Long" : "Short")+" · "+lab, Math.max(x0, 0) + 4, yE - 6);   // J = journal trade (source tag, 2026-11-24)
       c.globalAlpha = 1;
     }
     c.restore();
   },
   paintSetupBox(c, py, pl, dec){
     // owner 2026-11-21: a box only for a REAL trade (the journal filled it). A chart touch alone is not a trade: arrow + "possible trade" instead
-    if (!journalFill(this.sym, pl.entry)) return this.paintPending(c, py, pl, dec);
+    if (!journalFill(this.sym, pl.entry)) return this.paintPending(c, py, pl, dec, this.ovTag());
     const n = this.data.length, sp = this.planSpan(), x0 = sp.x0, x1 = sp.x1, w = Math.max(30, x1 - x0), long_ = pl.tps && pl.tps[0] > pl.entry;
     const tp = pl.tps && pl.tps.length ? pl.tps[pl.tps.length-1] : pl.entry, yE = py(pl.entry), yS = py(pl.stop), yT = py(tp);
     c.save(); c.beginPath(); c.rect(0,0,this.PR,this.PB); c.clip();
@@ -1602,7 +1629,7 @@ Object.assign(CandleChart.prototype, {
     (pl.tps||[]).forEach((v,i) => { const y = py(v); c.strokeStyle = "rgba(14,203,129,.8)"; c.setLineDash([4,3]); c.beginPath(); c.moveTo(x0,y); c.lineTo(x1,y); c.stroke(); c.setLineDash([]); c.fillStyle = "#0ecb81"; c.textAlign = "left"; c.fillText("TP"+(i+1)+" "+v.toFixed(dec), x0+4, y + (long_ ? 8 : -8)); });
     c.strokeStyle = "rgba(246,70,93,.9)"; c.beginPath(); c.moveTo(x0,yS); c.lineTo(x1,yS); c.stroke();
     c.fillStyle = "#f6465d"; c.fillText("SL "+pl.stop.toFixed(dec), x0+4, yS + (long_ ? 8 : -8));
-    const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1); c.fillStyle = "#4aa3ff"; c.fillText("✔ TRADE ENTERED · "+(long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(1)+"  entry "+pl.entry.toFixed(dec), x0+4, yE - 7);
+    const rr = Math.abs(tp-pl.entry)/(Math.abs(pl.entry-pl.stop) || 1); c.fillStyle = "#4aa3ff"; c.fillText("✔ "+this.ovTag()+" · TRADE ENTERED · "+(long_ ? "Long" : "Short")+"  R:R "+rr.toFixed(1)+"  entry "+pl.entry.toFixed(dec), x0+4, yE - 7);
     c.restore();
     [[pl.entry,"Entry","#4aa3ff"],[pl.stop,"SL","#f6465d"]].concat((pl.tps||[]).map((v,i) => [v,"TP"+(i+1),"#0ecb81"])).forEach(([v,lab,col]) => { const y = py(v); if (y<0||y>this.PB) return; c.fillStyle = col; c.fillRect((this.W-this.axw)+1, y-7, this.axw-2, 14); c.fillStyle = "#000"; c.textAlign = "left"; c.fillText(lab+" "+v.toFixed(dec), (this.W-this.axw)+3, y); });
   },

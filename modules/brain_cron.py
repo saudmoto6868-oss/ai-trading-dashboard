@@ -242,11 +242,18 @@ def main(argv):
 
 def _lessons() -> list:
     """Journal lesson candidates for the review text; empty on any error so the review still goes out."""
+    out = []
     try:
         from modules import trade_learning
-        return trade_learning.suggestions()
+        out = list(trade_learning.suggestions())
     except Exception:
-        return []
+        out = []
+    try:   # the signal ledger: per-strategy conclusions (only where the ledger file exists, i.e. on the app server)
+        from modules import signal_ledger
+        out += signal_ledger.brain_lines()
+    except Exception:
+        pass
+    return out
 
 
 if __name__ == "__main__":

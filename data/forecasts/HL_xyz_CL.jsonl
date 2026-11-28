@@ -1,2 +1,3 @@
 {"id": "HL:xyz:CL|2026-11-26", "symbol": "HL:xyz:CL", "class": "Oil & Gas", "tf": "1d", "side": "long", "entry": 84.331, "stop": 83.333, "target": 85.828, "made_at": "2026-11-26", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
 {"id": "HL:xyz:CL|2026-11-27", "symbol": "HL:xyz:CL", "class": "Oil & Gas", "tf": "1d", "side": "short", "entry": 85.725, "stop": 88.482, "target": 81.58949999999999, "made_at": "2026-11-27", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
+{"id": "HL:xyz:CL|2026-11-28", "symbol": "HL:xyz:CL", "class": "Oil & Gas", "tf": "1d", "side": "short", "entry": 83.431, "stop": 88.482, "target": 75.8545, "made_at": "2026-11-28", "horizon_bars": 5, "rule": "baseline v0: last zig-zag leg continuation"}
